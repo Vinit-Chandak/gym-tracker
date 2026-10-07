@@ -371,8 +371,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           )}
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium">{entry.gym.name}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="min-w-0 font-medium [overflow-wrap:anywhere]">{entry.gym.name}</h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>

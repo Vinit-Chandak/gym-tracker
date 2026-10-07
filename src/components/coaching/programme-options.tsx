@@ -2,7 +2,7 @@
 import { coachingAction } from "./client-action";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { NavRow } from "@/components/ui/nav-row";
 import { chooseTrainingModeAction } from "@/server/actions/coaching-workflow";
 
@@ -39,8 +39,10 @@ export function ProgrammeOptions({
 /** The first run's way past having a programme: log workouts as they come. */
 export function JustTrackButton() {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const busy = saving || navigating;
   return (
     <>
       <button
@@ -48,11 +50,11 @@ export function JustTrackButton() {
         disabled={busy}
         className="text-action w-full"
         onClick={async () => {
-          setBusy(true);
+          setSaving(true);
           const result = await coachingAction(() => chooseTrainingModeAction("track"));
-          if (result.ok) router.push("/today");
+          if (result.ok) startNavigation(() => router.push("/today"));
           else setError(result.error);
-          setBusy(false);
+          setSaving(false);
         }}
       >
         Just track my workouts

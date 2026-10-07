@@ -2,7 +2,7 @@
 import { coachingAction } from "./client-action";
 
 import { Check, Paperclip } from "@/components/ui/icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,7 @@ export function CoachIntakeForm({
   preferredUnit?: "kg" | "lb";
 }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [answers, setAnswers] = useState<CoachIntake>(() =>
     withProfileDetails(initial?.answers ?? null, prefill),
   );
@@ -113,7 +114,8 @@ export function CoachIntakeForm({
   const [step, setStep] = useState(initialStep),
     [files, setFiles] = useState(reports),
     [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
+    [submitting, setSubmitting] = useState(false);
+  const busy = submitting || navigating;
   const [requestKey] = useState(() => crypto.randomUUID());
   useEffect(
     () => () => {
@@ -166,7 +168,7 @@ export function CoachIntakeForm({
     }, 700);
   }
   async function move(next: number) {
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
     try {
       await flush();
@@ -176,11 +178,11 @@ export function CoachIntakeForm({
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save your answers.");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
   async function create() {
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
     try {
       validateIntake(current.current);
@@ -191,7 +193,7 @@ export function CoachIntakeForm({
         createCoachProgramAction(savedIntakeId, requestKey),
       );
       if (!result.ok) throw new Error(result.error);
-      router.push(`${base}/jobs/${result.value.jobId}` as Route);
+      startNavigation(() => router.push(`${base}/jobs/${result.value.jobId}` as Route));
     } catch (e) {
       unstable_rethrow(e);
       setError(
@@ -202,24 +204,24 @@ export function CoachIntakeForm({
             : "Could not request a programme.",
       );
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
   async function exit() {
-    setBusy(true);
+    setSubmitting(true);
     try {
       await flush();
-      router.push(base);
+      startNavigation(() => router.push(base));
     } catch (e) {
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save.");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
   async function upload(selected: FileList | null) {
     if (!selected) return;
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
     try {
       if (selected.length + current.current.attachmentIds.length > MAX_REQUEST_FILES)
@@ -245,11 +247,11 @@ export function CoachIntakeForm({
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "The upload failed.");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
   async function remove(file: Report) {
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
     try {
       await flush();
@@ -262,7 +264,7 @@ export function CoachIntakeForm({
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not remove this file.");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
 
@@ -334,7 +336,7 @@ export function CoachIntakeForm({
 
 /* ------------------------------------------------------------------ chrome */
 
-/** The step's name, what saving is doing, and the way out — one row, one line each. */
+/** The step's name, save status and way out wrap when the text needs more room. */
 function Header({
   title,
   status,
@@ -347,8 +349,8 @@ function Header({
   onExit: () => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 flex-[1_1_10ch]">
         <h2 className="text-xl font-medium [overflow-wrap:anywhere]">{title}</h2>
         <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
           {status}
@@ -386,7 +388,7 @@ function StepProgress({
             aria-current={step === i ? "step" : undefined}
             aria-label={`Step ${i + 1} of ${STEPS.length}: ${name}`}
             onClick={() => onStep(i)}
-            className="min-w-0 flex-1 py-2"
+            className="min-h-[var(--ov-target)] min-w-0 flex-1 py-2"
           >
             <span
               className={cn(
@@ -419,13 +421,23 @@ function Actions({
   onBack?: () => void;
 }) {
   return (
-    <div className="sticky-actions flex items-center gap-3">
+    <div className="sticky-actions flex flex-wrap items-center gap-3">
       {onBack && (
-        <Button variant="secondary" disabled={busy} onClick={onBack} className="shrink-0">
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={onBack}
+          className="min-w-0 flex-[1_1_auto]"
+        >
           Back
         </Button>
       )}
-      <Button size="lg" disabled={busy || disabled} onClick={onNext} className="min-w-0 flex-1">
+      <Button
+        size="lg"
+        disabled={busy || disabled}
+        onClick={onNext}
+        className="min-w-0 flex-[1_1_12ch]"
+      >
         {busy ? "Saving…" : next}
       </Button>
     </div>
@@ -523,7 +535,7 @@ function DayPicker({
   return (
     <fieldset className="min-w-0">
       <legend className="mb-1.5 text-sm font-medium text-ink-muted">{legend}</legend>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-4 gap-1 min-[480px]:grid-cols-7">
         {WEEKDAY_SHORT.slice(1).map((short, i) => {
           const day = i + 1;
           const on = selected.includes(day);
@@ -1098,41 +1110,49 @@ function StartingPointStep({
         {files.length > 0 && (
           <ul className="ruled-list">
             {files.map((file) => (
-              <li key={file.id} className="flex items-center gap-2 py-2">
-                <input
-                  type="checkbox"
-                  id={`report-${file.id}`}
-                  checked={answers.attachmentIds.includes(file.id)}
-                  className="size-5 shrink-0 accent-[var(--ov-accent)]"
-                  disabled={
-                    busy ||
-                    (!answers.attachmentIds.includes(file.id) &&
-                      answers.attachmentIds.length >= MAX_REQUEST_FILES)
-                  }
-                  onChange={(event) =>
-                    change({
-                      attachmentIds: event.target.checked
-                        ? [...answers.attachmentIds, file.id]
-                        : answers.attachmentIds.filter((id) => id !== file.id),
-                    })
-                  }
-                />
+              <li key={file.id} className="space-y-2 py-2">
                 <label
                   htmlFor={`report-${file.id}`}
-                  className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]"
+                  className="flex min-h-[var(--ov-target)] cursor-pointer items-center gap-2 text-sm"
                 >
-                  {file.name}
+                  <input
+                    type="checkbox"
+                    id={`report-${file.id}`}
+                    checked={answers.attachmentIds.includes(file.id)}
+                    className="size-5 shrink-0 accent-[var(--ov-accent)]"
+                    disabled={
+                      busy ||
+                      (!answers.attachmentIds.includes(file.id) &&
+                        answers.attachmentIds.length >= MAX_REQUEST_FILES)
+                    }
+                    onChange={(event) =>
+                      change({
+                        attachmentIds: event.target.checked
+                          ? [...answers.attachmentIds, file.id]
+                          : answers.attachmentIds.filter((id) => id !== file.id),
+                      })
+                    }
+                  />
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{file.name}</span>
                 </label>
-                <a
-                  className="shrink-0 text-sm text-accent underline"
-                  href={`/api/coaching/attachments/${file.id}`}
-                  download
-                >
-                  Download
-                </a>
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => onRemove(file)}>
-                  Remove
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    className="inline-flex min-h-[var(--ov-target)] shrink-0 items-center text-sm text-accent underline"
+                    href={`/api/coaching/attachments/${file.id}`}
+                    download
+                  >
+                    Download
+                  </a>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0"
+                    disabled={busy}
+                    onClick={() => onRemove(file)}
+                  >
+                    Remove
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

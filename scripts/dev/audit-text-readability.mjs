@@ -12,7 +12,13 @@ export async function assertReadableText(locator) {
       const textWidth = (value) => context.measureText(value).width + value.length * letterSpacing;
       const rect = element.getBoundingClientRect();
       const text = element.textContent.trim();
-      const minimumWidth = Math.min(textWidth(text), textWidth("00000000"));
+      // A sentence may wrap at spaces. Protect the longest word's space without demanding
+      // that a short multiword heading fit on one line; still reject a crushed text column.
+      const longestWord = Math.max(
+        0,
+        ...[...text.matchAll(/[\p{L}\p{N}]+/gu)].map((word) => textWidth(word[0])),
+      );
+      const minimumWidth = Math.min(longestWord, textWidth("00000000"));
       const brokenWords = [];
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {

@@ -3,6 +3,7 @@ import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, webkit, devices, expect } from "@playwright/test";
 import postgres from "postgres";
+import { fillActivityField } from "./audit-controls.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -52,9 +53,9 @@ async function run(engine) {
     }
   };
   const fillRun = async (local, title) => {
-    await page.locator('[name="startedAt"]').fill(local);
+    await fillActivityField(page, "startedAt", local);
     await page.locator('[name="distanceValue"]').fill("5");
-    await page.locator('[name="minutes"]').fill("30");
+    await fillActivityField(page, "minutes", 30);
     await page.locator('input[name="effort"][value="3"]').locator("..").click();
     await page.locator('[name="title"]').fill(title);
   };
@@ -202,6 +203,7 @@ async function run(engine) {
           { time_zone: "America/Los_Angeles" },
         ]);
         await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.locator(".more-details-summary").click();
         await expect(
           page.getByText("Date and time in America/New_York.", { exact: true }),
         ).toBeVisible();
@@ -222,6 +224,7 @@ async function run(engine) {
       "An explicit change to the other repeated hour updates the UTC instant",
       async () => {
         await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.locator(".more-details-summary").click();
         await page.getByLabel("Which time?", { exact: true }).selectOption("-240");
         await saveActivity("Save changes");
         expect((await records()).find((record) => record.id === secondId)).toMatchObject({

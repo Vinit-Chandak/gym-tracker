@@ -1,6 +1,6 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ export function CustomExerciseForm({
   machines: { id: string; name: string; gymName: string }[];
 }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [name, setName] = useState(""),
     [category, setCategory] = useState(""),
     [modality, setModality] = useState(""),
@@ -29,13 +30,14 @@ export function CustomExerciseForm({
     [equipment, setEquipment] = useState(""),
     [notes, setNotes] = useState(""),
     [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
+    [saving, setSaving] = useState(false);
+  const busy = saving || navigating;
   return (
     <form
       className="space-y-4"
       onSubmit={async (e) => {
         e.preventDefault();
-        setBusy(true);
+        setSaving(true);
         setError(null);
         const result = await coachingAction(() =>
           createCustomExerciseAction({
@@ -48,9 +50,9 @@ export function CustomExerciseForm({
             notes,
           }),
         );
-        if (result.ok) router.push(`/exercises/${result.value.id}` as Route);
+        if (result.ok) startNavigation(() => router.push(`/exercises/${result.value.id}` as Route));
         else setError(result.error);
-        setBusy(false);
+        setSaving(false);
       }}
     >
       <h1 className="text-xl font-medium">Add your own exercise</h1>

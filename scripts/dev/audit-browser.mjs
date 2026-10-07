@@ -69,6 +69,8 @@ const routes = [
   "/progress/history",
   "/progress/history?kind=run",
   "/progress",
+  "/progress/calendar",
+  `/progress/day/${fixtures.populatedFoodDay ?? fixtures.history?.to ?? "2026-10-06"}`,
   "/progress?view=body",
   "/progress?view=running",
   "/progress?view=strength",
@@ -122,6 +124,10 @@ const routes = [
   `/exercises/${exercise}`,
   `/workouts/${workout}`,
   "/training",
+  ...(fixtures.programDays ?? [])
+    .filter((day) => day.userId === vinit)
+    .map((day) => `/training/days/${day.id}`),
+  `/workouts/start?gym=${gym}`,
   "/training/scheduled",
   "/training/programme",
   "/profile/sports",
@@ -364,6 +370,8 @@ for (const config of configurations.filter((c) =>
               "/food",
               "/progress/history",
               "/progress",
+              "/progress/calendar",
+              `/progress/day/${fixtures.history?.to ?? "2026-10-07"}`,
               "/profile/programme",
               "/gyms",
               "/profile/friends",

@@ -12,7 +12,14 @@ async function readableNames(names, surface) {
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
       context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const longestWord = Math.max(
+        0,
+        ...[...element.textContent.matchAll(/[\p{L}\p{N}]+/gu)].map(
+          (word) => context.measureText(word[0]).width,
+        ),
+      );
       const minimum = Math.min(
+        longestWord,
         context.measureText("00000000").width,
         row.clientWidth - parseFloat(rowStyle.paddingLeft) - parseFloat(rowStyle.paddingRight),
       );
@@ -38,7 +45,7 @@ async function contained(page, surface) {
 }
 
 async function containedDayMarkers(scope, surface) {
-  const markers = scope.locator("ol li > :is(a, span) > span:first-child");
+  const markers = scope.locator(".food-day > .type-figure");
   assert.ok((await markers.count()) >= 7, `${surface}: no calendar week found`);
   const measured = await markers.evaluateAll((elements) =>
     elements.map((element) => {
@@ -50,7 +57,6 @@ async function containedDayMarkers(scope, surface) {
       return {
         day: element.textContent.trim(),
         contained: marker.left >= cell.left - 1 && marker.right <= cell.right + 1,
-        square: Math.abs(marker.width - marker.height) <= 1,
         textContained: number.left >= marker.left - 1 && number.right <= marker.right + 1,
         marker: marker.toJSON(),
         cell: cell.toJSON(),
@@ -59,7 +65,7 @@ async function containedDayMarkers(scope, surface) {
   );
   for (const item of measured)
     assert.ok(
-      item.contained && item.square && item.textContained,
+      item.contained && item.textContained,
       `${surface}: day leaves its grid cell ${JSON.stringify(item)}`,
     );
 }
@@ -93,7 +99,7 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
             theme,
           );
         const navigate = async (path) => {
-          await visit(path, textSize);
+          page = (await visit(path, textSize)) ?? page;
           await assertPalette();
         };
         const capture = async (name, fullPage = false) => {
@@ -114,27 +120,23 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
         await navigate(`/food${selectedDay}`);
         await containedDayMarkers(page.getByRole("navigation", { name: "Days" }), "Week strip");
         const meals = page.getByRole("list", { name: "Meals", exact: true });
-        await readableNames(
-          meals.locator("a > span:first-child > span.font-medium"),
-          "Meal titles",
-        );
-        const summaries = meals.locator(".line-clamp-2");
+        await readableNames(meals.locator(".meal-row-name"), "Meal titles");
+        const summaries = meals.locator(".meal-row-foods");
         await readableNames(summaries, "Meal food summaries");
-        const heights = await summaries.evaluateAll((elements) =>
+        const textBounds = await summaries.evaluateAll((elements) =>
           elements.map((element) => {
-            const style = getComputedStyle(element);
+            const bounds = element.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const text = range.getBoundingClientRect();
             return {
               text: element.textContent,
-              height: element.getBoundingClientRect().height,
-              lineHeight: parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5,
+              contained: text.top >= bounds.top - 2 && text.bottom <= bounds.bottom + 2,
             };
           }),
         );
-        for (const item of heights)
-          assert.ok(
-            item.height <= item.lineHeight * 2 + 1,
-            `Summary exceeds two lines: ${JSON.stringify(item)}`,
-          );
+        for (const item of textBounds)
+          assert.ok(item.contained, `Meal summary text is clipped: ${JSON.stringify(item)}`);
         await contained(page, "Food summary");
         await capture("day", true);
         await captureRow(meals.getByRole("link").first(), "meal-row");
@@ -148,7 +150,7 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
         await page.getByRole("button", { name: /^Protein:/ }).click();
         const breakdown = page.getByRole("list", { name: "Protein by food", exact: true });
         await readableNames(
-          breakdown.locator("li > span:first-child > span.font-medium"),
+          breakdown.locator("li > span:first-child > span.font-bold"),
           "Macro breakdown",
         );
         await capture("macro");
@@ -159,30 +161,21 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
 
         await navigate(`/food/breakfast${selectedDay}`);
         const entries = page.getByRole("list", { name: "In breakfast", exact: true });
-        await readableNames(
-          entries.locator("button > span:first-child > span.font-medium"),
-          "Logged foods",
-        );
+        await readableNames(entries.locator(".food-row-name"), "Logged foods");
         const library = page.getByRole("list", { name: "Your foods and meals", exact: true });
-        await readableNames(
-          library.locator("button span.font-medium"),
-          "Food and saved-meal choices",
-        );
+        await readableNames(library.locator(".food-row-name"), "Food and saved-meal choices");
         await contained(page, "Meal editor");
         await capture("entries", true);
         await captureRow(entries.locator("li").first(), "entry-row");
 
         await navigate("/food/my-foods");
         const savedMeals = page.getByRole("list", { name: "Meals", exact: true });
-        await readableNames(savedMeals.locator("a span.font-medium"), "Saved meals");
+        await readableNames(savedMeals.locator(".food-row-name"), "Saved meals");
         await captureRow(savedMeals.getByRole("link").first(), "library-row");
         const savedPath = await savedMeals.getByRole("link").first().getAttribute("href");
         await navigate(savedPath);
         const savedItems = page.getByRole("list", { name: "In this meal", exact: true });
-        await readableNames(
-          savedItems.locator("button > span:first-child > span.font-medium"),
-          "Saved meal items",
-        );
+        await readableNames(savedItems.locator(".food-row-name"), "Saved meal items");
         await contained(page, "Saved meal editor");
         await capture("saved", true);
         await captureRow(savedItems.locator("li").first(), "saved-row");

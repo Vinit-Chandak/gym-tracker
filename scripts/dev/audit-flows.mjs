@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
+import { fillActivityField } from "./audit-controls.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -33,8 +34,17 @@ const results = [];
 const prefix = `Browser audit ${device} ${Date.now()}`;
 const userId = fixtures.people.find((p) => p.username === "sam").id;
 const path = () => new URL(page.url()).pathname;
-const fill = (name, value) => page.locator(`[name="${name}"]`).fill(String(value));
+const fill = (name, value) => fillActivityField(page, name, value);
 const choose = async (name, value) => {
+  const hiddenUnit = page.locator(`input[type="hidden"][name="${name}"]`);
+  if (await hiddenUnit.count()) {
+    const unit = page.getByRole("button", {
+      name: name === "poolLengthUnit" ? /^Pool length in / : /^Distance in /,
+    });
+    if ((await hiddenUnit.inputValue()) !== value) await unit.click();
+    await expect(hiddenUnit).toHaveValue(value);
+    return;
+  }
   const input = page.locator(`input[name="${name}"][value="${value}"]`);
   await input.locator("..").click();
   await expect(input).toBeChecked();
@@ -99,7 +109,7 @@ async function login(name) {
 async function save(label = "Save activity") {
   await page.getByRole("button", { name: label, exact: true }).click();
   await page.waitForURL(/\/training\/activities\/[^/]+$/);
-  await page.getByRole("link", { name: "Correct this activity" }).waitFor();
+  await page.getByRole("button", { name: /^Correct or delete this / }).waitFor();
   return path().split("/").at(-1);
 }
 async function check(name, work) {
@@ -175,7 +185,7 @@ try {
       await fill("notes", "Corrected through the browser");
       if (sport === "cycling") await fill("distanceValue", 0);
       if (sport === "swimming")
-        await expect(page.locator('[name="poolLengthUnit"][value="yd"]')).toBeChecked();
+        await expect(page.locator('[name="poolLengthUnit"]')).toHaveValue("yd");
       expect(await save("Save changes")).toBe(id);
       const [row] = await sql`select * from activities where id=${id}`;
       expect(row).toMatchObject({
@@ -201,7 +211,7 @@ try {
       await other.goto(`${baseURL}/training/activities/${id}/edit`, { waitUntil: "networkidle" });
       await fill("minutes", 36);
       await save("Save changes");
-      await other.locator('[name="minutes"]').fill("99");
+      await fillActivityField(other, "minutes", 99);
       await other.getByRole("button", { name: "Save changes", exact: true }).click();
       await expect(other.getByText(/changed somewhere else/)).toBeVisible();
       expect((await sql`select duration_ms from activities where id=${id}`)[0].duration_ms).toBe(
@@ -214,8 +224,8 @@ try {
   await check(
     "Back follows History → activity → editor, including reload and browser Forward",
     async () => {
-      // Opened from History, the record and its correction keep History's tab, Progress,
-      // selected (NAV-03, ADR 0034).
+      // The record keeps History's Progress tab. Correction is a focused form without
+      // the tab bar; leaving it restores the same record and origin.
       const selectedTab = () =>
         page
           .getByRole("navigation", { name: "Primary" })
@@ -225,12 +235,14 @@ try {
       await page.locator(`a[href="/training/activities/${ids.running}?from=history"]`).click();
       await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
       expect(await selectedTab()).toBe("Progress");
+      await page.getByRole("button", { name: /^Correct or delete this / }).click();
       await page.getByRole("link", { name: "Correct this activity" }).click();
       await page.waitForURL("**/edit?from=history");
       await page.reload({ waitUntil: "networkidle" });
-      expect(await selectedTab()).toBe("Progress");
+      await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
       await page.getByRole("link", { name: /^Back/ }).click();
       await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
+      expect(await selectedTab()).toBe("Progress");
       await page.getByRole("link", { name: /^Back/ }).click();
       await page.waitForURL("**/progress/history?kind=run");
       await page.goForward();
@@ -366,6 +378,7 @@ try {
     async () => {
       if (!ids.scheduled) throw new Error("Missing linked log");
       await go(`/training/activities/${ids.scheduled}`);
+      await page.getByRole("button", { name: /^Correct or delete this / }).click();
       await page.getByRole("button", { name: "Delete activity", exact: true }).click();
       await page.getByRole("button", { name: "Tap again to delete" }).click();
       await page.waitForURL("**/progress/history");

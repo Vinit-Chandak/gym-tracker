@@ -1,7 +1,7 @@
-/** Six local personas and persistent coaching states for the browser audit. Never resets data. */
+/** Local personas and persistent coaching states for the browser audit. Never resets data. */
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
@@ -13,9 +13,11 @@ import { sourceRevision } from "@/server/repositories/coaching-state";
 import { confirmIntake, saveIntake } from "@/server/repositories/coach-intakes";
 import { coachIntakeSchema, jobTargetSchema } from "@/domain/coaching-workflow";
 import { addExerciseToSession, startAdHocSession } from "@/server/repositories/sessions";
+import { acceptFollow, requestFollow } from "@/server/repositories/follows";
 import { seedAuditMultisport } from "./seed-audit-multisport";
 import { seedAuditHistory } from "./seed-audit-history";
 import { seedAuditBoundaries } from "./seed-audit-boundaries";
+import { AUDIT_EXTENDED_PERSONAS } from "./audit-fixture-config";
 
 const url = process.env.SEED_DATABASE_URL ?? "";
 const target = new URL(url);
@@ -32,6 +34,38 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 async function main() {
   try {
     for (const person of [
+      ...(AUDIT_EXTENDED_PERSONAS
+        ? [
+            {
+              username: "maya",
+              name: "Maya Patel",
+              unit: "kg" as const,
+              onboarded: true,
+              populate: true,
+            },
+            {
+              username: "noah",
+              name: "Noah Wilson",
+              unit: "lb" as const,
+              onboarded: true,
+              populate: true,
+            },
+            {
+              username: "leah",
+              name: "Leah Chen",
+              unit: "kg" as const,
+              onboarded: true,
+              populate: true,
+            },
+            {
+              username: "omar",
+              name: "Omar Hassan",
+              unit: "kg" as const,
+              onboarded: true,
+              populate: true,
+            },
+          ]
+        : []),
       {
         username: "alex",
         name: "Alex Rivera",
@@ -93,6 +127,29 @@ async function main() {
     await seedAuditMultisport(db);
     const history = await seedAuditHistory(db);
     const boundariesAdded = await seedAuditBoundaries(db, history);
+    if (AUDIT_EXTENDED_PERSONAS) {
+      const marker = "extended-persona-follows-v1";
+      if (
+        !(await client`select 1 from auth.local_audit_seed_state where name = ${marker}`).length
+      ) {
+        const people = await db.select().from(schema.profiles);
+        const id = (name: string) => people.find((person) => person.username === name)!.id;
+        for (const [follower, followee, accepted] of [
+          ["vinit", "maya", true],
+          ["maya", "vinit", true],
+          ["vinit", "noah", true],
+          ["noah", "maya", true],
+          ["leah", "vinit", true],
+          ["omar", "leah", true],
+          ["omar", "vinit", false],
+        ] as const) {
+          await withUser(db, id(follower), (tx) => requestFollow(tx, id(follower), id(followee)));
+          if (accepted)
+            await withUser(db, id(followee), (tx) => acceptFollow(tx, id(followee), id(follower)));
+        }
+        await client`insert into auth.local_audit_seed_state (name, details) values (${marker}, '{}'::jsonb)`;
+      }
+    }
     for (const username of ["vinit", "shreyash", "priya"]) {
       const [person] = await db
         .select()
@@ -355,7 +412,27 @@ async function main() {
       history,
       boundariesAdded,
       people,
+      populatedFoodDay: (
+        await db
+          .select({ date: schema.foodEntries.eatenOn })
+          .from(schema.foodEntries)
+          .where(
+            eq(schema.foodEntries.userId, people.find((person) => person.username === "vinit")!.id),
+          )
+          .orderBy(desc(schema.foodEntries.eatenOn))
+          .limit(1)
+      )[0]?.date,
       gyms: await db.select({ id: schema.gyms.id, userId: schema.gyms.userId }).from(schema.gyms),
+      programDays: await db
+        .select({
+          id: schema.programDays.id,
+          userId: schema.programs.userId,
+          dayIndex: schema.programDays.dayIndex,
+          name: schema.programDays.name,
+        })
+        .from(schema.programDays)
+        .innerJoin(schema.programs, eq(schema.programs.id, schema.programDays.programId))
+        .where(eq(schema.programs.status, "active")),
       workouts: await db
         .select({
           id: schema.workoutSessions.id,
@@ -447,7 +524,7 @@ async function main() {
       `Audit ready: ${people.length} users, ${inventory.workouts.length} workouts, ${inventory.activities.length} activities, ${inventory.drafts.length} proposals.`,
     );
     console.log(
-      "Accounts: vinit, shreyash, priya, alex, sam, taylor @local.test; password: password123",
+      `Accounts: ${people.map((person) => person.username).join(", ")} @local.test; password: password123`,
     );
   } finally {
     await client.end();

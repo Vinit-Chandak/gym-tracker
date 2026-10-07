@@ -13,12 +13,11 @@ import { setSportPreference } from "@/server/repositories/sport-preferences";
 import { sourceRevision } from "@/server/repositories/coaching-state";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 import { diffOperationIds, diffPrograms } from "@/domain/program-diff";
+import { AUDIT_HISTORY_USERNAMES } from "./audit-fixture-config";
 
 export async function seedAuditMultisport(db: Db) {
   const people = await db.select().from(s.profiles);
-  for (const person of people.filter((p) =>
-    ["vinit", "shreyash", "priya", "alex"].includes(p.username),
-  )) {
+  for (const person of people.filter((p) => AUDIT_HISTORY_USERNAMES.includes(p.username))) {
     await withUser(db, person.id, async (tx) => {
       const [already] = await tx
         .select()

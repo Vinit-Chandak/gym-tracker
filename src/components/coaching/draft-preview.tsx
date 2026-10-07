@@ -1,6 +1,6 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -52,14 +52,16 @@ export function DraftPreview({
   preferredUnit: "kg" | "lb";
 }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [current, setCurrent] = useState(draft),
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
     [startDate, setStartDate] = useState(today),
-    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const busy = saving || navigating;
   const editable = ["editing", "ready"].includes(current.status);
   async function check() {
-    setBusy(true);
+    setSaving(true);
     const result = await coachingAction(() =>
       reviewProgramDraftAction(current.id, current.revision),
     );
@@ -68,10 +70,10 @@ export function DraftPreview({
       setNeedsCheck(false);
       setError(null);
     } else setError(result.error);
-    setBusy(false);
+    setSaving(false);
   }
   async function activate() {
-    setBusy(true);
+    setSaving(true);
     const result = await coachingAction(() =>
       activateProgramDraftAction({
         id: current.id,
@@ -80,9 +82,9 @@ export function DraftPreview({
         transition: "new_block",
       }),
     );
-    if (result.ok) router.push("/today");
+    if (result.ok) startNavigation(() => router.push("/today"));
     else setError(result.error);
-    setBusy(false);
+    setSaving(false);
   }
   return (
     <div className="space-y-4">
@@ -233,11 +235,11 @@ export function DraftPreview({
             variant="ghost"
             disabled={busy}
             onClick={async () => {
-              setBusy(true);
+              setSaving(true);
               const result = await coachingAction(() => rejectProgramDraftAction(current.id));
-              if (result.ok) router.push(base);
+              if (result.ok) startNavigation(() => router.push(base));
               else setError(result.error);
-              setBusy(false);
+              setSaving(false);
             }}
           >
             Discard this draft

@@ -1,6 +1,6 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,19 @@ import { copyProgramAction, archiveProgramAction } from "@/server/actions/coachi
  */
 export function ProgrammeTools({ id, active = true }: { id: string; active?: boolean }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [busy, setBusy] = useState(false),
     [archive, setArchive] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const pending = busy || navigating;
   async function copy(duplicate: boolean) {
     setBusy(true);
     setError(null);
     const result = await coachingAction(() => copyProgramAction(id, duplicate));
-    if (result.ok) router.push(`/profile/programme/manual?draft=${result.value.id}` as Route);
+    if (result.ok)
+      startNavigation(() =>
+        router.push(`/profile/programme/manual?draft=${result.value.id}` as Route),
+      );
     else setError(result.error);
     setBusy(false);
   }
@@ -31,11 +36,11 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
     <div className="space-y-2">
       <div className="grid gap-2 min-[420px]:grid-cols-2">
         {active && (
-          <Button variant="secondary" disabled={busy} onClick={() => copy(false)}>
+          <Button variant="secondary" disabled={pending} onClick={() => copy(false)}>
             Edit future programme
           </Button>
         )}
-        <Button variant="secondary" disabled={busy} onClick={() => copy(true)}>
+        <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
           Duplicate programme
         </Button>
       </div>
@@ -49,7 +54,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
             <div className="grid gap-2 min-[420px]:grid-cols-2">
               <Button
                 variant="danger"
-                disabled={busy}
+                disabled={pending}
                 onClick={async () => {
                   setBusy(true);
                   const result = await coachingAction(() => archiveProgramAction(id));
@@ -69,7 +74,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
           <Button
             variant="ghost"
             className="flex w-full"
-            disabled={busy}
+            disabled={pending}
             onClick={() => setArchive(true)}
           >
             Archive programme
@@ -78,6 +83,11 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
+        </p>
+      )}
+      {navigating && (
+        <p role="status" className="text-sm text-ink-2">
+          Opening programme draft…
         </p>
       )}
     </div>

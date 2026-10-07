@@ -5,6 +5,10 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import { withUser } from "@/db/with-user";
+import {
+  AUDIT_HISTORY_VERSION as VERSION,
+  AUDIT_HISTORY_USERNAMES as USERNAMES,
+} from "./audit-fixture-config";
 
 const database = process.env.SEED_DATABASE_URL ?? "";
 const target = new URL(database);
@@ -27,19 +31,19 @@ const check = (name: string, passed: boolean, detail: unknown) => {
 async function main() {
   try {
     const [state] =
-      await client`select details from auth.local_audit_seed_state where name = 'history-56-months-v1'`;
-    if (!state) throw new Error("Run audit:setup before verifying the 56-month fixture.");
+      await client`select details from auth.local_audit_seed_state where name = ${VERSION}`;
+    if (!state) throw new Error("Run audit setup before verifying the history fixture.");
     const window = state.details as { from: string; through: string; months: number };
     const coverage = await client`
     select p.username, a.sport, count(*)::int as activities,
       count(distinct to_char(a.occurred_on, 'YYYY-MM'))::int as months,
       min(a.occurred_on)::text as first_day, max(a.occurred_on)::text as last_day
     from activities a join profiles p on p.id = a.user_id
-    where a.source_reference = 'history-56-months-v1'
+    where a.source_reference = ${VERSION}
     group by p.username, a.sport order by p.username, a.sport`;
     check(
-      "56 months of all four sports for four established personas",
-      coverage.length === 16 &&
+      `${window.months} calendar months of all four sports for ${USERNAMES.length} established personas`,
+      coverage.length === USERNAMES.length * 4 &&
         coverage.every(
           (row) =>
             row.months === window.months &&
@@ -53,29 +57,31 @@ async function main() {
     select p.username,
       (select count(distinct to_char(e.eaten_on, 'YYYY-MM'))::int from food_entries e where e.user_id = p.id and e.eaten_on between ${window.from}::date and ${window.through}::date) as food_months,
       (select count(distinct to_char(b.measured_on, 'YYYY-MM'))::int from body_weight_logs b where b.user_id = p.id and b.measured_on between ${window.from}::date and ${window.through}::date) as weight_months
-    from profiles p where p.username in ('vinit', 'shreyash', 'priya', 'alex') order by p.username`;
+    from profiles p where p.username in ${client(USERNAMES)} order by p.username`;
     check(
-      "56 months of food and body-weight readings",
-      nutrition.length === 4 &&
-        nutrition.every((row) => row.food_months === 56 && row.weight_months === 56),
+      `${window.months} calendar months of food and body-weight readings`,
+      nutrition.length === USERNAMES.length &&
+        nutrition.every(
+          (row) => row.food_months === window.months && row.weight_months === window.months,
+        ),
       nutrition,
     );
     const recovery = await client`
       select p.username, count(distinct to_char(r.date, 'YYYY-MM'))::int as months
       from daily_recovery r join profiles p on p.id = r.user_id
-      where p.username in ('vinit', 'shreyash', 'priya', 'alex')
+      where p.username in ${client(USERNAMES)}
         and r.date between ${window.from}::date and ${window.through}::date
       group by p.username order by p.username`;
     check(
-      "56 months of standalone recovery",
-      recovery.length === 4 && recovery.every((row) => row.months === 56),
+      `${window.months} calendar months of standalone recovery`,
+      recovery.length === USERNAMES.length && recovery.every((row) => row.months === window.months),
       recovery,
     );
 
     const [chronology] = await client`
     select count(*)::int as mismatches from activities a
     left join workout_sessions w on w.activity_id = a.id and w.user_id = a.user_id
-    where a.source_reference = 'history-56-months-v1' and (
+    where a.source_reference = ${VERSION} and (
       a.occurred_on <> (a.started_at at time zone a.recorded_time_zone)::date or
       a.occurred_on < ${window.from}::date or a.occurred_on > ${window.through}::date or
       (a.sport = 'strength' and (w.id is null or w.completed_at is null or w.started_at <> a.started_at
@@ -92,7 +98,7 @@ async function main() {
     left join user_sport_preferences pref on pref.user_id = a.user_id and pref.sport = a.sport
     left join shared_session_stats st on st.user_id = a.user_id and st.source_id = a.id
       and st.sport::text = case a.sport when 'strength' then 'workout' when 'running' then 'run' when 'cycling' then 'cycle' else 'swim' end
-    where a.source_reference = 'history-56-months-v1' and (
+    where a.source_reference = ${VERSION} and (
       ((a.sport in ('strength', 'running') or (p.share_training and pref.share_stats)) and (st.id is null or st.occurred_on <> a.occurred_on))
       or (a.sport in ('cycling', 'swimming') and not (p.share_training and coalesce(pref.share_stats, false)) and st.id is not null))`;
     check(

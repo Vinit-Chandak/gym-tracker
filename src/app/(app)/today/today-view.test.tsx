@@ -186,6 +186,19 @@ it("folds the plan until asked for, then unfolds it in place", () => {
   ).toContain("Rope triceps pushdown");
 });
 
+it("keeps other training accessible after lifting is logged while the run is still owed", () => {
+  show({ plan: { ...plan(), sessionStatus: "completed" } });
+  expect(screen.getByRole("button", { name: /More options/ })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log run: 25–30 min" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Start workout: Easy Run + Arms" })).toBeNull();
+});
+
+it("keeps other training accessible on a day with only endurance planned", () => {
+  show({ plan: { ...plan(), suggestedDay: { ...DAY, includesLifting: false } } });
+  expect(screen.getByRole("button", { name: /More options/ })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Start workout: Easy Run + Arms" })).toBeNull();
+});
+
 it("keeps Resume and Discard in the day's card while its session is open, and nothing else", () => {
   show({ inProgress: session() });
   const workout = within(card("Easy Run + Arms"));

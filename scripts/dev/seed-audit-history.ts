@@ -18,11 +18,21 @@ import { createFood, saveLibraryMeal, saveNutritionTargets } from "@/server/repo
 import { writeSessionStats } from "@/server/repositories/shared-stats";
 import { readWorkouts } from "@/server/repositories/training-data";
 
-const VERSION = "history-56-months-v1";
-const MONTHS = 56;
-const USERNAMES = ["vinit", "shreyash", "priya", "alex"];
+import {
+  AUDIT_HISTORY_MONTHS as MONTHS,
+  AUDIT_HISTORY_VERSION as VERSION,
+  AUDIT_HISTORY_USERNAMES as USERNAMES,
+} from "./audit-fixture-config";
+
+const realistic = process.env.AUDIT_REALISTIC_HISTORY === "true";
 type Person = typeof s.profiles.$inferSelect;
-type Window = { version: string; months: number; from: string; through: string };
+type Window = {
+  version: string;
+  months: number;
+  from: string;
+  through: string;
+  usernames?: string[];
+};
 
 /** Stable UUIDs also make an interrupted run safe to resume before its month receipt was saved. */
 function idFor(key: string): string {
@@ -162,8 +172,13 @@ async function strength(
     updatedAt: completedAt,
   });
   await openStrengthParent(tx, person.id, { id: sessionId, startedAt }, person.timeZone);
-  const slugs =
-    index % 2 === 0
+  const slugs = realistic
+    ? [
+        ["barbell-bench-press", "barbell-row", "overhead-press", "db-lateral-raise", "plank"],
+        ["high-bar-squat", "barbell-romanian-deadlift", "goblet-squat", "farmers-carry", "plank"],
+        ["goblet-squat", "incline-db-press", "pull-up", "barbell-row", "farmers-carry"],
+      ][index % 3]!
+    : index % 2 === 0
       ? ["barbell-bench-press", "goblet-squat", "plank"]
       : ["barbell-bench-press", "farmers-carry", "plank"];
   for (const [slot, slug] of slugs.entries()) {
@@ -180,15 +195,37 @@ async function strength(
       createdAt: startedAt,
       supersetGroup: index % 3 === 0 && slot > 0 ? "Core and assistance" : null,
     });
-    const kg = Math.round((person.username === "priya" ? 20 : 30) + month * 0.6 + slot * 2.5);
-    const load = person.preferredUnit === "lb" ? Math.round((kg * 2.20462) / 5) * 5 : kg;
+    const bases: Record<string, number> = {
+      "barbell-bench-press": 45,
+      "barbell-row": 35,
+      "overhead-press": 25,
+      "db-lateral-raise": 5,
+      "high-bar-squat": 55,
+      "barbell-romanian-deadlift": 50,
+      "goblet-squat": 16,
+      "farmers-carry": 18,
+      "incline-db-press": 14,
+      "pull-up": 0,
+    };
+    const kg = realistic
+      ? slug === "pull-up"
+        ? 0
+        : ((bases[slug] ?? 0) + month * (slug === "db-lateral-raise" ? 0.25 : 1.25)) *
+          (person.username === "priya" || person.username === "maya" ? 0.75 : 1)
+      : Math.round((person.username === "priya" ? 20 : 30) + month * 0.6 + slot * 2.5);
+    const load =
+      person.preferredUnit === "lb"
+        ? Math.round((kg * 2.20462) / 5) * 5
+        : realistic
+          ? Math.round(kg / 2.5) * 2.5
+          : kg;
     // The first set is 60% of the work, rounded to a load plates make (5 lb, 2.5 kg): the
     // logger offers it again as next session's warm-up, so it has to be one a bar can hold.
     const plate = person.preferredUnit === "lb" ? 5 : 2.5;
     const isTimed = slug === "plank";
     const isCarry = slug === "farmers-carry";
     await tx.insert(s.setLogs).values(
-      Array.from({ length: 3 }, (_, set) => ({
+      Array.from({ length: realistic ? 4 : 3 }, (_, set) => ({
         id: idFor(`${workoutExerciseId}:${set}`),
         userId: person.id,
         workoutExerciseId,
@@ -196,13 +233,16 @@ async function strength(
         setType: set === 0 && !isTimed && !isCarry ? ("warmup" as const) : ("working" as const),
         weight: isTimed ? 0 : set === 0 ? Math.round((load * 0.6) / plate) * plate : load,
         unit: person.preferredUnit,
-        reps: isTimed || isCarry ? null : 8 + (index % 3),
+        reps: isTimed || isCarry ? null : slug === "db-lateral-raise" ? 12 : 8 + (index % 3),
         rir: isTimed || isCarry || partial ? null : 2,
         rpe: isTimed || isCarry ? (partial ? null : 3) : null,
         effortReported: !partial,
         durationSeconds: isTimed ? 30 + (month % 7) * 5 : isCarry ? 40 : null,
         distanceMeters: isCarry ? 20 + (index % 3) * 10 : null,
-        completedAt: new Date(startedAt.getTime() + (slot * 12 + set * 3 + 4) * 60_000),
+        completedAt: new Date(
+          startedAt.getTime() +
+            (realistic ? slot * 6 + set * 1.5 + 2 : slot * 12 + set * 3 + 4) * 60_000,
+        ),
         createdAt: startedAt,
       })),
     );
@@ -302,6 +342,7 @@ export async function seedAuditHistory(
     months: MONTHS,
     from: date(anchor.getUTCFullYear(), anchor.getUTCMonth() - MONTHS + 1, 1),
     through,
+    usernames: USERNAMES,
   };
   if (saved && process.env.AUDIT_SEED_THROUGH && through !== window.through)
     throw new Error(
@@ -314,7 +355,7 @@ export async function seedAuditHistory(
     USERNAMES.includes(person.username),
   );
   if (people.length !== USERNAMES.length)
-    throw new Error("Seed all four established audit personas before history.");
+    throw new Error(`Seed all ${USERNAMES.length} established audit personas before history.`);
   const exercises = new Map((await db.select().from(s.exercises)).map((row) => [row.slug, row.id]));
   let insertedMonths = 0;
   for (const person of people) {
@@ -365,8 +406,17 @@ export async function seedAuditHistory(
       )
         continue;
       await withUser(db, person.id, async (tx) => {
-        const strengthDays =
-          person.username === "priya" ? [1, 8, 15, 22] : [1, 4, 8, 11, 15, 18, 22, 25];
+        const strengthDays = realistic
+          ? Array.from({ length: Number(until.slice(-2)) }, (_, i) => i + 1).filter((number) => {
+              const weekday = new Date(
+                `${first.slice(0, 7)}-${String(number).padStart(2, "0")}T00:00:00Z`,
+              ).getUTCDay();
+              // Three sensible sessions each week, with occasional travel/rest gaps.
+              return [1, 3, 5].includes(weekday) && (number + month) % 11 !== 0;
+            })
+          : person.username === "priya"
+            ? [1, 8, 15, 22]
+            : [1, 4, 8, 11, 15, 18, 22, 25];
         for (const [index, number] of strengthDays.entries()) {
           const day = `${first.slice(0, 7)}-${String(number).padStart(2, "0")}`;
           if (day <= until) await strength(tx, person, gym.id, exercises, day, index, month);

@@ -20,13 +20,29 @@ for (const config of [
   const browser = await config.engine.launch({
     executablePath: config.engine === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
   });
-  const context = await browser.newContext({ ...config.options, baseURL });
-  const page = await context.newPage();
+  // Keep forced document loads deterministic; food/endurance suites exercise the real SW.
+  const context = await browser.newContext({ ...config.options, baseURL, serviceWorkers: "block" });
+  let page = await context.newPage();
   page.setDefaultTimeout(15_000);
   let errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  const recordError = (error) => errors.push(error.message);
+  page.on("pageerror", recordError);
 
   async function visit(path, textSize = 16) {
+    if (page.url() !== "about:blank") {
+      // A screen sweep needs a fresh document, not cancellation errors from an old
+      // document's late prefetch. Check that document before disposing of it, and
+      // observe every error on the new page from before its first request.
+      assert.deepEqual(errors, [], "Uncaught browser errors before leaving the screen");
+      const previous = page;
+      const viewport = previous.viewportSize();
+      previous.off("pageerror", recordError);
+      page = await context.newPage();
+      page.setDefaultTimeout(15_000);
+      page.on("pageerror", recordError);
+      await page.setViewportSize(viewport);
+      await previous.close();
+    }
     await page.goto(path, { waitUntil: "networkidle" });
     await page.evaluate((size) => {
       document.documentElement.style.fontSize = `${size}px`;
@@ -36,6 +52,7 @@ for (const config of [
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
     });
+    return page;
   }
   async function login(username) {
     await context.clearCookies();
@@ -95,7 +112,7 @@ for (const config of [
     await page.getByRole("button", { name: /^Appearance/ }).click();
     await page
       .getByRole("dialog", { name: "Appearance", exact: true })
-      .getByRole("button", { name: mode, exact: true })
+      .getByRole("radio", { name: mode, exact: true })
       .click();
   }
 
@@ -112,6 +129,12 @@ for (const config of [
       });
       await visit("/profile/ai-coach", 32);
       await assertReadableText(page.getByRole("heading", { level: 1 }));
+      await page
+        .getByRole("button", {
+          name: "Goals, availability and reports; programme changes and requests",
+          exact: true,
+        })
+        .click();
       for (const title of ["Goals, availability and reports", "Programme changes and requests"]) {
         await assertReadableText(page.getByText(title, { exact: true }));
       }
@@ -149,7 +172,13 @@ for (const config of [
     });
     await check("food-rows-narrow-large-text", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
-      await checkFoodLayout({ page, visit, folder, device: config.name, day: fixtures.history.to });
+      await checkFoodLayout({
+        page,
+        visit,
+        folder,
+        device: config.name,
+        day: fixtures.populatedFoodDay ?? fixtures.history.to,
+      });
     });
     await page.setViewportSize(config.options.viewport);
     await check("coach-heading-large-text", async () => {
@@ -200,29 +229,66 @@ for (const config of [
       });
     });
     await page.setViewportSize(config.options.viewport);
-    await check("chart-touch-large-text", async () => {
-      await visit("/progress", 32);
+    await check("chart-values-large-text", async () => {
+      await visit("/progress?view=body", 32);
       const charts = page.locator('svg[role="img"]');
       assert.ok((await charts.count()) > 0);
       for (const chart of await charts.all()) {
         await chart.scrollIntoViewIfNeeded();
         const rect = await chart.boundingBox();
-        await chart.dispatchEvent("pointerdown", {
-          clientX: rect.x + rect.width - 12,
-          clientY: rect.y + 50,
-          pointerType: "touch",
-        });
-        const tooltip = chart.locator("..").getByRole("status");
-        const bounds = await tooltip.boundingBox();
         assert.ok(
-          bounds.x >= rect.x - 1 && bounds.x + bounds.width <= rect.x + rect.width + 1,
-          `Tooltip leaves chart: ${JSON.stringify({ rect, bounds })}`,
+          rect.x >= -1 &&
+            rect.x + rect.width <=
+              1 + (await page.evaluate(() => document.documentElement.clientWidth)),
+          `Chart leaves viewport: ${JSON.stringify(rect)}`,
         );
       }
+      const values = page.getByRole("button", { name: /^View values/ }).first();
+      await values.click();
+      assert.equal(await values.getAttribute("aria-expanded"), "true");
+      assert.ok((await page.locator(".chart-values-list li").count()) > 0);
+      await assertReadableText(page.locator(".chart-values-list li > span"));
       await page.screenshot({
         animations: "disabled",
-        path: `${folder}/${config.name}-chart-touch.png`,
+        path: `${folder}/${config.name}-chart-values.png`,
       });
+    });
+    await check("exercise-charts-fit-during-text-size-changes", async () => {
+      const exercise = fixtures.exercises.find((entry) => entry.slug === "barbell-bench-press");
+      await visit(`/exercises/${exercise.id}`);
+      for (const width of [config.options.viewport.width, 320]) {
+        await page.setViewportSize({ width, height: 740 });
+        for (const size of [32, 16, 24, 32]) {
+          // Inspect in the same task as the style change, before ResizeObserver can update.
+          const bounds = await page.evaluate((fontSize) => {
+            document.documentElement.style.fontSize = `${fontSize}px`;
+            return [...document.querySelectorAll('svg[role="img"][width][height]')].map((chart) => {
+              const svg = chart.getBoundingClientRect();
+              const holder = chart.parentElement.getBoundingClientRect();
+              return {
+                fits: svg.width <= holder.width + 1 && svg.right <= holder.right + 1,
+                width: svg.width,
+                available: holder.width,
+              };
+            });
+          }, size);
+          assert.ok(bounds.length >= 2, "Expected both the lifetime bars and the session line");
+          assert.ok(
+            bounds.every((chart) => chart.fits),
+            `${width}px/${size}px: ${JSON.stringify(bounds)}`,
+          );
+        }
+      }
+    });
+    await check("leaderboard-names-at-large-text", async () => {
+      const exercise = fixtures.exercises.find((entry) => entry.slug === "barbell-bench-press");
+      for (const width of [config.options.viewport.width, 320]) {
+        await page.setViewportSize({ width, height: 740 });
+        await visit(`/exercises/${exercise.id}`, 32);
+        await assertReadableText(
+          page.locator('main a[href^="/u/"] > span:first-child > span:last-child > span'),
+        );
+      }
     });
     await check("native-select-controls", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
@@ -311,7 +377,7 @@ for (const config of [
       await page.waitForURL((url) => url.pathname === "/profile");
       assert.equal(await page.locator("html").getAttribute("data-overload-mode"), "dark");
       assert.match(await page.getByRole("button", { name: /^Appearance/ }).innerText(), /Dark/);
-      await visit("/profile"); // A document reload restores the original Storage prototype.
+      await visit("/profile"); // A fresh document restores the original Storage prototype.
     });
 
     await login("alex");

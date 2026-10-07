@@ -149,7 +149,9 @@ async function openMeal(label, slug) {
   await navigate("/food");
   await page.getByRole("link", { name: new RegExp(`^${label}`) }).click();
   await page.waitForURL(`**/food/${slug}`);
-  await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: new RegExp(`^${label}(?:\\s*,|$)`) }),
+  ).toBeVisible();
 }
 async function submit(name) {
   await dialog().getByRole("button", { name, exact: true }).click();
@@ -299,7 +301,7 @@ try {
       await myFoods()
         .getByRole("button", { name: /^Oats 100 g/ })
         .click();
-      await dialog().getByRole("button", { name: "200 g", exact: true }).click();
+      await dialog().getByLabel("Amount eaten", { exact: true }).fill("200");
       await expect(dialog()).toContainText("778 kcal");
       await submit("Add to Lunch");
       expect(await entries("lunch")).toEqual([
@@ -441,7 +443,7 @@ try {
     await page.waitForURL("**/food/my-foods/meals/new");
     await page.getByLabel("Name", { exact: true }).fill("Rice bowl");
     await page.getByRole("button", { name: /^Rice 100 g/ }).click();
-    await dialog().getByRole("button", { name: "200 g", exact: true }).click();
+    await dialog().getByLabel("Amount", { exact: true }).fill("200");
     await submit("Add to meal");
     await page.getByRole("button", { name: /^Oats 100 g/ }).click();
     await dialog().getByLabel("Amount", { exact: true }).fill("40");
@@ -483,8 +485,8 @@ try {
     await expect(sheet.getByText(/^\d+ g to go$|^Reached$/)).toBeVisible();
     await expect(sheet).not.toContainText("%");
     await sheet.getByRole("button", { name: "Close sheet" }).click();
-    // The card says what is left beside its total, and no longer writes out the goal's range.
-    await expect(page.getByText(/^[\d,.]+ left$|^Goal met$|^[\d,.]+ over$/)).toBeVisible();
+    // The day states eaten against its target; the accessible bowl describes its standing.
+    await expect(page.getByRole("img", { name: /^The bowl.*kcal\.$/ })).toBeVisible();
     await expect(page.getByText(/Goal [\d,]+–/)).toHaveCount(0);
   });
   await check(
@@ -496,7 +498,7 @@ try {
         select (now() at time zone time_zone)::date from profiles where id=${user.id})`;
       const total = kcal.toLocaleString("en-GB", { maximumFractionDigits: 1 });
       await tab("Food").click();
-      await expect(page.getByText(`${total} / 2,400 kcal`, { exact: false })).toBeVisible();
+      await expect(page.locator(".food-eaten")).toContainText(`${total} / 2,400 kcal`);
       await page.getByRole("link", { name: /^Lunch/ }).click();
       await page.waitForURL("**/food/lunch");
       await expect(selectedTab()).toHaveText("Food");
@@ -540,7 +542,7 @@ try {
           !response.request().headers()["next-router-prefetch"]
         );
       });
-      await page.getByRole("button", { name: "Progress section: Body" }).click();
+      await page.getByRole("button", { name: /^Progress section:/ }).click();
       await prefetched;
       const requests = [];
       const record = (request) => {
@@ -761,7 +763,7 @@ try {
     await dialog().getByRole("button", { name: "Close sheet" }).click();
     // Progress's picker, with History among its sections.
     await navigate("/progress");
-    await page.getByRole("button", { name: "Progress section: Body" }).click();
+    await page.getByRole("button", { name: /^Progress section:/ }).click();
     await settle();
     await page.screenshot({ path: `${dir}/progress-sections-390-844-dark.png` });
     await dialog().getByRole("button", { name: "Close sheet" }).click();
@@ -790,7 +792,7 @@ try {
       await page.waitForURL(/\/food$/);
       await expect(
         page.getByRole("link", {
-          name: /^Targets\s*Add your body weight for protein\s*2,400 kcal$/,
+          name: /^Targets\s*2,400 kcal\s*Add your body weight for protein$/,
         }),
       ).toBeVisible();
       await navigate("/food/targets");
@@ -811,12 +813,12 @@ try {
       await page.getByRole("button", { name: "Save targets", exact: true }).click();
       await page.waitForURL(/\/food$/);
       await expect(
-        page.getByRole("link", { name: /^Targets\s*Nothing left for carbs\s*500 kcal$/ }),
+        page.getByRole("link", { name: /^Targets\s*500 kcal\s*Nothing left for carbs$/ }),
       ).toBeVisible();
       await settleRequests();
       await page.reload({ waitUntil: "networkidle" });
       await expect(
-        page.getByRole("link", { name: /^Targets Nothing left for carbs/ }),
+        page.getByRole("link", { name: /^Targets 500 kcal Nothing left for carbs/ }),
       ).toBeVisible();
       await navigate("/food/targets");
       await page.getByRole("button", { name: /^Use 55\s\/\s25\s\/\s20$/ }).click();

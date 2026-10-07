@@ -80,7 +80,7 @@ export function InkBars({
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={label}
-          className="block overflow-visible"
+          className="block w-full overflow-visible"
         >
           {scale.ticks.map((tick) => (
             <g key={tick}>
@@ -221,7 +221,7 @@ export function InkLine({
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={label}
-        className="block overflow-visible"
+        className="block w-full overflow-visible"
       >
         {ticks.map((tick) => (
           <g key={tick}>

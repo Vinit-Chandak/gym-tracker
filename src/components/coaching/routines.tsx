@@ -1,6 +1,6 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -20,9 +20,11 @@ export function RoutineLibrary({
   library: { slug: string; name: string }[];
 }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [gymId, setGymId] = useState(""),
-    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const busy = saving || navigating;
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-medium">Saved routines</h1>
@@ -59,12 +61,13 @@ export function RoutineLibrary({
           <Button
             disabled={busy || !gymId}
             onClick={async () => {
-              setBusy(true);
+              setSaving(true);
               setError(null);
               const result = await coachingAction(() => startRoutineAction(routine.id, gymId));
-              if (result.ok) router.push(`/workouts/${result.value.sessionId}` as Route);
+              if (result.ok)
+                startNavigation(() => router.push(`/workouts/${result.value.sessionId}` as Route));
               else setError(result.error);
-              setBusy(false);
+              setSaving(false);
             }}
           >
             {busy ? "Starting…" : "Start this routine"}
@@ -92,9 +95,11 @@ export function RoutineLibrary({
 }
 export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; name: string }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [title, setTitle] = useState(name),
-    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const busy = saving || navigating;
   return (
     // Board Summary: a row that opens, led by its glyph, the routine's name and Save under it.
     <details className="disclosure">
@@ -115,11 +120,11 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
         <Button
           disabled={busy || !title.trim()}
           onClick={async () => {
-            setBusy(true);
+            setSaving(true);
             const result = await coachingAction(() => saveWorkoutRoutineAction(sessionId, title));
-            if (result.ok) router.push("/profile/routines");
+            if (result.ok) startNavigation(() => router.push("/profile/routines"));
             else setError(result.error);
-            setBusy(false);
+            setSaving(false);
           }}
         >
           Save routine and choose a gym

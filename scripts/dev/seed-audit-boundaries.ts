@@ -7,8 +7,9 @@ import { AD_HOC_ORIGIN, UNKNOWN_EFFORT } from "@/domain/activity";
 import { nativeDistance, type EnduranceActual } from "@/domain/activity-metrics";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { createActivity } from "@/server/repositories/activities";
+import { AUDIT_HISTORY_USERNAMES, AUDIT_HISTORY_VERSION } from "./audit-fixture-config";
 
-const VERSION = "history-56-months-boundaries-v1";
+const VERSION = AUDIT_HISTORY_VERSION.replace("-v1", "-boundaries-v1");
 const idFor = (key: string) => {
   const hex = createHash("sha256").update(`${VERSION}:${key}`).digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
@@ -21,7 +22,7 @@ export async function seedAuditBoundaries(
 ) {
   let addedAccounts = 0;
   const people = (await db.select().from(s.profiles)).filter((person) =>
-    ["vinit", "shreyash", "priya", "alex"].includes(person.username),
+    AUDIT_HISTORY_USERNAMES.includes(person.username),
   );
   for (const person of people) {
     const marker = `${VERSION}:${person.id}`;

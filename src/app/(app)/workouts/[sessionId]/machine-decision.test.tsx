@@ -223,7 +223,9 @@ it("asks whether a registered machine has gone when Not here meets one", async (
   expect(screen.getByRole("link", { name: "Out of use today" }).getAttribute("href")).toBe(
     "/workouts/session/exercises/slot/substitute?remember=0",
   );
-  fireEvent.click(screen.getByRole("button", { name: "Archive Garage hack squat" }));
+  const archive = screen.getByRole("button", { name: "Archive Garage hack squat" });
+  await waitFor(() => expect((archive as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(archive);
   await waitFor(() => expect(given.archiveMachine).toHaveBeenCalledWith("slot", "m1"));
 });
 

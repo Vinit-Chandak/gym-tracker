@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
@@ -71,11 +71,13 @@ function shortQuote(quote: string): string {
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [startDate, setStartDate] = useState(props.today);
   const [revising, setRevising] = useState(false);
   const [revisionNotes, setRevisionNotes] = useState("");
   const [noteId] = useState(() => crypto.randomUUID());
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const busy = saving || navigating;
   const [error, setError] = useState<string | null>(null);
   const open = props.status === "editing" || props.status === "ready";
   const coach = props.author === "coach";
@@ -100,14 +102,14 @@ export function ChangeDetail(props: ChangeDetailProps) {
   for (const [id, quote] of attributed) tags[id] = <span className="ask-tag">“{quote}”</span>;
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
-    setBusy(true);
+    setSaving(true);
     setError(null);
     const result = await work();
     if (result.ok) done?.();
     else setError(result.error ?? "Could not save this change. Please retry.");
-    setBusy(false);
+    setSaving(false);
   };
-  const back = () => router.push(`${props.base}?view=changes` as Route);
+  const back = () => startNavigation(() => router.push(`${props.base}?view=changes` as Route));
 
   return (
     <div>

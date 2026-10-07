@@ -7,6 +7,7 @@
     "dev:auth": "node scripts/dev/auth-stub.mjs",
     "dev:seed": "tsx scripts/dev/seed-people.ts",
     "audit:setup": "node scripts/dev/audit.mjs setup",
+    "audit:six-months": "node scripts/dev/audit-six-months.mjs",
     "audit:auth": "node scripts/dev/audit.mjs auth",
     "audit:build": "node scripts/dev/audit.mjs build",
     "audit:start": "node scripts/dev/audit.mjs start",

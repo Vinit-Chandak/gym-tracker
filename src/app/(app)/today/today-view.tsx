@@ -549,6 +549,11 @@ export function TodayView({
       {!day.includesLifting && !restDay && programmeOnOffer.length === 0 && (
         <p className="mt-3 type-meta text-ink-2">No workout planned for this day.</p>
       )}
+      {/* More still offers another day or an unplanned workout when only the run is owed.
+          Pending workout and rest cards already carry it beside their primary action. */}
+      {((!day.includesLifting && !restDay) || sessionStatus !== "pending") && more && (
+        <div className="mt-3 flex justify-end">{more}</div>
+      )}
     </>
   );
 

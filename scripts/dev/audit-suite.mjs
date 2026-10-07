@@ -64,6 +64,7 @@ for (const device of ["narrow", "iphone"])
     AUDIT_EXPAND_DETAILS: "true",
   });
 add("history", "audit-history", { AUDIT_HISTORY_WEBKIT_SAMPLE: "true" });
+add("interactions", "audit-interactions");
 for (const name of [
   "account",
   "programme",
@@ -80,6 +81,7 @@ for (const device of ["android", "iphone"]) {
   for (const name of ["food", "quick-food"])
     add(`${name}-${engine}`, `audit-${name}`, { AUDIT_BROWSER: engine, AUDIT_DEVICE: device });
 }
+add("route-inventory", "audit-inventory");
 add("database-after", "audit", {}, ["verify-db"]);
 
 const filter = process.env.AUDIT_SUITE_FILTER ? new RegExp(process.env.AUDIT_SUITE_FILTER) : null;

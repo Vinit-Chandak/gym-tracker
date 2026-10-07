@@ -1,6 +1,6 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ export function ProgramBuilder({
   routines?: { id: string; name: string; day: import("@/domain/saved-routine").SavedRoutineDay }[];
 }) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [routineId, setRoutineId] = useState("");
   const [plan, setPlan] = useState<ProgramBlueprint>(
     () =>
@@ -63,9 +64,10 @@ export function ProgramBuilder({
   const [draft, setDraft] = useState(
       initial ? { id: initial.id, revision: initial.revision } : null,
     ),
-    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null),
     [message, setMessage] = useState<string | null>(null);
+  const busy = saving || navigating;
   function change(patch: Partial<ProgramBlueprint>) {
     setPlan((p) => ({ ...p, ...patch }));
     setMessage(null);
@@ -88,7 +90,7 @@ export function ProgramBuilder({
     });
   }
   async function save(preview: boolean) {
-    setBusy(true);
+    setSaving(true);
     setError(null);
     setMessage(null);
     try {
@@ -102,13 +104,13 @@ export function ProgramBuilder({
           reviewProgramDraftAction(result.value.id, result.value.revision),
         );
         if (!checked.ok) throw new Error(checked.error);
-        router.push(`${base}/drafts/${result.value.id}` as Route);
+        startNavigation(() => router.push(`${base}/drafts/${result.value.id}` as Route));
       } else setMessage("Draft saved. You can return to it from Programme.");
     } catch (e) {
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save the draft.");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
   function reorderDay(from: number, to: number) {
@@ -485,9 +487,9 @@ export function ProgramBuilder({
               variant="secondary"
               disabled={busy}
               onClick={async () => {
-                setBusy(true);
+                setSaving(true);
                 const result = await coachingAction(() => saveRoutineAction(day.name, day));
-                setBusy(false);
+                setSaving(false);
                 if (result.ok) setMessage(`Saved “${day.name}” to your routines.`);
                 else setError(result.error);
               }}

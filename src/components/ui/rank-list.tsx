@@ -61,7 +61,7 @@ export function RankList({
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
-                <span className="min-w-0 flex-[1_1_3.5rem]">
+                <span className="min-w-0 flex-[1_1_8ch]">
                   <span className="block font-medium [overflow-wrap:anywhere]">
                     {mine ? "You" : row.displayName || row.username}
                   </span>

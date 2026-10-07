@@ -3,6 +3,7 @@ import { scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, webkit, devices, expect } from "@playwright/test";
 import postgres from "postgres";
+import { chooseOnboardingUnits, addStarterChestPress } from "./audit-controls.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -68,22 +69,21 @@ async function signup(page, account, gym = true) {
   await button(page, "Create account").click();
   await page.waitForURL(/\/welcome$/);
   await expect(page.getByLabel("What should we call you?")).toHaveValue(account.name);
-  await page.getByLabel("Weight units").selectOption("lb");
+  await chooseOnboardingUnits(page, "lb");
   await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
   await button(page, "Continue").click();
   await page.waitForURL(/\/welcome\/sports$/);
-  if (!gym) await button(page, "Strength").click();
+  if (!gym) await page.getByRole("checkbox", { name: "Strength", exact: true }).click();
   await button(page, "Continue").click();
   if (gym) {
     await page.waitForURL(/\/welcome\/gym$/);
     await page.getByLabel("Name", { exact: true }).fill(`${account.username} first gym`);
     await button(page, "Add gym").click();
     await page.waitForURL(/\/welcome\/equipment\?gym=/);
-    await page.getByRole("checkbox", { name: "Chest press machine", exact: true }).check();
-    await button(page, "Add and continue").click();
+    await addStarterChestPress(page);
   }
   await page.waitForURL(/\/welcome\/programme$/);
-  await button(page, "I'll train without a programme").click();
+  await button(page, "Just track my workouts").click();
   await page.waitForURL(/\/today$/);
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 }
@@ -181,6 +181,27 @@ async function runDevice(device) {
         await sql`select unit from equipment_instances where user_id = ${account.id}`;
       assert.equal(machine.unit, "lb");
     });
+    const recoveryPage = await freshPage();
+    await step(
+      "password-recovery-request-and-expired-link",
+      async () => {
+        await go(recoveryPage, "/reset-password");
+        await expect(
+          recoveryPage.getByText(/This reset link has expired or has already been used/),
+        ).toBeVisible();
+        await recoveryPage.getByRole("link", { name: "Send another link", exact: true }).click();
+        await recoveryPage.waitForURL(/\/forgot-password$/);
+        for (const email of [account.email, `unknown-${account.email}`]) {
+          await go(recoveryPage, "/forgot-password");
+          await recoveryPage.getByLabel("Email", { exact: true }).fill(email);
+          await button(recoveryPage, "Send reset link").click();
+          await expect(
+            recoveryPage.getByText(/If that address has an account, a reset link is on its way/),
+          ).toBeVisible();
+        }
+      },
+      recoveryPage,
+    );
     await step("profile-validation-conversion-and-save", async () => {
       await go(page, "/profile/edit");
       await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
@@ -356,7 +377,7 @@ async function runDevice(device) {
       await button(page, "Sign in").click();
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(button(page, "Sign in")).toBeEnabled();
-      await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+      await expect(page.getByLabel("Password", { exact: true })).toHaveValue(password);
       await expect(page.getByLabel("Email", { exact: true })).toHaveValue(account.email);
       await page.getByLabel("Password", { exact: true }).fill(newPassword);
       await button(page, "Sign in").click();

@@ -159,11 +159,11 @@
 .month-day-rest {
   background: color-mix(in srgb, var(--ov-paper), var(--ov-ground));
 }
-/* A day to come keeps its place as an outline on the ground, its date faint. */
+/* A day to come keeps its place as an outline with a readable date. */
 .month-day-future {
   border: 1px solid var(--ov-hair);
   background: none;
-  color: var(--ov-control);
+  color: var(--ov-ink-2);
 }
 .month-day-today::after {
   position: absolute;

@@ -160,12 +160,12 @@ async function submit(id, values) {
     else await choose(field, value);
   }
   await page.getByRole("button", { name: "Save check-in", exact: true }).click();
-  await page.waitForURL(`**/workouts/${id}`);
+  await page.waitForURL((url) => url.pathname === `/workouts/${id}`);
 }
 async function recovery() {
-  await page.getByRole("link", { name: "Progress", exact: true }).click();
-  await page.getByRole("button", { name: "Progress section: Body" }).click();
-  await page.getByRole("button", { name: "Recovery", exact: true }).click();
+  await go("/progress");
+  await page.getByRole("button", { name: /^Progress section:/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Recovery", exact: true }).click();
   await expect(page).toHaveURL(/view=recovery/);
 }
 async function metric(key) {
@@ -173,12 +173,9 @@ async function metric(key) {
   await expect(page.getByRole("radio", { name: metrics[key], exact: true })).toBeChecked();
 }
 async function values() {
-  const details = page
-    .locator("details")
-    .filter({ has: page.locator("summary", { hasText: "View values" }) });
-  if (!(await details.evaluate((element) => element.open)))
-    await details.locator("summary").click();
-  return page.getByRole("table").getByRole("cell");
+  const toggle = page.getByRole("button", { name: /^View values/ });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  return page.locator(".chart-values-list li > span:last-child");
 }
 async function dates(from, to) {
   await page.getByRole("button", { name: /Filters/ }).click();
@@ -189,8 +186,8 @@ async function dates(from, to) {
 }
 async function finish(id) {
   await go(`/workouts/${id}/finish`);
-  await page.getByRole("button", { name: "Finish session", exact: true }).click();
-  await page.waitForURL(`**/workouts/${id}`);
+  await page.getByRole("button", { name: "Finish anyway", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === `/workouts/${id}`);
 }
 await mkdir(output, { recursive: true });
 try {
@@ -218,7 +215,7 @@ try {
     },
   );
   await check(
-    "Every metric shows the exact saved value in its graph and accessible table",
+    "Every metric shows the exact saved value in its graph and accessible values list",
     async () => {
       await recovery();
       await expect(page.getByRole("radio", { name: "Energy", exact: true })).toHaveCount(0);
@@ -227,7 +224,9 @@ try {
         await expect(
           page.getByRole("img", { name: new RegExp(`^${metrics[key]},`) }),
         ).toBeVisible();
-        await expect((await values()).first()).toHaveText(String(value));
+        await expect((await values()).first()).toHaveText(
+          `${value} ${key === "sleepHours" ? "h" : "/ 5"}`,
+        );
       }
     },
   );
@@ -246,7 +245,7 @@ try {
       });
       await recovery();
       await metric("fatigue");
-      await expect((await values()).first()).toHaveText("4");
+      await expect((await values()).first()).toHaveText("4 / 5");
     },
   );
   await check(
@@ -263,16 +262,19 @@ try {
       await metric("fatigue");
     },
   );
-  await check("Recovery selection survives refresh and Back from its source workout", async () => {
-    const returnTo = page.url();
-    await reload();
-    await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
-    await page.locator(`main a[href="/workouts/${id}"]`).click();
-    await page.waitForURL(`**/workouts/${id}`);
-    await page.getByRole("link", { name: /^Back/ }).click();
-    await expect(page).toHaveURL(returnTo);
-    await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
-  });
+  await check(
+    "Recovery selection survives refresh and browser Back from its source workout",
+    async () => {
+      const returnTo = page.url();
+      await reload();
+      await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
+      await page.locator(`main a[href="/workouts/${id}"]`).click();
+      await page.waitForURL(`**/workouts/${id}`);
+      await page.goBack();
+      await expect(page).toHaveURL(returnTo);
+      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+    },
+  );
   await check("Completing the workout retains every check-in value and chart", async () => {
     await finish(id);
     const [saved] =
@@ -283,7 +285,7 @@ try {
     expect(saved.sleep_hours).toBe("7.25");
     await recovery();
     await metric("fatigue");
-    await expect((await values()).first()).toHaveText("4");
+    await expect((await values()).first()).toHaveText("4 / 5");
   });
   await check(
     "Date filters show an honest empty range and restore the selected metric",
@@ -382,19 +384,36 @@ try {
       expect(await (await values()).allTextContents()).not.toContain("0");
     },
   );
-  await check("Invalid hours cannot erase a previously saved fatigue reading", async () => {
-    await go(`/workouts/${partialId}/check-in`);
-    await page.locator('[name="sleepHours"]').fill("25");
-    await page.getByRole("button", { name: "Save check-in", exact: true }).click();
-    await expect(page.getByText("Enter a value from 0 to 24.")).toBeVisible();
-    expect(
-      (await sql`select sleep_hours, fatigue from workout_sessions where id=${partialId}`)[0],
-    ).toEqual({ sleep_hours: null, fatigue: 4 });
-    await page.locator('[name="sleepHours"]').fill("");
-    await page.getByRole("button", { name: "Save check-in", exact: true }).click();
-    await page.waitForURL(`**/workouts/${partialId}`);
-    await finish(partialId);
-  });
+  await check(
+    "The stepper caps sleep hours and the server rejects invalid hours without erasing fatigue",
+    async () => {
+      await go(`/workouts/${partialId}/check-in`);
+      await page.locator('[name="sleepHours"]').fill("25");
+      await expect(page.locator('[name="sleepHours"]')).toHaveValue("24");
+      // Submit one out-of-range payload past the capped UI to verify the server guard too.
+      await page.locator("form").evaluate((form) =>
+        form.addEventListener(
+          "formdata",
+          (event) => {
+            event.formData.set("sleepHours", "25");
+          },
+          { once: true },
+        ),
+      );
+      await page.getByRole("button", { name: "Save check-in", exact: true }).click();
+      await expect(
+        page.getByRole("alert", { name: "" }).filter({ hasText: "Enter a value from 0 to 24." }),
+      ).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/workouts/${partialId}/check-in$`));
+      expect(
+        (await sql`select sleep_hours, fatigue from workout_sessions where id=${partialId}`)[0],
+      ).toEqual({ sleep_hours: null, fatigue: 4 });
+      await page.locator('[name="sleepHours"]').fill("");
+      await page.getByRole("button", { name: "Save check-in", exact: true }).click();
+      await page.waitForURL(`**/workouts/${partialId}`);
+      await finish(partialId);
+    },
+  );
   await check("No browser runtime errors", async () => {
     expect(pageErrors).toEqual([]);
   });

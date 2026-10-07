@@ -4,6 +4,12 @@ import { promisify } from "node:util";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, webkit, devices, expect } from "@playwright/test";
 import postgres from "postgres";
+import { assertReadableText } from "./audit-text-readability.mjs";
+import {
+  chooseOnboardingUnits,
+  addStarterChestPress,
+  clickWithSlowNavigation,
+} from "./audit-controls.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -36,6 +42,9 @@ async function runDevice(device) {
     ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
     baseURL,
     timezoneId: "America/New_York",
+    // The gated navigation checks need Playwright to intercept the page's requests.
+    // Service-worker and offline-install behavior are covered by the food/endurance suites.
+    serviceWorkers: "block",
   });
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
@@ -127,7 +136,7 @@ async function runDevice(device) {
       await field(page, "Confirm password").fill(password);
       await button(page, "Create account").click();
       await page.waitForURL(/\/welcome$/);
-      await field(page, "Weight units").selectOption("lb");
+      await chooseOnboardingUnits(page, "lb");
       await field(page, "Time zone").fill("America/New_York");
       await button(page, "Continue").click();
       await page.waitForURL(/\/welcome\/sports$/);
@@ -136,10 +145,9 @@ async function runDevice(device) {
       await field(page, "Name").fill(`${username} training gym`);
       await button(page, "Add gym").click();
       await page.waitForURL(/\/welcome\/equipment\?gym=/);
-      await page.getByRole("checkbox", { name: "Chest press machine", exact: true }).check();
-      await button(page, "Add and continue").click();
+      await addStarterChestPress(page);
       await page.waitForURL(/\/welcome\/programme$/);
-      await button(page, "I'll train without a programme").click();
+      await button(page, "Just track my workouts").click();
       await page.waitForURL(/\/today$/);
       [{ id: userId }] = await sql`select id from profiles where username=${username}`;
       [{ id: gymId }] = await sql`select id from gyms where user_id=${userId} and is_default`;
@@ -161,7 +169,11 @@ async function runDevice(device) {
       await field(page, "Registered machine (required for machine exercises)").selectOption(
         machine.id,
       );
-      await button(page, "Save to my exercise library").click();
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Save to my exercise library"),
+        /\/exercises\/[0-9a-f-]{36}(?:\?|$)/,
+      );
       await page.waitForURL(/\/exercises\/[0-9a-f-]{36}$/);
       await expect(page.getByRole("heading", { name: customName, exact: true })).toBeVisible();
       [custom] =
@@ -169,6 +181,233 @@ async function runDevice(device) {
       assert.equal(custom.name, customName);
       assert.equal(custom.modality, "machine");
       assert.equal(custom.default_prescription_type, "reps");
+    });
+    await step("coach-intake-autosave-reload-and-reports", async () => {
+      await go("/profile/programme/create");
+      if (await button(page, "Set it up in detail").count())
+        await button(page, "Set it up in detail").click();
+      await field(page, "What are you training for?").selectOption("other");
+      await field(page, "Your goal").fill(
+        "Build strength steadily with three full-body sessions a week.",
+      );
+      await field(page, "Weight (lb)").fill("180");
+      await field(page, "Age").fill("32");
+      await field(page, "Height (feet)").fill("5");
+      await field(page, "Inches").fill("10");
+      await field(page, "Your brief").fill(
+        "Three sensible strength sessions with rowing and one easy run. Keep an extra day for recovery.",
+      );
+      await button(page, "Continue").click();
+      for (const day of ["Monday", "Wednesday", "Friday"])
+        await page
+          .getByRole("group", { name: /^Training days/ })
+          .getByRole("button", { name: day, exact: true })
+          .click();
+      await field(page, "Usual session length (minutes)").fill("50");
+      await field(page, "Runs a week").fill("1");
+      await button(page, "Continue").click();
+      await field(page, "How long have you been training?").selectOption("intermediate");
+      await field(page, "Injuries or movements to avoid").fill(
+        "No current injury; ease back into squatting after travel.",
+      );
+      await field(page, "Exercises you enjoy or dislike").fill(
+        "Rows and split squats; avoid burpees.",
+      );
+      await field(page, "Leave these out entirely").selectOption("barbell-bench-press");
+      await button(page, "Continue").click();
+      await field(page, "If you already lift, what are you lifting?").fill(
+        "Squat 65 kg for 8, row 40 kg for 10, RIR 3. Restart after a week away.",
+      );
+      const contents = Buffer.from(
+        "Six-month training notes\nThree strength sessions weekly; gradual loading and recovery.\n",
+      );
+      await page
+        .locator('input[type="file"]')
+        .setInputFiles({ name: "training-history.txt", mimeType: "text/plain", buffer: contents });
+      await expect(
+        page.getByRole("checkbox", { name: "training-history.txt", exact: true }),
+      ).toBeChecked();
+      const [attachment] =
+        await sql`select id,content from coach_attachments where user_id=${userId}`;
+      assert.equal(Buffer.from(attachment.content, "base64").toString(), contents.toString());
+      const download = await page.request.get(`/api/coaching/attachments/${attachment.id}`);
+      assert.equal(download.status(), 200);
+      assert.equal((await download.body()).toString(), contents.toString());
+      const originalViewport = page.viewportSize();
+      await page.setViewportSize({ width: 320, height: 740 });
+      for (const font of [16, 32]) {
+        await page.evaluate(
+          (size) => (document.documentElement.style.fontSize = `${size}px`),
+          font,
+        );
+        const report = page
+          .getByRole("checkbox", { name: "training-history.txt", exact: true })
+          .locator("..");
+        await assertReadableText(
+          page.getByRole("heading", { name: "Starting point", level: 2, exact: true }),
+        );
+        await assertReadableText(button(page, "Save and exit"));
+        await assertReadableText(report.locator("span"));
+        await assertReadableText(button(page, "Continue"));
+        const target = page.getByRole("link", { name: "Download", exact: true });
+        const box = await target.boundingBox();
+        assert.ok(
+          box.width >= 44 && box.height >= 44,
+          `Report download target: ${JSON.stringify(box)}`,
+        );
+        await button(page, "Continue").scrollIntoViewIfNeeded();
+        const footer = await button(page, "Continue").boundingBox();
+        const nav = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
+        assert.ok(
+          footer.y + footer.height <= nav.y + 1,
+          `Footer overlaps navigation: ${JSON.stringify({ footer, nav })}`,
+        );
+        await page.screenshot({
+          path: `${output}/${device}-reports-320-text${font}.png`,
+          fullPage: true,
+        });
+      }
+      await page.evaluate(() => (document.documentElement.style.fontSize = "16px"));
+      await page.setViewportSize(originalViewport);
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Save and exit"),
+        /\/profile\/programme(?:\?|$)/,
+      );
+      await page.waitForURL(/\/profile\/programme$/);
+      await go("/profile/programme/create");
+      await expect(field(page, "Weight (lb)")).toHaveValue("180");
+      const [intake] =
+        await sql`select answers from coach_intakes where user_id=${userId} order by revision desc limit 1`;
+      assert.ok(Math.abs(intake.answers.weightKg - 81.6466) < 0.01);
+      assert.deepEqual(intake.answers.preferredDays, [1, 3, 5]);
+      assert.deepEqual(intake.answers.attachmentIds, [attachment.id]);
+      assert.equal(
+        intake.answers.restrictions,
+        "No current injury; ease back into squatting after travel.",
+      );
+      await button(page, "Step 4 of 5: Starting point").click();
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "invalid.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("This is not a PDF."),
+      });
+      await expect(page.getByRole("alert").filter({ hasText: "correct file type" })).toBeVisible();
+      assert.equal((await sql`select id from coach_attachments where user_id=${userId}`).length, 1);
+      await button(page, "Remove").click();
+      await expect(
+        page.getByRole("checkbox", { name: "training-history.txt", exact: true }),
+      ).toHaveCount(0);
+      assert.equal((await sql`select id from coach_attachments where user_id=${userId}`).length, 0);
+      await button(page, "Step 5 of 5: Review").click();
+      await expect(button(page, "Create my programme")).toBeDisabled();
+      await expect(
+        page.getByText(
+          "Programme generation is not available yet. Your answers and files are saved.",
+        ),
+      ).toBeVisible();
+      // The disabled external generator is honest; locally saved answers still remain editable.
+      await button(page, "Step 2 of 5: Your week").click();
+      await expect(field(page, "Usual session length (minutes)")).toHaveValue("50");
+      await page.setViewportSize({ width: 320, height: 740 });
+      for (const target of await page
+        .getByRole("navigation", { name: "Programme steps" })
+        .getByRole("button")
+        .all()) {
+        const box = await target.boundingBox();
+        assert.ok(
+          box.width >= 44 && box.height >= 44,
+          `Programme step target: ${JSON.stringify(box)}`,
+        );
+      }
+      for (const target of await page
+        .getByRole("group", { name: /^Training days/ })
+        .getByRole("button")
+        .all()) {
+        const box = await target.boundingBox();
+        assert.ok(
+          box.width >= 44 && box.height >= 44,
+          `Training day target: ${JSON.stringify(box)}`,
+        );
+      }
+      await page.setViewportSize(originalViewport);
+    });
+    await step("coach-notes-toggle-and-read-only-token-lifecycle", async () => {
+      await go("/profile/ai-coach");
+      const enabled = page.getByRole("switch", { name: "AI coach", exact: true });
+      if ((await enabled.getAttribute("aria-checked")) === "true") await enabled.click();
+      await expect
+        .poll(
+          async () =>
+            (await sql`select ai_coach_enabled from profiles where id=${userId}`)[0]
+              .ai_coach_enabled,
+        )
+        .toBe(false);
+      await enabled.click();
+      await page.waitForURL(/\/profile\/programme\/create$/);
+      assert.equal(
+        (await sql`select ai_coach_enabled from profiles where id=${userId}`)[0].ai_coach_enabled,
+        false,
+      );
+      // A first activation correctly asks for confirmed setup. Simulate its saved output
+      // locally, since this stack intentionally disables the external generator.
+      await sql`update coach_intakes set confirmed_at=now() where user_id=${userId}`;
+      await go("/profile/ai-coach");
+      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      await expect
+        .poll(
+          async () =>
+            (await sql`select ai_coach_enabled from profiles where id=${userId}`)[0]
+              .ai_coach_enabled,
+        )
+        .toBe(true);
+      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      await expect
+        .poll(
+          async () =>
+            (await sql`select ai_coach_enabled from profiles where id=${userId}`)[0]
+              .ai_coach_enabled,
+        )
+        .toBe(false);
+      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      await expect
+        .poll(
+          async () =>
+            (await sql`select ai_coach_enabled from profiles where id=${userId}`)[0]
+              .ai_coach_enabled,
+        )
+        .toBe(true);
+      const note =
+        "Travelling next week: keep three shorter strength sessions and review my programme.";
+      await field(page, "Notes for the coach").fill(note);
+      await button(page, "Send note").click();
+      await expect
+        .poll(async () =>
+          (await sql`select text from coach_notes where user_id=${userId}`).map((row) => row.text),
+        )
+        .toContain(note);
+      await go("/profile/ai-coach");
+      await expect(page.getByText(note, { exact: true })).toBeVisible();
+      await go("/profile/coach");
+      await field(page, "Name").fill("Local audit read access");
+      await field(page, "Expires after").selectOption("30");
+      await button(page, "Create token").click();
+      const tokenField = field(page, "New coach token");
+      await expect(tokenField).toBeVisible();
+      const token = await tokenField.inputValue();
+      // Keep the ephemeral credential out of screenshots and logs.
+      const response = await page.request.get("/api/coach/summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(response.status(), 200);
+      await button(page, "Hide token").click();
+      await expect(tokenField).toHaveCount(0);
+      await button(page, "Revoke").click();
+      await expect(page.getByText("Revoked", { exact: true })).toBeVisible();
+      const revoked = await page.request.get("/api/coach/summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(revoked.status(), 401);
     });
     await step("manual-draft-routine-save-and-reload", async () => {
       await go("/profile/programme/manual");
@@ -240,7 +479,11 @@ async function runDevice(device) {
       assert.match(updated.blueprint.notes, /^Edited after reloading/);
     });
     await step("preview-and-activate-manual-programme", async () => {
-      await button(page, "Preview programme").click();
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Preview programme"),
+        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+      );
       await page.waitForURL(`/profile/programme/drafts/${draftId}`);
       await expect(page.getByRole("heading", { name: programmeName, exact: true })).toBeVisible();
       await expect(button(page, "Start my programme")).toBeEnabled();
@@ -321,7 +564,11 @@ async function runDevice(device) {
       await expect(page.getByRole("heading", { name: routineName, exact: true })).toBeVisible();
       await expect(button(page, "Start this routine")).toBeDisabled();
       await field(page, "Where will you train?").selectOption(gymId);
-      await button(page, "Start this routine").click();
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Start this routine"),
+        /\/workouts\/[0-9a-f-]{36}(?:\?|$)/,
+      );
       await page.waitForURL(/\/workouts\/[0-9a-f-]{36}$/);
       const sessionId = new URL(page.url()).pathname.split("/").at(-1);
       const exercises =
@@ -331,11 +578,11 @@ async function runDevice(device) {
       assert.deepEqual(exercises[1].saved_prescription.duration, [30, 45]);
       const [sets] = await sql`select count(*)::int as count from set_logs where user_id=${userId}`;
       assert.equal(sets.count, 0);
-      await page.getByRole("link", { name: "Finish session", exact: true }).click();
+      await page.getByRole("link", { name: "Finish", exact: true }).click();
       await field(page, "Notes").fill(
         "Routine launch verified; ended before recording any completed sets.",
       );
-      await button(page, "Finish session").click();
+      await button(page, "Finish and keep it").click();
       await expect
         .poll(
           async () =>
@@ -366,12 +613,26 @@ async function runDevice(device) {
       await expect(
         field(page.getByRole("group", { name: customName, exact: true }), "Sets"),
       ).toHaveValue("5");
-      await button(page, "Preview programme").click();
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Preview programme"),
+        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+      );
       await page.waitForURL(`/profile/programme/drafts/${draft.id}`);
       await button(page, "Discard").click();
       await page.waitForURL(/\/profile\/programme\?view=changes$/);
       const [discarded] = await sql`select status from program_drafts where id=${draft.id}`;
       assert.equal(discarded.status, "rejected");
+    });
+    await step("duplicate-programme-waits-for-slow-navigation", async () => {
+      await go("/profile/programme");
+      await clickWithSlowNavigation(
+        page,
+        button(page, "Duplicate programme").first(),
+        "**/profile/programme/manual?draft=*",
+      );
+      await page.waitForURL(/\/profile\/programme\/manual\?draft=/);
+      await expect(field(page, "Programme name")).toBeVisible();
     });
     await step("delete-disposable-programme-account", async () => {
       await go("/profile/delete-account");

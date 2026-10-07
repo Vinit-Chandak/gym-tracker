@@ -120,7 +120,7 @@ export function StrengthTrend({
             columns={5}
           />
           <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <Headline points={selected[metric]} unit={unit} />
               <span className="flex max-w-[60%] min-w-0 items-center gap-1">
                 {/* The machine, in the corner, only when there is one to choose. */}
