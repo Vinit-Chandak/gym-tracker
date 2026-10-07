@@ -1,7 +1,7 @@
 /*
  * Progress (DESIGN.md, Layout and Prints; boards Progress, Calendar, Day, Progress-History,
  * Running, Recovery, Body, Exercise): the month as a tile of paper for each day, its totals as
- * its key, charts in ink on the ground, and lists whose marks share one column.
+ * its key, and lists whose marks share one column. The graphs are graph.css's.
  */
 
 /* ---------- the opening: the title and its funnel, then the section and its range ---------- */
@@ -16,20 +16,6 @@
   font-size: var(--ov-type-caption);
   font-weight: 700;
   letter-spacing: 0.01em;
-  line-height: 1.3;
-}
-
-/* A chart's heading: what it counts, and what it covers, on one baseline. */
-.chart-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px 8px;
-  margin: 14px 0 8px;
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-caption);
-  font-weight: 700;
   line-height: 1.3;
 }
 
@@ -261,56 +247,7 @@
   contain-intrinsic-size: auto 326px;
 }
 
-/* ---------- Running: the runs ---------- */
-.run-row {
-  display: flex;
-  min-height: 56px;
-  flex-direction: column;
-  justify-content: center;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--ov-hair);
-}
-.run-row-last {
-  border-bottom: 0;
-}
-
-/* ---------- Recovery: four readings to choose from ---------- */
-.recovery-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(max(8rem, 40%), 1fr));
-  gap: 8px;
-  margin-top: 8px;
-}
-.recovery-tile {
-  display: flex;
-  min-width: 0;
-  height: 100%;
-  cursor: pointer;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: var(--ov-radius-control);
-  background: var(--ov-surface);
-  color: var(--ov-ink);
-}
-.recovery-tile-chosen {
-  background: var(--ov-ink);
-  color: var(--ov-on-ink);
-}
-.recovery-tile-unit {
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-caption);
-  font-weight: 600;
-}
-.recovery-tile-chosen .recovery-tile-unit {
-  color: var(--ov-on-ink-2);
-}
-:where(.peer:focus-visible) + .recovery-tile {
-  outline: 3px solid var(--ov-ink);
-  outline-offset: 2px;
-}
-
-/* ---------- every chart's numbers, behind one row ---------- */
+/* ---------- every graph's numbers, behind one row (graph.css has the rows) ---------- */
 .chart-values {
   margin-top: 6px;
 }
@@ -323,15 +260,6 @@
   border-top: 1px solid var(--ov-hair);
   border-bottom: 1px solid var(--ov-hair);
   font-size: var(--ov-type-body);
-}
-.chart-values-list > li {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--ov-hair);
-  font-size: var(--ov-type-meta);
 }
 
 /* ---------- an exercise across its life ---------- */

@@ -1,14 +1,14 @@
 "use client";
 
-import { monthsBetween } from "@/components/progress/calendar";
+import type { ReactNode } from "react";
+
 import Link from "@/components/ui/app-link";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
-import { InkBars } from "@/components/ui/ink-chart";
 import { formatSet, formatSets } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoShortMonth, formatIsoWeekdayDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoWeekdayDay, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import type { ExerciseMonth } from "@/server/repositories/exercise-life";
@@ -61,9 +61,9 @@ function topSet(sets: readonly Set[]): string | null {
 }
 
 /**
- * An exercise across its whole life (board Exercise): its equipment and where, the heaviest
- * working set of each month as a bar, the latest in ink, then the count of sessions and its
- * records, and the latest sessions, each led by its heaviest set.
+ * An exercise across its whole life (board Exercise): its equipment and where, its graph (the
+ * one Progress draws, ADR 0042), then the count of sessions and its records, and the latest
+ * sessions, each led by its heaviest set.
  */
 export function ExerciseLife({
   exercise,
@@ -72,6 +72,7 @@ export function ExerciseLife({
   bests,
   unit,
   timeZone,
+  graph,
   performances,
 }: {
   exercise: MetricExercise & { modality: ExerciseModality; loadPortability: string };
@@ -81,6 +82,8 @@ export function ExerciseLife({
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
   timeZone: string;
+  /** The exercise's graph, under its equipment and where. */
+  graph: ReactNode;
   performances: readonly LatestPerformance[];
 }) {
   const glyph = glyphFor(exercise.modality);
@@ -97,14 +100,6 @@ export function ExerciseLife({
     ) / 10;
   const label = LOAD_UNIT_LABELS[shownUnit];
 
-  const byMonth = new Map(life.months.map((month) => [month.month, month.topKg]));
-  const first = life.months[0];
-  const last = life.months.at(-1);
-  const months = first && last ? monthsBetween(`${first.month}-01`, `${last.month}-01`) : [];
-  const points = months.map((month) => {
-    const kg = byMonth.get(month);
-    return { date: `${month}-01`, value: kg === undefined ? null : inUnit(kg) };
-  });
   const top = life.months.length ? inUnit(Math.max(...life.months.map((m) => m.topKg))) : null;
 
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
@@ -139,24 +134,9 @@ export function ExerciseLife({
         )}
       </p>
 
-      {first && last && (
-        <section aria-label="Heaviest set each month">
-          <p className="chart-head mt-3.5">
-            <span>Heaviest set each month</span>
-            <span className="font-medium tabular-nums">
-              {inUnit(first.topKg)} → {inUnit(last.topKg)} {label}
-            </span>
-          </p>
-          <InkBars
-            points={points}
-            label={`The heaviest working set each month, from ${inUnit(first.topKg)} ${label} in ${formatIsoShortMonth(
-              first.month,
-            )} to ${inUnit(last.topKg)} ${label} in ${formatIsoShortMonth(last.month)}`}
-            format={(value) => String(Math.round(value))}
-            ends={[formatIsoShortMonth(first.month), formatIsoShortMonth(last.month)]}
-          />
-        </section>
-      )}
+      <section aria-label="Progress" className="mt-3.5">
+        {graph}
+      </section>
 
       <dl className="exercise-stats">
         {stats.map((stat) => (

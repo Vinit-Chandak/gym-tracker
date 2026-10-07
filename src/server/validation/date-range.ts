@@ -61,3 +61,14 @@ export function parseWeekRangeOrDefault(input: unknown, timeZone: string, now = 
     return { range: current(), error: "That week is not a valid date. Showing this week instead." };
   }
 }
+
+/**
+ * Whole local days as a window of instants, with no cap on its length: a graph's reads take
+ * counts per workout rather than every record, so "All" can span every year an account has.
+ */
+export function dateWindow(from: string, to: string, timeZone: string): DateRange {
+  const start = fromDateTimeLocal(`${from}T00:00`, timeZone);
+  const end = fromDateTimeLocal(`${addDays(to, 1)}T00:00`, timeZone);
+  if (!start || !end) throw new Error("Invalid date range.");
+  return { from, to, start, end };
+}

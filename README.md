@@ -229,6 +229,10 @@ as the **Food** tab, where History used to be; History is now a section of **Pro
 [0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md) and
 [0037](docs/decisions/0037-any-day-on-the-food-tab.md).
 
+**Progress → Food** draws calories and protein a day over any span, against today's target, each
+average taken over the days something was logged; a bar opens its day
+([ADR 0042](docs/decisions/0042-one-graph-for-every-trend.md)).
+
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.
 

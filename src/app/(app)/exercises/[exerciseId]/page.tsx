@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { ExerciseGraph } from "@/components/graph/exercise-graph";
+import { GraphRangeProvider } from "@/components/graph/graph-range-context";
 import { ExerciseGuide } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
@@ -17,7 +19,9 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
-import { performanceSeries } from "@/domain/analytics";
+import { rangeOf, readWindowOf } from "@/domain/graph-range";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { earliestOf, exerciseSessions } from "@/domain/progress-graphs";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
 import { showsDrafts } from "@/lib/drafts";
@@ -53,12 +57,16 @@ import {
 } from "@/server/repositories/exercises";
 import { readExerciseLife } from "@/server/repositories/exercise-life";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
-import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
-import { parseDateRangeOrDefault } from "@/server/validation/date-range";
+import {
+  pickSeries,
+  readExerciseSeriesOptions,
+  readExerciseSetRows,
+} from "@/server/repositories/graphs";
+import { readRangeChoice } from "@/server/queries/graph-range";
+import { dateWindow } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
 
 import { ExerciseLife } from "./exercise-life";
-import { ExerciseTrend } from "./exercise-trend";
 
 export const metadata: Metadata = { title: "Exercise" };
 
@@ -110,14 +118,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const user = await requireUser();
   const params = await props.searchParams;
   const requestProfile = await getRequestProfile(user.id, user.email);
-  // The chart's window, and the same default Progress opens on: the last twelve weeks.
-  const { range, error: rangeError } = parseDateRangeOrDefault(
-    {
-      from: typeof params.from === "string" ? params.from : undefined,
-      to: typeof params.to === "string" ? params.to : undefined,
-    },
-    requestProfile.timeZone,
-  );
+  // The graph's span is the one every graph shares (ADR 0042): chosen on any graph, kept here.
+  const today = todayInTimeZone(requestProfile.timeZone);
+  const { choice, error: rangeError } = await readRangeChoice(params, today);
+  const read = readWindowOf(choice, today);
+  const window = dateWindow(read.from, read.to, requestProfile.timeZone);
   const data = await withUser(
     getDb(),
     user.id,
@@ -138,14 +143,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           ? null
           : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
             null);
-      const [availability, charted, bests, profile, life, written] = await Promise.all([
+      const [availability, options, bests, profile, life, written] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
-        // Only the sessions this movement was actually in, so the trend costs a page about
-        // one exercise a read about one exercise.
-        readWorkouts(tx, user.id, range, 0, TRAINING_RECORD_LIMIT, {
-          exerciseId,
-          completedOnly: true,
-        }),
+        // This movement's series only: one machine's loads are not another's.
+        readExerciseSeriesOptions(tx, user.id, window, exerciseId),
         circle.length > 0
           ? readExerciseBests(
               tx,
@@ -159,6 +160,13 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         guidanceFor(tx, exerciseId, showsDrafts()),
       ]);
       const performances = latest;
+      const selected = pickSeries(
+        options,
+        typeof params.series === "string" ? params.series : undefined,
+      );
+      const sets = selected
+        ? await readExerciseSetRows(tx, user.id, profile.timeZone, window, selected.id)
+        : [];
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
       // anyone in the circle has logged the movement; nothing dead ships.
       const board =
@@ -171,7 +179,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         performances,
         bests: bests.get(user.id) ?? [],
         board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
-        series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
+        options,
+        selected,
+        sessions: selected ? exerciseSessions(sets, selected.modality, selected.unit) : [],
         life,
         machineName: machine
           ? (latest.find((performance) => performance.equipmentInstanceId === machine)
@@ -192,22 +202,19 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     performances,
     bests,
     board,
-    series,
+    options,
+    selected,
+    sessions,
     timeZone,
     unit,
     life,
     machineName,
   } = data;
-  // One machine's loads are not another's, so each is its own series and the corner picker
-  // chooses between them. Only the chosen one's points cross the wire.
-  const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
-    id,
-    name,
-    machine,
-    unit: loadUnit,
-  }));
-  const wanted = typeof params.series === "string" ? params.series : undefined;
-  const selected = series.find((s) => s.id === wanted) ?? series[0] ?? null;
+  const graphRange = rangeOf(
+    choice,
+    today,
+    choice.preset === "all" ? earliestOf(sessions.map((session) => session.date)) : null,
+  );
   // What one set of this movement counts, and the range it is normally worked in.
   const measure = exercise.defaultPrescriptionType;
   const measureRange: [number | null, number | null] =
@@ -228,6 +235,38 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           bests={bests}
           unit={unit}
           timeZone={timeZone}
+          graph={
+            <GraphRangeProvider preset={choice.preset ?? null}>
+              {rangeError && (
+                <p role="alert" className="mb-2 type-meta font-semibold">
+                  {rangeError}
+                </p>
+              )}
+              <ExerciseGraph
+                today={today}
+                origin={null}
+                data={{
+                  range: graphRange,
+                  options: options.map(({ id, name, machine, unit: loadUnit }) => ({
+                    id,
+                    name,
+                    machine,
+                    unit: loadUnit,
+                  })),
+                  selected: selected
+                    ? {
+                        id: selected.id,
+                        name: selected.name,
+                        machine: selected.machine,
+                        unit: selected.unit,
+                        modality: selected.modality,
+                        sessions,
+                      }
+                    : null,
+                }}
+              />
+            </GraphRangeProvider>
+          }
           performances={performances.map((performance) => ({
             id: performance.workoutExerciseId,
             sessionId: performance.workoutSessionId,
@@ -357,13 +396,6 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             unit={unit}
           />
         )}
-
-        {rangeError && (
-          <p role="alert" className="text-sm text-danger">
-            {rangeError}
-          </p>
-        )}
-        <ExerciseTrend range={range} machines={machines} selected={selected} />
 
         <Section title="Availability by gym">
           {availability.length === 0 && (
