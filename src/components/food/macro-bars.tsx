@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { FoodRowText, RowFigure, RowGlyph } from "@/components/food/food-row";
 import { Sheet } from "@/components/ui/sheet";
 import {
   contributions,
@@ -26,6 +27,11 @@ const MACROS = [
 /** Whole grams, as every macro summary is; a trace of something reads as less than one. */
 function grams(value: number): string {
   return value > 0 && Math.round(value) === 0 ? "<1" : formatFoodAmount(value);
+}
+
+/** A food's grams in its row's column: whole, as kcal are there, so four digits always fit. */
+function rowGrams(value: number): string {
+  return value > 0 && Math.round(value) === 0 ? "<1" : String(Math.round(value) + 0);
 }
 
 /** How much of its rail a macronutrient fills, from 0 to 1. */
@@ -171,26 +177,28 @@ function MacroSheet({
         {rows.length === 0 ? (
           <p className="mt-4 type-meta text-ink-2">Nothing yet today.</p>
         ) : (
-          <ul className="mt-2" aria-label={`${label} by food`}>
+          <ul className="food-list mt-2" aria-label={`${label} by food`}>
             {rows.map((row) => (
-              <li key={`${row.name}-${row.unit}`} className="macro-sheet-row">
-                <span className="min-w-0 flex-[1_1_10rem]">
-                  <span className="block font-bold [overflow-wrap:anywhere]">{row.name}</span>{" "}
-                  <span className="block type-meta-small text-ink-2 tabular-nums">
-                    {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
-                    <span>{formatPortion(row.amount, row.unit)}</span>
-                  </span>
-                </span>{" "}
+              <li key={`${row.name}-${row.unit}`} className="food-row">
+                <FoodRowText
+                  name={row.name}
+                  tile={<RowGlyph name="food" />}
+                  meta={
+                    <>
+                      {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
+                      <span>{formatPortion(row.amount, row.unit)}</span>
+                    </>
+                  }
+                />{" "}
                 {row.grams === null ? (
-                  <span className="ml-auto max-w-full text-ink-2">
-                    <span aria-hidden>—</span>
+                  <span className="food-row-figure">
+                    <span aria-hidden className="type-figure text-ink-2">
+                      —
+                    </span>
                     <span className="sr-only"> no figure</span>
                   </span>
                 ) : (
-                  <span className="ml-auto max-w-full whitespace-nowrap">
-                    <span className="type-figure">{grams(row.grams)}</span>{" "}
-                    <span className="type-meta-small font-semibold text-ink-2">g</span>
-                  </span>
+                  <RowFigure figure={rowGrams(row.grams)} unit="g" />
                 )}
               </li>
             ))}

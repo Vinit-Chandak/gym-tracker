@@ -289,16 +289,18 @@ weight and muscle volume), and every past entry, which can be opened, corrected 
 
 ### Sections
 
-One picker offers seven sections: **Overview** (where the tab opens), **History**, **Strength**,
-**Running**, **Food**, **Recovery** and **Body**. The header says "Progress" with the dates the
+One picker offers six sections: **Overview** (where the tab opens, with **History** under its
+month), **Strength**, **Running**, **Food**, **Recovery** and **Body**. The header says
+"Progress" with the dates the
 section is drawn over ("8 Sept – 7 Oct 2026"). Every graph is the one `Graph` (ADR 0042) and
 carries the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
 remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** this month on paper and its totals; then training totals per sport over the span,
-  only for sports with sessions ("Strength 25 sessions · 21 days · 23 h 50 min"; "Running 8
-  sessions · 7 days · 3 h 15 min · 30.8 km"; cycling and swimming alike), noting sessions
-  without a distance or duration, with the spans above them.
+- **Overview:** this month on paper and its totals as its key, each sport's count with its
+  distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **History**, the ten newest
+  workouts, runs, rides and swims, running back into the month before (named) when this one
+  holds fewer, with All at its head for every entry. No span and no funnel: the training totals
+  over a span were dropped at the owner's request (ADR 0045).
 - **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
   and then an exercise filed under it ("All exercises", then each exercise ever logged there,
   each under the group of its first primary muscle). **All exercises:** the group's total volume
@@ -325,7 +327,8 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   its change ("75.2 kg · −1 since Tue 8 Sept"); and **muscles this week**, with its own week
   arrows: front and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a
   legend and a table; tapping a muscle shows "Chest · 6 sets this week".
-- **History:** "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
+- **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
+  "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
   the list (every page up to five, else the first, the last and the page read with its
   neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name, date, time,
   gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim
@@ -406,16 +409,18 @@ see calories, carbs, fat and protein against targets that start from the trainin
   it matches a saved meal) and a star to save it as a meal; one row per food eaten with its
   portion and calories.
 - **Adding:** a search over the athlete's own foods, and a list in this order: Quick add
-  (calories and macros just this once, always first), saved meals, foods ("100 g · 389 kcal"),
-  and New food only when a search finds nothing.
+  (calories and macros just this once, always first), saved meals under Meals (name, what they
+  hold, "445 kcal"), foods under Foods (name, "100 g", "389 kcal"), each the most eaten first,
+  five meals and ten foods a page, and New food only when a search finds nothing.
 - **Portion sheet:** the food per portion, the amount eaten in the food's own unit, one-tap
   ½, 1, 1½ and 2 portions, a live total, Add or Save, and Remove when editing.
 
 ### My foods, meals and targets
 
-- **My foods:** search, New food, New meal, saved meals (name, "3 foods · 445 kcal") and
-  foods, most recently used first. A food has a name, a portion in one of 12 units, calories
-  (required) and optional carbs, fat and protein.
+- **My foods:** search, New food, New meal, saved meals (name, what they hold, "445 kcal") and
+  foods, each the most eaten first and a page at a time; Back from a saved meal returns to the
+  same search and pages. A food has a name, a portion in one of 12 units, calories (required) and
+  optional carbs, fat and protein.
 - **Meal builder:** a name, the foods and amounts in it with a running total, Save meal, and
   Delete for an existing meal.
 - **Targets:** daily calories; the goal (read only); protein in g per kg of body weight ("134 g

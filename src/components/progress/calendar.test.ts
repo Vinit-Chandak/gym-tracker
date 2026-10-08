@@ -51,12 +51,19 @@ describe("the month", () => {
     ]);
   });
 
-  it("counts each sport and its distance, in the legend's order", () => {
+  it("counts each sport, its distance and its time, in the legend's order", () => {
     expect(tally(september.slice(0, 3))).toEqual([
-      { sport: "strength", count: 1, metres: null },
-      { sport: "running", count: 1, metres: 3100 },
-      { sport: "swimming", count: 1, metres: 1500 },
+      { sport: "strength", count: 1, metres: null, ms: 48 * 60_000 },
+      { sport: "running", count: 1, metres: 3100, ms: null },
+      { sport: "swimming", count: 1, metres: 1500, ms: null },
     ]);
+    // What was recorded adds up; an activity without a time adds none, rather than zero.
+    expect(
+      tally([
+        activity({ sport: "running", durationMs: 26 * 60_000 }),
+        activity({ sport: "running", durationMs: null }),
+      ])[0]?.ms,
+    ).toBe(26 * 60_000);
     expect(tallyName("running", 8)).toBe("Runs");
     expect(tallyName("cycling", 1)).toBe("Ride");
     expect(tallyDistance(30_800)).toBe("30.8 km");

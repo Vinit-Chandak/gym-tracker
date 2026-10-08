@@ -4,21 +4,20 @@ import type { Route } from "next";
 import { useSyncExternalStore } from "react";
 
 import { Art } from "@/components/art/art";
-import { RangeSpans } from "@/components/graph/graph";
 import {
   ART_SPORT,
   monthDays,
   tally,
   tallyDistance,
   tallyName,
-  type DayActivity,
+  type SportTally,
 } from "@/components/progress/calendar";
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
-import { InfoTip } from "@/components/ui/info-tip";
-import { formatDateRange, formatIsoMonth, formatMinutes } from "@/lib/format";
+import { formatIsoMonth, formatMinutes } from "@/lib/format";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 
+import { HistoryList } from "../history/history-list";
 import type { ProgressData } from "../progress-types";
 
 const subscribeResize = (onChange: () => void) => {
@@ -49,10 +48,29 @@ function useCellHeight(): number {
 }
 
 /**
- * Overview: the month on paper, its totals as its key, then every sport's totals over the span
- * every graph shares (ADR 0042), counted in full rather than sampled.
+ * What a month's sport added up to, under its name: how far, then how long. Each figure keeps
+ * its unit, so a narrow column breaks "18 h 26 min" between the hours and the minutes.
  */
-export function OverviewSection({ month, overview }: Pick<ProgressData, "month" | "overview">) {
+function measures(entry: SportTally): string[] {
+  return [
+    entry.metres === null ? null : tallyDistance(entry.metres),
+    entry.ms === null ? null : formatMinutes(entry.ms / 60_000),
+  ]
+    .filter((line) => line !== null)
+    .map((line) => line.replace(/(\d) /g, "$1\u00a0"));
+}
+
+/**
+ * Overview (ADR 0045): the month on paper, its totals as its key (each sport's count, distance
+ * and time), then History, the latest ten activities. The list is the calendar read back from
+ * today: it runs on past the month's first day when the month holds fewer, each earlier month
+ * under its name, and the page behind it holds every entry.
+ */
+export function OverviewSection({
+  month,
+  overview,
+  today,
+}: Pick<ProgressData, "month" | "overview" | "today">) {
   const cellHeight = useCellHeight();
   const year = month.month.slice(0, 4);
   const name = formatIsoMonth(month.month, year);
@@ -64,7 +82,6 @@ export function OverviewSection({ month, overview }: Pick<ProgressData, "month" 
     ]),
   );
   const tallies = tally(month.activities);
-  const totals = overview.totals.filter((total) => total.count > 0);
 
   return (
     <>
@@ -102,12 +119,11 @@ export function OverviewSection({ month, overview }: Pick<ProgressData, "month" 
                 </span>
                 <span className="month-total-name">
                   {tallyName(entry.sport, entry.count)}
-                  {entry.metres !== null && (
-                    <>
-                      <br />
-                      {tallyDistance(entry.metres)}
-                    </>
-                  )}
+                  {measures(entry).map((line) => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
                 </span>
               </li>
             ))}
@@ -117,68 +133,19 @@ export function OverviewSection({ month, overview }: Pick<ProgressData, "month" 
         )}
       </section>
 
-      {/* Every sport over the span the graphs share, chosen here as on every graph. */}
-      <section aria-labelledby="progress-range" className="mt-6 border-t border-hair pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 id="progress-range" className="type-heading">
-            Training totals
+      {/* History: the latest ten under the month, every entry one tap on. */}
+      {overview.latest.length > 0 && (
+        <section aria-labelledby="progress-history" className="mt-6 border-t border-hair pt-3">
+          <h2 id="progress-history" className="month-head">
+            <span>History</span>
+            <Link href="/progress/history" aria-label="All history" className="month-head-link">
+              All
+              <Glyph name="chevronRight" className="glyph-18" />
+            </Link>
           </h2>
-          <InfoTip label="What these totals count">
-            Every activity in this span, counted in full rather than sampled. Recorded training
-            time, not unique wall-clock time: overlapping sessions are counted once each. Distance
-            is per sport and never added across them.
-          </InfoTip>
-        </div>
-        <p className="type-meta-small font-semibold text-ink-2 tabular-nums">
-          {formatDateRange(overview.range.from, overview.range.to)}
-        </p>
-        <RangeSpans name="totals" className="mt-2" />
-        {totals.length > 0 ? (
-          <ul className="mt-1">
-            {totals.map((total, index) => (
-              <li
-                key={total.sport}
-                className={index === totals.length - 1 ? "total-row plan-row-last" : "total-row"}
-              >
-                <span className="mark-cell">
-                  <Art
-                    kind="mark"
-                    sport={ART_SPORT[total.sport as DayActivity["sport"]] ?? "strength"}
-                    size={16}
-                  />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="plan-row-name">{total.label}</span>
-                  <span className="type-meta-small text-ink-2 tabular-nums">
-                    {total.count} {total.count === 1 ? "session" : "sessions"} · {total.days}{" "}
-                    {total.days === 1 ? "day" : "days"} · {formatMinutes(total.durationMs / 60_000)}
-                    {total.distanceMetres !== null && total.distanceMetres > 0
-                      ? ` · ${Math.round(total.distanceMetres / 100) / 10} km`
-                      : ""}
-                  </span>
-                  {/* What the totals could not include, said rather than hidden. */}
-                  {(total.unknownDistances > 0 || total.unknownDurations > 0) && (
-                    <span className="type-caption font-medium text-ink-2">
-                      {[
-                        total.unknownDistances > 0
-                          ? `${total.unknownDistances} without a distance`
-                          : null,
-                        total.unknownDurations > 0
-                          ? `${total.unknownDurations} without a duration`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 type-meta text-ink-2">Nothing logged in this span.</p>
-        )}
-      </section>
+          <HistoryList items={overview.latest} today={today} level={3} month={month.month} />
+        </section>
+      )}
     </>
   );
 }

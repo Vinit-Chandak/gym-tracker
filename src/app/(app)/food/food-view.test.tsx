@@ -97,7 +97,8 @@ it("shows what went into each meal and what it came to, and the day's kcal eaten
   ]);
   const breakfast = screen.getByRole("link", { name: /^Breakfast/ });
   // Milk twice is still one name in the list, and both count.
-  expect(text(breakfast)).toBe("Breakfast Milk · Morning dry fruits 357 kcal");
+  // A food row, as every list of food has: its foods on one line, its whole kcal at its end.
+  expect(text(breakfast)).toBe("Breakfast Milk, Morning dry fruits 357 kcal");
   expect(text(screen.getByRole("link", { name: /^Dinner/ }))).toBe("Dinner Home food 400 kcal");
   // The day's one figure, written against its target as the macronutrients are.
   expect(text(document.querySelector(".food-eaten")!)).toBe("757 / 2,300 kcal eaten of 2,300");

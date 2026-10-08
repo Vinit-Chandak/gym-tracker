@@ -145,7 +145,7 @@ function editor(screenData: Partial<MealScreen> = {}) {
 }
 
 const sheet = () => document.querySelector("dialog")!;
-const myFoods = () => within(screen.getByRole("list", { name: "Your foods and meals" }));
+const myFoods = () => within(screen.getByRole("group", { name: "Your foods and meals" }));
 const inSheet = () => within(sheet());
 const type = (label: string, value: string) =>
   fireEvent.change(inSheet().getByLabelText(label), { target: { value } });
@@ -401,11 +401,17 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(SHAKE.id));
 });
 
-it("searches foods by name, and saved meals by name or by what they hold, in one list", () => {
+it("searches foods by name, and saved meals by name or by what they hold, meals above foods", () => {
   editor();
-  // Everything in My foods is one list to add from, after Quick add and with saved meals first;
-  // nothing is made here.
+  // Everything in My foods can be added from here, after Quick add: the saved meals under their
+  // own heading, then the foods under theirs. Nothing is made here.
   expect(myFoods().getAllByRole("button")).toHaveLength(6);
+  const names = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.textContent?.split(" ")[0]);
+  expect(names("Meals")).toEqual(["Shake", "Usual"]);
+  expect(names("Foods")).toEqual(["Oats", "Milk", "Whey"]);
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "WHEY" } });
@@ -414,10 +420,12 @@ it("searches foods by name, and saved meals by name or by what they hold, in one
       .getAllByRole("button")
       .map((button) => button.textContent?.split(" ")[0]),
   ).toEqual(["Quick", "Shake", "Usual", "Whey"]);
-  // A food that exists is found, not offered as a new one.
+  // A food that exists is found, not offered as a new one; with no saved meal found, their
+  // heading goes too.
   fireEvent.change(search, { target: { value: "oats" } });
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /^Shake/ })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Meals" })).toBeNull();
   // Only a search that finds nothing offers to make the food.
   fireEvent.change(search, { target: { value: "granola" } });
   expect(
@@ -425,6 +433,64 @@ it("searches foods by name, and saved meals by name or by what they hold, in one
       .getAllByRole("button")
       .map((button) => button.textContent),
   ).toEqual(["Quick add “granola” Calories and macros, just this once", "New food “granola”"]);
+});
+
+it("leads every meal and food with its tile, one line each, in whole kcal and with no plus", () => {
+  const { container } = editor();
+  const rows = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.textContent?.replace(/\s+/g, " ").trim());
+  // Shake is 1.5 scoops of whey at 139 kcal a scoop: 208.5, written 209.
+  expect(rows("Meals")).toEqual(["Shake Whey 209 kcal", "Usual breakfast Milk, Whey 295 kcal"]);
+  // A food says its portion under its name, and what that portion comes to beside it.
+  expect(rows("Foods")).toEqual([
+    "Oats 100 g 389 kcal",
+    "Milk 100 ml 52 kcal",
+    "Whey 1 scoop 139 kcal",
+  ]);
+  const library = screen.getByRole("group", { name: "Your foods and meals" });
+  for (const row of within(library).getAllByRole("button")) {
+    expect(row.querySelector(".food-row-glyph")).toBeTruthy();
+  }
+  // The row is the control, so nothing trails it to say it can be added.
+  expect(library.querySelector(".meal-add")).toBeNull();
+  // What is already in the meal is listed the same way, under the bowl.
+  const inMeal = container.querySelector('[aria-label="In breakfast"]')!;
+  expect(inMeal.querySelectorAll(".food-row-glyph")).toHaveLength(2);
+  expect(inMeal.textContent?.replace(/\s+/g, " ")).toContain("Milk 300 ml 156 kcal");
+});
+
+it("lists meals five and foods ten a page, starting again at the first for a search", () => {
+  const foods = Array.from({ length: 12 }, (_, at) => ({
+    ...OATS,
+    id: `00000000-0000-4000-8000-0000000001${String(at).padStart(2, "0")}`,
+    name: `Food ${at + 1}`,
+  }));
+  const meals = Array.from({ length: 7 }, (_, at) => ({
+    ...SHAKE,
+    id: `00000000-0000-4000-8000-0000000002${String(at).padStart(2, "0")}`,
+    name: `Meal ${at + 1}`,
+  }));
+  editor({ entries: [], foods, savedMeals: meals });
+  const names = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.querySelector(".food-row-name")!.textContent);
+  expect(names("Meals")).toEqual(["Meal 1", "Meal 2", "Meal 3", "Meal 4", "Meal 5"]);
+  expect(names("Foods")).toHaveLength(10);
+  const foodPages = within(screen.getByRole("navigation", { name: "Foods pages" }));
+  fireEvent.click(foodPages.getByRole("button", { name: "Page 2 of 2" }));
+  expect(names("Foods")).toEqual(["Food 11", "Food 12"]);
+  expect(foodPages.getByRole("button", { name: "Page 2 of 2" }).getAttribute("aria-current")).toBe(
+    "page",
+  );
+  // Turning Foods leaves Meals where it was.
+  expect(names("Meals")).toEqual(["Meal 1", "Meal 2", "Meal 3", "Meal 4", "Meal 5"]);
+  // A search is read from its first page.
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "food 1" } });
+  expect(names("Foods")).toEqual(["Food 1", "Food 10", "Food 11", "Food 12"]);
+  expect(screen.queryByRole("navigation", { name: "Foods pages" })).toBeNull();
 });
 
 it("leaves correcting a food to My foods: its sheet here only says how much", () => {

@@ -11,6 +11,7 @@ import {
   formatPortion,
   formatRunKm,
   formatTime,
+  formatWholeKcal,
 } from "./format";
 
 /**
@@ -70,6 +71,20 @@ it("writes an amount of a food in its own unit, plural where the unit is a word"
   expect(formatPortion(1250, "ml")).toBe("1,250 ml");
   expect(formatAmount(33.333)).toBe("33.33");
   expect(formatAmount(-0.001)).toBe("0");
+});
+
+it("writes a food's or a saved meal's energy to the nearest whole kcal, four digits and no comma", () => {
+  expect(formatWholeKcal(1000.3)).toBe("1000");
+  expect(formatWholeKcal(1000.8)).toBe("1001");
+  expect(formatWholeKcal(282.5)).toBe("283");
+  expect(formatWholeKcal(9999.4)).toBe("9999");
+  // Past four digits it is still written whole; the column widens rather than cut it.
+  expect(formatWholeKcal(9999.5)).toBe("10000");
+  expect(formatWholeKcal(0.4)).toBe("0");
+  expect(formatWholeKcal(-0.4)).toBe("0");
+  // A half that floating point lands a hair under is still a half.
+  expect(0.3 + 1.9 + 0.3).toBeLessThan(2.5);
+  expect(formatWholeKcal(0.3 + 1.9 + 0.3)).toBe("3");
 });
 
 it("writes the macronutrients that are known, in whole grams", () => {
