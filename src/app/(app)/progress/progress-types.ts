@@ -25,8 +25,10 @@ export type SportTotal = {
 export type ProgressData = {
   /** Today in the account's time zone: "Today", "This week" and a year are said from it. */
   today: string;
-  /** Dates or a week the reader asked for that could not be read. */
-  error: string | null;
+  /** Dates the reader asked for that could not be read: said where a span is drawn. */
+  rangeError: string | null;
+  /** A week asked for that could not be read: said on Muscles, the one section on a week. */
+  weekError: string | null;
   /** The span every graph is drawn over; null while dates chosen by hand hold. */
   preset: RangePreset | null;
   /** This month so far, for Overview's calendar: every activity of every day. */

@@ -15,6 +15,9 @@ Body put two clocks on one screen: the graph's span beside the picker ("9 Sept �
 and under the graph the map's own week ("5 Oct – 11 Oct 2026"), each with its own controls. The
 map's heading said "this week" whichever week it showed, as did a muscle's line when tapped.
 
+Shown the two sections, the owner kept them as named, kept the map off Overview (History is to
+join the month there), and asked that Muscles have no date filter at all: week by week.
+
 ## Decisions
 
 1. **Body weight is a section of its own,** in Body's place at the end of the picker, named
@@ -24,14 +27,15 @@ map's heading said "this week" whichever week it showed, as did a muscle's line 
    Strength, Muscles, Running, Food, Recovery and Body weight. The map counts working sets from
    finished workouts, so it stands with the other lifting section.
 3. **Overview stays the month.** The calendar, its key and the training totals, unchanged: the
-   way into a day's sessions keeps the first screen.
+   way into a day's sessions keeps the first screen, and the map is not added under it.
 4. **Muscles keeps its own week, and names it once.** It follows no span, so no dates stand
    beside the picker and there is no funnel: Custom dates would choose a span it does not draw.
    The week is named as a graph names one (`weekLabel`): "This week" while it runs, otherwise
    its days ("28 Sept – 4 Oct"). The heading says what is shaded, "Working sets", with its ⓘ; the
    picker already says "Muscles". The arrows stop at this week, since nothing is trained in a
    week still to come. A tapped muscle reads "Chest · 6 sets" (or "1 set", no longer "1 sets"),
-   naming no week of its own to get wrong.
+   naming no week of its own to get wrong. Dates chosen by hand say nothing to it, not even a
+   warning that they could not be read; a week that could not be read is said there alone.
 
 ## Considered
 
@@ -50,6 +54,13 @@ map's heading said "this week" whichever week it showed, as did a muscle's line 
   Calendar. Kept in reserve: the same map would be on two screens, and the landing would still
   grow by a map.
 
+Also in this change: a graph measured its labels at the text size it was first drawn at, and
+again only when its box changed size. Text made larger while a graph is on screen leaves the box
+as it was (the plot is a fixed height, its column a fixed width), so at 200% the dates under
+every graph were spaced for 100% and ran into each other, the last off the edge. A rem-wide probe
+now tells the graph the text size changed, as one tells the workout screen. A page opened at 200%
+was already right.
+
 ## How it was checked
 
 `progress/progress-sections.test.tsx` (the picker's eight in order, Body weight keeping `body`),
@@ -60,4 +71,10 @@ its days; the steps) and `components/ui/body-map.test.tsx`. Rendered against the
 (none clipped at 320 × 568), and the Overview mock above. `audit:ui-controls`' large-text check
 had measured only the body map's figures on Body (a graph's plot carries no role) and looked for
 a list of values renamed in ADR 0042. It now measures the map on Muscles and the graph on Body
-weight, opens the graph's values, and passes.
+weight, opens the graph's values, and passes. `components/graph/graph.test.tsx` grows the text
+under a drawn graph; in the browser, with the text doubled after the page loaded, the dates under
+Body weight, Strength, Running, Food, Recovery, an exercise's page and the compare page stood
+clear of each other (every other Monday over a month), and every Monday at 100%.
+`audit:recovery` had been left on the old charts' markup; it now finds the measure control, the
+graph and its values, and stops at a question for the owner: a night of 7.25 h reads "7.3 h",
+as every graph's figures are given to a tenth.

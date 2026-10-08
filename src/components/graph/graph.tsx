@@ -160,7 +160,10 @@ export function Graph({
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const holder = useRef<HTMLDivElement>(null);
-  const { width, root: rem } = useMeasure(holder, undefined, {
+  // The plot's box keeps its size when the reader's text grows; a rem-wide probe does not, so
+  // the labels are measured again at the new size.
+  const probe = useRef<HTMLSpanElement>(null);
+  const { width, root: rem } = useMeasure(holder, probe, {
     width: 362,
     height: HEIGHT,
     root: 16,
@@ -418,6 +421,7 @@ export function Graph({
         aria-describedby={readoutId}
         onKeyDown={onKeyDown}
       >
+        <span ref={probe} aria-hidden className="graph-probe" />
         <svg
           width={width}
           height={HEIGHT}

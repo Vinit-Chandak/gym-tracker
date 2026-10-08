@@ -148,7 +148,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         <ProgressView
           data={{
             today,
-            error: rangeError || weekError || null,
+            rangeError,
+            weekError,
             preset: choice.preset ?? null,
             month: {
               month,

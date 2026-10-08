@@ -165,6 +165,49 @@ it("says so in the plot when the range holds nothing, keeping its spans", () => 
   expect(screen.queryByRole("button", { name: /View values/ })).toBeNull();
 });
 
+it("names fewer dates once the reader's text grows, though the plot keeps its size", () => {
+  // jsdom has no layout: the plot is told a phone's width, and a browser's word on a resize goes
+  // only to what changed size. Larger text changes a rem-sized element's; the plot, as tall as
+  // ever and as wide as its column, hears nothing of it.
+  const watched: { element: Element; notify: () => void }[] = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(element: Element) {
+        watched.push({
+          element,
+          notify: () => this.callback([], this as unknown as ResizeObserver),
+        });
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const box = vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockReturnValue({ width: 362, height: 188 } as DOMRect);
+  try {
+    const { container } = draw();
+    const dates = () =>
+      [...container.querySelectorAll(".graph-plot svg text")]
+        .filter((text) => text.getAttribute("y") === "182")
+        .map((text) => text.textContent);
+    expect(dates()).toEqual(["14 Sept", "21 Sept", "28 Sept", "5 Oct"]);
+    act(() => {
+      document.documentElement.style.fontSize = "32px";
+      for (const { element, notify } of watched)
+        if (!element.classList.contains("graph-plot")) notify();
+    });
+    // Twice the size: every other Monday stands clear of the next, and none runs off the edge.
+    expect(dates()).toEqual(["14 Sept", "28 Sept"]);
+  } finally {
+    document.documentElement.style.fontSize = "";
+    box.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
 it("draws bars in grey, the latest in ink, and the one being read in ink instead", () => {
   const { container } = draw({
     mark: "bar",

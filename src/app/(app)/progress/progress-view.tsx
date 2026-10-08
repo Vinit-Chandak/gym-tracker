@@ -65,6 +65,8 @@ export function ProgressView({ data }: { data: ProgressData }) {
   };
   const range = sectionRange(tab, data);
   const rangeText = range ? formatDateRange(range.from, range.to) : null;
+  // Muscles goes week by week: dates chosen by hand say nothing to it, nor its week to the rest.
+  const error = tab === "muscles" ? data.weekError : data.rangeError;
 
   return (
     <GraphRangeProvider preset={data.preset}>
@@ -82,10 +84,10 @@ export function ProgressView({ data }: { data: ProgressData }) {
             )
           }
         />
-        {data.error && (
+        {error && (
           <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
             <Glyph name="warn" className="mt-px glyph-18" />
-            {data.error}
+            {error}
           </p>
         )}
 

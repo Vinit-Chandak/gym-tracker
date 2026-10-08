@@ -34,7 +34,8 @@ const MONTH = presetRange("1m", TODAY);
 /** Nothing logged, in a month: enough for any one section to be drawn. */
 const data: ProgressData = {
   today: TODAY,
-  error: null,
+  rangeError: null,
+  weekError: null,
   preset: "1m",
   month: { month: "2026-10", today: 8, activities: [] },
   overview: { range: MONTH, totals: [] },
@@ -69,4 +70,23 @@ it("draws Muscles on its own week, with no span and no custom dates to choose", 
   expect(screen.getByText("This week")).toBeTruthy();
   expect(screen.queryByText("9 Sept – 8 Oct 2026")).toBeNull();
   expect(screen.queryByRole("button", { name: /^Filters/ })).toBeNull();
+});
+
+it("says a week it could not read only on Muscles, and dates only where a span is drawn", () => {
+  const unread = {
+    ...data,
+    rangeError: "Choose a date range of up to one year, with From before To.",
+    weekError: "That week is not a valid date. Showing this week instead.",
+  };
+  route.search = "view=muscles";
+  render(<ProgressView data={unread} />);
+  expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
+    unread.weekError,
+  ]);
+  cleanup();
+  route.search = "view=body";
+  render(<ProgressView data={unread} />);
+  expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
+    unread.rangeError,
+  ]);
 });
