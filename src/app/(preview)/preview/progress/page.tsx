@@ -8,12 +8,12 @@ import {
   workoutItem,
 } from "@/app/(app)/progress/history/history-items";
 import type { HistoryItem } from "@/app/(app)/progress/history/history-list";
+import { HistoryView } from "@/app/(app)/progress/history/history-view";
 import { ProgressSections } from "@/app/(app)/progress/progress-sections";
 import { OverviewSection } from "@/app/(app)/progress/sections/overview-section";
 import type { DayActivity } from "@/components/progress/calendar";
 
 import { PreviewShell } from "../../preview-shell";
-import { MonthPagesPreview } from "./month-pages-preview";
 
 export const metadata: Metadata = { title: "Preview · Progress" };
 
@@ -170,18 +170,28 @@ const NOW: Record<string, string> = {
 /**
  * Progress's Overview against made-up data (ADR 0045): `?state=early` (the default, the
  * screenshot's 8 October), `late` (29 October), `first` (1 November, nothing yet) and `new`
- * (nothing ever). `?list=pages` draws the alternative the owner weighed, the calendar's month in
- * pages of ten, in place of the latest ten.
+ * (nothing ever). `?view=history` is the page behind Overview's History: every entry, in pages.
  */
 export default async function ProgressPreviewPage(props: PageProps<"/preview/progress">) {
-  const { state: asked, list } = await props.searchParams;
+  const { state: asked, view } = await props.searchParams;
   const state = typeof asked === "string" && asked in NOW ? asked : "early";
   const now = NOW[state]!;
   const today = now.slice(0, 10);
   const month = today.slice(0, 7);
   const done = state === "new" ? [] : DONE.filter((d) => d.at <= now);
   const items = done.map(asItem).sort(newestFirst);
-  const pages = list === "pages";
+
+  if (view === "history")
+    return (
+      <PreviewShell tab="/progress">
+        <HistoryView
+          today={today}
+          range={{ from: items.at(-1)?.day ?? today, to: today }}
+          items={items}
+          gyms={[GYM]}
+        />
+      </PreviewShell>
+    );
 
   return (
     <PreviewShell tab="/progress">
@@ -196,14 +206,8 @@ export default async function ProgressPreviewPage(props: PageProps<"/preview/pro
                 today: Number(today.slice(8, 10)),
                 activities: done.filter((d) => d.at.startsWith(month)).map(asActivity),
               }}
-              overview={{ latest: pages ? [] : items.slice(0, LATEST_COUNT) }}
+              overview={{ latest: items.slice(0, LATEST_COUNT) }}
             />
-            {pages && (
-              <MonthPagesPreview
-                items={items.filter((item) => item.day.startsWith(month))}
-                today={today}
-              />
-            )}
           </section>
         </div>
       </div>

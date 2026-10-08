@@ -21,7 +21,7 @@
 
 /* ---------- Overview: the month, then the latest ---------- */
 /* A head on Overview: its name, and at its end the page that holds all of it (the month's
-   Calendar, the latest's History). */
+   Calendar, every entry of History). */
 .month-head {
   display: flex;
   min-height: 36px;
@@ -85,7 +85,7 @@
   padding: 7px 0;
   border-bottom: 1px solid var(--ov-hair);
 }
-/* Where a list read beside the month (Overview's latest) runs on past it: the earlier month's
+/* Where a list read beside the month (Overview's History) runs on past it: the earlier month's
    name over its first day, as the month's own name stands over the calendar. */
 .list-month {
   margin-top: 22px;

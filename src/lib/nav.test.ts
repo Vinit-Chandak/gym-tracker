@@ -22,7 +22,7 @@ it.each([
   ["/exercises/bench", "/profile"],
   ["/profile/programme", "/profile"],
   ["/u/phani03", "/profile"],
-  // A meal's page is the Food tab's; History is a section of Progress (ADR 0034).
+  // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
   ["/food/breakfast", "/food"],
   // So are My foods, a meal kept in it, and the targets (ADR 0035).
@@ -50,7 +50,7 @@ it("names the section a detail screen was opened from", () => {
   // My foods is a screen of Food's with a name of its own (ADR 0035); Targets is Food's.
   expect(sectionLabel("/food/my-foods")).toBe("My foods");
   expect(sectionLabel("/food/targets")).toBe("Food");
-  // History is a section of Progress with a page, and a name, of its own.
+  // History is a page of Progress's with a name of its own.
   expect(sectionLabel("/progress/history")).toBe("History");
   expect(sectionLabel("/progress/history?from=2026-09-01")).toBe("History");
   expect(sectionLabel("/progress?view=strength")).toBe("Progress");

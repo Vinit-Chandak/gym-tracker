@@ -24,7 +24,8 @@ export type NavItem = {
  *
  * The third was History. It is Food (ADR 0034): meals are logged several times a day, and a
  * card at the foot of Today put them a scroll away, while History is a look back, which is
- * what Progress is for. History is one of Progress's sections now, and the island stays at five.
+ * what Progress is for. History is Progress's now (Overview's list, and a page behind it), and the
+ * island stays at five.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", glyph: "today" },
@@ -92,8 +93,8 @@ const SECTION_LABELS: Record<string, string> = {
 
 /** A screen with a name of its own inside a section, which a back control names instead. */
 const PAGE_LABELS: Record<string, string> = {
-  // History is a section of Progress with a page of its own, so what it opens goes back to it
-  // by its own name.
+  // History is a page of Progress's (ADR 0045), so what it opens goes back to it by its own
+  // name.
   "/progress/history": "History",
   // The calendar is Progress's too: a day opened from it goes back to it by name.
   "/progress/calendar": "Calendar",

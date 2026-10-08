@@ -13,7 +13,7 @@ import {
   pageSection,
   PROGRESS_SECTIONS,
   ProgressSections,
-  type ProgressPageSection,
+  type ProgressSection,
 } from "./progress-sections";
 import type { ProgressData } from "./progress-types";
 import { BodySection } from "./sections/body-section";
@@ -27,7 +27,7 @@ import { StrengthSection } from "./sections/strength-section";
  * The range a section is drawn over, for the dates beside its name and the funnel's. Overview
  * has none: its month is this month and its list the latest (ADR 0045).
  */
-function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRange | null {
+function sectionRange(section: ProgressSection, data: ProgressData): GraphRange | null {
   switch (section) {
     case "overview":
       return null;
@@ -52,7 +52,7 @@ function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRa
 export function ProgressView({ data }: { data: ProgressData }) {
   const params = useSearchParams();
   const tab = pageSection(params.get("view"));
-  const chooseView = (section: ProgressPageSection) => {
+  const chooseView = (section: ProgressSection) => {
     const next = new URLSearchParams(params.toString());
     if (section === "overview") next.delete("view");
     else next.set("view", section);

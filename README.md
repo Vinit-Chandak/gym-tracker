@@ -152,7 +152,7 @@ src/
     (onboarding)/welcome/       the four first-run steps
     (app)/                      the five tabs behind the shared shell
       today/ training/ food/ progress/ profile/
-      progress/history/           History, one of Progress's sections
+      progress/history/           History: every entry, behind Overview's latest ten
       profile/friends/            friends, leaderboard, compare; profile/privacy/
       u/[username]/               a person's page and the head-to-head comparisons
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...

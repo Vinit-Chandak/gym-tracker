@@ -29,10 +29,11 @@ export const metadata: Metadata = { title: "History" };
 export const unstable_dynamicStaleTime = 60;
 
 /**
- * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery
- * reading, newest first, ten to a page (ADR 0044). It was a tab of its own until Food took its
- * place. A list has no span: it reads back as far as it goes, or over the dates chosen by hand
- * behind the funnel.
+ * History: every workout, run, ride, swim and recovery reading, newest first, ten to a page
+ * (ADR 0044). It was a tab of its own until Food took its place (ADR 0034), then a section of
+ * Progress; now Overview lists the latest ten under its month, and this page, one tap behind
+ * them, holds every entry (ADR 0045). A list has no span: it reads back as far as it goes, or
+ * over the dates chosen by hand behind the funnel.
  */
 export default async function HistoryPage(props: PageProps<"/progress/history">) {
   const user = await requireUser(),
@@ -86,17 +87,14 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
   const partialDay = stops.sort().at(-1) ?? null;
   const listed = partialDay ? items.filter((item) => item.day > partialDay) : items;
   return (
-    // Progress's own opening, as on every other section of it; the picker says which.
-    <div className="progress page-width pt-safe">
-      <HistoryView
-        error={rangeError}
-        today={today}
-        // The dates the list covers: those chosen, else its first entry's day to today.
-        range={choice.custom ?? { from: listed.at(-1)?.day ?? today, to: today }}
-        items={listed}
-        gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
-        stopsAfter={listed.length < items.length ? (listed.at(-1)?.day ?? null) : null}
-      />
-    </div>
+    <HistoryView
+      error={rangeError}
+      today={today}
+      // The dates the list covers: those chosen, else its first entry's day to today.
+      range={choice.custom ?? { from: listed.at(-1)?.day ?? today, to: today }}
+      items={listed}
+      gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
+      stopsAfter={listed.length < items.length ? (listed.at(-1)?.day ?? null) : null}
+    />
   );
 }

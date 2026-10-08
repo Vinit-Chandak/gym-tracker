@@ -87,10 +87,10 @@ it("keys the month with each sport's count, distance and time", () => {
   expect(runs?.textContent).toBe("3Runs9.2 km1 h 9 min");
   expect(screen.queryByText("Training totals")).toBeNull();
   // Nothing logged at all: no list under the month, which already says so.
-  expect(screen.queryByRole("heading", { name: /Latest/ })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /History/ })).toBeNull();
 });
 
-it("lists the latest as History does, naming the month it runs back into", () => {
+it("lists History's latest ten under the month, naming the month it runs back into", () => {
   render(
     <OverviewSection
       today={TODAY}
@@ -105,8 +105,9 @@ it("lists the latest as History does, naming the month it runs back into", () =>
       }}
     />,
   );
-  const latest = within(screen.getByRole("region", { name: /Latest/ }));
-  expect(latest.getByRole("link", { name: /History/ }).getAttribute("href")).toBe(
+  const latest = within(screen.getByRole("region", { name: /^History/ }));
+  // Every entry, its pages and its filters are one tap on.
+  expect(latest.getByRole("link", { name: "All history" }).getAttribute("href")).toBe(
     "/progress/history",
   );
   // Each entry under its day; the days the calendar above holds stand under no month of their own,

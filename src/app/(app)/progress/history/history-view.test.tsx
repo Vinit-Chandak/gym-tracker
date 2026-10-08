@@ -11,8 +11,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/progress/history",
 }));
-// The regression is the history list's URL-driven filtering, not the sheet primitives.
-vi.mock("../progress-sections", () => ({ ProgressSections: () => null }));
+// The regression is the history list's URL-driven filtering, not the header or its sheet.
+vi.mock("@/components/shell/page-header", () => ({ PageHeader: () => null }));
 afterEach(cleanup);
 
 it("replaces local filters when Back or a deep link changes the URL", () => {

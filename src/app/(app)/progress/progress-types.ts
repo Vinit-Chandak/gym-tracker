@@ -23,8 +23,8 @@ export type ProgressData = {
   /** This month so far, for Overview's calendar: every activity of every day. */
   month: { month: string; today: number; activities: readonly DayActivity[] };
   /**
-   * The latest activities of every sport, newest first, as History lists them: the calendar read
-   * back from today, past the month's first day when it holds fewer (ADR 0045).
+   * History's latest activities of every sport, newest first: the calendar read back from today,
+   * past the month's first day when it holds fewer (ADR 0045).
    */
   overview: { latest: readonly HistoryItem[] };
   /** Volume by muscle group, read in the account's own unit. */

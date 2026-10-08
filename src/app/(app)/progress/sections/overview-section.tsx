@@ -62,9 +62,9 @@ function measures(entry: SportTally): string[] {
 
 /**
  * Overview (ADR 0045): the month on paper, its totals as its key (each sport's count, distance
- * and time), then the latest ten activities as History lists them. The list is the calendar
- * read back from today: it runs on past the month's first day when the month holds fewer, each
- * earlier month under its name, and History holds the rest.
+ * and time), then History, the latest ten activities. The list is the calendar read back from
+ * today: it runs on past the month's first day when the month holds fewer, each earlier month
+ * under its name, and the page behind it holds every entry.
  */
 export function OverviewSection({
   month,
@@ -133,13 +133,13 @@ export function OverviewSection({
         )}
       </section>
 
-      {/* The latest ten, as History lists them; History, one tap on, holds every one. */}
+      {/* History: the latest ten under the month, every entry one tap on. */}
       {overview.latest.length > 0 && (
-        <section aria-labelledby="progress-latest" className="mt-6 border-t border-hair pt-3">
-          <h2 id="progress-latest" className="month-head">
-            <span>Latest</span>
-            <Link href="/progress/history" className="month-head-link">
-              History
+        <section aria-labelledby="progress-history" className="mt-6 border-t border-hair pt-3">
+          <h2 id="progress-history" className="month-head">
+            <span>History</span>
+            <Link href="/progress/history" aria-label="All history" className="month-head-link">
+              All
               <Glyph name="chevronRight" className="glyph-18" />
             </Link>
           </h2>

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { DateRangeFields } from "@/components/date-range-fields";
 import { dayLabel } from "@/components/graph/labels";
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
@@ -13,7 +14,6 @@ import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
 import { formatDateRange } from "@/lib/format";
 
-import { ProgressSections } from "../progress-sections";
 import { HistoryList, type HistoryItem } from "./history-list";
 
 type Filters = { kind: string; gym: string; exercise: string; machine: string };
@@ -152,12 +152,13 @@ export function HistoryView({
 
   return (
     <>
-      {/* History is one of Progress's sections (ADR 0034), so it is chosen where they are, with
-          one control at the end of the title for everything that narrows the list. */}
-      <ProgressSections
-        value="history"
-        range={formatDateRange(range.from, range.to)}
-        filters={
+      {/* Every entry, behind Overview's History (ADR 0045): a page under Progress, as the
+          calendar is, with one control at the end of its bar for everything that narrows it. */}
+      <PageHeader
+        title="History"
+        meta={formatDateRange(range.from, range.to)}
+        backHref="/progress"
+        action={
           <FilterSheet
             title="Filters"
             summary={formatDateRange(range.from, range.to)}
@@ -233,44 +234,48 @@ export function HistoryView({
         }
       />
 
-      {error && (
-        <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          {error}
+      <div className="progress page-width">
+        {error && (
+          <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="warn" className="mt-px glyph-18" />
+            {error}
+          </p>
+        )}
+        <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
+          {shown.length.toLocaleString("en-GB")} {shown.length === 1 ? "entry" : "entries"}
+          {pages > 1 && ` · page ${page} of ${pages}`}
         </p>
-      )}
-      <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-        {shown.length.toLocaleString("en-GB")} {shown.length === 1 ? "entry" : "entries"}
-        {pages > 1 && ` · page ${page} of ${pages}`}
-      </p>
-      {shown.length > 0 ? (
-        // The page's entries under their days, newest first (board Progress-History).
-        <HistoryList items={listed} today={today} />
-      ) : (
-        <div className="mt-6">
-          <h2 className="type-heading">No matching activity</h2>
-          <p className="mt-1 type-body text-ink-2">Try a wider date range or clear the filters.</p>
-          {active > 0 && (
-            <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
-              Clear filters
-            </Button>
-          )}
-        </div>
-      )}
-      {/* Said where it matters: at the end of the list, not over every page of it. */}
-      {stopsAfter && page === pages && shown.length > 0 && (
-        <p role="note" className="mt-4 type-meta text-ink-2">
-          The list ends at {dayLabel(stopsAfter, today)}: earlier entries are behind the funnel,
-          under dates.
-        </p>
-      )}
-      <PageTabs
-        page={page}
-        total={pages}
-        onChange={choosePage}
-        label="History pages"
-        className="mt-4"
-      />
+        {shown.length > 0 ? (
+          // The page's entries under their days, newest first (board Progress-History).
+          <HistoryList items={listed} today={today} />
+        ) : (
+          <div className="mt-6">
+            <h2 className="type-heading">No matching activity</h2>
+            <p className="mt-1 type-body text-ink-2">
+              Try a wider date range or clear the filters.
+            </p>
+            {active > 0 && (
+              <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Said where it matters: at the end of the list, not over every page of it. */}
+        {stopsAfter && page === pages && shown.length > 0 && (
+          <p role="note" className="mt-4 type-meta text-ink-2">
+            The list ends at {dayLabel(stopsAfter, today)}: earlier entries are behind the funnel,
+            under dates.
+          </p>
+        )}
+        <PageTabs
+          page={page}
+          total={pages}
+          onChange={choosePage}
+          label="History pages"
+          className="mt-4"
+        />
+      </div>
     </>
   );
 }
