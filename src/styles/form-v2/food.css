@@ -444,7 +444,7 @@
   display: none;
 }
 
-/* A row to add from: the name at the gutter, its own glyph after it, what it is under it. */
+/* A row: its name and what it is under it; where it adds or opens something, led by its tile. */
 .food-row {
   display: flex;
   width: 100%;
@@ -456,6 +456,7 @@
   text-align: left;
 }
 .food-list > li:last-child > .food-row,
+.food-list > li:last-child [data-swipe-row] > .food-row,
 .food-list > li.food-row:last-child {
   border-bottom: 0;
 }
@@ -478,50 +479,52 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-/* A glyph after a name (a saved meal's star in My foods) follows its last word, wherever the
-   name wraps. */
-.food-row-glyph {
-  display: inline-block;
-  margin-left: 6px;
-  color: var(--ov-ink-2);
-  vertical-align: -2px;
-}
-/* A meal's page leads Quick add and a saved meal with their glyph, centred on the name's line,
-   and keeps each name to one line, ending in an ellipsis rather than wrapping. */
+/* A meal's page and My foods lead every row to add or open with a round tile, 36 pt as a food's
+   plus was and growing with the text as glyphs do: Quick add's bolt, a saved meal's star, a food's
+   bowl (the Food tab's), New food's and New meal's plus. The name keeps to one line and what is
+   under it (a meal's foods, a food's portion) to one more, each ending in an ellipsis rather than
+   wrapping, so a meal and a food stand the same height whatever they are called and hold (owner,
+   8 October 2026; DESIGN.md, Rows and marks). */
 .food-row-led {
   display: grid;
   grid-template-areas:
-    "glyph name"
-    ". meta";
+    "tile name"
+    "tile meta";
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 8px;
+  column-gap: 12px;
 }
-.food-row-led > .food-row-glyph {
-  grid-area: glyph;
+.food-row-glyph {
+  grid-area: tile;
+  width: calc(36px + var(--ov-grow));
+  height: calc(36px + var(--ov-grow));
   align-self: center;
-  margin-left: 0;
+  /* The glyph inside is glyph-16's, 8 px + 0.5 rem. */
+  padding: calc((28px + var(--ov-grow) - 0.5rem) / 2);
+  border-radius: var(--ov-radius-full);
+  background: var(--ov-surface);
+  color: var(--ov-ink);
 }
-.food-row-led > .food-row-name {
-  grid-area: name;
+.food-row-led > .food-row-name,
+.food-row-led > .food-row-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.food-row-led > .food-row-name {
+  grid-area: name;
+}
 .food-row-led > .food-row-meta {
   grid-area: meta;
 }
-/* A saved meal's foods: two lines at most, ellipsed after the second. Every saved meal is as
-   tall as a name over two lines of foods, at their sizes and line heights here, its words
-   centred in that height, so a meal of two foods stands as tall as one of five. */
-.food-row-foods {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+/* A name with nothing under it (New food, New meal) is centred on its tile. */
+.food-row-led:not(:has(> .food-row-meta)) > .food-row-name {
+  grid-row: 1 / -1;
+  align-self: center;
 }
-.food-row-led:has(> .food-row-foods) {
-  min-height: calc(1.4 * var(--ov-type-body) + 2 * 1.35 * var(--ov-type-meta-small));
-  align-content: center;
+/* Quick add's line says what it does, so at large text it wraps rather than being cut short. */
+.food-row-led > .food-row-hint {
+  overflow: visible;
+  white-space: normal;
 }
 /* A row that comes to a figure folds it under its words at large text, never squeezes them. */
 .food-row:has(> .food-row-kcal) {
@@ -547,6 +550,19 @@
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 600;
+}
+/* Beside a tiled row the figure is a whole kcal standing over its unit, both centred in a column
+   four of Jost's tabular digits wide (0.614 em each), so every row's words end at one edge; a
+   rarer five-digit figure widens its own row's column rather than being cut. */
+.food-row-led ~ .food-row-kcal {
+  display: grid;
+  min-width: calc(4 * 0.614 * var(--ov-type-figure));
+  justify-content: center;
+  justify-items: center;
+  row-gap: 2px;
+}
+.food-row-led ~ .food-row-kcal > .food-row-unit {
+  line-height: 1.2;
 }
 
 /* The amount: − and + at the ends, the figure and its unit between them. */

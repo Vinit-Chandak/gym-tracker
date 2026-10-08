@@ -435,6 +435,30 @@ it("searches foods by name, and saved meals by name or by what they hold, meals 
   ).toEqual(["Quick add “granola” Calories and macros, just this once", "New food “granola”"]);
 });
 
+it("leads every meal and food with its tile, one line each, in whole kcal and with no plus", () => {
+  const { container } = editor();
+  const rows = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.textContent?.replace(/\s+/g, " ").trim());
+  // Shake is 1.5 scoops of whey at 139 kcal a scoop: 208.5, written 209.
+  expect(rows("Meals")).toEqual(["Shake Whey 209 kcal", "Usual breakfast Milk, Whey 295 kcal"]);
+  // A food says its portion under its name, and what that portion comes to beside it.
+  expect(rows("Foods")).toEqual([
+    "Oats 100 g 389 kcal",
+    "Milk 100 ml 52 kcal",
+    "Whey 1 scoop 139 kcal",
+  ]);
+  const library = screen.getByRole("group", { name: "Your foods and meals" });
+  for (const row of within(library).getAllByRole("button")) {
+    expect(row.querySelector(".food-row-glyph")).toBeTruthy();
+  }
+  // The row is the control, so nothing trails it to say it can be added.
+  expect(library.querySelector(".meal-add")).toBeNull();
+  // What is already in the meal keeps its kcal to the tenth, as the meal's total does.
+  expect(container.querySelector('[aria-label="In breakfast"]')?.textContent).toContain("156 kcal");
+});
+
 it("leaves correcting a food to My foods: its sheet here only says how much", () => {
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));

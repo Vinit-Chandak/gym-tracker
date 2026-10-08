@@ -5,7 +5,7 @@ import { useOptimistic, useRef, useState, useTransition } from "react";
 import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
+import { formatKcal, formatMacros, formatPortion, formatWholeKcal } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { deleteEntryAction, deleteSavedMealAction } from "@/server/actions/nutrition";
@@ -33,21 +33,15 @@ function scrollBehaviour(): ScrollBehavior {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
-/** What a row comes to, in Jost, its unit beside it (board Dinner: "338.5 kcal"). */
-function Kcal({ kcal }: { kcal: number }) {
+/**
+ * What a row comes to, in Jost, its unit beside it (board Dinner: "338.5 kcal"). Beside a list to
+ * add from, `whole`: the nearest whole kcal, which the stylesheet sets over its unit in a column.
+ */
+function Kcal({ kcal, whole = false }: { kcal: number; whole?: boolean }) {
   return (
     <span className="food-row-kcal">
-      <span className="type-figure">{formatKcal(kcal)}</span>{" "}
+      <span className="type-figure">{whole ? formatWholeKcal(kcal) : formatKcal(kcal)}</span>{" "}
       <span className="food-row-unit">kcal</span>
-    </span>
-  );
-}
-
-/** A food goes in with a plus: its row is the control, so the plus is only drawn. */
-function AddMark() {
-  return (
-    <span aria-hidden className="meal-add">
-      <Glyph name="plus" className="glyph-18" />
     </span>
   );
 }
@@ -55,12 +49,13 @@ function AddMark() {
 /**
  * One meal of the day (ADRs 0033, 0035; board Dinner): what is in it and what that comes to, the
  * star that saves it, and everything in My foods that can go into it, searched as it is typed:
- * the saved meals under Meals, then the foods under Foods, as My foods sets them out. A food's
- * name stands at the gutter; Quick add and a saved meal are led by their glyph, their names kept
- * to one line and a saved meal's foods to two, so every saved meal is the same height. A food
- * opens a sheet for how much of it; a saved meal, for adding all of it, which shows its name and
- * foods in full. Tapping a food already in the meal changes its amount, and swiping it aside
- * takes it out, which its sheet can do too.
+ * the saved meals under Meals, then the foods under Foods, as My foods sets them out. Every row to
+ * add from is led by its tile (Quick add's bolt, a saved meal's star, a food's bowl) and keeps its
+ * name to one line and what is under it (a meal's foods, a food's portion) to one more, its whole
+ * kcal in a column at its end, so a meal and a food stand the same height whatever they are
+ * called and hold (owner, 8 October 2026). A food opens a sheet for how much of it; a saved meal,
+ * for adding all of it, which shows its name and foods in full. Tapping a food already in the
+ * meal changes its amount, and swiping it aside takes it out, which its sheet can do too.
  *
  * The page adds from My foods and does not manage it: foods are made, corrected and removed on
  * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
@@ -260,7 +255,9 @@ export function MealEditor({
                   {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
                 </span>
                 <Glyph name="bolt" className="food-row-glyph glyph-16" />{" "}
-                <span className="food-row-meta">Calories and macros, just this once</span>
+                <span className="food-row-meta food-row-hint">
+                  Calories and macros, just this once
+                </span>
               </span>
             </button>
           </li>
@@ -271,12 +268,12 @@ export function MealEditor({
                 onClick={() => open({ kind: "create", name: query.trim() })}
                 className="food-row"
               >
-                <span className="food-row-text">
+                <span className="food-row-text food-row-led">
                   <span className="food-row-name">
                     {query.trim() ? `New food “${query.trim()}”` : "New food"}
                   </span>
+                  <Glyph name="plus" className="food-row-glyph glyph-16" />
                 </span>
-                <AddMark />
               </button>
             </li>
           )}
@@ -285,7 +282,7 @@ export function MealEditor({
         {savedMeals.length > 0 && (
           <section className="mt-5">
             <h2 className="caption-head">Meals</h2>
-            <ul aria-label="Meals">
+            <ul className="food-list" aria-label="Meals">
               {savedMeals.map((saved) => (
                 <li key={saved.id}>
                   <button
@@ -300,11 +297,11 @@ export function MealEditor({
                         label="Saved meal"
                         className="food-row-glyph glyph-16"
                       />{" "}
-                      <span className="food-row-meta food-row-foods">
+                      <span className="food-row-meta">
                         {saved.items.map((item) => item.name).join(", ")}
                       </span>
                     </span>{" "}
-                    <Kcal kcal={addUp(saved.items.map(eaten)).kcal} />
+                    <Kcal kcal={addUp(saved.items.map(eaten)).kcal} whole />
                   </button>
                 </li>
               ))}
@@ -315,7 +312,7 @@ export function MealEditor({
         {foods.length > 0 && (
           <section className="mt-5">
             <h2 className="caption-head">Foods</h2>
-            <ul aria-label="Foods">
+            <ul className="food-list" aria-label="Foods">
               {foods.map((food) => (
                 <li key={food.id}>
                   <button
@@ -323,14 +320,14 @@ export function MealEditor({
                     onClick={() => open({ kind: "log", food })}
                     className="food-row"
                   >
-                    <span className="food-row-text">
-                      <span className="food-row-name">{food.name}</span>{" "}
+                    <span className="food-row-text food-row-led">
+                      <span className="food-row-name">{food.name}</span>
+                      <Glyph name="food" className="food-row-glyph glyph-16" />{" "}
                       <span className="food-row-meta">
-                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
-                        kcal
+                        {formatPortion(food.portionAmount, food.unit)}
                       </span>
-                    </span>
-                    <AddMark />
+                    </span>{" "}
+                    <Kcal kcal={food.kcal} whole />
                   </button>
                 </li>
               ))}

@@ -94,7 +94,7 @@ function view(library = { foods: [OATS, WHEY], savedMeals: [USUAL] }) {
 }
 
 it("lists meals, then foods, under New food and New meal", () => {
-  view();
+  const { container } = view();
   expect(screen.getByRole("button", { name: "New food" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "New meal" }).getAttribute("href")).toBe(
     "/food/my-foods/meals/new",
@@ -109,6 +109,11 @@ it("lists meals, then foods, under New food and New meal", () => {
       .getAllByRole("button", { name: /^(Oats|Whey)/ })
       .map((button) => button.textContent?.replace(/\s+/g, " ").trim()),
   ).toEqual(["Oats 100 g · 389 kcal", "Whey 1 scoop · 139 kcal"]);
+  // Every row is led by its tile, as a meal's page's are: a plus, a star, a bowl.
+  const rows = container.querySelectorAll(".food-row");
+  expect(rows).toHaveLength(5);
+  for (const row of rows) expect(row.querySelector(".food-row-glyph")).toBeTruthy();
+  expect(container.querySelector(".meal-add")).toBeNull();
 });
 
 it("keeps a new food without logging it: no amount eaten, and Save food", async () => {

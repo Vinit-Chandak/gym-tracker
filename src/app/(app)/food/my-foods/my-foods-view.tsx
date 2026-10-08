@@ -36,7 +36,8 @@ function contents(meal: SavedMealRecord): string {
  * here without logging anything. Meals come first, then foods, the most lately eaten first; a
  * meal opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
  * takes a tap; a food's sheet can remove it too, and a meal's page can delete it. The rows are
- * a meal page's (board Dinner): every name at the gutter, a saved meal's star after its name.
+ * a meal page's (owner, 8 October 2026): each led by its tile (New food's and New meal's plus, a
+ * saved meal's star, a food's bowl), its name on one line and what it holds on one more.
  */
 export function MyFoodsView({
   library,
@@ -95,11 +96,6 @@ export function MyFoodsView({
   const newName = shownFoods.length === 0 && shownMeals.length === 0 ? query.trim() : "";
   const view = sheet.view;
 
-  const add = (
-    <span aria-hidden className="meal-add">
-      <Glyph name="plus" className="glyph-18" />
-    </span>
-  );
   const opens = <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />;
 
   return (
@@ -134,20 +130,20 @@ export function MyFoodsView({
             }
             className="food-row"
           >
-            <span className="food-row-text">
+            <span className="food-row-text food-row-led">
               <span className="food-row-name">
                 {newName ? `New food “${newName}”` : "New food"}
               </span>
+              <Glyph name="plus" className="food-row-glyph glyph-16" />
             </span>
-            {add}
           </button>
         </li>
         <li>
           <Link href={links.newMeal} prefetch="intent" className="food-row">
-            <span className="food-row-text">
+            <span className="food-row-text food-row-led">
               <span className="food-row-name">New meal</span>
+              <Glyph name="plus" className="food-row-glyph glyph-16" />
             </span>
-            {add}
           </Link>
         </li>
       </ul>
@@ -161,7 +157,7 @@ export function MyFoodsView({
       {shownMeals.length > 0 && (
         <section className="mt-5">
           <h2 className="caption-head">Meals</h2>
-          <ul aria-label="Meals">
+          <ul className="food-list" aria-label="Meals">
             {shownMeals.map((meal) => (
               <li key={meal.id}>
                 <SwipeRow
@@ -172,11 +168,9 @@ export function MyFoodsView({
                   <Link href={links.meal(meal.id)} prefetch="intent" className="food-row">
                     {/* The spaces are for the link's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
-                    <span className="food-row-text">
-                      <span className="food-row-name">
-                        {meal.name}
-                        <Glyph name="star" className="food-row-glyph glyph-16" />
-                      </span>{" "}
+                    <span className="food-row-text food-row-led">
+                      <span className="food-row-name">{meal.name}</span>
+                      <Glyph name="star" className="food-row-glyph glyph-16" />{" "}
                       <span className="food-row-meta">{contents(meal)}</span>
                     </span>
                     {opens}
@@ -191,7 +185,7 @@ export function MyFoodsView({
       {shownFoods.length > 0 && (
         <section className="mt-5">
           <h2 className="caption-head">Foods</h2>
-          <ul aria-label="Foods">
+          <ul className="food-list" aria-label="Foods">
             {shownFoods.map((food) => (
               <li key={food.id}>
                 <SwipeRow
@@ -210,8 +204,9 @@ export function MyFoodsView({
                     }
                     className="food-row"
                   >
-                    <span className="food-row-text">
-                      <span className="food-row-name">{food.name}</span>{" "}
+                    <span className="food-row-text food-row-led">
+                      <span className="food-row-name">{food.name}</span>
+                      <Glyph name="food" className="food-row-glyph glyph-16" />{" "}
                       <span className="food-row-meta">
                         {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
                         kcal
