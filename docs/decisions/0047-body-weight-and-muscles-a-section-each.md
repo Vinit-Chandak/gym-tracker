@@ -78,5 +78,8 @@ under a drawn graph; in the browser, with the text doubled after the page loaded
 Body weight, Strength, Running, Food, Recovery, an exercise's page and the compare page stood
 clear of each other (every other Monday over a month), and every Monday at 100%.
 `audit:recovery` had been left on the old charts' markup; it now finds the measure control, the
-graph and its values, and stops at a question for the owner: a night of 7.25 h reads "7.3 h",
-as every graph's figures are given to a tenth.
+graph, its values and a check-in's workout behind them. Every graph's figures are given to a
+tenth, so a night of 7.25 h reads "7.3 h"; the owner kept the tenth, and the audit expects it.
+Run whole, it also found Recovery saying "No check-ins in this range." over a span whose
+check-ins had left that answer blank. It now says "Sleep not answered in this range." (or the
+measure's name), as a mark's readout already said "Sleep not answered", and the audit passes.
