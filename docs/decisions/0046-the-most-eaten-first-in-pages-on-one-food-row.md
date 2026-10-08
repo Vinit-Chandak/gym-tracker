@@ -1,4 +1,4 @@
-# ADR 0045: The most eaten first, in pages, on one food row
+# ADR 0046: The most eaten first, in pages, on one food row
 
 Date: 2026-10-08
 Status: accepted; amends decision 2 of [ADR 0033](0033-meals-of-the-day-and-my-foods.md) and

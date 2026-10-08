@@ -11,7 +11,7 @@ adds from it (decisions 5 and 6). Starring, portions and copies stand as written
 **And by [ADR 0036](0036-meals-in-eating-order-and-a-calmer-food-card.md):** the day has seven
 meals, an evening snack before dinner and a late-night snack after it (decision 1).
 
-**And by [ADR 0045](0045-the-most-eaten-first-in-pages-on-one-food-row.md):** foods are listed
+**And by [ADR 0046](0046-the-most-eaten-first-in-pages-on-one-food-row.md):** foods are listed
 the most eaten first, a page at a time (decision 2).
 
 Follows [0032](0032-food-behind-a-switch.md). The owner compared its food tracking with Samsung

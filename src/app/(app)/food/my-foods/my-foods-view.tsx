@@ -50,7 +50,7 @@ function placeIn(params: ReadonlyURLSearchParams): Place {
  * kept in the URL, as History keeps its page (ADR 0044), so Back from a meal, or saving it,
  * returns to them. Swiping either aside offers Remove, which still takes a tap; a food's sheet
  * can remove it too, and a meal's page can delete it. Its rows are a meal page's, as every list
- * of food is (owner, 8 October 2026; ADR 0045): led by a tile (New food's and New meal's plus, a
+ * of food is (owner, 8 October 2026; ADR 0046): led by a tile (New food's and New meal's plus, a
  * saved meal's star, a food's bowl), its name on one line and what it holds on one more, and what
  * it comes to in whole kcal at its end.
  */

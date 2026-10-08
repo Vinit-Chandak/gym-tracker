@@ -5,7 +5,7 @@ macronutrient's sheet lists its foods by grams alone, with no share of the day a
 food, and the card's macronutrients are rows, its goal range drawn on the bar and not written out
 (decisions 2 and 3 there). The colours of decision 8 stand as written here.
 
-**And by [ADR 0045](0045-the-most-eaten-first-in-pages-on-one-food-row.md):** My foods lists its
+**And by [ADR 0046](0046-the-most-eaten-first-in-pages-on-one-food-row.md):** My foods lists its
 saved meals and its foods each the most eaten first, a page at a time (decision 5).
 
 Follows [0033](0033-meals-of-the-day-and-my-foods.md) and

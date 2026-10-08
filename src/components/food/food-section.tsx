@@ -11,7 +11,7 @@ export const FOODS_PER_PAGE = 10;
 
 /**
  * The Meals or the Foods of a meal's page, My foods or a meal being built (owner, 8 October
- * 2026; ADR 0045): its heading, its rows a page at a time, the most eaten first, and the page
+ * 2026; ADR 0046): its heading, its rows a page at a time, the most eaten first, and the page
  * tabs History reads its pages with (ADR 0044). However many meals there are, Foods starts where
  * it did. A new search starts it again at the first page: the caller keys it by the search, or
  * turns its own page back.

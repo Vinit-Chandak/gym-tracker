@@ -385,7 +385,7 @@ food's bowl, a meal of the day's layer of the bowl, New food's and New meal's pl
 one line and what it holds on one more, each ending in an ellipsis rather than wrapping, so every
 row stands the same height, and what it comes to a whole figure over its unit, in a column four
 digits wide. Saved meals stand under Meals and foods under Foods, the most eaten first, a page at
-a time (ADR 0045). These lists are the exception to one left edge and to text that wraps; Rows
+a time (ADR 0046). These lists are the exception to one left edge and to text that wraps; Rows
 and marks says how. The Dinner board predates this.
 
 **Key Characteristics:**
@@ -800,7 +800,7 @@ and every control answers a press.
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
 - A list to choose from (search results, a gym's machines) puts each name at the gutter and the
   equipment's glyph at the head of its second line.
-- **Food rows** (owner, 8 October 2026; ADR 0045) are one row wherever food is listed: a meal's
+- **Food rows** (owner, 8 October 2026; ADR 0046) are one row wherever food is listed: a meal's
   page (what is in it, and what can be added), My foods, a saved meal's sheet, a meal being built,
   the Food tab's meals and a macronutrient's foods. Each is led by a round tile, 36 pt in
   `surface` and growing with the text as glyphs do, its glyph in ink: Quick add's bolt, a saved
@@ -944,8 +944,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
-- **Page tabs:** a long list's pages (History, ten entries a page) under the list, in
-  the span tray's dress: a surface tray, each page a 44-pt target, the page being read in ink.
+- **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
+  saved meals and ten foods a page) under the list, in the span tray's dress: a surface tray,
+  each page a 44-pt target, the page being read in ink.
   Every page up to five; past that the first, the last and the page read with its neighbours, a
   gap mark between. A navigation, not a choice: buttons, the page read named aloud (ADR 0044).
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
