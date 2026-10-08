@@ -38,7 +38,7 @@ export function dayLabel(date: string, today: string): string {
 }
 
 /** "14–20 Sept", "28 Sept – 4 Oct": a week's days, with its year when it is not this one. */
-function weekLabel(start: string, end: string, today: string): string {
+export function weekLabel(start: string, end: string, today: string): string {
   const a = parts(start);
   const b = parts(end);
   const year = b.y === Number(today.slice(0, 4)) ? "" : ` ${b.y}`;

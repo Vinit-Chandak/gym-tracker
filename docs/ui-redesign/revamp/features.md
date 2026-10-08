@@ -289,11 +289,12 @@ weight and muscle volume), and every past entry, which can be opened, corrected 
 
 ### Sections
 
-One picker offers six sections: **Overview** (where the tab opens, with **History** under its
-month), **Strength**, **Running**, **Food**, **Recovery** and **Body**. The header says
-"Progress" with the dates the
-section is drawn over ("8 Sept – 7 Oct 2026"). Every graph is the one `Graph` (ADR 0042) and
-carries the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
+One picker offers seven sections: **Overview** (where the tab opens, with **History** under its
+month), **Strength**, **Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The
+header says "Progress" with the dates the section is drawn over ("8 Sept – 7 Oct 2026"), except
+where a section leads with a clock of its own, which has no funnel either: Overview its month
+(ADR 0045), Muscles its week (ADR 0047). Every graph is the one `Graph` (ADR 0042) and carries
+the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
 remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
 - **Overview:** this month on paper and its totals as its key, each sport's count with its
@@ -313,6 +314,10 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   or month); its best in the span and the set behind it ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
   one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from different machines never
   share a line.
+- **Muscles:** the working sets a week gave each muscle (ADR 0047), on its own week arrows,
+  named as a graph names a week ("This week", "28 Sept – 4 Oct") and stopping at this one: front
+  and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a legend and a
+  table; tapping a muscle shows "Chest · 6 sets".
 - **Running:** distance and duration as bars, with the total and the count of runs; pace as a
   line, a point per run (past about sixty, each week's or month's pace over all its kilometres),
   faster higher, with the average over all their kilometres, outdoor and treadmill never mixed
@@ -322,11 +327,10 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   · target 2,600").
 - **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
   answers as lines on their whole scale, fatigue and soreness drawn 1 at the top so a fresher day
-  is higher; the average over the days that gave the answer, a day checked in twice counted once.
-- **Body:** body weight as recorded, a point per reading, in the account's unit; the latest and
-  its change ("75.2 kg · −1 since Tue 8 Sept"); and **muscles this week**, with its own week
-  arrows: front and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a
-  legend and a table; tapping a muscle shows "Chest · 6 sets this week".
+  is higher; the average over the days that gave the answer, a day checked in twice counted once;
+  a span whose check-ins left the answer blank says so ("Sleep not answered in this range.").
+- **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
+  change ("75.2 kg · −1 since Tue 8 Sept").
 - **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
   "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
   the list (every page up to five, else the first, the last and the page read with its

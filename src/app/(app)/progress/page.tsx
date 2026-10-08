@@ -71,7 +71,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     getDb(),
     user.id,
     async (tx) => {
-      const [strength, options, runs, food, targets, weights, recovery, latest, days, body] =
+      const [strength, options, runs, food, targets, weights, recovery, latest, days, muscles] =
         await Promise.all([
           readStrengthRows(tx, user.id, timeZone, window),
           readExerciseSeriesOptions(tx, user.id, window),
@@ -111,7 +111,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         recovery,
         latest,
         days,
-        body,
+        muscles,
       };
     },
     { readOnly: true },
@@ -146,7 +146,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         <ProgressView
           data={{
             today,
-            error: rangeError || weekError || null,
+            rangeError,
+            weekError,
             preset: choice.preset ?? null,
             month: {
               month,
@@ -210,8 +211,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 value: Math.round(fromKilograms(weightKg, unit) * 10) / 10,
               })),
               unit,
-              week: { from: week.from, to: week.to, ...data.body },
             },
+            muscles: { from: week.from, to: week.to, ...data.muscles },
             recovery: {
               range: recoveryRange,
               graph: recoveryGraph(data.recovery, recoveryRange, today),

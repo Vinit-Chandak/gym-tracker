@@ -145,7 +145,12 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
           label: `About ${label.long.toLowerCase()}`,
           content: `${label.hint} From the check-in before each workout; a blank answer stays blank and is left out of every average.`,
         }}
-        empty="No check-ins in this range."
+        // A span whose check-ins left this answer blank says so, not that there were none.
+        empty={
+          graph.checkIns > 0
+            ? `${label.long} not answered in this range.`
+            : "No check-ins in this range."
+        }
         join
       />
       {graph.checkIns === 0 && (

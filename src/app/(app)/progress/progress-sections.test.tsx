@@ -47,7 +47,7 @@ it("lists Progress's sections as the design orders them, Overview first", () => 
     open("Overview")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Overview", "Strength", "Running", "Food", "Recovery", "Body"]);
+  ).toEqual(["Overview", "Strength", "Muscles", "Running", "Food", "Recovery", "Body weight"]);
 });
 
 it("is Progress's opening: the title, the funnel, the section and its range", () => {
@@ -77,7 +77,9 @@ it("switches the Progress page's own sections in place", () => {
 it("reads the Progress page's section from its URL, Overview when it names none", () => {
   expect(pageSection(null)).toBe("overview");
   expect(pageSection("recovery")).toBe("recovery");
+  // Body weight keeps Body's `body`, so a link made before the two were parted still opens it.
   expect(pageSection("body")).toBe("body");
+  expect(pageSection("muscles")).toBe("muscles");
   // History is Overview's list now, with a page behind it, not a section (ADR 0045).
   expect(pageSection("history")).toBe("overview");
   expect(pageSection("elsewhere")).toBe("overview");

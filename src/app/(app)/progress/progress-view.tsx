@@ -16,8 +16,9 @@ import {
   type ProgressSection,
 } from "./progress-sections";
 import type { ProgressData } from "./progress-types";
-import { BodySection } from "./sections/body-section";
+import { BodyWeightSection } from "./sections/body-weight-section";
 import { FoodSection } from "./sections/food-section";
+import { MusclesSection } from "./sections/muscles-section";
 import { OverviewSection } from "./sections/overview-section";
 import { RecoverySection } from "./sections/recovery-section";
 import { RunningSection } from "./sections/running-section";
@@ -25,7 +26,8 @@ import { StrengthSection } from "./sections/strength-section";
 
 /**
  * The range a section is drawn over, for the dates beside its name and the funnel's. Overview
- * has none: its month is this month and its list the latest (ADR 0045).
+ * has none: its month is this month and its list the latest (ADR 0045). Nor has Muscles: it
+ * keeps its own week, named over the body map (ADR 0047).
  */
 function sectionRange(section: ProgressSection, data: ProgressData): GraphRange | null {
   switch (section) {
@@ -33,6 +35,8 @@ function sectionRange(section: ProgressSection, data: ProgressData): GraphRange 
       return null;
     case "strength":
       return data.strength.range;
+    case "muscles":
+      return null;
     case "running":
       return data.running.range;
     case "food":
@@ -62,6 +66,8 @@ export function ProgressView({ data }: { data: ProgressData }) {
   };
   const range = sectionRange(tab, data);
   const rangeText = range ? formatDateRange(range.from, range.to) : null;
+  // Dates that could not be read are said where a span is drawn; a week, only on Muscles.
+  const error = tab === "muscles" ? data.weekError : range ? data.rangeError : null;
 
   return (
     <GraphRangeProvider preset={data.preset}>
@@ -70,7 +76,7 @@ export function ProgressView({ data }: { data: ProgressData }) {
           value={tab}
           onChange={chooseView}
           range={rangeText}
-          // Dates chosen by hand narrow the graphs; Overview has none, so no funnel.
+          // Dates chosen by hand narrow the graphs; Overview and Muscles have none, so no funnel.
           filters={
             range && rangeText ? (
               <FilterSheet title="Custom dates" summary={rangeText} count={data.preset ? 0 : 1}>
@@ -79,10 +85,10 @@ export function ProgressView({ data }: { data: ProgressData }) {
             ) : null
           }
         />
-        {data.error && (
+        {error && (
           <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
             <Glyph name="warn" className="mt-px glyph-18" />
-            {data.error}
+            {error}
           </p>
         )}
 
@@ -97,10 +103,11 @@ export function ProgressView({ data }: { data: ProgressData }) {
           {tab === "strength" && (
             <StrengthSection strength={data.strength} exercise={data.exercise} today={data.today} />
           )}
+          {tab === "muscles" && <MusclesSection muscles={data.muscles} today={data.today} />}
           {tab === "running" && <RunningSection running={data.running} today={data.today} />}
           {tab === "food" && <FoodSection food={data.food} today={data.today} />}
           {tab === "recovery" && <RecoverySection recovery={data.recovery} today={data.today} />}
-          {tab === "body" && <BodySection body={data.body} today={data.today} />}
+          {tab === "body" && <BodyWeightSection body={data.body} today={data.today} />}
         </section>
       </div>
     </GraphRangeProvider>

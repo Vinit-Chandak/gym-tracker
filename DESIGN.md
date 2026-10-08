@@ -954,7 +954,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   gap mark between. A navigation, not a choice: buttons, the page read named aloud (ADR 0044).
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
   sheet of them; the range the section shows sits beside it (Progress: Overview, Strength,
-  Running, Food, Recovery, Body). Six choices never crowd a screen and none is clipped.
+  Muscles, Running, Food, Recovery, Body weight). Where a section leads with a clock of its own,
+  it names it there instead, and has no funnel: Overview its month (ADR 0045), Muscles its week
+  (ADR 0047). Seven choices never crowd a screen and none is clipped, down to 320 × 568.
 
 ### Sheets
 

@@ -18,7 +18,9 @@ if (
   throw new Error("Local audit only.");
 const device = process.env.AUDIT_DEVICE ?? "android";
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
-const browser = await (device === "iphone" ? webkit : chromium).launch();
+const browser = await (device === "iphone" ? webkit : chromium).launch({
+  executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
+});
 let context, page;
 const sql = postgres(database, { max: 1 });
 const results = [],
@@ -169,13 +171,13 @@ async function recovery() {
   await expect(page).toHaveURL(/view=recovery/);
 }
 async function metric(key) {
-  await choose("recovery-metric", key);
+  await choose("recovery-measure", key);
   await expect(page.getByRole("radio", { name: metrics[key], exact: true })).toBeChecked();
 }
 async function values() {
   const toggle = page.getByRole("button", { name: /^View values/ });
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
-  return page.locator(".chart-values-list li > span:last-child");
+  return page.locator(".graph-values-list .graph-value-figure");
 }
 async function dates(from, to) {
   await page.getByRole("button", { name: /Filters/ }).click();
@@ -215,17 +217,19 @@ try {
     },
   );
   await check(
-    "Every metric shows the exact saved value in its graph and accessible values list",
+    "Every metric shows its saved value, to a tenth, in its graph and accessible values list",
     async () => {
       await recovery();
       await expect(page.getByRole("radio", { name: "Energy", exact: true })).toHaveCount(0);
       for (const [key, value] of Object.entries(full)) {
         await metric(key);
         await expect(
-          page.getByRole("img", { name: new RegExp(`^${metrics[key]},`) }),
+          page.getByRole("group", { name: new RegExp(`^${metrics[key]}\\.`) }),
         ).toBeVisible();
+        // A graph gives its figures to a tenth, so a night of 7.25 h reads 7.3 h (the owner's
+        // choice, 8 October 2026); the check-in keeps the quarter hour it was given.
         await expect((await values()).first()).toHaveText(
-          `${value} ${key === "sleepHours" ? "h" : "/ 5"}`,
+          `${Math.round(value * 10) / 10} ${key === "sleepHours" ? "h" : "/ 5"}`,
         );
       }
     },
@@ -268,11 +272,13 @@ try {
       const returnTo = page.url();
       await reload();
       await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
-      await page.locator(`main a[href="/workouts/${id}"]`).click();
-      await page.waitForURL(`**/workouts/${id}`);
+      // The graph's values open each check-in's workout, with where it was opened from.
+      await values();
+      await page.locator(`main a[href^="/workouts/${id}?"]`).first().click();
+      await page.waitForURL((url) => url.pathname === `/workouts/${id}`);
       await page.goBack();
       await expect(page).toHaveURL(returnTo);
-      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Fatigue\./ })).toBeVisible();
     },
   );
   await check("Completing the workout retains every check-in value and chart", async () => {
@@ -299,7 +305,7 @@ try {
       const from = new Date(Date.now() - 80 * 86_400_000).toISOString().slice(0, 10);
       await dates(from, current);
       await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
-      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Fatigue\./ })).toBeVisible();
     },
   );
   await check(
@@ -369,18 +375,18 @@ try {
       });
       await recovery();
       await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
-      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Fatigue\./ })).toBeVisible();
     },
   );
   await check(
     "Switching from unanswered sleep back to fatigue draws the graph, including after reload",
     async () => {
       await metric("sleepHours");
-      await expect(page.getByText(/Sleep was not recorded/)).toBeVisible();
+      await expect(page.getByText("Sleep not answered in this range.")).toBeVisible();
       await metric("fatigue");
-      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Fatigue\./ })).toBeVisible();
       await reload();
-      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Fatigue\./ })).toBeVisible();
       expect(await (await values()).allTextContents()).not.toContain("0");
     },
   );
