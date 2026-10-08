@@ -10,19 +10,26 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { confirmMachineLoadAction } from "@/server/actions/equipment";
 
 /**
- * The step past today's heaviest weight on a stack, when nobody knows it yet (ADR 0028).
+ * The step past the best weight ever lifted on a stack for this exercise, when nobody knows it
+ * yet (ADR 0028, ADR 0048): today's heaviest or `best`, from every session before, whichever is
+ * heavier. Asked from today's alone, a lighter day asked for a stop long since lifted past, or
+ * asked nothing because the stop above today was known while the one above the best was not.
  *
  * `null` when there is nothing to ask: not a stack, nothing lifted, or the next stop is
  * already a known one. Otherwise the load it starts from and the app's guess — the gap
  * between the two heaviest stops, carried one further — or null when there is no gap yet.
- * On an assisted machine the step past today is the one with less help.
+ * On an assisted machine the step past the best is the one with less help.
  */
 export function nextLoadQuestion(
   ladder: LoadLadder | null | undefined,
   loads: readonly (number | null)[],
+  best: number | null = null,
 ): { from: number; guess: number | null } | null {
   if (!ladder?.stack) return null;
-  const lifted = knownLoads(loads.filter((load): load is number => load !== null));
+  const lifted = knownLoads(
+    loads.filter((load): load is number => load !== null),
+    best === null ? [] : [best],
+  );
   if (lifted.length === 0) return null;
   const from = ladder.assisted ? lifted[0]! : lifted.at(-1)!;
   const next = stepHarder({ ...ladder, known: knownLoads(ladder.known, lifted) }, from);

@@ -1,4 +1,5 @@
 import { knownLoads } from "@/domain/load-steps";
+import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { BodyLoadUnit } from "@/domain/types";
 import type { SetChange } from "@/lib/set-changes";
 import type { ComparablePerformance } from "@/server/queries/comparable";
@@ -92,10 +93,11 @@ export function toSessionVM(
  * right. A saved set is the same columns the render's own sets are, converted the same way.
  *
  * Nothing else in the session depends on its own sets (history reads finished sessions only)
- * except a stack's ladder, which learns every load lifted on it in its own unit. The loads of
- * the sets saved here that still stand are added to it, as the server would add them. A load
- * the render knew only from a set deleted here stays known until the next render: one extra
- * stop on the ladder, never a missing one.
+ * except a stack's ladder, which learns every load lifted on it in its own unit, and the best
+ * working load each exercise has lifted on its machine (ADR 0048). The loads of the sets saved
+ * here that still stand are added to both, as the server would add them. A load the render knew
+ * only from a set deleted here stays known until the next render: one extra stop on the ladder,
+ * or a best one set too high, never a missing one.
  */
 export function withSetChanges(
   session: SessionVM,
@@ -141,16 +143,41 @@ export function withSetChanges(
         sets = [...bySetIndex.values()].sort((a, b) => a.setIndex - b.setIndex);
       }
       const ladder = exercise.equipment?.ladder;
+      const machine = exercise.equipment;
+      // The best this exercise has lifted here: the render's, and the working sets saved since.
+      const lifted = own
+        ? [...new Map(own.map((change) => [change.setIndex, change.set])).values()].flatMap(
+            (set) =>
+              set &&
+              machine &&
+              set.unit === machine.unit &&
+              set.weight !== null &&
+              set.weight > 0 &&
+              WORKING_SET_TYPES.has(set.setType)
+                ? [set.weight]
+                : [],
+          )
+        : [];
+      const best =
+        machine && lifted.length > 0
+          ? (ladder?.assisted ? Math.min : Math.max)(
+              ...lifted,
+              ...(machine.best == null ? [] : [machine.best]),
+            )
+          : machine?.best;
       return {
         ...exercise,
         sets,
         equipment:
-          exercise.equipment && ladder && loads
+          machine && ((ladder && loads) || best !== machine.best)
             ? {
-                ...exercise.equipment,
-                ladder: { ...ladder, known: knownLoads(ladder.known, loads) },
+                ...machine,
+                ...(ladder && loads
+                  ? { ladder: { ...ladder, known: knownLoads(ladder.known, loads) } }
+                  : {}),
+                best,
               }
-            : exercise.equipment,
+            : machine,
       };
     }),
   };

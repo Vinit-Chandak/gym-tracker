@@ -14,7 +14,11 @@ import type { ComparablePerformance } from "@/server/queries/comparable";
 import { canConvertLoad, convertLoad, loadStepIn, setInUnit } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
-import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
+import {
+  lighterSessions,
+  summarizeExerciseEvidence,
+  TRAINING_POLICY,
+} from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { readPerformance } from "@/domain/warmup-ramp";
@@ -112,7 +116,77 @@ export function applyRule(input: RuleInput): RuleOutcome {
   const sameSlot = input.slotLineageId
     ? history.filter((h) => h.plannedSlotLineageId === input.slotLineageId)
     : [];
-  const basisHistory = sameSlot.length > 0 ? sameSlot : history;
+  let basisHistory = sameSlot.length > 0 ? sameSlot : history;
+  const ladder = input.equipment ? (input.ladder ?? null) : null;
+  // On a split squat or a pull-up the curve runs through the body as well as what is added to
+  // it, so a dumbbell step is read as the small step it is (ADR 0040).
+  const body = bodyLoad(input.exercise, input.bodyWeightKg, unit);
+  const prescribe = (from: ComparablePerformance | null) => {
+    const prescription = prescriptionFor(input.planned, input.exercise, from, weightStep, unit);
+    if (prescription && !input.equipment && unit === "lb") {
+      // Explicit programme increments, like library defaults, are specified in kilograms.
+      const rule = input.planned?.progressionRule;
+      const increment =
+        (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ??
+        input.planned?.loadIncrement;
+      if (increment != null) prescription.loadIncrement = loadStepIn(increment, unit);
+    }
+    if (prescription) {
+      prescription.ladder = ladder;
+      prescription.requireKnownLoads = input.locationKind === "home";
+      if (body > 0) prescription.bodyLoad = body;
+    }
+    return prescription;
+  };
+  const decisions = (input.changes ?? []).flatMap((record) =>
+    record.changes
+      .filter((change) => change.scope === `slot:${input.slotLineageId}`)
+      .map((change) => ({ ...change, at: record.createdAt })),
+  );
+  /**
+   * The working loads a session's own plan prescribed, in the unit the rule reads, with the loads
+   * a temporary change asked for after it was made: that lighter session was the coach's, not a
+   * lighter day of the athlete's own (ADR 0048).
+   */
+  const plannedLoads = (performance: ComparablePerformance) => [
+    // A plan saved before units were recorded was written in the unit it is read in.
+    ...(performance.planned ?? []).flatMap(({ weight, unit: from }) =>
+      canConvertLoad(from ?? unit, unit) ? [convertLoad(weight, from ?? unit, unit)] : [],
+    ),
+    ...decisions.flatMap((change) =>
+      change.kind === "temporary" &&
+      performance.performedAt > change.at &&
+      change.unit &&
+      canConvertLoad(change.unit, unit)
+        ? (change.after.loads ?? []).map((item) => convertLoad(item.load, change.unit!, unit))
+        : [],
+    ),
+  ];
+  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
+  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
+  // it as a back-off. Only what the rule decides from is read this way; `previous` is returned
+  // as it was logged, because that is what the athlete is shown.
+  const asTrained = (performance: ComparablePerformance) =>
+    readPerformance(performance.sets, {
+      assisted: ladder?.assisted ?? false,
+      planned: plannedLoads(performance),
+    });
+  const asEvidence = (h: ComparablePerformance) => ({
+    ...h,
+    sets: asTrained(h),
+    planned: plannedLoads(h),
+    performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
+  });
+  // A single session lighter than a load just held in the range is not where the next one
+  // starts (ADR 0048): the rule builds on the session before it, as the coach's trend does.
+  const provisional = prescribe(basisHistory[0] ?? null);
+  const aside = provisional
+    ? new Set(
+        lighterSessions(provisional, basisHistory.map(asEvidence)).map((item) => item.sourceId),
+      )
+    : new Set<string>();
+  if (aside.size > 0)
+    basisHistory = basisHistory.filter((h) => !aside.has(`workout:${h.workoutSessionId}`));
   let basisPerformance = basisHistory[0] ?? null;
   let basis: SuggestionBasis = basisPerformance
     ? scope === "equipment_instance"
@@ -123,51 +197,8 @@ export function applyRule(input: RuleInput): RuleOutcome {
     basisPerformance = normalize(input.elsewhere);
     if (basisPerformance) basis = "other_equipment";
   }
-  const prescription = prescriptionFor(
-    input.planned,
-    input.exercise,
-    basisPerformance,
-    weightStep,
-    unit,
-  );
-  if (prescription && !input.equipment && unit === "lb") {
-    // Explicit programme increments, like library defaults, are specified in kilograms.
-    const rule = input.planned?.progressionRule;
-    const increment =
-      (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
-    if (increment != null) prescription.loadIncrement = loadStepIn(increment, unit);
-  }
-  const ladder = input.equipment ? (input.ladder ?? null) : null;
-  // On a split squat or a pull-up the curve runs through the body as well as what is added to
-  // it, so a dumbbell step is read as the small step it is (ADR 0040).
-  const body = bodyLoad(input.exercise, input.bodyWeightKg, unit);
-  if (prescription) {
-    prescription.ladder = ladder;
-    prescription.requireKnownLoads = input.locationKind === "home";
-    if (body > 0) prescription.bodyLoad = body;
-  }
-  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
-  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
-  // it as a back-off. Only what the rule decides from is read this way; `previous` is returned
-  // as it was logged, because that is what the athlete is shown.
-  const asTrained = (performance: ComparablePerformance) =>
-    readPerformance(performance.sets, {
-      assisted: ladder?.assisted ?? false,
-      // A plan saved before units were recorded was written in the unit it is read in.
-      planned: (performance.planned ?? []).flatMap(({ weight, unit: from }) =>
-        canConvertLoad(from ?? unit, unit) ? [convertLoad(weight, from ?? unit, unit)] : [],
-      ),
-    });
-  const evidenceHistory = basisHistory.map((h) => ({
-    ...h,
-    sets: asTrained(h),
-    performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
-  }));
-  const decisions = (input.changes ?? []).flatMap((record) =>
-    record.changes
-      .filter((change) => change.scope === `slot:${input.slotLineageId}`)
-      .map((change) => ({ ...change, at: record.createdAt })),
-  );
+  const prescription = prescribe(basisPerformance);
+  const evidenceHistory = basisHistory.map(asEvidence);
   const lastDecision = decisions.filter((change) => change.kind !== "temporary").at(-1);
   const freshHistory = lastDecision
     ? evidenceHistory.filter(
@@ -384,8 +415,10 @@ export function prescriptionFor(
     durationMaxSeconds: measure === "duration" ? range[1] : null,
     distanceMinMeters: measure === "distance" ? range[0] : null,
     distanceMaxMeters: measure === "distance" ? range[1] : null,
-    rirMin: exercise.defaultRir,
-    rirMax: exercise.defaultRir,
+    // A library RIR between two whole reps (1.5) is the two it sits between, as the screen says
+    // it: nobody logs half a rep in reserve, and a target of 1.5 was never reached exactly.
+    rirMin: exercise.defaultRir === null ? null : Math.floor(exercise.defaultRir),
+    rirMax: exercise.defaultRir === null ? null : Math.ceil(exercise.defaultRir),
     rule:
       measure === "reps"
         ? { kind: "double_progression", loadIncrement: null }

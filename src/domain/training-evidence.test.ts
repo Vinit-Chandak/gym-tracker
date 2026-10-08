@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   capacityAt,
+  landingFloor,
+  lighterSessions,
   median,
   repCeiling,
   summarizeExerciseEvidence,
@@ -280,11 +282,12 @@ describe("readiness from the hardest set (ADR 0039)", () => {
   });
 
   it("goes back to the load that last worked when a step misses twice in its first three sessions", () => {
+    // Clearly short: 3 in hand against the 5 that 3 at 2 RIR needs, past the near-miss margin.
     const below: [number, number][] = [
-      [3, 2],
-      [3, 2],
-      [2, 2],
-      [2, 2],
+      [3, 1],
+      [2, 1],
+      [2, 1],
+      [2, 1],
     ];
     const failed = summarizeExerciseEvidence(
       bench,
@@ -538,9 +541,10 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
   const withBody: Prescription = { ...splitSquat, bodyLoad: 63.75 };
 
   it("reads a dumbbell step on a split squat against the body it is added to", () => {
-    // Against the dumbbell alone 5 to 7.5 kg is half as heavy again, and reps had to reach 28 a
-    // side first. Against body and dumbbell it is about 3.5%, and the step lands in the range.
-    expect(repCeiling(splitSquat, 5, 7.5)).toBe(28);
+    // Against the dumbbell alone 5 to 7.5 kg is half as heavy again: reps would have to reach 28
+    // a side to land the step in the range, and build to 14, two past the top, at most (ADR 0048).
+    // Against body and dumbbell it is about 3.5%, and the step lands in the range.
+    expect(repCeiling(splitSquat, 5, 7.5)).toBe(14);
     expect(repCeiling(withBody, 5, 7.5)).toBe(12);
     expect(capacityAt(13, 5, 7.5)).toBeLessThan(0);
     expect(capacityAt(13, 5, 7.5, 63.75)).toBeCloseTo(11.5, 1);
@@ -549,7 +553,7 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
     const spare = sessions([5, straight(2, 12, 2)]);
     expect(next(splitSquat, spare)).toMatchObject({
       kind: "hold",
-      reason: "The next weight on this machine is a big jump.",
+      reason: "The next weight up is too big a jump to bridge with reps.",
     });
     const stepped = next(withBody, spare);
     expect(stepped.kind).toBe("increase");
@@ -602,12 +606,243 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
     );
     // A dumbbell RDL where the next dumbbell is 25 kg: 2 × 6–10 at 2 RIR.
     const rdl: Prescription = { ...deadlift, sets: 2, repMin: 6, repMax: 10, loadIncrement: 5 };
+    // From 12 at 2 RIR, two past the top, 25 kg would start at about 3: too far below the range,
+    // so reps stay at 12 and the step waits for the reserve there to grow (ADR 0048).
     expect(summarizeExerciseEvidence(rdl, sessions([20, straight(2, 12, 1)])).nextStep).toBe(
-      "25 kg is a big jump from 20 kg, so reps build past the top of the range first: it comes after one session with every working set at 16 reps and 2 RIR.",
+      "25 kg is too big a jump from 20 kg to bridge with reps: they stay at 12 here, and 25 kg comes once every working set has 17 reps in hand (12 reps at 5 RIR), or sooner with a smaller step or a variation.",
+    );
+    // A 10 to 12.5 kg curl on 10–15 at 1 RIR: 17 reps, two past the top, then 12.5 kg at about 7.
+    const curl: Prescription = {
+      ...deadlift,
+      sets: 2,
+      repMin: 10,
+      repMax: 15,
+      rirMin: 1,
+      rirMax: 2,
+    };
+    expect(summarizeExerciseEvidence(curl, sessions([10, straight(2, 13, 1)])).nextStep).toBe(
+      "12.5 kg is a big jump from 10 kg: reps build to 17 here, 2 past the top of the range and no further, and 12.5 kg comes after one session with every working set at 17 reps and 1 RIR. It starts below the range, at about 7 reps, and builds back up.",
     );
     // With the body on the curve, the split squat's next dumbbell is an ordinary step.
     expect(summarizeExerciseEvidence(withBody, sessions([5, straight(2, 11, 1)])).nextStep).toBe(
       "7.5 kg comes after one session with every working set at 12 reps and 2 RIR (or 13 reps at 1 RIR), or after two sessions running with every working set at 12 reps and 1 RIR.",
     );
+  });
+});
+
+describe("a bounded coarse step, a lighter day and a heavier attempt (ADR 0048)", () => {
+  // The incline curl: 2 × 10–15 at 1–2 RIR, 2.5 kg dumbbells.
+  const curl: Prescription = {
+    sets: 2,
+    prescriptionType: "reps",
+    repMin: 10,
+    repMax: 15,
+    durationMinSeconds: null,
+    durationMaxSeconds: null,
+    distanceMinMeters: null,
+    distanceMaxMeters: null,
+    rirMin: 1,
+    rirMax: 2,
+    rule: { kind: "double_progression", loadIncrement: 2.5 },
+    loadIncrement: 2.5,
+    unit: "kg",
+  };
+  // Upper B's incline bench: 3 × 4–6 at 2 RIR, 2.5 kg steps once all three reach 6.
+  const incline: Prescription = {
+    ...curl,
+    sets: 3,
+    repMin: 4,
+    repMax: 6,
+    rirMin: 2,
+    rirMax: 2,
+    rule: { kind: "conservative_strength", loadIncrement: 2.5, repsRequired: 6 },
+  };
+  /** One session per entry, newest first, a week apart: [load, reps, rir] per working set. */
+  const sessions = (...entries: { sets: [number, number, number][]; planned?: number[] }[]) =>
+    entries.map(({ sets, planned }, index) => ({
+      workoutExerciseId: `e${index}`,
+      workoutSessionId: `w${index}`,
+      performedAt: new Date(Date.UTC(2026, 8, 28 - index * 7)),
+      planned,
+      sets: sets.map(([weight, reps, rir], setIndex) => ({
+        setIndex: setIndex + 1,
+        setType: "working" as const,
+        weight,
+        reps,
+        rir,
+        unit: "kg" as const,
+        durationSeconds: null,
+        distanceMeters: null,
+      })),
+    }));
+  const same = (count: number, weight: number, reps: number, rir: number) =>
+    Array.from({ length: count }, (): [number, number, number] => [weight, reps, rir]);
+
+  it("caps the reps a coarse step builds past the top, and says where it lands", () => {
+    // Landing 12.5 kg inside 10–15 needs 21 at 1 RIR; the curve is a guess that far out.
+    expect(repCeiling(curl, 10, 12.5)).toBe(17);
+    expect(landingFloor(curl, 10, 12.5)).toBe(5);
+    // A step that lands inside the range from the top has no landing, and keeps the top.
+    expect(repCeiling(curl, 40, 42.5)).toBe(15);
+    expect(landingFloor(curl, 40, 42.5)).toBeNull();
+    // A strength range never starts below itself.
+    expect(landingFloor(incline, 55, 60)).toBeNull();
+  });
+
+  it("reads the sessions after a coarse step as reps building, not a step that failed", () => {
+    const landed = summarizeExerciseEvidence(
+      curl,
+      sessions(
+        { sets: same(2, 12.5, 7, 1) },
+        { sets: same(2, 12.5, 6, 1) },
+        { sets: same(2, 10, 17, 1) },
+      ),
+    );
+    expect(landed).toMatchObject({
+      readiness: "building",
+      revert: null,
+      landing: { load: 12.5, from: 10, floor: 5 },
+    });
+    // Under the floor the step was taken knowing about, it is out of reach after all.
+    expect(
+      summarizeExerciseEvidence(
+        curl,
+        sessions({ sets: same(2, 12.5, 3, 1) }, { sets: same(2, 10, 17, 1) }),
+      ).revert,
+    ).toMatchObject({ reason: "out_of_reach", load: 10 });
+  });
+
+  it("counts a near miss at a new load as one, not as a step that failed", () => {
+    const nearMiss: [number, number, number][] = [
+      [60, 6, 2],
+      [60, 4, 1],
+      [60, 4, 1],
+    ];
+    const missed: [number, number, number][] = [
+      [60, 6, 0],
+      [60, 3, 1],
+    ];
+    const evidence = summarizeExerciseEvidence(
+      incline,
+      sessions({ sets: nearMiss }, { sets: missed }, { sets: same(3, 55, 6, 2) }),
+    );
+    expect(evidence).toMatchObject({ readiness: "below", revert: null });
+  });
+
+  it("allows a longer set two reps of near miss, where the reported reserve is less sure", () => {
+    // 3 × 12–20 at 1 RIR, stepped 10 to 11 kg: the bottom of the range is 13 in hand.
+    const raise: Prescription = { ...curl, sets: 3, repMin: 12, repMax: 20, rirMin: 1, rirMax: 1 };
+    const at = (reps: number, rir: number) =>
+      sessions(
+        { sets: same(3, 11, reps, rir) },
+        { sets: same(3, 11, reps, rir) },
+        { sets: same(3, 10, 21, 1) },
+      );
+    // 11 at 0 is two in hand short: past twelve reps a set, still a near miss.
+    expect(summarizeExerciseEvidence(raise, at(11, 0)).revert).toBeNull();
+    // 9 at 0 is four short, twice: the step goes back.
+    expect(summarizeExerciseEvidence(raise, at(9, 0)).revert).toMatchObject({
+      reason: "missed_twice",
+      load: 10,
+    });
+  });
+
+  it("reads a heavier set of the athlete's own at the session's load when it fell short", () => {
+    // 28 Sep: the plan was 60 kg; 60 × 6 at 2, then 62.5 kg tried for sets 2–3 at 4 × 1 RIR.
+    const tried = sessions(
+      {
+        sets: [
+          [60, 6, 2],
+          [62.5, 4, 1],
+          [62.5, 4, 1],
+        ],
+        planned: [60],
+      },
+      {
+        sets: [
+          [60, 6, 0],
+          [60, 3, 1],
+        ],
+        planned: [60],
+      },
+      { sets: same(3, 55, 6, 2) },
+    );
+    const evidence = summarizeExerciseEvidence(incline, tried);
+    expect(evidence).toMatchObject({ readiness: "building", revert: null });
+    expect(evidence.observations[0]?.capacity).toBeCloseTo(6.46, 1);
+    expect(evidence.latestWorkLoads).toEqual([60, 60, 60]);
+    // A pyramid the plan wrote keeps each step at its own load, and is read there.
+    const pyramid = summarizeExerciseEvidence(
+      incline,
+      sessions({
+        sets: [
+          [60, 6, 3],
+          [62.5, 6, 2],
+          [65, 5, 2],
+        ],
+        planned: [60, 62.5, 65],
+      }),
+    );
+    expect(pyramid.latestWorkLoads).toEqual([60, 62.5, 65]);
+    expect(pyramid.observations[0]?.capacity).toBe(7);
+    // A heavier set that held the range keeps its load too: the athlete stepped up mid-session.
+    expect(
+      summarizeExerciseEvidence(
+        incline,
+        sessions({
+          sets: [
+            [60, 6, 2],
+            [62.5, 6, 2],
+            [62.5, 6, 2],
+          ],
+        }),
+      ).latestWorkLoads,
+    ).toEqual([60, 62.5, 62.5]);
+  });
+
+  it("sets a single lighter session aside, and goes on from the load held before it", () => {
+    const legExtension: Prescription = { ...curl, sets: 3, rirMin: 1, rirMax: 2 };
+    const light = sessions(
+      { sets: same(3, 40, 15, 3) },
+      { sets: same(3, 50, 13, 2) },
+      { sets: same(3, 50, 12, 2) },
+    );
+    const evidence = summarizeExerciseEvidence(legExtension, light);
+    expect(evidence.setAside).toEqual([
+      { sourceId: "workout:w0", date: "2026-09-28", load: 40, heldLoad: 50 },
+    ]);
+    expect(evidence.comparison.load).toBe(50);
+    expect(evidence.observations.map((point) => point.load)).toEqual([50, 50]);
+    expect(lighterSessions(legExtension, light).map((item) => item.sourceId)).toEqual([
+      "workout:w0",
+    ]);
+    // Two lighter sessions running are the lighter load chosen.
+    const chosen = summarizeExerciseEvidence(
+      legExtension,
+      sessions(
+        { sets: same(3, 40, 15, 3) },
+        { sets: same(3, 40, 15, 3) },
+        { sets: same(3, 50, 13, 2) },
+      ),
+    );
+    expect(chosen.setAside).toEqual([]);
+    expect(chosen.comparison.load).toBe(40);
+    // A lighter load the session's own plan asked for is the plan's, and is kept.
+    const planned = summarizeExerciseEvidence(
+      legExtension,
+      sessions({ sets: same(3, 40, 15, 3), planned: [40] }, { sets: same(3, 50, 13, 2) }),
+    );
+    expect(planned.setAside).toEqual([]);
+    // After a step that failed and went back, the load gone back to is not a lighter day.
+    const back = summarizeExerciseEvidence(
+      legExtension,
+      sessions(
+        { sets: same(3, 50, 13, 2) },
+        { sets: same(3, 55, 7, 0) },
+        { sets: same(3, 55, 7, 0) },
+        { sets: same(3, 50, 15, 2) },
+      ),
+    );
+    expect(back.setAside).toEqual([]);
   });
 });

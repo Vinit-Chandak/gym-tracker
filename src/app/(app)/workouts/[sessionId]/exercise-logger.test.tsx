@@ -231,6 +231,65 @@ it("uses the coach's exact set count and types instead of repeating targets to f
   expect(await screen.findByRole("region", { name: "Set 1 of 1" })).toBeTruthy();
 });
 
+it("prefills a warm-up turned into a working set with the coach's working set, and says why", async () => {
+  // Upper B's incline bench as the coach wrote it: a ramp of three, then 3 × 55 kg × 6 at 2 RIR.
+  const target = (setIndex: number, weight: number, reps: number, rir: number | null) => ({
+    ...saved,
+    setIndex,
+    setType: rir === null ? ("warmup" as const) : ("working" as const),
+    weight,
+    reps,
+    rir,
+  });
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 55, reps: 6, rir: 2 } });
+  renderLogger({
+    exercise: {
+      coachNote: "Back to 55 kg. Low incline.",
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Coach plan for today",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [
+          target(1, 30, 6, null),
+          target(2, 40, 5, null),
+          target(3, 50, 4, null),
+          target(4, 55, 6, 2),
+          target(5, 55, 6, 2),
+          target(6, 55, 6, 2),
+        ],
+      },
+    },
+  });
+  // The warm-up says what it is, with its own figures.
+  expect(entry("Warm-up 1 of 3")).toBeTruthy();
+  press(/^Coach plan: why 30 kilograms × 6$/);
+  expect(screen.getByRole("dialog", { name: "Why this suggestion" })).toBeTruthy();
+  // Skipping the warm-up: the row is now the first working set, and asks for the work.
+  press("Set options: add a set, type, remove");
+  fireEvent.change(screen.getByRole("combobox", { name: "Type" }), {
+    target: { value: "working" },
+  });
+  expect(entry("Set 1 of 3")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "55 kilograms, suggested. Type a load" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "6 reps, suggested. Type reps" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Coach plan: why 55 kilograms × 6$/ })).toBeTruthy();
+  // The reps say the working set's figure under them, not the warm-up's.
+  expect(screen.getByText(/^target\s6$/)).toBeTruthy();
+  // Saved untouched, it is the coach's working set, never the warm-up's 30 kg.
+  fill({ RIR: "2" });
+  press("Save");
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({
+    setType: "working",
+    weight: 55,
+    reps: 6,
+  });
+  // The ramp nobody did is passed: the entry goes on to the second working set.
+  expect(await screen.findByRole("region", { name: "Set 2 of 3" })).toBeTruthy();
+});
+
 it("says what an open-ended coach plan asks for instead of a load it never set", () => {
   renderLogger({
     exercise: {

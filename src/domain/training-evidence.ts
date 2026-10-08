@@ -5,7 +5,7 @@ import { canConvertLoad, convertLoad } from "@/lib/units";
 
 /** Versioned product limits to evaluate, not physiological optima or injury guarantees. */
 export const TRAINING_POLICY = {
-  version: "2026-09-27.2",
+  version: "2026-10-08.1",
   detailDays: 7,
   trendDays: 56,
   /**
@@ -18,6 +18,25 @@ export const TRAINING_POLICY = {
   /** A new load that misses the range this often in its first sessions goes back one step. */
   revertMisses: 2,
   revertWindow: 3,
+  /**
+   * Reps in hand a session may fall short of the bottom of the range at the target effort and
+   * still not count as a miss: about the error of a reported RIR, so a set at the minimum with
+   * one in reserve less than planned is a near miss, not a step that failed (ADR 0048). Twice
+   * that where the bottom of the range is past `estimateMaxReps` in hand: the report barely
+   * worsens up to twelve reps a set and loses about half a rep with every rep beyond.
+   */
+  missTolerance: 1,
+  /**
+   * Reps a set may build past the top of its range where the next load step is coarse, before
+   * the step is taken anyway (ADR 0048). Past this, reps chase endurance, discomfort and the
+   * curve's guess rather than the range the exercise was given.
+   */
+  coarseStepReps: 2,
+  /**
+   * The fewest reps at the target effort a coarse step may start at, below the range, before
+   * building back up (ADR 0048). A range whose bottom is this or lower never starts below it.
+   */
+  coarseLandingReps: 5,
   /** Only sets this close to failure estimate a maximum: past it the curve is a guess. */
   estimateMaxReps: 12,
   recentExposures: 3,
@@ -44,6 +63,11 @@ export type EvidencePerformance = {
   performedAt: Date;
   /** Local date, when available. Same-day sets/bouts are one confirmation occasion. */
   performedOn?: string;
+  /**
+   * The working loads that session's own plan prescribed, in the prescription's unit: a load the
+   * plan asked for is the plan's, never a lighter day or an attempt of the athlete's own.
+   */
+  planned?: readonly number[];
   /**
    * `loggedAs` is set on a set read as something other than what it was logged as: a warm-up
    * ramp logged as working sets, read as the warm-up it was (warmup-ramp.ts).
@@ -84,15 +108,27 @@ export function capacityNeeded(floor: number, from: number, to: number, body = 0
   return 30 * (((to + body) * (1 + floor / 30)) / (from + body) - 1);
 }
 
+type CeilingInput = Pick<Prescription, "repMin" | "repMax" | "rirMin" | "rule" | "bodyLoad">;
+
+/** Reps at `load`, at the target effort, from which a step to `next` lands at the range's bottom. */
+function repsToLand(p: CeilingInput, load: number, next: number): number {
+  const targetRir = p.rirMin ?? 2;
+  return capacityNeeded(p.repMin! + targetRir, load, next, p.bodyLoad ?? 0) - targetRir;
+}
+
 /**
  * The most reps a set of this prescription is asked for at `load` before the load steps up.
  *
  * Normally the top of the range. When the next real step is so coarse that stepping at the top
- * would land below the bottom of the range — a 30 to 35 kg stack is a sixth of the load — the
- * set keeps building reps past the top until one step lands inside it (ADR 0039).
+ * would land below the bottom of the range — a 10 to 12.5 kg dumbbell is a quarter more — reps
+ * build past the top, but only by `coarseStepReps` (ADR 0048). Building until the step lands
+ * inside the range asked for 21 curls where the range was 10–15: the curve that said so is a
+ * guess that far from failure, the reported reserve is least reliable in long sets, and such a
+ * set ends on discomfort and fatigue as much as on the muscle. The step is taken from there and
+ * starts below the range (`landingFloor`).
  */
 export function repCeiling(
-  p: Pick<Prescription, "repMin" | "repMax" | "rirMin" | "rule" | "bodyLoad">,
+  p: CeilingInput,
   load: number | null,
   next: number | null,
   assisted = false,
@@ -101,9 +137,28 @@ export function repCeiling(
   if (top == null) return null;
   if (load == null || next == null || load <= 0 || next <= load || assisted || p.repMin == null)
     return top;
-  const targetRir = p.rirMin ?? 2;
-  const needed = capacityNeeded(p.repMin + targetRir, load, next, p.bodyLoad ?? 0) - targetRir;
-  return Math.max(top, Math.ceil(needed - 1e-9));
+  const needed = Math.ceil(repsToLand(p, load, next) - 1e-9);
+  return Math.max(top, Math.min(top + TRAINING_POLICY.coarseStepReps, needed));
+}
+
+/**
+ * Where a coarse step may start (ADR 0048): the fewest reps, at the target effort, a set may be
+ * asked for below the range after a step too coarse to land inside it from the top. Null where
+ * the step lands inside the range from the top, on an assisted machine, and where the range's
+ * bottom is already `coarseLandingReps` or fewer: a strength range never starts below itself, so
+ * its coarse step waits until it lands inside.
+ */
+export function landingFloor(
+  p: CeilingInput,
+  load: number | null,
+  next: number | null,
+  assisted = false,
+): number | null {
+  const top = p.rule?.kind === "conservative_strength" ? p.rule.repsRequired : p.repMax;
+  if (top == null || p.repMin == null || assisted) return null;
+  if (load == null || next == null || load <= 0 || next <= load) return null;
+  if (repsToLand(p, load, next) <= top + 1e-9) return null;
+  return p.repMin > TRAINING_POLICY.coarseLandingReps ? TRAINING_POLICY.coarseLandingReps : null;
 }
 
 /**
@@ -161,17 +216,94 @@ const rangeOf = (p: Prescription) =>
       ? [p.distanceMinMeters, p.distanceMaxMeters]
       : [p.repMin, p.repMax];
 
-/** Raw matching first-set performance, with completion/effort assessed separately. */
+type EvidenceOptions = {
+  /** An assisted machine: less help is harder, and no maximum is estimated from it. */
+  assisted?: boolean;
+  /** The machine's loads (ADR 0028), where the prescription does not carry them. */
+  ladder?: Omit<LoadLadder, "increment"> | null;
+};
+
+/** A session the trend reads past: lighter than the load held in the session before it. */
+export type SetAside = {
+  sourceId: string;
+  date: string;
+  load: number | null;
+  /** The load the session before it held in the range, which the trend goes on from. */
+  heldLoad: number;
+};
+
+const heldReadiness = (readiness: Readiness) =>
+  readiness === "building" || readiness === "on_target" || readiness === "spare";
+
+/**
+ * The single sessions lighter than the session before them, where that one held the range
+ * (ADR 0048): a light day, a machine shared with something else, a lift done lighter than usual.
+ * Each says nothing about the heavier load already shown. Two lighter sessions running are the
+ * lighter load chosen, and a lighter load the session's own plan asked for is the plan's — a
+ * temporary session or a lasting change the coach wrote — so neither is set aside.
+ */
+function asideOf(
+  points: readonly {
+    sourceId: string;
+    date: string;
+    load: number | null;
+    readiness: Readiness;
+  }[],
+  input: readonly EvidencePerformance[],
+  assisted: boolean,
+): SetAside[] {
+  const harder = (a: number, b: number) => (assisted ? a < b - 0.05 : a > b + 0.05);
+  return points.flatMap((point, index) => {
+    const before = points[index + 1];
+    const after = index > 0 ? points[index - 1] : undefined;
+    if (!before || point.load === null || before.load === null) return [];
+    if (!harder(before.load, point.load) || !heldReadiness(before.readiness)) return [];
+    if (after && after.load !== null && harder(before.load, after.load)) return [];
+    const planned = input.find((h) => `workout:${h.workoutSessionId}` === point.sourceId)?.planned;
+    if (planned?.some((load) => sameLoad(load, point.load))) return [];
+    return [
+      { sourceId: point.sourceId, date: point.date, load: point.load, heldLoad: before.load },
+    ];
+  });
+}
+
+/** The sessions the trend sets aside as lighter than the load held before them (ADR 0048). */
+export function lighterSessions(
+  p: Prescription,
+  input: readonly EvidencePerformance[],
+  options: EvidenceOptions = {},
+): SetAside[] {
+  const assisted = options.assisted ?? p.ladder?.assisted ?? false;
+  return asideOf(summarize(p, input, null, options).observations, input, assisted);
+}
+
+/**
+ * Raw matching first-set performance, with completion/effort assessed separately.
+ *
+ * A single session lighter than a load held in the range just before it is read past first
+ * (`lighterSessions`, ADR 0048), and named in `setAside`: the trend, and every rule that reads
+ * it, goes on from the heavier load, so a light day never becomes the load the next step is
+ * taken from.
+ */
 export function summarizeExerciseEvidence(
   p: Prescription,
   input: readonly EvidencePerformance[],
   reference?: ReferenceEvidence | null,
-  options: {
-    /** An assisted machine: less help is harder, and no maximum is estimated from it. */
-    assisted?: boolean;
-    /** The machine's loads (ADR 0028), where the prescription does not carry them. */
-    ladder?: Omit<LoadLadder, "increment"> | null;
-  } = {},
+  options: EvidenceOptions = {},
+) {
+  const all = summarize(p, input, reference, options);
+  const aside = asideOf(all.observations, input, options.assisted ?? p.ladder?.assisted ?? false);
+  if (aside.length === 0) return { ...all, setAside: aside };
+  const ids = new Set(aside.map((point) => point.sourceId));
+  const kept = input.filter((h) => !ids.has(`workout:${h.workoutSessionId}`));
+  return { ...summarize(p, kept, reference, options), setAside: aside };
+}
+
+function summarize(
+  p: Prescription,
+  input: readonly EvidencePerformance[],
+  reference: ReferenceEvidence | null | undefined,
+  options: EvidenceOptions,
 ) {
   const assisted = options.assisted ?? p.ladder?.assisted ?? false;
   // Everything the curve runs through: the logged load and, on a bodyweight movement, the part
@@ -197,6 +329,9 @@ export function summarizeExerciseEvidence(
   const reps = p.prescriptionType === "reps";
   /** The effort the plan asks for at the hardest; what "on target" is measured against. */
   const targetRir = p.rirMin ?? 2;
+  const harder = (a: number, b: number) => (assisted ? a < b - 0.05 : a > b + 0.05);
+  /** The bottom of the range, as reps in hand at the target effort. */
+  const rangeFloor = (minimum ?? 1) + targetRir;
   const base = observations.map((h) => {
     const sets = working(h.sets);
     const first = sets[0];
@@ -239,7 +374,42 @@ export function summarizeExerciseEvidence(
     const inHand = selected.map((set) =>
       reps && set.reps != null && set.rir != null ? set.reps + set.rir : null,
     );
-    const known = inHand.filter((value): value is number => value !== null);
+    const planned = (weight: number) => (h.planned ?? []).some((value) => sameLoad(value, weight));
+    /**
+     * The load each set counts at (ADR 0048). A heavier set of the athlete's own that fell short
+     * of the range — the next step tried for the last two sets, say — was an attempt at that
+     * load and counts at the session's: it says nothing against the load the session was at,
+     * and the next session starts it back there. A heavier set that held the range, or one the
+     * session's own plan asked for, keeps its load.
+     */
+    const workProfile = loadProfile.map((weight, index) => {
+      if (weight == null || Number.isNaN(weight)) return null;
+      const held = inHand[index];
+      return load !== null &&
+        !assisted &&
+        held != null &&
+        harder(weight, load) &&
+        !planned(weight) &&
+        held < rangeFloor
+        ? load
+        : weight;
+    });
+    /**
+     * Each set read at the session's load, where it says something about it (ADR 0048): a
+     * lighter set is read up to it along the curve, and a heavier attempt that fell short is
+     * read down to it. A pyramid the plan wrote keeps each step at its own load. Read only at
+     * its own load, 62.5 × 4 at 1 RIR after 60 × 6 at 2 said 60 kg had five reps in hand.
+     */
+    const atLoad = inHand.map((held, index) => {
+      const weight = loadProfile[index];
+      if (held == null || weight == null || Number.isNaN(weight) || load === null) return held;
+      if (assisted || !(weight > 0) || !(load > 0) || sameLoad(weight, load)) return held;
+      if (planned(weight) && planned(load)) return held;
+      return harder(load, weight) || workProfile[index] === load
+        ? capacityAt(held, weight, load, body)
+        : held;
+    });
+    const known = atLoad.filter((value): value is number => value !== null);
     // The hardest set is the one that limits a prescription of straight sets.
     const capacity = complete && known.length === selected.length ? Math.min(...known) : null;
     // The hardest set logged, whether or not every set was. A set left out can only lower it,
@@ -279,30 +449,55 @@ export function summarizeExerciseEvidence(
         complete &&
         effortFits &&
         selected.every((set) => (valueOf(set, p) ?? -1) >= maximum),
-      completedMinimum:
-        minimum != null &&
-        complete &&
-        effortFits &&
-        selected.every((set) => (valueOf(set, p) ?? -1) >= minimum),
-      belowMinimum: minimum != null && first != null && (valueOf(first, p) ?? Infinity) < minimum,
       /** Reps to failure on the hardest working set, when every set has its reps and RIR. */
       capacity,
       /** Reps to failure on the hardest set logged with its reps and RIR, even if not all were. */
       hardest,
       /** Estimated maximum from the best set of 12 reps to failure or fewer (Epley). */
       estimatedMax: estimates.length ? Math.round(Math.max(...estimates) * 10) / 10 : null,
+      workProfile,
+      // What the bottom of the range is judged against, once it is known where the load came from.
+      counts: {
+        values: selected.map((set) => valueOf(set, p)),
+        effortFits,
+        first: first ? valueOf(first, p) : null,
+      },
     };
   });
 
   // Runs of consecutive sessions at one load, newest first: what a load step, a step that did
   // not hold, and what came of the last step are all read from.
-  const harder = (a: number, b: number) => (assisted ? a < b - 0.05 : a > b + 0.05);
   const runs: { load: number | null; points: typeof base }[] = [];
   for (const point of base) {
     const run = runs.at(-1);
     if (run && sameLoad(point.load, run.load)) run.points.push(point);
     else runs.push({ load: point.load, points: [point] });
   }
+  /**
+   * A load a coarse step went to counts its reps from where that step may start, not from the
+   * bottom of the range (ADR 0048): it was taken knowing it would start below the range, so the
+   * sessions climbing back into it are reps building, not a step that failed. Only a step the
+   * session before it said would start below the range: one that was to land inside it and did
+   * not is a miss like any other.
+   */
+  const landingOf = new Map<(typeof base)[number], number>();
+  for (let i = 0; i + 1 < runs.length; i++) {
+    const run = runs[i]!,
+      before = runs[i + 1]!;
+    if (!reps || run.load === null || before.load === null || !harder(run.load, before.load))
+      continue;
+    const landing = landingFloor(p, before.load, run.load, assisted);
+    const had = before.points[0]!.capacity;
+    if (
+      landing === null ||
+      had === null ||
+      capacityAt(had, before.load, run.load, body) >= rangeFloor - 1e-9
+    )
+      continue;
+    for (const point of run.points) landingOf.set(point, landing);
+  }
+  const minimumOf = (point: (typeof base)[number]) => landingOf.get(point) ?? minimum;
+  const floorOf = (point: (typeof base)[number]) => (minimumOf(point) ?? 1) + targetRir;
   // How the first session at each new load compared with what the one before it predicted: the
   // athlete's own reading of their reps in reserve, checked against what they then did. Below
   // zero they had less in hand than they said.
@@ -332,9 +527,9 @@ export function summarizeExerciseEvidence(
   const spare =
     TRAINING_POLICY.spareReps + (calibration.steps >= 2 && calibration.meanError! <= -1 ? 1 : 0);
   const top = maximum == null ? null : maximum + targetRir;
-  const floor = (minimum ?? 1) + targetRir;
-  const readinessOf = (point: (typeof base)[number]): Readiness =>
-    !reps || point.load === null || !point.validUnit || top === null
+  const readinessOf = (point: (typeof base)[number]): Readiness => {
+    const floor = floorOf(point);
+    return !reps || point.load === null || !point.validUnit || top === null
       ? "unknown"
       : point.capacity === null
         ? // Not every set is there to say where the session left the load, unless the ones
@@ -349,7 +544,24 @@ export function summarizeExerciseEvidence(
             : point.capacity >= floor
               ? "building"
               : "below";
-  const points = base.map((point) => ({ ...point, readiness: readinessOf(point) }));
+  };
+  const points = base.map((original) => {
+    const { workProfile: _work, counts, ...point } = original;
+    const bottom = minimumOf(original);
+    return {
+      ...point,
+      completedMinimum:
+        bottom != null &&
+        point.complete &&
+        counts.effortFits &&
+        counts.values.every((value) => (value ?? -1) >= bottom),
+      belowMinimum: bottom != null && counts.first !== null && counts.first < bottom,
+      readiness: readinessOf(original),
+    };
+  });
+  const baseOf = new Map(points.map((point, index) => [point, base[index]!]));
+  const floorAt = (point: (typeof points)[number]) => floorOf(baseOf.get(point)!);
+  const minimumAt = (point: (typeof points)[number]) => minimumOf(baseOf.get(point)!);
   const latest = points[0] ?? null;
   const matching = latest
     ? points.filter(
@@ -441,8 +653,22 @@ export function summarizeExerciseEvidence(
     if (run && sameLoad(point.load, run.load)) run.points.push(point);
     else loadRuns.push({ load: point.load, points: [point] });
   }
-  const misses = (run: (typeof loadRuns)[number]) =>
-    run.points.filter((point) => point.readiness === "below");
+  /**
+   * A session clearly short of the range: more than `missTolerance` reps in hand under its bottom
+   * at the target effort (ADR 0048). Inside that margin — the minimum reps with one in reserve
+   * less than planned — the reported reserve cannot tell a miss from a good day, and the load
+   * holds as it does for one low session; it is not a step that failed.
+   */
+  const missed = (point: (typeof points)[number]) => {
+    const floor = floorAt(point);
+    const tolerance =
+      TRAINING_POLICY.missTolerance * (floor > TRAINING_POLICY.estimateMaxReps ? 2 : 1);
+    return (
+      point.readiness === "below" &&
+      (point.capacity ?? point.hardest ?? -Infinity) < floor - tolerance - 1e-9
+    );
+  };
+  const misses = (run: (typeof loadRuns)[number]) => run.points.filter(missed);
   const current = loadRuns[0],
     before = loadRuns[1];
   /** Where a load goes back to, and why. */
@@ -477,7 +703,7 @@ export function summarizeExerciseEvidence(
     before.load !== null &&
     harder(current.load, before.load) &&
     current.points.length <= TRAINING_POLICY.revertWindow &&
-    current.points[0]!.readiness === "below" &&
+    missed(current.points[0]!) &&
     misses(current).length >= TRAINING_POLICY.revertMisses
       ? {
           load: before.load,
@@ -488,10 +714,7 @@ export function summarizeExerciseEvidence(
           to: "before_step",
         }
       : null;
-  const held = (point: (typeof points)[number]) =>
-    point.readiness === "building" ||
-    point.readiness === "on_target" ||
-    point.readiness === "spare";
+  const held = (point: (typeof points)[number]) => heldReadiness(point.readiness);
   /** A load no session in the window held the range at, nor at anything harder. */
   const neverHeld = (load: number | null) =>
     load === null ||
@@ -501,12 +724,15 @@ export function summarizeExerciseEvidence(
         point.load !== null &&
         (sameLoad(point.load, load) || harder(point.load, load)),
     );
-  /** A session whose hardest set could not reach the bottom of the range even to failure. */
-  const beyondReach = (point: (typeof points)[number]) =>
-    point.readiness === "below" &&
-    point.hardest !== null &&
-    minimum != null &&
-    point.hardest < minimum;
+  /**
+   * A session whose hardest set could not reach the bottom of the range even to failure — after
+   * a coarse step, the reps that step may start at — and clearly short of it, never a near miss
+   * (ADR 0048): going back at once on one session needs at least what a miss does.
+   */
+  const beyondReach = (point: (typeof points)[number]) => {
+    const bottom = minimumAt(point);
+    return missed(point) && point.hardest !== null && bottom != null && point.hardest < bottom;
+  };
   /**
    * A load nobody has held in the range is not a baseline yet (ADR 0040). When the latest session
    * at one could not reach the bottom of the range even taken to failure — a heavy single, or a
@@ -530,7 +756,7 @@ export function summarizeExerciseEvidence(
   const fitted = (() => {
     if (!outOfReach || lastHeld || assisted) return null;
     const from = latest!.load!;
-    const fit = ((from + body) * (1 + latest!.hardest! / 30)) / (1 + floor / 30) - body;
+    const fit = ((from + body) * (1 + latest!.hardest! / 30)) / (1 + rangeFloor / 30) - body;
     let load = from;
     for (let guard = 0; load > fit + 1e-9; guard++) {
       const step = guard < 200 ? stepEasier(ladder, load) : null;
@@ -623,20 +849,42 @@ export function summarizeExerciseEvidence(
       return `Nobody knows the next load up from ${from} yet: reps build within the range until the athlete enters it.`;
     const to = loadText(next.load, p.unit);
     const ceiling = repCeiling(p, latest.load, next.load, assisted) ?? maximum;
+    // After a coarse step the load starts below the range; that is the plan, not a miss.
+    const landed = landingOf.get(baseOf.get(latest)!);
+    const climbing =
+      landed !== undefined &&
+      before?.load != null &&
+      latest.capacity !== null &&
+      latest.capacity < rangeFloor
+        ? `Reps at ${from} count from ${landed} after the big jump from ${loadText(before.load, p.unit)}, and build back into the range. `
+        : "";
     // One session needs a rep to spare beyond the top; two running need the top itself.
     const once = failedAbove ? null : Math.max(ceiling, maximum + spare);
     const twice = `two sessions running with every working set at ${ceiling} reps and ${targetRir} RIR`;
-    if (ceiling > maximum)
-      return `${to} is a big jump from ${from}, so reps build past the top of the range first: it comes after ${
-        once === null
-          ? twice
-          : once === ceiling
-            ? `one session with every working set at ${ceiling} reps and ${targetRir} RIR`
-            : `one session with every working set at ${once} reps and ${targetRir} RIR, or ${twice}`
-      }.`;
+    const when =
+      once === null
+        ? twice
+        : once === ceiling
+          ? `one session with every working set at ${ceiling} reps and ${targetRir} RIR`
+          : `one session with every working set at ${once} reps and ${targetRir} RIR, or ${twice}`;
+    if (ceiling > maximum) {
+      // Where the step lands from the ceiling, at the target effort (ADR 0048).
+      const lands = Math.floor(
+        capacityAt(ceiling + targetRir, latest.load, next.load, body) - targetRir + 1e-9,
+      );
+      const floor = landingFloor(p, latest.load, next.load, assisted) ?? p.repMin ?? 1;
+      if (p.repMin == null || lands >= p.repMin)
+        return `${climbing}${to} is a big jump from ${from}, so reps build past the top of the range first: it comes after ${when}.`;
+      if (lands >= floor)
+        return `${climbing}${to} is a big jump from ${from}: reps build to ${ceiling} here, ${ceiling - maximum} past the top of the range and no further, and ${to} comes after ${when}. It starts below the range, at about ${lands} reps, and builds back up.`;
+      const needed = Math.ceil(
+        capacityNeeded(floor + targetRir, latest.load, next.load, body) - 1e-9,
+      );
+      return `${climbing}${to} is too big a jump from ${from} to bridge with reps: they stay at ${ceiling} here, and ${to} comes once every working set has ${needed} reps in hand (${ceiling} reps at ${needed - ceiling} RIR), or sooner with a smaller step or a variation.`;
+    }
     return once === null
-      ? `${to} comes after ${twice}: the step above this load did not hold last time.`
-      : `${to} comes after one session with every working set at ${maximum} reps and ${targetRir + spare} RIR (or ${once} reps at ${targetRir} RIR), or after ${twice}.`;
+      ? `${climbing}${to} comes after ${twice}: the step above this load did not hold last time.`
+      : `${climbing}${to} comes after one session with every working set at ${maximum} reps and ${targetRir + spare} RIR (or ${once} reps at ${targetRir} RIR), or after ${twice}.`;
   })();
   // A running estimate of the maximum, across loads, so a trend survives every step up.
   const estimated = [...points].reverse().filter((point) => point.estimatedMax !== null);
@@ -701,6 +949,23 @@ export function summarizeExerciseEvidence(
     declineCandidate,
     /** Where the latest session leaves the load (ADR 0039). */
     readiness: latest?.readiness ?? ("unknown" as Readiness),
+    /**
+     * The load each working set of the latest session counts at, in order (ADR 0048): its own,
+     * except a heavier set of the athlete's own that fell short of the range, which counts at
+     * the session's load, where the next session starts it.
+     */
+    latestWorkLoads: base[0]?.workProfile ?? [],
+    /**
+     * The coarse step the current load came from (ADR 0048): its reps count from `floor`, below
+     * the range, while they build back into it. Null where the load was not reached that way.
+     */
+    landing:
+      latest && current && before && current.load !== null && before.load !== null
+        ? (() => {
+            const floor = landingOf.get(baseOf.get(latest)!);
+            return floor === undefined ? null : { load: current.load, from: before.load, floor };
+          })()
+        : null,
     /** Whether the load steps up next session, and on what: one spare session or two on target. */
     loadReady,
     /** The sessions a load step stands on: the latest alone, or the latest and the one before. */

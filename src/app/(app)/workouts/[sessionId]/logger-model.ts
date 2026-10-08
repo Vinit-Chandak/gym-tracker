@@ -85,14 +85,67 @@ function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionTy
 }
 
 /**
- * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
- * ("5", "8–12", "30 s").
+ * The set a row stands for among `sets`: the same kind of set in the same place among them. The
+ * second warm-up row is the second warm-up, the first working row the first working set, whatever
+ * set number each row was given, so a warm-up row the athlete turns into a working set takes the
+ * work's numbers and never the warm-up's. Null past the sets of that kind.
  */
-export function countTargetLabel(exercise: ExerciseVM, setIndex: number | null): string | null {
+export function placedSet<T extends { setIndex: number; setType: SetType }>(
+  sets: readonly T[],
+  rows: readonly Pick<RowState, "setIndex" | "setType">[],
+  row: Pick<RowState, "setIndex" | "setType">,
+): T | null {
+  const warm = isWarmup(row.setType);
+  const same = sets
+    .filter((set) => isWarmup(set.setType) === warm)
+    .sort((a, b) => a.setIndex - b.setIndex);
+  const place = rows.filter(
+    (other) => other.setIndex < row.setIndex && isWarmup(other.setType) === warm,
+  ).length;
+  return same[place] ?? null;
+}
+
+/** The suggestion's set for a row (`placedSet`): the target the entry shows and explains. */
+export function targetFor(
+  exercise: ExerciseVM,
+  rows: readonly Pick<RowState, "setIndex" | "setType">[],
+  row: Pick<RowState, "setIndex" | "setType">,
+): TargetSet | null {
+  return placedSet(exercise.suggestion?.sets ?? [], rows, row);
+}
+
+/**
+ * A warm-up row the work has already passed: not logged, never touched or chosen, behind a
+ * working set that is. Once a working set is in, the warm-up is over, and the entry goes on to
+ * the next working set rather than back to a warm-up nobody did.
+ */
+export function passedWarmup(rows: readonly RowState[], row: RowState): boolean {
+  return (
+    row.logged === null &&
+    isWarmup(row.setType) &&
+    !row.dirty &&
+    !row.typeChosen &&
+    rows.some(
+      (other) =>
+        other.setIndex < row.setIndex && other.logged !== null && !isWarmup(other.logged.setType),
+    )
+  );
+}
+
+/** The set the entry is on: the first not yet done, past any warm-up the work has passed. */
+export function openRow(rows: readonly RowState[]): RowState | null {
+  return rows.find((row) => row.logged === null && !passedWarmup(rows, row)) ?? null;
+}
+
+/**
+ * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
+ * ("5", "8–12", "30 s"). `target` is the set's own suggested set (`targetFor`).
+ */
+export function countTargetLabel(exercise: ExerciseVM, target: TargetSet | null): string | null {
   const coach = coachWork(exercise);
   if (coach) {
     // The coach's own figure for that set, a warm-up's included; past them, the first working set.
-    const own = exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) ?? coach[0]!;
+    const own = target ?? coach[0]!;
     const measure = coachMeasure(own);
     const count = coachCount(own, measure);
     if (count !== null) return `${count}${MEASURE_UNIT_SUFFIX[measure]}`;
@@ -241,18 +294,19 @@ export function equipmentGlyph(exercise: ExerciseVM): GlyphName {
   }
 }
 
-/** The RIR this exercise's set aims at: the coach's for that set, else the programme's. */
-export function rirTarget(exercise: ExerciseVM, setIndex: number): number | null {
-  const coach = exercise.suggestion?.kind === "coach";
-  const own = coach ? exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) : null;
+/**
+ * The RIR this exercise's set aims at: the coach's for that set, else the programme's. `target`
+ * is the set's own suggested set (`targetFor`).
+ */
+export function rirTarget(exercise: ExerciseVM, target: TargetSet | null): number | null {
+  const own = exercise.suggestion?.kind === "coach" ? target : null;
   if (own && own.rir !== null) return own.rir;
   return exercise.planned?.rirMin ?? exercise.planned?.rirMax ?? null;
 }
 
 /** The target as the entry says it under RIR: "2", "2–3". */
-export function rirTargetLabel(exercise: ExerciseVM, setIndex: number): string | null {
-  const coach = exercise.suggestion?.kind === "coach";
-  const own = coach ? exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) : null;
+export function rirTargetLabel(exercise: ExerciseVM, target: TargetSet | null): string | null {
+  const own = exercise.suggestion?.kind === "coach" ? target : null;
   if (own && own.rir !== null) return String(own.rir);
   const p = exercise.planned;
   if (!p || (p.rirMin === null && p.rirMax === null)) return null;

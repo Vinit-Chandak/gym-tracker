@@ -39,7 +39,7 @@ import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "
 import { getGym } from "./gyms";
 import { machinesByExerciseAtGym } from "./equipment";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
-import { loadLadders } from "./load-ladders";
+import { bestLoads, loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
@@ -347,6 +347,12 @@ export type SessionExercise = {
     unit: LoadUnit;
     /** What is known about this machine's loads, for the Next up box (ADR 0028). */
     ladder: LoadLadder | null;
+    /**
+     * The best working load this exercise has been lifted at on this machine, across every
+     * session: the heaviest, or the least help on an assisted machine (ADR 0048). Next up asks
+     * for the stop above it. Null before anything is lifted.
+     */
+    best?: number | null;
   } | null;
   planned: {
     programExerciseId: string | null;
@@ -617,7 +623,7 @@ export async function getSessionDetail(
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges, ladders, guidance] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders, best, guidance] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -650,6 +656,14 @@ export async function getSessionDetail(
       db,
       userId,
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
+    ),
+    // The best each exercise has lifted on its machine, where Next up asks from (ADR 0048).
+    bestLoads(
+      db,
+      userId,
+      rows.flatMap((row) =>
+        row.equipment?.id ? [{ machineId: row.equipment.id, exerciseId: row.exercise.id }] : [],
+      ),
     ),
     // Every exercise's guide comes with the page from the cached library (plan: the guide data
     // path, chosen by measurement), so Technique reads even if the connection drops mid-session.
@@ -778,6 +792,11 @@ export async function getSessionDetail(
             name: row.equipment.name,
             unit: row.equipment.unit,
             ladder: ladders.get(row.equipment.id) ?? null,
+            best: (() => {
+              const lifted = best.get(`${row.equipment.id}:${row.exercise.id}`);
+              if (!lifted) return null;
+              return ladders.get(row.equipment.id)?.assisted ? lifted.lightest : lifted.heaviest;
+            })(),
           }
         : null,
       planned: row.planned

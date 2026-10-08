@@ -11,7 +11,7 @@ import type { PrescriptionType } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
-import { headingText, isWarmup, type EntryHeading } from "./logger-model";
+import { headingText, type EntryHeading } from "./logger-model";
 import type { Ghost, RowState } from "./use-set-rows";
 
 /** The figure a stepper shows, and how: suggested until touched, then ink; empty is a dash. */
@@ -258,7 +258,8 @@ export function Entry({
               {heading.of !== null && <span className="text-ink-2"> of {heading.of}</span>}
             </Swap>
           </h2>
-          {tag && !isWarmup(row.setType) && (
+          {/* Warm-up or work, the tag stands wherever the set has a suggestion of its own. */}
+          {tag && (
             <button
               type="button"
               aria-haspopup="dialog"

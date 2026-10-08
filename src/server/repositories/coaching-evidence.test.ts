@@ -1714,3 +1714,80 @@ it("reads a bodyweight squat's dumbbell against the body it is added to (ADR 004
     await expect(assess(5, 13)).rejects.toThrow(/targets outside the program range/);
   });
 });
+
+it("lets the coach bring a heavier set that fell short back to the session's load (ADR 0048)", async () => {
+  // Planned 100 kg; 100 × 6 at 2, then 102.5 tried for sets 2–3 at 4 × 1 RIR. The session
+  // before: 100 × 6 at 0 and 100 × 3 at 1. Read at its own load, the attempt made the latest
+  // session a second miss at 100 and sent it back to 95; read at 100, it is a near miss.
+  const plan = [1, 2, 3].map(() => ({ weight: 100, reps: 6, rir: 2 }));
+  const a = await squatFixture(
+    [
+      [
+        { weight: 100, reps: 6, rir: 2 },
+        { weight: 102.5, reps: 4, rir: 1 },
+        { weight: 102.5, reps: 4, rir: 1 },
+      ],
+      [
+        { weight: 100, reps: 6, rir: 0 },
+        { weight: 100, reps: 3, rir: 1 },
+      ],
+      straight(95, 6, 2),
+      straight(95, 6, 2),
+    ],
+    [plan, plan],
+  );
+  await a.as(async (db) => {
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const trend = evidence.exerciseTrends.find((item) => item.slug === SQUAT);
+    expect(trend?.revert).toBeNull();
+    expect(trend?.latestWorkLoads).toEqual([100, 100, 100]);
+    // Every set at 100, sets 2–3 asked for what they predict there, is a hold.
+    expect(
+      await a.refusal(db, [
+        { weight: 100, reps: 6, rir: 2 },
+        { weight: 100, reps: 4, rir: 2 },
+        { weight: 100, reps: 4, rir: 2 },
+      ]),
+    ).toBeNull();
+    // Keeping 102.5 for them is a step the work has not earned.
+    expect(
+      (
+        await a.refusal(db, [
+          { weight: 100, reps: 6, rir: 2 },
+          { weight: 102.5, reps: 4, rir: 2 },
+          { weight: 102.5, reps: 4, rir: 2 },
+        ])
+      )?.issues.join(" "),
+    ).toMatch(/not supported by repeated comparable performance/);
+  });
+});
+
+it("caps reps past the top at a coarse step, and lets the step start below the range (ADR 0048)", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    // 30 to 35 kg on these dumbbells is a sixth more: from 14 at 2 RIR, two past the 12 at the
+    // top of 8–12, it starts at about 7.
+    await db
+      .update(equipmentInstances)
+      .set({ availableLoads: [30, 35] })
+      .where(eq(equipmentInstances.id, a.machine.id));
+    for (const id of a.ids) await relog(db, id, { weight: 30, reps: 14, rir: 2 });
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const assess = (load: number, reps: number) =>
+      assessSessionEvidence(
+        db,
+        a.user.id,
+        a.target,
+        a.output(load, reps),
+        evidence,
+        new Set(a.ids.slice(0, 1)),
+      );
+    // Past the ceiling at the same load is past the range.
+    await expect(assess(30, 15)).rejects.toThrow(/outside the program range/);
+    expect(await assess(35, 7)).toMatchObject([
+      { kind: "progression", before: { load: 30 }, after: { load: 35 } },
+    ]);
+    // Under the landing floor is still outside the range.
+    await expect(assess(35, 4)).rejects.toThrow(/outside the program range/);
+  });
+});

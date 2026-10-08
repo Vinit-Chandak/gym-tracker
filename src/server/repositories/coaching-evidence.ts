@@ -295,19 +295,24 @@ export async function readCoachingEvidence(
     // warm-ups, whatever they were logged as, a back-off after it as a back-off, and a load the
     // session's own plan prescribed as working kept as the work.
     const unit = group.prescription.unit;
-    const history = [...group.history.values()].map((performance) => ({
-      ...performance,
-      sets: readPerformance(performance.sets, {
-        assisted: group.assisted,
-        load: (set) => loadIn(set, unit),
-        planned: (plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []).flatMap(
-          (target) => {
-            const load = loadIn(target, unit);
-            return load === null ? [] : [load];
-          },
-        ),
-      }),
-    }));
+    const history = [...group.history.values()].map((performance) => {
+      const planned = (
+        plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []
+      ).flatMap((target) => {
+        const load = loadIn(target, unit);
+        return load === null ? [] : [load];
+      });
+      return {
+        ...performance,
+        // What the plan asked for that day: never a lighter day or an attempt (ADR 0048).
+        planned,
+        sets: readPerformance(performance.sets, {
+          assisted: group.assisted,
+          load: (set) => loadIn(set, unit),
+          planned,
+        }),
+      };
+    });
     const initial = summarizeExerciseEvidence(group.prescription, history, null, {
       assisted: group.assisted,
     });

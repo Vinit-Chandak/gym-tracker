@@ -5,7 +5,7 @@ import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
-import { repCeiling, repTarget, TRAINING_POLICY } from "@/domain/training-evidence";
+import { landingFloor, repCeiling, repTarget, TRAINING_POLICY } from "@/domain/training-evidence";
 import {
   difficultyChange,
   harderAllowance,
@@ -464,25 +464,49 @@ export async function assessSessionEvidence(
         evidenceBody > 0 && trend && canConvertLoad(trend.loadUnit, unit)
           ? convertLoad(evidenceBody, trend.loadUnit, unit)
           : 0;
+      const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
+      const reading = {
+        repMin: p.reps?.[0] ?? null,
+        repMax: p.reps?.[1] ?? null,
+        rirMin: p.rir[0] ?? null,
+        rule: p.progressionRule ?? null,
+        bodyLoad,
+      };
       /**
-       * The most reps a set at `load` may be asked for: the top of the range, or past it where the
-       * next step is so coarse that stepping at the top would land below the range (ADR 0039).
+       * The most reps a set at `load` may be asked for: the top of the range, or past it — by two
+       * at most — where the next step is so coarse that stepping at the top would land below the
+       * range (ADR 0039, ADR 0048).
        */
       const ceilingAt = (load: number | null) =>
         p.type !== "reps" || !p.reps
           ? null
           : repCeiling(
-              {
-                repMin: p.reps[0] ?? null,
-                repMax: p.reps[1] ?? null,
-                rirMin: p.rir[0] ?? null,
-                rule: p.progressionRule ?? null,
-                bodyLoad,
-              },
+              reading,
               load,
               load != null && load > 0 && steps ? (stepHarder(steps, load)?.load ?? null) : null,
               steps?.assisted ?? false,
             );
+      /**
+       * The fewest reps a set at `load` may be asked for (ADR 0048): the bottom of the range, or
+       * below it where a coarse step starts — the step itself, up from `from`, or the load the
+       * trend says a coarse step went to, while its reps build back into the range.
+       */
+      const lowestAt = (load: number | null, from: number | null) => {
+        const bottom = range?.[0] ?? null;
+        if (p.type !== "reps" || bottom === null || load === null) return bottom;
+        const landing = trend?.landing;
+        if (
+          landing &&
+          canConvertLoad(trend.loadUnit, unit) &&
+          Math.abs(convertLoad(landing.load, trend.loadUnit, unit) - load) < 0.05
+        )
+          return Math.min(bottom, landing.floor);
+        if (from != null && from > 0 && difficultyChange(ladder, from, load) > 0) {
+          const floor = landingFloor(reading, from, load, steps?.assisted ?? false);
+          if (floor !== null) return Math.min(bottom, floor);
+        }
+        return bottom;
+      };
       const latestId = trend?.observations[0]?.sourceId ?? null;
       /** The sessions each change stands on, every one of which must be fresh and cited. */
       const standsOn: string[][] = [];
@@ -497,11 +521,17 @@ export async function assessSessionEvidence(
           index: item.index,
           load: convertLoad(item.load, recent!.unit!, unit),
         })) ??
-        baselineSets.flatMap((set, index) =>
-          set.weight === null ? [] : [{ index, load: set.weight }],
-        );
+        baselineSets.flatMap((set, index) => {
+          // A heavier set of the athlete's own that fell short counts at the session's load, where
+          // the next session starts it (ADR 0048).
+          const counted = trend?.latestWorkLoads[index];
+          const load =
+            counted != null && canConvertLoad(trend!.loadUnit, unit)
+              ? convertLoad(counted, trend!.loadUnit, unit)
+              : set.weight;
+          return load === null ? [] : [{ index, load }];
+        });
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
-      const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
       const withTargets = receipts.find(
         ({ change }) => change.before.targets?.length || change.after.targets?.length,
       );
@@ -533,7 +563,9 @@ export async function assessSessionEvidence(
           retained != null && range?.[1] != null
             ? Math.max(range[1], ceilingAt(load ?? null) ?? range[1])
             : (range?.[1] ?? Infinity);
-        return old == null ? null : Math.min(top, Math.max(range?.[0] ?? 0, old));
+        return old == null
+          ? null
+          : Math.min(top, Math.max(lowestAt(load ?? null, null) ?? range?.[0] ?? 0, old));
       };
       /** The known loads, as a refusal to drop them names them: " (40, 40 and 42.5 kg)". */
       const loadList = () => {
@@ -629,11 +661,13 @@ export async function assessSessionEvidence(
             range?.[1] != null && sameLoadAsBefore
               ? Math.max(range[1], ceilingAt(setBaseline) ?? range[1])
               : (range?.[1] ?? null);
+          // Below the range only where a coarse step starts, at most to its landing (ADR 0048).
+          const bottom = lowestAt(set.weight, setBaseline ?? null);
           if (
             !equipmentChange &&
             value !== null &&
             range &&
-            ((!temporary && range[0] != null && value < range[0]) || (top != null && value > top))
+            ((!temporary && bottom != null && value < bottom) || (top != null && value > top))
           )
             plan.note(
               `${entry.exerciseSlug}: targets outside the program range need a program review.`,
