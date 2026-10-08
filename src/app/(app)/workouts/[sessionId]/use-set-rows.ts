@@ -21,7 +21,7 @@ import {
 import { attempted } from "@/lib/offline-submit";
 
 import { useLoggerActions } from "./logger-actions";
-import { restSecondsOf } from "./logger-model";
+import { isWarmup, placedSet, restSecondsOf, targetFor } from "./logger-model";
 import type { ExerciseVM, SetVM } from "./view-model";
 
 const MAX_SETS = 50;
@@ -149,6 +149,7 @@ function workLoad(exercise: ExerciseVM, setIndex: number): number | null {
 
 type GhostSource = {
   setIndex: number;
+  setType: SetType;
   weight: number | null;
   reps: number | null;
   rir: number | null;
@@ -173,14 +174,22 @@ function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
   return exercise.previous?.sets ?? exercise.basis?.sets ?? [];
 }
 
-/** Faint prefill: the target for this set index, else the last set logged here, else the last target. */
+/**
+ * Faint prefill: the target this row stands for — the same kind of set in the same place, so a
+ * warm-up row turned into a working set takes the work's numbers — else the last set of its kind
+ * logged here, else the last target of its kind.
+ */
 function ghostFor(exercise: ExerciseVM, rows: readonly RowState[], index: number): Ghost {
+  const row = rows.find((r) => r.setIndex === index) ?? { setIndex: index, setType: "working" };
   const targets = prefillTargets(exercise);
-  const target = targets.find((s) => s.setIndex === index);
+  const target = placedSet(targets, rows, row);
   if (target) return toGhost(target);
-  const last = [...rows].filter((r) => r.setIndex < index && r.logged).pop()?.logged;
+  const warm = isWarmup(row.setType);
+  const last = [...rows]
+    .filter((r) => r.setIndex < index && r.logged && isWarmup(r.logged.setType) === warm)
+    .pop()?.logged;
   if (last) return toGhost(last);
-  const tail = targets[targets.length - 1];
+  const tail = targets.filter((set) => isWarmup(set.setType) === warm).at(-1);
   return tail ? toGhost(tail) : {};
 }
 
@@ -606,6 +615,11 @@ export function useSetRows({
     settled,
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
     ghost: (index: number) => ghostFor(exercise, rows, index),
+    /** The suggested set a row stands for, which the entry shows and explains; null for none. */
+    target: (index: number) => {
+      const row = rows.find((r) => r.setIndex === index);
+      return row ? targetFor(exercise, rows, row) : null;
+    },
     editRow,
     undoWarmup,
     restore,

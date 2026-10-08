@@ -10,6 +10,7 @@ import {
   figureColumn,
   headingText,
   logSize,
+  openRow,
   operatorColumn,
   perSetLabel,
   prescriptionLabel,
@@ -19,6 +20,7 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
+  targetFor,
 } from "./logger-model";
 import type { RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
@@ -231,9 +233,9 @@ describe("today's targets: every number from one source (plan: today's targets)"
     expect(prescriptionLabel(coached, "kg")).toBe("60 kg · 3 × 5 @ 2 RIR");
     expect(restText(coached)).toBe("2.5 min");
     expect(restSecondsOf(coached)).toBe(150);
-    expect(countTargetLabel(coached, 3)).toBe("5");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("5");
     // The coach's warm-up asks for its own reps.
-    expect(countTargetLabel(coached, 1)).toBe("8");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[0]!)).toBe("8");
   });
 
   it("says each set when the coach's sets differ", () => {
@@ -246,7 +248,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
     });
     expect(perSetLabel(coached)).toBe("8/6/4 reps");
     expect(prescriptionLabel(coached, "kg")).toBe("60/65/70 kg · 3 × 8/6/4 @ 3, 2, 1 RIR");
-    expect(countTargetLabel(coached, 3)).toBe("4");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("4");
     // The coach gave no rest: the programme's stands.
     expect(restText(coached)).toBe("3–4 min");
   });
@@ -276,7 +278,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
 
   it("shows a programme-only exercise the programme's numbers, and its rest to the timer", () => {
     expect(perSetLabel(exercise())).toBe("3–5 reps");
-    expect(countTargetLabel(exercise(), 1)).toBe("3–5");
+    expect(countTargetLabel(exercise(), null)).toBe("3–5");
     expect(restSecondsOf(exercise())).toBe(180);
   });
 
@@ -320,7 +322,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
     expect(prescriptionLabel(half, "kg")).toBe("8–12 reps @ 1–2 RIR");
     expect(restText(adHoc)).toBe("90 s");
     expect(restSecondsOf(adHoc)).toBe(90);
-    expect(countTargetLabel(adHoc, 1)).toBe("8–12");
+    expect(countTargetLabel(adHoc, null)).toBe("8–12");
     const hold = exercise({
       planned: null,
       exercise: {
@@ -336,8 +338,8 @@ describe("today's targets: every number from one source (plan: today's targets)"
 
 describe("the RIR a set aims at", () => {
   it("is the programme's, or the coach's for that set", () => {
-    expect(rirTarget(exercise(), 3)).toBe(2);
-    expect(rirTargetLabel(exercise({ planned: { ...planned, rirMax: 3 } }), 3)).toBe("2–3");
+    expect(rirTarget(exercise(), null)).toBe(2);
+    expect(rirTargetLabel(exercise({ planned: { ...planned, rirMax: 3 } }), null)).toBe("2–3");
     const coached = exercise({
       suggestion: {
         kind: "coach",
@@ -358,9 +360,9 @@ describe("the RIR a set aims at", () => {
         ],
       },
     });
-    expect(rirTarget(coached, 1)).toBe(3);
-    expect(rirTargetLabel(coached, 1)).toBe("3");
-    expect(rirTargetLabel(exercise({ planned: null }), 1)).toBeNull();
+    expect(rirTarget(coached, coached.suggestion!.sets[0]!)).toBe(3);
+    expect(rirTargetLabel(coached, coached.suggestion!.sets[0]!)).toBe("3");
+    expect(rirTargetLabel(exercise({ planned: null }), null)).toBeNull();
   });
 });
 
@@ -399,6 +401,69 @@ describe("which set the entry is on", () => {
     });
     const rows = [row(1, "warmup"), row(2)];
     expect(headingText(entryHeading(rows, rows[1]!, coached))).toBe("Set 1 of 1");
+  });
+});
+
+describe("the target a row stands for", () => {
+  // Upper B's incline bench as the coach wrote it: a ramp of three, then 3 × 55 kg × 6 at 2 RIR.
+  const coached = exercise({
+    suggestion: {
+      kind: "coach",
+      basis: "exercise",
+      reason: "Coach plan for today",
+      advice: null,
+      loadIncrement: 2.5,
+      sets: (
+        [
+          [30, 6, null],
+          [40, 5, null],
+          [50, 4, null],
+          [55, 6, 2],
+          [55, 6, 2],
+          [55, 6, 2],
+        ] as const
+      ).map(([weight, reps, rir], index) => ({
+        setIndex: index + 1,
+        setType: index < 3 ? ("warmup" as const) : ("working" as const),
+        weight,
+        reps,
+        rir,
+        durationSeconds: null,
+        distanceMeters: null,
+      })),
+    },
+  });
+  const ramp = () => [row(1, "warmup"), row(2, "warmup"), row(3, "warmup"), row(4), row(5), row(6)];
+
+  it("takes the same kind of set in the same place, never the set number", () => {
+    const rows = ramp();
+    expect(targetFor(coached, rows, rows[1]!)).toMatchObject({ weight: 40, reps: 5 });
+    expect(targetFor(coached, rows, rows[3]!)).toMatchObject({ weight: 55, reps: 6, rir: 2 });
+    // The first warm-up turned into a working set is the first working set: 55 × 6, not 30 × 6.
+    const skipped = [
+      { ...rows[0]!, setType: "working" as const, typeChosen: true },
+      ...rows.slice(1),
+    ];
+    expect(targetFor(coached, skipped, skipped[0]!)).toMatchObject({ weight: 55, reps: 6, rir: 2 });
+    expect(rirTargetLabel(coached, targetFor(coached, skipped, skipped[0]!))).toBe("2");
+    // A working set past the coach's three has none of its own.
+    expect(targetFor(coached, skipped, skipped[5]!)).toBeNull();
+  });
+
+  it("goes on past a warm-up the work has passed", () => {
+    const logged = (setIndex: number, setType: RowState["setType"]) => ({
+      ...row(setIndex, setType),
+      logged: { setIndex, setType } as RowState["logged"],
+    });
+    // Warm-ups skipped: the first row was logged as a working set.
+    const rows = [logged(1, "working"), row(2, "warmup"), row(3, "warmup"), row(4), row(5), row(6)];
+    expect(openRow(rows)?.setIndex).toBe(4);
+    expect(targetFor(coached, rows, openRow(rows)!)).toMatchObject({ weight: 55, setIndex: 5 });
+    // A warm-up the athlete chose after the work is theirs to log.
+    const chosen = [rows[0]!, { ...rows[1]!, typeChosen: true }, ...rows.slice(2)];
+    expect(openRow(chosen)?.setIndex).toBe(2);
+    // Before any work, the warm-ups come first.
+    expect(openRow(ramp())?.setIndex).toBe(1);
   });
 });
 

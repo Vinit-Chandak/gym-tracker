@@ -52,6 +52,7 @@ import {
   isWarmup,
   logSize,
   measureOf,
+  openRow,
   perSetLabel,
   plannedSets,
   prescriptionLabel,
@@ -60,6 +61,7 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
+  targetFor,
 } from "./logger-model";
 import {
   EffortSheet,
@@ -129,6 +131,8 @@ function fieldsFor(
   measure: PrescriptionType,
   row: RowState | null,
   unit: LoadUnit,
+  /** The row's own suggested set (`targetFor`): what its targets are read from. */
+  target: NonNullable<ExerciseVM["suggestion"]>["sets"][number] | null,
 ): [EntryField, EntryField, EntryField] {
   const loadUnit = row?.unit ?? unit;
   const bodyweight = exercise.exercise.modality === "bodyweight";
@@ -156,14 +160,14 @@ function fieldsFor(
     target: null,
     info: null,
   };
-  const target = countTargetLabel(exercise, row?.setIndex ?? null);
+  const countTarget = countTargetLabel(exercise, target);
   const count: EntryField =
     measure === "duration"
       ? {
           field: "duration",
           unit: "s",
           hint: null,
-          foldHint: target ? `target ${target}` : null,
+          foldHint: countTarget ? `target ${countTarget}` : null,
           inputLabel: "Seconds",
           inputMode: "numeric",
           max: SET_LIMITS.durationSeconds,
@@ -183,7 +187,7 @@ function fieldsFor(
             field: "distance",
             unit: "m",
             hint: null,
-            foldHint: target ? `target ${target}` : null,
+            foldHint: countTarget ? `target ${countTarget}` : null,
             inputLabel: "Metres",
             inputMode: "decimal",
             max: SET_LIMITS.distanceMeters,
@@ -202,7 +206,7 @@ function fieldsFor(
             field: "reps",
             unit: "reps",
             hint: null,
-            foldHint: target ? `target ${target}` : null,
+            foldHint: countTarget ? `target ${countTarget}` : null,
             inputLabel: "Reps",
             inputMode: "numeric",
             max: SET_LIMITS.reps,
@@ -221,8 +225,8 @@ function fieldsFor(
   const effort: EntryField =
     effortMetric(measure) === "rir"
       ? (() => {
-          const target = row && !warmup ? rirTarget(exercise, row.setIndex) : null;
-          const targetLabel = row && !warmup ? rirTargetLabel(exercise, row.setIndex) : null;
+          const rir = row && !warmup ? rirTarget(exercise, target) : null;
+          const targetLabel = row && !warmup ? rirTargetLabel(exercise, target) : null;
           return {
             field: "rir",
             unit: "RIR",
@@ -244,7 +248,7 @@ function fieldsFor(
                   : targetLabel
                     ? `RIR not set, target ${targetLabel}. Use the target`
                     : "RIR not set. Type RIR",
-            target,
+            target: rir,
             info: "What RIR means",
           };
         })()
@@ -419,10 +423,12 @@ export function ExerciseLogger({
   }, [typing]);
 
   const editable = !readOnly && !skipped && !completed;
-  const entryRow = editable ? (sets.rows.find((row) => row.logged === null) ?? null) : null;
+  const entryRow = editable ? openRow(sets.rows) : null;
   const heading = entryRow ? entryHeading(sets.rows, entryRow, exercise) : null;
   const ghost = entryRow ? sets.ghost(entryRow.setIndex) : {};
-  const fields = fieldsFor(exercise, measure, entryRow, unit);
+  // The suggested set this row stands for: the same kind of set in the same place.
+  const entryTarget = entryRow ? sets.target(entryRow.setIndex) : null;
+  const fields = fieldsFor(exercise, measure, entryRow, unit, entryTarget);
 
   // The log's soft top edge shows once its earlier lines pass under the tabs.
   const [overflow, setOverflow] = useState(false);
@@ -574,41 +580,70 @@ export function ExerciseLogger({
   if (substituted) facts.push(<span>instead of {plannedName}</span>);
 
   // ---------- the suggestion, its tag and Why ----------
-  const suggestion = exercise.suggestion;
-  const kindLabel = suggestion ? SUGGESTION_KIND_LABELS[suggestion.kind] : null;
-  const bodyweight = exercise.exercise.modality === "bodyweight";
-  const countField = fields[1].field;
-  const whyLoad = ghost.weight && !(bodyweight && Number(ghost.weight) === 0) ? ghost.weight : null;
-  const whyCount = ghost[countField]
-    ? `${ghost[countField]}${measure === "duration" ? " s" : measure === "distance" ? " m" : ""}`
+  // Said only where the set on the entry has a suggested set of its own, warm-up or work, and
+  // always that set's figures: never a warm-up's numbers under a working set's tag.
+  const suggestion = entryTarget ? exercise.suggestion : null;
+  const entryWarm = entryRow !== null && isWarmup(entryRow.setType);
+  const kindLabel = suggestion
+    ? entryWarm && suggestion.kind !== "coach"
+      ? "Warm-up"
+      : SUGGESTION_KIND_LABELS[suggestion.kind]
     : null;
+  const bodyweight = exercise.exercise.modality === "bodyweight";
+  const targetCount =
+    measure === "duration"
+      ? entryTarget?.durationSeconds
+      : measure === "distance"
+        ? entryTarget?.distanceMeters
+        : entryTarget?.reps;
+  const whyLoad =
+    entryTarget?.weight != null && !(bodyweight && entryTarget.weight === 0)
+      ? String(entryTarget.weight)
+      : null;
+  const whyCount =
+    targetCount != null
+      ? `${targetCount}${measure === "duration" ? " s" : measure === "distance" ? " m" : ""}`
+      : null;
   const whyEffort =
-    entryRow && effort === "rir" ? rirTargetLabel(exercise, entryRow.setIndex) : null;
+    entryRow && effort === "rir" && !entryWarm ? rirTargetLabel(exercise, entryTarget) : null;
+  // A warm-up the app ramped to the first working set says so; the rule's reason is the work's.
+  const firstWork = exercise.suggestion?.sets.find((set) => !isWarmup(set.setType)) ?? null;
+  const rampReason =
+    firstWork?.weight != null && firstWork.weight > 0
+      ? `A ramp to today's first working set, ${firstWork.weight} ${unitLabel}.`
+      : "A ramp to today's first working set.";
   const why: WhyContent | null =
     suggestion && kindLabel
       ? {
           tag: kindLabel,
           figures: { load: whyLoad, unit: unitLabel, count: whyCount, effort: whyEffort },
           reason:
-            suggestion.kind === "coach" && exercise.coachNote ? null : suggestion.reason || null,
-          advice: suggestion.advice,
+            suggestion.kind === "coach"
+              ? exercise.coachNote
+                ? null
+                : suggestion.reason || null
+              : entryWarm
+                ? rampReason
+                : suggestion.reason || null,
+          advice: entryWarm ? null : suggestion.advice,
           coachNote: exercise.coachNote,
           warning: null,
-          basis: exercise.basis
-            ? `Based on ${
-                suggestion.basis === "other_equipment"
-                  ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                  : "this exercise"
-              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
-                // The sets it read, so the reason can be checked against what was done.
-                exercise.basis.sets.length > 0
-                  ? `: ${formatSets(
-                      exercise.basis.sets.map((set) => setInUnit(set, unit)),
-                      (load) => LOAD_UNIT_LABELS[load],
-                    )}`
-                  : ""
-              }.`
-            : null,
+          basis:
+            !entryWarm && exercise.basis
+              ? `Based on ${
+                  suggestion.basis === "other_equipment"
+                    ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                    : "this exercise"
+                }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
+                  // The sets it read, so the reason can be checked against what was done.
+                  exercise.basis.sets.length > 0
+                    ? `: ${formatSets(
+                        exercise.basis.sets.map((set) => setInUnit(set, unit)),
+                        (load) => LOAD_UNIT_LABELS[load],
+                      )}`
+                    : ""
+                }.`
+              : null,
         }
       : null;
   const tagName =
@@ -650,8 +685,9 @@ export function ExerciseLogger({
     if (active && active !== document.body) return;
     titleRef.current?.focus({ preventScroll: true });
   }, [needsDecision]);
-  // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
-  // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
+  // Once this exercise's working sets are in, a stack whose next stop past the best ever lifted
+  // nobody knows asks for it under the sets (ADR 0028, ADR 0047); nothing is asked mid-exercise
+  // or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
   const workingDone =
     completed ||
@@ -663,6 +699,7 @@ export function ExerciseLogger({
       ? nextLoadQuestion(
           exercise.equipment?.ladder,
           loggedWorking.map((set) => set.weight),
+          exercise.equipment?.best ?? null,
         )
       : null;
 
@@ -811,7 +848,7 @@ export function ExerciseLogger({
     const work = after.filter((r) => r.logged && !isWarmup(r.logged.setType)).length;
     // The entry turns to the first set not yet done, or to a working set after the last one, as
     // use-set-rows adds it on the same answer.
-    const open = after.find((r) => r.logged === null);
+    const open = openRow(after);
     const last = Math.max(...after.map((r) => r.setIndex));
     const nextRow =
       open ??
@@ -1062,7 +1099,7 @@ export function ExerciseLogger({
     effort === "rir"
       ? `${exercise.exercise.rirNote ?? RIR_HELP}${
           exercise.planned && (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
-            ? ` Today's target is ${rirTargetLabel(exercise, entryRow?.setIndex ?? 0)} RIR.`
+            ? ` Today's target is ${rirTargetLabel(exercise, entryTarget)} RIR.`
             : ""
         }`
       : RPE_HELP;
@@ -1404,7 +1441,11 @@ export function ExerciseLogger({
       <SetEditSheet
         row={editRow}
         title={editTitle}
-        fields={editRow ? fieldsFor(exercise, measure, editRow, unit) : []}
+        fields={
+          editRow
+            ? fieldsFor(exercise, measure, editRow, unit, targetFor(exercise, sets.rows, editRow))
+            : []
+        }
         onUpdate={(row) => {
           setAnnounced("");
           sets.logRow(row);
