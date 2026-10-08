@@ -120,8 +120,8 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
         await navigate(`/food${selectedDay}`);
         await containedDayMarkers(page.getByRole("navigation", { name: "Days" }), "Week strip");
         const meals = page.getByRole("list", { name: "Meals", exact: true });
-        await readableNames(meals.locator(".meal-row-name"), "Meal titles");
-        const summaries = meals.locator(".meal-row-foods");
+        await readableNames(meals.locator(".food-row-name"), "Meal titles");
+        const summaries = meals.locator(".food-row-meta");
         await readableNames(summaries, "Meal food summaries");
         const textBounds = await summaries.evaluateAll((elements) =>
           elements.map((element) => {
@@ -149,10 +149,7 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
 
         await page.getByRole("button", { name: /^Protein:/ }).click();
         const breakdown = page.getByRole("list", { name: "Protein by food", exact: true });
-        await readableNames(
-          breakdown.locator("li > span:first-child > span.font-bold"),
-          "Macro breakdown",
-        );
+        await readableNames(breakdown.locator(".food-row-name"), "Macro breakdown");
         await capture("macro");
         await page
           .getByRole("dialog")

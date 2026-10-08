@@ -378,13 +378,15 @@ activity, each collapsible, with its own next step; the print is a band over the
 coach's note opens in place; the warm-up is ticked off on its row; Finish with nothing logged
 offers Discard first; the sign-in screens carry the mark. The rules below say where.
 
-**Amended 8 October 2026, from the owner's notes on adding to a meal.** A meal's page and My
-foods list what can be added or opened as tiled rows: each led by a round tile (Quick add's bolt,
-a saved meal's star, a food's bowl, New food's and New meal's plus), its name on one line and what
-it holds on one more, each ending in an ellipsis rather than wrapping, so every row stands the
-same height; saved meals stand under Meals and foods under Foods. On a meal's page a row's energy
-is a whole kcal over its unit, in a column four digits wide. These lists are the exception to one
-left edge and to text that wraps; Rows and marks says how. The Dinner board predates this.
+**Amended 8 October 2026, from the owner's notes on adding to a meal.** Wherever food is listed
+(a meal's page, My foods, a saved meal, a meal being built, the Food tab's meals and a
+macronutrient's foods) it is one row: led by a round tile (Quick add's bolt, a saved meal's star, a
+food's bowl, a meal of the day's layer of the bowl, New food's and New meal's plus), its name on
+one line and what it holds on one more, each ending in an ellipsis rather than wrapping, so every
+row stands the same height, and what it comes to a whole figure over its unit, in a column four
+digits wide. Saved meals stand under Meals and foods under Foods, the most eaten first, a page at
+a time (ADR 0045). These lists are the exception to one left edge and to text that wraps; Rows
+and marks says how. The Dinner board predates this.
 
 **Key Characteristics:**
 
@@ -392,7 +394,7 @@ left edge and to text that wraps; Rows and marks says how. The Dinner board pred
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
 - Minimal words: no repeated information, no state said in words where ink says it.
 - One left edge: every name starts at the gutter; a mark leads a row only where it names a sport
-  (the Food tab's tiled lists aside: Rows and marks).
+  (food rows aside: Rows and marks).
 - Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
 - Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.
 - Laid out from the device: figures fit rather than truncate, text wraps rather than runs off
@@ -515,9 +517,9 @@ are 0.614 em, its point and comma 0.32 em.
 
 **The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps
 (`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes
-grows and wraps. The one exception is a food row's name and the line under it, on a meal's page
-and My foods, which keep one line each and end in an ellipsis so every row stands the same
-height; the sheet the row opens says them whole.
+grows and wraps. The one exception is a food row's name and the line under it, wherever food is
+listed, which keep one line each and end in an ellipsis so every row stands the same height; a
+food's or a saved meal's own sheet says them whole.
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
 
@@ -534,9 +536,9 @@ under 360 pt wide.
   boxed or carded; rows are separated by `hair` rules. Today's activity cards are the one
   deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
   card, and the rows inside a card are ruled like any list.
-  The Food tab's lists to add from and My foods are the other exception (owner, 8 October 2026):
-  every row is led by its tile, the tiles in one column and the names at one edge after them
-  (Rows and marks).
+  Food rows, wherever food is listed, are the other exception (owner, 8 October 2026): every row
+  is led by its tile, the tiles in one column and the names at one edge after them (Rows and
+  marks).
 - **Today:** the date and the cycle's squares; the day's print as a band (112 pt; 132 at 900 pt
   and taller, 92 under 800, 76 under 600); then one card per activity, 12 apart: an open session
   that is not the day's first, then the workout (or the rest day), then each run, ride and swim
@@ -790,19 +792,26 @@ and every control answers a press.
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
 - A list to choose from (search results, a gym's machines) puts each name at the gutter and the
   equipment's glyph at the head of its second line.
-- **Food rows** (a meal's page and My foods; owner, 8 October 2026) are led by a round tile,
-  36 pt in `surface` and growing with the text as glyphs do, its glyph in ink: Quick add's bolt, a
-  saved meal's star, a food's bowl (the Food tab's), New food's and New meal's plus. The glyph is
-  drawn first and read after the name. The name keeps one line and what is under it (a meal's
-  foods, a food's portion; on My foods, its count or portion and kcal) one more, each ending in an
-  ellipsis, so every row is 58 pt at 100% text; Quick add's line alone wraps at large text, since
-  it says what the row does. On a meal's page the row's energy trails as a whole kcal (1,000.8 is
-  1001, written without a comma) in Jost over its unit, both centred in a column four tabular
-  digits wide (4 × 0.614 em), so every row's words end at one edge; a five-digit figure widens its
-  own row's column rather than being cut. What is already in the meal keeps its kcal to the tenth
-  beside it, as the meal's total does. Saved meals stand under Meals and foods under Foods, a
-  section's last row unruled. Nothing trails a row to say it can be added: the row is the
-  control. My foods' rows end in the chevron that opens them.
+- **Food rows** (owner, 8 October 2026; ADR 0045) are one row wherever food is listed: a meal's
+  page (what is in it, and what can be added), My foods, a saved meal's sheet, a meal being built,
+  the Food tab's meals and a macronutrient's foods. Each is led by a round tile, 36 pt in
+  `surface` and growing with the text as glyphs do, its glyph in ink: Quick add's bolt, a saved
+  meal's star, a food's bowl (the Food tab's), New food's and New meal's plus; a meal of the day's
+  holds its layer of the bowl above, a small bowl in its paint, and an empty meal's the empty bowl
+  in `control`, its name in `ink-2`. The tile is drawn first and read after the name. The name
+  keeps one line and what is under it (a meal's foods, a food's portion, the meals a
+  macronutrient's food was eaten at) one more, each ending in an ellipsis, so every row is 58 pt
+  at 100% text; a name with nothing under it is centred on its tile, and Quick add's line alone
+  wraps at large text, since it says what the row does. What the row comes to trails as a whole
+  figure in Jost over its unit, both centred in a column four tabular digits wide (4 × 0.614 em),
+  so every row's words end at one edge: kcal (1,000.8 is 1001, written without a comma), or a
+  macronutrient's grams ("<1" under one; a dash for a food logged without it). A five-digit figure
+  widens its own row's column rather than being cut. Totals (a day's, a meal's, a saved meal's)
+  keep their tenth. Saved meals stand under Meals and foods under Foods, each the most eaten
+  first, five meals or ten foods a page with History's page tabs under them (ADR 0044), so Foods
+  starts where it did however many meals there are; a new search starts each at its first page.
+  A section's last row is unruled. Nothing trails a row to say it can be added or opened: the row
+  is the control.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
   Never a pigment tile.
 

@@ -258,19 +258,6 @@
   font-size: var(--ov-type-meta);
   font-weight: 600;
 }
-.macro-sheet-row {
-  display: flex;
-  min-height: 56px;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--ov-hair);
-}
-.macro-sheet-row:last-child {
-  border-bottom: 0;
-}
-
 /* Until there is a target, asking for one stands where the bowl would be. */
 .food-no-target {
   display: flex;
@@ -282,66 +269,27 @@
 }
 
 /* ---------- the meals ---------- */
+/* Food rows (below), each led by its layer of the bowl as a small bowl in its tile. */
 .food-meals {
   margin-top: 8px;
-}
-.meal-row {
-  display: flex;
-  min-height: 58px;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--ov-hair);
-}
-.meal-row-text {
-  display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-}
-.meal-row-name {
-  font-size: var(--ov-type-body);
-  font-weight: 700;
-  line-height: 1.4;
-}
-.meal-row-foods {
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta-small);
-  font-weight: 500;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
 }
 /* The meal's layer as a small bowl, edged in ink so the palest layers hold on white. */
 .meal-swatch {
   display: block;
-  width: calc(7px + 0.4375rem);
-  height: calc(4.5px + 0.28125rem);
+  width: calc(10px + 0.625rem);
+  height: calc(6.5px + 0.40625rem);
   border: 1px solid var(--ov-ink);
   border-top: 0;
   border-radius: 0 0 50% 50% / 0 0 78% 78%;
 }
-/* A meal with nothing in it: an empty bowl, its name in ink 2, and a plus. */
-.meal-row-empty {
-  min-height: max(var(--ov-target), 46px);
-  padding: 0;
-}
-.meal-row-empty .meal-swatch {
+/* A meal with nothing in it: the empty bowl, and its name in ink 2. */
+.food-row-empty .meal-swatch {
   border: 1.5px solid var(--ov-control);
   border-top: 0;
 }
-.meal-row-empty .meal-row-name {
-  flex: 1 1 auto;
+.food-row-empty .food-row-name {
   color: var(--ov-ink-2);
   font-weight: 600;
-}
-.meal-add {
-  display: grid;
-  width: calc(36px + var(--ov-grow));
-  height: calc(36px + var(--ov-grow));
-  flex-shrink: 0;
-  place-items: center;
-  border-radius: var(--ov-radius-full);
-  background: var(--ov-surface);
 }
 
 /* ---------- the account's pages: the targets, My foods ---------- */
@@ -479,12 +427,12 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-/* A meal's page and My foods lead every row to add or open with a round tile, 36 pt as a food's
-   plus was and growing with the text as glyphs do: Quick add's bolt, a saved meal's star, a food's
-   bowl (the Food tab's), New food's and New meal's plus. The name keeps to one line and what is
-   under it (a meal's foods, a food's portion) to one more, each ending in an ellipsis rather than
-   wrapping, so a meal and a food stand the same height whatever they are called and hold (owner,
-   8 October 2026; DESIGN.md, Rows and marks). */
+/* Every list of food leads its rows with a round tile, 36 pt as a food's plus was and growing
+   with the text as glyphs do: Quick add's bolt, a saved meal's star, a food's bowl (the Food
+   tab's), something new's plus, a day's meal's layer of the bowl. The name keeps to one line and
+   what is under it (a meal's foods, a food's portion) to one more, each ending in an ellipsis
+   rather than wrapping, so every row stands the same height whatever it is called and holds
+   (owner, 8 October 2026; DESIGN.md, Rows and marks; components/food/food-row.tsx). */
 .food-row-led {
   display: grid;
   grid-template-areas:
@@ -516,7 +464,13 @@
 .food-row-led > .food-row-meta {
   grid-area: meta;
 }
-/* A name with nothing under it (New food, New meal) is centred on its tile. */
+/* A tile holding a meal's layer of the bowl centres it. */
+.food-row-swatch {
+  display: grid;
+  padding: 0;
+  place-items: center;
+}
+/* A name with nothing under it (New food, New meal, a meal not eaten) is centred on its tile. */
 .food-row-led:not(:has(> .food-row-meta)) > .food-row-name {
   grid-row: 1 / -1;
   align-self: center;
@@ -527,10 +481,10 @@
   white-space: normal;
 }
 /* A row that comes to a figure folds it under its words at large text, never squeezes them. */
-.food-row:has(> .food-row-kcal) {
+.food-row:has(> .food-row-figure) {
   flex-wrap: wrap;
 }
-.food-row:has(> .food-row-kcal) > .food-row-text {
+.food-row:has(> .food-row-figure) > .food-row-text {
   flex: 1 1 10rem;
 }
 .food-row-meta {
@@ -541,8 +495,16 @@
   font-variant-numeric: tabular-nums lining-nums;
   overflow-wrap: anywhere;
 }
-.food-row-kcal {
+/* What a row comes to stands over its unit, both centred in a column four of Jost's tabular
+   digits wide (0.614 em each): figures there are whole (kcal, grams), so every row's words end at
+   one edge; a rarer five-digit figure widens its own row's column rather than being cut. */
+.food-row-figure {
+  display: grid;
+  min-width: calc(4 * 0.614 * var(--ov-type-figure));
   flex-shrink: 0;
+  justify-content: center;
+  justify-items: center;
+  row-gap: 2px;
   margin-left: auto;
   white-space: nowrap;
 }
@@ -551,17 +513,7 @@
   font-size: var(--ov-type-caption);
   font-weight: 600;
 }
-/* Beside a tiled row the figure is a whole kcal standing over its unit, both centred in a column
-   four of Jost's tabular digits wide (0.614 em each), so every row's words end at one edge; a
-   rarer five-digit figure widens its own row's column rather than being cut. */
-.food-row-led ~ .food-row-kcal {
-  display: grid;
-  min-width: calc(4 * 0.614 * var(--ov-type-figure));
-  justify-content: center;
-  justify-items: center;
-  row-gap: 2px;
-}
-.food-row-led ~ .food-row-kcal > .food-row-unit {
+.food-row-figure > .food-row-unit {
   line-height: 1.2;
 }
 

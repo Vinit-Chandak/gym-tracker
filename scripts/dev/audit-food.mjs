@@ -283,7 +283,7 @@ try {
     expect(await entries("breakfast")).toEqual([
       { name: "Oats", amount: 60, unit: "g", portion: 100 },
     ]);
-    await expect(page.getByRole("button", { name: /^Oats 60 g 233\.4 kcal/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Oats 60 g 233 kcal/ })).toBeVisible();
     // With a food in My foods, New food waits for a search that finds nothing.
     await expect(myFoods().getByRole("button", { name: /^New food/ })).toHaveCount(0);
     await newFoodFrom("Milk");
@@ -452,7 +452,7 @@ try {
     await page.getByRole("button", { name: "Save meal", exact: true }).click();
     // Back to My foods, where the meal was made.
     await page.waitForURL(/\/food\/my-foods$/);
-    await expect(page.getByRole("link", { name: /^Rice bowl 2 foods/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Rice bowl Rice, Oats/ })).toBeVisible();
     const [meal] = await sql`select name, items from saved_meals
       where user_id=${user.id} and name='Rice bowl'`;
     expect(meal.items.map((item) => [item.name, item.amount])).toEqual([

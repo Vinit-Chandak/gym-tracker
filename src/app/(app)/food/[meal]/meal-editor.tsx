@@ -2,10 +2,12 @@
 
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
+import { FOODS_PER_PAGE, FoodSection, MEALS_PER_PAGE } from "@/components/food/food-section";
+import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
 import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion, formatWholeKcal } from "@/lib/format";
+import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { deleteEntryAction, deleteSavedMealAction } from "@/server/actions/nutrition";
@@ -31,19 +33,6 @@ type SheetView =
 
 function scrollBehaviour(): ScrollBehavior {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-}
-
-/**
- * What a row comes to, in Jost, its unit beside it (board Dinner: "338.5 kcal"). Beside a list to
- * add from, `whole`: the nearest whole kcal, which the stylesheet sets over its unit in a column.
- */
-function Kcal({ kcal, whole = false }: { kcal: number; whole?: boolean }) {
-  return (
-    <span className="food-row-kcal">
-      <span className="type-figure">{whole ? formatWholeKcal(kcal) : formatKcal(kcal)}</span>{" "}
-      <span className="food-row-unit">kcal</span>
-    </span>
-  );
 }
 
 /**
@@ -190,7 +179,7 @@ export function MealEditor({
               Star
             </button>
           </section>
-          <ul className="meal-entries" aria-label={`In ${label.toLowerCase()}`}>
+          <ul className="meal-entries food-list" aria-label={`In ${label.toLowerCase()}`}>
             {entries.map((entry) => (
               <li key={entry.id}>
                 <SwipeRow
@@ -203,15 +192,12 @@ export function MealEditor({
                     onClick={() => open({ kind: "entry", entry })}
                     className="food-row"
                   >
-                    {/* The spaces are for the button's name, which a screen reader reads as one
-                        string; beside flex items they take no room on the screen. */}
-                    <span className="food-row-text">
-                      <span className="food-row-name">{entry.name}</span>{" "}
-                      <span className="food-row-meta">
-                        {formatPortion(entry.amount, entry.unit)}
-                      </span>
-                    </span>{" "}
-                    <Kcal kcal={eaten(entry).kcal} />
+                    <FoodRowText
+                      name={entry.name}
+                      tile={<RowGlyph name="food" />}
+                      meta={formatPortion(entry.amount, entry.unit)}
+                    />{" "}
+                    <RowKcal kcal={eaten(entry).kcal} />
                   </button>
                 </SwipeRow>
               </li>
@@ -248,17 +234,12 @@ export function MealEditor({
               onClick={() => open({ kind: "quick", name: query.trim() })}
               className="food-row"
             >
-              {/* The glyph is drawn in front of the name but comes after it in the button's
-                  name, so a screen reader still starts with what the row is called. */}
-              <span className="food-row-text food-row-led">
-                <span className="food-row-name">
-                  {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
-                </span>
-                <Glyph name="bolt" className="food-row-glyph glyph-16" />{" "}
-                <span className="food-row-meta food-row-hint">
-                  Calories and macros, just this once
-                </span>
-              </span>
+              <FoodRowText
+                name={query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
+                tile={<RowGlyph name="bolt" />}
+                meta="Calories and macros, just this once"
+                wraps
+              />
             </button>
           </li>
           {nothingFound && (
@@ -268,72 +249,59 @@ export function MealEditor({
                 onClick={() => open({ kind: "create", name: query.trim() })}
                 className="food-row"
               >
-                <span className="food-row-text food-row-led">
-                  <span className="food-row-name">
-                    {query.trim() ? `New food “${query.trim()}”` : "New food"}
-                  </span>
-                  <Glyph name="plus" className="food-row-glyph glyph-16" />
-                </span>
+                <FoodRowText
+                  name={query.trim() ? `New food “${query.trim()}”` : "New food"}
+                  tile={<RowGlyph name="plus" />}
+                />
               </button>
             </li>
           )}
         </ul>
 
-        {savedMeals.length > 0 && (
-          <section className="mt-5">
-            <h2 className="caption-head">Meals</h2>
-            <ul className="food-list" aria-label="Meals">
-              {savedMeals.map((saved) => (
-                <li key={saved.id}>
-                  <button
-                    type="button"
-                    onClick={() => open({ kind: "saved", saved })}
-                    className="food-row"
-                  >
-                    <span className="food-row-text food-row-led">
-                      <span className="food-row-name">{saved.name}</span>
-                      <Glyph
-                        name="star"
-                        label="Saved meal"
-                        className="food-row-glyph glyph-16"
-                      />{" "}
-                      <span className="food-row-meta">
-                        {saved.items.map((item) => item.name).join(", ")}
-                      </span>
-                    </span>{" "}
-                    <Kcal kcal={addUp(saved.items.map(eaten)).kcal} whole />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {foods.length > 0 && (
-          <section className="mt-5">
-            <h2 className="caption-head">Foods</h2>
-            <ul className="food-list" aria-label="Foods">
-              {foods.map((food) => (
-                <li key={food.id}>
-                  <button
-                    type="button"
-                    onClick={() => open({ kind: "log", food })}
-                    className="food-row"
-                  >
-                    <span className="food-row-text food-row-led">
-                      <span className="food-row-name">{food.name}</span>
-                      <Glyph name="food" className="food-row-glyph glyph-16" />{" "}
-                      <span className="food-row-meta">
-                        {formatPortion(food.portionAmount, food.unit)}
-                      </span>
-                    </span>{" "}
-                    <Kcal kcal={food.kcal} whole />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <FoodSection
+          key={`meals ${search}`}
+          title="Meals"
+          items={savedMeals}
+          perPage={MEALS_PER_PAGE}
+          row={(saved) => (
+            <li key={saved.id}>
+              <button
+                type="button"
+                onClick={() => open({ kind: "saved", saved })}
+                className="food-row"
+              >
+                <FoodRowText
+                  name={saved.name}
+                  tile={<RowGlyph name="star" label="Saved meal" />}
+                  meta={saved.items.map((item) => item.name).join(", ")}
+                />{" "}
+                <RowKcal kcal={addUp(saved.items.map(eaten)).kcal} />
+              </button>
+            </li>
+          )}
+        />
+        <FoodSection
+          key={`foods ${search}`}
+          title="Foods"
+          items={foods}
+          perPage={FOODS_PER_PAGE}
+          row={(food) => (
+            <li key={food.id}>
+              <button
+                type="button"
+                onClick={() => open({ kind: "log", food })}
+                className="food-row"
+              >
+                <FoodRowText
+                  name={food.name}
+                  tile={<RowGlyph name="food" />}
+                  meta={formatPortion(food.portionAmount, food.unit)}
+                />{" "}
+                <RowKcal kcal={food.kcal} />
+              </button>
+            </li>
+          )}
+        />
       </div>
 
       <p aria-live="polite" className="sr-only">

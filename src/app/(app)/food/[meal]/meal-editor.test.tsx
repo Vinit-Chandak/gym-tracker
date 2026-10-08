@@ -455,8 +455,42 @@ it("leads every meal and food with its tile, one line each, in whole kcal and wi
   }
   // The row is the control, so nothing trails it to say it can be added.
   expect(library.querySelector(".meal-add")).toBeNull();
-  // What is already in the meal keeps its kcal to the tenth, as the meal's total does.
-  expect(container.querySelector('[aria-label="In breakfast"]')?.textContent).toContain("156 kcal");
+  // What is already in the meal is listed the same way, under the bowl.
+  const inMeal = container.querySelector('[aria-label="In breakfast"]')!;
+  expect(inMeal.querySelectorAll(".food-row-glyph")).toHaveLength(2);
+  expect(inMeal.textContent?.replace(/\s+/g, " ")).toContain("Milk 300 ml 156 kcal");
+});
+
+it("lists meals five and foods ten a page, starting again at the first for a search", () => {
+  const foods = Array.from({ length: 12 }, (_, at) => ({
+    ...OATS,
+    id: `00000000-0000-4000-8000-0000000001${String(at).padStart(2, "0")}`,
+    name: `Food ${at + 1}`,
+  }));
+  const meals = Array.from({ length: 7 }, (_, at) => ({
+    ...SHAKE,
+    id: `00000000-0000-4000-8000-0000000002${String(at).padStart(2, "0")}`,
+    name: `Meal ${at + 1}`,
+  }));
+  editor({ entries: [], foods, savedMeals: meals });
+  const names = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.querySelector(".food-row-name")!.textContent);
+  expect(names("Meals")).toEqual(["Meal 1", "Meal 2", "Meal 3", "Meal 4", "Meal 5"]);
+  expect(names("Foods")).toHaveLength(10);
+  const foodPages = within(screen.getByRole("navigation", { name: "Foods pages" }));
+  fireEvent.click(foodPages.getByRole("button", { name: "Page 2 of 2" }));
+  expect(names("Foods")).toEqual(["Food 11", "Food 12"]);
+  expect(foodPages.getByRole("button", { name: "Page 2 of 2" }).getAttribute("aria-current")).toBe(
+    "page",
+  );
+  // Turning Foods leaves Meals where it was.
+  expect(names("Meals")).toEqual(["Meal 1", "Meal 2", "Meal 3", "Meal 4", "Meal 5"]);
+  // A search is read from its first page.
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "food 1" } });
+  expect(names("Foods")).toEqual(["Food 1", "Food 10", "Food 11", "Food 12"]);
+  expect(screen.queryByRole("navigation", { name: "Foods pages" })).toBeNull();
 });
 
 it("leaves correcting a food to My foods: its sheet here only says how much", () => {

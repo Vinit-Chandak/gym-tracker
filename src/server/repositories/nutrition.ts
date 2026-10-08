@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { isUniqueViolation } from "@/db/errors";
@@ -205,12 +205,22 @@ const ENTRY_COLUMNS = {
 const ENTRY_ORDER = [asc(foodEntries.createdAt), asc(foodEntries.position), asc(foodEntries.id)];
 
 /**
- * The foods eaten most lately first; a food saved in My foods and not eaten yet counts from when
- * it was saved, so what was just made is near the top.
+ * Among foods eaten as often, the most lately eaten first; a food saved in My foods and not eaten
+ * yet counts from when it was saved, so what was just made is near the top of its kind.
  */
 const FOOD_ORDER = [
   sql`coalesce(${foods.lastLoggedAt}, ${foods.createdAt}) desc`,
   asc(sql`lower(${foods.name})`),
+];
+
+/**
+ * The saved meals added most often first (owner, 8 October 2026), then the most lately added or,
+ * never added, saved, then by name.
+ */
+const SAVED_MEAL_ORDER = [
+  desc(savedMeals.timesLogged),
+  sql`coalesce(${savedMeals.lastLoggedAt}, ${savedMeals.createdAt}) desc`,
+  asc(sql`lower(${savedMeals.name})`),
 ];
 
 /**
@@ -312,16 +322,27 @@ function loggedFoods(items: readonly Partial<LoggedFood>[], mealName: string): L
   });
 }
 
-/** The foods alone, with the same projection and recency order everywhere they are offered. */
+/**
+ * The foods alone, with the same projection and order everywhere they are offered: the foods
+ * eaten most often first (owner, 8 October 2026), counted from the entries that still name them,
+ * so a food taken out of a meal again counts once less.
+ */
 export async function readFoods(db: DbOrTx, userId: string): Promise<FoodRecord[]> {
+  const eaten = db
+    .select({ foodId: foodEntries.foodId, times: sql<number>`count(*)`.as("times") })
+    .from(foodEntries)
+    .where(and(eq(foodEntries.userId, userId), isNotNull(foodEntries.foodId)))
+    .groupBy(foodEntries.foodId)
+    .as("eaten");
   return db
     .select({ id: foods.id, ...FOOD_COLUMNS })
     .from(foods)
+    .leftJoin(eaten, eq(eaten.foodId, foods.id))
     .where(eq(foods.userId, userId))
-    .orderBy(...FOOD_ORDER);
+    .orderBy(sql`coalesce(${eaten.times}, 0) desc`, ...FOOD_ORDER);
 }
 
-/** My foods: the foods, the most lately eaten first, and the saved meals by name. */
+/** My foods: the foods and the saved meals, each the most eaten first. */
 export async function readLibrary(db: DbOrTx, userId: string): Promise<Library> {
   const [library, saved] = await Promise.all([
     readFoods(db, userId),
@@ -329,7 +350,7 @@ export async function readLibrary(db: DbOrTx, userId: string): Promise<Library> 
       .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
       .from(savedMeals)
       .where(eq(savedMeals.userId, userId))
-      .orderBy(asc(sql`lower(${savedMeals.name})`), asc(savedMeals.createdAt)),
+      .orderBy(...SAVED_MEAL_ORDER),
   ]);
   return {
     foods: library,
@@ -583,6 +604,8 @@ export async function deleteEntry(db: DbOrTx, userId: string, entryId: string): 
  *
  * A name already given to a saved meal, whatever its capitals, is that meal saved again, so
  * "Usual breakfast" can be brought up to date by starring today's under the same name.
+ *
+ * The meal starred was eaten, so it counts as the saved meal eaten once more, as adding it would.
  */
 export async function saveMeal(
   db: DbOrTx,
@@ -628,6 +651,8 @@ export async function saveMeal(
       .set({
         name,
         items,
+        timesLogged: sql`${savedMeals.timesLogged} + 1`,
+        lastLoggedAt: sql`now()`,
         updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
       })
       .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, existing.id)));
@@ -635,7 +660,7 @@ export async function saveMeal(
   }
   const [saved] = await db
     .insert(savedMeals)
-    .values({ userId, name, items })
+    .values({ userId, name, items, timesLogged: 1, lastLoggedAt: sql`now()` })
     .returning({ id: savedMeals.id });
   if (!saved) throw new Error("The meal could not be saved.");
   return saved.id;
@@ -682,6 +707,16 @@ export async function logSavedMeal(
       ),
     );
   await touchFoods(db, userId, [...present]);
+  // Counted as it is added, since its entries keep no link back to it. Its version is left as it
+  // was: being eaten is not an edit, and must not stale a copy open in My foods.
+  await db
+    .update(savedMeals)
+    .set({
+      timesLogged: sql`${savedMeals.timesLogged} + 1`,
+      lastLoggedAt: sql`now()`,
+      updatedAt: sql`${savedMeals.updatedAt}`,
+    })
+    .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, savedMealId)));
 }
 
 /**

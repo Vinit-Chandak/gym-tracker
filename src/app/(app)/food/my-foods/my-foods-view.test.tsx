@@ -20,7 +20,10 @@ vi.mock("@/server/actions/nutrition", () => ({
   deleteFoodAction: vi.fn(),
   deleteSavedMealAction: vi.fn(),
 }));
-vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
+vi.mock("next/navigation", () => ({
+  unstable_rethrow: () => {},
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ prefetch: _prefetch, ...props }: ComponentProps<"a"> & { prefetch?: string }) => (
     <a {...props} />
@@ -44,6 +47,7 @@ afterAll(() => {
 });
 beforeEach(() => {
   vi.clearAllMocks();
+  window.history.replaceState(null, "", "/food/my-foods");
   for (const action of [
     createLibraryFoodAction,
     updateFoodAction,
@@ -100,20 +104,20 @@ it("lists meals, then foods, under New food and New meal", () => {
     "/food/my-foods/meals/new",
   );
   const meal = within(screen.getByRole("list", { name: "Meals" })).getByRole("link");
-  expect(meal.textContent?.replace(/\s+/g, " ").trim()).toBe(
-    "Usual breakfast 2 foods · 450.2 kcal",
-  );
+  // A meal page's row: what it holds, and what that comes to in whole kcal.
+  expect(meal.textContent?.replace(/\s+/g, " ").trim()).toBe("Usual breakfast Oats, Whey 450 kcal");
   expect(meal.getAttribute("href")).toBe(`/food/my-foods/meals/${USUAL.id}`);
   expect(
     within(screen.getByRole("list", { name: "Foods" }))
       .getAllByRole("button", { name: /^(Oats|Whey)/ })
       .map((button) => button.textContent?.replace(/\s+/g, " ").trim()),
-  ).toEqual(["Oats 100 g · 389 kcal", "Whey 1 scoop · 139 kcal"]);
-  // Every row is led by its tile, as a meal's page's are: a plus, a star, a bowl.
+  ).toEqual(["Oats 100 g 389 kcal", "Whey 1 scoop 139 kcal"]);
+  // Every row is led by its tile, as a meal's page's are: a plus, a star, a bowl. Nothing trails
+  // a row but what it comes to: the row is the control.
   const rows = container.querySelectorAll(".food-row");
   expect(rows).toHaveLength(5);
   for (const row of rows) expect(row.querySelector(".food-row-glyph")).toBeTruthy();
-  expect(container.querySelector(".meal-add")).toBeNull();
+  expect(container.querySelector(".meal-add, .food-row > svg")).toBeNull();
 });
 
 it("keeps a new food without logging it: no amount eaten, and Save food", async () => {
@@ -182,6 +186,44 @@ it("removes a swiped-away food or meal at once, and brings it back if that fails
   fireEvent.click(screen.getByRole("button", { name: "Remove Usual breakfast", hidden: true }));
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(USUAL.id));
   expect(await screen.findByText("Usual breakfast removed from My foods.")).toBeTruthy();
+});
+
+it("keeps its search and pages in the URL, so Back from a meal returns to them", () => {
+  const foods = Array.from({ length: 12 }, (_, at) => ({
+    ...OATS,
+    id: `00000000-0000-4000-8000-0000000001${String(at).padStart(2, "0")}`,
+    name: `Food ${at + 1}`,
+  }));
+  const meals = Array.from({ length: 7 }, (_, at) => ({
+    ...USUAL,
+    id: `00000000-0000-4000-8000-0000000002${String(at).padStart(2, "0")}`,
+    name: `Meal ${at + 1}`,
+  }));
+  const names = (list: string) =>
+    [...screen.getByRole("list", { name: list }).querySelectorAll(".food-row-name")].map(
+      (name) => name.textContent,
+    );
+  window.history.replaceState(null, "", "/food/my-foods?meals=2");
+  view({ foods, savedMeals: meals });
+  expect(names("Meals")).toEqual(["Meal 6", "Meal 7"]);
+  fireEvent.click(
+    within(screen.getByRole("navigation", { name: "Foods pages" })).getByRole("button", {
+      name: "Page 2 of 2",
+    }),
+  );
+  expect(names("Foods")).toEqual(["Food 11", "Food 12"]);
+  expect(window.location.search).toBe("?meals=2&foods=2");
+
+  // A search is kept as well, and read from each section's first page.
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "food 1" } });
+  expect(window.location.search).toBe("?q=food+1");
+  expect(names("Foods")).toEqual(["Food 1", "Food 10", "Food 11", "Food 12"]);
+
+  // Opened again, as Back opens it, the page is as it was left.
+  cleanup();
+  view({ foods, savedMeals: meals });
+  expect(screen.getByRole("searchbox")).toHaveProperty("value", "food 1");
+  expect(names("Foods")).toEqual(["Food 1", "Food 10", "Food 11", "Food 12"]);
 });
 
 it("starts empty with New food and New meal alone", () => {

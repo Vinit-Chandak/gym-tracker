@@ -405,16 +405,18 @@ see calories, carbs, fat and protein against targets that start from the trainin
   it matches a saved meal) and a star to save it as a meal; one row per food eaten with its
   portion and calories.
 - **Adding:** a search over the athlete's own foods, and a list in this order: Quick add
-  (calories and macros just this once, always first), saved meals, foods ("100 g · 389 kcal"),
-  and New food only when a search finds nothing.
+  (calories and macros just this once, always first), saved meals under Meals (name, what they
+  hold, "445 kcal"), foods under Foods (name, "100 g", "389 kcal"), each the most eaten first,
+  five meals and ten foods a page, and New food only when a search finds nothing.
 - **Portion sheet:** the food per portion, the amount eaten in the food's own unit, one-tap
   ½, 1, 1½ and 2 portions, a live total, Add or Save, and Remove when editing.
 
 ### My foods, meals and targets
 
-- **My foods:** search, New food, New meal, saved meals (name, "3 foods · 445 kcal") and
-  foods, most recently used first. A food has a name, a portion in one of 12 units, calories
-  (required) and optional carbs, fat and protein.
+- **My foods:** search, New food, New meal, saved meals (name, what they hold, "445 kcal") and
+  foods, each the most eaten first and a page at a time; Back from a saved meal returns to the
+  same search and pages. A food has a name, a portion in one of 12 units, calories (required) and
+  optional carbs, fat and protein.
 - **Meal builder:** a name, the foods and amounts in it with a running total, Save meal, and
   Delete for an existing meal.
 - **Targets:** daily calories; the goal (read only); protein in g per kg of body weight ("134 g

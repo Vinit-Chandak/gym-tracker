@@ -1,14 +1,17 @@
 "use client";
 
 import type { Route } from "next";
+import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 
+import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
+import { FOODS_PER_PAGE, FoodSection, MEALS_PER_PAGE } from "@/components/food/food-section";
 import { FoodSheet } from "@/components/food/food-sheet";
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten } from "@/domain/nutrition";
-import { formatKcal, formatPortion } from "@/lib/format";
+import { formatPortion } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
 import { deleteFoodAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, Library, SavedMealRecord } from "@/server/repositories/nutrition";
@@ -24,20 +27,32 @@ const APP_LINKS: MyFoodsLinks = {
   meal: (id) => `/food/my-foods/meals/${id}` as Route,
 };
 
-/** "3 foods · 580 kcal": what a saved meal holds, in one line. */
-function contents(meal: SavedMealRecord): string {
-  const count = meal.items.length;
-  const total = addUp(meal.items.map(eaten));
-  return `${count} ${count === 1 ? "food" : "foods"} · ${formatKcal(total.kcal)} kcal`;
+/** Where the page is: what is searched for, and the page each section is on. */
+type Place = { query: string; meals: number; foods: number };
+
+/** The URL's names for a place: `?q=oats&meals=2&foods=3`. */
+const PLACE_PARAMS: Record<keyof Place, string> = { query: "q", meals: "meals", foods: "foods" };
+
+function placeIn(params: ReadonlyURLSearchParams): Place {
+  const page = (key: "meals" | "foods") =>
+    Math.max(Math.floor(Number(params.get(PLACE_PARAMS[key]))) || 1, 1);
+  return {
+    query: params.get(PLACE_PARAMS.query) ?? "",
+    meals: page("meals"),
+    foods: page("foods"),
+  };
 }
 
 /**
  * My foods (ADR 0035): every food and saved meal the account keeps, made, corrected and removed
- * here without logging anything. Meals come first, then foods, the most lately eaten first; a
- * meal opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
- * takes a tap; a food's sheet can remove it too, and a meal's page can delete it. The rows are
- * a meal page's (owner, 8 October 2026): each led by its tile (New food's and New meal's plus, a
- * saved meal's star, a food's bowl), its name on one line and what it holds on one more.
+ * here without logging anything. Meals come first, then foods, each the most eaten first and a
+ * page at a time; a meal opens a page of its own, a food its sheet. The search and the pages are
+ * kept in the URL, as History keeps its page (ADR 0044), so Back from a meal, or saving it,
+ * returns to them. Swiping either aside offers Remove, which still takes a tap; a food's sheet
+ * can remove it too, and a meal's page can delete it. Its rows are a meal page's, as every list
+ * of food is (owner, 8 October 2026; ADR 0045): led by a tile (New food's and New meal's plus, a
+ * saved meal's star, a food's bowl), its name on one line and what it holds on one more, and what
+ * it comes to in whole kcal at its end.
  */
 export function MyFoodsView({
   library,
@@ -46,7 +61,26 @@ export function MyFoodsView({
   library: Library;
   links?: MyFoodsLinks;
 }) {
-  const [query, setQuery] = useState("");
+  // Read from the URL once: what is typed or turned to after that is the page's own, and written
+  // back to the URL for the next time the page opens, without a request.
+  const searchParams = useSearchParams();
+  const [place, setPlace] = useState(() => placeIn(searchParams));
+  const move = (change: Partial<Place>) => {
+    const next = { ...place, ...change };
+    setPlace(next);
+    const params = new URLSearchParams(window.location.search);
+    const keep = (key: keyof Place, value: string | null) => {
+      if (value) params.set(PLACE_PARAMS[key], value);
+      else params.delete(PLACE_PARAMS[key]);
+    };
+    keep("query", next.query.trim() ? next.query : null);
+    keep("meals", next.meals > 1 ? String(next.meals) : null);
+    keep("foods", next.foods > 1 ? String(next.foods) : null);
+    const search = params.toString();
+    window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
+  };
+  // A new search is read from each section's first page.
+  const find = (query: string) => move({ query, meals: 1, foods: 1 });
   const [said, setSaid] = useState("");
   const [error, setError] = useState<string | null>(null);
   // A new key for every opening mounts the sheet afresh; closing keeps the key, so the dialog
@@ -86,17 +120,15 @@ export function MyFoodsView({
       });
     });
 
-  const search = query.trim().toLowerCase();
+  const search = place.query.trim().toLowerCase();
   const matches = (name: string) => name.toLowerCase().includes(search);
   const shownFoods = search ? foods.filter((food) => matches(food.name)) : foods;
   const shownMeals = search
     ? meals.filter((meal) => matches(meal.name) || meal.items.some((item) => matches(item.name)))
     : meals;
   // A search that finds nothing names the food it was looking for.
-  const newName = shownFoods.length === 0 && shownMeals.length === 0 ? query.trim() : "";
+  const newName = shownFoods.length === 0 && shownMeals.length === 0 ? place.query.trim() : "";
   const view = sheet.view;
-
-  const opens = <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />;
 
   return (
     <>
@@ -105,8 +137,8 @@ export function MyFoodsView({
           <Glyph name="search" className="glyph-20" />
           <input
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={place.query}
+            onChange={(event) => find(event.target.value)}
             placeholder="Search your foods"
             aria-label="Search your foods and meals"
             className="food-search-input"
@@ -130,20 +162,15 @@ export function MyFoodsView({
             }
             className="food-row"
           >
-            <span className="food-row-text food-row-led">
-              <span className="food-row-name">
-                {newName ? `New food “${newName}”` : "New food"}
-              </span>
-              <Glyph name="plus" className="food-row-glyph glyph-16" />
-            </span>
+            <FoodRowText
+              name={newName ? `New food “${newName}”` : "New food"}
+              tile={<RowGlyph name="plus" />}
+            />
           </button>
         </li>
         <li>
           <Link href={links.newMeal} prefetch="intent" className="food-row">
-            <span className="food-row-text food-row-led">
-              <span className="food-row-name">New meal</span>
-              <Glyph name="plus" className="food-row-glyph glyph-16" />
-            </span>
+            <FoodRowText name="New meal" tile={<RowGlyph name="plus" />} />
           </Link>
         </li>
       </ul>
@@ -154,72 +181,66 @@ export function MyFoodsView({
         </p>
       )}
 
-      {shownMeals.length > 0 && (
-        <section className="mt-5">
-          <h2 className="caption-head">Meals</h2>
-          <ul className="food-list" aria-label="Meals">
-            {shownMeals.map((meal) => (
-              <li key={meal.id}>
-                <SwipeRow
-                  action="Remove"
-                  actionLabel={`Remove ${meal.name}`}
-                  onAction={() => remove(meal, "meal")}
-                >
-                  <Link href={links.meal(meal.id)} prefetch="intent" className="food-row">
-                    {/* The spaces are for the link's name, which a screen reader reads as one
-                        string; beside flex items they take no room on the screen. */}
-                    <span className="food-row-text food-row-led">
-                      <span className="food-row-name">{meal.name}</span>
-                      <Glyph name="star" className="food-row-glyph glyph-16" />{" "}
-                      <span className="food-row-meta">{contents(meal)}</span>
-                    </span>
-                    {opens}
-                  </Link>
-                </SwipeRow>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {shownFoods.length > 0 && (
-        <section className="mt-5">
-          <h2 className="caption-head">Foods</h2>
-          <ul className="food-list" aria-label="Foods">
-            {shownFoods.map((food) => (
-              <li key={food.id}>
-                <SwipeRow
-                  action="Remove"
-                  actionLabel={`Remove ${food.name}`}
-                  onAction={() => remove(food, "food")}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSheet((current) => ({
-                        key: current.key + 1,
-                        open: true,
-                        view: { kind: "edit", food },
-                      }))
-                    }
-                    className="food-row"
-                  >
-                    <span className="food-row-text food-row-led">
-                      <span className="food-row-name">{food.name}</span>
-                      <Glyph name="food" className="food-row-glyph glyph-16" />{" "}
-                      <span className="food-row-meta">
-                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
-                        kcal
-                      </span>
-                    </span>
-                    {opens}
-                  </button>
-                </SwipeRow>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <FoodSection
+        title="Meals"
+        items={shownMeals}
+        perPage={MEALS_PER_PAGE}
+        page={place.meals}
+        onPage={(meals) => move({ meals })}
+        row={(meal) => (
+          <li key={meal.id}>
+            <SwipeRow
+              action="Remove"
+              actionLabel={`Remove ${meal.name}`}
+              onAction={() => remove(meal, "meal")}
+            >
+              <Link href={links.meal(meal.id)} prefetch="intent" className="food-row">
+                <FoodRowText
+                  name={meal.name}
+                  tile={<RowGlyph name="star" />}
+                  meta={meal.items.map((item) => item.name).join(", ")}
+                />{" "}
+                <RowKcal kcal={addUp(meal.items.map(eaten)).kcal} />
+              </Link>
+            </SwipeRow>
+          </li>
+        )}
+      />
+      <FoodSection
+        title="Foods"
+        items={shownFoods}
+        perPage={FOODS_PER_PAGE}
+        page={place.foods}
+        onPage={(foods) => move({ foods })}
+        row={(food) => (
+          <li key={food.id}>
+            <SwipeRow
+              action="Remove"
+              actionLabel={`Remove ${food.name}`}
+              onAction={() => remove(food, "food")}
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setSheet((current) => ({
+                    key: current.key + 1,
+                    open: true,
+                    view: { kind: "edit", food },
+                  }))
+                }
+                className="food-row"
+              >
+                <FoodRowText
+                  name={food.name}
+                  tile={<RowGlyph name="food" />}
+                  meta={formatPortion(food.portionAmount, food.unit)}
+                />{" "}
+                <RowKcal kcal={food.kcal} />
+              </button>
+            </SwipeRow>
+          </li>
+        )}
+      />
 
       <p aria-live="polite" className="sr-only">
         {said}
@@ -234,7 +255,7 @@ export function MyFoodsView({
           onDone={(message) => {
             setSaid(message);
             setError(null);
-            if (view.kind === "library") setQuery("");
+            if (view.kind === "library") find("");
           }}
         />
       )}
