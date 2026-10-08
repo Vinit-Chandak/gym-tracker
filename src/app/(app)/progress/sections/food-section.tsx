@@ -4,6 +4,7 @@ import { Graph } from "@/components/graph/graph";
 import { bucketLabel, counted, decimal, foodDayHref } from "@/components/graph/labels";
 import { useUrlChoice } from "@/components/graph/use-url-choice";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { reachesTarget } from "@/domain/progress-graphs";
 
 import type { ProgressData } from "../progress-types";
 
@@ -15,8 +16,8 @@ type FoodMetric = (typeof METRICS)[number]["value"];
 
 /**
  * Food (ADR 0042): what each day came to, in kcal or in grams of protein, against today's
- * target. Every average is taken over the days something was logged: a day with nothing logged
- * is a day nobody wrote down, not a day of eating nothing.
+ * target, the bars that reach it set apart. Every average is taken over the days something was
+ * logged: a day with nothing logged is a day nobody wrote down, not a day of eating nothing.
  */
 export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today">) {
   const { range, graph, targets } = food;
@@ -46,10 +47,10 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
         mark="bar"
         placement="bucket"
         range={range}
-        data={graph.buckets.map((bucket) => ({
-          date: bucket.start,
-          value: kcal ? bucket.kcal : bucket.protein,
-        }))}
+        data={graph.buckets.map((bucket) => {
+          const value = kcal ? bucket.kcal : bucket.protein;
+          return { date: bucket.start, value, reached: reachesTarget(value, target) };
+        })}
         format={figure}
         rule={target ? { value: target, label: figure(target) } : undefined}
         summary={{
@@ -98,7 +99,7 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
         note={{
           label: "About these averages",
           content: `An average is taken over the days with something logged; a day with nothing logged is left out rather than counted as zero.${
-            target ? " The line is today's target." : ""
+            target ? " The line is today's target, and the bars that reach it stand out." : ""
           }`,
         }}
         empty="No food logged in this range."

@@ -40,7 +40,15 @@ import {
 import { useGraphRange } from "./graph-range-context";
 
 /** One mark: a bucket's value in slot order, or one record's, oldest first. */
-export type GraphDatum = { date: string; value: number | null };
+export type GraphDatum = {
+  date: string;
+  value: number | null;
+  /**
+   * Bars only: the value reaches the graph's `rule` (a day that made its target). It is set apart
+   * in ink 2, between the other bars' control and the ink of the bar being read.
+   */
+  reached?: boolean;
+};
 
 /** A line's figure in the readout, and the way into the record behind it. */
 export type GraphSide = {
@@ -494,11 +502,18 @@ export function Graph({
             data.map((datum, index) => {
               if (datum.value === null || datum.value <= 0) return null;
               const top = y(datum.value);
+              // The bar being read stays ink whether or not it reached the rule.
+              const fill =
+                index === inked
+                  ? "var(--ov-ink)"
+                  : datum.reached
+                    ? "var(--ov-ink-2)"
+                    : "var(--ov-control)";
               return (
                 <path
                   key={`${datum.date}-${index}`}
                   d={barPath(xs[index]! - layout.bar / 2, top, layout.bar, frame.bottom - top)}
-                  style={{ fill: index === inked ? "var(--ov-ink)" : "var(--ov-control)" }}
+                  style={{ fill }}
                 />
               );
             })}
@@ -815,6 +830,8 @@ function GraphValues({
                 <span className="graph-value-figure">
                   {row.figure ?? "—"}
                   {row.figure !== null && row.unit ? ` ${row.unit}` : ""}
+                  {/* What the plot's ink 2 says, read aloud as the Food tab's macros say it. */}
+                  {data[index]!.reached && <span className="sr-only">, reached</span>}
                   {row.href && <Glyph name="chevronRight" className="glyph-16 text-ink-2" />}
                 </span>
               </>

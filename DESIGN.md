@@ -439,7 +439,8 @@ same pigment.
   surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
   ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
   pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground).
-- **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs.
+- **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
+  that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
@@ -840,7 +841,9 @@ exercise's page and a friend's compare page. Top to bottom:
   (a 1–5 answer) is drawn whole. A value that matters (sleep's 6 h, today's food target) is a
   1-pt rule in ink, its label in the margin in ink, 700.
 - **Marks:** bars are totals, in `control`, the latest in ink, up to 14 pt wide, their tops
-  rounded (3 pt) and their feet square on the baseline. A line is a measurement that rises and
+  rounded (3 pt) and their feet square on the baseline. Against food's target, a bar that reaches
+  it (in the whole kcal or grams its figure is written in) is in `ink-2`, between the two, so a
+  day that made it never looks like the bar being read. A line is a measurement that rises and
   falls: 2 pt of ink, round joins, an open point on each reading (ground with an ink ring) while
   there are forty or fewer, the latest a full ink point with a ground ring. Past about sixty
   records a line is grouped by week or month, so it never becomes a band. A bucket with nothing

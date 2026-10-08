@@ -433,6 +433,17 @@ export function foodGraph(
   };
 }
 
+/**
+ * Whether a bar reaches the target the graph draws as its rule. Compared in the whole kcal and
+ * grams the graph writes, as the Food tab compares protein (`macroState`): a protein target is
+ * grams per kilogram (139.68 g, written 140), and a day that reads 140 against it reaches it.
+ */
+export function reachesTarget(value: number | null, target: number | null): boolean {
+  if (value === null || target === null) return false;
+  const whole = Math.round(target);
+  return whole > 0 && Math.round(value) >= whole;
+}
+
 // ---------- Recovery ----------
 
 /** What the check-in asks and Recovery draws. Energy is no longer asked, so it is not drawn. */
