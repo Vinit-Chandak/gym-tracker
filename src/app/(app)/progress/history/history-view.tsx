@@ -7,16 +7,15 @@ import type { Route } from "next";
 import { Art } from "@/components/art/art";
 import type { Sport } from "@/components/art/geometry";
 import { DateRangeFields } from "@/components/date-range-fields";
-import { RangeSpans } from "@/components/graph/graph";
-import { GraphRangeProvider } from "@/components/graph/graph-range-context";
+import { dayLabel } from "@/components/graph/labels";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
+import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
-import type { RangePreset } from "@/domain/graph-range";
-import { formatDateRange, formatIsoWeekdayDay } from "@/lib/format";
+import { formatDateRange } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { ProgressSections } from "../progress-sections";
@@ -60,6 +59,9 @@ const KIND_MARKS: Record<Exclude<HistoryItem["kind"], "recovery">, Sport> = {
 
 const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
 
+/** Entries a page of History lists (ADR 0044). */
+export const HISTORY_PAGE_SIZE = 10;
+
 const FILTER_PARAMS: Record<keyof Filters, string> = {
   kind: "kind",
   gym: "gym",
@@ -85,22 +87,25 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
 
 export function HistoryView({
   error = null,
-  preset = null,
+  today,
   range,
   items,
   gyms,
-  truncated,
+  stopsAfter = null,
 }: {
   /** A range the reader asked for that could not be read. */
   error?: string | null;
-  /** The span every Progress section shares; null while dates chosen by hand hold. */
-  preset?: RangePreset | null;
-  /** The dates the server read, changed from inside the filter sheet. */
+  /** Today in the account's time zone: a day in another year is named with it. */
+  today: string;
+  /** The dates the list covers, changed from inside the filter sheet. */
   range: { from: string; to: string };
   items: HistoryItem[];
   gyms: { id: string; name: string }[];
-  /** The list stops at the newest records the server would send, short of the whole range. */
-  truncated: boolean;
+  /**
+   * The oldest day listed, where the list stops short of the dates it covers (its readers send
+   * only the newest records); null when every entry is here.
+   */
+  stopsAfter?: string | null;
 }) {
   // Filtering happens on data the page already has, so it stays local and immediate. The
   // URL is updated through the History API purely so that coming back from an entry
@@ -110,15 +115,21 @@ export function HistoryView({
   // every render so Back, deep links and a changed date range cannot leave stale filters.
   const filters = fromSearch(searchParams);
 
-  const apply = (next: Filters) => {
+  const replace = (change: (params: URLSearchParams) => void) => {
     const params = new URLSearchParams(window.location.search);
-    for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
-      if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);
-      else params.delete(param);
-    }
+    change(params);
     const query = params.toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   };
+  // A narrower list starts again at its first page.
+  const apply = (next: Filters) =>
+    replace((params) => {
+      for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
+        if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);
+        else params.delete(param);
+      }
+      params.delete("page");
+    });
 
   const choices = useMemo(
     () =>
@@ -164,8 +175,22 @@ export function HistoryView({
     (key) => filters[key] !== EMPTY[key],
   ).length;
 
-  // The entries under their days, newest first (board Progress-History).
-  const days = shown.reduce<{ day: string; items: HistoryItem[] }[]>((all, item) => {
+  // Ten entries a page, newest first; the page is in the URL, so Back from an entry returns to it.
+  const pages = Math.max(1, Math.ceil(shown.length / HISTORY_PAGE_SIZE));
+  const page = Math.min(Math.max(Math.floor(Number(searchParams.get("page"))) || 1, 1), pages);
+  const choosePage = (next: number) => {
+    replace((params) => {
+      if (next > 1) params.set("page", String(next));
+      else params.delete("page");
+    });
+    // A new page is read from its top, as a new list is.
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+  };
+  const listed = shown.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE);
+
+  // The page's entries under their days, newest first (board Progress-History).
+  const days = listed.reduce<{ day: string; items: HistoryItem[] }[]>((all, item) => {
     const last = all.at(-1);
     if (last?.day === item.day) last.items.push(item);
     else all.push({ day: item.day, items: [item] });
@@ -173,7 +198,7 @@ export function HistoryView({
   }, []);
 
   return (
-    <GraphRangeProvider preset={preset}>
+    <>
       {/* History is one of Progress's sections (ADR 0034), so it is chosen where they are, with
           one control at the end of the title for everything that narrows the list. */}
       <ProgressSections
@@ -255,28 +280,21 @@ export function HistoryView({
         }
       />
 
-      {/* The span the graphs share holds here too, so a section changed keeps its window. */}
-      <RangeSpans name="history" className="mt-3" />
       {error && (
         <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
           {error}
         </p>
       )}
-      {truncated && (
-        <p role="status" className="mt-3 type-meta text-ink-2">
-          Showing the newest records only. Narrow the dates to see every entry; the totals in
-          Overview cover the whole period whatever this list shows.
-        </p>
-      )}
       <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-        {shown.length} {shown.length === 1 ? "entry" : "entries"}
+        {shown.length.toLocaleString("en-GB")} {shown.length === 1 ? "entry" : "entries"}
+        {pages > 1 && ` · page ${page} of ${pages}`}
       </p>
       {shown.length > 0 ? (
         days.map((group) => (
           <section key={group.day} aria-labelledby={`history-${group.day}`}>
             <h2 id={`history-${group.day}`} className="caption-head mt-3.5">
-              {formatIsoWeekdayDay(group.day)}
+              {dayLabel(group.day, today)}
             </h2>
             <ul>
               {group.items.map((item, index) => {
@@ -346,6 +364,20 @@ export function HistoryView({
           )}
         </div>
       )}
-    </GraphRangeProvider>
+      {/* Said where it matters: at the end of the list, not over every page of it. */}
+      {stopsAfter && page === pages && shown.length > 0 && (
+        <p role="note" className="mt-4 type-meta text-ink-2">
+          The list ends at {dayLabel(stopsAfter, today)}: earlier entries are behind the funnel,
+          under dates. Overview&apos;s totals cover everything.
+        </p>
+      )}
+      <PageTabs
+        page={page}
+        total={pages}
+        onChange={choosePage}
+        label="History pages"
+        className="mt-4"
+      />
+    </>
   );
 }

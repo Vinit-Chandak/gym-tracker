@@ -2,9 +2,8 @@ import { estimated1RM } from "./analytics";
 import { daysBetween } from "./program-calendar";
 import type { RecoveryReading } from "./recovery";
 import { rangeSlots, slotIndex, type GraphRange, type Slot } from "./graph-range";
-import { MUSCLE_SPLIT_GROUP } from "./muscle-split";
+import { splitGroupOf } from "./muscle-split";
 import { weekStart } from "./running";
-import { MUSCLE_GROUPS, type MuscleGroup } from "./types";
 
 /**
  * What each Progress graph draws, from the rows the server read (ADR 0042). Pure numbers here:
@@ -47,23 +46,15 @@ export type StrengthGroup = (typeof STRENGTH_GROUPS)[number];
 export type StrengthGroupChoice = StrengthGroup | "all";
 export const STRENGTH_GROUP_CHOICES: readonly StrengthGroupChoice[] = ["all", ...STRENGTH_GROUPS];
 
-/** The radar's six groups (plan §3.10), so the split a friend sees and this graph agree. */
-const GROUP_OF = Object.fromEntries(
-  MUSCLE_GROUPS.map((muscle) => [muscle, MUSCLE_SPLIT_GROUP[muscle].toLowerCase()]),
-) as Record<MuscleGroup, StrengthGroup>;
-
-const isMuscle = (value: string): value is MuscleGroup =>
-  (MUSCLE_GROUPS as readonly string[]).includes(value);
-
 /**
  * The one group an exercise is filed under (ADR 0043): its first primary muscle's, as the
- * exercise library files it, at the radar's six. One group each, as a training log gives each
- * exercise one category, so a group's volume is the volume of the exercises listed under it and
- * the six add up to All. An exercise naming no muscle the app knows is under All only.
+ * exercise library files it, at the radar's six (`splitGroupOf`), so the split a friend sees and
+ * this graph agree. One group each, as a training log gives each exercise one category, so a
+ * group's volume is the volume of the exercises listed under it and the six add up to All. An
+ * exercise naming no muscle the app knows is under All only.
  */
 export function strengthGroupOf(primaryMuscles: readonly string[]): StrengthGroup | null {
-  const first = primaryMuscles.find(isMuscle);
-  return first ? GROUP_OF[first] : null;
+  return (splitGroupOf(primaryMuscles)?.toLowerCase() as StrengthGroup | undefined) ?? null;
 }
 
 /** One exercise in one finished workout: its working sets, what they lifted, its muscles. */

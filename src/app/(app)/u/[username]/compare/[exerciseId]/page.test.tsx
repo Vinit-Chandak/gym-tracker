@@ -48,7 +48,7 @@ vi.mock("@/server/repositories/shared-stats", () => ({
   }),
   readExerciseBests: async () => new Map(),
   readBodyWeights: async () => new Map(),
-  readExerciseTrend: mocks.trend,
+  readExerciseTrends: mocks.trend,
 }));
 vi.mock("@/components/graph/head-to-head-graph", () => ({ HeadToHeadGraph: mocks.graph }));
 vi.mock("@/components/graph/graph-range-context", () => ({
@@ -67,13 +67,24 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.trend.mockResolvedValue(
     new Map([
-      ["me", [{ date: "2026-09-10", value: 100, workoutSessionId: "w1", sharedId: "s0" }]],
       [
-        "friend",
-        [
-          { date: "2026-09-12", value: 90, workoutSessionId: "w2", sharedId: "s2" },
-          { date: "2026-09-20", value: 92.5, workoutSessionId: "w3", sharedId: null },
-        ],
+        "e1rm",
+        new Map([
+          ["me", [{ date: "2026-09-10", value: 100, workoutSessionId: "w1", sharedId: "s0" }]],
+          [
+            "friend",
+            [
+              { date: "2026-09-12", value: 90, workoutSessionId: "w2", sharedId: "s2" },
+              { date: "2026-09-20", value: 92.5, workoutSessionId: "w3", sharedId: null },
+            ],
+          ],
+        ]),
+      ],
+      [
+        "most_reps",
+        new Map([
+          ["me", [{ date: "2026-09-10", value: 8, workoutSessionId: "w1", sharedId: "s0" }]],
+        ]),
       ],
     ]),
   );
@@ -90,13 +101,29 @@ it("draws the head to head over the span every graph shares, each point opening 
   const today = todayInTimeZone("UTC");
   // The remembered span decides what is read, whatever period the URL still carries.
   expect(mocks.trend.mock.calls[0]![4]).toMatchObject(readWindowOf({ preset: "3m" }, today));
+  // Every measure the movement has, as an exercise's own graph offers them, primary first.
+  expect(mocks.trend.mock.calls[0]![3]).toEqual([
+    "e1rm",
+    "top_weight",
+    "best_set_volume",
+    "most_reps",
+  ]);
   const { data } = mocks.graph.mock.calls[0]![0];
   expect(data.range).toEqual(presetRange("3m", today));
   expect(data.names).toEqual(["You", "Friend"]);
   expect(data.unit).toBe("lb");
+  expect(data.measures.map((measure) => measure.metric)).toEqual([
+    "e1rm",
+    "top_weight",
+    "best_set_volume",
+    "most_reps",
+  ]);
   // Loads in the reader's unit; yours open your workout, theirs the session they shared.
-  expect(data.lines[0]).toEqual([
+  const [e1rm, , , reps] = data.measures;
+  expect(e1rm!.lines[0]).toEqual([
     { date: "2026-09-10", value: 220.5, href: "/workouts/w1?from=shared" },
   ]);
-  expect(data.lines[1].map((point) => point.href)).toEqual(["/u/friend/activities/s2", null]);
+  expect(e1rm!.lines[1].map((point) => point.href)).toEqual(["/u/friend/activities/s2", null]);
+  // Reps are counted, not converted.
+  expect(reps!.lines[0][0]!.value).toBe(8);
 });

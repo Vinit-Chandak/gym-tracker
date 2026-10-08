@@ -74,5 +74,8 @@ export async function readHistory(db: DbOrTx, userId: string, range: DateRange) 
     runs: runs.runs,
     recovery,
     truncated: workouts.hasMore || runs.hasMore,
+    /** Which readers stopped short of the range: their oldest row is where the list is whole. */
+    workoutsTruncated: workouts.hasMore,
+    runsTruncated: runs.hasMore,
   };
 }

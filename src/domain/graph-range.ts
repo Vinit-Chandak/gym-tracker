@@ -12,11 +12,20 @@ export const DEFAULT_RANGE_PRESET: RangePreset = "1m";
 
 /** What each span is called on its button, and what the button says aloud. */
 export const RANGE_PRESET_LABELS: Record<RangePreset, { short: string; long: string }> = {
-  "1m": { short: "1m", long: "1 month" },
-  "3m": { short: "3m", long: "3 months" },
-  "6m": { short: "6m", long: "6 months" },
-  "12m": { short: "12m", long: "12 months" },
+  "1m": { short: "1M", long: "1 month" },
+  "3m": { short: "3M", long: "3 months" },
+  "6m": { short: "6M", long: "6 months" },
+  "12m": { short: "12M", long: "12 months" },
   all: { short: "All", long: "All time" },
+};
+
+/** A span in running text: "over the last 3 months", "over all time". */
+export const RANGE_PRESET_WORDS: Record<RangePreset, string> = {
+  "1m": "the last month",
+  "3m": "the last 3 months",
+  "6m": "the last 6 months",
+  "12m": "the last 12 months",
+  all: "all time",
 };
 
 /**

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export type SegmentOption<V extends string> = {
   value: V;
   label: string;
-  /** What the segment says aloud, where its label is an abbreviation ("1m": "1 month"). */
+  /** What the segment says aloud, where its label is an abbreviation ("1M": "1 month"). */
   accessibleLabel?: string;
 };
 

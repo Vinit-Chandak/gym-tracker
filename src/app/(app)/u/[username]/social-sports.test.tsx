@@ -41,7 +41,7 @@ vi.mock("@/server/repositories/shared-stats", () => ({
   EMPTY_TOTALS: {},
   canViewTraining: async () => true,
   readPeriodTotals: mocks.totals,
-  readMuscleSets: mocks.muscles,
+  readGroupSets: mocks.muscles,
   readExercisesInCommon: mocks.common,
   readRecords: mocks.records,
   readLeaderboard: mocks.leaderboard,
@@ -71,7 +71,10 @@ vi.mock("@/components/shell/page-header", () => ({
   ),
 }));
 vi.mock("@/components/follow-button", () => ({ FollowButton: () => null }));
-vi.mock("@/components/ui/sport-period-controls", () => ({ SportPeriodControls: () => null }));
+vi.mock("@/components/ui/sport-span-controls", () => ({ SportSpanControls: () => null }));
+vi.mock("@/components/graph/graph-range-context", () => ({
+  GraphRangeProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 vi.mock("@/components/ui/info-tip", () => ({
   InfoTip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
@@ -117,7 +120,7 @@ beforeEach(() => {
       [friend.id, totals],
     ]),
   );
-  mocks.muscles.mockResolvedValue({ chest: 8 });
+  mocks.muscles.mockResolvedValue({ Chest: 8 });
   mocks.common.mockResolvedValue({ comparable: [], notComparable: 0 });
   mocks.records.mockResolvedValue([]);
   mocks.leaderboard.mockResolvedValue(new Map());
@@ -147,7 +150,8 @@ it.each([
     storedSport,
     expect.anything(),
   );
-  expect(html).toContain(`/u/friend?sport=${storedSport}&amp;period=90d`);
+  // Back to the person in the same sport; the span is the one every graph shares.
+  expect(html).toContain(`href="/u/friend?sport=${storedSport}"`);
 });
 
 it("lifting still renders the muscle split and exercises in common", async () => {
@@ -162,9 +166,9 @@ it.each([
   ["cycling", "cycle"],
   ["swimming", "swim"],
   ["running", "run"],
-])("the %s person page carries sport and period into Compare", async (sport, storedSport) => {
+])("the %s person page carries its sport into Compare", async (sport, storedSport) => {
   const html = renderToStaticMarkup(await PersonPage(props(sport)));
-  expect(html).toContain(`/u/friend/compare?sport=${storedSport}&amp;period=90d`);
+  expect(html).toContain(`href="/u/friend/compare?sport=${storedSport}"`);
   expect(mocks.muscles).not.toHaveBeenCalled();
   expect(mocks.records).not.toHaveBeenCalled();
 });

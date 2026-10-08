@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { GraphRange } from "@/domain/graph-range";
 
-import { HeadToHeadGraph, type HeadToHeadData } from "./head-to-head-graph";
+import { HeadToHeadGraph, type HeadToHeadData, type HeadToHeadMeasure } from "./head-to-head-graph";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -20,18 +20,23 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.history.replaceState(null, "", "/");
+});
 
 const RANGE: GraphRange = { preset: "1m", from: "2026-09-08", to: "2026-10-07", bucket: "day" };
 
-const data = (lines: HeadToHeadData["lines"]): HeadToHeadData => ({
+const data = (
+  lines: HeadToHeadMeasure["lines"],
+  more: HeadToHeadMeasure[] = [],
+): HeadToHeadData => ({
   range: RANGE,
   today: "2026-10-07",
-  metric: "e1rm",
-  label: "Est. 1RM",
+  exercise: { modality: "barbell", defaultPrescriptionType: "reps" },
   unit: "kg",
   names: ["Vinit", "Phani"],
-  lines,
+  measures: [{ metric: "e1rm", lines }, ...more],
 });
 
 const readout = () =>
@@ -78,4 +83,32 @@ it("says so when neither trained it in the span", () => {
   render(<HeadToHeadGraph data={data([[], []])} />);
   expect(screen.getByText("Neither of you did this in this range.")).toBeTruthy();
   expect(readout().getAllByText("No sessions")).toHaveLength(2);
+});
+
+it("offers each measure either of you has, as an exercise's own graph does, and switches to it", () => {
+  render(
+    <HeadToHeadGraph
+      data={data(
+        [[{ date: "2026-10-01", value: 102.5, href: "/workouts/b" as Route }], []],
+        [
+          {
+            metric: "most_reps",
+            lines: [
+              [],
+              [{ date: "2026-09-12", value: 12, href: "/u/phani/activities/c" as Route }],
+            ],
+          },
+          // Nothing in the span: not offered.
+          { metric: "best_set_volume", lines: [[], []] },
+        ],
+      )}
+    />,
+  );
+  const measures = within(screen.getByRole("radiogroup", { name: "Measure" }));
+  expect(measures.getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual([
+    "Estimated 1RM",
+    "Max reps",
+  ]);
+  fireEvent.click(measures.getByRole("radio", { name: "Max reps" }));
+  expect(window.location.search).toBe("?measure=most_reps");
 });

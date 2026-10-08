@@ -15,7 +15,7 @@ import {
 import type { DbOrTx } from "@/db/types";
 import type { ActivitySport } from "@/domain/activity";
 import { activityValue, type ActivityMetric } from "@/domain/leaderboard";
-import { addMuscleSets, type MuscleSets } from "@/domain/muscle-split";
+import { splitGroupOf, type GroupSets } from "@/domain/muscle-split";
 import { regionOf, type BodyRegion } from "@/domain/muscles";
 import { detectRecords, type PreviousMaxima, type TrainingRecord } from "@/domain/records";
 import {
@@ -568,24 +568,40 @@ export async function readLeaderboard(
   return values;
 }
 
-/** One person's working sets per muscle over a period, for the split radar. */
-export async function readMuscleSets(
+/**
+ * Working sets per axis of the muscle split over a period (ADR 0044): each set once, under its
+ * exercise's axis, its first primary muscle's (`splitGroupOf`). Read from the per-exercise shared
+ * rows, so a compound lift is never counted once for each muscle it names, as summing a
+ * session's sets per muscle did. A movement someone added themselves has no shared row and no
+ * place in the split.
+ */
+export async function readGroupSets(
   tx: DbOrTx,
   userId: string,
   range: DateRange,
-): Promise<MuscleSets> {
+): Promise<GroupSets> {
   const rows = await tx
-    .select({ muscleSets: sharedSessionStats.muscleSets })
-    .from(sharedSessionStats)
+    .select({
+      primaryMuscles: exercises.primaryMuscles,
+      workingSets: sql<number>`sum(${sharedExerciseStats.workingSets})::int`,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
     .where(
       and(
-        eq(sharedSessionStats.userId, userId),
-        eq(sharedSessionStats.sport, "workout"),
-        gte(sharedSessionStats.occurredOn, range.from),
-        lte(sharedSessionStats.occurredOn, range.to),
+        eq(sharedExerciseStats.userId, userId),
+        gte(sharedExerciseStats.occurredOn, range.from),
+        lte(sharedExerciseStats.occurredOn, range.to),
       ),
-    );
-  return rows.reduce<MuscleSets>((into, row) => addMuscleSets(into, row.muscleSets), {});
+    )
+    .groupBy(exercises.id);
+  const sets: GroupSets = {};
+  for (const row of rows) {
+    const group = splitGroupOf(row.primaryMuscles);
+    const count = Number(row.workingSets);
+    if (group && count > 0) sets[group] = (sets[group] ?? 0) + count;
+  }
+  return sets;
 }
 
 export type ExerciseBest = {
@@ -678,17 +694,18 @@ export type TrendPoint = {
 };
 
 /**
- * One metric of one movement per session for each person over a period, oldest first: the
- * two lines of an exercise comparison. Two sessions on one day keep the better one.
+ * Each of a movement's metrics per session for each person over a period, oldest first: the
+ * lines of an exercise comparison, one pair per metric. Two sessions on one day keep the better
+ * one, metric by metric. Read once, every metric's column at a time.
  */
-export async function readExerciseTrend(
+export async function readExerciseTrends(
   tx: DbOrTx,
   userIds: readonly string[],
   exerciseId: string,
-  metric: SharedMetric,
+  metrics: readonly SharedMetric[],
   range: DateRange,
-): Promise<Map<string, TrendPoint[]>> {
-  if (userIds.length === 0) return new Map();
+): Promise<Map<SharedMetric, Map<string, TrendPoint[]>>> {
+  if (userIds.length === 0 || metrics.length === 0) return new Map();
   const rows = await tx
     .select({
       userId: sharedExerciseStats.userId,
@@ -721,22 +738,29 @@ export async function readExerciseTrend(
       ),
     )
     .orderBy(asc(sharedExerciseStats.startedAt));
-  const result = new Map<string, Map<string, TrendPoint>>();
-  for (const row of rows) {
-    const value = metricValue(row, metric);
-    if (value === null) continue;
-    const days = result.get(row.userId) ?? new Map<string, TrendPoint>();
-    const held = days.get(row.occurredOn);
-    if (!held || value > held.value)
-      days.set(row.occurredOn, {
-        date: row.occurredOn,
-        value,
-        workoutSessionId: row.workoutSessionId,
-        sharedId: row.sharedId,
-      });
-    result.set(row.userId, days);
-  }
-  return new Map([...result].map(([userId, days]) => [userId, [...days.values()]]));
+  return new Map(
+    metrics.map((metric) => {
+      const result = new Map<string, Map<string, TrendPoint>>();
+      for (const row of rows) {
+        const value = metricValue(row, metric);
+        if (value === null) continue;
+        const days = result.get(row.userId) ?? new Map<string, TrendPoint>();
+        const held = days.get(row.occurredOn);
+        if (!held || value > held.value)
+          days.set(row.occurredOn, {
+            date: row.occurredOn,
+            value,
+            workoutSessionId: row.workoutSessionId,
+            sharedId: row.sharedId,
+          });
+        result.set(row.userId, days);
+      }
+      return [
+        metric,
+        new Map([...result].map(([userId, days]) => [userId, [...days.values()]])),
+      ] as const;
+    }),
+  );
 }
 
 export type CommonExercise = {

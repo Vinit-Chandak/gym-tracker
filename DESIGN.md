@@ -806,7 +806,7 @@ exercise's page and a friend's compare page. Top to bottom:
   Monday over a month ("14 Sept"), each month over a quarter ("Aug"), the months with the year at
   January over a year, each New Year beyond. The axis is always the whole span, whatever the data
   covers.
-- **The spans:** 1m, 3m, 6m, 12m and All, a segmented tray under the plot, a month by default.
+- **The spans:** 1M, 3M, 6M, 12M and All, a segmented tray under the plot, a month by default.
   One span holds for every graph and is remembered; dates chosen by hand are behind the funnel and
   leave no span chosen.
 - **View values:** the chart values row (table glyph, the count, a chevron) opens every value
@@ -821,14 +821,18 @@ exercise's page and a friend's compare page. Top to bottom:
   stroke): each person's best in the span, or both on the day being read, where a figure with a
   record behind it opens it (Open workout, Open session) in place of its context, so the readout
   keeps its height. View values lists both, a column each, each value opening its own record.
+  Its measures are an exercise graph's (e1RM, Weight, Reps, Volume, Time, Distance), only those
+  the movement has and either of you did in the span (ADR 0044).
 - **Choices** above a graph are the section's own (a segmented tray for what is drawn, a select
   for which one) and only where they change something: outdoor and treadmill appear only when
   both were run, an exercise's machines only when it was done on more than one. Strength stacks
   two selects, a muscle group and then one of its exercises ("All exercises" first), and draws
   the group's total volume until an exercise is chosen (ADR 0043).
 
-**The Better Is Up Rule.** On every graph, up is more or better. Pace runs downward, faster
-higher, and says so in its ⓘ.
+**The Better Is Up Rule.** On every graph, up is more or better, and time runs left to right.
+Where less is better the scale runs downward and says so in its ⓘ: pace, faster higher;
+fatigue and soreness, 1 at the top (ADR 0044). Calories and body weight stay up-is-more: their
+good is the target or the goal, which a rule or the readout says, not a direction.
 
 ### Coach note
 
@@ -897,6 +901,10 @@ higher, and says so in its ⓘ.
   in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
+- **Page tabs:** a long list's pages (Progress → History, ten entries a page) under the list, in
+  the span tray's dress: a surface tray, each page a 44-pt target, the page being read in ink.
+  Every page up to five; past that the first, the last and the page read with its neighbours, a
+  gap mark between. A navigation, not a choice: buttons, the page read named aloud (ADR 0044).
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
   sheet of them; the range the section shows sits beside it (Progress: Overview, History,
   Strength, Running, Food, Recovery, Body). Seven choices never crowd a screen and none is

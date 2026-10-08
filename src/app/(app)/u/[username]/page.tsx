@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FollowButton } from "@/components/follow-button";
+import { GraphRangeProvider } from "@/components/graph/graph-range-context";
 import { PersonCard } from "@/components/person-card";
 import { PeriodRecordsList } from "@/components/records-card";
 import { PageContent } from "@/components/shell/page-content";
@@ -11,16 +12,18 @@ import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { RadarChart } from "@/components/ui/radar-chart";
 import { Section } from "@/components/ui/section";
-import { SportPeriodControls } from "@/components/ui/sport-period-controls";
+import { SportSpanControls } from "@/components/ui/sport-span-controls";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_METRIC_LABELS, activityValue, type ActivityMetric } from "@/domain/leaderboard";
+import { RANGE_PRESET_WORDS, readWindowOf } from "@/domain/graph-range";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
-import { PERIOD_LABELS } from "@/domain/period";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import type { TrainingSport } from "@/domain/sport-scope";
 import { formatActivityMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
+import { rememberedRange } from "@/server/queries/graph-range";
 import { hiddenTrainingLine } from "@/server/queries/head-to-head";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { followState } from "@/server/repositories/follows";
@@ -28,17 +31,17 @@ import { getDirectoryProfile } from "@/server/repositories/people";
 import {
   canViewTraining,
   EMPTY_TOTALS,
-  readMuscleSets,
+  readGroupSets,
   readPeriodTotals,
   readRecords,
 } from "@/server/repositories/shared-stats";
+import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername } from "@/server/validation/params";
-import { parsePeriod, periodRange } from "@/server/validation/period";
 import { parseSport } from "@/server/validation/sport";
 
 export const metadata: Metadata = { title: "Person" };
 
-/** The tiles each sport shows of a period (plan §3.14, §3.16). */
+/** The tiles each sport shows of a span (plan §3.14, §3.16). */
 const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
   workout: ["workouts", "working_sets", "volume"],
   run: ["runs", "distance", "time", "best_pace"],
@@ -51,7 +54,7 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
 /**
  * A person as others see them (plan §3.14): the header card with the follow button in place
  * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
- * period's totals for the chosen sport and, for lifting, the shape of their split and their
+ * span's totals for the chosen sport and, for lifting, the shape of their split and their
  * records — or one line saying why not. Your own page shows exactly what a follower would
  * see, and says so: the privacy screen's promise, demonstrated.
  */
@@ -60,11 +63,13 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const handle = requireUsername((await props.params).username);
   const params = await props.searchParams;
   const sport = parseSport(params.sport);
-  const period = parsePeriod(params.period);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
-  // The period ends on the viewer's today: it is the viewer asking "what did they do lately".
-  const range = periodRange(period, viewer.timeZone);
+  // The span every graph shares (ADR 0044). It ends on the viewer's today: it is the viewer
+  // asking "what did they do lately".
+  const preset = await rememberedRange();
+  const read = readWindowOf({ preset }, todayInTimeZone(viewer.timeZone));
+  const range = dateWindow(read.from, read.to, viewer.timeZone);
   const found = await withUser(
     getDb(),
     user.id,
@@ -79,9 +84,9 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
       ]);
       if (!visible) return { person, relation, training: null };
       const lifting = sport === "workout";
-      const [totals, muscleSets, records] = await Promise.all([
+      const [totals, groupSets, records] = await Promise.all([
         readPeriodTotals(tx, [person.id], sport, range),
-        lifting ? readMuscleSets(tx, person.id, range) : {},
+        lifting ? readGroupSets(tx, person.id, range) : {},
         lifting ? readRecords(tx, person.id, range) : null,
       ]);
       return {
@@ -89,8 +94,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
         relation,
         training: {
           totals: totals.get(person.id) ?? EMPTY_TOTALS,
-          split: muscleSplit(muscleSets),
-          trained: Object.keys(muscleSets).length > 0,
+          split: muscleSplit(groupSets),
+          trained: Object.keys(groupSets).length > 0,
           records,
         },
       };
@@ -132,7 +137,9 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                 This is what a follower sees of your training. Change it under Profile › Privacy.
               </p>
             )}
-            <SportPeriodControls sport={sport} period={period} />
+            <GraphRangeProvider preset={preset}>
+              <SportSpanControls sport={sport} />
+            </GraphRangeProvider>
             <Card>
               {/* Three lifting tiles share the row; four running tiles pair up under 440px. */}
               <StatTileRow className={sport === "workout" ? "min-[440px]:grid-cols-3" : undefined}>
@@ -145,7 +152,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                       value={value === null ? "—" : formatActivityMetric(metric, value, unit)}
                       info={
                         metric === "best_pace"
-                          ? "The fastest average pace over a run of at least 1 km in the period."
+                          ? "The fastest average pace over a run of at least 1 km in the span."
                           : undefined
                       }
                     />
@@ -161,8 +168,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                   series={[
                     {
                       name,
-                      // Lifting is always series 1, as on `Chart`; named here because a
-                      // client module's exports do not cross into a server component.
+                      // Lifting is always series 1; named here because a client module's
+                      // exports do not cross into a server component.
                       color: "var(--color-series-1)",
                       values: SPLIT_GROUPS.map((group) => training.split[group]),
                     },
@@ -173,25 +180,24 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
             {training.records && (
               <Section
                 title="Records"
-                info="The best of each movement in the period, by what it is measured in: estimated 1RM for barbell and dumbbell lifts, most reps, longest hold or longest carry for the rest. Machine exercises are not listed, since a machine's numbers are its own."
+                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts, most reps, longest hold or longest carry for the rest. Machine exercises are not listed, since a machine's numbers are its own."
               >
                 <Card>
                   {training.records.length > 0 ? (
                     <PeriodRecordsList records={training.records} unit={unit} />
                   ) : (
                     <p className="text-sm text-ink-muted">
-                      No comparable lifts in the last {PERIOD_LABELS[period]}.
+                      {preset === "all"
+                        ? "No comparable lifts yet."
+                        : `No comparable lifts in ${RANGE_PRESET_WORDS[preset]}.`}
                     </p>
                   )}
                 </Card>
               </Section>
             )}
             {relation && (
-              // Keep the same sport and period when opening the comparison.
-              <LinkButton
-                href={`/u/${person.username}/compare?sport=${sport}&period=${period}`}
-                className="w-full"
-              >
+              // Keep the same sport when opening the comparison; the span is remembered anyway.
+              <LinkButton href={`/u/${person.username}/compare?sport=${sport}`} className="w-full">
                 Compare
               </LinkButton>
             )}
