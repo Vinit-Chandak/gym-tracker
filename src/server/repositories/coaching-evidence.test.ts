@@ -1715,7 +1715,7 @@ it("reads a bodyweight squat's dumbbell against the body it is added to (ADR 004
   });
 });
 
-it("lets the coach bring a heavier set that fell short back to the session's load (ADR 0047)", async () => {
+it("lets the coach bring a heavier set that fell short back to the session's load (ADR 0048)", async () => {
   // Planned 100 kg; 100 × 6 at 2, then 102.5 tried for sets 2–3 at 4 × 1 RIR. The session
   // before: 100 × 6 at 0 and 100 × 3 at 1. Read at its own load, the attempt made the latest
   // session a second miss at 100 and sent it back to 95; read at 100, it is a near miss.
@@ -1762,7 +1762,7 @@ it("lets the coach bring a heavier set that fell short back to the session's loa
   });
 });
 
-it("caps reps past the top at a coarse step, and lets the step start below the range (ADR 0047)", async () => {
+it("caps reps past the top at a coarse step, and lets the step start below the range (ADR 0048)", async () => {
   const a = await fixture();
   await a.as(async (db) => {
     // 30 to 35 kg on these dumbbells is a sixth more: from 14 at 2 RIR, two past the 12 at the

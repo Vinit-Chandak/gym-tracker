@@ -21,20 +21,20 @@ export const TRAINING_POLICY = {
   /**
    * Reps in hand a session may fall short of the bottom of the range at the target effort and
    * still not count as a miss: about the error of a reported RIR, so a set at the minimum with
-   * one in reserve less than planned is a near miss, not a step that failed (ADR 0047). Twice
+   * one in reserve less than planned is a near miss, not a step that failed (ADR 0048). Twice
    * that where the bottom of the range is past `estimateMaxReps` in hand: the report barely
    * worsens up to twelve reps a set and loses about half a rep with every rep beyond.
    */
   missTolerance: 1,
   /**
    * Reps a set may build past the top of its range where the next load step is coarse, before
-   * the step is taken anyway (ADR 0047). Past this, reps chase endurance, discomfort and the
+   * the step is taken anyway (ADR 0048). Past this, reps chase endurance, discomfort and the
    * curve's guess rather than the range the exercise was given.
    */
   coarseStepReps: 2,
   /**
    * The fewest reps at the target effort a coarse step may start at, below the range, before
-   * building back up (ADR 0047). A range whose bottom is this or lower never starts below it.
+   * building back up (ADR 0048). A range whose bottom is this or lower never starts below it.
    */
   coarseLandingReps: 5,
   /** Only sets this close to failure estimate a maximum: past it the curve is a guess. */
@@ -121,7 +121,7 @@ function repsToLand(p: CeilingInput, load: number, next: number): number {
  *
  * Normally the top of the range. When the next real step is so coarse that stepping at the top
  * would land below the bottom of the range — a 10 to 12.5 kg dumbbell is a quarter more — reps
- * build past the top, but only by `coarseStepReps` (ADR 0047). Building until the step lands
+ * build past the top, but only by `coarseStepReps` (ADR 0048). Building until the step lands
  * inside the range asked for 21 curls where the range was 10–15: the curve that said so is a
  * guess that far from failure, the reported reserve is least reliable in long sets, and such a
  * set ends on discomfort and fatigue as much as on the muscle. The step is taken from there and
@@ -142,7 +142,7 @@ export function repCeiling(
 }
 
 /**
- * Where a coarse step may start (ADR 0047): the fewest reps, at the target effort, a set may be
+ * Where a coarse step may start (ADR 0048): the fewest reps, at the target effort, a set may be
  * asked for below the range after a step too coarse to land inside it from the top. Null where
  * the step lands inside the range from the top, on an assisted machine, and where the range's
  * bottom is already `coarseLandingReps` or fewer: a strength range never starts below itself, so
@@ -237,7 +237,7 @@ const heldReadiness = (readiness: Readiness) =>
 
 /**
  * The single sessions lighter than the session before them, where that one held the range
- * (ADR 0047): a light day, a machine shared with something else, a lift done lighter than usual.
+ * (ADR 0048): a light day, a machine shared with something else, a lift done lighter than usual.
  * Each says nothing about the heavier load already shown. Two lighter sessions running are the
  * lighter load chosen, and a lighter load the session's own plan asked for is the plan's — a
  * temporary session or a lasting change the coach wrote — so neither is set aside.
@@ -267,7 +267,7 @@ function asideOf(
   });
 }
 
-/** The sessions the trend sets aside as lighter than the load held before them (ADR 0047). */
+/** The sessions the trend sets aside as lighter than the load held before them (ADR 0048). */
 export function lighterSessions(
   p: Prescription,
   input: readonly EvidencePerformance[],
@@ -281,7 +281,7 @@ export function lighterSessions(
  * Raw matching first-set performance, with completion/effort assessed separately.
  *
  * A single session lighter than a load held in the range just before it is read past first
- * (`lighterSessions`, ADR 0047), and named in `setAside`: the trend, and every rule that reads
+ * (`lighterSessions`, ADR 0048), and named in `setAside`: the trend, and every rule that reads
  * it, goes on from the heavier load, so a light day never becomes the load the next step is
  * taken from.
  */
@@ -376,7 +376,7 @@ function summarize(
     );
     const planned = (weight: number) => (h.planned ?? []).some((value) => sameLoad(value, weight));
     /**
-     * The load each set counts at (ADR 0047). A heavier set of the athlete's own that fell short
+     * The load each set counts at (ADR 0048). A heavier set of the athlete's own that fell short
      * of the range — the next step tried for the last two sets, say — was an attempt at that
      * load and counts at the session's: it says nothing against the load the session was at,
      * and the next session starts it back there. A heavier set that held the range, or one the
@@ -395,7 +395,7 @@ function summarize(
         : weight;
     });
     /**
-     * Each set read at the session's load, where it says something about it (ADR 0047): a
+     * Each set read at the session's load, where it says something about it (ADR 0048): a
      * lighter set is read up to it along the curve, and a heavier attempt that fell short is
      * read down to it. A pyramid the plan wrote keeps each step at its own load. Read only at
      * its own load, 62.5 × 4 at 1 RIR after 60 × 6 at 2 said 60 kg had five reps in hand.
@@ -475,7 +475,7 @@ function summarize(
   }
   /**
    * A load a coarse step went to counts its reps from where that step may start, not from the
-   * bottom of the range (ADR 0047): it was taken knowing it would start below the range, so the
+   * bottom of the range (ADR 0048): it was taken knowing it would start below the range, so the
    * sessions climbing back into it are reps building, not a step that failed. Only a step the
    * session before it said would start below the range: one that was to land inside it and did
    * not is a miss like any other.
@@ -655,7 +655,7 @@ function summarize(
   }
   /**
    * A session clearly short of the range: more than `missTolerance` reps in hand under its bottom
-   * at the target effort (ADR 0047). Inside that margin — the minimum reps with one in reserve
+   * at the target effort (ADR 0048). Inside that margin — the minimum reps with one in reserve
    * less than planned — the reported reserve cannot tell a miss from a good day, and the load
    * holds as it does for one low session; it is not a step that failed.
    */
@@ -727,7 +727,7 @@ function summarize(
   /**
    * A session whose hardest set could not reach the bottom of the range even to failure — after
    * a coarse step, the reps that step may start at — and clearly short of it, never a near miss
-   * (ADR 0047): going back at once on one session needs at least what a miss does.
+   * (ADR 0048): going back at once on one session needs at least what a miss does.
    */
   const beyondReach = (point: (typeof points)[number]) => {
     const bottom = minimumAt(point);
@@ -868,7 +868,7 @@ function summarize(
           ? `one session with every working set at ${ceiling} reps and ${targetRir} RIR`
           : `one session with every working set at ${once} reps and ${targetRir} RIR, or ${twice}`;
     if (ceiling > maximum) {
-      // Where the step lands from the ceiling, at the target effort (ADR 0047).
+      // Where the step lands from the ceiling, at the target effort (ADR 0048).
       const lands = Math.floor(
         capacityAt(ceiling + targetRir, latest.load, next.load, body) - targetRir + 1e-9,
       );
@@ -950,13 +950,13 @@ function summarize(
     /** Where the latest session leaves the load (ADR 0039). */
     readiness: latest?.readiness ?? ("unknown" as Readiness),
     /**
-     * The load each working set of the latest session counts at, in order (ADR 0047): its own,
+     * The load each working set of the latest session counts at, in order (ADR 0048): its own,
      * except a heavier set of the athlete's own that fell short of the range, which counts at
      * the session's load, where the next session starts it.
      */
     latestWorkLoads: base[0]?.workProfile ?? [],
     /**
-     * The coarse step the current load came from (ADR 0047): its reps count from `floor`, below
+     * The coarse step the current load came from (ADR 0048): its reps count from `floor`, below
      * the range, while they build back into it. Null where the load was not reached that way.
      */
     landing:

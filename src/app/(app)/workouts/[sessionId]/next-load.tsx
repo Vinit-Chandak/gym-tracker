@@ -11,7 +11,7 @@ import { confirmMachineLoadAction } from "@/server/actions/equipment";
 
 /**
  * The step past the best weight ever lifted on a stack for this exercise, when nobody knows it
- * yet (ADR 0028, ADR 0047): today's heaviest or `best`, from every session before, whichever is
+ * yet (ADR 0028, ADR 0048): today's heaviest or `best`, from every session before, whichever is
  * heavier. Asked from today's alone, a lighter day asked for a stop long since lifted past, or
  * asked nothing because the stop above today was known while the one above the best was not.
  *

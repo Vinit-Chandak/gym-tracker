@@ -275,7 +275,7 @@ function forReps(
  * holds and each set is asked for what it had in hand. A step that missed the range twice in
  * its first three sessions goes back to the load before it. A step so coarse it would land
  * below the range waits while reps build past the top — by two reps at most — and is then
- * taken, starting below the range and building back up (ADR 0047).
+ * taken, starting below the range and building back up (ADR 0048).
  */
 function byCapacity(
   p: Prescription,
@@ -330,7 +330,7 @@ function byCapacity(
 
   const body = p.bodyLoad ?? 0;
   /**
-   * The load each working set counts at (ADR 0047): its own, except a heavier set of the
+   * The load each working set counts at (ADR 0048): its own, except a heavier set of the
    * athlete's own that fell short of the range, which counts at the session's load.
    */
   const workLoads = evidence.latestWorkLoads;
@@ -392,7 +392,7 @@ function byCapacity(
         };
       }),
     );
-  /** Why the load holds before a coarse step, and how far reps go first (ADR 0047). */
+  /** Why the load holds before a coarse step, and how far reps go first (ADR 0048). */
   const bigJump = (): [string, string] => {
     const to = next && !(p.requireKnownLoads && next.source !== "known") ? next.load : null;
     if (first?.weight == null || to === null)
@@ -451,7 +451,7 @@ function byCapacity(
       const after =
         inHand === null || ladder.assisted ? null : capacityAt(inHand, weight, step.load, body);
       /**
-       * Where a coarse step may start (ADR 0047): below the range, once the set has built to the
+       * Where a coarse step may start (ADR 0048): below the range, once the set has built to the
        * ceiling at the target effort and the step would still leave it the landing floor.
        */
       const floor = landingFloor(p, weight, step.load, ladder.assisted);
@@ -575,7 +575,7 @@ export function suggestNext(
     );
   }
   const evidence = summarizeExerciseEvidence(prescription, history);
-  // After a coarse step the reps count from where that step may start (ADR 0047).
+  // After a coarse step the reps count from where that step may start (ADR 0048).
   const bottom = evidence.landing?.floor ?? prescription.repMin;
   const hold = (reason: string, advice: string | null = null) =>
     base(

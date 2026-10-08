@@ -266,7 +266,7 @@ describe("what the workout screen asks for next (ADR 0040)", () => {
       }).suggestion?.kind,
     ).toBe("increase");
     // Read against the dumbbell alone, 7.5 kg looked half as heavy again: too big to bridge with
-    // reps, which build two past the top and no further (ADR 0047).
+    // reps, which build two past the top and no further (ADR 0048).
     expect(rule(splitSquat).suggestion).toMatchObject({
       kind: "hold",
       advice:
@@ -306,7 +306,7 @@ describe("an exercise added on the spot", () => {
     });
   });
 
-  it("goes on from the load held before a lighter session, not from the lighter one (ADR 0047)", () => {
+  it("goes on from the load held before a lighter session, not from the lighter one (ADR 0048)", () => {
     // 3 × 3–5 at 2 RIR: 100 × 5 at 2 twice, then one lighter day at 80 × 5 at 4.
     const outcome = rule({
       history: [session(2, 80, 5, 4), session(5, 100, 5, 2), session(9, 100, 5, 2)],

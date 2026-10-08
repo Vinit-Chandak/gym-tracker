@@ -304,7 +304,7 @@ export async function readCoachingEvidence(
       });
       return {
         ...performance,
-        // What the plan asked for that day: never a lighter day or an attempt (ADR 0047).
+        // What the plan asked for that day: never a lighter day or an attempt (ADR 0048).
         planned,
         sets: readPerformance(performance.sets, {
           assisted: group.assisted,

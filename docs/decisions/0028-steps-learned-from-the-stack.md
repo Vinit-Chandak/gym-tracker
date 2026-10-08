@@ -1,6 +1,6 @@
 # Steps learned from the stack
 
-**Superseded in part by [ADR 0047](0047-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):**
+**Superseded in part by [ADR 0048](0048-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):**
 Next up asks for the stop above the best load ever lifted on the stack for the exercise, not above
 today's heaviest (decision 6).
 

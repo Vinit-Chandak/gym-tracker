@@ -1,6 +1,6 @@
 # Evidence review: progression rules for an RIR-based double-progression coach
 
-The evidence behind [ADR 0047](../decisions/0047-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):
+The evidence behind [ADR 0048](../decisions/0048-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):
 how accurate reported reps in reserve are, how far a load-to-reps curve can be trusted, what
 long sets cost, and how coarse steps, misses and light days are handled. Each section ends with
 the rule the evidence suggests for an app; those are inputs, not what the app does. What the

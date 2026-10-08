@@ -146,7 +146,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
   /**
    * The working loads a session's own plan prescribed, in the unit the rule reads, with the loads
    * a temporary change asked for after it was made: that lighter session was the coach's, not a
-   * lighter day of the athlete's own (ADR 0047).
+   * lighter day of the athlete's own (ADR 0048).
    */
   const plannedLoads = (performance: ComparablePerformance) => [
     // A plan saved before units were recorded was written in the unit it is read in.
@@ -178,7 +178,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
   });
   // A single session lighter than a load just held in the range is not where the next one
-  // starts (ADR 0047): the rule builds on the session before it, as the coach's trend does.
+  // starts (ADR 0048): the rule builds on the session before it, as the coach's trend does.
   const provisional = prescribe(basisHistory[0] ?? null);
   const aside = provisional
     ? new Set(

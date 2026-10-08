@@ -73,7 +73,7 @@ export async function loadLadders(
 
 /**
  * The heaviest and lightest working load each exercise has been lifted at on each machine, in the
- * machine's own unit, across every session (ADR 0047). The Next up box asks for the stop above
+ * machine's own unit, across every session (ADR 0048). The Next up box asks for the stop above
  * the best of these, so a lighter day does not ask for the stop above a load long since beaten,
  * nor stay quiet because that stop is known while the one above the best is not. Keyed
  * `machineId:exerciseId`.

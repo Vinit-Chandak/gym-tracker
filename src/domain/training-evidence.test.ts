@@ -542,7 +542,7 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
 
   it("reads a dumbbell step on a split squat against the body it is added to", () => {
     // Against the dumbbell alone 5 to 7.5 kg is half as heavy again: reps would have to reach 28
-    // a side to land the step in the range, and build to 14, two past the top, at most (ADR 0047).
+    // a side to land the step in the range, and build to 14, two past the top, at most (ADR 0048).
     // Against body and dumbbell it is about 3.5%, and the step lands in the range.
     expect(repCeiling(splitSquat, 5, 7.5)).toBe(14);
     expect(repCeiling(withBody, 5, 7.5)).toBe(12);
@@ -607,7 +607,7 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
     // A dumbbell RDL where the next dumbbell is 25 kg: 2 × 6–10 at 2 RIR.
     const rdl: Prescription = { ...deadlift, sets: 2, repMin: 6, repMax: 10, loadIncrement: 5 };
     // From 12 at 2 RIR, two past the top, 25 kg would start at about 3: too far below the range,
-    // so reps stay at 12 and the step waits for the reserve there to grow (ADR 0047).
+    // so reps stay at 12 and the step waits for the reserve there to grow (ADR 0048).
     expect(summarizeExerciseEvidence(rdl, sessions([20, straight(2, 12, 1)])).nextStep).toBe(
       "25 kg is too big a jump from 20 kg to bridge with reps: they stay at 12 here, and 25 kg comes once every working set has 17 reps in hand (12 reps at 5 RIR), or sooner with a smaller step or a variation.",
     );
@@ -630,7 +630,7 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
   });
 });
 
-describe("a bounded coarse step, a lighter day and a heavier attempt (ADR 0047)", () => {
+describe("a bounded coarse step, a lighter day and a heavier attempt (ADR 0048)", () => {
   // The incline curl: 2 × 10–15 at 1–2 RIR, 2.5 kg dumbbells.
   const curl: Prescription = {
     sets: 2,

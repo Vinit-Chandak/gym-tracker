@@ -94,7 +94,7 @@ export function toSessionVM(
  *
  * Nothing else in the session depends on its own sets (history reads finished sessions only)
  * except a stack's ladder, which learns every load lifted on it in its own unit, and the best
- * working load each exercise has lifted on its machine (ADR 0047). The loads of the sets saved
+ * working load each exercise has lifted on its machine (ADR 0048). The loads of the sets saved
  * here that still stand are added to both, as the server would add them. A load the render knew
  * only from a set deleted here stays known until the next render: one extra stop on the ladder,
  * or a best one set too high, never a missing one.

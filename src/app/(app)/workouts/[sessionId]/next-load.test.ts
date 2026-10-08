@@ -27,7 +27,7 @@ it("counts today's sets as stops, and asks for less help on an assisted machine"
   });
 });
 
-it("asks from the best ever lifted here, not from a lighter day's heaviest (ADR 0047)", () => {
+it("asks from the best ever lifted here, not from a lighter day's heaviest (ADR 0048)", () => {
   // A light day at 47: the stop above it is known, but the one above the best, 59, is not.
   expect(nextLoadQuestion(stack, [47, 47], 59)).toEqual({ from: 59, guess: 64 });
   // Today's heaviest past the best asks from today.

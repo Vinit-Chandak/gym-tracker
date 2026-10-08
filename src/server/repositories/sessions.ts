@@ -349,7 +349,7 @@ export type SessionExercise = {
     ladder: LoadLadder | null;
     /**
      * The best working load this exercise has been lifted at on this machine, across every
-     * session: the heaviest, or the least help on an assisted machine (ADR 0047). Next up asks
+     * session: the heaviest, or the least help on an assisted machine (ADR 0048). Next up asks
      * for the stop above it. Null before anything is lifted.
      */
     best?: number | null;
@@ -657,7 +657,7 @@ export async function getSessionDetail(
       userId,
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
     ),
-    // The best each exercise has lifted on its machine, where Next up asks from (ADR 0047).
+    // The best each exercise has lifted on its machine, where Next up asks from (ADR 0048).
     bestLoads(
       db,
       userId,

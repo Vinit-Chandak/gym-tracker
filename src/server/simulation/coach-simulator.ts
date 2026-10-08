@@ -142,9 +142,9 @@ type Trend = {
   stepEvidenceIds: string[];
   evidenceIds: string[];
   revert: { load: number; loads: (number | null)[]; evidenceIds: string[] } | null;
-  /** Each working set's baseline load: a heavier attempt counts at the session's (ADR 0047). */
+  /** Each working set's baseline load: a heavier attempt counts at the session's (ADR 0048). */
   latestWorkLoads?: (number | null)[];
-  /** The coarse step the current load came from, and the reps it counts from (ADR 0047). */
+  /** The coarse step the current load came from, and the reps it counts from (ADR 0048). */
   landing?: { load: number; from: number; floor: number } | null;
 };
 type Slot = {
@@ -1428,7 +1428,7 @@ export function session(context: Context, strategy: Persona["coach"]): Plan {
       const prior = latest[i];
       // Where the set counts: a heavier attempt that fell short goes back to the session's load.
       const weight = trend?.latestWorkLoads?.[i] ?? prior?.weight ?? known;
-      // After a coarse step the reps count from its landing, below the range (ADR 0047).
+      // After a coarse step the reps count from its landing, below the range (ADR 0048).
       const landed =
         trend?.landing && weight !== null && Math.abs(trend.landing.load - weight) < 0.05
           ? trend.landing.floor

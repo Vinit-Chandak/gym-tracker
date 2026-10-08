@@ -475,7 +475,7 @@ export async function assessSessionEvidence(
       /**
        * The most reps a set at `load` may be asked for: the top of the range, or past it — by two
        * at most — where the next step is so coarse that stepping at the top would land below the
-       * range (ADR 0039, ADR 0047).
+       * range (ADR 0039, ADR 0048).
        */
       const ceilingAt = (load: number | null) =>
         p.type !== "reps" || !p.reps
@@ -487,7 +487,7 @@ export async function assessSessionEvidence(
               steps?.assisted ?? false,
             );
       /**
-       * The fewest reps a set at `load` may be asked for (ADR 0047): the bottom of the range, or
+       * The fewest reps a set at `load` may be asked for (ADR 0048): the bottom of the range, or
        * below it where a coarse step starts — the step itself, up from `from`, or the load the
        * trend says a coarse step went to, while its reps build back into the range.
        */
@@ -523,7 +523,7 @@ export async function assessSessionEvidence(
         })) ??
         baselineSets.flatMap((set, index) => {
           // A heavier set of the athlete's own that fell short counts at the session's load, where
-          // the next session starts it (ADR 0047).
+          // the next session starts it (ADR 0048).
           const counted = trend?.latestWorkLoads[index];
           const load =
             counted != null && canConvertLoad(trend!.loadUnit, unit)
@@ -661,7 +661,7 @@ export async function assessSessionEvidence(
             range?.[1] != null && sameLoadAsBefore
               ? Math.max(range[1], ceilingAt(setBaseline) ?? range[1])
               : (range?.[1] ?? null);
-          // Below the range only where a coarse step starts, at most to its landing (ADR 0047).
+          // Below the range only where a coarse step starts, at most to its landing (ADR 0048).
           const bottom = lowestAt(set.weight, setBaseline ?? null);
           if (
             !equipmentChange &&

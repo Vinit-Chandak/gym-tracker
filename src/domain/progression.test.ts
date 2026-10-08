@@ -278,7 +278,7 @@ describe("reading what every set had in hand (ADR 0039)", () => {
 
   it("builds reps past the top where the next weight is too big a jump to land in the range", () => {
     // 30 to 35 on this stack is a sixth of the load: 15 reps would land it in the range, and reps
-    // build two past the top at most (ADR 0047).
+    // build two past the top at most (ADR 0048).
     const curl: Prescription = {
       ...accessory,
       repMin: 8,
@@ -301,7 +301,7 @@ describe("reading what every set had in hand (ADR 0039)", () => {
 
   it("caps the reps a coarse dumbbell step asks for, then builds back from below the range", () => {
     // The incline curl: 2 × 10–15 at 1–2 RIR, 10 to 12.5 kg dumbbells. Landing the step inside
-    // the range would take 21 reps at 1 RIR; reps build to 17 and no further (ADR 0047).
+    // the range would take 21 reps at 1 RIR; reps build to 17 and no further (ADR 0048).
     const curl: Prescription = {
       ...accessory,
       sets: 2,

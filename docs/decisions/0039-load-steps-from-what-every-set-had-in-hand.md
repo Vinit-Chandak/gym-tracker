@@ -1,6 +1,6 @@
 # Load steps from what every set had in hand
 
-**Superseded in part by [ADR 0047](0047-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):**
+**Superseded in part by [ADR 0048](0048-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):**
 at a coarse step reps build two past the top at most, then the step is taken and may start below
 the range (decision 5); a near miss no longer counts towards a step that missed twice (decision 4).
 

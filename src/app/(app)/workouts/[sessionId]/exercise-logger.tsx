@@ -686,7 +686,7 @@ export function ExerciseLogger({
     titleRef.current?.focus({ preventScroll: true });
   }, [needsDecision]);
   // Once this exercise's working sets are in, a stack whose next stop past the best ever lifted
-  // nobody knows asks for it under the sets (ADR 0028, ADR 0047); nothing is asked mid-exercise
+  // nobody knows asks for it under the sets (ADR 0028, ADR 0048); nothing is asked mid-exercise
   // or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
   const workingDone =
