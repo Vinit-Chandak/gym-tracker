@@ -50,7 +50,8 @@ export function barScale(
   return { ticks, max: ticks.at(-1)! };
 }
 
-const round = (value: number) => Math.round(value * 1000) / 1000;
+// `+ 0` turns a negative zero into zero, so a scale never writes "-0".
+const round = (value: number) => Math.round(value * 1000) / 1000 + 0;
 
 /**
  * A line's scale: the readings with air above and below, and the round values inside as its
@@ -71,13 +72,38 @@ export function lineScale(
   const low = Math.min(...values);
   const high = Math.max(...values);
   const span = high - low;
-  const pad = span > 0 ? span * 0.14 : Math.max(Math.abs(high) * 0.03, 0.5);
+  if (span === 0) return flatScale(high, steps);
+  const pad = span * 0.14;
   const lo = low - pad;
   const hi = high + pad;
   // Two or three lines inside the readings: the smallest round step that gives at most three.
   const ordered = [...(steps ?? candidates((hi - lo) / 2.5))].sort((a, b) => a - b);
   const step =
     ordered.find((s) => Math.floor(hi / s) - Math.ceil(lo / s) + 1 <= 3) ?? ordered.at(-1)!;
+  const ticks: number[] = [];
+  for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-9; t += step) ticks.push(round(t));
+  return { ticks, lo, hi };
+}
+
+/**
+ * One value, however many times: it stands on the middle line, a round step either side, the
+ * step about a tenth of the value and one it is a whole number of where one is near (17.5 kg
+ * between 15 and 20, not between 17.2 and 18), so the scale never claims a precision the
+ * readings do not have.
+ */
+function flatScale(
+  value: number,
+  steps: readonly number[] | undefined,
+): { ticks: number[]; lo: number; hi: number } {
+  const wanted = Math.max(Math.abs(value) * 0.08, 0.5);
+  const ordered = [...(steps ?? candidates(wanted))]
+    .filter((step) => step >= wanted - 1e-9)
+    .sort((a, b) => a - b);
+  const fits = (step: number) => Math.abs(value / step - Math.round(value / step)) < 1e-6;
+  const step = ordered.slice(0, 4).find(fits) ?? ordered[0] ?? wanted;
+  // Nothing has a negative reading: a line of zeros stands on the bottom line instead.
+  const lo = value === 0 ? -step * 0.2 : value - step * 1.2;
+  const hi = value === 0 ? step * 2.2 : value + step * 1.2;
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-9; t += step) ticks.push(round(t));
   return { ticks, lo, hi };

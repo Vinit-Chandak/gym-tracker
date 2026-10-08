@@ -17,13 +17,20 @@ import {
   measuresWithData,
   type ExerciseMeasure,
   type ExerciseSession,
+  type StrengthGroup,
 } from "@/domain/progress-graphs";
 import type { ExerciseModality, LoadUnit } from "@/domain/types";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import type { NavOrigin } from "@/lib/nav";
 
-/** One series to choose: an exercise on one machine in one unit. */
-export type ExerciseSeriesChoice = { id: string; name: string; machine: string; unit: LoadUnit };
+/** One series to choose: an exercise on one machine in one unit, and the group it is under. */
+export type ExerciseSeriesChoice = {
+  id: string;
+  name: string;
+  machine: string;
+  unit: LoadUnit;
+  group: StrengthGroup | null;
+};
 
 export type ExerciseGraphData = {
   range: GraphRange;
@@ -31,7 +38,11 @@ export type ExerciseGraphData = {
   options: ExerciseSeriesChoice[];
   /** Only the chosen series' workouts cross the wire; the rest stay on the server. */
   selected:
-    (ExerciseSeriesChoice & { modality: ExerciseModality; sessions: ExerciseSession[] }) | null;
+    | (Omit<ExerciseSeriesChoice, "group"> & {
+        modality: ExerciseModality;
+        sessions: ExerciseSession[];
+      })
+    | null;
 };
 
 /** Each measure: its segment, its name, and the summary over the range. */
@@ -46,22 +57,19 @@ const MEASURES: Record<ExerciseMeasure, { short: string; long: string; best: str
 
 /**
  * One exercise, workout by workout (ADR 0042): its estimated 1RM, heaviest set, most reps and
- * biggest set, each a line with a point per workout that opens it. Progress passes the
- * exercises to choose from; an exercise's own page has already chosen. A machine's loads are
- * its own: an exercise done on two machines is two series, never one line.
+ * biggest set, each a line with a point per workout that opens it. The exercise is chosen
+ * before it (Strength's pickers; an exercise's own page); only its machines are chosen here. A
+ * machine's loads are its own: an exercise done on two machines is two series, never one line.
  */
 export function ExerciseGraph({
   data,
   today,
   origin,
-  picker = false,
 }: {
   data: ExerciseGraphData;
   today: string;
   /** Where an opened workout goes back to. */
   origin: NavOrigin | null;
-  /** Offer every exercise, not only the machines of this one. */
-  picker?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -83,7 +91,6 @@ export function ExerciseGraph({
     next.set("series", id);
     startTransition(() => router.replace(`${pathname}?${next}` as Route, { scroll: false }));
   };
-  const names = [...new Set(options.map((option) => option.name))];
   const machines = selected ? options.filter((option) => option.name === selected.name) : [];
 
   const unit = selected ? LOAD_UNIT_LABELS[selected.unit] : "";
@@ -129,24 +136,6 @@ export function ExerciseGraph({
 
   return (
     <div className="space-y-3">
-      {picker && (
-        <Select
-          aria-label="Exercise"
-          value={selected?.name ?? ""}
-          disabled={options.length === 0 || pending}
-          onChange={(event) => {
-            const first = options.filter((option) => option.name === event.target.value).at(0);
-            if (first) chooseSeries(first.id);
-          }}
-        >
-          {options.length === 0 && <option value="">No logged exercises yet</option>}
-          {names.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </Select>
-      )}
       {/* The machine, only where there is one to choose between. */}
       {machines.length > 1 && selected && (
         <Select

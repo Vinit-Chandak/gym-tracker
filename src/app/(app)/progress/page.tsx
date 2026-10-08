@@ -22,7 +22,6 @@ import { seenSetChanges } from "@/server/queries/set-changes";
 import { readActivityDays, readSportTotals } from "@/server/repositories/activity-analytics";
 import { listBodyWeights } from "@/server/repositories/body-weight";
 import {
-  pickSeries,
   readExerciseSeriesOptions,
   readExerciseSetRows,
   readFoodDayTotals,
@@ -89,11 +88,12 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
           readMuscleVolume(tx, user.id, week),
         ]);
-      // Only the chosen exercise's sets are read: one series crosses the wire, not all of them.
-      const selected = pickSeries(
-        options,
-        typeof params.series === "string" ? params.series : undefined,
-      );
+      // Strength opens on its muscle groups' volume (ADR 0043): an exercise is drawn only once
+      // the URL names one, and only its sets are read, so one series crosses the wire.
+      const selected =
+        typeof params.series === "string"
+          ? (options.find((option) => option.id === params.series) ?? null)
+          : null;
       const sets = selected
         ? await readExerciseSetRows(tx, user.id, timeZone, window, selected.id)
         : [];
@@ -177,14 +177,16 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             strength: {
               range: strengthRange,
               graph: strengthGraph(data.strength, strengthRange, today),
+              unit,
             },
             exercise: {
               range: rangeFor(sessions.map((session) => session.date)),
-              options: data.options.map(({ id, name, machine, unit: loadUnit }) => ({
+              options: data.options.map(({ id, name, machine, unit: loadUnit, group }) => ({
                 id,
                 name,
                 machine,
                 unit: loadUnit,
+                group,
               })),
               selected: data.selected
                 ? {

@@ -7,6 +7,7 @@ import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { exerciseSessions } from "@/domain/progress-graphs";
+import type { LoadUnit } from "@/domain/types";
 import { dateWindow } from "@/server/validation/date-range";
 
 import {
@@ -23,13 +24,14 @@ const zone = "Asia/Kolkata";
 const september = dateWindow("2026-09-01", "2026-09-30", zone);
 const everything = dateWindow("2000-01-01", "2026-10-07", zone);
 let t: TestDatabase, alice: { id: string; email: string }, bob: { id: string; email: string };
+let carol: { id: string; email: string };
 let bench: string, gymId: string;
 
-/** A workout at a local time in Kolkata, with its sets: [type, weight, reps]. */
+/** A workout at a local time in Kolkata, with its sets: [type, weight, reps, unit (kg)]. */
 async function workout(
   userId: string,
   localStart: string,
-  sets: [string, number | null, number | null][],
+  sets: [string, number | null, number | null, LoadUnit?][],
   { finished = true, exerciseId = bench }: { finished?: boolean; exerciseId?: string } = {},
 ) {
   return withUser(t.db, userId, async (tx) => {
@@ -43,13 +45,14 @@ async function workout(
       .values({ userId, workoutSessionId: session!.id, exerciseId, orderIndex: 0 })
       .returning({ id: workoutExercises.id });
     await tx.insert(setLogs).values(
-      sets.map(([setType, weight, reps], setIndex) => ({
+      sets.map(([setType, weight, reps, unit = "kg"], setIndex) => ({
         userId,
         workoutExerciseId: slot!.id,
         setIndex,
         setType: setType as "working",
         weight,
         reps,
+        unit,
       })),
     );
     return session!.id;
@@ -84,6 +87,10 @@ beforeAll(async () => {
   await withUser(t.db, bob.id, async (tx) => {
     await seedTestUserData(tx, bob);
   });
+  carol = await t.createAuthUser("pounds-graphs@example.com");
+  await withUser(t.db, carol.id, async (tx) => {
+    await seedTestUserData(tx, carol);
+  });
 });
 afterAll(async () => {
   await t.close();
@@ -94,11 +101,40 @@ describe("strength", () => {
     const rows = await withUser(t.db, alice.id, (tx) =>
       readStrengthRows(tx, alice.id, zone, september),
     );
+    // Volume is load × reps of the working sets: 100 × 5 + 100 × 6, the warm-up left out.
     expect(rows).toEqual([
-      expect.objectContaining({ sessionId: first, date: "2026-09-14", workingSets: 2 }),
-      expect.objectContaining({ sessionId: second, date: "2026-09-21", workingSets: 1 }),
+      expect.objectContaining({
+        sessionId: first,
+        date: "2026-09-14",
+        workingSets: 2,
+        volumeKg: 1100,
+      }),
+      expect.objectContaining({
+        sessionId: second,
+        date: "2026-09-21",
+        workingSets: 1,
+        volumeKg: 315,
+      }),
     ]);
     expect(rows[0]!.primaryMuscles).toContain("chest");
+  });
+
+  it("weighs pounds in kilograms, and a stack step or a bodyweight set as nothing", async () => {
+    await workout(
+      carol.id,
+      "2026-09-10T18:00:00",
+      [
+        ["working", 225, 5, "lb"],
+        ["working", 12, 10, "stack_index"],
+        ["working", null, 12, "none"],
+      ],
+      { exerciseId: bench },
+    );
+    const [row] = await withUser(t.db, carol.id, (tx) =>
+      readStrengthRows(tx, carol.id, zone, september),
+    );
+    // 225 lb is 102.06 kg, five times: every set is work, only the pounds a load.
+    expect(row).toMatchObject({ workingSets: 3, volumeKg: 510.3 });
   });
 
   it("offers every series ever logged, counting the workouts in the window apart", async () => {
@@ -111,6 +147,7 @@ describe("strength", () => {
         name: "Barbell bench press",
         machine: "Across gyms",
         modality: "barbell",
+        group: "chest",
         measure: "reps",
         sessionsInRange: 2,
         sessions: 3,
@@ -176,6 +213,7 @@ describe("series ids", () => {
       machine: "Across gyms",
       unit: "kg",
       modality: "barbell",
+      group: null,
       measure: "reps",
       sessionsInRange: 0,
       sessions: 10,

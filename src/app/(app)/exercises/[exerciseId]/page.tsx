@@ -247,11 +247,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                 origin={null}
                 data={{
                   range: graphRange,
-                  options: options.map(({ id, name, machine, unit: loadUnit }) => ({
+                  options: options.map(({ id, name, machine, unit: loadUnit, group }) => ({
                     id,
                     name,
                     machine,
                     unit: loadUnit,
+                    group,
                   })),
                   selected: selected
                     ? {

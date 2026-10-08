@@ -1,7 +1,8 @@
 # ADR 0042: One graph for every trend
 
 Date: 2026-10-07
-Status: accepted
+Status: accepted; decisions 6 and 8 amended by
+[ADR 0043](0043-strength-by-muscle-group-then-exercise.md)
 
 ## Context
 
@@ -53,7 +54,8 @@ behind the funnel, and every read stopped at 500 workouts or runs, so a long ran
    Open run, Open day, Open week or Open food log. A tap on it again, anywhere outside the graph
    or Escape goes back to the summary; a finger that scrolls the page reads nothing. The plot
    takes focus and the arrow keys step through the marks; Enter opens the record.
-6. **One summary each.** Strength's groups: working sets, with the weekly figure. An exercise:
+6. **One summary each.** Strength's groups: working sets, with the weekly figure (now total
+   volume, ADR 0043). An exercise:
    its best in the span and the set behind it. Distance and time: the total. Pace: the average,
    time over distance. Food: the average a day. Body weight: the latest and its change.
    Recovery: the average a night or a day.
@@ -61,7 +63,9 @@ behind the funnel, and every read stopped at 500 workouts or runs, so a long ran
    a day logged in part counts as what was logged. A recovery answer counts on the days it was
    given, a day checked in twice is one day, and zero hours of sleep is an answer. Strength's
    weekly figure is taken over the weeks trained.
-8. **Strength: the muscle groups, then one exercise.** The groups are the radar's six. A working
+8. **Strength: the muscle groups, then one exercise.** (Superseded by ADR 0043: a muscle group
+   and an exercise in it, chosen from two selects, and the group's volume while no exercise is
+   chosen.) The groups are the radar's six. A working
    set counts once for each group it trains, in full where the group holds one of the exercise's
    primary muscles and half where it holds only secondary ones: a squat is one set of legs, not
    three and a half. An exercise is drawn by estimated 1RM, max weight, max reps and max volume
