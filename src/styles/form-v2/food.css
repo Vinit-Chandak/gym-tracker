@@ -478,12 +478,50 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-/* A row's own glyph follows its name's last word, wherever the name wraps. */
+/* A glyph after a name (a saved meal's star in My foods) follows its last word, wherever the
+   name wraps. */
 .food-row-glyph {
   display: inline-block;
   margin-left: 6px;
   color: var(--ov-ink-2);
   vertical-align: -2px;
+}
+/* A meal's page leads Quick add and a saved meal with their glyph, centred on the name's line,
+   and keeps each name to one line, ending in an ellipsis rather than wrapping. */
+.food-row-led {
+  display: grid;
+  grid-template-areas:
+    "glyph name"
+    ". meta";
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+}
+.food-row-led > .food-row-glyph {
+  grid-area: glyph;
+  align-self: center;
+  margin-left: 0;
+}
+.food-row-led > .food-row-name {
+  grid-area: name;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.food-row-led > .food-row-meta {
+  grid-area: meta;
+}
+/* A saved meal's foods: two lines at most, ellipsed after the second. Every saved meal is as
+   tall as a name over two lines of foods, at their sizes and line heights here, its words
+   centred in that height, so a meal of two foods stands as tall as one of five. */
+.food-row-foods {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.food-row-led:has(> .food-row-foods) {
+  min-height: calc(1.4 * var(--ov-type-body) + 2 * 1.35 * var(--ov-type-meta-small));
+  align-content: center;
 }
 /* A row that comes to a figure folds it under its words at large text, never squeezes them. */
 .food-row:has(> .food-row-kcal) {

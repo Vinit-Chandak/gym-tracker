@@ -145,7 +145,7 @@ function editor(screenData: Partial<MealScreen> = {}) {
 }
 
 const sheet = () => document.querySelector("dialog")!;
-const myFoods = () => within(screen.getByRole("list", { name: "Your foods and meals" }));
+const myFoods = () => within(screen.getByRole("group", { name: "Your foods and meals" }));
 const inSheet = () => within(sheet());
 const type = (label: string, value: string) =>
   fireEvent.change(inSheet().getByLabelText(label), { target: { value } });
@@ -401,11 +401,17 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(SHAKE.id));
 });
 
-it("searches foods by name, and saved meals by name or by what they hold, in one list", () => {
+it("searches foods by name, and saved meals by name or by what they hold, meals above foods", () => {
   editor();
-  // Everything in My foods is one list to add from, after Quick add and with saved meals first;
-  // nothing is made here.
+  // Everything in My foods can be added from here, after Quick add: the saved meals under their
+  // own heading, then the foods under theirs. Nothing is made here.
   expect(myFoods().getAllByRole("button")).toHaveLength(6);
+  const names = (list: string) =>
+    within(screen.getByRole("list", { name: list }))
+      .getAllByRole("button")
+      .map((button) => button.textContent?.split(" ")[0]);
+  expect(names("Meals")).toEqual(["Shake", "Usual"]);
+  expect(names("Foods")).toEqual(["Oats", "Milk", "Whey"]);
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "WHEY" } });
@@ -414,10 +420,12 @@ it("searches foods by name, and saved meals by name or by what they hold, in one
       .getAllByRole("button")
       .map((button) => button.textContent?.split(" ")[0]),
   ).toEqual(["Quick", "Shake", "Usual", "Whey"]);
-  // A food that exists is found, not offered as a new one.
+  // A food that exists is found, not offered as a new one; with no saved meal found, their
+  // heading goes too.
   fireEvent.change(search, { target: { value: "oats" } });
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /^Shake/ })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Meals" })).toBeNull();
   // Only a search that finds nothing offers to make the food.
   fireEvent.change(search, { target: { value: "granola" } });
   expect(

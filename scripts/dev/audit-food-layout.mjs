@@ -162,7 +162,7 @@ export async function checkFoodLayout({ page, visit, folder, device, day }) {
         await navigate(`/food/breakfast${selectedDay}`);
         const entries = page.getByRole("list", { name: "In breakfast", exact: true });
         await readableNames(entries.locator(".food-row-name"), "Logged foods");
-        const library = page.getByRole("list", { name: "Your foods and meals", exact: true });
+        const library = page.getByRole("group", { name: "Your foods and meals", exact: true });
         await readableNames(library.locator(".food-row-name"), "Food and saved-meal choices");
         await contained(page, "Meal editor");
         await capture("entries", true);

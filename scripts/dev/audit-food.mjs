@@ -133,7 +133,7 @@ async function settle() {
 }
 const dialog = () => page.getByRole("dialog");
 /** What a meal's page adds from: everything in My foods, in one list (ADR 0035). */
-const myFoods = () => page.getByRole("list", { name: "Your foods and meals" });
+const myFoods = () => page.getByRole("group", { name: "Your foods and meals" });
 /** Makes a food from a meal's page: only a search that finds nothing offers it. */
 async function newFoodFrom(search) {
   await page.getByRole("searchbox").fill(search);

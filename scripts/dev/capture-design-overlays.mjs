@@ -83,7 +83,7 @@ const cases = [
     route: `/food/breakfast${foodDay}`,
     open: async (page) =>
       page
-        .getByRole("list", { name: "Your foods and meals", exact: true })
+        .getByRole("group", { name: "Your foods and meals", exact: true })
         .getByRole("button", { name: /Oats, yoghurt and banana/ })
         .click(),
     dialog: true,

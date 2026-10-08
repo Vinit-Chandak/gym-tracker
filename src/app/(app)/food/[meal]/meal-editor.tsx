@@ -54,10 +54,13 @@ function AddMark() {
 
 /**
  * One meal of the day (ADRs 0033, 0035; board Dinner): what is in it and what that comes to, the
- * star that saves it, and everything in My foods that can go into it, searched as it is typed,
- * every name at the gutter. A food opens a sheet for how much of it; a saved meal, for adding
- * all of it. Tapping a food already in the meal changes its amount, and swiping it aside takes
- * it out, which its sheet can do too.
+ * star that saves it, and everything in My foods that can go into it, searched as it is typed:
+ * the saved meals under Meals, then the foods under Foods, as My foods sets them out. A food's
+ * name stands at the gutter; Quick add and a saved meal are led by their glyph, their names kept
+ * to one line and a saved meal's foods to two, so every saved meal is the same height. A food
+ * opens a sheet for how much of it; a saved meal, for adding all of it, which shows its name and
+ * foods in full. Tapping a food already in the meal changes its amount, and swiping it aside
+ * takes it out, which its sheet can do too.
  *
  * The page adds from My foods and does not manage it: foods are made, corrected and removed on
  * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
@@ -242,72 +245,99 @@ export function MealEditor({
         />
       </div>
 
-      <ul className="food-list mt-1.5" aria-label="Your foods and meals">
-        <li>
-          <button
-            type="button"
-            onClick={() => open({ kind: "quick", name: query.trim() })}
-            className="food-row"
-          >
-            <span className="food-row-text">
-              <span className="food-row-name">
-                {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
-                <Glyph name="bolt" className="food-row-glyph glyph-16" />
-              </span>{" "}
-              <span className="food-row-meta">Calories and macros, just this once</span>
-            </span>
-          </button>
-        </li>
-        {savedMeals.map((saved) => (
-          <li key={saved.id}>
-            <button
-              type="button"
-              onClick={() => open({ kind: "saved", saved })}
-              className="food-row"
-            >
-              <span className="food-row-text">
-                <span className="food-row-name">
-                  {saved.name}
-                  <Glyph name="star" label="Saved meal" className="food-row-glyph glyph-16" />
-                </span>{" "}
-                <span className="food-row-meta">
-                  {saved.items.map((item) => item.name).join(", ")}
-                </span>
-              </span>{" "}
-              <Kcal kcal={addUp(saved.items.map(eaten)).kcal} />
-            </button>
-          </li>
-        ))}
-        {foods.map((food) => (
-          <li key={food.id}>
-            <button type="button" onClick={() => open({ kind: "log", food })} className="food-row">
-              <span className="food-row-text">
-                <span className="food-row-name">{food.name}</span>{" "}
-                <span className="food-row-meta">
-                  {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-                </span>
-              </span>
-              <AddMark />
-            </button>
-          </li>
-        ))}
-        {nothingFound && (
+      <div role="group" aria-label="Your foods and meals">
+        <ul className="food-list mt-1.5">
           <li>
             <button
               type="button"
-              onClick={() => open({ kind: "create", name: query.trim() })}
+              onClick={() => open({ kind: "quick", name: query.trim() })}
               className="food-row"
             >
-              <span className="food-row-text">
+              {/* The glyph is drawn in front of the name but comes after it in the button's
+                  name, so a screen reader still starts with what the row is called. */}
+              <span className="food-row-text food-row-led">
                 <span className="food-row-name">
-                  {query.trim() ? `New food “${query.trim()}”` : "New food"}
+                  {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
                 </span>
+                <Glyph name="bolt" className="food-row-glyph glyph-16" />{" "}
+                <span className="food-row-meta">Calories and macros, just this once</span>
               </span>
-              <AddMark />
             </button>
           </li>
+          {nothingFound && (
+            <li>
+              <button
+                type="button"
+                onClick={() => open({ kind: "create", name: query.trim() })}
+                className="food-row"
+              >
+                <span className="food-row-text">
+                  <span className="food-row-name">
+                    {query.trim() ? `New food “${query.trim()}”` : "New food"}
+                  </span>
+                </span>
+                <AddMark />
+              </button>
+            </li>
+          )}
+        </ul>
+
+        {savedMeals.length > 0 && (
+          <section className="mt-5">
+            <h2 className="caption-head">Meals</h2>
+            <ul aria-label="Meals">
+              {savedMeals.map((saved) => (
+                <li key={saved.id}>
+                  <button
+                    type="button"
+                    onClick={() => open({ kind: "saved", saved })}
+                    className="food-row"
+                  >
+                    <span className="food-row-text food-row-led">
+                      <span className="food-row-name">{saved.name}</span>
+                      <Glyph
+                        name="star"
+                        label="Saved meal"
+                        className="food-row-glyph glyph-16"
+                      />{" "}
+                      <span className="food-row-meta food-row-foods">
+                        {saved.items.map((item) => item.name).join(", ")}
+                      </span>
+                    </span>{" "}
+                    <Kcal kcal={addUp(saved.items.map(eaten)).kcal} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-      </ul>
+
+        {foods.length > 0 && (
+          <section className="mt-5">
+            <h2 className="caption-head">Foods</h2>
+            <ul aria-label="Foods">
+              {foods.map((food) => (
+                <li key={food.id}>
+                  <button
+                    type="button"
+                    onClick={() => open({ kind: "log", food })}
+                    className="food-row"
+                  >
+                    <span className="food-row-text">
+                      <span className="food-row-name">{food.name}</span>{" "}
+                      <span className="food-row-meta">
+                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
+                        kcal
+                      </span>
+                    </span>
+                    <AddMark />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
 
       <p aria-live="polite" className="sr-only">
         {said}
