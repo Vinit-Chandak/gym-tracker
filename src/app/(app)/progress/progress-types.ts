@@ -35,7 +35,8 @@ export type ProgressData = {
    * Per-sport totals over the range, counted in SQL rather than sampled: a total is a total.
    */
   overview: { range: GraphRange; totals: readonly SportTotal[] };
-  strength: { range: GraphRange; graph: StrengthGraph };
+  /** Volume by muscle group, read in the account's own unit. */
+  strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit };
   exercise: ExerciseGraphData;
   /** `truncated`: more runs than a graph reads, so the oldest are left out (and said so). */
   running: { range: GraphRange; graph: RunningGraph; truncated: boolean };

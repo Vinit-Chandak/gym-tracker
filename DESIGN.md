@@ -822,8 +822,10 @@ exercise's page and a friend's compare page. Top to bottom:
   record behind it opens it (Open workout, Open session) in place of its context, so the readout
   keeps its height. View values lists both, a column each, each value opening its own record.
 - **Choices** above a graph are the section's own (a segmented tray for what is drawn, a select
-  for which group or exercise) and only where they change something: outdoor and treadmill appear
-  only when both were run, an exercise's machines only when it was done on more than one.
+  for which one) and only where they change something: outdoor and treadmill appear only when
+  both were run, an exercise's machines only when it was done on more than one. Strength stacks
+  two selects, a muscle group and then one of its exercises ("All exercises" first), and draws
+  the group's total volume until an exercise is chosen (ADR 0043).
 
 **The Better Is Up Rule.** On every graph, up is more or better. Pace runs downward, faster
 higher, and says so in its ⓘ.

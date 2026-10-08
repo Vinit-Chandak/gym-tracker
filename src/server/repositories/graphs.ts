@@ -10,13 +10,20 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import type { ExerciseSetRow, FoodDayInput, StrengthRow } from "@/domain/progress-graphs";
+import {
+  strengthGroupOf,
+  type ExerciseSetRow,
+  type FoodDayInput,
+  type StrengthGroup,
+  type StrengthRow,
+} from "@/domain/progress-graphs";
 import {
   LOAD_UNITS,
   type ExerciseModality,
   type LoadUnit,
   type PrescriptionType,
 } from "@/domain/types";
+import { LB_PER_KG } from "@/lib/units";
 import type { DateRange } from "@/server/validation/date-range";
 
 /**
@@ -41,7 +48,20 @@ const workingSetsOf = (userId: string, window: Pick<DateRange, "start" | "end"> 
     window ? lt(workoutSessions.startedAt, window.end) : undefined,
   );
 
-/** Each exercise of each finished workout in the window: its working sets and its muscles. */
+/**
+ * Load × reps of a set in kilograms, as a workout's shared volume adds it up: kg and lb sets
+ * only (a stack step or a plate count weighs nothing anyone can add), a pound converted to the
+ * hundredth of a kilogram first.
+ */
+const SET_VOLUME_KG = sql<number>`case
+  when ${setLogs.unit} = 'kg' then ${setLogs.weight} * ${setLogs.reps}
+  when ${setLogs.unit} = 'lb' then round(${setLogs.weight} / ${LB_PER_KG}, 2) * ${setLogs.reps}
+end`;
+
+/**
+ * Each exercise of each finished workout in the window: its working sets, their volume and its
+ * primary muscles, which file it under its muscle group.
+ */
 export async function readStrengthRows(
   db: DbOrTx,
   userId: string,
@@ -53,8 +73,8 @@ export async function readStrengthRows(
       sessionId: workoutSessions.id,
       date: workoutDay(timeZone),
       primaryMuscles: exercises.primaryMuscles,
-      secondaryMuscles: exercises.secondaryMuscles,
       workingSets: sql<number>`count(*)::int`,
+      volumeKg: sql<number>`coalesce(sum(${SET_VOLUME_KG}), 0)::float8`,
     })
     .from(setLogs)
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
@@ -66,8 +86,8 @@ export async function readStrengthRows(
     .orderBy(asc(workoutSessions.startedAt));
   return rows.map((row) => ({
     ...row,
-    secondaryMuscles: row.secondaryMuscles ?? [],
     workingSets: Number(row.workingSets),
+    volumeKg: Math.round(Number(row.volumeKg) * 100) / 100,
   }));
 }
 
@@ -85,6 +105,8 @@ export type ExerciseSeriesOption = {
   machine: string;
   unit: LoadUnit;
   modality: ExerciseModality;
+  /** The muscle group it is filed under (ADR 0043); null when it names no known muscle. */
+  group: StrengthGroup | null;
   /** Counted in reps, seconds or metres. */
   measure: PrescriptionType;
   /** Finished workouts it was in inside the window being drawn, and ever. */
@@ -110,6 +132,7 @@ export async function readExerciseSeriesOptions(
       exerciseId: workoutExercises.exerciseId,
       name: exercises.name,
       modality: exercises.modality,
+      primaryMuscles: exercises.primaryMuscles,
       measure: exercises.defaultPrescriptionType,
       machineKey: MACHINE_KEY,
       unit: setLogs.unit,
@@ -138,6 +161,7 @@ export async function readExerciseSeriesOptions(
       workoutExercises.exerciseId,
       exercises.name,
       exercises.modality,
+      exercises.primaryMuscles,
       exercises.defaultPrescriptionType,
       MACHINE_KEY,
       setLogs.unit,
@@ -157,6 +181,7 @@ export async function readExerciseSeriesOptions(
             }${row.gymName ? ` · ${row.gymName}` : ""}`,
       unit: row.unit,
       modality: row.modality,
+      group: strengthGroupOf(row.primaryMuscles),
       measure: row.measure,
       sessionsInRange: Number(row.sessionsInRange),
       sessions: Number(row.sessions),

@@ -5,12 +5,12 @@ import {
   averagePace,
   exerciseSessions,
   foodGraph,
-  groupShares,
   measuresWithData,
   recoveryDays,
   recoveryGraph,
   runningGraph,
   strengthGraph,
+  strengthGroupOf,
   type ExerciseSetRow,
   type StrengthRow,
 } from "./progress-graphs";
@@ -20,91 +20,85 @@ const TODAY = "2026-10-07";
 const MONTH = presetRange("1m", TODAY); // 8 Sept – 7 Oct, by day
 const QUARTER = presetRange("3m", TODAY); // from Mon 6 Jul, by week
 
-describe("working sets by muscle group", () => {
-  it("counts a set once per group, never once per muscle", () => {
-    // A squat: quads and glutes primary, hamstrings, adductors and lower back secondary.
-    expect(groupShares(["quads", "glutes"], ["hamstrings", "adductors", "lower_back"])).toEqual({
-      legs: 1,
-      back: 0.5,
-    });
-    // A bench press: the chest in full, the front delts and triceps at half.
-    expect(groupShares(["chest"], ["front_delts", "triceps"])).toEqual({
-      chest: 1,
-      shoulders: 0.5,
-      arms: 0.5,
-    });
-    // A muscle named both ways counts as primary; one the app no longer knows is ignored.
-    expect(groupShares(["lats"], ["lats", "biceps", "gills"])).toEqual({ back: 1, arms: 0.5 });
+describe("volume by muscle group", () => {
+  it("files an exercise under one group, its first primary muscle's", () => {
+    // A squat: quads first, so legs, whatever else it names.
+    expect(strengthGroupOf(["quads", "glutes"])).toBe("legs");
+    // A row names the lats first: back, though it works the biceps too.
+    expect(strengthGroupOf(["lats", "biceps"])).toBe("back");
+    expect(strengthGroupOf(["triceps"])).toBe("arms");
+    // A muscle the app no longer knows is passed over; none known is no group.
+    expect(strengthGroupOf(["gills", "abs"])).toBe("core");
+    expect(strengthGroupOf([])).toBeNull();
   });
 
   const rows: StrengthRow[] = [
     {
       sessionId: "a",
       date: "2026-09-14",
-      primaryMuscles: ["quads", "glutes"],
-      secondaryMuscles: ["hamstrings"],
+      primaryMuscles: ["quads"],
       workingSets: 4,
+      volumeKg: 2000,
     },
     {
       sessionId: "a",
       date: "2026-09-14",
       primaryMuscles: ["chest"],
-      secondaryMuscles: ["triceps"],
       workingSets: 3,
+      volumeKg: 900,
     },
-    {
-      sessionId: "b",
-      date: "2026-09-16",
-      primaryMuscles: ["lats"],
-      secondaryMuscles: ["biceps"],
-      workingSets: 4,
-    },
+    // Pull-ups: back work with no load to count.
+    { sessionId: "b", date: "2026-09-16", primaryMuscles: ["lats"], workingSets: 4, volumeKg: 0 },
     {
       sessionId: "c",
       date: "2026-09-30",
       primaryMuscles: ["quads"],
-      secondaryMuscles: [],
       workingSets: 5,
+      volumeKg: 2500.55,
     },
+    // A movement that names no muscle: under All only.
+    { sessionId: "c", date: "2026-09-30", primaryMuscles: [], workingSets: 2, volumeKg: 100 },
     // Outside the month: left out.
     {
       sessionId: "z",
       date: "2026-08-01",
       primaryMuscles: ["quads"],
-      secondaryMuscles: [],
       workingSets: 9,
+      volumeKg: 5000,
     },
   ];
 
-  it("totals each group, every set once under All", () => {
+  it("totals each group's own exercises, and every exercise once under All", () => {
     const graph = strengthGraph(rows, MONTH, TODAY);
-    expect(graph.totals).toEqual({
-      all: 16,
-      legs: 9,
-      chest: 3,
-      arms: 3.5,
-      back: 4,
+    expect(graph.totals.volume).toEqual({
+      all: 5500.6,
+      legs: 4500.6,
+      chest: 900,
+      back: 0,
       shoulders: 0,
+      arms: 0,
       core: 0,
     });
-    expect(graph.workouts).toMatchObject({ all: 3, legs: 2, chest: 1, back: 1, arms: 2 });
+    // Sets count work with or without a load: the back's pull-ups are four.
+    expect(graph.totals.sets).toMatchObject({ all: 18, legs: 9, chest: 3, back: 4 });
+    expect(graph.workouts).toMatchObject({ all: 3, legs: 2, chest: 1, back: 1, arms: 0 });
     // The weekly average is taken over the weeks trained (two), not the month's five.
     expect(graph.weeksTrained).toBe(2);
   });
 
-  it("puts each day's sets in its slot, and names the slot's one workout", () => {
+  it("puts each day's volume in its slot, and names the slot's one workout", () => {
     const graph = strengthGraph(rows, MONTH, TODAY);
     expect(graph.buckets).toHaveLength(30);
     const day = graph.buckets.find((bucket) => bucket.start === "2026-09-14")!;
+    expect(day.volume).toMatchObject({ all: 2900, legs: 2000, chest: 900 });
     expect(day.sets.all).toBe(7);
-    expect(day.workouts.all).toBe(1);
     expect(day.sessionId).toMatchObject({ all: "a", legs: "a", chest: "a" });
     expect(day.sessionId.back).toBeUndefined();
     const weekly = strengthGraph(rows, QUARTER, TODAY).buckets.find(
       (bucket) => bucket.start === "2026-09-14",
     )!;
-    // Two workouts in the week: no single one to open.
-    expect(weekly).toMatchObject({ sets: { all: 11 }, workouts: { all: 2 } });
+    // Two workouts in the week: no single one to open, but the chest's came from one.
+    expect(weekly).toMatchObject({ volume: { all: 2900, back: 0 }, workouts: { all: 2 } });
     expect(weekly.sessionId.all).toBeUndefined();
     expect(weekly.sessionId.chest).toBe("a");
   });

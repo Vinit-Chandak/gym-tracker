@@ -39,9 +39,9 @@ export function daysSoFar(range: GraphRange, today: string): number {
   return Math.max(0, daysBetween(range.from, lastDayOf(range, today)) + 1);
 }
 
-// ---------- Strength: working sets by muscle group ----------
+// ---------- Strength: volume by muscle group ----------
 
-/** The groups Strength's first graph counts, in the order its picker lists them. */
+/** The groups Strength files exercises under, in the order its picker lists them. */
 export const STRENGTH_GROUPS = ["chest", "back", "legs", "shoulders", "arms", "core"] as const;
 export type StrengthGroup = (typeof STRENGTH_GROUPS)[number];
 export type StrengthGroupChoice = StrengthGroup | "all";
@@ -56,59 +56,55 @@ const isMuscle = (value: string): value is MuscleGroup =>
   (MUSCLE_GROUPS as readonly string[]).includes(value);
 
 /**
- * How much one working set of an exercise counts toward each group: once per group, never once
- * per muscle. A group holding one of the exercise's primary muscles takes the whole set; a group
- * holding only secondary ones takes half, the weight the body map gives a secondary muscle. A
- * squat names quads and glutes as primary and hamstrings and adductors as secondary, and it is
- * one set of legs, not three and a half.
+ * The one group an exercise is filed under (ADR 0043): its first primary muscle's, as the
+ * exercise library files it, at the radar's six. One group each, as a training log gives each
+ * exercise one category, so a group's volume is the volume of the exercises listed under it and
+ * the six add up to All. An exercise naming no muscle the app knows is under All only.
  */
-export function groupShares(
-  primary: readonly string[],
-  secondary: readonly string[],
-): Partial<Record<StrengthGroup, number>> {
-  const shares: Partial<Record<StrengthGroup, number>> = {};
-  for (const muscle of secondary)
-    if (isMuscle(muscle)) shares[GROUP_OF[muscle]] = Math.max(shares[GROUP_OF[muscle]] ?? 0, 0.5);
-  for (const muscle of primary) if (isMuscle(muscle)) shares[GROUP_OF[muscle]] = 1;
-  return shares;
+export function strengthGroupOf(primaryMuscles: readonly string[]): StrengthGroup | null {
+  const first = primaryMuscles.find(isMuscle);
+  return first ? GROUP_OF[first] : null;
 }
 
-/** One exercise in one finished workout: its working sets and the muscles it names. */
+/** One exercise in one finished workout: its working sets, what they lifted, its muscles. */
 export type StrengthRow = {
   sessionId: string;
   /** The workout's day in the account's time zone. */
   date: string;
   primaryMuscles: readonly string[];
-  secondaryMuscles: readonly string[];
   workingSets: number;
+  /** Load × reps over its kg and lb working sets, in kilograms. */
+  volumeKg: number;
 };
 
-export type GroupSets = Record<StrengthGroupChoice, number>;
+export type GroupFigures = Record<StrengthGroupChoice, number>;
 
-const noSets = (): GroupSets =>
-  Object.fromEntries(STRENGTH_GROUP_CHOICES.map((group) => [group, 0])) as GroupSets;
+const noFigures = (): GroupFigures =>
+  Object.fromEntries(STRENGTH_GROUP_CHOICES.map((group) => [group, 0])) as GroupFigures;
 
-const roundSets = (sets: GroupSets): GroupSets =>
+const roundFigures = (figures: GroupFigures): GroupFigures =>
   Object.fromEntries(
-    Object.entries(sets).map(([group, value]) => [group, round(value)]),
-  ) as GroupSets;
+    Object.entries(figures).map(([group, value]) => [group, round(value)]),
+  ) as GroupFigures;
 
 export type StrengthBucket = Slot & {
-  /** Every working set once under "all"; each group's at its share. */
-  sets: GroupSets;
+  /** Load × reps in kilograms: every exercise's under All, each group's own exercises'. */
+  volume: GroupFigures;
+  /** Working sets, loaded or not: a bodyweight or timed set is work with no load to count. */
+  sets: GroupFigures;
   /** Workouts in the bucket that trained each group (any group, under "all"). */
-  workouts: GroupSets;
-  /** Where a group's sets in the bucket came from one workout: that workout, so a tap opens it. */
+  workouts: GroupFigures;
+  /** Where a group's work in the bucket came from one workout: that workout, so a tap opens it. */
   sessionId: Partial<Record<StrengthGroupChoice, string>>;
 };
 
 export type StrengthGraph = {
   buckets: StrengthBucket[];
-  totals: GroupSets;
+  totals: { volume: GroupFigures; sets: GroupFigures };
   /** Workouts in the range that trained each group. */
-  workouts: GroupSets;
+  workouts: GroupFigures;
   /**
-   * Weeks with at least one finished workout. A week off is not a week of zero sets for the
+   * Weeks with at least one finished workout. A week off is not a week of no volume for the
    * weekly average: the average is taken over the weeks that were trained.
    */
   weeksTrained: number;
@@ -117,11 +113,12 @@ export type StrengthGraph = {
 type Sessions = Record<StrengthGroupChoice, Set<string>>;
 const noSessions = (): Sessions =>
   Object.fromEntries(STRENGTH_GROUP_CHOICES.map((group) => [group, new Set<string>()])) as Sessions;
-const countsOf = (sessions: Sessions): GroupSets =>
+const countsOf = (sessions: Sessions): GroupFigures =>
   Object.fromEntries(
     STRENGTH_GROUP_CHOICES.map((group) => [group, sessions[group].size]),
-  ) as GroupSets;
+  ) as GroupFigures;
 
+/** Volume by muscle group, a bar per day, week or month (ADR 0043). */
 export function strengthGraph(
   rows: readonly StrengthRow[],
   range: GraphRange,
@@ -129,34 +126,32 @@ export function strengthGraph(
 ): StrengthGraph {
   const buckets = rangeSlots(range, today).map((slot) => ({
     slot,
-    sets: noSets(),
+    volume: noFigures(),
+    sets: noFigures(),
     sessions: noSessions(),
   }));
-  const totals = noSets();
+  const totals = { volume: noFigures(), sets: noFigures() };
   const sessions = noSessions();
   const weeks = new Set<string>();
   for (const row of rows) {
     const bucket = buckets[slotIndex(range, row.date)];
     if (!bucket || row.workingSets <= 0) continue;
     weeks.add(weekStart(row.date));
-    const shares: [StrengthGroupChoice, number][] = [
-      ["all", 1],
-      ...(Object.entries(groupShares(row.primaryMuscles, row.secondaryMuscles)) as [
-        StrengthGroup,
-        number,
-      ][]),
-    ];
-    for (const [group, share] of shares) {
-      bucket.sets[group] += row.workingSets * share;
-      totals[group] += row.workingSets * share;
-      bucket.sessions[group].add(row.sessionId);
-      sessions[group].add(row.sessionId);
+    const group = strengthGroupOf(row.primaryMuscles);
+    for (const choice of group ? (["all", group] as const) : (["all"] as const)) {
+      bucket.volume[choice] += row.volumeKg;
+      bucket.sets[choice] += row.workingSets;
+      totals.volume[choice] += row.volumeKg;
+      totals.sets[choice] += row.workingSets;
+      bucket.sessions[choice].add(row.sessionId);
+      sessions[choice].add(row.sessionId);
     }
   }
   return {
-    buckets: buckets.map(({ slot, sets, sessions: held }) => ({
+    buckets: buckets.map(({ slot, volume, sets, sessions: held }) => ({
       ...slot,
-      sets: roundSets(sets),
+      volume: roundFigures(volume),
+      sets: roundFigures(sets),
       workouts: countsOf(held),
       sessionId: Object.fromEntries(
         STRENGTH_GROUP_CHOICES.flatMap((group) =>
@@ -164,7 +159,7 @@ export function strengthGraph(
         ),
       ),
     })),
-    totals: roundSets(totals),
+    totals: { volume: roundFigures(totals.volume), sets: roundFigures(totals.sets) },
     workouts: countsOf(sessions),
     weeksTrained: weeks.size,
   };

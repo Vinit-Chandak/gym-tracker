@@ -299,15 +299,16 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   only for sports with sessions ("Strength 25 sessions · 21 days · 23 h 50 min"; "Running 8
   sessions · 7 days · 3 h 15 min · 30.8 km"; cycling and swimming alike), noting sessions
   without a distance or duration, with the spans above them.
-- **Strength:** muscle groups or one exercise. **Muscle groups:** all groups or one of chest,
-  back, legs, shoulders, arms and core; working sets as bars, a set counted once per group (in
-  full where the group holds a primary muscle, half where it holds only secondary ones); the
-  total and the weekly figure over the weeks trained ("368 sets · 73.6 a week · 25 workouts").
-  **Exercise:** every exercise ever logged, opening on the free-weight lift done most often in
-  the span; estimated 1RM, max weight, max reps and max volume (the best single set), and max time
-  or distance for holds and carries, only those with data; a line with a point per workout (past
-  about sixty, the best of each week or month); its best in the span and the set behind it
-  ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
+- **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
+  and then an exercise filed under it ("All exercises", then each exercise ever logged there,
+  each under the group of its first primary muscle). **All exercises:** the group's total volume
+  as bars, load × reps of kg and lb working sets in the account's unit; the total and the weekly
+  figure over the weeks trained ("158,639 kg · 31,728 kg a week · 24 workouts"); a bar reads its
+  volume and sets ("8,910 kg · 9 sets") and opens its workout; a group that lifted nothing with a
+  load says bodyweight and timed sets add no volume. **An exercise:** estimated 1RM, max weight,
+  max reps and max volume (the best single set), and max time or distance for holds and carries,
+  only those with data; a line with a point per workout (past about sixty, the best of each week
+  or month); its best in the span and the set behind it ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
   one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from different machines never
   share a line.
 - **Running:** distance and duration as bars, with the total and the count of runs; pace as a

@@ -50,6 +50,21 @@ describe("the scale", () => {
     expect(lineScale([345, 400], { steps: [5, 10, 15, 30, 60] }).ticks).toEqual([360, 390]);
   });
 
+  it("stands one repeated reading on a round middle line, never on a false precision", () => {
+    // A dumbbell at 17.5 kg four times: 15, 17.5 and 20, not 17.2, 17.6 and 18.
+    expect(lineScale([17.5, 17.5, 17.5, 17.5]).ticks).toEqual([15, 17.5, 20]);
+    expect(lineScale([100]).ticks).toEqual([90, 100, 110]);
+    // A hold at 1:30, on the clock's own steps.
+    expect(lineScale([90, 90], { steps: [5, 10, 15, 20, 30, 60] }).ticks).toEqual([80, 90, 100]);
+    // Not a whole number of any step near a tenth of it: round lines either side.
+    const odd = lineScale([75.2, 75.2]);
+    expect(odd.ticks).toEqual([70, 80]);
+    expect(odd.lo).toBeLessThan(70);
+    expect(odd.hi).toBeGreaterThan(80);
+    // Zeros stand on the bottom line, with no line under nothing.
+    expect(lineScale([0, 0]).ticks).toEqual([0, 0.5, 1]);
+  });
+
   it("draws a fixed scale whole whatever the readings", () => {
     expect(lineScale([2, 3], { min: 1, max: 5, ticks: [1, 3, 5] })).toEqual({
       ticks: [1, 3, 5],
