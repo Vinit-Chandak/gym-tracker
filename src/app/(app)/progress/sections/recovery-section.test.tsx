@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -71,4 +71,28 @@ it("draws a better day higher: 5 on top for sleep quality, 1 on top for fatigue 
   expect(scaleOrder("fatigue")).toEqual(["1", "3", "5"]);
   cleanup();
   expect(scaleOrder("soreness")).toEqual(["1", "3", "5"]);
+});
+
+it("says a measure was not answered where the span has check-ins without it", () => {
+  route.search = "recovery=sleepHours";
+  const fatigueOnly = reading("2026-09-27", {
+    sleepHours: null,
+    sleepQuality: null,
+    soreness: null,
+  });
+  render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{ range: MONTH, graph: recoveryGraph([fatigueOnly], MONTH, TODAY) }}
+    />,
+  );
+  expect(screen.getByText("Sleep not answered in this range.")).toBeTruthy();
+  cleanup();
+  render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{ range: MONTH, graph: recoveryGraph([], MONTH, TODAY) }}
+    />,
+  );
+  expect(screen.getByText("No check-ins in this range.")).toBeTruthy();
 });

@@ -327,7 +327,8 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   · target 2,600").
 - **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
   answers as lines on their whole scale, fatigue and soreness drawn 1 at the top so a fresher day
-  is higher; the average over the days that gave the answer, a day checked in twice counted once.
+  is higher; the average over the days that gave the answer, a day checked in twice counted once;
+  a span whose check-ins left the answer blank says so ("Sleep not answered in this range.").
 - **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
   change ("75.2 kg · −1 since Tue 8 Sept").
 - **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
