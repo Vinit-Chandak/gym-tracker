@@ -25,8 +25,8 @@ and 16 dumbbell presses on 6–10. That rule had no evidence behind it, and some
   ([Schoenfeld et al. 2021](https://pmc.ncbi.nlm.nih.gov/articles/PMC7927075/); see also
   [Fisher, Ironside & Steele 2017](https://pure.solent.ac.uk/en/publications/heavier-and-lighter-load-resistance-training-to-momentary-failure/)).
   In repetition-progression training, athletes struggled to reach failure for the same reason
-  ([Plotkin et al. 2022](https://peerj.com/articles/14142)). A long curl ends on grip, forearms
-  and discomfort as much as on the biceps.
+  ([Plotkin et al. 2022](https://peerj.com/articles/14142)). On a long curl, grip and forearms
+  plausibly give out alongside the biceps, though no study has measured it.
 - The library gives each exercise its own range. Building six reps past it trains a different
   range from the one chosen, for a step whose landing the same curve cannot predict that far out.
 
@@ -51,6 +51,9 @@ number. A coach's ramp takes set numbers 1–3, so the first warm-up row switche
 kept the warm-up's 30 × 6, the tag explained "30 kg × 6 @ 2", and saving it untouched logged 30 kg
 × 6 as work. Warm-up rows had no tag at all.
 
+The full evidence review, with every source checked, is
+[PROGRESSION_EVIDENCE_REVIEW.md](../planning/PROGRESSION_EVIDENCE_REVIEW.md).
+
 ## Decisions
 
 1. **Reps build two past the top at most.** Where stepping from the top would land below the
@@ -70,8 +73,11 @@ kept the warm-up's 30 × 6, the tag explained "30 kg × 6 @ 2", and saving it un
    predicted to land inside the range that did not is a miss like any other.
 4. **A near miss is not a miss.** A session counts towards a step that missed twice, and towards
    slowing the next attempt, only when its hardest set is more than `missTolerance` (1) rep in
-   hand short of the range's bottom at the target effort. One rep short holds, as one low session
-   always has.
+   hand short of the range's bottom at the target effort — two where that bottom is past twelve
+   reps in hand, since the report barely worsens up to twelve reps a set and loses about half a rep
+   with every rep beyond (Halperin et al. 2022). One rep short holds, as one low session always
+   has. A load never held goes back after one session (ADR 0040) only when that session is clearly
+   short too.
 5. **Each set is read at the session's load.** A lighter set is read up to it along the curve. A
    heavier set of the athlete's own that fell short of the range was an attempt at that load: it
    is read down to the session's load, counts there (`latestWorkLoads`), and the next session

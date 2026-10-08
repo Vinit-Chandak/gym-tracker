@@ -75,13 +75,15 @@ reference document must not overwrite current athlete records.
   step, not a law, and the further a set is from failure, or the more reps it has, the more of a
   guess it and the reported reserve both are. A step that misses the band clearly twice in its
   first three sessions goes back to the load before it, and is tried again after two sessions at
-  the ceiling; one rep in hand short of the band is within the error of a reported RIR, and holds.
+  the ceiling; one rep in hand short of the band — two where the band starts past twelve reps a
+  set — is within the error of a reported RIR, and holds.
 - Where the next step is so coarse it would land below the band — a 10 to 12.5 kg dumbbell is a
   quarter more — build reps at most two past the ceiling, then take the step and let it start
   below the band, at no fewer than five reps at the intended effort (a band whose bottom is five or
   fewer never starts below it), and build back up. Chasing the step into the band asked for 21
-  curls on a 10–15 band: long sets end on grip, discomfort and endurance as much as on the
-  muscle, and the curve that asked for them is a guess that far out. A jump too big to start at
+  curls on a 10–15 band: long sets end on discomfort and fatigue as much as on the muscle — on a
+  curl plausibly grip too, though nobody has measured it — and the curve that asked for them is a
+  guess that far out. A jump too big to start at
   five even from there waits at that rep count for the reserve to grow, or for a smaller step or a
   variation; reps do not keep climbing.
 - Read a set at another load than the session's against the session's load: a lighter one is

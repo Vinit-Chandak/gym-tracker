@@ -729,6 +729,24 @@ describe("a bounded coarse step, a lighter day and a heavier attempt (ADR 0047)"
     expect(evidence).toMatchObject({ readiness: "below", revert: null });
   });
 
+  it("allows a longer set two reps of near miss, where the reported reserve is less sure", () => {
+    // 3 × 12–20 at 1 RIR, stepped 10 to 11 kg: the bottom of the range is 13 in hand.
+    const raise: Prescription = { ...curl, sets: 3, repMin: 12, repMax: 20, rirMin: 1, rirMax: 1 };
+    const at = (reps: number, rir: number) =>
+      sessions(
+        { sets: same(3, 11, reps, rir) },
+        { sets: same(3, 11, reps, rir) },
+        { sets: same(3, 10, 21, 1) },
+      );
+    // 11 at 0 is two in hand short: past twelve reps a set, still a near miss.
+    expect(summarizeExerciseEvidence(raise, at(11, 0)).revert).toBeNull();
+    // 9 at 0 is four short, twice: the step goes back.
+    expect(summarizeExerciseEvidence(raise, at(9, 0)).revert).toMatchObject({
+      reason: "missed_twice",
+      load: 10,
+    });
+  });
+
   it("reads a heavier set of the athlete's own at the session's load when it fell short", () => {
     // 28 Sep: the plan was 60 kg; 60 × 6 at 2, then 62.5 kg tried for sets 2–3 at 4 × 1 RIR.
     const tried = sessions(

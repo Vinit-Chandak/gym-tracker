@@ -21,7 +21,9 @@ export const TRAINING_POLICY = {
   /**
    * Reps in hand a session may fall short of the bottom of the range at the target effort and
    * still not count as a miss: about the error of a reported RIR, so a set at the minimum with
-   * one in reserve less than planned is a near miss, not a step that failed (ADR 0047).
+   * one in reserve less than planned is a near miss, not a step that failed (ADR 0047). Twice
+   * that where the bottom of the range is past `estimateMaxReps` in hand: the report barely
+   * worsens up to twelve reps a set and loses about half a rep with every rep beyond.
    */
   missTolerance: 1,
   /**
@@ -122,7 +124,7 @@ function repsToLand(p: CeilingInput, load: number, next: number): number {
  * build past the top, but only by `coarseStepReps` (ADR 0047). Building until the step lands
  * inside the range asked for 21 curls where the range was 10–15: the curve that said so is a
  * guess that far from failure, the reported reserve is least reliable in long sets, and such a
- * set ends on grip and discomfort as much as on the muscle. The step is taken from there and
+ * set ends on discomfort and fatigue as much as on the muscle. The step is taken from there and
  * starts below the range (`landingFloor`).
  */
 export function repCeiling(
@@ -657,10 +659,15 @@ function summarize(
    * less than planned — the reported reserve cannot tell a miss from a good day, and the load
    * holds as it does for one low session; it is not a step that failed.
    */
-  const missed = (point: (typeof points)[number]) =>
-    point.readiness === "below" &&
-    (point.capacity ?? point.hardest ?? -Infinity) <
-      floorAt(point) - TRAINING_POLICY.missTolerance - 1e-9;
+  const missed = (point: (typeof points)[number]) => {
+    const floor = floorAt(point);
+    const tolerance =
+      TRAINING_POLICY.missTolerance * (floor > TRAINING_POLICY.estimateMaxReps ? 2 : 1);
+    return (
+      point.readiness === "below" &&
+      (point.capacity ?? point.hardest ?? -Infinity) < floor - tolerance - 1e-9
+    );
+  };
   const misses = (run: (typeof loadRuns)[number]) => run.points.filter(missed);
   const current = loadRuns[0],
     before = loadRuns[1];
@@ -719,16 +726,12 @@ function summarize(
     );
   /**
    * A session whose hardest set could not reach the bottom of the range even to failure — after
-   * a coarse step, the reps that step may start at (ADR 0047).
+   * a coarse step, the reps that step may start at — and clearly short of it, never a near miss
+   * (ADR 0047): going back at once on one session needs at least what a miss does.
    */
   const beyondReach = (point: (typeof points)[number]) => {
     const bottom = minimumAt(point);
-    return (
-      point.readiness === "below" &&
-      point.hardest !== null &&
-      bottom != null &&
-      point.hardest < bottom
-    );
+    return missed(point) && point.hardest !== null && bottom != null && point.hardest < bottom;
   };
   /**
    * A load nobody has held in the range is not a baseline yet (ADR 0040). When the latest session
