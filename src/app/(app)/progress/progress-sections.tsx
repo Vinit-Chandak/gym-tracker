@@ -10,7 +10,7 @@ import { SectionSelect } from "@/components/ui/section-select";
  * subject, each drawn by the same graphs (ADR 0042). History is not one of them any more
  * (ADR 0045): Overview lists the latest, and every entry is a page behind it. Muscles, the body
  * map, stands beside Strength on a week of its own; Body weight keeps `body`, so links to it
- * still hold (ADR 0046).
+ * still hold (ADR 0047).
  */
 export const PROGRESS_SECTIONS = [
   { value: "overview", label: "Overview" },

@@ -230,7 +230,7 @@ for (const config of [
     });
     await page.setViewportSize(config.options.viewport);
     await check("chart-values-large-text", async () => {
-      // The body map's figures are named images, on a section of their own (ADR 0046); a graph's
+      // The body map's figures are named images, on a section of their own (ADR 0047); a graph's
       // plot is hidden from assistive technology, which reads its readout instead. Body weight's
       // graph comes last, for its values.
       for (const route of ["/progress?view=muscles", "/progress?view=body"]) {

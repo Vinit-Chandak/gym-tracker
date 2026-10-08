@@ -27,7 +27,7 @@ import { StrengthSection } from "./sections/strength-section";
 /**
  * The range a section is drawn over, for the dates beside its name and the funnel's. Overview
  * has none: its month is this month and its list the latest (ADR 0045). Nor has Muscles: it
- * keeps its own week, named over the body map (ADR 0046).
+ * keeps its own week, named over the body map (ADR 0047).
  */
 function sectionRange(section: ProgressSection, data: ProgressData): GraphRange | null {
   switch (section) {

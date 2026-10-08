@@ -12,7 +12,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import type { ProgressData } from "../progress-types";
 
 /**
- * Muscles (ADR 0046): the working sets a week gave each muscle, on the body map. A snapshot,
+ * Muscles (ADR 0047): the working sets a week gave each muscle, on the body map. A snapshot,
  * not a trend, so it keeps its own week, Monday to Sunday, stepped by its own arrows rather
  * than the span the graphs share. The week is named as a graph names it, "This week" while it
  * runs; nothing is trained in a week still to come, so the arrows stop at this one.

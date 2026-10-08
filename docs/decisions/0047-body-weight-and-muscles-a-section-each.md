@@ -1,4 +1,4 @@
-# ADR 0046: Body weight and muscles, a section each
+# ADR 0047: Body weight and muscles, a section each
 
 Date: 2026-10-08
 Status: accepted; amends decision 11 of [ADR 0042](0042-one-graph-for-every-trend.md)
