@@ -85,6 +85,9 @@ export function SwipeRow({
 
   return (
     <div ref={root} className="relative overflow-hidden">
+      {/* A pixel in from the row's top and bottom: a row that lands between device pixels
+          smooths its own edges, and the action, light in dark mode, showed through them as a
+          stray line at the end of every closed row. */}
       <button
         ref={actionButton}
         type="button"
@@ -95,7 +98,7 @@ export function SwipeRow({
           moveTo(0);
           onAction();
         }}
-        className="absolute inset-y-0 right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-medium text-on-accent focus-visible:-outline-offset-4"
+        className="absolute inset-y-px right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-medium text-on-accent focus-visible:-outline-offset-4"
       >
         {action}
       </button>

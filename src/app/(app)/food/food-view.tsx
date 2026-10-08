@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { STRATA } from "@/components/art/geometry";
 import { paintToken } from "@/components/art/shapes";
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
+import { FoodRowText, RowKcal } from "@/components/food/food-row";
 import { FoodSummary, mealTotals } from "@/components/food/food-summary";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
@@ -80,43 +81,40 @@ function MealRow({
   href: Route;
 }) {
   const name = MEAL_LABELS[meal];
+  // Its tile holds its layer of the bowl above, so a row and the print it fills are one.
   if (entries.length === 0)
     return (
       <Link
         href={href}
         prefetch="intent"
         aria-label={`${name}: nothing yet. Add`}
-        className="meal-row meal-row-empty"
+        className="food-row food-row-empty"
       >
-        <span className="mark-cell">
-          <span aria-hidden className="meal-swatch" />
-        </span>
-        <span className="meal-row-name">{name}</span>
-        <span aria-hidden className="meal-add">
-          <Glyph name="plus" className="glyph-18" />
-        </span>
+        <FoodRowText name={name} tile={<MealSwatch />} />
       </Link>
     );
-  const foods = [...new Set(entries.map((entry) => entry.name))].join(" · ");
+  const foods = [...new Set(entries.map((entry) => entry.name))].join(", ");
   return (
-    <Link href={href} prefetch="intent" className="meal-row">
-      <span className="mark-cell">
-        <span
-          aria-hidden
-          className="meal-swatch"
-          style={{ background: paintToken(STRATA[layer % STRATA.length]!, "paper") }}
-        />
-      </span>
-      {/* The spaces are for the link's name, which a screen reader reads as one string. */}
-      <span className="meal-row-text">
-        <span className="meal-row-name">{name}</span>{" "}
-        <span className="meal-row-foods">{foods}</span>
-      </span>{" "}
-      <span className="type-figure whitespace-nowrap">
-        {formatKcal(kcal)}
-        <span className="sr-only"> kcal</span>
-      </span>
+    <Link href={href} prefetch="intent" className="food-row">
+      <FoodRowText name={name} tile={<MealSwatch layer={layer} />} meta={foods} />{" "}
+      <RowKcal kcal={kcal} />
     </Link>
+  );
+}
+
+/** A meal's layer of the bowl, as a small bowl in its tile; an empty meal's is the empty bowl. */
+function MealSwatch({ layer }: { layer?: number }) {
+  return (
+    <span aria-hidden className="food-row-glyph food-row-swatch">
+      <span
+        className="meal-swatch"
+        style={
+          layer === undefined
+            ? undefined
+            : { background: paintToken(STRATA[layer % STRATA.length]!, "paper") }
+        }
+      />
+    </span>
   );
 }
 
@@ -216,7 +214,7 @@ export function FoodView({
           </div>
         )}
 
-        <ul className="food-meals" aria-label="Meals">
+        <ul className="food-meals food-list" aria-label="Meals">
           {MEALS.map((meal) => {
             const layer = inBowl.findIndex((total) => total.meal === meal);
             return (

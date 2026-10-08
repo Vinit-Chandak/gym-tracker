@@ -40,7 +40,7 @@ const page = await context.newPage();
 page.setDefaultTimeout(15_000);
 page.on("pageerror", (error) => pageErrors.push({ url: page.url(), message: error.message }));
 const dialog = () => page.getByRole("dialog");
-const foods = () => page.getByRole("list", { name: "Your foods and meals" });
+const foods = () => page.getByRole("group", { name: "Your foods and meals" });
 const entries = () => sql`select id, name, food_id, eaten_on::text as day, meal,
   kcal::float8 as kcal, carbs_g::float8 as carbs, fat_g::float8 as fat,
   protein_g::float8 as protein, amount::float8 as amount, unit

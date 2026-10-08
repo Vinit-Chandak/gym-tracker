@@ -378,16 +378,27 @@ activity, each collapsible, with its own next step; the print is a band over the
 coach's note opens in place; the warm-up is ticked off on its row; Finish with nothing logged
 offers Discard first; the sign-in screens carry the mark. The rules below say where.
 
+**Amended 8 October 2026, from the owner's notes on adding to a meal.** Wherever food is listed
+(a meal's page, My foods, a saved meal, a meal being built, the Food tab's meals and a
+macronutrient's foods) it is one row: led by a round tile (Quick add's bolt, a saved meal's star, a
+food's bowl, a meal of the day's layer of the bowl, New food's and New meal's plus), its name on
+one line and what it holds on one more, each ending in an ellipsis rather than wrapping, so every
+row stands the same height, and what it comes to a whole figure over its unit, in a column four
+digits wide. Saved meals stand under Meals and foods under Foods, the most eaten first, a page at
+a time (ADR 0046). These lists are the exception to one left edge and to text that wraps; Rows
+and marks says how. The Dinner board predates this.
+
 **Key Characteristics:**
 
 - A black-and-white interface; colour only ever means a family of sport, as a print or a mark.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
 - Minimal words: no repeated information, no state said in words where ink says it.
-- One left edge: every name starts at the gutter; a mark leads a row only where it names a sport.
+- One left edge: every name starts at the gutter; a mark leads a row only where it names a sport
+  (food rows aside: Rows and marks).
 - Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
 - Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.
-- Laid out from the device: figures fit rather than truncate, text wraps rather than runs off,
-  layouts fold rather than drop.
+- Laid out from the device: figures fit rather than truncate, text wraps rather than runs off
+  (save a food row's two lines, which end in an ellipsis), layouts fold rather than drop.
 
 ## Colors
 
@@ -506,7 +517,9 @@ are 0.614 em, its point and comma 0.32 em.
 
 **The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps
 (`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes
-grows and wraps.
+grows and wraps. The one exception is a food row's name and the line under it, wherever food is
+listed, which keep one line each and end in an ellipsis so every row stands the same height; a
+food's or a saved meal's own sheet says them whole.
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
 
@@ -523,6 +536,9 @@ under 360 pt wide.
   boxed or carded; rows are separated by `hair` rules. Today's activity cards are the one
   deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
   card, and the rows inside a card are ruled like any list.
+  Food rows, wherever food is listed, are the other exception (owner, 8 October 2026): every row
+  is led by its tile, the tiles in one column and the names at one edge after them (Rows and
+  marks).
 - **Today:** the date and the cycle's squares; the day's print as a band (112 pt; 132 at 900 pt
   and taller, 92 under 800, 76 under 600); then one card per activity, 12 apart: an open session
   that is not the day's first, then the workout (or the rest day), then each run, ride and swim
@@ -783,8 +799,27 @@ and every control answers a press.
 - A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 RIR · [dial] 3–4 min"; a run's
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
 - A list to choose from (search results, a gym's machines) puts each name at the gutter and the
-  equipment's glyph at the head of its second line; a row's own glyph (a saved meal's star)
-  follows its name.
+  equipment's glyph at the head of its second line.
+- **Food rows** (owner, 8 October 2026; ADR 0046) are one row wherever food is listed: a meal's
+  page (what is in it, and what can be added), My foods, a saved meal's sheet, a meal being built,
+  the Food tab's meals and a macronutrient's foods. Each is led by a round tile, 36 pt in
+  `surface` and growing with the text as glyphs do, its glyph in ink: Quick add's bolt, a saved
+  meal's star, a food's bowl (the Food tab's), New food's and New meal's plus; a meal of the day's
+  holds its layer of the bowl above, a small bowl in its paint, and an empty meal's the empty bowl
+  in `control`, its name in `ink-2`. The tile is drawn first and read after the name. The name
+  keeps one line and what is under it (a meal's foods, a food's portion, the meals a
+  macronutrient's food was eaten at) one more, each ending in an ellipsis, so every row is 58 pt
+  at 100% text; a name with nothing under it is centred on its tile, and Quick add's line alone
+  wraps at large text, since it says what the row does. What the row comes to trails as a whole
+  figure in Jost over its unit, both centred in a column four tabular digits wide (4 × 0.614 em),
+  so every row's words end at one edge: kcal (1,000.8 is 1001, written without a comma), or a
+  macronutrient's grams ("<1" under one; a dash for a food logged without it). A five-digit figure
+  widens its own row's column rather than being cut. Totals (a day's, a meal's, a saved meal's)
+  keep their tenth. Saved meals stand under Meals and foods under Foods, each the most eaten
+  first, five meals or ten foods a page with History's page tabs under them (ADR 0044), so Foods
+  starts where it did however many meals there are; a new search starts each at its first page.
+  A section's last row is unruled. Nothing trails a row to say it can be added or opened: the row
+  is the control.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
   Never a pigment tile.
 
@@ -909,8 +944,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
-- **Page tabs:** a long list's pages (History, ten entries a page) under the list, in
-  the span tray's dress: a surface tray, each page a 44-pt target, the page being read in ink.
+- **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
+  saved meals and ten foods a page) under the list, in the span tray's dress: a surface tray,
+  each page a 44-pt target, the page being read in ink.
   Every page up to five; past that the first, the last and the page read with its neighbours, a
   gap mark between. A navigation, not a choice: buttons, the page read named aloud (ADR 0044).
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
@@ -987,7 +1023,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
   interface string from the app's own screens; where a design needs a string the app does not
   have yet, say so. A print draws only what was logged.
 - **Do** start every name at one edge, and lead a row with a mark only where it names a sport in
-  a list that mixes them.
+  a list that mixes them, or with its tile where it is a food row (Rows and marks).
 - **Do** let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink
   cannot say.
 - **Do** give a new sport its family's form with one cut, and check it reads at 12 px.

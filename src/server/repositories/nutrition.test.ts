@@ -205,22 +205,35 @@ describe("logging a food", () => {
     expect(day.eaten).toEqual({ kcal: 1911.4, carbsG: 172.4, fatG: 17.9, proteinG: 43.9 });
   });
 
-  it("lists My foods with the most lately eaten first", async () => {
-    const milk = await foodId(user, "Milk");
-    const names = async () =>
-      (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")))).foods.map(
-        (food) => food.name,
-      );
-    const oats = await foodId(user, "Oats");
-    expect(await names()).toEqual(["Milk", "Thai takeaway", "Oats"]);
-    await as(user, (tx) =>
-      logFood(tx, user.id, at("breakfast"), { food: { id: oats }, amount: 1 }),
-    );
-    expect(await names()).toEqual(["Oats", "Milk", "Thai takeaway"]);
-    await as(user, (tx) =>
-      logFood(tx, user.id, at("evening_snack"), { food: { id: milk }, amount: 1 }),
-    );
+  it("lists My foods with the most eaten first, the most lately eaten among equals", async () => {
+    const often = await t.createAuthUser("often@example.test");
+    await as(often, (tx) => ensureProfile(tx, often));
+    const log = (food: Food | { id: string }, meal: Meal, day = TODAY) =>
+      as(often, (tx) => logFood(tx, often.id, at(meal, day), { food, amount: 1 }));
+    const library = () => as(often, (tx) => readFoods(tx, often.id));
+    const names = async () => (await library()).map((food) => food.name);
+    await log(OATS, "breakfast");
+    await log(MILK, "breakfast");
+    await log(TAKEAWAY, "dinner");
+    // Each eaten once: the most lately eaten first.
+    expect(await names()).toEqual(["Thai takeaway", "Milk", "Oats"]);
+    const milk = (await library()).find((food) => food.name === "Milk")!.id;
+    await log({ id: milk }, "lunch", YESTERDAY);
+    await log({ id: milk }, "evening_snack", YESTERDAY);
+    const oats = (await library()).find((food) => food.name === "Oats")!.id;
+    await log({ id: oats }, "lunch", YESTERDAY);
+    // Milk three times, then oats twice, whichever was eaten last.
     expect(await names()).toEqual(["Milk", "Oats", "Thai takeaway"]);
+    // A food taken out of a meal again counts once less.
+    const [snack] = (
+      await as(often, (tx) => readMealScreen(tx, often.id, at("evening_snack", YESTERDAY)))
+    ).entries;
+    await as(often, (tx) => deleteEntry(tx, often.id, snack!.id));
+    const [lunch] = (await as(often, (tx) => readMealScreen(tx, often.id, at("lunch", YESTERDAY))))
+      .entries;
+    await as(often, (tx) => deleteEntry(tx, often.id, lunch!.id));
+    // Milk and oats twice each now: oats, eaten last, leads.
+    expect(await names()).toEqual(["Oats", "Milk", "Thai takeaway"]);
   });
 
   it("refuses a second food of the same name, whatever its capitals", async () => {
@@ -429,6 +442,47 @@ describe("saved meals", () => {
     );
   });
 
+  it("lists the saved meals added most often first, counting the meal starred as eaten", async () => {
+    const cook = await t.createAuthUser("cook@example.test");
+    await as(cook, (tx) => ensureProfile(tx, cook));
+    await as(cook, (tx) => logFood(tx, cook.id, at("breakfast"), { food: OATS, amount: 80 }));
+    await as(cook, (tx) => saveMeal(tx, cook.id, at("breakfast"), "Oat bowl"));
+    await as(cook, (tx) => logFood(tx, cook.id, at("lunch"), { food: MILK, amount: 250 }));
+    await as(cook, (tx) => saveMeal(tx, cook.id, at("lunch"), "Glass of milk"));
+    const meals = async () =>
+      (await as(cook, (tx) => readLibrary(tx, cook.id))).savedMeals.map((meal) => meal.name);
+    const counts = async () =>
+      Object.fromEntries(
+        (
+          await as(cook, (tx) =>
+            tx
+              .select({ name: savedMeals.name, times: savedMeals.timesLogged })
+              .from(savedMeals)
+              .where(eq(savedMeals.userId, cook.id)),
+          )
+        ).map((row) => [row.name, row.times]),
+      );
+    // Each starred once, which is each eaten once: the most lately first.
+    expect(await counts()).toEqual({ "Oat bowl": 1, "Glass of milk": 1 });
+    expect(await meals()).toEqual(["Glass of milk", "Oat bowl"]);
+    const bowl = (await as(cook, (tx) => readLibrary(tx, cook.id))).savedMeals.find(
+      (meal) => meal.name === "Oat bowl",
+    )!;
+    const opened = await as(cook, (tx) => readSavedMeal(tx, cook.id, bowl.id));
+    await as(cook, (tx) => logSavedMeal(tx, cook.id, bowl.id, at("breakfast", YESTERDAY)));
+    expect(await counts()).toEqual({ "Oat bowl": 2, "Glass of milk": 1 });
+    expect(await meals()).toEqual(["Oat bowl", "Glass of milk"]);
+    // Being eaten is not an edit: a copy open in My foods is still the current one.
+    expect((await as(cook, (tx) => readSavedMeal(tx, cook.id, bowl.id)))!.updatedAt).toBe(
+      opened!.updatedAt,
+    );
+    // Starred again under its name, it was eaten again.
+    await as(cook, (tx) => saveMeal(tx, cook.id, at("lunch"), "glass of MILK"));
+    await as(cook, (tx) => saveMeal(tx, cook.id, at("lunch"), "Glass of milk"));
+    expect(await counts()).toEqual({ "Oat bowl": 2, "Glass of milk": 3 });
+    expect(await meals()).toEqual(["Glass of milk", "Oat bowl"]);
+  });
+
   it("saves again under the same name, whatever its capitals, rather than twice", async () => {
     const milk = await foodId(user, "Milk");
     await as(user, (tx) =>
@@ -591,11 +645,25 @@ describe("My foods", () => {
     ).toEqual([]);
   });
 
-  it("keeps a food without logging any of it, near the top of the list", async () => {
+  it("keeps a food without logging any of it, first of the foods not eaten yet", async () => {
     const before = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
     const id = await as(user, (tx) => createFood(tx, user.id, PANEER));
     const library = await as(user, (tx) => readLibrary(tx, user.id));
-    expect(library.foods[0]).toEqual({ id, ...PANEER });
+    const eatenIds = new Set(
+      (
+        await as(user, (tx) =>
+          tx
+            .select({ foodId: foodEntries.foodId })
+            .from(foodEntries)
+            .where(eq(foodEntries.userId, user.id)),
+        )
+      ).map((row) => row.foodId),
+    );
+    const place = library.foods.findIndex((food) => food.id === id);
+    expect(library.foods[place]).toEqual({ id, ...PANEER });
+    // After every food eaten at least once, and before those made earlier and not eaten either.
+    expect(library.foods.slice(0, place).every((food) => eatenIds.has(food.id))).toBe(true);
+    expect(library.foods.slice(place).some((food) => eatenIds.has(food.id))).toBe(false);
     const after = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
     expect(after.entries).toEqual(before.entries);
     expect(after.library.foods).toBe(before.library.foods + 1);

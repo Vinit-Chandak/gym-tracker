@@ -264,6 +264,16 @@ export function formatKcal(value: number): string {
   return (Math.round(value * 10) / 10 + 0).toLocaleString("en-GB", { maximumFractionDigits: 1 });
 }
 
+/**
+ * "1001": a food's or a saved meal's energy in a meal page's lists to add from, to the nearest
+ * whole kcal and with no thousands comma, so a column four digits wide holds anything under 9,999.5.
+ * Rounded from the tenth it is stored to, so a sum that lands a hair under a half still goes up
+ * with the half it is: 0.3 + 1.9 + 0.3 is 2.4999999999999996, and 3.
+ */
+export function formatWholeKcal(value: number): string {
+  return String(Math.round(Math.round(value * 10) / 10) + 0);
+}
+
 /** "1,000", "0.5", "1.25": a portion or an amount eaten, to the hundredth it is stored to. */
 export function formatAmount(value: number): string {
   return (Math.round(value * 100) / 100 + 0).toLocaleString("en-GB", { maximumFractionDigits: 2 });

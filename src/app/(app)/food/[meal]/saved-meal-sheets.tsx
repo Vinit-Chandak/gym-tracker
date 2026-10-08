@@ -16,6 +16,7 @@ import {
 import type { SavedMealRecord } from "@/server/repositories/nutrition";
 
 import { Preview } from "@/components/food/amount-field";
+import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
 
 type Place = { eatenOn: string; meal: Meal; mealLabel: string };
 
@@ -211,14 +212,12 @@ export function SavedMealSheet({
         <ul className="food-list">
           {saved.items.map((item, index) => (
             <li key={index} className="food-row">
-              <span className="food-row-text">
-                <span className="food-row-name">{item.name}</span>{" "}
-                <span className="food-row-meta">{formatPortion(item.amount, item.unit)}</span>
-              </span>{" "}
-              <span className="food-row-kcal">
-                <span className="type-figure">{formatKcal(eaten(item).kcal)}</span>{" "}
-                <span className="food-row-unit">kcal</span>
-              </span>
+              <FoodRowText
+                name={item.name}
+                tile={<RowGlyph name="food" />}
+                meta={formatPortion(item.amount, item.unit)}
+              />{" "}
+              <RowKcal kcal={eaten(item).kcal} />
             </li>
           ))}
         </ul>
