@@ -35,7 +35,7 @@ Weights and heights are stored once, in kilograms and centimetres, and read back
 units the account chose — pounds and feet, or kilograms and centimetres. Body weight is a
 running record rather than a single field: finishing a session with a weight, or changing it on
 the profile, writes that day's reading, the profile always shows the newest one, and
-**Progress → Body** draws the trend.
+**Progress → Body weight** draws the trend.
 
 The only thing shipped with the app is shared reference data: the equipment catalogue (92 kinds
 of machine), the exercise library (268 movements, every muscle group covered), warm-up protocols

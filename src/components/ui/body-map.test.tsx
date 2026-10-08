@@ -19,7 +19,8 @@ it("offers native keyboard controls for selecting and clearing a muscle", () => 
   expect(choice.getAttribute("aria-pressed")).toBe("false");
   fireEvent.click(choice);
   expect(choice.getAttribute("aria-pressed")).toBe("true");
-  expect(screen.getByRole("status").textContent).toContain("Chest · 6 sets this week");
+  // The week is named over the map, so the muscle's line names none.
+  expect(screen.getByRole("status").textContent).toBe("Chest · 6 sets");
   expect(screen.getByRole("rowheader", { name: "Chest" })).toBeTruthy();
   fireEvent.click(choice);
   expect(choice.getAttribute("aria-pressed")).toBe("false");

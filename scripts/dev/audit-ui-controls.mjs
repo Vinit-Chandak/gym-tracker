@@ -230,24 +230,29 @@ for (const config of [
     });
     await page.setViewportSize(config.options.viewport);
     await check("chart-values-large-text", async () => {
-      await visit("/progress?view=body", 32);
-      const charts = page.locator('svg[role="img"]');
-      assert.ok((await charts.count()) > 0);
-      for (const chart of await charts.all()) {
-        await chart.scrollIntoViewIfNeeded();
-        const rect = await chart.boundingBox();
-        assert.ok(
-          rect.x >= -1 &&
-            rect.x + rect.width <=
-              1 + (await page.evaluate(() => document.documentElement.clientWidth)),
-          `Chart leaves viewport: ${JSON.stringify(rect)}`,
-        );
+      // The body map's figures are named images, on a section of their own (ADR 0045); a graph's
+      // plot is hidden from assistive technology, which reads its readout instead. Body weight's
+      // graph comes last, for its values.
+      for (const route of ["/progress?view=muscles", "/progress?view=body"]) {
+        await visit(route, 32);
+        const charts = page.locator('svg[role="img"], .graph-plot svg');
+        assert.ok((await charts.count()) > 0);
+        for (const chart of await charts.all()) {
+          await chart.scrollIntoViewIfNeeded();
+          const rect = await chart.boundingBox();
+          assert.ok(
+            rect.x >= -1 &&
+              rect.x + rect.width <=
+                1 + (await page.evaluate(() => document.documentElement.clientWidth)),
+            `Chart leaves viewport on ${route}: ${JSON.stringify(rect)}`,
+          );
+        }
       }
       const values = page.getByRole("button", { name: /^View values/ }).first();
       await values.click();
       assert.equal(await values.getAttribute("aria-expanded"), "true");
-      assert.ok((await page.locator(".chart-values-list li").count()) > 0);
-      await assertReadableText(page.locator(".chart-values-list li > span"));
+      assert.ok((await page.locator(".graph-values-list li").count()) > 0);
+      await assertReadableText(page.locator(".graph-values-list .graph-value-row > span"));
       await page.screenshot({
         animations: "disabled",
         path: `${folder}/${config.name}-chart-values.png`,

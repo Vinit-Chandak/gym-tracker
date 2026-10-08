@@ -46,13 +46,14 @@ export type ProgressData = {
     /** Today's targets, drawn as the rule a day is read against. */
     targets: { kcal: number | null; protein: number | null };
   };
+  /** Body weight. */
   body: {
     range: GraphRange;
     /** Readings in the account's own unit, oldest first. */
     points: { date: string; value: number }[];
     unit: BodyLoadUnit;
-    /** The body map's week, stepped by its own arrows. */
-    week: { from: string; to: string; volume: MuscleVolume; totalSets: number };
   };
+  /** The body map's week, Monday to Sunday, stepped by its own arrows rather than the span. */
+  muscles: { from: string; to: string; volume: MuscleVolume; totalSets: number };
   recovery: { range: GraphRange; graph: RecoveryGraph };
 };

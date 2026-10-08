@@ -16,20 +16,26 @@ import {
   type ProgressPageSection,
 } from "./progress-sections";
 import type { ProgressData } from "./progress-types";
-import { BodySection } from "./sections/body-section";
+import { BodyWeightSection } from "./sections/body-weight-section";
 import { FoodSection } from "./sections/food-section";
+import { MusclesSection } from "./sections/muscles-section";
 import { OverviewSection } from "./sections/overview-section";
 import { RecoverySection } from "./sections/recovery-section";
 import { RunningSection } from "./sections/running-section";
 import { StrengthSection } from "./sections/strength-section";
 
-/** The range a section is drawn over, for the dates beside its name. */
-function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRange {
+/**
+ * The span a section's graphs are drawn over, for the dates beside its name and the filters.
+ * None for Muscles: it keeps its own week, named over the body map (ADR 0045).
+ */
+function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRange | null {
   switch (section) {
     case "overview":
       return data.overview.range;
     case "strength":
       return data.strength.range;
+    case "muscles":
+      return null;
     case "running":
       return data.running.range;
     case "food":
@@ -58,7 +64,7 @@ export function ProgressView({ data }: { data: ProgressData }) {
     window.history.replaceState(null, "", query ? `/progress?${query}` : "/progress");
   };
   const range = sectionRange(tab, data);
-  const rangeText = formatDateRange(range.from, range.to);
+  const rangeText = range ? formatDateRange(range.from, range.to) : null;
 
   return (
     <GraphRangeProvider preset={data.preset}>
@@ -67,10 +73,13 @@ export function ProgressView({ data }: { data: ProgressData }) {
           value={tab}
           onChange={chooseView}
           range={tab === "overview" ? null : rangeText}
+          // Custom dates choose a span, so a section without one has no funnel.
           filters={
-            <FilterSheet title="Custom dates" summary={rangeText} count={data.preset ? 0 : 1}>
-              {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
-            </FilterSheet>
+            range && (
+              <FilterSheet title="Custom dates" summary={rangeText!} count={data.preset ? 0 : 1}>
+                {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
+              </FilterSheet>
+            )
           }
         />
         {data.error && (
@@ -89,10 +98,11 @@ export function ProgressView({ data }: { data: ProgressData }) {
           {tab === "strength" && (
             <StrengthSection strength={data.strength} exercise={data.exercise} today={data.today} />
           )}
+          {tab === "muscles" && <MusclesSection muscles={data.muscles} today={data.today} />}
           {tab === "running" && <RunningSection running={data.running} today={data.today} />}
           {tab === "food" && <FoodSection food={data.food} today={data.today} />}
           {tab === "recovery" && <RecoverySection recovery={data.recovery} today={data.today} />}
-          {tab === "body" && <BodySection body={data.body} today={data.today} />}
+          {tab === "body" && <BodyWeightSection body={data.body} today={data.today} />}
         </section>
       </div>
     </GraphRangeProvider>

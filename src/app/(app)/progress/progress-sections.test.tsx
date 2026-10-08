@@ -47,7 +47,16 @@ it("lists Progress's sections as the design orders them, Overview first", () => 
     open("Overview")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Overview", "History", "Strength", "Running", "Food", "Recovery", "Body"]);
+  ).toEqual([
+    "Overview",
+    "History",
+    "Strength",
+    "Muscles",
+    "Running",
+    "Food",
+    "Recovery",
+    "Body weight",
+  ]);
 });
 
 it("is Progress's opening: the title, the funnel, the section and its range", () => {
@@ -94,7 +103,8 @@ it("goes from History to the Progress page's sections, keeping the query", () =>
   expect(sheet.getByRole("link", { name: "Overview" }).getAttribute("href")).toBe(
     "/progress?from=2026-08-01&to=2026-09-25&kind=run",
   );
-  const body = sheet.getByRole("link", { name: "Body" });
+  // Body weight keeps Body's `body`, so a link made before the two were parted still opens it.
+  const body = sheet.getByRole("link", { name: "Body weight" });
   expect(body.getAttribute("href")).toBe(
     "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=body",
   );
@@ -106,6 +116,7 @@ it("reads the Progress page's section from its URL, Overview when it names none"
   expect(pageSection(null)).toBe("overview");
   expect(pageSection("recovery")).toBe("recovery");
   expect(pageSection("body")).toBe("body");
+  expect(pageSection("muscles")).toBe("muscles");
   expect(pageSection("history")).toBe("overview");
   expect(pageSection("elsewhere")).toBe("overview");
 });

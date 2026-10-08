@@ -9,16 +9,19 @@ import { SectionSelect } from "@/components/ui/section-select";
 /**
  * Progress's sections, as the picker lists them (DESIGN.md, Navigation; ADR 0034): Overview,
  * the month on paper, which the tab opens on, then History, everything done, day by day, then a
- * section per subject, each drawn by the same graphs (ADR 0042).
+ * section per subject, each drawn by the same graphs (ADR 0042). Muscles, the body map, stands
+ * beside Strength on a week of its own; Body weight keeps `body`, so links to it still hold
+ * (ADR 0045).
  */
 export const PROGRESS_SECTIONS = [
   { value: "overview", label: "Overview" },
   { value: "history", label: "History" },
   { value: "strength", label: "Strength" },
+  { value: "muscles", label: "Muscles" },
   { value: "running", label: "Running" },
   { value: "food", label: "Food" },
   { value: "recovery", label: "Recovery" },
-  { value: "body", label: "Body" },
+  { value: "body", label: "Body weight" },
 ] as const;
 export type ProgressSection = (typeof PROGRESS_SECTIONS)[number]["value"];
 /** The sections the Progress page draws itself, from what it has already read. */
@@ -76,7 +79,7 @@ export function ProgressSections({
           ...section,
           href: sectionHref(section.value, search),
           // History is loaded whole once the list shows it. The Progress page's sections are
-          // left to Next's own prefetch: five whole Progress pages at once would compete with
+          // left to Next's own prefetch: six whole Progress pages at once would compete with
           // the tap, and the tab's own prefetch already holds the page without a query.
           prefetch: section.value === "history" ? true : undefined,
         },
