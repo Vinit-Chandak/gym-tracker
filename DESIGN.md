@@ -586,8 +586,16 @@ under 360 pt wide.
   58 pt; a date grows with the reader's text as a figure does (by half) and its tile grows with
   it, so icons never sit under a date. Each month on the calendar page says how many of each sport
   it holds beside its name, each count led by its icon, and the totals under the overview do the
-  same, so they are its key. Every day is a full target: under 375 pt, and on Android, the month
+  same, so they are its key; there each sport says under its name how far and how long it went
+  this month (ADR 0045). Every day is a full target: under 375 pt, and on Android, the month
   runs to the screen's edges (its tiles 2 pt apart under 375).
+- **History, under the month:** under the overview's month, the ten newest activities in
+  History's rows under their day captions, headed History with All at its end, as the month's
+  head has Calendar. It is the calendar read back from today: where this month holds fewer, it
+  runs on into the months before, each named (Heading, 17, 700) once over its first day; where it
+  holds more, All opens the rest. It lists what the month marks, never recovery check-ins. All is
+  History's page, under Progress as the calendar is: back to Progress, its range under its
+  title, its filters at the end of its bar (ADR 0045).
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
 
@@ -901,16 +909,15 @@ good is the target or the goal, which a rule or the readout says, not a directio
   in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
-- **Page tabs:** a long list's pages (Progress → History, ten entries a page) under the list, in
+- **Page tabs:** a long list's pages (History, ten entries a page) under the list, in
   the span tray's dress: a surface tray, each page a 44-pt target, the page being read in ink.
   Every page up to five; past that the first, the last and the page read with its neighbours, a
   gap mark between. A navigation, not a choice: buttons, the page read named aloud (ADR 0044).
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
-  sheet of them; the range the section shows sits beside it (Progress: Overview, History,
-  Strength, Muscles, Running, Food, Recovery, Body weight). Where a section leads with a clock of
-  its own, it names it there instead: Overview its month, Muscles its week; Muscles follows no
-  span, so it has no funnel either (ADR 0045). Eight choices never crowd a screen and none is
-  clipped, down to 320 × 568.
+  sheet of them; the range the section shows sits beside it (Progress: Overview, Strength,
+  Muscles, Running, Food, Recovery, Body weight). Where a section leads with a clock of its own,
+  it names it there instead, and has no funnel: Overview its month (ADR 0045), Muscles its week
+  (ADR 0046). Seven choices never crowd a screen and none is clipped, down to 320 × 568.
 
 ### Sheets
 

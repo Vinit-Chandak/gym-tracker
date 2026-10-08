@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
-import { rangeOf, readWindowOf } from "@/domain/graph-range";
+import { EARLIEST_DAY, rangeOf, readWindowOf } from "@/domain/graph-range";
 import { macroTargets } from "@/domain/nutrition";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -19,7 +18,7 @@ import { requireUser } from "@/server/auth";
 import { readRangeChoice } from "@/server/queries/graph-range";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
-import { readActivityDays, readSportTotals } from "@/server/repositories/activity-analytics";
+import { readActivityDays } from "@/server/repositories/activity-analytics";
 import { listBodyWeights } from "@/server/repositories/body-weight";
 import {
   readExerciseSeriesOptions,
@@ -27,11 +26,13 @@ import {
   readFoodDayTotals,
   readStrengthRows,
 } from "@/server/repositories/graphs";
+import { readLatestActivities } from "@/server/repositories/history";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readTargets } from "@/server/repositories/nutrition";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
 import { readRunActivities } from "@/server/repositories/training-data";
 import { dateWindow, parseWeekRangeOrDefault } from "@/server/validation/date-range";
+import { historyClock, LATEST_COUNT, latestItems } from "./history/history-items";
 import Loading from "./loading";
 import { ProgressView } from "./progress-view";
 
@@ -70,7 +71,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     getDb(),
     user.id,
     async (tx) => {
-      const [strength, options, runs, food, targets, weights, recovery, totals, days, muscles] =
+      const [strength, options, runs, food, targets, weights, recovery, latest, days, muscles] =
         await Promise.all([
           readStrengthRows(tx, user.id, timeZone, window),
           readExerciseSeriesOptions(tx, user.id, window),
@@ -79,11 +80,12 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           readTargets(tx, user.id),
           listBodyWeights(tx, user.id, window),
           readRecoveryHistory(tx, user.id, window, timeZone),
-          // Complete per-sport totals, from the canonical tables every sport is written to.
-          readSportTotals(
+          // Overview's latest: whatever the span, as far back as they go (ADR 0045).
+          readLatestActivities(
             tx,
             user.id,
-            choice.preset === "all" ? { to: today } : { from: window.from, to: window.to },
+            dateWindow(EARLIEST_DAY, today, timeZone),
+            LATEST_COUNT,
           ),
           readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
           readMuscleVolume(tx, user.id, week),
@@ -107,7 +109,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         targets,
         weights,
         recovery,
-        totals,
+        latest,
         days,
         muscles,
       };
@@ -137,10 +139,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const foodRange = rangeFor(data.food.map((day) => day.date));
   const bodyRange = rangeFor(data.weights.map((reading) => reading.measuredOn));
   const recoveryRange = rangeFor(data.recovery.map((reading) => reading.date));
-  const overviewRange = rangeFor([
-    ...data.strength.map((row) => row.date),
-    ...runs.map((run) => run.date),
-  ]);
 
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
@@ -162,19 +160,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 environment: item.environment,
               })),
             },
-            overview: {
-              range: overviewRange,
-              totals: data.totals.map((total) => ({
-                sport: total.sport,
-                label: ACTIVITY_SPORT_LABELS[total.sport],
-                count: total.count,
-                days: total.days,
-                durationMs: total.durationMs,
-                unknownDurations: total.unknownDurations,
-                distanceMetres: total.distanceMetres,
-                unknownDistances: total.unknownDistances,
-              })),
-            },
+            overview: { latest: latestItems(data.latest, historyClock(timeZone)) },
             strength: {
               range: strengthRange,
               graph: strengthGraph(data.strength, strengthRange, today),

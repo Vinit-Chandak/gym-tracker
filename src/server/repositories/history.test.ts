@@ -1,11 +1,20 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import {
+  historyClock,
+  LATEST_COUNT,
+  latestItems,
+} from "@/app/(app)/progress/history/history-items";
 import { exercises, gyms, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { parseDateRange } from "@/server/validation/date-range";
-import { readHistoryWorkouts } from "./history";
+import { AD_HOC_ORIGIN, reportedEffort } from "@/domain/activity";
+import { nativeDistance } from "@/domain/activity-metrics";
+import { EARLIEST_DAY } from "@/domain/graph-range";
+import { dateWindow, parseDateRange } from "@/server/validation/date-range";
+import { createActivity, type SaveActivityInput } from "./activities";
+import { readHistoryWorkouts, readLatestActivities } from "./history";
 import { readWorkouts } from "./training-data";
 
 let t: TestDatabase;
@@ -133,5 +142,109 @@ describe("history projection", () => {
       readHistoryWorkouts(tx, alice.id, range),
     );
     expect(summary.workouts.every((w) => w.id !== foreignSlot?.workoutSessionId)).toBe(true);
+  });
+});
+
+/** A run or a ride, logged at 06:00 UTC on `date`. */
+function logged(sport: "running" | "cycling", date: string): SaveActivityInput {
+  const distance = nativeDistance(5, "km");
+  return {
+    submissionKey: crypto.randomUUID(),
+    origin: AD_HOC_ORIGIN,
+    actual:
+      sport === "running"
+        ? {
+            sport,
+            environment: "outdoor",
+            distance,
+            durationMs: 1_800_000,
+            surface: null,
+            elevationGainMetres: null,
+            treadmillInclinePercent: null,
+            averageHeartRate: null,
+            maxHeartRate: null,
+            cadenceStepsPerMinute: null,
+          }
+        : {
+            sport,
+            environment: "outdoor",
+            durationMs: 1_800_000,
+            distance,
+            assistance: "unassisted",
+            resourceId: null,
+            averagePowerWatts: null,
+            averageCadenceRpm: null,
+            averageHeartRate: null,
+            maxHeartRate: null,
+            elevationGainMetres: null,
+          },
+    startedAt: new Date(`${date}T06:00:00Z`),
+    recordedTimeZone: "UTC",
+    timeZoneSource: "profile_at_entry",
+    occurredOn: date,
+    effort: reportedEffort(3),
+    outcome: "logged",
+    title: null,
+    notes: null,
+  };
+}
+
+describe("Overview's latest (ADR 0045)", () => {
+  it("lists the newest ten of every sport together, newest first, and no one else's", async () => {
+    const carol = await t.createAuthUser("latest@example.test");
+    const dan = await t.createAuthUser("latest-other@example.test");
+    await withUser(t.db, carol.id, async (tx) => {
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId: carol.id, name: "Test gym", slug: "test-gym" })
+        .returning();
+      // Twelve workouts, one an evening from 1 to 12 September: more than a list of ten holds.
+      for (let day = 1; day <= 12; day += 1) {
+        const startedAt = new Date(`2026-09-${String(day).padStart(2, "0")}T18:30:00Z`);
+        await tx.insert(workoutSessions).values({
+          userId: carol.id,
+          gymId: gym!.id,
+          startedAt,
+          completedAt: new Date(startedAt.getTime() + 3_600_000),
+        });
+      }
+      // A session still open is newer than everything, and is not history yet.
+      await tx
+        .insert(workoutSessions)
+        .values({ userId: carol.id, gymId: gym!.id, startedAt: new Date("2026-09-15T18:30:00Z") });
+      for (const date of ["2026-09-10", "2026-09-11", "2026-09-13"])
+        await createActivity(tx, carol.id, logged("running", date));
+      await createActivity(tx, carol.id, logged("cycling", "2026-09-14"));
+    });
+    await withUser(t.db, dan.id, (tx) =>
+      createActivity(tx, dan.id, logged("running", "2026-09-16")),
+    );
+
+    const read = await withUser(
+      t.db,
+      carol.id,
+      (tx) => readLatestActivities(tx, carol.id, dateWindow(EARLIEST_DAY, "2026-09-30", "UTC"), 10),
+      { readOnly: true },
+    );
+    // Each sport is read ten deep, so the newest ten of them all are among what came back.
+    expect(read.workouts).toHaveLength(10);
+    expect(read.runs).toHaveLength(3);
+    expect(read.endurance).toHaveLength(1);
+
+    const latest = latestItems(read, historyClock("UTC"));
+    expect(LATEST_COUNT).toBe(10);
+    expect(latest.map((item) => `${item.kind} ${item.day}`)).toEqual([
+      "cycling 2026-09-14",
+      "run 2026-09-13",
+      "workout 2026-09-12",
+      // The evening's workout after that morning's run.
+      "workout 2026-09-11",
+      "run 2026-09-11",
+      "workout 2026-09-10",
+      "run 2026-09-10",
+      "workout 2026-09-09",
+      "workout 2026-09-08",
+      "workout 2026-09-07",
+    ]);
   });
 });

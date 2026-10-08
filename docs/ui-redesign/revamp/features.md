@@ -289,18 +289,19 @@ weight and muscle volume), and every past entry, which can be opened, corrected 
 
 ### Sections
 
-One picker offers eight sections: **Overview** (where the tab opens), **History**, **Strength**,
-**Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The header says "Progress"
-with the dates the section is drawn over ("8 Sept – 7 Oct 2026"), except where a section leads
-with a clock of its own: Overview its month, Muscles its week. Muscles follows no span, so it has
-no funnel either (ADR 0045). Every graph is the one `Graph` (ADR 0042) and carries the same
-spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph, remembered once
-chosen. The funnel holds custom dates, which leave no span chosen until one is.
+One picker offers seven sections: **Overview** (where the tab opens, with **History** under its
+month), **Strength**, **Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The
+header says "Progress" with the dates the section is drawn over ("8 Sept – 7 Oct 2026"), except
+where a section leads with a clock of its own, which has no funnel either: Overview its month
+(ADR 0045), Muscles its week (ADR 0046). Every graph is the one `Graph` (ADR 0042) and carries
+the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
+remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** this month on paper and its totals; then training totals per sport over the span,
-  only for sports with sessions ("Strength 25 sessions · 21 days · 23 h 50 min"; "Running 8
-  sessions · 7 days · 3 h 15 min · 30.8 km"; cycling and swimming alike), noting sessions
-  without a distance or duration, with the spans above them.
+- **Overview:** this month on paper and its totals as its key, each sport's count with its
+  distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **History**, the ten newest
+  workouts, runs, rides and swims, running back into the month before (named) when this one
+  holds fewer, with All at its head for every entry. No span and no funnel: the training totals
+  over a span were dropped at the owner's request (ADR 0045).
 - **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
   and then an exercise filed under it ("All exercises", then each exercise ever logged there,
   each under the group of its first primary muscle). **All exercises:** the group's total volume
@@ -313,7 +314,7 @@ chosen. The funnel holds custom dates, which leave no span chosen until one is.
   or month); its best in the span and the set behind it ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
   one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from different machines never
   share a line.
-- **Muscles:** the working sets a week gave each muscle (ADR 0045), on its own week arrows,
+- **Muscles:** the working sets a week gave each muscle (ADR 0046), on its own week arrows,
   named as a graph names a week ("This week", "28 Sept – 4 Oct") and stopping at this one: front
   and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a legend and a
   table; tapping a muscle shows "Chest · 6 sets".
@@ -328,7 +329,8 @@ chosen. The funnel holds custom dates, which leave no span chosen until one is.
   is higher; the average over the days that gave the answer, a day checked in twice counted once.
 - **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
   change ("75.2 kg · −1 since Tue 8 Sept").
-- **History:** "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
+- **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
+  "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
   the list (every page up to five, else the first, the last and the page read with its
   neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name, date, time,
   gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim
@@ -354,7 +356,7 @@ error; offline.
 
 ### Must survive
 
-- All eight sections stay reachable, and History stays its own page. The span is remembered
+- All seven sections stay reachable, and History stays its own page. The span is remembered
   for every graph; custom dates and filters live in the URL, so Back and reload restore them.
 - Strength's numbers are the same as the exercise page's; loads from different machines never
   share a series.

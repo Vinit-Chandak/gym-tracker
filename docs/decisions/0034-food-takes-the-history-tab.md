@@ -1,5 +1,9 @@
 # Food takes History's tab
 
+**Superseded in part by [ADR 0045](0045-the-latest-ten-under-the-month.md):** History is no longer
+one of Progress's sections. Overview lists the latest ten under its month, and `/progress/history`
+is the page behind them, under Progress as the calendar is (decision 4).
+
 Follows [0033](0033-meals-of-the-day-and-my-foods.md). Food was a card at the foot of Today that
 opened a screen of Today's. The owner asked for it to be a section of its own, in the tab History
 had, and for History to move into Progress.

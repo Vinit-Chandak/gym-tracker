@@ -13,7 +13,7 @@ const change = (value: number) => {
 };
 
 /**
- * Body weight (ADR 0042, ADR 0045): as recorded, a point per reading, the latest the summary.
+ * Body weight (ADR 0042, ADR 0046): as recorded, a point per reading, the latest the summary.
  * The muscles a week trained are a section of their own.
  */
 export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "today">) {

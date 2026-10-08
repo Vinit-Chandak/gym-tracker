@@ -118,8 +118,8 @@ All real, all in the repository:
 
 - The shared library: 276 exercises, 93 kinds of equipment, warm-up protocols and the
   programme templates (`src/db/seed/data/`).
-- Development previews of Today, logging, coaching and food against fixed data
-  (`src/app/(preview)/preview/`).
+- Development previews of Today, logging, coaching, food and Progress's Overview against fixed
+  data (`src/app/(preview)/preview/`).
 - Six audit accounts, four of them with 56 months of history
   ([local audit setup](docs/audits/local-56-months.md), `scripts/dev/seed-audit.ts`,
   `scripts/dev/seed-audit-history.ts`).

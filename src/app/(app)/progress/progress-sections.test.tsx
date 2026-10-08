@@ -47,16 +47,7 @@ it("lists Progress's sections as the design orders them, Overview first", () => 
     open("Overview")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual([
-    "Overview",
-    "History",
-    "Strength",
-    "Muscles",
-    "Running",
-    "Food",
-    "Recovery",
-    "Body weight",
-  ]);
+  ).toEqual(["Overview", "Strength", "Muscles", "Running", "Food", "Recovery", "Body weight"]);
 });
 
 it("is Progress's opening: the title, the funnel, the section and its range", () => {
@@ -83,40 +74,13 @@ it("switches the Progress page's own sections in place", () => {
   expect(onChange).toHaveBeenCalledWith("recovery");
 });
 
-it("opens History as a page of its own, loaded ahead, with the same dates", () => {
-  route.search = "view=strength&from=2026-08-01&to=2026-09-25&series=abc";
-  render(<ProgressSections value="strength" onChange={vi.fn()} filters={null} />);
-  const history = open("Strength").getByRole("link", { name: "History" });
-  expect(history.getAttribute("href")).toBe(
-    "/progress/history?from=2026-08-01&to=2026-09-25&series=abc",
-  );
-  expect(history.dataset.prefetch).toBe("true");
-  // In this entry's place, as a section chosen in place is: Back leaves Progress.
-  expect(history.dataset.replace).toBe("true");
-});
-
-it("goes from History to the Progress page's sections, keeping the query", () => {
-  route.search = "from=2026-08-01&to=2026-09-25&kind=run";
-  render(<ProgressSections value="history" filters={null} />);
-  const sheet = open("History");
-  expect(sheet.getByRole("button", { name: "History" }).getAttribute("aria-current")).toBe("true");
-  expect(sheet.getByRole("link", { name: "Overview" }).getAttribute("href")).toBe(
-    "/progress?from=2026-08-01&to=2026-09-25&kind=run",
-  );
-  // Body weight keeps Body's `body`, so a link made before the two were parted still opens it.
-  const body = sheet.getByRole("link", { name: "Body weight" });
-  expect(body.getAttribute("href")).toBe(
-    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=body",
-  );
-  // Only History is loaded whole ahead of the tap.
-  expect(body.dataset.prefetch).toBe("auto");
-});
-
 it("reads the Progress page's section from its URL, Overview when it names none", () => {
   expect(pageSection(null)).toBe("overview");
   expect(pageSection("recovery")).toBe("recovery");
+  // Body weight keeps Body's `body`, so a link made before the two were parted still opens it.
   expect(pageSection("body")).toBe("body");
   expect(pageSection("muscles")).toBe("muscles");
+  // History is Overview's list now, with a page behind it, not a section (ADR 0045).
   expect(pageSection("history")).toBe("overview");
   expect(pageSection("elsewhere")).toBe("overview");
 });

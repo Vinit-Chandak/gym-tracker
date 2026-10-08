@@ -38,7 +38,7 @@ const data: ProgressData = {
   weekError: null,
   preset: "1m",
   month: { month: "2026-10", today: 8, activities: [] },
-  overview: { range: MONTH, totals: [] },
+  overview: { latest: [] },
   strength: { range: MONTH, graph: strengthGraph([], MONTH, TODAY), unit: "kg" },
   exercise: { range: MONTH, options: [], selected: null },
   running: { range: MONTH, graph: runningGraph([], MONTH, TODAY), truncated: false },
@@ -89,4 +89,9 @@ it("says a week it could not read only on Muscles, and dates only where a span i
   expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
     unread.rangeError,
   ]);
+  cleanup();
+  // Overview draws nothing over dates or weeks (ADR 0045), so it says neither.
+  route.search = "";
+  render(<ProgressView data={unread} />);
+  expect(screen.queryByRole("alert")).toBeNull();
 });

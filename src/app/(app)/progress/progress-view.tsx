@@ -13,7 +13,7 @@ import {
   pageSection,
   PROGRESS_SECTIONS,
   ProgressSections,
-  type ProgressPageSection,
+  type ProgressSection,
 } from "./progress-sections";
 import type { ProgressData } from "./progress-types";
 import { BodyWeightSection } from "./sections/body-weight-section";
@@ -25,13 +25,14 @@ import { RunningSection } from "./sections/running-section";
 import { StrengthSection } from "./sections/strength-section";
 
 /**
- * The span a section's graphs are drawn over, for the dates beside its name and the filters.
- * None for Muscles: it keeps its own week, named over the body map (ADR 0045).
+ * The range a section is drawn over, for the dates beside its name and the funnel's. Overview
+ * has none: its month is this month and its list the latest (ADR 0045). Nor has Muscles: it
+ * keeps its own week, named over the body map (ADR 0046).
  */
-function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRange | null {
+function sectionRange(section: ProgressSection, data: ProgressData): GraphRange | null {
   switch (section) {
     case "overview":
-      return data.overview.range;
+      return null;
     case "strength":
       return data.strength.range;
     case "muscles":
@@ -55,7 +56,7 @@ function sectionRange(section: ProgressPageSection, data: ProgressData): GraphRa
 export function ProgressView({ data }: { data: ProgressData }) {
   const params = useSearchParams();
   const tab = pageSection(params.get("view"));
-  const chooseView = (section: ProgressPageSection) => {
+  const chooseView = (section: ProgressSection) => {
     const next = new URLSearchParams(params.toString());
     if (section === "overview") next.delete("view");
     else next.set("view", section);
@@ -65,8 +66,8 @@ export function ProgressView({ data }: { data: ProgressData }) {
   };
   const range = sectionRange(tab, data);
   const rangeText = range ? formatDateRange(range.from, range.to) : null;
-  // Muscles goes week by week: dates chosen by hand say nothing to it, nor its week to the rest.
-  const error = tab === "muscles" ? data.weekError : data.rangeError;
+  // Dates that could not be read are said where a span is drawn; a week, only on Muscles.
+  const error = tab === "muscles" ? data.weekError : range ? data.rangeError : null;
 
   return (
     <GraphRangeProvider preset={data.preset}>
@@ -74,14 +75,14 @@ export function ProgressView({ data }: { data: ProgressData }) {
         <ProgressSections
           value={tab}
           onChange={chooseView}
-          range={tab === "overview" ? null : rangeText}
-          // Custom dates choose a span, so a section without one has no funnel.
+          range={rangeText}
+          // Dates chosen by hand narrow the graphs; Overview and Muscles have none, so no funnel.
           filters={
-            range && (
-              <FilterSheet title="Custom dates" summary={rangeText!} count={data.preset ? 0 : 1}>
+            range && rangeText ? (
+              <FilterSheet title="Custom dates" summary={rangeText} count={data.preset ? 0 : 1}>
                 {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
               </FilterSheet>
-            )
+            ) : null
           }
         />
         {error && (
@@ -96,7 +97,9 @@ export function ProgressView({ data }: { data: ProgressData }) {
           aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
           className="min-w-0"
         >
-          {tab === "overview" && <OverviewSection month={data.month} overview={data.overview} />}
+          {tab === "overview" && (
+            <OverviewSection month={data.month} overview={data.overview} today={data.today} />
+          )}
           {tab === "strength" && (
             <StrengthSection strength={data.strength} exercise={data.exercise} today={data.today} />
           )}
