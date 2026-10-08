@@ -41,9 +41,9 @@ import {
   readCircleExercises,
   readExerciseBests,
   readExercisesInCommon,
-  readExerciseTrend,
+  readExerciseTrends,
   readLeaderboard,
-  readMuscleSets,
+  readGroupSets,
   readPeriodTotals,
   readRecords,
   readSessionRecords,
@@ -254,8 +254,11 @@ describe("finishing a workout", () => {
       longestRunMeters: 0,
     });
     expect(totals.has(bob)).toBe(false);
-    const muscles = await as(alice)((tx) => readMuscleSets(tx, alice, ALL));
-    expect(muscles.chest).toBe(3);
+    // Each working set once, under its exercise's axis: the bench press's sets are chest's
+    // alone, not chest's and the triceps' and the shoulders' too.
+    const groups = await as(alice)((tx) => readGroupSets(tx, alice, ALL));
+    expect(groups.Chest).toBe(3);
+    expect(groups.Arms ?? 0).toBe(0);
     const records = await as(alice)((tx) => readRecords(tx, alice, ALL));
     expect(records.map((r) => [r.exercise.name, r.metric, r.value])).toEqual([
       ["Barbell bench press", "e1rm", 75.8],
@@ -423,9 +426,19 @@ describe("head to head", () => {
     const aliceSees = await as(alice)((tx) => readExerciseBests(tx, [alice, bob], bench));
     expect([...aliceSees.keys()]).toEqual([alice]);
 
-    const trend = await as(bob)((tx) => readExerciseTrend(tx, [bob, alice], bench, "e1rm", ALL));
+    const trends = await as(bob)((tx) =>
+      readExerciseTrends(tx, [bob, alice], bench, ["e1rm", "top_weight"], ALL),
+    );
+    const trend = trends.get("e1rm")!;
     // Alice's two sessions fell on one day, so the better one stands for the day.
     expect(trend.get(alice)!.map((p) => p.value)).toEqual([75.8]);
+    // Every metric asked for is read at once, each its own line.
+    expect(
+      trends
+        .get("top_weight")!
+        .get(alice)!
+        .map((p) => p.value),
+    ).toEqual([65]);
     expect(trend.get(bob)!).toHaveLength(1);
     // Each point names its workout, and the shared session a follower opens it by.
     const [day] = trend.get(alice)!;

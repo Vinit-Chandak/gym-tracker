@@ -35,30 +35,38 @@ export type MuscleSets = Partial<Record<MuscleGroup, number>>;
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
+const isMuscle = (value: string): value is MuscleGroup =>
+  (MUSCLE_GROUPS as readonly string[]).includes(value);
+
 /**
- * Each axis's share of all the sets, summing to one; all zeros when nothing was trained. A
- * muscle name the app no longer knows is ignored rather than crashing a friend's page.
+ * The one axis an exercise is filed under (ADR 0043, 0044): its first primary muscle's, as the
+ * exercise library files it. A squat is legs and a row is back, whatever else they work, so a
+ * set is counted once and never once for each muscle it names. Null for an exercise naming no
+ * muscle the app knows.
  */
-export function muscleSplit(muscleSets: MuscleSets): MuscleSplit {
+export function splitGroupOf(primaryMuscles: readonly string[]): SplitGroup | null {
+  const first = primaryMuscles.find(isMuscle);
+  return first ? MUSCLE_SPLIT_GROUP[first] : null;
+}
+
+/** Working sets per axis, each set once, under its exercise's axis. */
+export type GroupSets = Partial<Record<SplitGroup, number>>;
+
+/**
+ * Each axis's share of all the sets, summing to one; all zeros when nothing was trained. An
+ * axis the app no longer knows is ignored rather than crashing a friend's page.
+ */
+export function muscleSplit(groupSets: GroupSets): MuscleSplit {
   const totals = Object.fromEntries(SPLIT_GROUPS.map((group) => [group, 0])) as MuscleSplit;
   let all = 0;
-  for (const [muscle, sets] of Object.entries(muscleSets)) {
-    const group = MUSCLE_SPLIT_GROUP[muscle as MuscleGroup];
-    if (!group || typeof sets !== "number" || !(sets > 0)) continue;
-    totals[group] += sets;
+  for (const [group, sets] of Object.entries(groupSets)) {
+    if (!(SPLIT_GROUPS as readonly string[]).includes(group)) continue;
+    if (typeof sets !== "number" || !(sets > 0)) continue;
+    totals[group as SplitGroup] += sets;
     all += sets;
   }
   if (all === 0) return totals;
   return Object.fromEntries(
     SPLIT_GROUPS.map((group) => [group, round(totals[group] / all)]),
   ) as MuscleSplit;
-}
-
-/** Adds one row's sets per muscle into a running total, for a period's split. */
-export function addMuscleSets(into: MuscleSets, sets: MuscleSets): MuscleSets {
-  for (const [muscle, n] of Object.entries(sets)) {
-    if (typeof n !== "number" || !(n > 0)) continue;
-    into[muscle as MuscleGroup] = (into[muscle as MuscleGroup] ?? 0) + n;
-  }
-  return into;
 }

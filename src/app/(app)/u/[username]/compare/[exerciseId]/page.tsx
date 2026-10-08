@@ -38,7 +38,7 @@ import {
   getComparableExercise,
   readBodyWeights,
   readExerciseBests,
-  readExerciseTrend,
+  readExerciseTrends,
   type ExerciseBest,
   type SharedReading,
   type TrendPoint,
@@ -106,23 +106,24 @@ export default async function CompareExercisePage(
       // The friend is in the circle whenever their training is visible (you follow them), so
       // one read of the circle's bests serves the bar pairs and the board beneath.
       const circle = await loadCircle(tx, { id: user.id, username: viewer.username }, head.me);
-      const [bests, readings, trend] = await Promise.all([
+      const [bests, readings, trends] = await Promise.all([
         readExerciseBests(
           tx,
           circle.map((person) => person.id),
           exerciseId,
         ),
         readBodyWeights(tx, ids),
-        readExerciseTrend(
+        // Every measure the movement has, so the trend offers what an exercise's graph does.
+        readExerciseTrends(
           tx,
           ids,
           exerciseId,
-          metric,
+          metricsForExercise(exercise),
           dateWindow(trendDays.from, trendDays.to, viewer.timeZone),
         ),
       ]);
       const board = topWithYou(rankExercise(circle, bests, new Map(), metric), head.me.id, 5);
-      return { ...head, exercise, metric, bests, readings, trend, board };
+      return { ...head, exercise, metric, bests, readings, trends, board };
     },
     { readOnly: true },
   );
@@ -147,7 +148,7 @@ export default async function CompareExercisePage(
     );
   }
 
-  const { metric, bests, readings, trend, board } = found;
+  const { metric, bests, readings, trends, board } = found;
   const mine = bests.get(me.id);
   const theirs = bests.get(them.id);
   // Both readings are here only when both opted in: the policy on the table decides.
@@ -156,14 +157,32 @@ export default async function CompareExercisePage(
     mine?.find((b) => b.metric === metric)?.value ?? null,
     theirs?.find((b) => b.metric === metric)?.value ?? null,
   );
-  const mineTrend = trend.get(me.id) ?? [];
-  const theirTrend = trend.get(them.id) ?? [];
-  // Loads are stored in kilograms and drawn in the reader's unit, as every number here.
-  const inUnit = (value: number) =>
-    METRIC_UNIT[metric] === "kg" ? fromKilograms(value, unit) : value;
-  // Your own point opens your workout; theirs, the session they shared.
-  const line = (points: readonly TrendPoint[], href: (point: TrendPoint) => Route | null) =>
-    points.map((point) => ({ date: point.date, value: inUnit(point.value), href: href(point) }));
+  // Loads are stored in kilograms and drawn in the reader's unit, as every number here. Your
+  // own point opens your workout; theirs, the session they shared.
+  const line = (
+    measure: SharedMetric,
+    points: readonly TrendPoint[],
+    href: (point: TrendPoint) => Route | null,
+  ) =>
+    points.map((point) => ({
+      date: point.date,
+      value: METRIC_UNIT[measure] === "kg" ? fromKilograms(point.value, unit) : point.value,
+      href: href(point),
+    }));
+  const measures = metricsForExercise(exercise).map((measure) => {
+    const trend = trends.get(measure);
+    return {
+      metric: measure,
+      lines: [
+        line(measure, trend?.get(me.id) ?? [], (point) =>
+          workoutHref(point.workoutSessionId, "shared"),
+        ),
+        line(measure, trend?.get(them.id) ?? [], (point) =>
+          point.sharedId ? (`/u/${them.username}/activities/${point.sharedId}` as Route) : null,
+        ),
+      ] as const,
+    };
+  });
 
   return (
     <>
@@ -195,22 +214,16 @@ export default async function CompareExercisePage(
                 range: rangeOf(
                   { preset },
                   today,
-                  earliestOf([...mineTrend, ...theirTrend].map((point) => point.date)),
+                  earliestOf(
+                    measures.flatMap((measure) => measure.lines.flat().map((point) => point.date)),
+                  ),
                 ),
                 today,
-                metric,
-                label: metricLabel(metric, exercise),
+                exercise,
                 unit,
                 // As the bests above name the two columns.
                 names: ["You", names[1]],
-                lines: [
-                  line(mineTrend, (point) => workoutHref(point.workoutSessionId, "shared")),
-                  line(theirTrend, (point) =>
-                    point.sharedId
-                      ? (`/u/${them.username}/activities/${point.sharedId}` as Route)
-                      : null,
-                  ),
-                ],
+                measures,
               }}
             />
           </GraphRangeProvider>

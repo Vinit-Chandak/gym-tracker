@@ -17,10 +17,14 @@ import { SHORT_SLEEP_HOURS } from "@/domain/recovery";
 
 import type { ProgressData } from "../progress-types";
 
-/** What the check-in asks: its segment, its name, its unit and what its scale means. */
+/**
+ * What the check-in asks: its segment, its name, its unit and what its scale means. `lowIsBetter`
+ * answers are drawn downward, 1 at the top, so a better day is higher on every graph (DESIGN.md,
+ * The Better Is Up Rule).
+ */
 export const RECOVERY_LABELS: Record<
   RecoveryMeasure,
-  { short: string; long: string; unit: string; hint: string }
+  { short: string; long: string; unit: string; hint: string; lowIsBetter?: boolean }
 > = {
   sleepHours: { short: "Sleep", long: "Sleep", unit: "h", hint: "Hours slept before training." },
   sleepQuality: {
@@ -29,8 +33,20 @@ export const RECOVERY_LABELS: Record<
     unit: "/ 5",
     hint: "1 is poor, 5 is great.",
   },
-  fatigue: { short: "Fatigue", long: "Fatigue", unit: "/ 5", hint: "1 is fresh, 5 is wrecked." },
-  soreness: { short: "Soreness", long: "Soreness", unit: "/ 5", hint: "1 is none, 5 is severe." },
+  fatigue: {
+    short: "Fatigue",
+    long: "Fatigue",
+    unit: "/ 5",
+    hint: "1 is fresh, 5 is wrecked; fresher is higher.",
+    lowIsBetter: true,
+  },
+  soreness: {
+    short: "Soreness",
+    long: "Soreness",
+    unit: "/ 5",
+    hint: "1 is none, 5 is severe; less sore is higher.",
+    lowIsBetter: true,
+  },
 };
 
 /**
@@ -75,7 +91,11 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
           value: bucket.values[measure],
         }))}
         format={(value) => decimal(value, 1)}
-        scale={sleep ? { integral: true } : { min: 1, max: 5, ticks: [1, 3, 5] }}
+        scale={
+          sleep
+            ? { integral: true }
+            : { min: 1, max: 5, ticks: [1, 3, 5], invert: label.lowIsBetter ?? false }
+        }
         rule={sleep ? { value: SHORT_SLEEP_HOURS, label: `${SHORT_SLEEP_HOURS} h` } : undefined}
         summary={{
           label: sleep ? "Average a night" : "Average",

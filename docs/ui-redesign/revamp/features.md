@@ -292,7 +292,7 @@ weight and muscle volume), and every past entry, which can be opened, corrected 
 One picker offers seven sections: **Overview** (where the tab opens), **History**, **Strength**,
 **Running**, **Food**, **Recovery** and **Body**. The header says "Progress" with the dates the
 section is drawn over ("8 Sept – 7 Oct 2026"). Every graph is the one `Graph` (ADR 0042) and
-carries the same spans, 1m, 3m, 6m, 12m and All: a month by default, one span for every graph,
+carries the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
 remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
 - **Overview:** this month on paper and its totals; then training totals per sport over the span,
@@ -318,17 +318,18 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
 - **Food:** calories or protein a day as bars, today's target as a rule; the average a day over
   the days logged ("2,000 kcal · 26 of 30 days logged · target 2,600").
 - **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
-  answers as lines on their whole scale; the average over the days that gave the answer, a day
-  checked in twice counted once.
+  answers as lines on their whole scale, fatigue and soreness drawn 1 at the top so a fresher day
+  is higher; the average over the days that gave the answer, a day checked in twice counted once.
 - **Body:** body weight as recorded, a point per reading, in the account's unit; the latest and
   its change ("75.2 kg · −1 since Tue 8 Sept"); and **muscles this week**, with its own week
   arrows: front and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a
   legend and a table; tapping a muscle shows "Chest · 6 sets this week".
-- **History:** "79 entries", newest first, each marked Workout, Run, Ride, Swim or Recovery, over
-  the same span as the graphs, with the spans above it. A workout shows its name, date, time,
+- **History:** "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
+  the list (every page up to five, else the first, the last and the page read with its
+  neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name, date, time,
   gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim
   its distance and time; a recovery entry its readings. Filters: dates, activity, gym, exercise
-  and machine, with a count of filters set and Clear filters.
+  and machine, with a count of filters set and Clear filters; a filter starts again at page 1.
 
 ### Actions
 

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { HistoryView, type HistoryItem } from "./history-view";
+import { HISTORY_PAGE_SIZE, HistoryView, type HistoryItem } from "./history-view";
 
 const navigation = vi.hoisted(() => ({ query: "kind=run" }));
 vi.mock("next/navigation", () => ({
@@ -40,10 +40,10 @@ it("replaces local filters when Back or a deep link changes the URL", () => {
     },
   ];
   const props = {
+    today: "2026-10-07",
     range: { from: "2026-09-01", to: "2026-09-26" },
     items,
     gyms: [],
-    truncated: false,
   };
   const { rerender } = render(<HistoryView {...props} />);
   expect(screen.getByText("Morning run")).toBeTruthy();
@@ -62,9 +62,10 @@ it("lists each entry under its day, its mark naming the sport", () => {
   navigation.query = "";
   render(
     <HistoryView
+      today="2026-10-07"
       range={{ from: "2026-09-01", to: "2026-09-28" }}
       gyms={[]}
-      truncated={false}
+
       items={[
         {
           id: "lift",
@@ -100,4 +101,54 @@ it("lists each entry under its day, its mark naming the sport", () => {
   expect(screen.getByRole("img", { name: "Workout" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Recovery" })).toBeTruthy();
   expect(screen.getByText("2 entries")).toBeTruthy();
+});
+
+it("lists ten entries a page, newest first, and turns the page with its tabs", () => {
+  window.scrollTo = vi.fn();
+  window.history.replaceState(null, "", "/progress/history");
+  const items: HistoryItem[] = Array.from({ length: 23 }, (_, index) => {
+    const day = `2026-09-${String(28 - index).padStart(2, "0")}`;
+    return {
+      id: String(index),
+      kind: "workout",
+      date: day,
+      day,
+      title: `Workout ${index + 1}`,
+      subtitle: "",
+      meta: "",
+      gymId: null,
+      exercises: [],
+    };
+  });
+  const props = {
+    today: "2026-10-07",
+    range: { from: "2026-09-01", to: "2026-09-28" },
+    items,
+    gyms: [],
+  };
+  navigation.query = "";
+  const { rerender } = render(<HistoryView {...props} />);
+  expect(HISTORY_PAGE_SIZE).toBe(10);
+  expect(screen.getByText("23 entries · page 1 of 3")).toBeTruthy();
+  expect(screen.getByText("Workout 1")).toBeTruthy();
+  expect(screen.getByText("Workout 10")).toBeTruthy();
+  expect(screen.queryByText("Workout 11")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Page 2 of 3" }));
+  expect(window.location.search).toBe("?page=2");
+  expect(window.scrollTo).toHaveBeenCalled();
+  // The URL is what the list reads, so Back from an entry returns to the same page.
+  navigation.query = "page=2";
+  rerender(<HistoryView {...props} />);
+  expect(screen.getByText("Workout 11")).toBeTruthy();
+  expect(screen.queryByText("Workout 10")).toBeNull();
+  // A page past the end reads as the last one.
+  navigation.query = "page=9";
+  rerender(<HistoryView {...props} />);
+  expect(screen.getByText("Workout 23")).toBeTruthy();
+  // Where the list stops short of its dates, its last page says where, and only its last.
+  rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
+  expect(screen.getByRole("note").textContent).toContain("The list ends at");
+  navigation.query = "page=2";
+  rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
+  expect(screen.queryByRole("note")).toBeNull();
 });
