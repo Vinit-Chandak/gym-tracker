@@ -4,7 +4,8 @@ Date: 2026-10-07
 Status: accepted; decisions 6 and 8 amended by
 [ADR 0043](0043-strength-by-muscle-group-then-exercise.md), decision 2 (History) by
 [ADR 0044](0044-better-is-up-friends-in-step-and-history-in-pages.md), decision 13 (Overview) by
-[ADR 0045](0045-the-latest-ten-under-the-month.md)
+[ADR 0045](0045-the-latest-ten-under-the-month.md), decision 11 (the body map) by
+[ADR 0047](0047-body-weight-and-muscles-a-section-each.md)
 
 ## Context
 

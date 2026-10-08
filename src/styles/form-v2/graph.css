@@ -81,6 +81,14 @@
   margin-top: 8px;
   border-radius: 4px;
 }
+/* A rem-sized probe: watching it tells the graph the reader's text size changed. */
+.graph-probe {
+  position: absolute;
+  width: 1rem;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 .graph-plot:focus-visible {
   outline: 3px solid var(--ov-ink);
   outline-offset: 2px;

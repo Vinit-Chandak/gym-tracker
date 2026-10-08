@@ -72,6 +72,7 @@ const routes = [
   "/progress/calendar",
   `/progress/day/${fixtures.populatedFoodDay ?? fixtures.history?.to ?? "2026-10-06"}`,
   "/progress?view=body",
+  "/progress?view=muscles",
   "/progress?view=running",
   "/progress?view=strength",
   "/progress?view=recovery",
