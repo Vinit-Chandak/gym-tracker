@@ -142,6 +142,10 @@ type Trend = {
   stepEvidenceIds: string[];
   evidenceIds: string[];
   revert: { load: number; loads: (number | null)[]; evidenceIds: string[] } | null;
+  /** Each working set's baseline load: a heavier attempt counts at the session's (ADR 0047). */
+  latestWorkLoads?: (number | null)[];
+  /** The coarse step the current load came from, and the reps it counts from (ADR 0047). */
+  landing?: { load: number; from: number; floor: number } | null;
 };
 type Slot = {
   slotId: string;
@@ -1422,6 +1426,15 @@ export function session(context: Context, strategy: Persona["coach"]): Plan {
     const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
     const hold = Array.from({ length: p.sets }, (_, i) => {
       const prior = latest[i];
+      // Where the set counts: a heavier attempt that fell short goes back to the session's load.
+      const weight = trend?.latestWorkLoads?.[i] ?? prior?.weight ?? known;
+      // After a coarse step the reps count from its landing, below the range (ADR 0047).
+      const landed =
+        trend?.landing && weight !== null && Math.abs(trend.landing.load - weight) < 0.05
+          ? trend.landing.floor
+          : null;
+      const bounds: [number | null, number | null] | null =
+        range && landed !== null ? [Math.min(range[0] ?? landed, landed), range[1]] : range;
       const value =
         p.type === "reps"
           ? prior?.reps
@@ -1437,10 +1450,10 @@ export function session(context: Context, strategy: Persona["coach"]): Plan {
             : rule?.distanceMeters) ??
         range?.[0] ??
         (p.type === "reps" ? 8 : 30);
-      const target = clamp(value ?? fallback, range);
+      const target = clamp(value ?? fallback, bounds);
       return {
         setType: "working",
-        weight: prior?.weight ?? known,
+        weight,
         reps: p.type === "reps" ? target : null,
         durationSeconds: p.type === "duration" ? target : null,
         distanceMeters: p.type === "distance" ? target : null,

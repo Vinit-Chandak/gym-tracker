@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CoachingChangeRecord } from "@/db/schema";
 import type { ComparablePerformance } from "@/server/queries/comparable";
-import { applyRule, type RuleInput } from "./progression-rule";
+import { applyRule, prescriptionFor, type RuleInput } from "./progression-rule";
 
 const asOf = new Date("2026-09-27T12:00:00Z");
 const DAY = 86_400_000;
@@ -123,9 +123,10 @@ describe("applyRule after an accepted change (ADR 0039)", () => {
   });
 
   it("goes back to the load before a step that did not hold, across the change that made it", () => {
+    // 2 at 1 RIR is 3 in hand against the 5 that 3 at 2 RIR needs: clearly short, twice.
     const missed = rule({
       changes: [raised],
-      history: [session(2, 100, 2, 2), session(6, 100, 2, 2), session(12, 97.5, 5, 3)],
+      history: [session(2, 100, 2, 1), session(6, 100, 2, 1), session(12, 97.5, 5, 3)],
     });
     expect(missed.suggestion?.kind).toBe("revert");
     expect(weights(missed)).toEqual([97.5, 97.5, 97.5]);
@@ -264,10 +265,12 @@ describe("what the workout screen asks for next (ADR 0040)", () => {
         exercise: { ...exercise, modality: "bodyweight", movementPattern: "lunge" },
       }).suggestion?.kind,
     ).toBe("increase");
-    // Read against the dumbbell alone, 7.5 kg looked half as heavy again.
+    // Read against the dumbbell alone, 7.5 kg looked half as heavy again: too big to bridge with
+    // reps, which build two past the top and no further (ADR 0047).
     expect(rule(splitSquat).suggestion).toMatchObject({
       kind: "hold",
-      advice: "Build to 28 reps at this weight first, so the step lands inside the range.",
+      advice:
+        "Build to 14 reps here and no further: the step comes once every set has more in reserve there, or sooner with a smaller step or a variation.",
     });
   });
 });
@@ -285,5 +288,37 @@ describe("pounds", () => {
     expect(outcome.weightStep).toBe(5);
     expect(outcome.suggestion?.kind).toBe("increase");
     expect(weights(outcome)).toEqual([145, 145, 145]);
+  });
+});
+
+describe("an exercise added on the spot", () => {
+  it("takes the library's range, and a half-rep RIR as the two whole reps it sits between", () => {
+    const curl = { ...exercise, defaultRepMin: 10, defaultRepMax: 15, defaultRir: 1.5 };
+    expect(prescriptionFor(null, curl, null, 2.5, "kg")).toMatchObject({
+      repMin: 10,
+      repMax: 15,
+      rirMin: 1,
+      rirMax: 2,
+    });
+    expect(prescriptionFor(null, { ...curl, defaultRir: 2 }, null, 2.5, "kg")).toMatchObject({
+      rirMin: 2,
+      rirMax: 2,
+    });
+  });
+
+  it("goes on from the load held before a lighter session, not from the lighter one (ADR 0047)", () => {
+    // 3 × 3–5 at 2 RIR: 100 × 5 at 2 twice, then one lighter day at 80 × 5 at 4.
+    const outcome = rule({
+      history: [session(2, 80, 5, 4), session(5, 100, 5, 2), session(9, 100, 5, 2)],
+    });
+    expect(outcome.basisPerformance?.workoutSessionId).toBe("s5");
+    // On target twice at 100: the step is from 100, never from the lighter day.
+    expect(outcome.suggestion?.kind).toBe("increase");
+    expect(weights(outcome)).toEqual([102.5, 102.5, 102.5]);
+    // The lighter load chosen twice running is the load now.
+    const chosen = rule({
+      history: [session(2, 80, 5, 4), session(4, 80, 5, 4), session(9, 100, 5, 2)],
+    });
+    expect(chosen.basisPerformance?.workoutSessionId).toBe("s2");
   });
 });
