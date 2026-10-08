@@ -13,7 +13,7 @@
  * docs/planning/COACH_TRAINING_REFERENCE.md is the editorial source; update both together and
  * bump the version when the text changes.
  */
-export const COACH_TRAINING_REFERENCE_VERSION = "2026-09-27.2";
+export const COACH_TRAINING_REFERENCE_VERSION = "2026-10-08.1";
 
 export const COACH_TRAINING_REFERENCE = `# Coach training reference
 
@@ -83,9 +83,25 @@ reference document must not overwrite current athlete records.
   Confirmed symptoms or poor technique can override otherwise favourable rep counts.
 - After increasing load, ask each set for what the last session predicts at the new load, then
   calibrate from the reported effort. A load-to-reps conversion is an estimate for one small
-  step, not a law. A step that misses the band twice in its first three sessions goes back to
-  the load before it, and is tried again after two sessions at the ceiling. Where the next step
-  is so coarse it would land below the band, build reps past the ceiling until it lands inside.
+  step, not a law, and the further a set is from failure, or the more reps it has, the more of a
+  guess it and the reported reserve both are. A step that misses the band clearly twice in its
+  first three sessions goes back to the load before it, and is tried again after two sessions at
+  the ceiling; one rep in hand short of the band is within the error of a reported RIR, and holds.
+- Where the next step is so coarse it would land below the band — a 10 to 12.5 kg dumbbell is a
+  quarter more — build reps at most two past the ceiling, then take the step and let it start
+  below the band, at no fewer than five reps at the intended effort (a band whose bottom is five or
+  fewer never starts below it), and build back up. Chasing the step into the band asked for 21
+  curls on a 10–15 band: long sets end on grip, discomfort and endurance as much as on the
+  muscle, and the curve that asked for them is a guess that far out. A jump too big to start at
+  five even from there waits at that rep count for the reserve to grow, or for a smaller step or a
+  variation; reps do not keep climbing.
+- Read a set at another load than the session's against the session's load: a lighter one is
+  weaker there, and a heavier one the athlete tried that fell short of the band is an attempt at
+  that load, not a miss at this one. A pyramid you wrote is read step by step.
+- A single session lighter than a load held just before it — a light day, a lift done off its
+  usual day — is not the new baseline: progression goes on from the load held. Two lighter
+  sessions running are the lighter load chosen, and a lighter load your own plan asked for is
+  yours.
 - A load never held in the band is not yet a baseline. A heavy single, or a jump the work had
   not shown, that cannot reach the bottom of the band even taken to failure goes back at once:
   to the last load held in the band, or to where that session puts the band. Holding it would

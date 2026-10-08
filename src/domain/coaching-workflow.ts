@@ -96,7 +96,7 @@ function describeIssue(issue: unknown): string {
   return JSON.stringify(issue);
 }
 
-export const COACH_POLICY_VERSION = "2026-09-27.2";
+export const COACH_POLICY_VERSION = "2026-10-08.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",

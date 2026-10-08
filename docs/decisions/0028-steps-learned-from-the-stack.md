@@ -1,5 +1,9 @@
 # Steps learned from the stack
 
+**Superseded in part by [ADR 0047](0047-two-reps-past-the-top-a-lighter-day-and-a-set-tried-heavier.md):**
+Next up asks for the stop above the best load ever lifted on the stack for the exercise, not above
+today's heaviest (decision 6).
+
 A machine described its loads with one number, "smallest load jump", and an optional list of
 the weights it offers. Pin and cable stacks do not fit one number: the plates near the pin are
 lighter than the ones at the bottom, and two leg curls in one gym step differently. Nobody
