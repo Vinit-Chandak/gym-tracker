@@ -295,10 +295,11 @@ section is drawn over ("8 Sept – 7 Oct 2026"). Every graph is the one `Graph` 
 carries the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
 remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** this month on paper and its totals; then training totals per sport over the span,
-  only for sports with sessions ("Strength 25 sessions · 21 days · 23 h 50 min"; "Running 8
-  sessions · 7 days · 3 h 15 min · 30.8 km"; cycling and swimming alike), noting sessions
-  without a distance or duration, with the spans above them.
+- **Overview:** this month on paper and its totals as its key, each sport's count with its
+  distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **Latest**, the ten newest
+  workouts, runs, rides and swims as History lists them, running back into the month before
+  (named) when this one holds fewer, with History at its head. No span and no funnel: the
+  training totals over a span were dropped at the owner's request (ADR 0045).
 - **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
   and then an exercise filed under it ("All exercises", then each exercise ever logged there,
   each under the group of its first primary muscle). **All exercises:** the group's total volume

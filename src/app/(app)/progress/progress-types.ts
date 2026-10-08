@@ -10,16 +10,7 @@ import type {
 } from "@/domain/progress-graphs";
 import type { BodyLoadUnit } from "@/domain/types";
 
-export type SportTotal = {
-  sport: string;
-  label: string;
-  count: number;
-  days: number;
-  durationMs: number;
-  unknownDurations: number;
-  distanceMetres: number | null;
-  unknownDistances: number;
-};
+import type { HistoryItem } from "./history/history-list";
 
 /** Everything the Progress page draws, read once on the server for every section. */
 export type ProgressData = {
@@ -32,9 +23,10 @@ export type ProgressData = {
   /** This month so far, for Overview's calendar: every activity of every day. */
   month: { month: string; today: number; activities: readonly DayActivity[] };
   /**
-   * Per-sport totals over the range, counted in SQL rather than sampled: a total is a total.
+   * The latest activities of every sport, newest first, as History lists them: the calendar read
+   * back from today, past the month's first day when it holds fewer (ADR 0045).
    */
-  overview: { range: GraphRange; totals: readonly SportTotal[] };
+  overview: { latest: readonly HistoryItem[] };
   /** Volume by muscle group, read in the account's own unit. */
   strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit };
   exercise: ExerciseGraphData;

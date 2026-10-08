@@ -19,7 +19,9 @@
   line-height: 1.3;
 }
 
-/* ---------- Overview: the month ---------- */
+/* ---------- Overview: the month, then the latest ---------- */
+/* A head on Overview: its name, and at its end the page that holds all of it (the month's
+   Calendar, the latest's History). */
 .month-head {
   display: flex;
   min-height: 36px;
@@ -73,14 +75,6 @@
   align-items: center;
   justify-content: center;
 }
-.total-row {
-  display: flex;
-  min-height: 56px;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--ov-hair);
-}
 
 /* ---------- History: each entry under its day ---------- */
 .history-row {
@@ -90,6 +84,17 @@
   gap: 12px;
   padding: 7px 0;
   border-bottom: 1px solid var(--ov-hair);
+}
+/* Where a list read beside the month (Overview's latest) runs on past it: the earlier month's
+   name over its first day, as the month's own name stands over the calendar. */
+.list-month {
+  margin-top: 22px;
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+.list-month + .caption-head {
+  margin-top: 6px;
 }
 
 /* ---------- a day: its print, then its entries ---------- */

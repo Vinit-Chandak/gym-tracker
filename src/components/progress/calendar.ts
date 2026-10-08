@@ -73,15 +73,21 @@ export type SportTally = {
   count: number;
   /** Metres, for the sports that measure one; null for lifting or where none was recorded. */
   metres: number | null;
+  /** Recorded training time; null where none was recorded. */
+  ms: number | null;
 };
 
-/** How many of each sport, and how far, in the order the calendar's legend names them. */
+/**
+ * How many of each sport, how far and for how long, in the order the calendar's legend names
+ * them. A distance or a time adds up what was recorded, and is null where nothing was.
+ */
 export function tally(activities: readonly DayActivity[]): SportTally[] {
   const order: ActivitySport[] = ["strength", "running", "cycling", "swimming"];
   return order.flatMap((sport) => {
     const own = activities.filter((activity) => activity.sport === sport);
     if (own.length === 0) return [];
     const measured = own.filter((activity) => activity.distanceMetres !== null);
+    const timed = own.filter((activity) => activity.durationMs !== null);
     return [
       {
         sport,
@@ -90,6 +96,10 @@ export function tally(activities: readonly DayActivity[]): SportTally[] {
           sport === "strength" || measured.length === 0
             ? null
             : measured.reduce((sum, activity) => sum + activity.distanceMetres!, 0),
+        ms:
+          timed.length === 0
+            ? null
+            : timed.reduce((sum, activity) => sum + activity.durationMs!, 0),
       },
     ];
   });

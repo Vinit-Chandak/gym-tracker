@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { HISTORY_PAGE_SIZE, HistoryView, type HistoryItem } from "./history-view";
+import type { HistoryItem } from "./history-list";
+import { HISTORY_PAGE_SIZE, HistoryView } from "./history-view";
 
 const navigation = vi.hoisted(() => ({ query: "kind=run" }));
 vi.mock("next/navigation", () => ({

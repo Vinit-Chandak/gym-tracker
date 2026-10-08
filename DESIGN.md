@@ -586,8 +586,15 @@ under 360 pt wide.
   58 pt; a date grows with the reader's text as a figure does (by half) and its tile grows with
   it, so icons never sit under a date. Each month on the calendar page says how many of each sport
   it holds beside its name, each count led by its icon, and the totals under the overview do the
-  same, so they are its key. Every day is a full target: under 375 pt, and on Android, the month
+  same, so they are its key; there each sport says under its name how far and how long it went
+  this month (ADR 0045). Every day is a full target: under 375 pt, and on Android, the month
   runs to the screen's edges (its tiles 2 pt apart under 375).
+- **The latest:** under the overview's month, the ten newest activities in History's rows under
+  History's day captions, headed Latest with History at its end, as the month's head has
+  Calendar. It is the calendar read back from today: where this month holds fewer, it runs on
+  into the months before, each named (Heading, 17, 700) once over its first day; where it holds
+  more, History has the rest. It lists what the month marks, never recovery check-ins
+  (ADR 0045).
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
 
