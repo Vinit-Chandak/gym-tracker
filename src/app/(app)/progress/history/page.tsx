@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import type { Effort } from "@/domain/activity";
-import { formatDuration, formatPace } from "@/domain/pace";
 import { chooseRange, readWindowOf } from "@/domain/graph-range";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatRunKm, formatTime } from "@/lib/format";
-import { originQuery } from "@/lib/nav";
-import { UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { listActivityPage } from "@/server/repositories/activity-analytics";
 import { readHistory } from "@/server/repositories/history";
 import { dateWindow } from "@/server/validation/date-range";
-import { HistoryView, type HistoryItem } from "./history-view";
+import {
+  enduranceItem,
+  historyClock,
+  newestFirst,
+  recoveryItem,
+  runItem,
+  workoutItem,
+} from "./history-items";
+import { HistoryView } from "./history-view";
 
 export const metadata: Metadata = { title: "History" };
 
@@ -25,29 +28,12 @@ export const metadata: Metadata = { title: "History" };
  */
 export const unstable_dynamicStaleTime = 60;
 
-function readings(values: [string, number | null, string?][]) {
-  return values
-    .filter(([, value]) => value !== null)
-    .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
-    .join(" · ");
-}
 /**
- * A run's effort, said to be unconfirmed where it is a migrated number nobody stood by.
- *
- * "Effort", not "RPE", and for the same reason the rides and swims below say it: this reads
- * out of five like every other endurance effort, while a strength set's RPE is still out of
- * ten. One word over two scales is what the five-step change was undoing.
- */
-function runEffort(effort: Effort) {
-  if (effort.status === "reported") return `Effort ${effort.value} of 5`;
-  if (effort.value === null) return "";
-  return `Effort ${effort.value} of 5 (unconfirmed)`;
-}
-/**
- * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery
- * reading, newest first, ten to a page (ADR 0044). It was a tab of its own until Food took its
- * place. A list has no span: it reads back as far as it goes, or over the dates chosen by hand
- * behind the funnel.
+ * History: every workout, run, ride, swim and recovery reading, newest first, ten to a page
+ * (ADR 0044). It was a tab of its own until Food took its place (ADR 0034), then a section of
+ * Progress; now Overview lists the latest ten under its month, and this page, one tap behind
+ * them, holds every entry (ADR 0045). A list has no span: it reads back as far as it goes, or
+ * over the dates chosen by hand behind the funnel.
  */
 export default async function HistoryPage(props: PageProps<"/progress/history">) {
   const user = await requireUser(),
@@ -83,83 +69,13 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     },
     { readOnly: true },
   );
-  // Each entry under its own local day, at its local time, as the list is read.
-  const dayOf = (at: Date) => todayInTimeZone(profile.timeZone, at);
-  const timeOf = (at: Date) => formatTime(at, profile.timeZone);
-  const items: HistoryItem[] = [
-    ...data.training.workouts.map((w) => ({
-      id: w.id,
-      kind: "workout" as const,
-      date: w.startedAt.toISOString(),
-      day: dayOf(w.startedAt),
-      title: w.dayName ?? UNPLANNED_SESSION,
-      subtitle: `${timeOf(w.startedAt)} · ${w.gymName}`,
-      // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
-      // and goes back to History.
-      href: `/workouts/${w.id}${originQuery("history")}` as const,
-      meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
-      gymId: w.gymId,
-      exercises: w.exercises.map((e) => ({
-        id: e.exerciseId,
-        name: e.name,
-        machineId: e.machineId,
-        machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
-      })),
-      recovery: readings([["Sleep", w.sleepHours, "h"]]),
-    })),
-    ...data.training.runs.map((r) => ({
-      id: r.id,
-      kind: "run" as const,
-      date: r.startedAt.toISOString(),
-      day: dayOf(r.startedAt),
-      title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
-      subtitle: timeOf(r.startedAt),
-      href: `/training/activities/${r.id}${originQuery("history")}` as const,
-      meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
-      gymId: r.gymId,
-      exercises: [],
-      recovery: runEffort(r.effort),
-    })),
-    ...data.endurance.items.map((activity) => ({
-      id: activity.id,
-      kind: activity.sport as "cycling" | "swimming",
-      date: activity.startedAt.toISOString(),
-      day: activity.occurredOn,
-      title:
-        activity.distanceMetres === null
-          ? activity.sport === "cycling"
-            ? "Ride"
-            : "Swim"
-          : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
-      subtitle: timeOf(activity.startedAt),
-      href: `/training/activities/${activity.id}${originQuery("history")}` as const,
-      // An unrecorded duration says so rather than reading as zero minutes.
-      meta:
-        activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),
-      gymId: null,
-      exercises: [],
-      recovery: readings([
-        ["Effort", activity.effortStatus === "reported" ? activity.effortValue : null],
-      ]),
-    })),
-    ...data.training.recovery.map((r) => ({
-      id: r.id,
-      kind: "recovery" as const,
-      date: r.date,
-      day: r.date,
-      title: "Recovery",
-      subtitle: readings([
-        ["Sleep", r.sleepHours, "h"],
-        ["Energy", r.energy],
-        ["Fatigue", r.fatigue],
-        ["Soreness", r.soreness],
-      ]),
-      meta: "",
-      gymId: null,
-      exercises: [],
-      recovery: r.notes ?? undefined,
-    })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  const clock = historyClock(profile.timeZone);
+  const items = [
+    ...data.training.workouts.map((w) => workoutItem(w, clock)),
+    ...data.training.runs.map((r) => runItem(r, clock)),
+    ...data.endurance.items.map((activity) => enduranceItem(activity, clock)),
+    ...data.training.recovery.map(recoveryItem),
+  ].sort(newestFirst);
   // A reader that stopped short of the range leaves the days before its oldest row incomplete:
   // the other kinds would run on alone. So the list stops after the last whole day, for every
   // kind, and says where; dates chosen behind the funnel read further back.
@@ -167,21 +83,18 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     data.training.workoutsTruncated ? data.training.workouts.at(-1)?.startedAt : undefined,
     data.training.runsTruncated ? data.training.runs.at(-1)?.startedAt : undefined,
     data.endurance.nextCursor !== null ? data.endurance.items.at(-1)?.startedAt : undefined,
-  ].flatMap((at) => (at ? [dayOf(at)] : []));
+  ].flatMap((at) => (at ? [clock.dayOf(at)] : []));
   const partialDay = stops.sort().at(-1) ?? null;
   const listed = partialDay ? items.filter((item) => item.day > partialDay) : items;
   return (
-    // Progress's own opening, as on every other section of it; the picker says which.
-    <div className="progress page-width pt-safe">
-      <HistoryView
-        error={rangeError}
-        today={today}
-        // The dates the list covers: those chosen, else its first entry's day to today.
-        range={choice.custom ?? { from: listed.at(-1)?.day ?? today, to: today }}
-        items={listed}
-        gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
-        stopsAfter={listed.length < items.length ? (listed.at(-1)?.day ?? null) : null}
-      />
-    </div>
+    <HistoryView
+      error={rangeError}
+      today={today}
+      // The dates the list covers: those chosen, else its first entry's day to today.
+      range={choice.custom ?? { from: listed.at(-1)?.day ?? today, to: today }}
+      items={listed}
+      gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
+      stopsAfter={listed.length < items.length ? (listed.at(-1)?.day ?? null) : null}
+    />
   );
 }
