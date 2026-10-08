@@ -208,6 +208,12 @@ it("names fewer dates once the reader's text grows, though the plot keeps its si
   }
 });
 
+/** Each bar's fill, left to right. */
+const barFills = (container: HTMLElement) =>
+  [...container.querySelectorAll(".graph-plot svg path")].map(
+    (path) => (path as SVGPathElement).style.fill,
+  );
+
 it("draws bars in grey, the latest in ink, and the one being read in ink instead", () => {
   const { container } = draw({
     mark: "bar",
@@ -219,14 +225,48 @@ it("draws bars in grey, the latest in ink, and the one being read in ink instead
       { date: "2026-09-10", value: 5 },
     ],
   });
-  const fills = () =>
-    [...container.querySelectorAll(".graph-plot svg path")].map(
-      (path) => (path as SVGPathElement).style.fill,
-    );
   // An empty bucket has no bar.
-  expect(fills()).toEqual(["var(--ov-control)", "var(--ov-ink)"]);
+  expect(barFills(container)).toEqual(["var(--ov-control)", "var(--ov-ink)"]);
   fireEvent.keyDown(screen.getByRole("group", { name: /Body weight/ }), { key: "Home" });
-  expect(fills()).toEqual(["var(--ov-ink)", "var(--ov-control)"]);
+  expect(barFills(container)).toEqual(["var(--ov-ink)", "var(--ov-control)"]);
+});
+
+it("sets the bars that reach the rule apart in ink 2, never as the one being read", () => {
+  const { container } = draw({
+    mark: "bar",
+    placement: "bucket",
+    range: { preset: null, from: "2026-09-08", to: "2026-09-11", bucket: "day" },
+    data: [
+      { date: "2026-09-08", value: 150, reached: true },
+      { date: "2026-09-09", value: 120 },
+      { date: "2026-09-10", value: 145, reached: true },
+      { date: "2026-09-11", value: 141, reached: true },
+    ],
+    rule: { value: 140, label: "140" },
+  });
+  // The latest reached it too, and is the one in ink.
+  expect(barFills(container)).toEqual([
+    "var(--ov-ink-2)",
+    "var(--ov-control)",
+    "var(--ov-ink-2)",
+    "var(--ov-ink)",
+  ]);
+  // Reading another hands the ink to it; the latest goes back to ink 2, a grey bar stays grey.
+  const plot = screen.getByRole("group", { name: /Body weight/ });
+  fireEvent.keyDown(plot, { key: "Home" });
+  expect(barFills(container)).toEqual([
+    "var(--ov-ink)",
+    "var(--ov-control)",
+    "var(--ov-ink-2)",
+    "var(--ov-ink-2)",
+  ]);
+  fireEvent.keyDown(plot, { key: "ArrowRight" });
+  expect(barFills(container)).toEqual([
+    "var(--ov-ink-2)",
+    "var(--ov-ink)",
+    "var(--ov-ink-2)",
+    "var(--ov-ink-2)",
+  ]);
 });
 
 /** A head to head: your line and Alex's on the same days, each with its own record. */

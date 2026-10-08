@@ -6,6 +6,7 @@ import {
   exerciseSessions,
   foodGraph,
   measuresWithData,
+  reachesTarget,
   recoveryDays,
   recoveryGraph,
   runningGraph,
@@ -207,6 +208,19 @@ describe("food", () => {
     );
     const week = graph.buckets.find((bucket) => bucket.start === "2026-09-14")!;
     expect(week).toMatchObject({ kcal: 2300, kcalDays: 2, protein: 120, lastDay: "2026-09-16" });
+  });
+
+  it("reaches a target in the whole kcal and grams the graph writes", () => {
+    // 1.8 g a kilogram of 77.6 kg is 139.68 g, written 140: a day that reads 140 reaches it.
+    expect(reachesTarget(139.6, 139.68)).toBe(true);
+    expect(reachesTarget(139.4, 139.68)).toBe(false);
+    expect(reachesTarget(2600, 2600)).toBe(true);
+    expect(reachesTarget(3100, 2600)).toBe(true);
+    expect(reachesTarget(2599.4, 2600)).toBe(false);
+    // Nothing logged, or no target, reaches nothing.
+    expect(reachesTarget(null, 140)).toBe(false);
+    expect(reachesTarget(150, null)).toBe(false);
+    expect(reachesTarget(150, 0)).toBe(false);
   });
 });
 

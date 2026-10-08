@@ -322,8 +322,9 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   line, a point per run (past about sixty, each week's or month's pace over all its kilometres),
   faster higher, with the average over all their kilometres, outdoor and treadmill never mixed
   (the choice shows only when both were run).
-- **Food:** calories or protein a day as bars, today's target as a rule; the average a day over
-  the days logged ("2,000 kcal · 26 of 30 days logged · target 2,600").
+- **Food:** calories or protein a day as bars, today's target as a rule, the bars that reach it
+  set apart in ink 2; the average a day over the days logged ("2,000 kcal · 26 of 30 days logged
+  · target 2,600").
 - **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
   answers as lines on their whole scale, fatigue and soreness drawn 1 at the top so a fresher day
   is higher; the average over the days that gave the answer, a day checked in twice counted once.
