@@ -70,6 +70,7 @@ export function LinkButton<T extends string>({
   className,
   children,
   "aria-label": label,
+  prefetch,
 }: {
   href: Route<T>;
   variant?: ButtonVariant;
@@ -78,9 +79,16 @@ export function LinkButton<T extends string>({
   children: ReactNode;
   /** Adds to what the link says when the screen has several of it (keep its words in it). */
   "aria-label"?: string;
+  /** `true` fetches the whole screen, data included, before the tap (see `AppLink`). */
+  prefetch?: ComponentProps<typeof Link>["prefetch"];
 }) {
   return (
-    <Link href={href} aria-label={label} className={buttonClassName(variant, size, className)}>
+    <Link
+      href={href}
+      aria-label={label}
+      prefetch={prefetch}
+      className={buttonClassName(variant, size, className)}
+    >
       {children}
     </Link>
   );
