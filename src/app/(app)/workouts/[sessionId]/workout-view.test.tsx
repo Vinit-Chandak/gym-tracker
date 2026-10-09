@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { Route } from "next";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -256,7 +257,7 @@ it("opens a finished workout for changes within its week, and closes the edit in
       title="Upper A"
       backHref="/progress/history"
       editUntil={editUntil}
-      addExerciseHref="/workouts/session/add-exercise?from=history"
+      addExerciseHref={"/workouts/session/add-exercise?from=history" as Route}
     />
   );
   window.history.replaceState(null, "", "/workouts/session?from=history");

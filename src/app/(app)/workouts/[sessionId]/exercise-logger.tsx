@@ -594,7 +594,8 @@ export function ExerciseLogger({
   // ---------- the suggestion, its tag and Why ----------
   // Said only where the set on the entry has a suggested set of its own, warm-up or work, and
   // always that set's figures: never a warm-up's numbers under a working set's tag.
-  const suggestion = entryTarget ? exercise.suggestion : null;
+  // Not when a finished workout is amended: what the day suggested is no longer advice.
+  const suggestion = entryTarget && live ? exercise.suggestion : null;
   const entryWarm = entryRow !== null && isWarmup(entryRow.setType);
   const kindLabel = suggestion
     ? entryWarm && suggestion.kind !== "coach"
@@ -1416,7 +1417,12 @@ export function ExerciseLogger({
             </section>
           ) : editable ? (
             <section aria-label="Sets" className="entry">
-              {message && slotMessage("warn", message, "alert")}
+              {message
+                ? slotMessage("warn", message, "alert")
+                : // Amending, the sets above are what is changed: each line opens its own.
+                  amending &&
+                  sets.loggedSets.length > 0 &&
+                  slotMessage("info", "Tap a set to change or delete it.", "status")}
               <div className="entry-save">
                 <Button
                   variant="tonal"

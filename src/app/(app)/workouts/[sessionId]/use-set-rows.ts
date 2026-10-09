@@ -183,15 +183,23 @@ function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
  * warm-up row turned into a working set takes the work's numbers — else the last set of its kind
  * logged here, else the last target of its kind.
  */
-function ghostFor(exercise: ExerciseVM, rows: readonly RowState[], index: number): Ghost {
+function ghostFor(
+  exercise: ExerciseVM,
+  rows: readonly RowState[],
+  index: number,
+  amending = false,
+): Ghost {
   const row = rows.find((r) => r.setIndex === index) ?? { setIndex: index, setType: "working" };
-  const targets = prefillTargets(exercise);
-  const target = placedSet(targets, rows, row);
-  if (target) return toGhost(target);
   const warm = isWarmup(row.setType);
   const last = [...rows]
     .filter((r) => r.setIndex < index && r.logged && isWarmup(r.logged.setType) === warm)
     .pop()?.logged;
+  // A set put into a finished workout (ADR 0049) was done beside the ones before it, not at the
+  // day's target: it starts from the last of its kind there.
+  if (amending && last) return toGhost(last);
+  const targets = prefillTargets(exercise);
+  const target = placedSet(targets, rows, row);
+  if (target) return toGhost(target);
   if (last) return toGhost(last);
   const tail = targets.filter((set) => isWarmup(set.setType) === warm).at(-1);
   return tail ? toGhost(tail) : {};
@@ -423,7 +431,7 @@ export function useSetRows({
   };
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex);
+    const ghost = ghostFor(exercise, rows, row.setIndex, amending);
     const weight = resolve(row, "weight", ghost);
     // Exactly the measure this exercise is counted in. A carry has no reps to save, and
     // saving a zero for one would be a number nobody entered.
@@ -621,7 +629,7 @@ export function useSetRows({
     editing: rows.some((row) => row.dirty && !row.saving),
     settled,
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
-    ghost: (index: number) => ghostFor(exercise, rows, index),
+    ghost: (index: number) => ghostFor(exercise, rows, index, amending),
     /** The suggested set a row stands for, which the entry shows and explains; null for none. */
     target: (index: number) => {
       const row = rows.find((r) => r.setIndex === index);

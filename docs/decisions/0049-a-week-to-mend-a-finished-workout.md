@@ -42,10 +42,11 @@ reads back from the first of those rows.
    says once, above the sets, that each change saves as it is made and until when; every
    exercise is a row that opens its log, the ones not done included; Add exercise stands under
    them and comes back to the edit. Its log shows what was done, each set a line that opens to
-   change or delete it, and Add set for one more; nothing about training it (Complete, Skip, the
-   machine's question, the coach's note, Next up, rest) is offered. Done closes the edit in
-   place; it is a search parameter (`edit=1`) moved with `replaceState`, so a reload and Add
-   exercise come back to it and Back is not one step longer. The summary straight after Finish
+   change or delete it (said once over Add set), and Add set for one more, which starts from the
+   set before it rather than the day's suggestion; nothing about training it (Complete, Skip,
+   the suggestion's tag, the machine's question, the coach's note, Next up, rest) is offered.
+   Done closes the edit in place; it is a search parameter (`edit=1`) moved with
+   `replaceState`, so a reload and Add exercise come back to it and Back is not one step longer. The summary straight after Finish
    offers "Edit workout", which opens the same edit as the past workout.
 
 ## Consequences

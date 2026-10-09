@@ -208,14 +208,17 @@ export function FinishedWorkout({
               <BackLink fallback={backHref} />
               {edit && (
                 <div className="page-header-action">
+                  {/* A filled button stands on the content's edge, where the bar's glyphs reach
+                      past it into the gutter. */}
                   {editing ? (
-                    <Button size="sm" onClick={edit.onDone}>
+                    <Button size="sm" className="mr-2.5" onClick={edit.onDone}>
                       Done
                     </Button>
                   ) : (
                     <Button
                       variant="tonal"
                       size="sm"
+                      className="mr-2.5"
                       aria-label="Edit workout"
                       onClick={edit.onEdit}
                     >
