@@ -10,9 +10,10 @@ const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
 /**
  * Reachable either way. `/auth/confirm` is where an email link lands and creates the session;
  * `/reset-password` runs on the session that link just created, so signing in must not bounce
- * the user off it.
+ * the user off it. `/warm` is requested by a keep-warm scheduler, which has no session; it still
+ * passes through the session check, so this proxy's own instance is kept warm along the way.
  */
-const NEUTRAL_PATHS = ["/auth/confirm", "/reset-password"];
+const NEUTRAL_PATHS = ["/auth/confirm", "/reset-password", "/warm"];
 
 function matches(paths: readonly string[], pathname: string): boolean {
   return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));

@@ -132,6 +132,67 @@ Your **deployed** database looks after itself; see step 7.
    **Fluid Compute** is enabled for the project too: it keeps an instance alive between requests
    instead of starting a new one for each, which is the difference between a tap answering in a
    fraction of a second and in one to two seconds.
+7. Recommended: keep the app awake between visits with a once-a-minute job on the Supabase
+   project, as described in [Keeping the app awake](#keeping-the-app-awake). Free, and five
+   minutes of setup.
+
+### Keeping the app awake
+
+On the free plan Vercel stops the app's server five to seven minutes after its last request, and
+the next tap waits about a second and a half for a new one ([ADR 0050](docs/decisions/0050-awake-before-the-first-tap.md)).
+Asking for `/warm` every minute keeps one running, with its database connections open and its
+screens loaded. The request should come from the Supabase project: it then leaves from the same
+region as the database, reaches Vercel where your phone does, and keeps the session check in
+front of every page warm too. A pinging service elsewhere (cron-job.org, for instance) keeps only
+the server; a five-minute interval, such as UptimeRobot's free plan, is too close to the five
+minutes after which an instance can stop to be relied on.
+
+In the Supabase dashboard:
+
+1. Sidebar → **Integrations** → **Cron**, and enable it. If it asks for the `pg_net` extension
+   for HTTP requests, enable that too (or **Database → Extensions** → `pg_net`).
+2. **Create job**: name `overload-keep-warm`, schedule `* * * * *` (every minute), type **HTTP
+   Request**, method **GET**, URL `https://<your production domain>/warm`, timeout 10,000 ms.
+   The default timeout is shorter than a server takes to start, which only makes the job's own
+   log report failures; the server is woken either way.
+
+Or, all at once, in **SQL Editor** (replace the domain with yours):
+
+```sql
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
+grant usage on schema cron to postgres;
+grant all privileges on all tables in schema cron to postgres;
+
+-- Every minute; scheduling the same name again replaces the job.
+select cron.schedule(
+  'overload-keep-warm',
+  '* * * * *',
+  $$ select net.http_get(
+       url := 'https://gym-tracker-fawn-omega.vercel.app/warm',
+       timeout_milliseconds := 10000
+     ) $$
+);
+
+-- pg_cron keeps a row for every run and never deletes it: keep two days.
+select cron.schedule(
+  'overload-keep-warm-tidy',
+  '15 3 * * *',
+  $$ delete from cron.job_run_details where end_time < now() - interval '2 days' $$
+);
+```
+
+A few minutes later, check that the answers are 200s:
+
+```sql
+select status_code, timed_out, error_msg, created
+from net._http_response order by created desc limit 5;
+```
+
+`pg_net` keeps each answer for six hours and then deletes it, about 5 MB at any one time. To stop,
+`select cron.unschedule('overload-keep-warm');` and the same for `overload-keep-warm-tidy`. A
+month of pings is under a tenth of the Hobby plan's function invocations and a few percent of
+its CPU. A deploy starts new instances, so the minute after one is cold whatever is scheduled.
 
 ### What a production deploy does to the database
 
@@ -211,6 +272,6 @@ password reset, once the settings are right.
   **Restore** button, and data is kept.
 - Vercel Hobby is plenty for a small group of friends.
 - The first tap after a quiet spell can still take a second or two: that is a new server instance
-  starting, not the database. Everything after it, while the instance stays warm, is fast. A
-  monitoring service pinging the sign-in page every few minutes keeps an instance warm for the
-  price of a few requests an hour.
+  starting, not the database. Everything after it, while the instance stays warm, is fast. The
+  once-a-minute job in [Keeping the app awake](#keeping-the-app-awake) keeps one warm; the sign-in
+  page, which this note used to suggest pinging, wakes the server but not the screens behind it.

@@ -4,6 +4,7 @@ import { BottomNav } from "@/components/shell/bottom-nav";
 import { Connectivity } from "@/components/shell/connectivity";
 import { LoadingPage } from "@/components/shell/loading-page";
 import { SessionStatus } from "@/components/shell/session-status";
+import { WarmOnResume } from "@/components/shell/warm-on-resume";
 import { requireOnboardedUser } from "@/server/auth";
 
 async function AccountGate({ children }: { children: ReactNode }) {
@@ -24,6 +25,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </a>
       <main id="main-content" className="app-content">
         <Connectivity />
+        <WarmOnResume />
         <Suspense fallback={<LoadingPage />}>
           <AccountGate>{children}</AccountGate>
         </Suspense>
