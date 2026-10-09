@@ -1,4 +1,4 @@
-# ADR 0049: Awake before the first tap
+# ADR 0050: Awake before the first tap
 
 Date: 2026-10-09
 Status: accepted; the scheduler in decision 2 is a setting on the Supabase project

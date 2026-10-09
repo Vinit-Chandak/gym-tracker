@@ -5,7 +5,7 @@
  *
  * The browser stops an idle worker after about thirty seconds, and starting it again costs
  * tens to hundreds of milliseconds on a phone. Two things keep that start off a tap's path
- * (ADR 0049): opening the app asks the network for the page while the worker starts
+ * (ADR 0050): opening the app asks the network for the page while the worker starts
  * (navigation preload), and requests the worker would only pass on (screens fetched by the
  * router, prefetches, saving a set) go straight to the network without starting it at all,
  * where the browser supports declaring that (Chrome's static routing).

@@ -9,7 +9,7 @@ export const RESUME_AFTER_MS = 2 * 60_000;
 export const WARM_AGAIN_AFTER_MS = 60_000;
 
 /**
- * Coming back to the installed app after a break (ADR 0049).
+ * Coming back to the installed app after a break (ADR 0050).
  *
  * A phone keeps the app's page in memory, so reopening it shows the last screen at once, and the
  * first tap is the first request. After a break that tap used to wait for everything at once: a

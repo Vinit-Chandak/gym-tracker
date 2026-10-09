@@ -295,7 +295,7 @@ export function TodayView({
           </State>
         }
         actions={
-          // The whole workout, prefetched, so Resume opens it at once (ADR 0049); its sets saved
+          // The whole workout, prefetched, so Resume opens it at once (ADR 0050); its sets saved
           // after this copy was made are laid over it by the browser (ADR 0030).
           <LinkButton
             href={`/workouts/${inProgress.id}`}

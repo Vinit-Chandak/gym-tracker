@@ -80,7 +80,7 @@ Supabase's pooler is a TLS handshake, 30–40 ms (September 25).
 
 ## What this branch changes
 
-[ADR 0049](../decisions/0049-awake-before-the-first-tap.md) records the decisions.
+[ADR 0050](../decisions/0050-awake-before-the-first-tap.md) records the decisions.
 
 | Change                                                   | What it saves                                                                                       |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |

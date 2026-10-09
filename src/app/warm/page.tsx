@@ -23,7 +23,7 @@ function loadScreens() {
 }
 
 /**
- * What a keep-warm scheduler requests every minute (ADR 0049). It is a page, not a route
+ * What a keep-warm scheduler requests every minute (ADR 0050). It is a page, not a route
  * handler, because Vercel runs route handlers in a function of their own; it is public, because
  * a scheduler has no session; and it reads nothing of anyone's.
  */

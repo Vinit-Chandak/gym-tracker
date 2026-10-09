@@ -96,7 +96,7 @@ it("leaves the coach API and the confirmation link alone", async () => {
 });
 
 /**
- * A keep-warm scheduler has no session (ADR 0049). Sent to the sign-in screen it would wake only
+ * A keep-warm scheduler has no session (ADR 0050). Sent to the sign-in screen it would wake only
  * this proxy; the page it asks for is what keeps the instance the next tap lands on running.
  */
 it("lets the keep-warm page through without a session, after checking for one", async () => {

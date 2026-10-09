@@ -78,7 +78,7 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
           <Art kind="mark" sport="strength" size={16} className="session-strip-mark" />
           <span className="session-strip-name">{session.name}</span>
           {session.restTimerEnabled && <RestTime sessionId={session.id} />}
-          {/* The whole workout, prefetched, as Today's Resume is (ADR 0049). */}
+          {/* The whole workout, prefetched, as Today's Resume is (ADR 0050). */}
           <Link href={`/workouts/${session.id}`} prefetch className="session-strip-resume">
             Resume
           </Link>

@@ -139,7 +139,7 @@ Your **deployed** database looks after itself; see step 7.
 ### Keeping the app awake
 
 On the free plan Vercel stops the app's server five to seven minutes after its last request, and
-the next tap waits about a second and a half for a new one ([ADR 0049](docs/decisions/0049-awake-before-the-first-tap.md)).
+the next tap waits about a second and a half for a new one ([ADR 0050](docs/decisions/0050-awake-before-the-first-tap.md)).
 Asking for `/warm` every minute keeps one running, with its database connections open and its
 screens loaded. The request should come from the Supabase project: it then leaves from the same
 region as the database, reaches Vercel where your phone does, and keeps the session check in

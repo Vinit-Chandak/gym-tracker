@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 
 /**
- * Keeping a server instance warm between visits (ADR 0049).
+ * Keeping a server instance warm between visits (ADR 0050).
  *
  * On the Hobby plan Vercel stops an instance a few minutes after its last request, and the next
  * tap then waits for a new one: about a second and a half before the first byte. A scheduler
