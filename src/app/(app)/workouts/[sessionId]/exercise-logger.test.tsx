@@ -117,6 +117,8 @@ function renderLogger(
   overrides: {
     exercise?: Partial<ExerciseVM>;
     readOnly?: boolean;
+    /** A finished workout opened for changes (ADR 0049). */
+    amending?: boolean;
     preferredUnit?: "kg" | "lb";
     onLogged?: (seconds: number) => void;
   } = {},
@@ -125,9 +127,15 @@ function renderLogger(
   return render(
     <ExerciseLogger
       exercise={merged}
-      session={{ ...session, preferredUnit: overrides.preferredUnit ?? "kg", exercises: [merged] }}
+      session={{
+        ...session,
+        completedAt: overrides.amending ? "2026-09-08T12:30:00.000Z" : session.completedAt,
+        preferredUnit: overrides.preferredUnit ?? "kg",
+        exercises: [merged],
+      }}
       userId="user"
       readOnly={overrides.readOnly ?? false}
+      amending={overrides.amending}
       onBack={() => {}}
       onDirtyChange={() => {}}
       onLogged={overrides.onLogged ?? (() => {})}
@@ -476,7 +484,7 @@ it("turns to the next set, and starts rest, only once the server has the set", a
   expect(
     screen.getByRole("button", { name: "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit" }),
   ).toBeTruthy();
-  expect(entry("Set 2")).toBeTruthy();
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
   expect(screen.getByRole("status").textContent).toBe(
     "Set 1 saved: 60 kilograms, 5 reps, 2 reps in reserve. Set 2 next.",
   );
@@ -662,6 +670,52 @@ it("updates a logged set from its line without starting rest again", async () =>
     name: "Set 1: 62.5 kilograms, 5 reps, 2 reps in reserve. Edit",
   });
   expect(onLogged).not.toHaveBeenCalled();
+});
+
+it("amends a finished workout's sets, done or not, offering nothing of training it (ADR 0049)", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 62.5 } });
+  renderLogger({
+    amending: true,
+    exercise: {
+      completedAt: "2026-09-08T12:20:00.000Z",
+      sets: [saved],
+      planned: { ...programmeSlot, sets: 3 },
+      coachNote: "Pause each rep",
+      decision: asking("confirm_basic"),
+    },
+  });
+  expect(screen.queryByText("Is there a hack squat here?")).toBeNull();
+  // What was done, and no row asking for the next set: Add set offers one.
+  expect(screen.queryByRole("region", { name: /^Set 2/ })).toBeNull();
+  expect(screen.queryByText("Done")).toBeNull();
+  expect(screen.queryByText("Pause each rep")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Complete, skip, superset, substitute" })).toBeNull();
+  // The load put right from the set's own line.
+  press("Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit");
+  const sheet = screen.getByRole("dialog", { name: "Set 1" });
+  fireEvent.click(within(sheet).getByRole("button", { name: "More load, 2.5 kg" }));
+  fireEvent.click(within(sheet).getByRole("button", { name: "Update" }));
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        setIndex: 1,
+        weight: 62.5,
+        expectedCompletedAt: saved.completedAt,
+      }),
+    ),
+  );
+  await screen.findByRole("button", {
+    name: "Set 1: 62.5 kilograms, 5 reps, 2 reps in reserve. Edit",
+  });
+  expect(screen.getByText("Tap a set to change or delete it.")).toBeTruthy();
+  // A set forgotten on the day: Add set brings the entry up for it, and once saved, it goes.
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, id: "set-2", setIndex: 2 } });
+  press("Add set");
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
+  fill({ Reps: "5", RIR: "2" });
+  press("Save");
+  await screen.findByRole("button", { name: "Add set" });
+  expect(screen.queryByRole("region", { name: /^Set 3/ })).toBeNull();
 });
 
 it("leaves a set being typed into alone when the saved sets change underneath it", async () => {
@@ -862,7 +916,7 @@ it("puts an exercise back, and says why, when completing it fails", async () => 
   more("Complete");
   await screen.findByText("That session no longer exists.");
   await waitFor(() => expect(screen.queryByText("Done")).toBeNull());
-  expect(entry("Set 2")).toBeTruthy();
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
 });
 
 it("takes Complete while the last set is still saving, and completes once the set has landed", async () => {

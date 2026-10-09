@@ -9,6 +9,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDraftExercises, useSessionDrafts } from "@/components/use-session-drafts";
 import { UNPLANNED_SESSION } from "@/lib/labels";
+import { EDIT_PARAM } from "@/lib/nav";
 
 import { ExerciseLogger } from "./exercise-logger";
 import { FinishedWorkout } from "./finished-workout";
@@ -34,6 +35,10 @@ const ADDED_PARAM = "added";
  * Saving a set does not render the page again either (ADR 0030). The sets saved and deleted
  * here since the render are laid over it, so the list, a reopened exercise and this page
  * brought back by Back all show them.
+ *
+ * A finished workout is its record, read only, until Edit opens it for a week after its day
+ * (ADR 0049). Editing is a search parameter too, so Add exercise, a reload and Back from an
+ * exercise come back to it; it is switched in place, adding no step to Back.
  */
 export function WorkoutView({
   session: rendered,
@@ -46,6 +51,8 @@ export function WorkoutView({
   justFinished = false,
   records,
   routine,
+  editUntil = null,
+  addExerciseHref,
 }: {
   session: SessionVM;
   /** How many of this browser's set changes the render already held. */
@@ -67,6 +74,10 @@ export function WorkoutView({
   /** A finished workout's records and Save or repeat, which its page places. */
   records?: ReactNode;
   routine?: ReactNode;
+  /** The last day a finished workout can be changed ("2026-10-16"); null once it is history. */
+  editUntil?: string | null;
+  /** Add exercise, carrying where the workout was opened from. */
+  addExerciseHref?: Route;
 }) {
   const changes = useSetChanges();
   const session = useMemo(
@@ -74,7 +85,11 @@ export function WorkoutView({
     [rendered, changes, seenSetChanges],
   );
   const searchParams = useSearchParams();
-  const readOnly = session.completedAt !== null;
+  const finished = session.completedAt !== null;
+  // A finished workout opened for changes takes sets and exercises, and nothing else an open
+  // one does (ADR 0049).
+  const editing = finished && editUntil !== null && searchParams.get(EDIT_PARAM) === "1";
+  const readOnly = finished && !editing;
 
   const draftCount = useSessionDrafts(userId, session.id);
   const draftIds = useSessionDraftExercises(userId, session.id);
@@ -91,6 +106,15 @@ export function WorkoutView({
   const [added, setAdded] = useState(() =>
     readOnly ? 0 : Math.max(0, Math.trunc(Number(searchParams.get(ADDED_PARAM)) || 0)),
   );
+  // Edit and Done switch the record in place: the address changes, Back's steps do not.
+  const setEditing = (on: boolean) => {
+    setAdded(0);
+    const params = new URLSearchParams(searchParams.toString());
+    if (on) params.set(EDIT_PARAM, "1");
+    else params.delete(EDIT_PARAM);
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+  };
   useEffect(() => {
     if (!searchParams.has(ADDED_PARAM)) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -104,7 +128,7 @@ export function WorkoutView({
   const openExercise = (id: string) => {
     setAdded(0);
     // An open workout's list scrolls in its layer and keeps its own place there.
-    if (readOnly) listScroll.current = window.scrollY;
+    if (finished) listScroll.current = window.scrollY;
     const params = new URLSearchParams(searchParams.toString());
     params.set(EXERCISE_PARAM, id);
     window.history.pushState(null, "", `?${params.toString()}`);
@@ -117,7 +141,7 @@ export function WorkoutView({
     const query = params.toString();
     window.history.pushState(null, "", query ? `?${query}` : window.location.pathname);
     // The list comes back where it was left, so a long workout does not restart at the top.
-    if (readOnly) window.scrollTo({ top: listScroll.current });
+    if (finished) window.scrollTo({ top: listScroll.current });
   };
 
   // A draft anywhere in the session blocks finishing, whether or not its exercise is open:
@@ -130,8 +154,8 @@ export function WorkoutView({
       .map((exercise) => exercise.exercise.name),
   };
 
-  // A finished workout's list is its record (boards Summary, Past workout).
-  if (readOnly && !selected)
+  // A finished workout's list is its record (boards Summary, Past workout), and its edit.
+  if (finished && !selected)
     return (
       <>
         <FinishedWorkout
@@ -143,12 +167,25 @@ export function WorkoutView({
           routine={routine}
           onOpenExercise={openExercise}
           onOpenDetails={() => setDetailsOpen(true)}
+          edit={
+            editUntil === null
+              ? null
+              : {
+                  until: editUntil,
+                  editing,
+                  onEdit: () => setEditing(true),
+                  onDone: () => setEditing(false),
+                  addHref: addExerciseHref ?? (`/workouts/${session.id}/add-exercise` as Route),
+                  added: editing ? added : 0,
+                  drafts,
+                }
+          }
         />
         <SessionDetails
           open={detailsOpen}
           onClose={() => setDetailsOpen(false)}
           session={session}
-          readOnly={readOnly}
+          readOnly
         />
       </>
     );
@@ -166,12 +203,14 @@ export function WorkoutView({
             session={session}
             userId={userId}
             readOnly={readOnly}
+            amending={editing}
             onBack={backToList}
             onDirtyChange={onDirtyChange}
             onLogged={(seconds) => {
-              if (session.restTimerEnabled) startRestTimer(session.id, seconds);
+              // A set put into a finished workout is not one between sets.
+              if (session.restTimerEnabled && !finished) startRestTimer(session.id, seconds);
             }}
-            onEditSuperset={readOnly ? undefined : (group) => setSupersetFor({ group })}
+            onEditSuperset={finished ? undefined : (group) => setSupersetFor({ group })}
           />
         ) : (
           <WorkoutOverview
@@ -194,7 +233,7 @@ export function WorkoutView({
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         session={session}
-        readOnly={readOnly}
+        readOnly={finished}
       />
 
       {/* Mounted per group so the checkbox selection starts from that group's members. */}

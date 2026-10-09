@@ -984,6 +984,26 @@ html:has(.session-page) .pinned-actions {
   font-variant-numeric: tabular-nums lining-nums;
   overflow-wrap: anywhere;
 }
+/* A finished workout open for changes (ADR 0049): each exercise a row that opens its log, its
+   chevron at the end, and what the edit is said once above them. */
+.record-row-open {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.finished-edit-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .not-done {
   padding: 6px 0 10px;
   border-bottom: 1px solid var(--ov-hair);

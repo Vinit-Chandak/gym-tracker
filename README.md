@@ -47,6 +47,12 @@ Each exercise says how it is counted — reps, seconds held, or metres covered �
 carry asks for a distance and a plank for a time. Rep-based sets record reps in reserve (RIR);
 timed sets and carries record perceived effort (RPE), including in completed workout history.
 
+A finished workout can be mended for a week after its day: open it (from **Progress → History**,
+the calendar or Today), tap **Edit**, and every exercise opens to change, add or delete its sets,
+with **Add exercise** for one nobody logged. Each change saves as it is made, and History,
+Progress, records and what friends see follow it. After the week it is read only
+([ADR 0049](docs/decisions/0049-a-week-to-mend-a-finished-workout.md)).
+
 - [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
 - [`docs/decisions/`](docs/decisions/): architecture decision records.
