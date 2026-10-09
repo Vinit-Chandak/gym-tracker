@@ -1,7 +1,14 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { equipmentTypes, exercises, programExercises, workoutSessions } from "@/db/schema";
+import {
+  equipmentTypes,
+  exercises,
+  programExercises,
+  sharedSessionStats,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -30,8 +37,10 @@ import {
   logSet,
   removeSupersetGroup,
   saveCheckIn,
+  saveSet,
   saveSupersetGroup,
   SessionHasSetsError,
+  SessionLockedError,
   setExerciseCompleted,
   skipExercise,
   startAdHocSession,
@@ -47,6 +56,8 @@ let anytimeId: string;
 let samsungId: string;
 
 const TZ = "Asia/Kolkata";
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 
 function exerciseRow(detail: SessionDetail, slug: string) {
   const row = detail.exercises.find((e) => e.exercise.slug === slug);
@@ -488,6 +499,11 @@ describe("decisions, substitutions and ad hoc sessions", () => {
       finishSession(tx, user.id, started.sessionId, { notes: null, bodyWeightKg: null }),
     );
     expect(finished.programDayId).toBeNull();
+    // A week and more on, the workout is history and takes no more sets (ADR 0049).
+    await t.db
+      .update(workoutSessions)
+      .set({ startedAt: daysAgo(9), completedAt: daysAgo(9) })
+      .where(eq(workoutSessions.id, started.sessionId));
     await expect(
       withUser(t.db, user.id, (tx) =>
         logSet(tx, user.id, {
@@ -500,7 +516,146 @@ describe("decisions, substitutions and ad hoc sessions", () => {
           durationSeconds: null,
         }),
       ),
+    ).rejects.toBeInstanceOf(SessionLockedError);
+  });
+});
+
+describe("a finished workout, changed within its week (ADR 0049)", () => {
+  let sessionId: string;
+  let curlId: string;
+  let hammerId: string;
+
+  const curl = (setIndex: number, weight: number | null, reps = 10) =>
+    withUser(t.db, user.id, (tx) =>
+      logSet(tx, user.id, {
+        workoutExerciseId: curlId,
+        setIndex,
+        setType: "working",
+        weight,
+        reps,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+
+  const shared = async () => {
+    const [row] = await t.db
+      .select({
+        workingSets: sharedSessionStats.workingSets,
+        volumeKg: sharedSessionStats.volumeKg,
+      })
+      .from(sharedSessionStats)
+      .where(eq(sharedSessionStats.sourceId, sessionId));
+    return row;
+  };
+
+  beforeAll(async () => {
+    const started = await withUser(t.db, user.id, (tx) =>
+      startAdHocSession(tx, user.id, { gymId: anytimeId }),
+    );
+    sessionId = started.sessionId;
+    const [curlRow, hammerRow] = await Promise.all(
+      ["incline-db-curl", "hammer-curl"].map(async (slug) => {
+        const [row] = await t.db
+          .select({ id: exercises.id })
+          .from(exercises)
+          .where(eq(exercises.slug, slug));
+        return row!.id;
+      }),
+    );
+    const added = await withUser(t.db, user.id, (tx) =>
+      addExerciseToSession(tx, user.id, sessionId, {
+        exerciseId: curlRow!,
+        equipmentInstanceId: null,
+      }),
+    );
+    curlId = added.workoutExerciseId;
+    hammerId = hammerRow!;
+    // Logged without its load on the gym floor, then finished.
+    await curl(1, null);
+    await withUser(t.db, user.id, (tx) =>
+      finishSession(tx, user.id, sessionId, { notes: null, bodyWeightKg: null }),
+    );
+  });
+
+  it("takes the load left out, another set, and gives one back, keeping friends' numbers in step", async () => {
+    expect(await shared()).toMatchObject({ workingSets: 1, volumeKg: 0 });
+    const saved = await withUser(t.db, user.id, (tx) =>
+      saveSet(tx, user.id, {
+        workoutExerciseId: curlId,
+        setIndex: 1,
+        setType: "working",
+        weight: 12,
+        reps: 10,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+    expect(saved).toMatchObject({ finished: true, set: { weight: 12, reps: 10 } });
+    await curl(2, 12, 8);
+    expect(await shared()).toMatchObject({ workingSets: 2, volumeKg: 216 });
+    const deleted = await withUser(t.db, user.id, (tx) => deleteSet(tx, user.id, curlId, 2));
+    expect(deleted).toEqual({ finished: true });
+    expect(await shared()).toMatchObject({ workingSets: 1, volumeKg: 120 });
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    expect(detail?.completedAt).not.toBeNull();
+    expect(detail?.exercises[0]?.sets.map((set) => [set.weight, set.reps])).toEqual([[12, 10]]);
+  });
+
+  it("takes an exercise nobody logged, and unskips one done after all", async () => {
+    const { workoutExerciseId } = await withUser(t.db, user.id, (tx) =>
+      addExerciseToSession(tx, user.id, sessionId, {
+        exerciseId: hammerId,
+        equipmentInstanceId: null,
+      }),
+    );
+    await t.db
+      .update(workoutExercises)
+      .set({ skippedAt: new Date() })
+      .where(eq(workoutExercises.id, workoutExerciseId));
+    await withUser(t.db, user.id, (tx) =>
+      logSet(tx, user.id, {
+        workoutExerciseId,
+        setIndex: 1,
+        setType: "working",
+        weight: 10,
+        reps: 12,
+        rir: 1,
+        durationSeconds: null,
+      }),
+    );
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const hammer = detail?.exercises.find((e) => e.id === workoutExerciseId);
+    expect(hammer).toMatchObject({ skippedAt: null, sets: [{ weight: 10, reps: 12 }] });
+    expect(await shared()).toMatchObject({ workingSets: 2, volumeKg: 240 });
+  });
+
+  it("still refuses what only an open workout does", async () => {
+    await expect(
+      withUser(t.db, user.id, (tx) => setExerciseCompleted(tx, user.id, curlId, true)),
     ).rejects.toThrow(/already finished/);
+    await expect(
+      withUser(t.db, user.id, (tx) => skipExercise(tx, user.id, curlId, null)),
+    ).rejects.toThrow(/already finished/);
+  });
+
+  it("closes once the week after its day is over", async () => {
+    await t.db
+      .update(workoutSessions)
+      .set({ startedAt: daysAgo(8), completedAt: daysAgo(8) })
+      .where(eq(workoutSessions.id, sessionId));
+    await expect(curl(1, 14)).rejects.toBeInstanceOf(SessionLockedError);
+    await expect(
+      withUser(t.db, user.id, (tx) => deleteSet(tx, user.id, curlId, 1)),
+    ).rejects.toBeInstanceOf(SessionLockedError);
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        addExerciseToSession(tx, user.id, sessionId, {
+          exerciseId: hammerId,
+          equipmentInstanceId: null,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(SessionLockedError);
   });
 });
 

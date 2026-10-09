@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { Route } from "next";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -236,4 +237,64 @@ it("brings the list up to date when a save lands after the exercise was left", a
   expect(screen.queryByText("Resume")).toBeNull();
   await act(async () => land({ ok: true, set: saved }));
   expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+});
+
+it("opens a finished workout for changes within its week, and closes the edit in place (ADR 0049)", async () => {
+  const rendered: SessionVM = {
+    ...workout(crypto.randomUUID(), [saved]),
+    completedAt: "2026-09-08T12:00:00.000Z",
+    exercises: [
+      { ...exercise, sets: [saved] },
+      { ...exercise, id: "row", exercise: { ...exercise.exercise, id: "row", name: "Cable row" } },
+    ],
+  };
+  const seen = setChangesMade();
+  const view = (editUntil: string | null) => (
+    <WorkoutView
+      session={rendered}
+      seenSetChanges={seen}
+      userId="user"
+      title="Upper A"
+      backHref="/progress/history"
+      editUntil={editUntil}
+      addExerciseHref={"/workouts/session/add-exercise?from=history" as Route}
+    />
+  );
+  window.history.replaceState(null, "", "/workouts/session?from=history");
+  // Past its week, the record has no Edit.
+  const page = render(view(null));
+  expect(screen.getByText("Not done")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Edit workout" })).toBeNull();
+
+  page.rerender(view("2026-09-15"));
+  fireEvent.click(screen.getByRole("button", { name: "Edit workout" }));
+  expect(window.location.search).toBe("?from=history&edit=1");
+  page.rerender(view("2026-09-15"));
+  expect(screen.getByText(/Each change saves as you make it, until Tue 15 Sept/)).toBeTruthy();
+  // Every exercise opens, the one not done as well, and more can be added.
+  expect(screen.getByRole("button", { name: /Cable row\s*No sets/ })).toBeTruthy();
+  expect(screen.queryByText("Not done")).toBeNull();
+  expect(screen.getByRole("link", { name: "Add exercise" }).getAttribute("href")).toBe(
+    "/workouts/session/add-exercise?from=history",
+  );
+
+  // Opened, the exercise's set is a line that edits it, and Add set takes another.
+  fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
+  page.rerender(view("2026-09-15"));
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Add set" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  page.rerender(view("2026-09-15"));
+
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(window.location.search).toBe("?from=history");
+  page.rerender(view("2026-09-15"));
+  expect(screen.getByRole("button", { name: "Edit workout" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Add exercise" })).toBeNull();
+
+  // Read only, the same exercise's line no longer opens it for changes.
+  fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
+  page.rerender(view("2026-09-15"));
+  expect(screen.queryByRole("button", { name: LINE })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add set" })).toBeNull();
 });

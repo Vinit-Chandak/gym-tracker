@@ -6,7 +6,9 @@ import { SessionRecordsCard } from "@/components/records-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
+import { ORIGIN_PARAM, originPath, originQuery, parseOrigin } from "@/lib/nav";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -63,6 +65,12 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const { session: data, records } = found;
 
   const title = data.day?.name ?? UNPLANNED_SESSION;
+  // A finished workout can be changed for a week after its day (ADR 0049).
+  const startedAt = new Date(data.startedAt);
+  const editUntil =
+    data.completedAt && canEditWorkout(startedAt, requestProfile.timeZone)
+      ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
+      : null;
   const backHref = (data.completedAt && origin ? originPath(origin) : "/today") as Route;
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
@@ -85,6 +93,8 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       justFinished={justFinished}
       records={<SessionRecordsCard records={records} unit={data.preferredUnit} />}
       routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
+      editUntil={editUntil}
+      addExerciseHref={`/workouts/${sessionId}/add-exercise${originQuery(origin)}` as Route}
     />
   );
 }

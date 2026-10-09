@@ -16,6 +16,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { SKIP_CHECK_IN } from "@/lib/check-in";
+import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
@@ -38,11 +39,13 @@ import {
   ExerciseHasSetsError,
   finishSession,
   getInProgressSession,
-  logSet,
+  getSessionRecord,
   saveCheckIn,
+  saveSet,
   removeSupersetGroup,
   saveSupersetGroup,
   SessionFinishedError,
+  SessionLockedError,
   SetConflictError,
   SessionHasSetsError,
   SessionNotFoundError,
@@ -108,7 +111,11 @@ function refreshSession(): void {
 }
 
 function describe(error: unknown): string {
-  if (error instanceof SessionFinishedError || error instanceof SessionHasSetsError)
+  if (
+    error instanceof SessionFinishedError ||
+    error instanceof SessionLockedError ||
+    error instanceof SessionHasSetsError
+  )
     return error.message;
   if (error instanceof SupersetGroupError) return error.message;
   if (error instanceof WorkoutSelectionError) return error.message;
@@ -378,8 +385,13 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
   const effortIssue = effortError(parsed.data);
   if (effortIssue) return { ok: false, error: effortIssue };
   try {
-    const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
+    const { set, finished } = await withUser(getDb(), user.id, (tx) =>
+      saveSet(tx, user.id, parsed.data),
+    );
     // No render comes back with the set; the browser takes it from the reply (see refreshSession).
+    // A finished workout changed after the fact is the exception (ADR 0049): History, the day
+    // and the records card read it too, and none of them take part in set changes.
+    if (finished) refreshSession();
     return { ok: true, set: { ...set, completedAt: set.completedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -393,10 +405,12 @@ export async function deleteSetAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) =>
+    const { finished } = await withUser(getDb(), user.id, (tx) =>
       deleteSet(tx, user.id, workoutExerciseId, setIndex, expectedCompletedAt),
     );
-    // As for a saved set, the browser takes the deletion from the reply (see refreshSession).
+    // As for a saved set, the browser takes the deletion from the reply (see refreshSession), and
+    // a finished workout's other screens are read again.
+    if (finished) refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -656,9 +670,13 @@ const addExercisesSchema = z
  * is minted once per form, and a retry after a lost reply finds its receipt, adds nothing again
  * and still lands on the workout; the same key with another selection is refused. The form keeps
  * its selection in its own state, so nothing here echoes values back.
+ *
+ * A finished workout still in its week of changes (ADR 0049) lands back in its edit, opened from
+ * where it was opened: `origin` is checked like any input, since a bound argument can be changed.
  */
 export async function addExercisesAction(
   sessionId: string,
+  origin: NavOrigin | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -674,21 +692,28 @@ export async function addExercisesAction(
     exerciseId,
     equipmentInstanceId: machineIds[index] ?? null,
   }));
+  let finished: boolean;
   try {
-    await withUser(getDb(), user.id, (tx) =>
-      submitWorkoutOnce(
+    finished = await withUser(getDb(), user.id, async (tx) => {
+      await submitWorkoutOnce(
         tx,
         user.id,
         submissionKey,
         { kind: "add-exercises", sessionId, items },
         () => addExercisesToSession(tx, user.id, sessionId, items),
-      ),
-    );
+      );
+      return (await getSessionRecord(tx, user.id, sessionId))?.completedAt != null;
+    });
   } catch (error) {
     return { formError: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}?added=${items.length}`);
+  const from = parseOrigin(origin ?? undefined);
+  redirect(
+    finished
+      ? `/workouts/${sessionId}?${from ? `${ORIGIN_PARAM}=${from}&` : ""}${EDIT_PARAM}=1&added=${items.length}`
+      : `/workouts/${sessionId}?added=${items.length}`,
+  );
 }
 
 /**

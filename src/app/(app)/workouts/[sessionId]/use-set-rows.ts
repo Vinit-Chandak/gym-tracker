@@ -103,8 +103,12 @@ function emptyRow(setIndex: number): RowState {
   };
 }
 
-function initialRows(exercise: ExerciseVM): RowState[] {
+function initialRows(exercise: ExerciseVM, amending: boolean): RowState[] {
   const saved = exercise.sets.map(rowFromSet);
+  // A finished workout amended (ADR 0049) shows what was done: its sets, and no row asking for
+  // the next one, which Add set offers instead. One with nothing done offers its plan as a
+  // workout would.
+  if (amending && saved.length > 0) return saved;
   const coach = exercise.suggestion?.kind === "coach";
   const targets = [...(exercise.suggestion?.sets ?? [])].sort((a, b) => a.setIndex - b.setIndex);
   // The warm-up in front of the work gets rows of its own, started as warm-ups: the ramp on the
@@ -179,15 +183,23 @@ function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
  * warm-up row turned into a working set takes the work's numbers — else the last set of its kind
  * logged here, else the last target of its kind.
  */
-function ghostFor(exercise: ExerciseVM, rows: readonly RowState[], index: number): Ghost {
+function ghostFor(
+  exercise: ExerciseVM,
+  rows: readonly RowState[],
+  index: number,
+  amending = false,
+): Ghost {
   const row = rows.find((r) => r.setIndex === index) ?? { setIndex: index, setType: "working" };
-  const targets = prefillTargets(exercise);
-  const target = placedSet(targets, rows, row);
-  if (target) return toGhost(target);
   const warm = isWarmup(row.setType);
   const last = [...rows]
     .filter((r) => r.setIndex < index && r.logged && isWarmup(r.logged.setType) === warm)
     .pop()?.logged;
+  // A set put into a finished workout (ADR 0049) was done beside the ones before it, not at the
+  // day's target: it starts from the last of its kind there.
+  if (amending && last) return toGhost(last);
+  const targets = prefillTargets(exercise);
+  const target = placedSet(targets, rows, row);
+  if (target) return toGhost(target);
   if (last) return toGhost(last);
   const tail = targets.filter((set) => isWarmup(set.setType) === warm).at(-1);
   return tail ? toGhost(tail) : {};
@@ -225,6 +237,8 @@ type Options = {
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
   unit: LoadUnit;
+  /** A finished workout's sets, amended (ADR 0049): no next set is asked for after a save. */
+  amending?: boolean;
   /** A new set is on the server: rest starts again from here, never before. */
   onLogged: (restSeconds: number) => void;
   /** The server has a set this screen sent: a new one, or a change to one it had. */
@@ -244,11 +258,12 @@ export function useSetRows({
   sessionId,
   measure,
   unit,
+  amending = false,
   onLogged,
   onSaved,
 }: Options) {
   const actions = useLoggerActions();
-  const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
+  const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise, amending));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
   const [draftContext] = useState<DraftContext>(() => ({
@@ -416,7 +431,7 @@ export function useSetRows({
   };
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex);
+    const ghost = ghostFor(exercise, rows, row.setIndex, amending);
     const weight = resolve(row, "weight", ghost);
     // Exactly the measure this exercise is counted in. A carry has no reps to save, and
     // saving a zero for one would be a number nobody entered.
@@ -530,7 +545,7 @@ export function useSetRows({
             : r,
         );
         const highest = Math.max(...next.map((r) => r.setIndex));
-        if (row.setIndex === highest && !exercise.completedAt && highest < MAX_SETS)
+        if (row.setIndex === highest && !exercise.completedAt && !amending && highest < MAX_SETS)
           next.push(emptyRow(highest + 1));
         return next;
       });
@@ -614,7 +629,7 @@ export function useSetRows({
     editing: rows.some((row) => row.dirty && !row.saving),
     settled,
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
-    ghost: (index: number) => ghostFor(exercise, rows, index),
+    ghost: (index: number) => ghostFor(exercise, rows, index, amending),
     /** The suggested set a row stands for, which the entry shows and explains; null for none. */
     target: (index: number) => {
       const row = rows.find((r) => r.setIndex === index);

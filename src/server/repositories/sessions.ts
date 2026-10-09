@@ -19,6 +19,7 @@ import type { DbOrTx } from "@/db/types";
 import type { ProgressionSuggestion } from "@/domain/progression";
 import { planTargets } from "@/domain/session-plan";
 import { parseRamp, withRamp } from "@/domain/warmup-ramp";
+import { canEditWorkout, EDIT_WINDOW_DAYS } from "@/domain/workout-edits";
 import {
   hasCheckIn,
   recoveryWarnings,
@@ -56,6 +57,16 @@ export class SessionFinishedError extends Error {
   constructor() {
     super("This session is already finished.");
     this.name = "SessionFinishedError";
+  }
+}
+
+/** A finished workout past its week of changes (ADR 0049). */
+export class SessionLockedError extends Error {
+  constructor() {
+    super(
+      `This workout is more than ${EDIT_WINDOW_DAYS} days old, so it can no longer be changed.`,
+    );
+    this.name = "SessionLockedError";
   }
 }
 
@@ -458,6 +469,21 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   return row ?? null;
+}
+
+/** The name of the programme day a session was started for; null for an unplanned one. */
+export async function sessionDayName(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ name: programDays.name })
+    .from(workoutSessions)
+    .innerJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
+    .limit(1);
+  return row?.name ?? null;
 }
 
 /** The exercises a session already holds, in its order: Add exercise says which are in it. */
@@ -907,6 +933,47 @@ async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string)
   return row;
 }
 
+/**
+ * The session, locked, while its sets and exercises can still change: open, or finished within
+ * the last week (ADR 0049). A finished one comes back with its owner's time zone, which both
+ * decided the week and dates the shared stats written again after the change.
+ */
+async function requireEditableSession(db: DbOrTx, userId: string, sessionId: string) {
+  const [row] = await db
+    .select({
+      id: workoutSessions.id,
+      gymId: workoutSessions.gymId,
+      startedAt: workoutSessions.startedAt,
+      completedAt: workoutSessions.completedAt,
+      timeZone: profiles.timeZone,
+    })
+    .from(workoutSessions)
+    .innerJoin(profiles, eq(profiles.id, workoutSessions.userId))
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
+    .limit(1)
+    .for("update", { of: workoutSessions });
+  if (!row) throw new SessionNotFoundError();
+  if (row.completedAt && !canEditWorkout(row.startedAt, row.timeZone))
+    throw new SessionLockedError();
+  return row;
+}
+
+/**
+ * A finished session's shared stats and records, written again from what it holds now, so a
+ * set changed after Finish reaches what friends and the records card read as it reaches
+ * Progress (ADR 0049). The same write Finish makes, which replaces what was there.
+ */
+async function rewriteFinishedStats(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  timeZone: string,
+): Promise<void> {
+  const { workouts } = await readWorkouts(db, userId, null, 0, 1, { sessionId });
+  const workout = workouts[0];
+  if (workout) await writeSessionStats(db, userId, workout, timeZone);
+}
+
 export class WorkoutSelectionError extends Error {
   constructor(message: string) {
     super(message);
@@ -1030,13 +1097,32 @@ export type LogSetInput = {
   distanceMeters?: number | null;
 };
 
-/** Creates or replaces one set. Raw values are stored exactly as entered. */
+/**
+ * Creates or replaces one set. Raw values are stored exactly as entered. A finished workout
+ * takes sets for a week after its day (ADR 0049): a set saved there unskips its exercise, since
+ * it was done after all, and the session's shared stats are written again.
+ */
 export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SessionSet> {
+  return (await saveSet(db, userId, input)).set;
+}
+
+/** A set saved, and whether its workout was already finished: a change after the fact. */
+export type SavedSet = { set: SessionSet; finished: boolean };
+
+/** `logSet`, saying as well whether the workout was finished (ADR 0049). */
+export async function saveSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SavedSet> {
   const effortReported = input.reps !== null ? input.rir !== null : input.rpe != null;
   const [sessionRow] = await db
-    .select({ completedAt: workoutSessions.completedAt })
+    .select({
+      sessionId: workoutSessions.id,
+      startedAt: workoutSessions.startedAt,
+      completedAt: workoutSessions.completedAt,
+      timeZone: profiles.timeZone,
+      skippedAt: workoutExercises.skippedAt,
+    })
     .from(workoutExercises)
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .innerJoin(profiles, eq(profiles.id, workoutSessions.userId))
     .where(
       and(
         eq(workoutExercises.id, input.workoutExerciseId),
@@ -1047,7 +1133,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
     .limit(1)
     .for("update", { of: workoutSessions });
   if (!sessionRow) throw new SessionNotFoundError();
-  if (sessionRow.completedAt) throw new SessionFinishedError();
+  if (sessionRow.completedAt && !canEditWorkout(sessionRow.startedAt, sessionRow.timeZone))
+    throw new SessionLockedError();
   // Read identity and set values after the lock, including changes committed while we waited.
   const [unitRow] = await db
     .select({
@@ -1100,7 +1187,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       previous.durationSeconds === input.durationSeconds &&
       previous.distanceMeters === (input.distanceMeters ?? null)
     )
-      return previous;
+      return { set: previous, finished: sessionRow.completedAt !== null };
     throw new SetConflictError();
   }
   const now = new Date(Math.max(Date.now(), (previous?.completedAt.getTime() ?? 0) + 1));
@@ -1138,18 +1225,32 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
     })
     .returning(sessionSetColumns);
   if (!row) throw new Error("Set insert returned no row");
-  return row;
+  if (sessionRow.completedAt) {
+    if (sessionRow.skippedAt)
+      await db
+        .update(workoutExercises)
+        .set({ skippedAt: null })
+        .where(
+          and(
+            eq(workoutExercises.id, input.workoutExerciseId),
+            eq(workoutExercises.userId, userId),
+          ),
+        );
+    await rewriteFinishedStats(db, userId, sessionRow.sessionId, sessionRow.timeZone);
+  }
+  return { set: row, finished: sessionRow.completedAt !== null };
 }
 
+/** Deletes one set; answers whether its workout was already finished (ADR 0049). */
 export async function deleteSet(
   db: DbOrTx,
   userId: string,
   workoutExerciseId: string,
   setIndex: number,
   expectedCompletedAt?: string,
-): Promise<void> {
+): Promise<{ finished: boolean }> {
   const sessionId = await sessionIdOfExercise(db, userId, workoutExerciseId);
-  await requireOpenSession(db, userId, sessionId);
+  const session = await requireEditableSession(db, userId, sessionId);
   if (expectedCompletedAt !== undefined) {
     const [saved] = await db
       .select({ completedAt: setLogs.completedAt })
@@ -1164,7 +1265,7 @@ export async function deleteSet(
       .limit(1);
     // A retry after a successful delete is harmless. A newer replacement is another set,
     // and the stale screen must not delete it without showing the athlete its saved values.
-    if (!saved) return;
+    if (!saved) return { finished: session.completedAt !== null };
     if (saved.completedAt.toISOString() !== expectedCompletedAt) throw new SetConflictError();
   }
   await db
@@ -1176,6 +1277,8 @@ export async function deleteSet(
         eq(setLogs.setIndex, setIndex),
       ),
     );
+  if (session.completedAt) await rewriteFinishedStats(db, userId, sessionId, session.timeZone);
+  return { finished: session.completedAt !== null };
 }
 
 export async function setExerciseCompleted(
@@ -1389,7 +1492,8 @@ export type WorkoutSelection = { exerciseId: string; equipmentInstanceId: string
 export const MAX_EXERCISES_PER_ADD = 20;
 
 /**
- * Adds exercises to an open session, after everything it already holds, in the order given
+ * Adds exercises to an open session, or to one finished within the last week (ADR 0049), after
+ * everything it already holds, in the order given
  * (plan: "Add several exercises in one submission"). The whole batch is checked first, then
  * written in one statement with contiguous places; nothing is reordered, and the session's row
  * lock keeps a concurrent addition from taking the same places. A single exercise is a batch of
@@ -1407,7 +1511,7 @@ export async function addExercisesToSession(
     throw new WorkoutSelectionError(`Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`);
   if (new Set(items.map((item) => item.exerciseId)).size !== items.length)
     throw new WorkoutSelectionError("Choose each exercise once.");
-  const session = await requireOpenSession(db, userId, sessionId);
+  const session = await requireEditableSession(db, userId, sessionId);
   await requireWorkoutSelection(db, userId, session.gymId, items);
   const [last] = await db
     .select({ maxOrder: max(workoutExercises.orderIndex) })
