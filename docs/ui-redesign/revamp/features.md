@@ -238,6 +238,9 @@ than adding, and keep the RIR honest").
 - **The finished workout:** read only, with its records ("Barbell bench press · Est. 1RM 88 kg
   (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry), and
   "Save or repeat this workout" as a routine.
+- **Edit a finished workout** for a week after its day ([ADR 0049](../../decisions/0049-a-week-to-mend-a-finished-workout.md)):
+  Edit, then each exercise, done or not, opens on its log to change, add or delete sets; Add
+  exercise; Done. Each change saves as it is made. The summary offers "Edit workout" too.
 
 ### States to design
 
@@ -345,8 +348,8 @@ Switch section; choose a span, or custom dates behind the funnel; choose what a 
 (group or exercise, machine, measure, outdoor or treadmill, food or recovery measure); step
 through body-map weeks; tap or drag a graph to read a mark, and open the workout, run, day, week
 or food log behind it; step through the marks with the arrow keys; open "View values" for every
-value, each opening its record; open any entry from History (a finished workout, read only, or an
-activity page with its time, distance, pace or speed, effort and notes); correct an activity;
+value, each opening its record; open any entry from History (a finished workout, read only and
+editable for a week after its day, or an activity page with its time, distance, pace or speed, effort and notes); correct an activity;
 delete an activity (always confirmed).
 
 ### States to design

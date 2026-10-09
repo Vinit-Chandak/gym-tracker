@@ -35,7 +35,7 @@ vi.mock("next/navigation", () => ({
 
 import { createEquipment } from "@/server/repositories/equipment";
 import { createCustomExercise } from "@/server/repositories/manual-training";
-import { startAdHocSession } from "@/server/repositories/sessions";
+import { finishSession, startAdHocSession } from "@/server/repositories/sessions";
 
 import { addExercisesAction } from "./sessions";
 
@@ -71,7 +71,7 @@ async function slots() {
     .orderBy(asc(workoutExercises.orderIndex));
 }
 
-const add = (data: FormData) => addExercisesAction(sessionId, INITIAL_FORM_STATE, data);
+const add = (data: FormData) => addExercisesAction(sessionId, null, INITIAL_FORM_STATE, data);
 const KEY = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 beforeAll(async () => {
@@ -257,5 +257,30 @@ describe("one bad item refuses the whole batch", () => {
     const after = await slots();
     const places = after.map((slot) => slot.orderIndex);
     expect(places).toEqual(Array.from({ length: before.length + 4 }, (_, n) => n + 1));
+  });
+
+  it("lands a finished workout back in its edit, opened from where it was (ADR 0049)", async () => {
+    const before = await slots();
+    await as((tx) =>
+      finishSession(tx, state.user.id, sessionId, { notes: null, bodyWeightKg: null }),
+    );
+    await expect(
+      addExercisesAction(
+        sessionId,
+        "history",
+        INITIAL_FORM_STATE,
+        form(KEY(30), [[ids["push-up"]!]]),
+      ),
+    ).rejects.toThrow(`redirect:/workouts/${sessionId}?from=history&edit=1&added=1`);
+    // An origin nobody listed is dropped rather than followed.
+    await expect(
+      addExercisesAction(
+        sessionId,
+        "elsewhere" as never,
+        INITIAL_FORM_STATE,
+        form(KEY(31), [[ids["hammer-curl"]!]]),
+      ),
+    ).rejects.toThrow(`redirect:/workouts/${sessionId}?edit=1&added=1`);
+    expect(await slots()).toHaveLength(before.length + 2);
   });
 });

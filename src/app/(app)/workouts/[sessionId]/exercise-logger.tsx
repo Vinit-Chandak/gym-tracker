@@ -287,6 +287,12 @@ type LoggerProps = {
   session: SessionVM;
   userId: string;
   readOnly: boolean;
+  /**
+   * A finished workout opened for changes (ADR 0049): its sets are edited, added and removed,
+   * done or not, and nothing that belongs to training it (completing, skipping, machines, the
+   * coach's note, the next load) is offered.
+   */
+  amending?: boolean;
   onBack: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onLogged: (restSeconds: number) => void;
@@ -305,6 +311,7 @@ export function ExerciseLogger({
   session,
   userId,
   readOnly,
+  amending = false,
   onBack,
   onDirtyChange,
   onLogged,
@@ -366,6 +373,7 @@ export function ExerciseLogger({
     sessionId: session.id,
     measure,
     unit,
+    amending,
     onLogged,
     onSaved: (setIndex, added, saved) => {
       setLastSaved(setIndex);
@@ -422,7 +430,11 @@ export function ExerciseLogger({
     };
   }, [typing]);
 
-  const editable = !readOnly && !skipped && !completed;
+  // Training it, the exercise takes sets until it is done or dropped; amended after the workout,
+  // whatever it was left as.
+  const editable = !readOnly && (amending || (!skipped && !completed));
+  // What belongs to training the exercise: completing, skipping, its machine, the next load.
+  const live = !readOnly && !amending;
   const entryRow = editable ? openRow(sets.rows) : null;
   const heading = entryRow ? entryHeading(sets.rows, entryRow, exercise) : null;
   const ghost = entryRow ? sets.ghost(entryRow.setIndex) : {};
@@ -656,7 +668,7 @@ export function ExerciseLogger({
       .join(" × ")}`.trim();
 
   // ---------- completing, skipping, a fallback ----------
-  const needsDecision = exercise.decision !== null && !skipped && !readOnly;
+  const needsDecision = exercise.decision !== null && !skipped && live;
   // A machine question still open before the first set: Save waits and points at it, since
   // the machine goes on the exercise only before anything is logged ("Not sure" lets it be). A
   // question about what an attached machine is used with (a bench) changes nothing recorded.
@@ -695,7 +707,7 @@ export function ExerciseLogger({
       loggedWorking.length > 0 &&
       loggedWorking.length >= (exercise.planned?.sets ?? 1));
   const nextLoad =
-    !readOnly && !skipped && measure === "reps" && workingDone
+    live && !skipped && measure === "reps" && workingDone
       ? nextLoadQuestion(
           exercise.equipment?.ladder,
           loggedWorking.map((set) => set.weight),
@@ -802,7 +814,7 @@ export function ExerciseLogger({
   // is otherwise in More. Further sets are still saved as the entry offers them.
   const planned = plannedSets(exercise);
   const workDone = sets.loggedSets.filter((set) => !isWarmup(set.setType)).length;
-  const planDone = editable && planned !== null && planned > 0 && workDone >= planned;
+  const planDone = editable && live && planned !== null && planned > 0 && workDone >= planned;
   const planDoneText =
     planned === null ? "" : `${planned} of ${planned} ${planned === 1 ? "set" : "sets"} done.`;
   // Then the hand leads to what comes next (DESIGN.md, The session): Complete is the dock's
@@ -1037,7 +1049,7 @@ export function ExerciseLogger({
     : "Set";
 
   const more: MoreOption[] = [];
-  if (!readOnly && !skipped) {
+  if (live && !skipped) {
     if (completed)
       more.push({
         glyph: "undo",
@@ -1062,30 +1074,30 @@ export function ExerciseLogger({
       });
     }
   }
-  if (!readOnly && onEditSuperset)
+  if (live && onEditSuperset)
     more.push({
       glyph: "link",
       label: "Superset",
       onSelect: () => onEditSuperset(exercise.supersetGroup),
       opens: true,
     });
-  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
+  if (live && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
     more.push({
       glyph: "swap",
       label: "Swap the exercise",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
   // A registered machine that is missing or broken today: has it gone, or is it out of use?
-  if (exercise.equipment && !readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+  if (exercise.equipment && live && !completed && !skipped && sets.loggedSets.length === 0)
     more.push({
       glyph: "warn",
       label: `${exercise.equipment.name} not here`,
       onSelect: () => setSheet({ kind: "gone" }),
       disabled: pending || sets.dirty,
     });
-  if (!readOnly && skipped)
+  if (live && skipped)
     more.push({ glyph: "undo", label: "Unskip", onSelect: () => setCompletedState(false) });
-  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+  if (live && !completed && !skipped && sets.loggedSets.length === 0)
     more.push({
       glyph: "skip",
       label: "Skip exercise",
@@ -1128,7 +1140,7 @@ export function ExerciseLogger({
           <span>{dayName}</span>
         </button>
         <span className="flex-1" />
-        {session.restTimerEnabled && <RestPill sessionId={session.id} />}
+        {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
         {more.length > 0 && (
           <button
             type="button"
@@ -1199,7 +1211,7 @@ export function ExerciseLogger({
             )}
 
             {/* More opens the rest in place, as it does on the workout; Why is the tag's. */}
-            {exercise.coachNote && editable && (
+            {exercise.coachNote && editable && live && (
               <CoachNoteMore size="body" className="mt-2">
                 {exercise.coachNote}
               </CoachNoteMore>
@@ -1211,7 +1223,7 @@ export function ExerciseLogger({
               </p>
             )}
 
-            {(readOnly || completed || skipped) && sets.dirty && (
+            {!editable && sets.dirty && (
               <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
                 <p className="flex items-start gap-1.5 type-meta-small font-semibold">
                   <Glyph name="warn" className="mt-0.5 glyph-16" />
@@ -1379,7 +1391,7 @@ export function ExerciseLogger({
               {quietHint}
               {saveButton}
             </Entry>
-          ) : completed || skipped || completing ? (
+          ) : live && (completed || skipped || completing) ? (
             <section aria-label={exercise.exercise.name} className="entry">
               {message && slotMessage("warn", message, "alert")}
               <div className="entry-head">

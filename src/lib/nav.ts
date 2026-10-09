@@ -128,6 +128,12 @@ const ORIGIN_PATHS: Record<NavOrigin, string> = {
 /** The search parameter a record's link names its origin in. */
 export const ORIGIN_PARAM = "from";
 
+/**
+ * The search parameter that opens a finished workout in its edit (ADR 0049), so Add exercise,
+ * a reload and Back from an exercise all come back to editing rather than to the record.
+ */
+export const EDIT_PARAM = "edit";
+
 export function parseOrigin(value: string | string[] | undefined): NavOrigin | null {
   if (typeof value !== "string") return null;
   return (NAV_ORIGINS as readonly string[]).includes(value) ? (value as NavOrigin) : null;
