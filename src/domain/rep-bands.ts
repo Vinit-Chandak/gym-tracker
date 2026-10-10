@@ -125,6 +125,7 @@ const SMALL_PATTERNS = new Set([
   "adduction",
   "hip_abduction",
   "hip_adduction",
+  "external_rotation",
 ]);
 const TRUNK_PATTERNS = new Set([
   "trunk_flexion",
