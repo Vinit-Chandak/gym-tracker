@@ -38,7 +38,7 @@ the profile, writes that day's reading, the profile always shows the newest one,
 **Progress → Body weight** draws the trend.
 
 The only thing shipped with the app is shared reference data: the equipment catalogue (92 kinds
-of machine), the exercise library (268 movements, every muscle group covered), warm-up protocols
+of machine), the exercise library (376 movements, every muscle group covered), warm-up protocols
 and the programme templates. It is one library, readable by everybody and owned by nobody, so a
 new account has all of it on day one and adds only what its own gyms have. Nothing is seeded per
 person.

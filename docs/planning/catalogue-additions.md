@@ -2,6 +2,8 @@
 
 Date: 4 October 2026. Status: proposals only. Nothing here is in the manifests yet. Each approved item ships as a draft (`review: "draft"`), and the owner approves each one separately.
 
+**Update, 10 October 2026.** The section 2.3 exercises that need only published equipment are published: `incline-push-up`, `kneeling-push-up`, `burpee`, `mountain-climber`, `jump-squat`, `db-sumo-squat`, `hindu-push-up`, `hindu-squat`, `medicine-ball-slam` and `incline-bench-preacher-curl`, with their aliases. `decline-press-machine`, `lever-squat` and `machine-high-row` stay drafts until their machine types are approved. The same change added the dragon flag and about 90 other movements the library still lacked (`src/db/seed/data/exercises.ts`, "What the library still lacked").
+
 This answers the plan's call for missing common machines and exercises ([catalogue reconciliation and expansion](ONBOARDING_EQUIPMENT_TECHNIQUE_PLAN.md#catalogue-reconciliation-and-expansion)). It is not a bulk import, and it has no target count. Classes used throughout: (a) a type that is genuinely missing, (b) an exercise that is genuinely missing, (c) a common combination machine, (d) an alias of an existing item, (e) out of scope. Tiers: 1 is the recommended first batch, 2 is next, 3 is only if wanted.
 
 ## 1. Method and sources
