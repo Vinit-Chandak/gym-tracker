@@ -152,9 +152,10 @@ In the Supabase dashboard:
 1. Sidebar → **Integrations** → **Cron**, and enable it. If it asks for the `pg_net` extension
    for HTTP requests, enable that too (or **Database → Extensions** → `pg_net`).
 2. **Create job**: name `overload-keep-warm`, schedule `* * * * *` (every minute), type **HTTP
-   Request**, method **GET**, URL `https://<your production domain>/warm`, timeout 10,000 ms.
-   The default timeout is shorter than a server takes to start, which only makes the job's own
-   log report failures; the server is woken either way.
+   Request**, method **GET**, URL `https://<your production domain>/warm`, timeout 5,000 ms,
+   the most the dashboard allows. That is plenty: a warm server answers in well under a second,
+   and a new one in two or three. A reply that ever takes longer is logged as a timeout, but the
+   request has already arrived and the server is woken either way.
 
 Or, all at once, in **SQL Editor** (replace the domain with yours):
 
@@ -170,7 +171,7 @@ select cron.schedule(
   '* * * * *',
   $$ select net.http_get(
        url := 'https://gym-tracker-fawn-omega.vercel.app/warm',
-       timeout_milliseconds := 10000
+       timeout_milliseconds := 5000
      ) $$
 );
 
