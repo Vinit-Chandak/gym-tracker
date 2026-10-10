@@ -153,5 +153,15 @@ box. One screen on a 320 × 568 phone.
 **Today** honours the answer: a programme's first day; for a logger, Start a workout first and
 Choose a programme quietly after; for a non-lifter, their sports, never "Add a gym".
 
-Decisions this needs from the owner are listed at the end of the session that wrote this
-report; the flow above is the recommendation, not yet a decision.
+## Owner decisions, 10 October 2026
+
+- **Mock it first.** The shorter flow is drawn on a Claude Design canvas ("Overload onboarding
+  redesign") for sign-off before any application code changes.
+- **Machines in setup.** Dropped for anyone new at a gym: the basics are assumed and the
+  workout asks about anything else. Optional for experienced lifters, as one search that also
+  finds the basics. Home and outdoors keep a short pick, because nothing is assumed there.
+  This revises the 4 October onboarding-equipment decision.
+- **A beginner's plan.** The coach writes it: its one-screen questions are the beginner's plan
+  step, with what setup already knows filled in.
+- **Sign-up.** Name (optional), email and a password with Show. The username is made for the
+  athlete and changed later; setup asks none of these again.
