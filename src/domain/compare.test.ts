@@ -7,6 +7,13 @@ describe("compareValues", () => {
     expect(compareValues(6240, 5200)).toEqual({ leader: "a", percent: 20 });
     expect(compareValues(5200, 6240)).toEqual({ leader: "b", percent: -16.7 });
   });
+  it("rounds a half away from zero, behind as ahead", () => {
+    // 13 workouts against 16 is 18.75% behind, and 30 lb against 20 kg (44.09 lb) 31.95%:
+    // −18.8% and −32%, never the −18.7% and −31.9% that rounding towards +∞ gave.
+    expect(compareValues(13, 16)).toEqual({ leader: "b", percent: -18.8 });
+    expect(compareValues(13.61, 20)).toEqual({ leader: "b", percent: -32 });
+    expect(compareValues(19, 16)).toEqual({ leader: "a", percent: 18.8 });
+  });
   it("cannot give a percentage when a side has nothing, but still names a leader", () => {
     expect(compareValues(12, null)).toEqual({ leader: "a", percent: null });
     expect(compareValues(0, 12)).toEqual({ leader: "b", percent: null });
