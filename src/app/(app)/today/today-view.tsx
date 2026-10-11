@@ -170,7 +170,10 @@ function startedAt(session: SessionSummary, today: string, timeZone: string): st
   return formatTimeOrDateTime(session.startedAt, timeZone, today);
 }
 
-/** "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. */
+/**
+ * "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. The sets are
+ * the work, warm-ups aside, as the workout will list and count them.
+ */
 function Progress({
   session,
   today,
@@ -189,8 +192,8 @@ function Progress({
       </span>{" "}
       ·{" "}
       <span className="whitespace-nowrap">
-        <span className="figures">{session.setCount}</span>{" "}
-        {session.setCount === 1 ? "set" : "sets"}
+        <span className="figures">{session.workingSetCount}</span>{" "}
+        {session.workingSetCount === 1 ? "set" : "sets"}
       </span>
     </>
   );

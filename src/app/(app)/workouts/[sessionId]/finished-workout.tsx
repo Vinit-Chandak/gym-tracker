@@ -12,7 +12,7 @@ import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets } from "@/domain/sets";
+import { formatSets, workingSetCount } from "@/domain/sets";
 import { formatIsoWeekdayDay } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
@@ -158,7 +158,8 @@ export function FinishedWorkout({
   const editing = edit?.editing === true && !justFinished;
   const done = session.exercises.filter((exercise) => exercise.sets.length > 0);
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
-  const sets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // The sets listed under it, warm-ups aside: the print draws those, grey, and counts nothing.
+  const sets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
   const volume = volumeOf(session);
   const minutes = session.completedAt
     ? Math.round(

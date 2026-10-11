@@ -1101,6 +1101,11 @@ describe("the ramp on the day's first lift", () => {
     // Halfway through the ramp, the page is loaded again: the ramp is still there.
     await log(today.id, 1, "warmup", 25, 8);
     expect(shape(await bench(second))).toEqual(shape(today));
+    // Today counts the work, while the warm-up is still something logged that Discard keeps.
+    expect(await as((tx) => getInProgressSession(tx, athlete.id))).toMatchObject({
+      setCount: 1,
+      workingSetCount: 0,
+    });
     // Work logged where the ramp would go: the lift keeps its own rows.
     await log(today.id, 2, "working", 60, 5);
     expect((await bench(second)).suggestion?.sets[0]).toMatchObject({

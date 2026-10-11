@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSets, sanitizeNumberEntry, stepValue, weightStepFor, workingVolume } from "./sets";
+import {
+  formatSets,
+  sanitizeNumberEntry,
+  stepValue,
+  weightStepFor,
+  workingSetCount,
+  workingVolume,
+} from "./sets";
 
 describe("set helpers", () => {
   it("picks the load step from the machine, then the exercise, then 2.5", () => {
@@ -67,6 +74,16 @@ describe("set helpers", () => {
     ] as const;
     expect(formatSets(sets)).toBe("80×10, 80×9");
     expect(workingVolume(sets)).toBe(1520);
+    // The count is the sets listed: the warm-up is done, not counted.
+    expect(workingSetCount(sets)).toBe(2);
+    expect(
+      workingSetCount([
+        { setType: "warmup" },
+        { setType: "working" },
+        { setType: "backoff" },
+        { setType: "drop" },
+      ]),
+    ).toBe(3);
     expect(
       formatSets([
         {

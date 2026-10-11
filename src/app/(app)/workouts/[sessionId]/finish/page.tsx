@@ -9,7 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { isLeftOpen } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets } from "@/domain/sets";
+import { formatSets, workingSetCount } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
@@ -47,7 +47,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const done = session.exercises.filter((e) => e.sets.length > 0);
   const skipped = session.exercises.filter((e) => e.skippedAt !== null);
   const untouched = session.exercises.filter((e) => e.sets.length === 0 && !e.skippedAt);
-  const totalSets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // Counted as they are listed, warm-ups aside, as the finished workout counts them.
+  const totalSets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
   // A workout left open finishes as of its last set, and Finish says so (owner, 11 October 2026).
   const lastSetAt = done
     .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
@@ -127,7 +128,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         <FinishForm
           userId={user.id}
           sessionId={sessionId}
-          nothingLogged={totalSets === 0}
+          // A warm-up is something logged all the same: only an empty workout is told so.
+          nothingLogged={done.length === 0}
           asOf={asOf}
           action={finishSessionAction.bind(null, sessionId)}
           unit={unit}
