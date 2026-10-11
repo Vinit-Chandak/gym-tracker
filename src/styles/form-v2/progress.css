@@ -310,8 +310,13 @@
   border-bottom: 1px solid var(--ov-hair);
 }
 
-/* The overview: the month and its totals, then History. Where the column holds two phone-wide
-   panes (a tablet, a desktop, at 100% text) History stands beside the month (ADR 0052). */
+/* The overview: the month and its totals, then History. Where the column holds two panes of a
+   phone's width, 22 rem each and the gap (a tablet, a desktop, at 100% text), History stands
+   beside the month (ADR 0052); narrower, or at larger text, it stays under it. The page is wide
+   to hold them, and no wider; the graph sections keep the reading column. */
+.progress:has(.overview) {
+  --content-width: min(var(--content-width-wide), 62rem);
+}
 .overview {
   container: overview / inline-size;
 }
@@ -320,7 +325,7 @@
   padding-top: calc(var(--spacing) * 3);
   border-top: 1px solid var(--ov-hair);
 }
-@container overview (width >= 40rem) {
+@container overview (width >= 46rem) {
   .overview-panes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

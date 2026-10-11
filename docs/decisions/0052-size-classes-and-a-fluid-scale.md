@@ -73,11 +73,15 @@ The owner chose **adaptive + fluid**:
      buttons at a phone's width.
    - Training is a screen of tiles. It is wide, with the cycle's days in as many columns as fit
      and the next day across two, and its header widens with it.
-   - The Progress overview and Food keep the reading width. Where that column holds two
-     phone-wide panes (40rem and up: a tablet or a desktop at 100% text), they split in two:
-     the month and its totals beside History, and the day's bowl and macronutrients beside its
-     meals. At larger text they stay one column. The other Progress sections, graphs read one
-     at a time, stay one column.
+   - The Progress overview and Food split in two: the month and its totals beside History, and
+     the day's bowl and macronutrients beside its meals. Each pane is a phone's width or more,
+     22rem, so they split only where the column holds 46rem (two panes and the gap): a tablet
+     or a desktop at 100% text. At larger text, or narrower, they stay one column. To hold two
+     such panes the two screens are wide, their headers with them, up to 62rem as Today is: two
+     panes need no more. The reading column (44–46rem) held two panes of about 20rem, where
+     "Sleep 7.25 h" broke onto two lines.
+   - The other Progress sections, graphs read one at a time, stay one column at the reading
+     width, so Progress narrows from its overview to them.
    - Friends' four shortcuts stand in one row beyond a phone, where their words fit.
    - Profile, settings, forms and detail pages stay one readable column.
 

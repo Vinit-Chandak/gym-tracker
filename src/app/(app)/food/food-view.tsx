@@ -182,14 +182,16 @@ export function FoodView({
         : undefined;
 
   return (
-    <>
+    // Two panes at most: wider than the reading column where the screen has room for two that
+    // are each a phone's width, its header with it (ADR 0052).
+    <div className="food-page page-wide">
       <PageHeader
         title="Food"
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}
       />
       <div className="food page-width">
         <FoodWeekStrip {...daysProps} />
-        {/* Beyond a phone the day and its meals stand side by side (ADR 0052). */}
+        {/* Where they each have a phone's width, the day and its meals stand side by side. */}
         <div className="food-panes">
           <div className="min-w-0">
             <FoodSummary
@@ -252,6 +254,6 @@ export function FoodView({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
