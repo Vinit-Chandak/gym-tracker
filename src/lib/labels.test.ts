@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { exerciseOnMachine, nameSaysEquipment, rangeLabel, restLabel } from "./labels";
+import {
+  equipmentLoadLabel,
+  exerciseOnMachine,
+  nameSaysEquipment,
+  rangeLabel,
+  restLabel,
+} from "./labels";
 
 describe("labels", () => {
   it("formats rep and time ranges", () => {
@@ -40,5 +46,12 @@ describe("labels", () => {
     expect(exerciseOnMachine("Lat pulldown", null)).toBe("Lat pulldown");
     expect(nameSaysEquipment("Dumbbell curl", "Dumbbells")).toBe(true);
     expect(nameSaysEquipment("Hammer curl", "Dumbbells")).toBe(false);
+  });
+
+  it("calls a bench an accessory, not bodyweight, and a pull-up bar bodyweight", () => {
+    expect(equipmentLoadLabel("accessory", "bodyweight")).toBe("Accessory");
+    expect(equipmentLoadLabel("accessory", "free_weight")).toBe("Free weight");
+    expect(equipmentLoadLabel("bodyweight", "bodyweight")).toBe("Bodyweight");
+    expect(equipmentLoadLabel("machine", "plate_loaded")).toBe("Plate-loaded");
   });
 });

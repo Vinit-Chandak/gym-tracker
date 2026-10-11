@@ -31,6 +31,17 @@ export const RESISTANCE_MODE_LABELS: Record<ResistanceMode, string> = {
   cardio: "Cardio",
 };
 
+/**
+ * How a piece of equipment is loaded, as a gym's list says it. A bench, a rack or a foam roller
+ * carries no load of its own (its type is filed as bodyweight, the one mode for that): it is an
+ * accessory, never "Bodyweight", which reads as the athlete's body being the load.
+ */
+export function equipmentLoadLabel(category: EquipmentCategory, mode: ResistanceMode): string {
+  return category === "accessory" && mode === "bodyweight"
+    ? "Accessory"
+    : RESISTANCE_MODE_LABELS[mode];
+}
+
 export const LOAD_UNIT_LABELS: Record<LoadUnit, string> = {
   kg: "kg",
   lb: "lb",
@@ -152,6 +163,16 @@ export const LOAD_PORTABILITY_LABELS: Record<LoadPortability, string> = {
   global: "Comparable across gyms",
   equipment_specific: "Compared per machine",
   context_dependent: "Compared per setup",
+};
+
+/**
+ * The library row's tag: where history is kept, when it is not kept across gyms. A push-up off a
+ * bench is kept per setup (its height is the load), never "per machine".
+ */
+export const LOAD_PORTABILITY_TAGS: Record<LoadPortability, string | null> = {
+  global: null,
+  equipment_specific: "Per machine",
+  context_dependent: "Per setup",
 };
 
 export const LOAD_PORTABILITY_HELP: Record<LoadPortability, string> = {
