@@ -16,6 +16,7 @@ import {
   ClaimLostError,
   getOccurrence,
   holdsClaim,
+  namedOccurrence,
   occurrencesForSlot,
   OccurrenceNotFoundError,
   programmeOccurrences,
@@ -310,6 +311,47 @@ describe("what is on a day", () => {
       [2, 2],
       [2, null],
     ]);
+  });
+
+  it("names a session the way its programme names its day", async () => {
+    const account = await seeded("named@example.test");
+    const other = await seeded("named-other@example.test");
+    const listed = await withUser(t.db, account.userId, async (tx) => {
+      const [row] = await tx
+        .select({ familyId: plannedOccurrences.familyId })
+        .from(plannedOccurrences)
+        .where(eq(plannedOccurrences.userId, account.userId))
+        .limit(1);
+      return programmeOccurrences(tx, account.userId, row!.familyId!);
+    });
+    const wednesday = listed.find((occurrence) => occurrence.cycleDayIndex === 2)!;
+    const saturday = listed.find((occurrence) => occurrence.cycleDayIndex === null)!;
+
+    const named = await withUser(
+      t.db,
+      account.userId,
+      async (tx) => ({
+        wednesday: await namedOccurrence(tx, account.userId, wednesday.id),
+        saturday: await namedOccurrence(tx, account.userId, saturday.id),
+      }),
+      { readOnly: true },
+    );
+    expect(named.wednesday).toEqual({
+      id: wednesday.id,
+      sport: "running",
+      scheduledOn: wednesday.scheduledOn,
+      familyId: wednesday.familyId,
+      cycleIndex: 1,
+      dayName: "Upper A",
+    });
+    // Work no day owns keeps its date and its sport, and no day's name is borrowed for it.
+    expect(named.saturday).toMatchObject({ id: saturday.id, dayName: null });
+    // Another athlete's session is not there to be named.
+    expect(
+      await withUser(t.db, other.userId, (tx) => namedOccurrence(tx, other.userId, wednesday.id), {
+        readOnly: true,
+      }),
+    ).toBeNull();
   });
 });
 

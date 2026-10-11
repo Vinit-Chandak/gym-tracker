@@ -542,3 +542,54 @@ export async function occurrencesById(
   )) as Row[];
   return new Map(rows.map((row) => [row.id, hydrate(row)]));
 }
+
+export type NamedOccurrence = {
+  id: string;
+  sport: ActivitySport;
+  scheduledOn: string;
+  /** Null for work the athlete put on the calendar themselves. */
+  familyId: string | null;
+  cycleIndex: number | null;
+  /** The programme day it belongs to, as the version that wrote it names that day. */
+  dayName: string | null;
+};
+
+/**
+ * One occurrence, named the way its programme names it: "Tempo run" of cycle 6, planned for
+ * Thursday. An activity that answered it says which session it was by this, rather than that
+ * it answered "a scheduled session". The day is read from the programme version the revision
+ * in force was written by, so a session of a block since replaced keeps its own day's name.
+ */
+export async function namedOccurrence(
+  tx: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+): Promise<NamedOccurrence | null> {
+  const [row] = await tx
+    .select({
+      id: plannedOccurrences.id,
+      sport: plannedOccurrences.sport,
+      scheduledOn: occurrenceVersions.scheduledOn,
+      familyId: plannedOccurrences.familyId,
+      cycleIndex: plannedOccurrences.cycleIndex,
+      // Plain SQL, qualified by hand: inside a select list Drizzle drops table qualifiers.
+      dayName: sql<string | null>`(
+        select d.name from program_days d
+        where d.program_id = occurrence_versions.program_version_id
+          and d.user_id = planned_occurrences.user_id
+          and d.day_index = planned_occurrences.cycle_day_index
+        limit 1
+      )`,
+    })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
+    .limit(1);
+  return row ?? null;
+}
