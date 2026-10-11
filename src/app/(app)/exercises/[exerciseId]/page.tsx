@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { ExerciseGraph } from "@/components/graph/exercise-graph";
 import { GraphRangeProvider } from "@/components/graph/graph-range-context";
-import { ExerciseGuide } from "@/components/exercise-guide";
+import { ExerciseGuide, guideHasContent } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -384,13 +384,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         </Card>
 
         {/* The same guide the workout's Technique shows (plan: exercise technique and media),
-            with where it was checked. */}
-        <section aria-labelledby="guide-title">
-          <h2 id="guide-title" className="caption-head">
-            How to do it
-          </h2>
-          <ExerciseGuide guidance={guidance} sources={sources} />
-        </section>
+            with where it was checked. A guide still awaiting the owner's review is not
+            announced as missing outside review: the section says what there is, or is left out. */}
+        {(showsDrafts() || guideHasContent(guidance)) && (
+          <section aria-labelledby="guide-title">
+            <h2 id="guide-title" className="caption-head">
+              How to do it
+            </h2>
+            <ExerciseGuide guidance={guidance} sources={sources} sayMissing={showsDrafts()} />
+          </section>
+        )}
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>
