@@ -189,10 +189,15 @@ it("names fewer dates once the reader's text grows, though the plot keeps its si
     .mockReturnValue({ width: 362, height: 188 } as DOMRect);
   try {
     const { container } = draw();
-    const dates = () =>
-      [...container.querySelectorAll(".graph-plot svg text")]
-        .filter((text) => text.getAttribute("y") === "182")
-        .map((text) => text.textContent);
+    const svg = () => container.querySelector(".graph-plot svg")!;
+    // The dates are the labels under the plot; the scale's stand beside it.
+    const dateTexts = () =>
+      [...svg().querySelectorAll("text")].filter(
+        (text) => Number(text.getAttribute("y")) > Number(svg().getAttribute("height")) - 20,
+      );
+    const dates = () => dateTexts().map((text) => text.textContent);
+    expect(svg().getAttribute("height")).toBe("188");
+    expect(dateTexts().map((text) => text.getAttribute("y"))).toEqual(["182", "182", "182", "182"]);
     expect(dates()).toEqual(["14 Sept", "21 Sept", "28 Sept", "5 Oct"]);
     act(() => {
       document.documentElement.style.fontSize = "32px";
@@ -201,6 +206,12 @@ it("names fewer dates once the reader's text grows, though the plot keeps its si
     });
     // Twice the size: every other Monday stands clear of the next, and none runs off the edge.
     expect(dates()).toEqual(["14 Sept", "28 Sept"]);
+    // The plot keeps its 152 pt; the rows over it (18) and under it (36) grow with the 24-pt
+    // labels, so a date's top, about three quarters of its size over its baseline at 198, stays
+    // under the plot's foot at 170, and its descenders inside the drawing.
+    expect(svg().getAttribute("height")).toBe("206");
+    expect((container.querySelector(".graph-plot") as HTMLElement).style.height).toBe("206px");
+    expect(dateTexts()[0]!.getAttribute("y")).toBe("198");
   } finally {
     document.documentElement.style.fontSize = "";
     box.mockRestore();

@@ -65,6 +65,16 @@ describe("the scale", () => {
     expect(lineScale([0, 0]).ticks).toEqual([0, 0.5, 1]);
   });
 
+  it("steps a line of counts by whole numbers, never 7.5 reps", () => {
+    expect(lineScale([6, 8, 10, 12]).ticks).toEqual([7.5, 10, 12.5]);
+    expect(lineScale([6, 8, 10, 12], { integral: true }).ticks).toEqual([8, 12]);
+    // Five reps every time: 4, 5 and 6 around it, not 4.5 and 5.5.
+    expect(lineScale([5, 5]).ticks).toEqual([4.5, 5, 5.5]);
+    expect(lineScale([5, 5], { integral: true }).ticks).toEqual([4, 5, 6]);
+    // A narrow spread still gets whole lines.
+    expect(lineScale([9, 10], { integral: true }).ticks).toEqual([9, 10]);
+  });
+
   it("draws a fixed scale whole whatever the readings", () => {
     expect(lineScale([2, 3], { min: 1, max: 5, ticks: [1, 3, 5] })).toEqual({
       ticks: [1, 3, 5],

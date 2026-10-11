@@ -28,10 +28,13 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* The note's 44-pt target hangs into the space around the caption rather than growing it. */
+/* The note's 44-pt target hangs into the space around the caption rather than growing it. To
+   the right it hangs 16 pt, inside the narrowest gutter, at any text size: the button's own
+   negative margin (0.375rem, 6 pt at 100%) grows with the text, so this one gives it back, and
+   the button never runs off the screen. */
 .graph-readout-note {
   margin-block: calc(-11 * var(--ov-u));
-  margin-right: calc(-10 * var(--ov-u));
+  margin-right: calc(0.375rem - 16 * var(--ov-u));
 }
 .graph-readout-body {
   display: flex;
@@ -95,10 +98,10 @@
   outline: 3px solid var(--ov-ink);
   outline-offset: 2px;
 }
-/* Nothing in the span: said in the plot, over the empty axis, so the dates still stand. */
+/* Nothing in the span: said in the plot, over the empty axis, so the dates still stand. Its top
+   and bottom are the plot's, which the graph sets from the reader's text size. */
 .graph-empty {
   position: absolute;
-  top: calc(12 * var(--ov-u));
   right: 0;
   display: flex;
   align-items: center;
