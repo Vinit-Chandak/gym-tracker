@@ -106,7 +106,7 @@ export function CustomExerciseForm({
                 }
                 className="size-5 shrink-0"
               />
-              <span className="min-w-0 [overflow-wrap:anywhere]">{MUSCLE_LABELS[m]}</span>
+              <span className="min-w-0 [overflow-wrap:break-word]">{MUSCLE_LABELS[m]}</span>
             </label>
           ))}
         </div>

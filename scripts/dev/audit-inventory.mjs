@@ -1,8 +1,20 @@
 // Compare the actual production page manifest with successful screen visits.
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { glob, readFile, readdir, writeFile } from "node:fs/promises";
 
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
-const manifest = JSON.parse(await readFile(".next-audit/server/app-paths-manifest.json", "utf8"));
+// The build being served, which may have been made in another checkout (AUDIT_BUILD_DIR). With no
+// build here, the pages are listed from this checkout's app directory, as the build lists them.
+const manifestPath = `${process.env.AUDIT_BUILD_DIR ?? ".next-audit"}/server/app-paths-manifest.json`;
+let manifest;
+if (existsSync(manifestPath)) manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+else {
+  if (process.env.AUDIT_BUILD_DIR) throw new Error(`No build manifest at ${manifestPath}.`);
+  console.log(`No build manifest at ${manifestPath}; listing the pages under src/app instead.`);
+  manifest = {};
+  for await (const file of glob("src/app/**/page.{tsx,ts,jsx,js}"))
+    manifest[file.replace(/^src\/app/, "").replace(/\.[jt]sx?$/, "")] = file;
+}
 const files = (await readdir(output)).filter((name) => /^screens-.*\.json$/.test(name));
 const visits = (
   await Promise.all(

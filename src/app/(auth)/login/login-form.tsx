@@ -79,7 +79,7 @@ export function LoginForm({ next }: { next?: string }) {
       {both && (
         <p id={alertId} role="alert" className="flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{state.error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{state.error}</span>
         </p>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>

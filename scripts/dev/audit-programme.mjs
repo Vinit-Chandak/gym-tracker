@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { assertReadableText } from "./audit-text-readability.mjs";
 import {
@@ -10,6 +10,7 @@ import {
   addStarterChestPress,
   clickWithSlowNavigation,
 } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -35,9 +36,7 @@ const field = (page, name) => page.getByLabel(name, { exact: true });
 const password = "AuditProgramme123!";
 
 async function runDevice(device) {
-  const browser = await (device === "iphone" ? webkit : chromium).launch({
-    executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-  });
+  const browser = await launch(device === "iphone" ? "webkit" : "chromium");
   const context = await browser.newContext({
     ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
     baseURL,
@@ -369,7 +368,43 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(false);
-      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      // A note typed while the switch is saving survives the switch's answer, which draws the
+      // page again. The answer is held open until the note is typed, as a slow connection would.
+      let releaseSwitch, switchHeld;
+      const answerHeld = new Promise((resolve) => (switchHeld = resolve));
+      const released = new Promise((resolve) => (releaseSwitch = resolve));
+      const switchSave = (url) => new URL(url).pathname === "/profile/ai-coach";
+      let holdError;
+      await page.route(switchSave, async (route) => {
+        if (route.request().method() !== "POST") return route.continue();
+        try {
+          const response = await route.fetch();
+          switchHeld();
+          await released;
+          await route.fulfill({ response });
+        } catch (error) {
+          holdError = error;
+        }
+      });
+      const note =
+        "Travelling next week: keep three shorter strength sessions and review my programme.";
+      try {
+        await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+        await Promise.race([
+          answerHeld,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("The switch sent no save to hold")), 15_000),
+          ),
+        ]);
+        await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeDisabled();
+        await field(page, "Notes for the coach").fill(note);
+      } finally {
+        releaseSwitch();
+        // The held answer is given before the route goes: stopping interception first would let
+        // the browser's request go on unanswered by it.
+        await page.unrouteAll({ behavior: "wait" });
+      }
+      if (holdError) throw holdError;
       await expect
         .poll(
           async () =>
@@ -377,9 +412,9 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(true);
-      const note =
-        "Travelling next week: keep three shorter strength sessions and review my programme.";
-      await field(page, "Notes for the coach").fill(note);
+      await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
+      await settle();
+      await expect(field(page, "Notes for the coach")).toHaveValue(note);
       await button(page, "Send note").click();
       await expect
         .poll(async () =>
@@ -656,11 +691,11 @@ try {
   for (const device of process.env.AUDIT_DEVICE
     ? [process.env.AUDIT_DEVICE]
     : ["android", "iphone"])
-    await runDevice(device);
+    if (!skipDevice(device, device === "iphone" ? "webkit" : "chromium")) await runDevice(device);
   const passed = results.every((result) => result.passed) && runtimeErrors.length === 0;
   await writeFile(
     `${output}/results.json`,
-    JSON.stringify({ passed, results, runtimeErrors }, null, 2),
+    JSON.stringify({ passed, results, runtimeErrors, skipped: skippedDevices }, null, 2),
   );
   console.log(
     JSON.stringify({
@@ -668,6 +703,7 @@ try {
       checks: results.length,
       failed: results.filter((result) => !result.passed).length,
       runtimeErrors: runtimeErrors.length,
+      skipped: skippedDevices.map((row) => row.device),
     }),
   );
   if (!passed) process.exitCode = 1;

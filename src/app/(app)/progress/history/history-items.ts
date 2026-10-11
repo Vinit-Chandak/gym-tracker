@@ -7,6 +7,7 @@ import {
   METRES_PER_MILE,
   type SportUnits,
 } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
@@ -66,11 +67,13 @@ function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
   return `${formatPace(seconds)}/${unit}`;
 }
 
+/** "Sleep 7.25 h · Fatigue 2": each reading kept whole on its line, its name, figure and unit. */
 function readings(values: [string, number | null, string?][]) {
-  return values
-    .filter(([, value]) => value !== null)
-    .map(([label, value, unit]) => `${label} ${value}${unit ? `\u00a0${unit}` : ""}`)
-    .join(" · ");
+  return joinFacts(
+    values
+      .filter(([, value]) => value !== null)
+      .map(([label, value, unit]) => `${label}\u00a0${value}${unit ? `\u00a0${unit}` : ""}`),
+  );
 }
 
 /**
@@ -93,7 +96,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     date: w.startedAt.toISOString(),
     day: w.occurredOn ?? clock.dayOf(w.startedAt),
     title: w.dayName ?? UNPLANNED_SESSION,
-    subtitle: `${clock.timeOf(w.startedAt)} · ${w.gymName}`,
+    subtitle: joinFacts([clock.timeOf(w.startedAt), w.gymName]),
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.
     href: `/workouts/${w.id}${originQuery("history")}` as const,

@@ -51,30 +51,31 @@ export function LinkRow<T extends string>({
 }: LinkRowProps<T>) {
   const danger = tone === "danger";
   return (
-    <Link href={href} prefetch={prefetch} className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
-      <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
-        {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
-        <div className="min-w-0 flex-[1_1_8rem]">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className={cn("font-medium [overflow-wrap:anywhere]", danger && "text-danger")}>
-              {title}
-            </p>
-            {badge}
+    <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
+          {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
+          <div className="min-w-0 flex-[1_1_8rem]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className={cn("font-medium [overflow-wrap:break-word]", danger && "text-danger")}>
+                {title}
+              </p>
+              {badge}
+            </div>
+            {subtitle && (
+              <p className="mt-0.5 text-sm [overflow-wrap:break-word] text-ink-muted">{subtitle}</p>
+            )}
           </div>
-          {subtitle && (
-            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
-          )}
         </div>
-      </div>
-      {/* Move secondary content below the label before it squeezes words into letter stacks. */}
-      <div className="ml-auto flex max-w-full items-center gap-3">
+        {/* Move secondary content below the label before it squeezes words into letter stacks. */}
         {meta && (
-          <span className="min-w-0 text-right text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="ml-auto max-w-full min-w-0 text-right text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}
-        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
       </div>
+      {/* The chevron stays at the row's end, beside the words, however they fold. */}
+      <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
     </Link>
   );
 }
@@ -101,11 +102,11 @@ export function Row({
       <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
         {icon && <RowIcon icon={icon} />}
         <div className="min-w-0 flex-[1_1_8rem]">
-          <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:anywhere]">
+          <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:break-word]">
             {title}
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
+            <p className="mt-0.5 text-sm [overflow-wrap:break-word] text-ink-muted">{subtitle}</p>
           )}
         </div>
       </div>

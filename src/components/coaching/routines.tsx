@@ -44,8 +44,8 @@ export function RoutineLibrary({
       </Field>
       {routines.map((routine) => (
         <Card key={routine.id}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
-          <ol className="space-y-2 text-sm [overflow-wrap:anywhere]">
+          <h2 className="text-lg font-medium [overflow-wrap:break-word]">{routine.name}</h2>
+          <ol className="space-y-2 text-sm [overflow-wrap:break-word]">
             {routine.day.exercises.map((entry, i) => (
               <li key={i}>
                 {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}

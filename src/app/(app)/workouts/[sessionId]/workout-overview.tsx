@@ -211,7 +211,7 @@ function WarmupSheet({
                   <li
                     key={index}
                     className={cn(
-                      "py-2.5 [overflow-wrap:anywhere]",
+                      "py-2.5 [overflow-wrap:break-word]",
                       index < coachLines.length - 1 && "border-b border-hair",
                     )}
                   >
@@ -226,7 +226,9 @@ function WarmupSheet({
                       index < drills.length - 1 && "border-b border-hair",
                     )}
                   >
-                    <span className="min-w-0 font-bold [overflow-wrap:anywhere]">{drill.name}</span>
+                    <span className="min-w-0 font-bold [overflow-wrap:break-word]">
+                      {drill.name}
+                    </span>
                     <span className="shrink-0 text-right type-meta text-ink-2 tabular-nums">
                       {drill.dose}
                     </span>
@@ -300,7 +302,7 @@ function WarmupRow({
             {lines.map((line, index) => (
               <span
                 key={index}
-                className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums"
+                className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums"
               >
                 {line}
               </span>
@@ -521,7 +523,7 @@ export function WorkoutOverview({
           <span className="flex min-w-0 flex-1 flex-col">
             <span
               className={cn(
-                "plan-row-name [overflow-wrap:anywhere]",
+                "plan-row-name [overflow-wrap:break-word]",
                 (done || skipped) && !readOnly && "text-ink-2",
               )}
             >
@@ -676,7 +678,7 @@ export function WorkoutOverview({
           className="mt-3 flex items-start gap-2 type-meta font-semibold"
         >
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{draftsWarning(drafts)}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{draftsWarning(drafts)}</span>
         </p>
       )}
 

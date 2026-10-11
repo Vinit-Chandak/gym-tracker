@@ -59,7 +59,7 @@ export function SectionSelect<V extends string>({
         aria-label={current ? `${label}: ${current.label}` : label}
         className="section-select-button"
       >
-        <span className="min-w-0 [overflow-wrap:anywhere]">{current?.label}</span>
+        <span className="min-w-0 [overflow-wrap:break-word]">{current?.label}</span>
         <Glyph name="chevronDown" className="glyph-18" />
       </button>
       {action}
@@ -72,7 +72,7 @@ export function SectionSelect<V extends string>({
             // reader; the control that opened the sheet already names it too.
             const content = (
               <>
-                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{option.label}</span>
+                <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{option.label}</span>
                 {selected && <Glyph name="check" className="glyph-20" />}
               </>
             );

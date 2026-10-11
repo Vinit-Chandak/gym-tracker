@@ -44,16 +44,17 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         <figcaption className="text-sm font-medium">{title}</figcaption>
         {/* A legend only once there is more than one shape; a single one is the caption. */}
         {multi && (
-          <ul className="flex flex-wrap gap-3">
+          <ul className="flex min-w-0 flex-wrap gap-3">
             {/* Keyed by position: two people can share a name, and each still needs its own. */}
             {series.map((s, i) => (
-              <li key={i} className="flex items-center gap-1.5 text-xs text-ink-muted">
+              <li key={i} className="flex min-w-0 items-center gap-1.5 text-xs text-ink-muted">
                 <span
                   className="size-2.5 shrink-0 rounded-full"
                   style={{ background: s.color }}
                   aria-hidden
                 />
-                {s.name}
+                {/* A box of its own, so a name with no spaces wider than the line can break. */}
+                <span className="min-w-0 [overflow-wrap:break-word]">{s.name}</span>
               </li>
             ))}
           </ul>
@@ -75,7 +76,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
           {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
           <span className="sr-only"> for {title}</span>
         </summary>
-        <table className="w-full table-fixed text-left [overflow-wrap:anywhere] tabular-nums">
+        <table className="w-full table-fixed text-left [overflow-wrap:break-word] tabular-nums">
           <caption className="sr-only">{title} by axis</caption>
           <thead>
             <tr className="text-ink-subtle">

@@ -42,7 +42,7 @@ export function SelectRow({
           {label}
         </label>
         <span aria-hidden className="select-row-value">
-          <span className="min-w-0 text-right [overflow-wrap:anywhere]">{shown?.label}</span>
+          <span className="min-w-0 text-right [overflow-wrap:break-word]">{shown?.label}</span>
           <Glyph name="chevronDown" className="glyph-18" />
         </span>
         <select

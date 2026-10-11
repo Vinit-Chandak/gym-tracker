@@ -160,7 +160,7 @@ export function Preview({ amounts, bowl }: { amounts: FoodAmounts; bowl?: Portio
           <span className="food-preview-unit">kcal</span>
         </p>
         {macros && (
-          <p className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+          <p className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
             {macros}
           </p>
         )}

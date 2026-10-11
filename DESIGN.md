@@ -517,8 +517,15 @@ in between, so a narrow screen shows the same few sizes as a wide one. Jost 600'
 are 0.614 em, its point and comma 0.32 em.
 
 **The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps
-(`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes
-grows and wraps. The one exception is a food row's name and the line under it, wherever food is
+between its words, breaking a word only where it cannot fit a line of its own
+(`overflow-wrap: break-word`; `anywhere` lets a box be squeezed to a letter a line, and is kept
+only for a meta line's fact, whose words have no box of their own); a row grows rather than
+clipping. A figure keeps its unit and a count its noun ("12 sets"); a
+dot between facts goes with the fact after it. What sits beside a name (a button, a value, a
+tag) goes under it before the name would have less than a few words' room, and a table of
+figures stacks before a figure would split. A button at large text sizes grows and wraps. A
+chosen option wraps in its field rather than being cut; a one-line field's hint ends in an
+ellipsis. The one exception is a food row's name and the line under it, wherever food is
 listed, which keep one line each and end in an ellipsis so every row stands the same height; a
 food's or a saved meal's own sheet says them whole.
 
@@ -947,7 +954,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
 - **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
-  than its longest word, and the tray folds onto a second row before a word would break.
+  than its label on one line ("30 days", "Free weight"), and the tray folds before a label would
+  wrap, onto rows as even as fit: four as two and two, five as three and two, never three and
+  one alone. Only a label wider than the whole tray wraps, between its words.
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
   Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its

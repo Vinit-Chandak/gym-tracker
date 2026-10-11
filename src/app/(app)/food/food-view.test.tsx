@@ -159,8 +159,8 @@ it("ends with the targets and then My foods, each a screen of its own", () => {
   const links = screen.getAllByRole("link");
   expect(links.slice(-2)).toEqual([
     screen.getByRole("link", { name: "Targets 2,300 kcal" }),
-    // A count keeps its noun on its line.
-    screen.getByRole("link", { name: "My foods 2\u00a0foods · 1\u00a0meal" }),
+    // A count keeps its noun on its line, and the dot goes with the count after it.
+    screen.getByRole("link", { name: "My foods 2\u00a0foods ·\u00a01\u00a0meal" }),
   ]);
   expect(links.slice(-2).map((link) => link.getAttribute("href"))).toEqual([
     "/food/targets",

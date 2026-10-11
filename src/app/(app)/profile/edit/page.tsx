@@ -25,7 +25,7 @@ export default async function EditProfilePage() {
             rather than a field. */}
         <dl className="profile-email">
           <dt className="font-bold">Email</dt>
-          <dd className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-2">{email}</dd>
+          <dd className="min-w-0 text-right [overflow-wrap:break-word] text-ink-2">{email}</dd>
         </dl>
         {/* Accounts that predate a question are not sent back through setup; this is where
             they answer it, so the screen says which questions are still open. */}

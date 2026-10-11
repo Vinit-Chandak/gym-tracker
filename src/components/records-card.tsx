@@ -120,7 +120,7 @@ export function PeriodRecordsList({
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
         >
           <span className="min-w-0">
-            <span className="block font-medium [overflow-wrap:anywhere]">
+            <span className="block font-medium [overflow-wrap:break-word]">
               {record.exercise.name}
             </span>
             <span className="block text-xs text-ink-muted">

@@ -53,7 +53,7 @@ export function FinishLeftOpenButton({
         onClick={finish}
       >
         <Glyph name="check" className="glyph-18" />
-        <span className="min-w-0 [overflow-wrap:anywhere]">
+        <span className="min-w-0 [overflow-wrap:break-word]">
           {pending ? "Finishing…" : `Finish it as of ${at}`}
         </span>
       </button>
@@ -67,7 +67,7 @@ export function FinishLeftOpenButton({
       {error && (
         <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{error}</span>
         </p>
       )}
     </div>

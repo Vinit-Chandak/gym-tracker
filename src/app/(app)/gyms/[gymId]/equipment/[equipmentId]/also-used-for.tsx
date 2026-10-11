@@ -43,7 +43,7 @@ export function AlsoUsedFor({
         <ul className="mt-1">
           {extra.map((type) => (
             <li key={type.id} className="also-row">
-              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{type.name}</span>
+              <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{type.name}</span>
               <form action={setMachineAlsoUsedForAction.bind(null, gymId, equipmentId, false)}>
                 <input type="hidden" name="equipmentTypeId" value={type.id} />
                 <button type="submit" aria-label={`Remove ${type.name}`} className="review-remove">

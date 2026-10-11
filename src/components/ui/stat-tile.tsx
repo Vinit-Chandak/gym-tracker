@@ -42,7 +42,7 @@ export function StatTile({
     <div className="min-w-0">
       <dt className="flex items-center gap-0.5 text-xs leading-tight text-ink-muted">
         {/* A label longer than any the row was sized for wraps rather than running on. */}
-        <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
+        <span className="min-w-0 [overflow-wrap:break-word]">{label}</span>
         {info && (
           <InfoTip label={`About ${label}`} className="-my-2">
             {info}

@@ -59,7 +59,7 @@
 }
 .month-total-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;
@@ -152,9 +152,11 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--month-gap);
 }
+/* At least 24 pt, and as tall as its letters at large text, so the days never cover them. */
 .month-weekdays {
-  height: calc(24 * var(--ov-u));
+  min-height: calc(24 * var(--ov-u));
   align-items: center;
+  line-height: 1.3;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-print-label);
   font-weight: 700;

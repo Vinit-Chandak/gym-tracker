@@ -336,7 +336,7 @@ export function AddExercisesForm({
                 ) : place.kind === "machine" ? (
                   <p className="pinned-fact">
                     <Glyph name="machine" className="glyph-18" />
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                    <span className="min-w-0 [overflow-wrap:break-word]">
                       On {place.machine.name}
                     </span>
                   </p>

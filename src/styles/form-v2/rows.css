@@ -21,6 +21,11 @@
   min-width: 0;
   align-items: flex-start;
   gap: calc(5 * var(--ov-u));
+  /* The one place a word may break anywhere: a fact's words sit beside its glyph with no box of
+     their own to shrink, so a name with no spaces longer than the line ("PureGymShoreditch…")
+     could not break inside it otherwise and would run off the screen. The fact itself never
+     gives its room to a neighbour (the line wraps instead), so no word is broken sooner. */
+  overflow-wrap: anywhere;
 }
 /* A fact that wraps (large text) keeps its glyph on its first line: centred on it, by the
    glyph's own size (glyph-16, 8 px + 0.5 rem). */
@@ -332,7 +337,28 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-body);
   font-weight: 600;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+/* The name, and what marks it out beside it (a badge, a tag). The name keeps room for a word
+   (6rem, so it grows with the text) and the mark folds under it rather than take that room:
+   "PureGym Shoreditch" wraps between its words at 320 pt, and its Default tag goes under it at
+   200% text rather than leaving the name a letter or two a line. */
+.nav-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
+}
+.nav-row-main > .nav-row-label,
+.nav-row-text {
+  min-width: min(100%, 6rem);
+  flex: 1 1 0;
+}
+.nav-row-text {
+  display: flex;
+  flex-direction: column;
 }
 /* A row with a second line is taller, its name in bold (boards Gyms, Gym). */
 .nav-row:has(.nav-row-sub) {
@@ -348,7 +374,7 @@ li:last-child > .sheet-row {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* What marks a row out, in an ink outline: Default. */
 .nav-row-tag {
@@ -366,7 +392,7 @@ li:last-child > .sheet-row {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-align: right;
 }
 .nav-row-badge {
@@ -405,7 +431,7 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .person-card-name {
   display: block;
@@ -413,6 +439,11 @@ li:last-child > .sheet-row {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.25;
+}
+/* Whatever the screen puts under the person (Following, on someone else's page) stands clear
+   of the avatar rather than against it. */
+.person-card-head + * {
+  margin-top: calc(12 * var(--ov-u));
 }
 /* A detail still missing, said once under the person, as the way to add it. */
 .person-card-warning {
@@ -481,14 +512,14 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .switch-row-effect {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- a switch (boards Profile, Privacy) ---------- */
@@ -611,7 +642,7 @@ li:last-child > .sheet-row {
 }
 .gym-choice-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* A screen's title at its measured size (fit-title.tsx). */
@@ -620,7 +651,7 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- Today ---------- */
@@ -1176,6 +1207,8 @@ button.activity-card-toggle {
   outline: none;
   box-shadow: none;
   appearance: none;
+  /* A hint longer than the box (200% text) ends in an ellipsis, not a cut letter. */
+  text-overflow: ellipsis;
 }
 .search-box-input::placeholder {
   color: var(--ov-ink-2);
@@ -1222,7 +1255,7 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .picker-row-meta {
   display: flex;
@@ -1691,4 +1724,26 @@ li:last-child > .picker-row {
 /* Empty until it speaks, and still there, so the words are heard when they arrive. */
 .today-note:not(:empty) {
   margin: 2px 0 calc(8 * var(--ov-u));
+}
+
+/* ---------- a segmented choice, and any tray that folds evenly (fold.ts) ---------- */
+/* A segment's label keeps its words on one line: its unseen copy, on one line and no height,
+   is what the segment cannot be narrower than, so "30 days" folds the tray rather than wrap to
+   "30 / days" beside "7 days". Only a label wider than the whole tray wraps, between words. */
+.segment-label {
+  min-width: 0;
+}
+.segment-label::after {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: nowrap;
+  content: attr(data-label);
+}
+/* Between two items, a break: no width while they share a row (its margins give back the gap
+   it adds), the full width where the tray folds there. */
+.fold-break {
+  height: 0;
+  margin-inline: -1px;
 }

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { chooseOnboardingUnits, addStarterChestPress } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -97,9 +98,7 @@ async function deleteInUi(page) {
 }
 
 async function runDevice(device) {
-  const browser = await (device === "iphone" ? webkit : chromium).launch({
-    executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-  });
+  const browser = await launch(device === "iphone" ? "webkit" : "chromium");
   const contexts = [];
   const accounts = [];
   const freshPage = async () => {
@@ -408,11 +407,11 @@ try {
   for (const device of process.env.AUDIT_DEVICE
     ? [process.env.AUDIT_DEVICE]
     : ["android", "iphone"])
-    await runDevice(device);
+    if (!skipDevice(device, device === "iphone" ? "webkit" : "chromium")) await runDevice(device);
   const passed = results.every((result) => result.passed) && runtimeErrors.length === 0;
   await writeFile(
     `${output}/results.json`,
-    JSON.stringify({ passed, results, runtimeErrors }, null, 2),
+    JSON.stringify({ passed, results, runtimeErrors, skipped: skippedDevices }, null, 2),
   );
   console.log(
     JSON.stringify({
@@ -420,6 +419,7 @@ try {
       checks: results.length,
       failed: results.filter((result) => !result.passed).length,
       runtimeErrors: runtimeErrors.length,
+      skipped: skippedDevices.map((row) => row.device),
     }),
   );
   if (!passed) process.exitCode = 1;

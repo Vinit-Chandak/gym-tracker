@@ -18,7 +18,7 @@ export function DetailList({
       {shown.map(([label, value]) => (
         <div key={label} className="min-w-0">
           <dt className="text-xs text-ink-muted">{label}</dt>
-          <dd className="mt-0.5 text-sm [overflow-wrap:anywhere]">{value}</dd>
+          <dd className="mt-0.5 text-sm [overflow-wrap:break-word]">{value}</dd>
         </div>
       ))}
     </dl>

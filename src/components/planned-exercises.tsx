@@ -76,7 +76,7 @@ export function PlannedExerciseList({
         >
           {block.items.map((exercise) => (
             <div key={exercise.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{exercise.name}</p>
+              <p className="text-sm [overflow-wrap:break-word]">{exercise.name}</p>
               <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
             </div>
           ))}

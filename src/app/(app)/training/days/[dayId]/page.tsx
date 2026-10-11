@@ -90,7 +90,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="plan-row-name">Run</span>
         {plan.run && (
-          <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+          <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
             {runSummary(plan.run, data.runUnits)}
           </span>
         )}
@@ -182,7 +182,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           </div>
         )}
         {day.notes && (
-          <p className="mt-3 type-meta [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-2">
+          <p className="mt-3 type-meta [overflow-wrap:break-word] whitespace-pre-wrap text-ink-2">
             {day.notes}
           </p>
         )}

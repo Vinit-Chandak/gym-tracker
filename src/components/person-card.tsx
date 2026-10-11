@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 export type PersonCounts = { followers: number; following: number };
 
@@ -38,8 +39,10 @@ export function PersonCard<T extends string>({
   action?: ReactNode;
   children?: ReactNode;
 }) {
-  const followers = `${counts.followers} ${counts.followers === 1 ? "follower" : "followers"}`;
-  const following = `${counts.following} following`;
+  // Each count keeps its word on its line ("2 following", never "2 / following"), and a dot
+  // goes with the count after it when the line wraps.
+  const followers = `${counts.followers}\u00a0${counts.followers === 1 ? "follower" : "followers"}`;
+  const following = `${counts.following}\u00a0following`;
   const avatar = (
     <Avatar
       username={person.username}
@@ -70,7 +73,7 @@ export function PersonCard<T extends string>({
         <p className="person-card-text">
           {href ? <Link href={href}>{identity}</Link> : identity}
           <span className="tabular-nums">
-            {" · "}
+            {FACT_SEPARATOR}
             {countsLinkToFriends ? (
               <Link href="/profile/friends/people?people=followers" className="tap-area">
                 {followers}
@@ -78,7 +81,7 @@ export function PersonCard<T extends string>({
             ) : (
               followers
             )}
-            {" · "}
+            {FACT_SEPARATOR}
             {countsLinkToFriends ? (
               <Link href="/profile/friends/people?people=following" className="tap-area">
                 {following}

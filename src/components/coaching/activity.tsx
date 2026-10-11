@@ -50,7 +50,7 @@ export async function CoachingActivity() {
             <summary className="flex min-h-[var(--ov-target)] cursor-pointer items-center type-meta-small font-bold">
               Details
             </summary>
-            <p className="type-meta-small [overflow-wrap:anywhere] text-ink-2">{failed.error}</p>
+            <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">{failed.error}</p>
           </details>
         )}
       </div>

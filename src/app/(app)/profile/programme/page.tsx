@@ -20,6 +20,7 @@ import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -52,7 +53,7 @@ function Archived({
         <ul className="ruled-list">
           {programmes.map((programme) => (
             <li key={programme.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
-              <p className="font-medium [overflow-wrap:anywhere]">
+              <p className="font-medium [overflow-wrap:break-word]">
                 {programme.name} · version {programme.version}
               </p>
               <ProgrammeTools id={programme.id} active={false} />
@@ -144,7 +145,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             <Card>
               <div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+                  <h2 className="text-lg font-medium [overflow-wrap:break-word]">
                     {overview.program.name}
                   </h2>
                   {/* Today's word for it, "Programme complete", as the card's badge. */}
@@ -160,11 +161,16 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 max={overview.progress.total}
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
+              {/* Each count kept with its words ("0 to go", never "0 to / go"), and each dot with
+                  the fact after it, when the line wraps. */}
               <p className="text-xs text-ink-muted tabular-nums">
-                {!complete && `Cycle ${overview.currentCycle} of ${overview.program.cycles} · `}
-                {overview.progress.completed} of {overview.progress.total} programme days
-                {!complete && ` · ${overview.progress.remaining} to go`}
-                {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
+                {joinFacts([
+                  !complete &&
+                    `Cycle\u00a0${overview.currentCycle}\u00a0of\u00a0${overview.program.cycles}`,
+                  `${overview.progress.completed}\u00a0of\u00a0${overview.progress.total} programme days`,
+                  !complete && `${overview.progress.remaining}\u00a0to\u00a0go`,
+                  overview.progress.skipped > 0 && `${overview.progress.skipped}\u00a0skipped`,
+                ])}
               </p>
               <StatTileRow>
                 <StatTile label="Weeks" value={overview.program.weeks} />
@@ -177,7 +183,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 <Disclosure summary="How it is meant to go" variant="footer">
                   <div className="space-y-3">
                     {overview.program.notes && (
-                      <p className="text-sm [overflow-wrap:anywhere]">{overview.program.notes}</p>
+                      <p className="text-sm [overflow-wrap:break-word]">{overview.program.notes}</p>
                     )}
                     <DetailList
                       entries={[

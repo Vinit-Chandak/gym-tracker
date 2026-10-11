@@ -140,7 +140,7 @@ function State({ glyph, children }: { glyph?: "check" | "skip"; children: ReactN
   return (
     <p className="activity-card-state">
       {glyph && <Glyph name={glyph} className="glyph-18 text-ink" />}
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }
@@ -552,7 +552,7 @@ export function TodayView({
                           : "pt-2"
                       }
                     >
-                      <p className="font-bold [overflow-wrap:anywhere]">{drill.name}</p>
+                      <p className="font-bold [overflow-wrap:break-word]">{drill.name}</p>
                       <p className="type-meta-small text-ink-2 tabular-nums">{drill.dose}</p>
                     </li>
                   ))}

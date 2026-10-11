@@ -5,6 +5,7 @@ import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-pla
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
 import type { SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
@@ -12,7 +13,7 @@ import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule
 /** What the day is, on one line under its name. */
 function subtitle(day: ScheduleDay): string | null {
   const parts = [day.focus, day.timeNote].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
 /** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
@@ -20,7 +21,7 @@ function cost(plan: ProgramDayPlan, units: SportUnits): string {
   if (plan.exercises.length > 0)
     return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run, units)}` : null]
       .filter(Boolean)
-      .join(" · ");
+      .join(FACT_SEPARATOR);
   if (plan.run) return runSummary(plan.run, units);
   return "Rest day";
 }
@@ -53,7 +54,7 @@ export function CycleDay({
     <>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+          <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
           {open ? (
             <Badge tone="accent">In progress</Badge>
           ) : plan.isNext ? (
@@ -80,10 +81,13 @@ export function CycleDay({
 
   return (
     <details className="group box min-w-0">
+      {/* The day answers a press with its tint, not the controls' 0.97: at large text the head
+          is hundreds of points tall, and shrinking it took its rounded corner out from under a
+          thumb pressed near it, so the press landed on the card and the day stayed shut. */}
       <summary
         className={cn(
           HEAD,
-          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:scale-100 active:bg-surface-raised",
         )}
       >
         {head}

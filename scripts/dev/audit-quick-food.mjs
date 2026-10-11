@@ -1,9 +1,10 @@
 // Quick-add regression audit. Creates and removes its own account in the loopback QA database.
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import postgres from "postgres";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -28,9 +29,8 @@ const salt = randomBytes(16).toString("hex");
 const password = `${salt}:${scryptSync("password123", salt, 32).toString("hex")}`;
 const results = [],
   pageErrors = [];
-const browser = await (engine === "webkit" ? webkit : chromium).launch({
-  executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+await skipWholeRun(engine === "webkit" ? "iphone" : "android", engine, `${output}/results.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
   baseURL,

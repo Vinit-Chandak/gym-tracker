@@ -1,6 +1,7 @@
 import { DetailList } from "@/components/ui/detail-list";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import { formatSportDistance, toMetres, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import type { RunTarget } from "@/server/repositories/schedule";
 
@@ -41,7 +42,7 @@ export function runSummary(run: RunTargets, units: SportUnits): string {
       ? null
       : `Effort ${rangeLabel(run.rpeMin, rpeMax)} of ${PRESCRIBED_EFFORT.max}`,
   ];
-  return parts.filter(Boolean).join(" · ");
+  return parts.filter(Boolean).join(FACT_SEPARATOR);
 }
 
 /** Whether the run says anything beyond how long and how hard. */

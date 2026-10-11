@@ -12,6 +12,7 @@ import { withUser } from "@/db/with-user";
 import { NOTE_DISPOSITION_LABELS } from "@/domain/coach-memory";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -143,7 +144,7 @@ export default async function AiCoachSettingsPage() {
             configured && !canRequest && profile.aiCoachEnabled
               ? [status, "On-demand coaching is not set up on this server"]
                   .filter(Boolean)
-                  .join(" · ")
+                  .join(FACT_SEPARATOR)
               : status
           }
           noteId={crypto.randomUUID()}

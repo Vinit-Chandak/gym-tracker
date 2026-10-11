@@ -101,7 +101,7 @@ export function PickExerciseForm({
             <p className="pinned-fact">
               <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
               <Glyph name="machine" className="glyph-18" />
-              <span className="min-w-0 [overflow-wrap:anywhere]">On {applicable[0]!.name}</span>
+              <span className="min-w-0 [overflow-wrap:break-word]">On {applicable[0]!.name}</span>
             </p>
           ) : (
             <p className="pinned-fact text-ink-2">

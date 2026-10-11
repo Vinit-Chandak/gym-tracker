@@ -3,7 +3,8 @@
 // some deliberately exercise the same seeded empty account.
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { assertWebkitInstalled, SKIP_REASON, webkitEnabled } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -48,23 +49,31 @@ for (const key of [
   "AUDIT_HISTORY_WEBKIT_SAMPLE",
 ])
   delete env[key];
+// Each job names the engines it launches: an iPhone is WebKit, every other device Chromium.
+// With AUDIT_WEBKIT=0 a job that only launches WebKit is not run and is reported as SKIPPED;
+// a job that launches both runs its Chromium devices and reports its WebKit ones as SKIPPED.
 const jobs = [];
-function add(name, script, overrides = {}, args = []) {
-  jobs.push({ name, script: `scripts/dev/${script}.mjs`, overrides, args });
+function add(name, script, engines, overrides = {}, args = []) {
+  jobs.push({ name, script: `scripts/dev/${script}.mjs`, engines, overrides, args });
 }
-add("database-before", "audit", {}, ["verify-db"]);
+const engineOf = (device) => (device === "iphone" ? "webkit" : "chromium");
+const both = ["chromium", "webkit"];
+add("database-before", "audit", [], {}, ["verify-db"]);
 for (const device of ["android", "iphone", "narrow", "desktop"])
-  add(`screens-${device}`, "audit-browser", { AUDIT_DEVICE: device });
-add("screens-android-dark", "audit-browser", { AUDIT_DEVICE: "android", AUDIT_THEME: "dark" });
+  add(`screens-${device}`, "audit-browser", [engineOf(device)], { AUDIT_DEVICE: device });
+add("screens-android-dark", "audit-browser", ["chromium"], {
+  AUDIT_DEVICE: "android",
+  AUDIT_THEME: "dark",
+});
 for (const device of ["narrow", "iphone"])
-  add(`screens-${device}-large-text`, "audit-browser", {
+  add(`screens-${device}-large-text`, "audit-browser", [engineOf(device)], {
     AUDIT_DEVICE: device,
     AUDIT_THEME: device === "iphone" ? "dark" : "light",
     AUDIT_FONT_SIZE: "32",
     AUDIT_EXPAND_DETAILS: "true",
   });
-add("history", "audit-history", { AUDIT_HISTORY_WEBKIT_SAMPLE: "true" });
-add("interactions", "audit-interactions");
+add("history", "audit-history", both, { AUDIT_HISTORY_WEBKIT_SAMPLE: "true" });
+add("interactions", "audit-interactions", both);
 for (const name of [
   "account",
   "programme",
@@ -73,20 +82,32 @@ for (const name of [
   "ui-controls",
   "activity-time",
 ])
-  add(name, `audit-${name}`);
+  add(name, `audit-${name}`, both);
 for (const device of ["android", "iphone"]) {
+  const engine = engineOf(device);
   for (const name of ["workout", "flows", "recovery"])
-    add(`${name}-${device}`, `audit-${name}`, { AUDIT_DEVICE: device });
-  const engine = device === "iphone" ? "webkit" : "chromium";
+    add(`${name}-${device}`, `audit-${name}`, [engine], { AUDIT_DEVICE: device });
   for (const name of ["food", "quick-food"])
-    add(`${name}-${engine}`, `audit-${name}`, { AUDIT_BROWSER: engine, AUDIT_DEVICE: device });
+    add(`${name}-${engine}`, `audit-${name}`, [engine], {
+      AUDIT_BROWSER: engine,
+      AUDIT_DEVICE: device,
+    });
 }
-add("route-inventory", "audit-inventory");
-add("database-after", "audit", {}, ["verify-db"]);
+add("route-inventory", "audit-inventory", []);
+add("database-after", "audit", [], {}, ["verify-db"]);
 
 const filter = process.env.AUDIT_SUITE_FILTER ? new RegExp(process.env.AUDIT_SUITE_FILTER) : null;
 const planned = jobs.filter((job) => !filter || filter.test(job.name));
 if (!planned.length) throw new Error("AUDIT_SUITE_FILTER matched no suites.");
+// WebKit asked for but missing stops the suite before anything runs, naming the switch.
+if (webkitEnabled && planned.some((job) => job.engines.includes("webkit"))) {
+  try {
+    assertWebkitInstalled();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+}
 const previous =
   process.env.AUDIT_SUITE_RETRY_FAILED === "true"
     ? JSON.parse(await readFile(`${output}/suite-results.json`, "utf8"))
@@ -120,6 +141,7 @@ const report = previous
       baseURL,
       database: db.pathname.slice(1),
       filter: filter?.source ?? null,
+      webkit: webkitEnabled,
       complete: false,
       passed: false,
       results: [],
@@ -134,12 +156,29 @@ await save();
 async function runJob(job) {
   const started = Date.now();
   const attempt = (report.attempts?.filter((row) => row.name === job.name).length ?? 0) + 1;
+  if (!webkitEnabled && job.engines.length && job.engines.every((engine) => engine === "webkit")) {
+    // Not run, so neither passed nor failed: its devices are recorded as skipped.
+    report.results.push({
+      name: job.name,
+      status: "skipped",
+      passed: false,
+      skipped: true,
+      reason: SKIP_REASON,
+      durationMs: 0,
+    });
+    await save();
+    console.log(`SKIPPED ${job.name} (WebKit only; AUDIT_WEBKIT=0)`);
+    return;
+  }
   const logPath = `${output}/suite-logs/${job.name}${attempt > 1 ? `-attempt-${attempt}` : ""}.log`;
+  // The devices a mixed job leaves out, written there by audit-engines.mjs.
+  const skipLog = `${output}/suite-logs/${job.name}.skipped.jsonl`;
+  await rm(skipLog, { force: true });
   console.log(`START ${job.name} (${selected.indexOf(job) + 1}/${selected.length})`);
   const log = createWriteStream(logPath);
   const code = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [job.script, ...job.args], {
-      env: { ...env, ...job.overrides },
+      env: { ...env, ...job.overrides, AUDIT_SKIP_LOG: skipLog },
       stdio: ["ignore", "pipe", "pipe"],
     });
     child.stdout.pipe(log, { end: false });
@@ -151,16 +190,23 @@ async function runJob(job) {
     child.on("error", reject);
     child.on("close", (exitCode) => log.end(() => resolve(exitCode ?? 1)));
   });
+  const skippedDevices = (await readFile(skipLog, "utf8").catch(() => ""))
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line).device);
   report.results.push({
     name: job.name,
+    status: code === 0 ? "passed" : "failed",
     passed: code === 0,
     exitCode: code,
     durationMs: Date.now() - started,
     log: logPath,
+    ...(skippedDevices.length ? { skippedDevices, reason: SKIP_REASON } : {}),
   });
   await save();
   console.log(
-    `${code === 0 ? "PASS" : "FAIL"} ${job.name} (${Math.round((Date.now() - started) / 1000)}s)`,
+    `${code === 0 ? "PASS" : "FAIL"} ${job.name} (${Math.round((Date.now() - started) / 1000)}s)` +
+      (skippedDevices.length ? `; SKIPPED ${skippedDevices.join(", ")} (WebKit)` : ""),
   );
 }
 for (let index = 0; index < selected.length;) {
@@ -169,11 +215,29 @@ for (let index = 0; index < selected.length;) {
     batch.push(selected[index++]);
   await Promise.all(batch.map(runJob));
 }
+const failed = report.results.filter((result) => !result.passed && !result.skipped);
+const skipped = report.results.filter((result) => result.skipped);
+const partlySkipped = report.results.filter((result) => result.skippedDevices?.length);
 report.complete = true;
-report.passed = report.results.every((result) => result.passed);
+// Passed only when every suite ran, all of it, and passed; skipped devices never count as passed.
+report.passed = !failed.length && !skipped.length && !partlySkipped.length;
+report.status = failed.length ? "failed" : report.passed ? "passed" : "passed-with-skips";
+report.summary = {
+  passed: report.results.filter((result) => result.passed).length,
+  failed: failed.map((result) => result.name),
+  skipped: skipped.map((result) => result.name),
+  skippedDevices: Object.fromEntries(
+    partlySkipped.map((result) => [result.name, result.skippedDevices]),
+  ),
+};
 report.completedAt = new Date().toISOString();
 await save();
 console.log(
-  `${report.results.filter((result) => result.passed).length}/${planned.length} suites passed. ${output}/suite-results.json`,
+  `${report.summary.passed}/${planned.length} suites passed, ${failed.length} failed, ` +
+    `${skipped.length} SKIPPED. ${output}/suite-results.json`,
 );
-if (!report.passed) process.exitCode = 1;
+if (failed.length) console.log(`FAILED: ${report.summary.failed.join(", ")}`);
+if (skipped.length) console.log(`SKIPPED (WebKit only): ${report.summary.skipped.join(", ")}`);
+for (const result of partlySkipped)
+  console.log(`SKIPPED in ${result.name}: ${result.skippedDevices.join(", ")} (WebKit)`);
+if (failed.length) process.exitCode = 1;

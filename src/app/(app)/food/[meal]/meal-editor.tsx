@@ -159,7 +159,7 @@ export function MealEditor({
               </p>
               <p className="type-meta-small text-ink-2 tabular-nums">{formatMacros(total)}</p>
               {starred && (
-                <p className="mt-0.5 type-caption font-medium [overflow-wrap:anywhere] text-ink-2">
+                <p className="mt-0.5 type-caption font-medium [overflow-wrap:break-word] text-ink-2">
                   Saved as {starred.name}
                 </p>
               )}

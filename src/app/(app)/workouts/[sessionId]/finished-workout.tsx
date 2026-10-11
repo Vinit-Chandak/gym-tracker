@@ -333,7 +333,7 @@ export function FinishedWorkout({
               {edit.drafts.count > 0 && (
                 <p className="mt-2 flex items-start gap-2 type-meta font-semibold">
                   <Glyph name="warn" className="mt-px glyph-18" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="min-w-0 [overflow-wrap:break-word]">
                     {draftsLine(edit.drafts)}
                   </span>
                 </p>

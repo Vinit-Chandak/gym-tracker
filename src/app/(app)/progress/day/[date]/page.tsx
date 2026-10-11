@@ -13,6 +13,7 @@ import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
 import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -105,10 +106,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: item.id,
         sport: item.sport,
         at: item.startedAt,
-        title: [place, distance].filter(Boolean).join(" · "),
-        meta: [seconds === null ? null : formatDuration(seconds), pace, stroke]
-          .filter(Boolean)
-          .join(" · "),
+        title: joinFacts([place, distance]),
+        meta: joinFacts([seconds === null ? null : formatDuration(seconds), pace, stroke]),
         href: `/training/activities/${item.id}` as Route,
         piece: { sport: item.sport as Exclude<ActivitySport, "strength"> },
       };
@@ -123,14 +122,13 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         sport: "strength",
         at: workout.startedAt,
         title: workout.day?.name ?? UNPLANNED_SESSION,
-        meta: [
+        // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps.
+        meta: joinFacts([
           workout.gym.name,
-          minutes === null ? "In progress" : `${minutes} min`,
+          minutes === null ? "In progress" : `${minutes}\u00a0min`,
           // The open workout's sets are its own page's to count: this one can be held on Back.
-          minutes === null ? null : `${sets} ${sets === 1 ? "set" : "sets"}`,
-        ]
-          .filter(Boolean)
-          .join(" · "),
+          minutes === null ? null : `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
+        ]),
         href: `/workouts/${workout.id}` as Route,
         piece: {
           sport: "strength",
@@ -179,7 +177,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="plan-row-name tabular-nums">{entry.title}</span>
                     {entry.meta && (
-                      <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+                      <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
                         {entry.meta}
                       </span>
                     )}

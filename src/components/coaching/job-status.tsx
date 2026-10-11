@@ -153,7 +153,7 @@ function CoachQuestions({
       <ol className="space-y-4">
         {questions.map((question, i) => (
           <li key={question} className="space-y-1.5">
-            <p className="text-sm [overflow-wrap:anywhere]">{question}</p>
+            <p className="text-sm [overflow-wrap:break-word]">{question}</p>
             <SpeechTextarea
               label={`your answer to question ${i + 1}`}
               rows={3}
