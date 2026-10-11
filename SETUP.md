@@ -70,6 +70,28 @@ If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
    and the Site URL is used instead. If you ever need to allow-list a URL that does carry a
    query string, end the pattern with `**`.
 
+3. Sidebar → **Authentication** → **Emails** → **Templates**. Change the link in each of these
+   templates so it opens in whatever browser the email is read in:
+
+   | Template             | Link (`href`)                                                               |
+   | -------------------- | --------------------------------------------------------------------------- |
+   | Confirm signup       | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`        |
+   | Reset password       | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`     |
+   | Magic link           | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`        |
+   | Change email address | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` |
+   | Invite user          | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`       |
+
+   Replace the `{{ .ConfirmationURL }}` in each with the link above and leave the rest of the
+   template as it is. The default link only works in the browser that asked for the email: the
+   app keeps half of it as a cookie there. On an iPhone, the app on the home screen keeps its
+   cookies apart from the browser, and Mail opens links in the browser, so a password reset
+   asked for from the app could never be finished; neither could one asked for on a laptop and
+   opened on a phone. A `token_hash` link works anywhere. If a default link is opened in another
+   browser, the sign-in screen says so and asks for a new link from that browser.
+
+   These links are built from the **Site URL** (step 4.2), so it has to be right. A project you
+   only use locally should have `http://localhost:3000` as its Site URL.
+
 ## 5. Configure complete account deletion
 
 **Profile → Delete account** removes the Supabase Auth identity first. Its database cascade
@@ -204,6 +226,13 @@ but only if that address is on the **Redirect URLs** list; otherwise it silently
 
 Links already sent keep pointing wherever they pointed; sign up again, or ask for a fresh
 password reset, once the settings are right.
+
+## If an email link says it was opened in a different browser
+
+The templates still use Supabase's default link (step 4.3). That link can only be finished in
+the browser that asked for the email, which on an iPhone is never the browser Mail opens when
+the request came from the app on the home screen. Change the templates as step 4.3 describes; a link already
+sent will not work, so ask for a new one.
 
 ## Free-tier notes
 
