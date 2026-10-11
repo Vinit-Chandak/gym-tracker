@@ -15,7 +15,9 @@ import { describePrescription } from "@/domain/activity-prescription";
 import { requireUser } from "@/server/auth";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
-import { unitsBySport } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
+
+import { templateSessions } from "./template-sessions";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -28,13 +30,14 @@ export const metadata: Metadata = { title: "Templates" };
  */
 export default async function TemplatesPage() {
   const user = await requireUser();
-  const { templates, routines, units } = await withUser(
+  const { templates, routines, units, enabled } = await withUser(
     getDb(),
     user.id,
     async (tx) => ({
       templates: await listTemplates(tx, user.id),
       routines: await listSavedRoutines(tx, user.id),
       units: await unitsBySport(tx, user.id),
+      enabled: await enabledSportsFor(tx, user.id),
     }),
     { readOnly: true },
   );
@@ -52,7 +55,7 @@ export default async function TemplatesPage() {
           <EmptyState
             icon={CalendarDays}
             title="No templates yet"
-            description="Write a run, ride or swim once and schedule it whenever you want it."
+            description={`Write ${templateSessions(enabled)} once and schedule it whenever you want it.`}
           />
         ) : (
           <Section title="Endurance">

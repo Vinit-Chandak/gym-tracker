@@ -20,6 +20,7 @@ import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 import { CycleDays, type CycleDayTile } from "./cycle-days";
 import { dayStateWord, logSports, programmeDayParts } from "./programme-day";
+import { hasTemplateSports } from "./templates/template-sessions";
 
 export const metadata: Metadata = { title: "Training" };
 
@@ -146,10 +147,14 @@ export default async function TrainingPage() {
           </section>
         )}
 
-        {/* Under the cycle itself when no sport is there to log, as far down as Log would be. */}
+        {/* Under the cycle itself when no sport is there to log, as far down as Log would be.
+            Templates are runs, rides and swims: a lifter with none of those on is not led there
+            (the page still opens for anyone who goes to it). */}
         <ul className={overview && sports.length === 0 ? "mt-5" : "mt-2"}>
           <NavRow href="/training/scheduled" glyph="calendar" label="Scheduled by you" />
-          <NavRow href="/training/templates" glyph="note" label="Templates" />
+          {hasTemplateSports(data.enabled) && (
+            <NavRow href="/training/templates" glyph="note" label="Templates" />
+          )}
         </ul>
       </div>
     </div>
