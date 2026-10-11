@@ -199,11 +199,60 @@ const OPEN_SESSION = {
   lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
 };
 
+/** A day that only runs, named for itself on its card: `?state=run`. */
+const TEMPO_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000008",
+  dayIndex: 4,
+  name: "Tempo run",
+  focus: "Threshold",
+  includesLifting: false,
+  timeNote: null,
+  effortNote: null,
+  notes: null,
+};
+
+const TEMPO_OCCURRENCE: ScheduledOccurrence = {
+  ...RUN_OCCURRENCE,
+  id: "00000000-0000-4000-8000-000000000009",
+  prescription: endurancePrescriptionSchema.parse({
+    prescriptionVersion: PRESCRIPTION_VERSION,
+    sport: "running",
+    sessionTargets: {
+      distanceMetres: [7400, 9500],
+      durationMs: [37 * 60_000, 47 * 60_000],
+      effort: [3, 4],
+    },
+    running: { paceNote: "Half-marathon pace" },
+  }),
+};
+
+/** A rest day, and a ride nobody scheduled logged on it this morning: `?state=rest`. */
+const REST_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000010",
+  dayIndex: 7,
+  name: "Rest",
+  focus: null,
+  includesLifting: false,
+  includesRun: false,
+  timeNote: null,
+  effortNote: null,
+  notes: null,
+};
+
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
   // The states of a day that lifts and runs. The default is the one the run used to
   // disappear in: workout finished, run still owed. `next` is the day offered after the one
-  // before it was finished today, which is up next rather than today's.
+  // before it was finished today, which is up next rather than today's. `run` and `rest` are a
+  // day that only runs, and a rest day with a ride already logged on it.
   const { state } = await props.searchParams;
+  const onOffer =
+    state === "run"
+      ? plan({ suggestedDay: TEMPO_DAY, suggestedExercises: [], sessionStatus: "pending" })
+      : state === "rest"
+        ? plan({ suggestedDay: REST_DAY, suggestedExercises: [], sessionStatus: "pending" })
+        : null;
 
   return (
     <PreviewShell tab="/today">
@@ -218,16 +267,38 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
           { id: "g2", name: "Home", kind: "home", isDefault: false },
         ]}
         plan={
-          state === "done"
+          onOffer ??
+          (state === "done"
             ? plan()
             : plan({
                 sessionStatus: "pending",
                 finishedToday: state === "next" ? PREVIOUS_DAY : null,
-              })
+              }))
         }
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
-        programmeOccurrences={[RUN_OCCURRENCE]}
+        programmeOccurrences={
+          state === "rest" ? [] : [state === "run" ? TEMPO_OCCURRENCE : RUN_OCCURRENCE]
+        }
+        logged={
+          state === "rest"
+            ? [
+                {
+                  id: "00000000-0000-4000-8000-000000000011",
+                  sport: "cycling",
+                  startedAt: new Date("2026-09-11T04:18:00.000Z"),
+                  durationMs: 3_092_000,
+                  distanceMetres: null,
+                  environment: "indoor",
+                  occurrenceId: null,
+                  sessionId: null,
+                  programDayId: null,
+                  dayName: null,
+                  gymName: null,
+                },
+              ]
+            : []
+        }
         // Today-Coach: the coach planning this session since nine.
         coach={
           state === "coach"

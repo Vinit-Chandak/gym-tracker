@@ -72,6 +72,8 @@ const SEPTEMBER: Record<number, CalendarEntry[]> = {
     S("strength", "lifting 55 min"),
   ],
   28: [S("ride", "ride 25 km"), S("strength", "lifting 70 min")],
+  // Today: a run done, and the workout still open, drawn as one under way.
+  29: [S("run", "run 3 km"), { sport: "strength", said: "lifting in progress", open: true }],
 };
 
 const DAYS: [PrintPart[], string][] = [
