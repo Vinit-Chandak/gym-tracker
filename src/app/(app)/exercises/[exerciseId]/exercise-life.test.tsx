@@ -145,12 +145,7 @@ it("says a bodyweight set as the body, not as nothing lifted", () => {
   render(
     <ExerciseLife
       {...props(false)}
-      exercise={{
-        ...assistedPullUp,
-        name: "Dips",
-        modality: "bodyweight",
-        loadPortability: "global",
-      }}
+      exercise={{ ...assistedPullUp, modality: "bodyweight", loadPortability: "global" }}
       machineName={null}
       performances={[
         performance("dips", "2026-09-10T08:00:00Z", [
