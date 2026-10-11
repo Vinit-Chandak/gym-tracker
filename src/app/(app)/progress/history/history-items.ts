@@ -107,7 +107,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
       id: e.exerciseId,
       name: e.name,
       machineId: e.machineId,
-      machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
+      machineName: e.machineName ? joinFacts([e.machineName, w.gymName]) : null,
     })),
     recovery: readings([["Sleep", w.sleepHours, "h"]]),
   };
@@ -125,7 +125,7 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
     ]),
     subtitle: joinFacts([clock.timeOf(r.startedAt), ENDURANCE_PLACE_LABELS[r.environment]]),
     href: `/training/activities/${r.id}${originQuery("history")}` as const,
-    meta: `${formatDuration(r.durationSeconds)} · ${paceIn(r.averagePaceSecondsPerKm, clock)}`,
+    meta: joinFacts([formatDuration(r.durationSeconds), paceIn(r.averagePaceSecondsPerKm, clock)]),
     gymId: r.gymId,
     exercises: [],
     recovery: runEffort(r.effort),

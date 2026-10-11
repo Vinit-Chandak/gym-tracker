@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { joinFacts } from "@/lib/facts";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { startSessionAction, type StartRequest } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
@@ -75,7 +76,7 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
   return (
     <SessionPage
       title="How are you today?"
-      meta={`Before ${name} · Optional`}
+      meta={joinFacts([`Before ${name}`, "Optional"])}
       back={{ href: "/today", label: "Today" }}
     >
       <CheckInForm

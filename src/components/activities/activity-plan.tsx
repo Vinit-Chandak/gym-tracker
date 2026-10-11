@@ -126,7 +126,8 @@ export function ActivityPlan({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[sport]} · planned
+            {ACTIVITY_SPORT_LABELS[sport]}
+            {FACT_SEPARATOR}planned
           </p>
           {prescription?.title && (
             <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">

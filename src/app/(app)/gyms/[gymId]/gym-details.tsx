@@ -73,7 +73,7 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
                       differs. */}
                   {item.typeName === item.name
                     ? loadLabel(item)
-                    : `${item.typeName} · ${loadLabel(item)}`}
+                    : `${item.typeName}${FACT_SEPARATOR}${loadLabel(item)}`}
                 </span>
               </span>
             </span>

@@ -16,6 +16,7 @@ import { requireUser } from "@/server/auth";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
 import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
+import { joinFacts } from "@/lib/facts";
 
 import { templateSessions } from "./template-sessions";
 
@@ -68,8 +69,10 @@ export default async function TemplatesPage() {
                   {template.name}
                 </h2>
                 <p className="text-sm text-ink-muted">
-                  {describePrescription(template.prescription, units[template.sport])} · version{" "}
-                  {template.version}
+                  {joinFacts([
+                    describePrescription(template.prescription, units[template.sport]),
+                    `version\u00a0${template.version}`,
+                  ])}
                 </p>
                 <Link
                   href={`/training/templates/${template.id}/edit`}

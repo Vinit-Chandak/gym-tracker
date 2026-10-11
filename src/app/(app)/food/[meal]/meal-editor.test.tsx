@@ -391,7 +391,7 @@ it("stars a meal under the name it is given, saying when that replaces one", asy
   expect(star.getAttribute("aria-pressed")).toBe("false");
   fireEvent.click(star);
   expect(inSheet().getByRole("heading", { name: "Star meal" })).toBeTruthy();
-  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  expect(sheet().textContent).toContain("Breakfast: 1\u00a0food ·\u00a0156\u00a0kcal");
   type("Name", "usual BREAKFAST");
   expect(inSheet().getByText("Replaces your saved meal Usual breakfast.")).toBeTruthy();
   type("Name", "Milk breakfast");
@@ -575,7 +575,7 @@ it("adds to the day a sheet was opened on, though the page moves on to the next 
   fireEvent.click(screen.getByRole("button", { name: "Star" }));
   midnight(view.rerender);
   // What is starred is the meal as it was, not the next day's empty one.
-  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  expect(sheet().textContent).toContain("Breakfast: 1\u00a0food ·\u00a0156\u00a0kcal");
   type("Name", "Milk breakfast");
   fireEvent.click(inSheet().getByRole("button", { name: "Save meal" }));
   await waitFor(() => expect(sheet().open).toBe(false));

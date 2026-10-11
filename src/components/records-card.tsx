@@ -46,8 +46,10 @@ export function SessionRecordsCard({
                   {record.exercise.name}
                 </Link>{" "}
                 <span className="figure-row-meta">
-                  {metricLabel(record.metric, record.exercise)} · was{" "}
-                  {formatSharedMetric(record.metric, record.previous, unit)}
+                  {joinFacts([
+                    metricLabel(record.metric, record.exercise),
+                    `was ${formatSharedMetric(record.metric, record.previous, unit)}`,
+                  ])}
                 </span>
               </span>{" "}
               <span className="figure-row-value">
