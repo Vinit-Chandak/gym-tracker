@@ -97,7 +97,9 @@ export function ActivityRow({
         className="activity-row-avatar"
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline justify-between gap-2">
+        {/* The day stands at the row's end beside the name and goes under it, at the name's
+            edge, before the name would have less than a few words' room (large text). */}
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
           <span className="activity-row-name">{person.displayName || person.username}</span>
           <span className="activity-row-day">{formatRelativeDay(day, today)}</span>
         </span>
