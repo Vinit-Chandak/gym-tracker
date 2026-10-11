@@ -220,7 +220,9 @@ it("keeps Resume and Discard in the day's card while its session is open, and no
   const workout = within(card("Easy Run + Arms"));
   expect(workout.getByRole("link", { name: "Resume session: Easy Run + Arms" })).toBeTruthy();
   expect(workout.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
-  expect(card("Easy Run + Arms").textContent).toContain("In progress · Started 12:35 · 0 sets");
+  expect(card("Easy Run + Arms").textContent).toContain(
+    "In progress ·\u00a0Started 12:35 ·\u00a00 sets",
+  );
   // One unfinished workout at a time: nothing to start, skip or re-plan, and the gym is fixed.
   expect(screen.queryByRole("link", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
