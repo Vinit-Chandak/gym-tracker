@@ -14,6 +14,7 @@ import { useUrlChoice } from "@/components/graph/use-url-choice";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { RECOVERY_MEASURES, type RecoveryMeasure } from "@/domain/progress-graphs";
 import { SHORT_SLEEP_HOURS } from "@/domain/recovery";
+import { formatSleep } from "@/lib/format";
 
 import type { ProgressData } from "../progress-types";
 
@@ -140,10 +141,13 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
                   href: historyHref(bucket.start, bucket.end, "workout"),
                   action: range.bucket === "week" ? "Open week" : "Open month",
                 };
+          // A day's sleep is a night, said as every other time is ("7 h 45 min"); a week's or
+          // a month's is an average, which keeps its tenth of an hour.
+          const night = sleep && range.bucket === "day";
           return {
             label: name,
-            figure: figure(value),
-            unit: label.unit,
+            figure: night ? formatSleep(value) : figure(value),
+            unit: night ? undefined : label.unit,
             context:
               range.bucket === "day"
                 ? bucket.readings > 1

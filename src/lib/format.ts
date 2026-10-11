@@ -218,6 +218,14 @@ export function formatMinutes(totalMinutes: number): string {
 }
 
 /**
+ * A night's sleep, as every other time is said: "7 h 45 min", never "7.75 h". The check-in takes
+ * it in hours; an average of several nights keeps its tenth of an hour ("7.1 h").
+ */
+export function formatSleep(hours: number): string {
+  return formatMinutes(hours * 60);
+}
+
+/**
  * A load step the library gives in kilograms, as the jump a reader in `unit` makes: "2.5 kg",
  * or in pounds the plate jump nearest it, "5 lb". The same step progression moves by
  * (`loadStepIn`), so the page never names a 5.5 lb jump that nobody can load.

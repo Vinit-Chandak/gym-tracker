@@ -90,7 +90,7 @@ it("lists each entry under its day, its mark naming the sport", () => {
           date: "2026-09-27",
           day: "2026-09-27",
           title: "Recovery",
-          subtitle: "Sleep 7.5 h · Fatigue 4 · Soreness 2",
+          subtitle: "Sleep 7 h 30 min · Fatigue 4 · Soreness 2",
           meta: "",
           gymId: null,
           exercises: [],

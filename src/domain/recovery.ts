@@ -3,6 +3,8 @@
  * programme. Thresholds live in one place so they are easy to tune.
  */
 
+import { formatSleep } from "@/lib/format";
+
 /** Sleep below this many hours warns. */
 export const SHORT_SLEEP_HOURS = 6;
 
@@ -43,7 +45,8 @@ export function recoveryWarnings(current: CheckIn): RecoveryWarning[] {
   if (current.sleepHours !== null && current.sleepHours < SHORT_SLEEP_HOURS) {
     warnings.push({
       code: "short_sleep",
-      title: `Sleep ${current.sleepHours} h`,
+      // A night's sleep as every other time is said: "Sleep 5 h 30 min", not "5.5 h".
+      title: `Sleep ${formatSleep(current.sleepHours)}`,
       advice: "Hold loads today rather than adding, and keep the RIR honest.",
     });
   }

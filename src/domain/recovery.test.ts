@@ -18,8 +18,10 @@ describe("recovery warnings", () => {
   });
 
   it("warns on short sleep and worst-level readiness scores", () => {
-    const codes = recoveryWarnings({ ...blank, sleepHours: 5.5, fatigue: 5 }).map((w) => w.code);
-    expect(codes).toEqual(["short_sleep", "low_readiness"]);
+    const warnings = recoveryWarnings({ ...blank, sleepHours: 5.5, fatigue: 5 });
+    expect(warnings.map((w) => w.code)).toEqual(["short_sleep", "low_readiness"]);
+    // Said as every other time is, not "Sleep 5.5 h".
+    expect(warnings[0]?.title).toBe("Sleep 5\u00a0h 30\u00a0min");
     expect(recoveryWarnings({ ...blank, sleepHours: 6 })).toEqual([]);
   });
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -118,4 +118,29 @@ it("writes sleep's scale in hours, with the 6 h rule on a line of its own rather
     .map((text) => text.textContent);
   // 0, 3, 6 and 9: the rule is the line at 6, named once, in ink.
   expect(labels).toEqual(["9 h", "6 h", "3 h"]);
+});
+
+it("says a night's sleep as a time, and an average of nights to its tenth of an hour", () => {
+  route.search = "recovery=sleepHours";
+  const { container } = render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{
+        range: MONTH,
+        graph: recoveryGraph(
+          [reading("2026-09-20", { sleepHours: 6.5 }), reading("2026-09-27", { sleepHours: 7.75 })],
+          MONTH,
+          TODAY,
+        ),
+      }}
+    />,
+  );
+  // (6.5 + 7.75) / 2 is 7.125 hours a night.
+  expect(container.querySelector(".graph-readout")?.textContent).toContain("7.1 h");
+  fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+  const nights = [...container.querySelectorAll(".graph-value-figure")].map(
+    (figure) => figure.textContent,
+  );
+  // Newest first, as a time: never "7.8 h" for 7 h 45 min.
+  expect(nights).toEqual(["7 h 45 min", "6 h 30 min"]);
 });

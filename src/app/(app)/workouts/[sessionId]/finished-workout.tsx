@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
@@ -13,7 +13,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
-import { formatIsoDate } from "@/lib/format";
+import { formatIsoDate, formatSleep } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -174,9 +174,18 @@ export function FinishedWorkout({
       )
     : null;
   const day = todayInTimeZone(session.timeZone, new Date(session.startedAt));
+  // Each reading as figures and their units: a night's sleep is said as every other time is,
+  // "7 h 45 min", two of each, not "7.75 h".
   const checkIn = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
-    return typeof value === "number" ? [{ label, value, unit }] : [];
+    if (typeof value !== "number") return [];
+    const parts =
+      key === "sleepHours"
+        ? formatSleep(value)
+            .split(" ")
+            .map((part) => part.split("\u00a0"))
+        : [[String(value), unit]];
+    return [{ label, parts }];
   });
 
   // What Add exercise just added stands at the end of the list: named on the status line, and
@@ -400,12 +409,20 @@ export function FinishedWorkout({
             <dl className="finished-check-in">
               {/* Each reading's figure at the foot of its cell, so a name that takes two lines
                   ("Sleep quality" in a narrow column) leaves the figures on one line. */}
-              {checkIn.map(({ label, value, unit }) => (
+              {checkIn.map(({ label, parts }) => (
                 <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  <dd className="mt-0.5 whitespace-nowrap">
-                    <span className="type-figure">{value}</span>
-                    <span className="figure-row-unit"> {unit}</span>
+                  {/* A sleep's hours and minutes may part in a narrow cell, each whole. */}
+                  <dd className="mt-0.5">
+                    {parts.map(([figure, unit], index) => (
+                      <Fragment key={index}>
+                        {index > 0 && " "}
+                        <span className="whitespace-nowrap">
+                          <span className="type-figure">{figure}</span>
+                          <span className="figure-row-unit"> {unit}</span>
+                        </span>
+                      </Fragment>
+                    ))}
                   </dd>
                 </div>
               ))}
