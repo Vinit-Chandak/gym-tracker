@@ -13,12 +13,13 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { sessionStanding, standingByDate } from "@/domain/programme-sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
+import { getSchedule } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
@@ -37,7 +38,7 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan, units } = await withUser(
+  const { occurrence, plan, units, schedule } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -46,16 +47,39 @@ export default async function OccurrencePage(
         occurrence,
         plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
         units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
+        // The sequence it waits in, when it is the running programme's.
+        schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
       };
     },
     { readOnly: true },
   );
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
-  const late = isOverdue(occurrence, occurrence.resolution, today);
   // Put on the calendar by the athlete, not by a programme: it lives on Scheduled, it has no
   // programme week to count against, and it can be taken off again.
   const standalone = occurrence.familyId === null;
+  // The running programme's session stands where its sequence has got to, as the programme
+  // page reads it (ADR 0051): one whose date has gone by while the sequence waited for it is
+  // still to do, not missed. Anything else — standalone work, a block since replaced — goes by
+  // its date.
+  const running = schedule && schedule.program.familyId === occurrence.familyId ? schedule : null;
+  const standing = running
+    ? sessionStanding(running.state, occurrence, today)
+    : standingByDate(occurrence, today);
+  const dayName =
+    running && occurrence.cycleDayIndex !== null
+      ? (running.days.find((day) => day.dayIndex === occurrence.cycleDayIndex)?.name ?? null)
+      : null;
+  const badge =
+    standing === "next"
+      ? { label: "Next", tone: "accent" as const }
+      : standing === "not_done"
+        ? { label: "Not done", tone: "neutral" as const }
+        : // Skipped on the day itself, from Today, while the session was left as it was.
+          standing === "skipped" && occurrence.resolution.kind === "incomplete"
+          ? { label: "Skipped", tone: "neutral" as const }
+          : null;
+  const waited = (standing === "next" || standing === "to_come") && occurrence.scheduledOn < today;
   // The preparation is only this session's if it was written against the revision in force;
   // a plan pinned to an older one describes a target the programme has since changed (§8.4).
   const prepared =
@@ -70,7 +94,12 @@ export default async function OccurrencePage(
     <>
       <PageHeader
         title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
-        meta={formatIsoDate(occurrence.scheduledOn)}
+        meta={[
+          dayName && occurrence.cycleIndex !== null && `${dayName}, cycle ${occurrence.cycleIndex}`,
+          formatIsoDate(occurrence.scheduledOn),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         backHref={standalone ? "/training/scheduled" : "/training/programme"}
       />
       <PageContent>
@@ -79,8 +108,13 @@ export default async function OccurrencePage(
             <h2 className="text-lg font-medium">
               {target ? describePrescription(target, units) : "No targets set"}
             </h2>
-            {late && <Badge tone="neutral">Not done</Badge>}
+            {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
           </div>
+          {waited && (
+            <p className="text-sm text-ink-muted">
+              Its date has gone by, but the programme waits for you: it is still to do.
+            </p>
+          )}
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">

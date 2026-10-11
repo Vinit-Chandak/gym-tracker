@@ -58,6 +58,16 @@ export type ScheduledOccurrence = {
   loggable: boolean;
 };
 
+/**
+ * An occurrence with the slot of the cycle it belongs to, for the views that read it the way
+ * the programme runs: by where the sequence has got to, not by its date. Both are null for
+ * standalone work and for programme work no slot owns.
+ */
+export type ProgrammeOccurrence = ScheduledOccurrence & {
+  cycleIndex: number | null;
+  cycleDayIndex: number | null;
+};
+
 const columns = {
   id: plannedOccurrences.id,
   sport: plannedOccurrences.sport,
@@ -65,6 +75,8 @@ const columns = {
   familyId: plannedOccurrences.familyId,
   originalWeekIndex: plannedOccurrences.originalWeekIndex,
   originalScheduledOn: plannedOccurrences.originalScheduledOn,
+  cycleIndex: plannedOccurrences.cycleIndex,
+  cycleDayIndex: plannedOccurrences.cycleDayIndex,
   revisionId: occurrenceVersions.id,
   scheduledOn: occurrenceVersions.scheduledOn,
   scheduledLocalTime: occurrenceVersions.scheduledLocalTime,
@@ -79,7 +91,7 @@ type Row = {
   [K in keyof typeof columns]: (typeof columns)[K] extends { _: { data: infer T } } ? T : never;
 };
 
-function hydrate(row: Row): ScheduledOccurrence {
+function hydrate(row: Row): ProgrammeOccurrence {
   const activity = row.activityId
     ? { id: row.activityId, outcome: row.activityOutcome!, occurredOn: row.activityOccurredOn! }
     : null;
@@ -96,6 +108,8 @@ function hydrate(row: Row): ScheduledOccurrence {
     familyId: row.familyId,
     originalWeekIndex: row.originalWeekIndex,
     originalScheduledOn: row.originalScheduledOn,
+    cycleIndex: row.cycleIndex,
+    cycleDayIndex: row.cycleDayIndex,
     resolution,
     loggable: canLog({ disposition: row.disposition }, activity),
   };
@@ -139,7 +153,7 @@ export async function getOccurrence(
   tx: DbOrTx,
   userId: string,
   occurrenceId: string,
-): Promise<ScheduledOccurrence | null> {
+): Promise<ProgrammeOccurrence | null> {
   const rows = await occurrenceQuery(tx, userId).where(
     and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)),
   );
@@ -252,13 +266,13 @@ export async function countUpcomingStandalone(
   return row?.value ?? 0;
 }
 
-/** A programme's occurrences, for the Cycle view that owns the full programme. */
+/** A programme's occurrences, for the Programme view that owns the full programme. */
 export async function programmeOccurrences(
   tx: DbOrTx,
   userId: string,
   familyId: string,
   options: { sport?: ActivitySport; from?: string; to?: string } = {},
-): Promise<ScheduledOccurrence[]> {
+): Promise<ProgrammeOccurrence[]> {
   const where = [eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.familyId, familyId)];
   if (options.sport) where.push(eq(plannedOccurrences.sport, options.sport));
   if (options.from) where.push(gte(occurrenceVersions.scheduledOn, options.from));

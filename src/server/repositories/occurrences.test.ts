@@ -300,6 +300,16 @@ describe("what is on a day", () => {
     expect(listed.map((occurrence) => occurrence.scheduledOn)).toEqual(
       [...listed.map((occurrence) => occurrence.scheduledOn)].sort(),
     );
+    // Each says which slot of the sequence it belongs to, which is how the programme page
+    // reads it: the Wednesday runs are Upper A's, and the Saturday runs nobody's.
+    expect(
+      listed.map((occurrence) => [occurrence.cycleIndex, occurrence.cycleDayIndex] as const),
+    ).toEqual([
+      [1, 2],
+      [1, null],
+      [2, 2],
+      [2, null],
+    ]);
   });
 });
 
