@@ -65,7 +65,8 @@ const props = (assisted: boolean) => ({
 it("shows an assisted machine's least help as its best, and leads each session with it", () => {
   render(<ExerciseLife {...props(true)} />);
   const stat = screen.getByText("Least assistance").closest("div")!;
-  expect(stat.textContent).toBe("Least assistance15kg");
+  // The unit is a word apart from its figure, never "15kg".
+  expect(stat.textContent).toBe("Least assistance15 kg");
   // The session's lightest help, not the 20 kg it started with.
   expect(screen.getByText("15 kg × 8")).toBeTruthy();
   expect(screen.queryByText("Top weight")).toBeNull();
@@ -73,6 +74,6 @@ it("shows an assisted machine's least help as its best, and leads each session w
 
 it("shows any other machine's heaviest", () => {
   render(<ExerciseLife {...props(false)} />);
-  expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40kg");
+  expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40 kg");
   expect(screen.getByText("20 kg × 8")).toBeTruthy();
 });

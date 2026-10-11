@@ -163,7 +163,7 @@ export function ExerciseLife({
             <dd className="whitespace-nowrap">
               <span className="type-figure-l">{stat.figure}</span>
               {stat.unit && (
-                <span className="ml-0.5 type-caption font-semibold text-ink-2">{stat.unit}</span>
+                <span className="type-caption font-semibold text-ink-2"> {stat.unit}</span>
               )}
             </dd>
           </div>
