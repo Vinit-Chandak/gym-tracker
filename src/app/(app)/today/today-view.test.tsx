@@ -91,6 +91,7 @@ function plan(): TodayPlan {
     missed: [],
     pickUpDay: null,
     projectedEnd: null,
+    finishedOn: null,
     suggestion: {
       slot: { cycleIndex: 1, dayIndex: 3 },
       restSlotsBefore: [],
@@ -319,11 +320,13 @@ describe("what is scheduled today, without a programme day to stand under", () =
 
   it("is shown beside a programme that is finished", () => {
     show({
-      plan: { ...plan(), suggestion: null, suggestedDay: null },
+      plan: { ...plan(), suggestion: null, suggestedDay: null, finishedOn: "2026-09-05" },
       programmeOccurrences: [],
       standaloneOccurrences: [ride],
     });
     expect(screen.getByText("Programme complete")).toBeTruthy();
+    // Finished the day its last day was answered, not the day it was written to end.
+    expect(screen.getByText("Finished Sat 5 Sept")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
   });
 

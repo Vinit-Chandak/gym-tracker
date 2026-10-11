@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { addDays } from "./program-calendar";
 import {
   allSlots as allSlotsOf,
+  finishedOn,
   missedSlots,
   nextPendingSlot,
   partStatus,
@@ -252,6 +254,42 @@ describe("behind the calendar", () => {
     // A rest day with training still owed after it is not the end.
     const early = events.filter((event) => !(event.cycleIndex === 8 && event.dayIndex === 6));
     expect(nextPendingSlot(state(early))).toEqual({ cycleIndex: 8, dayIndex: 6 });
+  });
+
+  it("reads the rest days a finished programme ends on as done, as its progress counts them", () => {
+    const last = { cycleIndex: 8, dayIndex: 7 };
+    const events = allSlotsOf(state()).flatMap((ref) =>
+      ref.cycleIndex === 8 && ref.dayIndex === 7 ? [] : done(ref.cycleIndex, ref.dayIndex),
+    );
+    expect(slotStatus(state(events), last)).toBe("completed");
+    // Until the programme is over, an untapped rest day is still to come.
+    const early = events.filter((event) => !(event.cycleIndex === 8 && event.dayIndex === 6));
+    expect(slotStatus(state(early), last)).toBe("pending");
+    expect(slotStatus(state(early), { cycleIndex: 8, dayIndex: 6 })).toBe("pending");
+  });
+
+  it("is finished on the day its last day was answered, not the day it was planned to end", () => {
+    const events = allSlotsOf(state()).flatMap((ref, index) =>
+      ref.cycleIndex === 8 && ref.dayIndex === 7
+        ? []
+        : done(ref.cycleIndex, ref.dayIndex).map((event) => ({
+            ...event,
+            // A day a day from 8 September, then a week off before the last one.
+            occurredOn: addDays(
+              "2026-09-08",
+              index + (ref.cycleIndex === 8 && ref.dayIndex === 6 ? 7 : 0),
+            ),
+          })),
+    );
+    expect(finishedOn(state(events))).toBe("2026-11-07");
+    // Still going, it has no finish yet.
+    expect(
+      finishedOn(state(events.filter((event) => event.occurredOn !== "2026-11-07"))),
+    ).toBeNull();
+    // An answer for a day the programme does not have is not its finish.
+    expect(
+      finishedOn(state([...events, { ...part(9, 1, "session"), occurredOn: "2026-12-01" }])),
+    ).toBe("2026-11-07");
   });
 
   it("projects the end from tomorrow once today's day is finished", () => {

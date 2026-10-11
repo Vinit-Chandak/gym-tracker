@@ -40,7 +40,7 @@ import {
   todayParts,
   type PlanRowModel,
 } from "./today-model";
-import { CycleMark, Fact, PlanRows, TodayPrint } from "./today-parts";
+import { CycleMark, Fact, PlanRows, ProgrammeComplete, TodayPrint } from "./today-parts";
 
 /**
  * One missed session is ordinary: the waiting sequence simply offers it next. From the second,
@@ -702,10 +702,12 @@ export function TodayView({
           <>
             {dueToday(standaloneOccurrences)}
             <Empty title={plan.program.name}>
-              <div className="meta-line mt-1">
-                <Fact glyph="flag">Programme complete</Fact>
-                <Fact glyph="calendar">{plan.progress.total} programme days</Fact>
-              </div>
+              <ProgrammeComplete
+                days={plan.progress.total}
+                finishedOn={plan.finishedOn}
+                today={today}
+                className="mt-1"
+              />
               <div className="mt-4 flex flex-col gap-2">
                 <LinkButton href="/profile/programme" size="lg" className="w-full">
                   Plan the next block

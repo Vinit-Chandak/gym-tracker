@@ -134,6 +134,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     missed: [],
     pickUpDay: null,
     projectedEnd: null,
+    finishedOn: null,
     suggestion: {
       slot: { cycleIndex: 1, dayIndex: 3 },
       restSlotsBefore: [],
