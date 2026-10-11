@@ -306,6 +306,12 @@
   gap: calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8.5rem, 45%)), 1fr));
 }
+/* Beyond a phone the four stand in one row where their words fit (ADR 0052). */
+@media (width >= 600px) {
+  .shortcut-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8.5rem, 22%)), 1fr));
+  }
+}
 .shortcut-tile {
   position: relative;
   display: flex;

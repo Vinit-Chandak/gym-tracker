@@ -75,7 +75,8 @@ export default async function TrainingPage() {
   }));
 
   return (
-    <>
+    // A screen of tiles: as wide as the size class allows, its header with it (ADR 0052).
+    <div className="page-wide">
       <PageHeader
         title="Training"
         action={
@@ -121,6 +122,6 @@ export default async function TrainingPage() {
           <NavRow href="/training/templates" glyph="note" label="Templates" />
         </ul>
       </div>
-    </>
+    </div>
   );
 }

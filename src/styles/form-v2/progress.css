@@ -309,3 +309,27 @@
   padding: calc(7 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
+
+/* The overview: the month and its totals, then History. Where the column holds two phone-wide
+   panes (a tablet, a desktop, at 100% text) History stands beside the month (ADR 0052). */
+.overview {
+  container: overview / inline-size;
+}
+.overview-history {
+  margin-top: calc(var(--spacing) * 6);
+  padding-top: calc(var(--spacing) * 3);
+  border-top: 1px solid var(--ov-hair);
+}
+@container overview (width >= 40rem) {
+  .overview-panes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0 var(--ov-section-gap);
+  }
+  .overview-history {
+    margin-top: calc(var(--spacing) * 2);
+    padding-top: 0;
+    border-top: 0;
+  }
+}

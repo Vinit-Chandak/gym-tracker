@@ -42,6 +42,15 @@
 .cycle-day-next {
   grid-column: 1 / -1;
 }
+/* Beyond a phone the days take as many columns as fit, the next one two of them (ADR 0052). */
+@media (width >= 600px) {
+  .cycle-days {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  }
+  .cycle-day-next {
+    grid-column: span 2;
+  }
+}
 .cycle-day {
   display: block;
 }

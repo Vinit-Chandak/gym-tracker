@@ -189,61 +189,67 @@ export function FoodView({
       />
       <div className="food page-width">
         <FoodWeekStrip {...daysProps} />
-        <FoodSummary
-          eaten={day.eaten}
-          target={target}
-          entries={day.entries}
-          isToday={date === today}
-        />
-        {!target && (
-          <div className="food-no-target">
-            <div className="min-w-0">
-              <h2 className="type-heading">No daily target yet</h2>
-              <p className="type-meta-small text-ink-2 tabular-nums">
-                {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
-                {formatSplit(splitFor(goal))}
-              </p>
-            </div>
-            <Link
-              href={links.targets}
-              prefetch="intent"
-              className={buttonClassName("primary", "sm")}
-            >
-              Set target
-            </Link>
+        {/* Beyond a phone the day and its meals stand side by side (ADR 0052). */}
+        <div className="food-panes">
+          <div className="min-w-0">
+            <FoodSummary
+              eaten={day.eaten}
+              target={target}
+              entries={day.entries}
+              isToday={date === today}
+            />
+            {!target && (
+              <div className="food-no-target">
+                <div className="min-w-0">
+                  <h2 className="type-heading">No daily target yet</h2>
+                  <p className="type-meta-small text-ink-2 tabular-nums">
+                    {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
+                    {formatSplit(splitFor(goal))}
+                  </p>
+                </div>
+                <Link
+                  href={links.targets}
+                  prefetch="intent"
+                  className={buttonClassName("primary", "sm")}
+                >
+                  Set target
+                </Link>
+              </div>
+            )}
           </div>
-        )}
+          <div className="min-w-0">
+            <ul className="food-meals food-list" aria-label="Meals">
+              {MEALS.map((meal) => {
+                const layer = inBowl.findIndex((total) => total.meal === meal);
+                return (
+                  <li key={meal}>
+                    <MealRow
+                      meal={meal}
+                      entries={byMeal.get(meal) ?? []}
+                      kcal={inBowl[layer]?.kcal ?? 0}
+                      layer={Math.max(0, layer)}
+                      href={onDate(links.meal(meal))}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
 
-        <ul className="food-meals food-list" aria-label="Meals">
-          {MEALS.map((meal) => {
-            const layer = inBowl.findIndex((total) => total.meal === meal);
-            return (
-              <li key={meal}>
-                <MealRow
-                  meal={meal}
-                  entries={byMeal.get(meal) ?? []}
-                  kcal={inBowl[layer]?.kcal ?? 0}
-                  layer={Math.max(0, layer)}
-                  href={onDate(links.meal(meal))}
-                />
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="food-tiles">
-          <FoodTile
-            href={links.targets}
-            glyph="target"
-            title="Targets"
-            lines={[target ? `${formatKcal(target.kcal)} kcal` : "Not set", attention]}
-          />
-          <FoodTile
-            href={links.myFoods}
-            glyph="book"
-            title="My foods"
-            lines={[libraryMeta(day.library)]}
-          />
+            <div className="food-tiles">
+              <FoodTile
+                href={links.targets}
+                glyph="target"
+                title="Targets"
+                lines={[target ? `${formatKcal(target.kcal)} kcal` : "Not set", attention]}
+              />
+              <FoodTile
+                href={links.myFoods}
+                glyph="book"
+                title="My foods"
+                lines={[libraryMeta(day.library)]}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </>

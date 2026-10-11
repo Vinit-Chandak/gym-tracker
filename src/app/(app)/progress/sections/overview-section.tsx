@@ -54,69 +54,74 @@ export function OverviewSection({
   const tallies = tally(month.activities);
 
   return (
-    <>
-      <section aria-labelledby="progress-month" className="mt-2">
-        <h2 id="progress-month" className="month-head">
-          <span>{name}</span>
-          <Link href="/progress/calendar" className="month-head-link">
-            Calendar
-            <Glyph name="chevronRight" className="glyph-18" />
-          </Link>
-        </h2>
-        <Art
-          kind="month"
-          month={month.month}
-          days={days}
-          today={month.today}
-          // Each day as tall as the screen gives it, from the stylesheet (progress.css), so
-          // the month is drawn at its height on the first paint and never jumps after.
-          links={links}
-          label={`${name} ${year}, every activity of every day`}
-        />
-      </section>
+    // Beyond a phone, where the column holds two phone-wide panes, the month and its totals
+    // stand beside the history under them (ADR 0052).
+    <div className="overview">
+      <div className="overview-panes">
+        <div className="min-w-0">
+          <section aria-labelledby="progress-month" className="mt-2">
+            <h2 id="progress-month" className="month-head">
+              <span>{name}</span>
+              <Link href="/progress/calendar" className="month-head-link">
+                Calendar
+                <Glyph name="chevronRight" className="glyph-18" />
+              </Link>
+            </h2>
+            <Art
+              kind="month"
+              month={month.month}
+              days={days}
+              today={month.today}
+              // Each day as tall as the screen gives it, from the stylesheet (progress.css), so
+              // the month is drawn at its height on the first paint and never jumps after.
+              links={links}
+              label={`${name} ${year}, every activity of every day`}
+            />
+          </section>
 
-      {/* The month's totals, each led by its icon: the calendar's key and its count at once. */}
-      <section aria-labelledby="progress-month-totals" className="month-totals">
-        <h2 id="progress-month-totals" className="sr-only">
-          Sessions in {name}
-        </h2>
-        {tallies.length > 0 ? (
-          <ul>
-            {tallies.map((entry) => (
-              <li key={entry.sport}>
-                <span className="flex items-center gap-1.5">
-                  <Art kind="icon" sport={ART_SPORT[entry.sport]} />
-                  <span className="type-figure-l">{entry.count}</span>
-                </span>
-                <span className="month-total-name">
-                  {tallyName(entry.sport, entry.count)}
-                  {measures(entry).map((line) => (
-                    <span key={line} className="block">
-                      {line}
+          {/* The month's totals, each led by its icon: the calendar's key and its count at once. */}
+          <section aria-labelledby="progress-month-totals" className="month-totals">
+            <h2 id="progress-month-totals" className="sr-only">
+              Sessions in {name}
+            </h2>
+            {tallies.length > 0 ? (
+              <ul>
+                {tallies.map((entry) => (
+                  <li key={entry.sport}>
+                    <span className="flex items-center gap-1.5">
+                      <Art kind="icon" sport={ART_SPORT[entry.sport]} />
+                      <span className="type-figure-l">{entry.count}</span>
                     </span>
-                  ))}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="type-meta text-ink-2">Nothing logged in {name} yet.</p>
+                    <span className="month-total-name">
+                      {tallyName(entry.sport, entry.count)}
+                      {measures(entry).map((line) => (
+                        <span key={line} className="block">
+                          {line}
+                        </span>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="type-meta text-ink-2">Nothing logged in {name} yet.</p>
+            )}
+          </section>
+        </div>
+        {/* History: the latest ten under the month, every entry one tap on. */}
+        {overview.latest.length > 0 && (
+          <section aria-labelledby="progress-history" className="overview-history">
+            <h2 id="progress-history" className="month-head">
+              <span>History</span>
+              <Link href="/progress/history" aria-label="All history" className="month-head-link">
+                All
+                <Glyph name="chevronRight" className="glyph-18" />
+              </Link>
+            </h2>
+            <HistoryList items={overview.latest} today={today} level={3} month={month.month} />
+          </section>
         )}
-      </section>
-
-      {/* History: the latest ten under the month, every entry one tap on. */}
-      {overview.latest.length > 0 && (
-        <section aria-labelledby="progress-history" className="mt-6 border-t border-hair pt-3">
-          <h2 id="progress-history" className="month-head">
-            <span>History</span>
-            <Link href="/progress/history" aria-label="All history" className="month-head-link">
-              All
-              <Glyph name="chevronRight" className="glyph-18" />
-            </Link>
-          </h2>
-          <HistoryList items={overview.latest} today={today} level={3} month={month.month} />
-        </section>
-      )}
-    </>
+      </div>
+    </div>
   );
 }

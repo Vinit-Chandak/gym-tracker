@@ -9,6 +9,17 @@
   container-type: inline-size;
 }
 
+/* Where the column holds two phone-wide panes (a tablet, a desktop, at 100% text), the day's
+   bowl and macronutrients stand beside its meals (ADR 0052); larger text keeps one column. */
+@container (width >= 40rem) {
+  .food-panes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0 var(--ov-section-gap);
+  }
+}
+
 /* ---------- the days under the header ---------- */
 /* Seven days fill the width while each keeps 44 pt; narrower, the days scroll (board Food-320). */
 .food-strip {
