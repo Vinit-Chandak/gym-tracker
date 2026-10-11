@@ -196,7 +196,8 @@ async function run(engine) {
       "Correction after travel retains the activity zone and original repeated hour",
       async () => {
         await page.goto("/profile/edit", { waitUntil: "networkidle" });
-        await page.getByLabel("Time zone", { exact: true }).fill("America/Los_Angeles");
+        // The time zone is chosen from a list of places now, not typed.
+        await page.getByLabel("Time zone", { exact: true }).selectOption("America/Los_Angeles");
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByRole("status").filter({ hasText: "Profile saved" })).toHaveText(
           "Profile saved",
