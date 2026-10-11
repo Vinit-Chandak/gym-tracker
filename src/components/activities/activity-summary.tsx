@@ -4,8 +4,8 @@ import { formatDuration } from "@/domain/pace";
 import {
   formatIsoDate,
   formatSharedDistance,
-  formatSharedLoad,
   formatSharedPace,
+  formatVolume,
   type SharedDistanceUnits,
 } from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -67,7 +67,7 @@ function entries(
       return [
         duration,
         ["Working sets", activity.workingSets > 0 ? String(activity.workingSets) : null],
-        ["Volume", activity.volumeKg > 0 ? formatSharedLoad(activity.volumeKg, unit) : null],
+        ["Volume", activity.volumeKg > 0 ? formatVolume(activity.volumeKg, unit) : null],
       ];
     case "run":
       return [

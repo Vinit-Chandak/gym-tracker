@@ -7,8 +7,8 @@ import type { BodyLoadUnit } from "@/domain/types";
 import {
   formatRelativeDay,
   formatSharedDistance,
-  formatSharedLoad,
   formatSharedPace,
+  formatVolume,
   type SharedDistanceUnits,
 } from "@/lib/format";
 import type { ActivityRow as Activity } from "@/server/repositories/shared-stats";
@@ -25,7 +25,7 @@ function summary(row: Activity, unit: BodyLoadUnit, distanceUnits: SharedDistanc
       const parts = [
         row.title,
         `${row.workingSets} ${row.workingSets === 1 ? "set" : "sets"}`,
-        formatSharedLoad(row.volumeKg, unit),
+        formatVolume(row.volumeKg, unit),
       ];
       if (row.records > 0) parts.push(`${row.records} ${row.records === 1 ? "record" : "records"}`);
       return parts;

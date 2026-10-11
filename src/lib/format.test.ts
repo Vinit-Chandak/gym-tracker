@@ -67,7 +67,9 @@ it("writes the library's load jump as the step a reader in their unit can load",
 it("writes a period's total by what it counts, in the reader's unit", () => {
   expect(formatActivityMetric("workouts", 12, "kg")).toBe("12");
   expect(formatActivityMetric("workout_time", 4320, "kg")).toBe("1 h 12 min");
-  expect(formatActivityMetric("volume", 6240, "lb")).toBe("13,756.8 lb");
+  // A volume is whole, as Progress totals it: never a tenth of a pound in five figures.
+  expect(formatActivityMetric("volume", 6240, "lb")).toBe("13,757 lb");
+  expect(formatActivityMetric("volume", 87137.06, "kg")).toBe("87,137 kg");
   expect(formatActivityMetric("records", 1234, "kg")).toBe("1,234");
   expect(formatActivityMetric("runs", 3, "kg")).toBe("3");
   expect(formatActivityMetric("distance", 21450, "kg")).toBe("21.5 km");

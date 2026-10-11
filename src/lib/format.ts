@@ -197,9 +197,18 @@ export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
   return `${loadStepIn(kilograms, unit)} ${unit}`;
 }
 
-/** "6,240 kg" / "13,757 lb": a shared load in the reader's unit, thousands separated. */
+/** "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. */
 export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
   return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")} ${unit}`;
+}
+
+/**
+ * "6,240 kg" / "13,757 lb": a volume (load × reps, summed) in the reader's unit, whole and
+ * thousands separated, as Progress and a finished workout total it. A tenth of a pound in a
+ * six-figure total is the conversion talking, not the training.
+ */
+export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
+  return `${Math.round(fromKilograms(kilograms, unit)).toLocaleString("en-GB")} ${unit}`;
 }
 
 /**
@@ -276,7 +285,7 @@ export function formatActivityMetric(
     case "time":
       return formatMinutes(value / 60);
     case "volume":
-      return formatSharedLoad(value, unit);
+      return formatVolume(value, unit);
     case "workouts":
     case "working_sets":
     case "active_days":

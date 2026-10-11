@@ -64,3 +64,18 @@ it("says a ride in road units and a swim in pool units", () => {
   );
   expect(entry("Distance")).toBe("1,500 m");
 });
+
+it("says a friend's workout volume whole, in the reader's unit", () => {
+  const workout = activity({
+    sport: "workout",
+    title: "Bench volume",
+    workingSets: 14,
+    volumeKg: 7742.4,
+    distanceMeters: null,
+    paceSecondsPerKm: null,
+  });
+  render(<ActivitySummary activity={workout} unit="lb" distanceUnits={DEFAULT_DISTANCE_UNITS} />);
+  // 17,069.3 lb is the conversion's tenth, not the training's: Progress says 17,069 lb.
+  expect(entry("Volume")).toBe("17,069 lb");
+  expect(entry("Working sets")).toBe("14");
+});
