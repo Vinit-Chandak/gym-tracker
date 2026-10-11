@@ -250,7 +250,8 @@ describe("one exercise, workout by workout", () => {
     expect(bestSession(pulldown, "maxWeight")).toMatchObject({ date: "2026-09-24" });
     // The heavier set still wins whatever its reps.
     expect(bestSession([...pulldown].reverse(), "maxWeight")!.maxWeightReps).toBe(12);
-    // Equal in every way: the newer workout says where the lift stands.
+    // Equal in every way: the day it was first reached, as a profile's Best lifts and the
+    // friends' board date it — one read "29 Sept" and the other "Thu 8 Oct" for one best.
     const twice = exerciseSessions(
       rows([
         ["01", 170, 7],
@@ -260,7 +261,17 @@ describe("one exercise, workout by workout", () => {
       "lb",
     );
     expect(twice[0]!.e1rm).toBe(twice[1]!.e1rm);
-    expect(bestSession(twice, "e1rm")).toMatchObject({ date: "2026-09-08" });
+    expect(bestSession(twice, "e1rm")).toMatchObject({ date: "2026-09-01" });
+    const again = exerciseSessions(
+      rows([
+        ["01", 170, 7],
+        ["08", 170, 7],
+      ]),
+      "barbell",
+      "lb",
+    );
+    expect(bestSession(again, "e1rm")).toMatchObject({ date: "2026-09-01" });
+    expect(bestSession(again, "maxWeight")).toMatchObject({ date: "2026-09-01" });
     // Most reps, tied: the heavier load behind them; on an assisted machine, the least help.
     const reps = rows([
       ["01", 30, 10],

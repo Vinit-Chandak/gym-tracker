@@ -308,9 +308,11 @@ export function measuresWithData(sessions: readonly ExerciseSession[]): Exercise
 /**
  * The workout a graph's readout names as the span's best by a measure. A tie goes to the better
  * set behind it (more reps at the heaviest load; at the most reps, more load, or less help), then
- * to the latest workout: 42.5 kg for 12 beats the 42.5 kg for 11 a week before, and of two equal
- * bests the newer says where the lift stands. Sessions come oldest first; on an assisted machine
- * less weight is the stronger set (ADR 0048).
+ * to the first workout to reach it: 42.5 kg for 12 beats the 42.5 kg for 11 a week before, and
+ * of two equal bests the earlier is the day it was set, as a profile's Best lifts and the
+ * friends' board date it (`readExerciseBests`, `readRecords`) — the same 170 lb × 7 read
+ * "29 Sept" on one and "Thu 8 Oct" on the other. Sessions come oldest first; on an assisted
+ * machine less weight is the stronger set (ADR 0048).
  */
 export function bestSession(
   sessions: readonly ExerciseSession[],
@@ -336,7 +338,7 @@ export function bestSession(
       mine !== null && theirs !== null
         ? compare(mine, theirs, assisted && measure === "maxReps")
         : 0;
-    if (byValue > 0 || (byValue === 0 && bySet >= 0)) best = session;
+    if (byValue > 0 || (byValue === 0 && bySet > 0)) best = session;
   }
   return best;
 }
