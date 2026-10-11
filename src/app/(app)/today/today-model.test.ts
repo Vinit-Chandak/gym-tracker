@@ -9,6 +9,7 @@ import {
   cycleLabel,
   groupRows,
   planRows,
+  printLabel,
   rowPrescription,
   todayParts,
 } from "./today-model";
@@ -88,7 +89,9 @@ describe("the cycle's squares", () => {
 
   it("are read aloud with where the cycle stands, behind included", () => {
     const week = { ...plan(["completed", "completed", "pending"], 3), behind: 25 } as TodayPlan;
-    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme");
+    expect(cycleLabel(week)).toBe(
+      "Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme",
+    );
   });
 });
 
@@ -186,5 +189,28 @@ describe("the day's print", () => {
       { sets: 3, done: 0, skipped: false, pair: true },
       { sets: 2, done: 0, skipped: false, pair: false },
     ]);
+  });
+
+  it("draws no run a revision withdrew, and a run history answered as done", () => {
+    const run = (resolution: ScheduledOccurrence["resolution"]["kind"]) =>
+      ({
+        sport: "running",
+        disposition: resolution === "incomplete" ? "pending" : resolution,
+        resolution: { kind: resolution },
+        prescription: null,
+      }) as unknown as ScheduledOccurrence;
+    const parts = todayParts({
+      programme: [run("cancelled"), run("legacy_completed")],
+      rows: planRows([CURL], null, "kg"),
+      standalone: [],
+    });
+    // The withdrawn run has no card under the print, so the print does not owe it either.
+    expect(parts).toEqual([
+      { kind: "run", state: "done" },
+      expect.objectContaining({ kind: "strength" }),
+    ]);
+    expect(printLabel("Easy Run + Arms", parts)).toBe(
+      "Easy Run + Arms: a run done, then 1 exercise as columns of their sets, to do.",
+    );
   });
 });

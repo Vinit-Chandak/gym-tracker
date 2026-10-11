@@ -54,9 +54,16 @@ export function CycleMark({
         height={sq + 2}
         viewBox={`0 0 ${width} ${sq + 2}`}
         // They grow with the reader's text by half, as glyphs and figures do: 9-pt squares at
-        // 100%, 13.5 at 200%, so the cycle is still read at arm's length.
-        style={{ width: grown(width), height: grown(sq + 2) }}
-        className="block shrink-0 text-ink"
+        // 100%, 13.5 at 200%, so the cycle is still read at arm's length. A cycle too long for
+        // the line (a programme may run to 31 days) is drawn smaller to fit it, every square
+        // still there, rather than pushing its first days off the screen.
+        style={{
+          width: grown(width),
+          maxWidth: "100%",
+          height: "auto",
+          aspectRatio: `${width} / ${sq + 2}`,
+        }}
+        className="block min-w-0 text-ink"
       >
         {cells.map((cell, index) => {
           const x = index * (sq + gap);

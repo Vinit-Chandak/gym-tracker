@@ -6,6 +6,7 @@ import { paintToken } from "@/components/art/shapes";
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
 import { FoodRowText, RowKcal } from "@/components/food/food-row";
 import { FoodSummary, mealTotals } from "@/components/food/food-summary";
+import { DayRollover } from "@/components/shell/day-rollover";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
@@ -16,8 +17,6 @@ import type { TrainingGoal } from "@/domain/types";
 import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
-
-import { FoodDayRollover } from "./day-rollover";
 
 /** Where the screen's links lead: the app's own pages, or in the preview the previews of them. */
 export type FoodLinks = {
@@ -187,7 +186,7 @@ export function FoodView({
 
   return (
     <>
-      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
+      {timeZone && <DayRollover today={today} timeZone={timeZone} />}
       <PageHeader
         title="Food"
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}

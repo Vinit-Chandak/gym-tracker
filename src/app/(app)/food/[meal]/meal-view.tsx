@@ -1,12 +1,12 @@
 import type { Route } from "next";
 
+import { DayRollover } from "@/components/shell/day-rollover";
 import { PageHeader } from "@/components/shell/page-header";
 import type { Meal } from "@/domain/nutrition";
 import { formatIsoWeekdayDay } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import type { MealScreen } from "@/server/repositories/nutrition";
 
-import { FoodDayRollover } from "../day-rollover";
 import { MealEditor } from "./meal-editor";
 import type { FoodDayBowl } from "./portion-sheet";
 
@@ -37,7 +37,7 @@ export function MealView({
 }) {
   return (
     <>
-      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
+      {timeZone && <DayRollover today={today} timeZone={timeZone} />}
       <PageHeader
         title={MEAL_LABELS[meal]}
         meta={formatIsoWeekdayDay(date)}

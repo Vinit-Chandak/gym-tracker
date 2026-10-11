@@ -163,15 +163,18 @@ export function todayParts({
   /** The day's workout is logged: its columns print full. */
   lifted?: boolean;
 }): PrintPart[] {
+  // Work a revision withdrew asks for nothing, so it is not drawn as a run still to do; work
+  // answered by history the app has no activity for was done.
   const endurance = (occurrence: ScheduledOccurrence): PrintPart | null =>
-    occurrence.sport === "strength"
+    occurrence.sport === "strength" || occurrence.resolution.kind === "cancelled"
       ? null
       : {
           kind: PRINT_SPORT[occurrence.sport],
           state:
             occurrence.disposition === "skipped"
               ? "skipped"
-              : occurrence.resolution.kind === "logged"
+              : occurrence.resolution.kind === "logged" ||
+                  occurrence.resolution.kind === "legacy_completed"
                 ? "done"
                 : "todo",
         };

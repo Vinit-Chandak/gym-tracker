@@ -85,13 +85,23 @@ export default async function TodayPage(props: PageProps<"/today">) {
         // to one day on the card of another. Standalone work is asked for by date, because a
         // date is exactly what the athlete chose when they put it on the calendar. Neither
         // rolls forward.
-        const [standalone, programme] = await Promise.all([
+        //
+        // Once today's programme day is finished the sequence offers the next one, so the
+        // endurance the finished day logged is asked for by its own slot, to stay on today.
+        const [standalone, programme, finished] = await Promise.all([
           standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
           plan?.suggestion && plan.suggestedDay
             ? occurrencesForSlot(tx, user.id, {
                 familyId: plan.program.familyId,
                 cycleDayIndex: plan.suggestedDay.dayIndex,
                 cycleIndex: plan.suggestion.slot.cycleIndex,
+              })
+            : Promise.resolve([]),
+          plan?.suggestion && plan.finishedToday
+            ? occurrencesForSlot(tx, user.id, {
+                familyId: plan.program.familyId,
+                cycleDayIndex: plan.finishedToday.dayIndex,
+                cycleIndex: plan.finishedToday.cycleIndex,
               })
             : Promise.resolve([]),
         ]);
@@ -108,12 +118,13 @@ export default async function TodayPage(props: PageProps<"/today">) {
           coach,
           standalone: preparedStandalone,
           programme: preparedProgramme,
+          finished,
         };
       },
       { readOnly: true },
     ),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
   return (
@@ -132,6 +143,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        finishedOccurrences={finished}
         discarded={discarded === "1"}
       />
     </FreshAfterSets>
