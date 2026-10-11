@@ -267,20 +267,24 @@ for (const config of [
       for (const width of [config.options.viewport.width, 320]) {
         await page.setViewportSize({ width, height: 740 });
         for (const size of [32, 16, 24, 32]) {
-          // Inspect in the same task as the style change, before ResizeObserver can update.
+          // Inspect in the same task as the style change, before ResizeObserver can update. The
+          // page draws one exercise graph in place of its bars and trend line (ADR 0042), its
+          // plot hidden from assistive technology, which reads the graph's readout instead.
           const bounds = await page.evaluate((fontSize) => {
             document.documentElement.style.fontSize = `${fontSize}px`;
-            return [...document.querySelectorAll('svg[role="img"][width][height]')].map((chart) => {
-              const svg = chart.getBoundingClientRect();
-              const holder = chart.parentElement.getBoundingClientRect();
-              return {
-                fits: svg.width <= holder.width + 1 && svg.right <= holder.right + 1,
-                width: svg.width,
-                available: holder.width,
-              };
-            });
+            return [...document.querySelectorAll(".graph-plot > svg[width][height]")].map(
+              (chart) => {
+                const svg = chart.getBoundingClientRect();
+                const holder = chart.parentElement.getBoundingClientRect();
+                return {
+                  fits: svg.width <= holder.width + 1 && svg.right <= holder.right + 1,
+                  width: svg.width,
+                  available: holder.width,
+                };
+              },
+            );
           }, size);
-          assert.ok(bounds.length >= 2, "Expected both the lifetime bars and the session line");
+          assert.ok(bounds.length >= 1, "Expected the exercise's graph");
           assert.ok(
             bounds.every((chart) => chart.fits),
             `${width}px/${size}px: ${JSON.stringify(bounds)}`,
