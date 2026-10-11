@@ -3,10 +3,13 @@ import { and, asc, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm";
 import {
   activities,
   cyclingActivityDetails,
+  gyms,
   plannedOccurrences,
   occurrenceVersions,
+  programDays,
   runningActivityDetails,
   swimmingActivityDetails,
+  workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport, type SwimStroke } from "@/domain/activity";
@@ -401,6 +404,79 @@ export async function readActivityDays(
       })),
     truncated: rows.length > CALENDAR_LIMIT,
   };
+}
+
+/** A finished activity of one day, as Today shows what was already logged on it. */
+export type LoggedActivity = {
+  id: string;
+  sport: ActivitySport;
+  startedAt: Date;
+  durationMs: number | null;
+  distanceMetres: number | null;
+  /** "treadmill", "indoor", "pool", "open_water"; null where the sport has none. */
+  environment: string | null;
+  /** The scheduled session it answered; null for work nobody scheduled. */
+  occurrenceId: string | null;
+  /** A workout: its session, the programme day it trained (none for an unplanned one), its gym. */
+  sessionId: string | null;
+  programDayId: string | null;
+  dayName: string | null;
+  gymName: string | null;
+};
+
+/**
+ * Everything finished on one local date, in the order it was done: each run, ride and swim, and
+ * each workout with the programme day it trained. The workout still open is not here: it is not
+ * logged until it is finished, and Today has its own card for it.
+ */
+export async function readLoggedOn(
+  tx: DbOrTx,
+  userId: string,
+  date: string,
+): Promise<LoggedActivity[]> {
+  const rows = await tx
+    .select({
+      id: activities.id,
+      sport: activities.sport,
+      startedAt: activities.startedAt,
+      durationMs: activities.durationMs,
+      distanceMetres: DISTANCE,
+      environment: sql<string | null>`coalesce(
+        ${runningActivityDetails.environment}::text,
+        ${cyclingActivityDetails.environment}::text,
+        ${swimmingActivityDetails.environment}::text
+      )`,
+      occurrenceId: activities.occurrenceId,
+      sessionId: workoutSessions.id,
+      programDayId: workoutSessions.programDayId,
+      dayName: programDays.name,
+      gymName: gyms.name,
+    })
+    .from(activities)
+    .leftJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+    .leftJoin(cyclingActivityDetails, eq(cyclingActivityDetails.activityId, activities.id))
+    .leftJoin(swimmingActivityDetails, eq(swimmingActivityDetails.activityId, activities.id))
+    .leftJoin(
+      workoutSessions,
+      and(
+        eq(workoutSessions.activityId, activities.id),
+        eq(workoutSessions.userId, activities.userId),
+      ),
+    )
+    .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(gyms, eq(gyms.id, workoutSessions.gymId))
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.occurredOn, date),
+        eq(activities.status, "completed"),
+      ),
+    )
+    .orderBy(asc(activities.startedAt), asc(activities.id));
+  return rows.map((row) => ({
+    ...row,
+    distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+  }));
 }
 
 /** The local date of a user's first completed activity, where the calendar begins. */

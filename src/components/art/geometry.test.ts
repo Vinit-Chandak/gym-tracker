@@ -429,4 +429,22 @@ describe("the month", () => {
   it("draws nothing for a day with nothing in it", () => {
     expect(dayIcons([], 17.5, 17.5)).toEqual([]);
   });
+
+  it("draws a workout still under way as a mark to do, unlike the finished ones beside it", () => {
+    // Kenji's 11 October: the open session drawn as the six finished ones were, beside a 6.
+    const plates = (shapes: Shape[]) => shapes.filter((shape) => shape.kind === "rect");
+    for (const plate of plates(calendarIcon("strength", 0, 0, 24, { open: true })))
+      expect(plate).toMatchObject({ fill: "strength-todo", stroke: "strength" });
+    for (const plate of plates(calendarIcon("strength", 0, 0, 24)))
+      expect(plate).toMatchObject({ fill: "strength" });
+    // Only the one flagged: a finished lift, then the open one.
+    const day = plates(dayIcons(["strength", "strength"], 17.5, 17.5, [false, true]));
+    expect(day.map((plate) => "fill" in plate && plate.fill)).toEqual([
+      ...Array(4).fill("strength"),
+      ...Array(4).fill("strength-todo"),
+    ]);
+    expect(calendarIcon("run", 0, 0, 24, { open: true })).toEqual(
+      form("run", 0, 0, 24, 24, { state: "todo" }),
+    );
+  });
 });

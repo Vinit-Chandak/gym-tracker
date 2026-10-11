@@ -31,6 +31,11 @@ type LinkRowProps<T extends string> = {
   subtitle?: string;
   badge?: ReactNode;
   meta?: string;
+  /**
+   * A line of its own under the subtitle, at every width: where a list's rows must read alike,
+   * which `meta` cannot promise, since it stands beside the words when they leave it room.
+   */
+  detail?: string;
   icon?: AppIcon;
   /** `danger` for a destination that destroys something, so the row says so before it is opened. */
   tone?: "default" | "danger";
@@ -45,6 +50,7 @@ export function LinkRow<T extends string>({
   subtitle,
   badge,
   meta,
+  detail,
   icon,
   tone = "default",
   prefetch,
@@ -64,6 +70,11 @@ export function LinkRow<T extends string>({
             </div>
             {subtitle && (
               <p className="mt-0.5 text-sm [overflow-wrap:break-word] text-ink-muted">{subtitle}</p>
+            )}
+            {detail && (
+              <p className="mt-0.5 text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
+                {detail}
+              </p>
             )}
           </div>
         </div>

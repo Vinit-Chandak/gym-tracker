@@ -20,6 +20,8 @@ export type ProgrammeRow = {
 export type ProgrammeView = {
   /** Per sport, lifting first. Empty when there is nothing of the programme to count. */
   adherence: SportAdherence[];
+  /** Each list's title, by what it holds: "Runs to come", "Runs not done", "Earlier runs". */
+  titles: { ahead: string; notDone: string; earlier: string };
   /** Still owed, in the order the sequence will reach them: Today's first. */
   ahead: ProgrammeRow[];
   /** Left behind with no answer, oldest first. */
@@ -27,6 +29,31 @@ export type ProgrammeView = {
   /** Answered one way or another, the latest first. */
   earlier: ProgrammeRow[];
 };
+
+const PLURALS: Record<ActivitySport, string> = {
+  strength: "workouts",
+  running: "runs",
+  cycling: "rides",
+  swimming: "swims",
+};
+
+/**
+ * What a programme's sessions are, said by their sports: "runs", "runs and rides", "runs, rides
+ * and swims". The lists hold only the sessions an occurrence records, never the lifting days the
+ * adherence above them counts, so their titles say whose they are ("Runs to come") rather than
+ * reading as the whole programme (year audit, October 2026).
+ */
+export function sessionsNoun(sports: readonly ActivitySport[]): string {
+  const order: ActivitySport[] = ["running", "cycling", "swimming", "strength"];
+  const words = order.filter((sport) => sports.includes(sport)).map((sport) => PLURALS[sport]);
+  if (words.length === 0) return "sessions";
+  return words.length === 1 ? words[0]! : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+}
+
+function listTitles(noun: string): ProgrammeView["titles"] {
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+  return { ahead: `${Noun} to come`, notDone: `${Noun} not done`, earlier: `Earlier ${noun}` };
+}
 
 /** Where a row sits in the sequence: its cycle and slot, or its date where it has neither. */
 function compareRows(a: ProgrammeRow, b: ProgrammeRow): number {
@@ -73,6 +100,7 @@ export function programmeView(input: {
         rows.map((row) => ({ sport: row.occurrence.sport, standing: row.standing })),
       ),
     ],
+    titles: listTitles(sessionsNoun(rows.map((row) => row.occurrence.sport))),
     ahead: rows.filter((row) => isAhead(row.standing)),
     notDone: rows.filter((row) => row.standing === "not_done"),
     earlier: rows.filter((row) => !isAhead(row.standing) && row.standing !== "not_done").reverse(),

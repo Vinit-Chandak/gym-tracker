@@ -26,10 +26,11 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview } from "@/server/repositories/schedule";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, unitsFor } from "@/server/repositories/sport-preferences";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
+import { templateOffer } from "./next-block";
 import { ProgrammeTabs } from "./programme-tabs";
 import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 
@@ -80,14 +81,14 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;
   const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
   const profile = await getRequestProfile(user.id, user.email);
-  const [inProgress, { overview, changes, archived, runUnits }] = await Promise.all([
+  const [inProgress, { overview, changes, archived, runUnits, enabled }] = await Promise.all([
     // The per-request read the session strip also makes.
     getActiveSession(user.id),
     withUser(
       getDb(),
       user.id,
       async (tx) => {
-        const [overview, changes, archived, runUnits] = await Promise.all([
+        const [overview, changes, archived, runUnits, enabled] = await Promise.all([
           getProgramOverview(tx, user.id, profile.timeZone),
           loadProgrammeChanges(tx, user.id, profile.timeZone),
           tx
@@ -97,19 +98,15 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             .orderBy(desc(programs.updatedAt))
             .limit(20),
           unitsFor(tx, user.id, "running"),
+          enabledSportsFor(tx, user.id),
         ]);
-        return { overview, changes, archived, runUnits };
+        return { overview, changes, archived, runUnits, enabled };
       },
       { readOnly: true },
     ),
   ]);
-  const templates = PROGRAM_TEMPLATES.map((template) => ({
-    slug: template.slug,
-    name: template.name,
-    summary: template.summary,
-    highlights: template.highlights,
-    weeks: template.blueprint.weeks,
-  }));
+  // The athlete's own sports first; one asking for a sport they have off says so.
+  const offer = templateOffer(PROGRAM_TEMPLATES, enabled);
   const today = todayInTimeZone(profile.timeZone);
   const complete = overview?.complete ?? false;
   // The sequence waits (owner, 11 October 2026), so the end it was written with is rarely when it
@@ -124,11 +121,12 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
     <div className="space-y-4">
       <ProgrammeOptions nested />
       <div className="space-y-2 border-t border-line pt-4">
-        <h3 className="font-medium">Or use the suggested template</h3>
+        <h3 className="font-medium">{offer.heading}</h3>
         <ProgramTemplatePicker
-          templates={templates}
+          templates={offer.options}
           today={today}
-          submitLabel="Replace my programme"
+          // A finished programme is not replaced: the next one starts after it.
+          submitLabel={complete ? "Start this programme" : "Replace my programme"}
         />
       </div>
     </div>
@@ -266,10 +264,10 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             <Section title="Start a programme">
               <ProgrammeOptions />
             </Section>
-            <Section title="Or use the suggested template">
+            <Section title={offer.heading}>
               <Card>
                 <ProgramTemplatePicker
-                  templates={templates}
+                  templates={offer.options}
                   today={today}
                   submitLabel="Start this programme"
                 />

@@ -4,7 +4,7 @@ import type { OccurrenceResolution } from "@/domain/occurrences";
 import type { ScheduleState, SlotEvent } from "@/domain/schedule";
 import type { ProgrammeOccurrence } from "@/server/repositories/occurrences";
 
-import { programmeView } from "./programme-view";
+import { programmeView, sessionsNoun } from "./programme-view";
 
 const DAYS = [
   { dayIndex: 1, name: "Upper", includesLifting: true, includesRun: false, dayOfWeek: 1 },
@@ -89,6 +89,12 @@ describe("the programme page", () => {
       [1, "logged"],
     ]);
     expect(view.ahead[0]!.dayName).toBe("Easy run");
+    // The lists hold runs alone, while the adherence counts lifting too: they are titled so.
+    expect(view.titles).toEqual({
+      ahead: "Runs to come",
+      notDone: "Runs not done",
+      earlier: "Earlier runs",
+    });
     expect(view.adherence).toEqual([
       { sport: "strength", done: 3, skipped: 0, toCome: 1, notDone: 0, cancelled: 0 },
       { sport: "running", done: 1, skipped: 1, toCome: 2, notDone: 0, cancelled: 0 },
@@ -127,5 +133,14 @@ describe("the programme page", () => {
       sport: "running",
     });
     expect(view.adherence.map((counts) => counts.sport)).toEqual(["running"]);
+  });
+});
+
+describe("what the lists are called", () => {
+  it("says the sports the sessions are, in the legend's order", () => {
+    expect(sessionsNoun(["running", "running"])).toBe("runs");
+    expect(sessionsNoun(["swimming", "running"])).toBe("runs and swims");
+    expect(sessionsNoun(["swimming", "cycling", "running"])).toBe("runs, rides and swims");
+    expect(sessionsNoun([])).toBe("sessions");
   });
 });

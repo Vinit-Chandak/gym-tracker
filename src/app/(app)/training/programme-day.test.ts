@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
-import { dayStateWord, logSports, programmeDayParts, runLeads } from "./programme-day";
+import { atGymLines, dayStateWord, logSports, programmeDayParts, runLeads } from "./programme-day";
 
 const day = (overrides: Partial<ScheduleDay>): ScheduleDay => ({
   id: "day-1",
@@ -91,5 +91,50 @@ describe("the sports Training offers to log", () => {
   it("keep running while the programme has a day that runs", () => {
     const days = [{ day: day({ includesRun: true }) }];
     expect(logSports(sports, ["strength"], days)).toEqual(["running"]);
+  });
+});
+
+describe("a day's exercises at the default gym", () => {
+  const exercise = { id: "bench", modality: "barbell", requiresEquipment: true } as const;
+  const resolved = (
+    programExerciseId: string,
+    resolution: Record<string, unknown>,
+    resolvedExerciseName = "Barbell bench press",
+  ) =>
+    ({
+      programExerciseId,
+      decision: { resolution: { exercise, ...resolution }, resolvedExerciseName },
+    }) as unknown as Parameters<typeof atGymLines>[0][number];
+
+  it("says the fallback the gym will use, and nothing where the exercise is itself", () => {
+    // Jordan's Upper heavy at Planet Fitness, which has no barbell (year audit).
+    const lines = atGymLines(
+      [
+        resolved(
+          "bench",
+          {
+            status: "fallback",
+            equipmentInstance: { id: "smith", name: "Smith machine" },
+          },
+          "Smith machine bench press",
+        ),
+        resolved(
+          "row",
+          {
+            status: "fallback",
+            equipmentInstance: { id: "csr", name: "Chest-supported row machine" },
+          },
+          "Chest-supported row (machine)",
+        ),
+        resolved("pulldown", { status: "direct", equipmentInstance: null }, "Lat pulldown"),
+        resolved("ohp", { status: "unavailable" }, "Standing overhead press"),
+      ],
+      "Planet Fitness",
+    );
+    expect([...lines]).toEqual([
+      ["bench", "At Planet Fitness: Smith machine bench press"],
+      ["row", "At Planet Fitness: Chest-supported row (machine)"],
+      ["ohp", "At Planet Fitness: not available, and no fallback fits"],
+    ]);
   });
 });

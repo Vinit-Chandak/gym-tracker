@@ -19,6 +19,8 @@ export type TemplateOption = {
   weeks: number;
   /** Its first lifting day, as the print draws it: a column of sets for each exercise. */
   firstDay?: readonly StrengthColumn[];
+  /** What the athlete should know before choosing it: a sport it asks for that they have off. */
+  note?: string;
 };
 
 const INITIAL: AdoptProgramState = {};
@@ -108,6 +110,12 @@ export function ProgramTemplatePicker({
                   {template.highlights[0] && (
                     <span className="mt-2 block type-meta-small font-semibold tabular-nums">
                       {template.highlights[0]}
+                    </span>
+                  )}
+                  {template.note && (
+                    <span className="mt-1 flex items-start gap-1.5 type-meta-small text-ink-2">
+                      <Glyph name="warn" className="mt-px glyph-14 shrink-0" />
+                      <span className="min-w-0 [overflow-wrap:break-word]">{template.note}</span>
                     </span>
                   )}
                 </label>

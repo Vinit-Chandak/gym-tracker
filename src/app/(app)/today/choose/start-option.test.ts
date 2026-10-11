@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleState, SlotEvent } from "@/domain/schedule";
-import { liftingStartOption } from "./start-option";
+import { liftingStartOption, startDayLabel } from "./start-option";
 
 const state: ScheduleState = {
   slots: [{ dayIndex: 1, name: "Lift and run", includesLifting: true, includesRun: true }],
@@ -42,7 +42,7 @@ it("offers the next cycle's lift early when the programme started after that day
   };
   expect(liftingStartOption(trained, 1, 1)).toEqual({
     cycleIndex: 2,
-    label: "Start next cycle",
+    label: "Start cycle 2 with Earlier lift",
   });
 });
 it("does not invent a pre-start lift when no later cycle exists", () => {
@@ -79,8 +79,17 @@ describe("a day done while its cycle still has days to train", () => {
   it("starts the next cycle once this one's training is answered, its rest day aside", () => {
     // Sofia's Choose a day in the year audit: every lift of cycle 3 done, its rest day to come.
     const state = week([...trained, done(3, 1), done(3, 2), done(3, 3)]);
-    expect(liftingStartOption(state, 3, 1)).toEqual({ cycleIndex: 4, label: "Start next cycle" });
+    // Named, as Today names it on the rest day: "Start next cycle" said no day at all.
+    expect(liftingStartOption(state, 3, 1)).toEqual({
+      cycleIndex: 4,
+      label: "Start cycle 4 with Push A",
+    });
     // The next cycle's second day is still ahead of its first.
     expect(liftingStartOption(state, 3, 2)).toEqual({ cycleIndex: 4, label: "Do again" });
   });
+});
+
+it("names the day it starts, and the cycle where it begins a later one", () => {
+  expect(startDayLabel("Push A", 5, 4)).toBe("Start cycle 5 with Push A");
+  expect(startDayLabel("Lower B", 4, 4)).toBe("Start Lower B");
 });

@@ -1,5 +1,7 @@
 import type { FormState, PrintPart, StrengthColumn } from "@/components/art/geometry";
 import type { ActivitySport, EnduranceSport } from "@/domain/activity";
+import { exerciseOnMachine } from "@/lib/labels";
+import type { PlannedDayResolution } from "@/server/repositories/availability";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
 /** A day's state as its ink: done full, skipped dashed, anything else still to do. */
@@ -84,6 +86,31 @@ export function programmeDayParts(
   if (columns.length > 0) parts.push({ kind: "strength", columns });
   if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
   return parts;
+}
+
+/**
+ * What a day's exercises become at the athlete's default gym, where that is news: the fallback
+ * starting the day there will put in its place ("At Planet Fitness: Smith machine bench press"),
+ * or that nothing there will do. Read from the resolution the start itself uses
+ * (`resolvePlannedDay`), keyed by the programme's slot. A day page listed Barbell bench to a
+ * lifter whose gym has no barbell, with no word of the Smith machine it would be (year audit).
+ */
+export function atGymLines(
+  resolved: readonly Pick<PlannedDayResolution, "programExerciseId" | "decision">[],
+  gymName: string,
+): Map<string, string> {
+  const lines = new Map<string, string>();
+  for (const { programExerciseId, decision } of resolved) {
+    const r = decision.resolution;
+    if (r.status === "fallback")
+      lines.set(
+        programExerciseId,
+        `At ${gymName}: ${exerciseOnMachine(decision.resolvedExerciseName, r.equipmentInstance?.name)}`,
+      );
+    else if (r.status === "unavailable")
+      lines.set(programExerciseId, `At ${gymName}: not available, and no fallback fits`);
+  }
+  return lines;
 }
 
 /**
