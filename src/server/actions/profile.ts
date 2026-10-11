@@ -13,12 +13,14 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
+import { knownTimeZone } from "@/server/queries/time-zone";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
   basicProfileInputSchema,
   profileInputSchema,
   type ProfileInput,
+  UNKNOWN_TIME_ZONE,
 } from "@/server/validation/profile";
 import { USERNAME_TAKEN_MESSAGE } from "@/server/validation/username";
 
@@ -29,6 +31,11 @@ import { USERNAME_TAKEN_MESSAGE } from "@/server/validation/username";
  */
 function usernameTaken(formData: FormData): FormState {
   return { fieldErrors: { username: USERNAME_TAKEN_MESSAGE }, values: formValues(formData) };
+}
+
+/** A zone the browser reads but Postgres, which dates the graphs, does not. */
+function unknownTimeZone(formData: FormData): FormState {
+  return { fieldErrors: { timeZone: UNKNOWN_TIME_ZONE }, values: formValues(formData) };
 }
 
 /**
@@ -62,7 +69,14 @@ export async function saveProfileAction(
   if (!parsed.success) return parsed.state;
 
   try {
-    await withUser(getDb(), user.id, (tx) => saveProfile(tx, user, parsed.data));
+    const saved = await withUser(getDb(), user.id, async (tx) => {
+      // Stored as Postgres spells it, so every screen and the graphs read one zone.
+      const timeZone = await knownTimeZone(tx, parsed.data.timeZone);
+      if (!timeZone) return false;
+      await saveProfile(tx, user, { ...parsed.data, timeZone });
+      return true;
+    });
+    if (!saved) return unknownTimeZone(formData);
   } catch (error) {
     if (isUniqueViolation(error)) return usernameTaken(formData);
     throw error;
@@ -85,10 +99,17 @@ export async function saveOnboardingProfileAction(
   if (!parsed.success) return parsed.state;
 
   try {
-    await withUser(getDb(), user.id, async (tx) => {
+    const saved = await withUser(getDb(), user.id, async (tx) => {
+      const timeZone = await knownTimeZone(tx, parsed.data.timeZone);
+      if (!timeZone) return false;
       await ensureProfile(tx, user);
-      await tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
+      await tx
+        .update(profiles)
+        .set({ ...parsed.data, timeZone })
+        .where(eq(profiles.id, user.id));
+      return true;
     });
+    if (!saved) return unknownTimeZone(formData);
   } catch (error) {
     if (isUniqueViolation(error)) return usernameTaken(formData);
     throw error;

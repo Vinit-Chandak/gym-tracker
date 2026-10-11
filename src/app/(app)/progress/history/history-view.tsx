@@ -176,10 +176,15 @@ export function HistoryView({
                       <option value="all">All activity</option>
                       <option value="workout">Workouts</option>
                       <option value="run">Runs</option>
-                      {/* Shown only where they exist, so a lifter's filter list stays short. */}
+                      {/* Shown only where they exist, so a lifter's filter list stays short.
+                          Recovery readings of their own are an older account's daily ones: a
+                          check-in today is a workout's, and its sleep stands on that row. Kept
+                          while chosen, so the select never shows a filter other than the one on. */}
                       {kinds.has("cycling") && <option value="cycling">Rides</option>}
                       {kinds.has("swimming") && <option value="swimming">Swims</option>}
-                      <option value="recovery">Recovery</option>
+                      {(kinds.has("recovery") || filters.kind === "recovery") && (
+                        <option value="recovery">Recovery</option>
+                      )}
                     </Select>
                   </Field>
                   <Field label="Gym">

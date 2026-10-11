@@ -11,7 +11,7 @@ import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoDate, formatIsoWeekdayDay, formatRunKm, formatTime } from "@/lib/format";
+import { formatIsoDate, formatRunKm, formatTime } from "@/lib/format";
 import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -44,16 +44,19 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   if (!civilDate.safeParse(date).success) notFound();
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  if (date > todayInTimeZone(profile.timeZone)) notFound();
+  const today = todayInTimeZone(profile.timeZone);
+  if (date > today) notFound();
   const range = parseDateRange({ from: date, to: date }, profile.timeZone);
 
   const { endurance, workouts } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
+      // Every sport on the day it was recorded on, as the calendar marks it: a lift too, not
+      // on the day its start falls on in the profile's zone today.
       const [days, lifted] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
-        readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true }),
+        readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true, onDays: true }),
       ]);
       return {
         endurance: days.items.filter((item) => item.sport !== "strength"),
@@ -130,7 +133,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
     }),
   ].sort((a, b) => a.at.getTime() - b.at.getTime());
 
-  const title = formatIsoWeekdayDay(date);
+  // The calendar reaches back two years: a day in another year is named with it.
+  const title = formatIsoDate(date, today.slice(0, 4));
   const parts = dayParts(entries.map((entry) => entry.piece));
 
   return (

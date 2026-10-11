@@ -6,6 +6,7 @@ import {
   bucketForSpan,
   chooseRange,
   customRange,
+  listWindowOf,
   presetRange,
   rangeOf,
   rangeSlots,
@@ -117,5 +118,18 @@ describe("what the reader asked for", () => {
       preset: null,
       bucket: "day",
     });
+  });
+
+  it("reads a list's hand-chosen dates as chosen, where a graph widens them to its bucket", () => {
+    // 270 days are drawn by month, so a graph starts on the 1st; a list starts on the 15th.
+    const months = { custom: { from: "2026-01-15", to: "2026-10-11" } };
+    expect(readWindowOf(months, TODAY).from).toBe("2026-01-01");
+    expect(listWindowOf(months, TODAY)).toEqual({ from: "2026-01-15", to: "2026-10-11" });
+    // A Thursday, drawn by week: the graph reads from the Monday, the list from the Thursday.
+    const weeks = { custom: { from: "2026-08-20", to: "2026-10-11" } };
+    expect(readWindowOf(weeks, TODAY).from).toBe("2026-08-17");
+    expect(listWindowOf(weeks, TODAY).from).toBe("2026-08-20");
+    // With no dates chosen, a list reads everything there is.
+    expect(listWindowOf({ preset: "all" }, TODAY)).toEqual({ from: "2000-01-01", to: TODAY });
   });
 });

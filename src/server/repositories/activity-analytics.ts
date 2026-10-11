@@ -233,6 +233,14 @@ export function decodeCursor(raw: string): { startedAt: Date; id: string } | nul
   return { startedAt, id: match[2]! };
 }
 
+type ActivityPageOptions = {
+  sports?: readonly ActivitySport[];
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string | null;
+};
+
 /**
  * One page of history, newest first, paged by a stable cursor.
  *
@@ -243,15 +251,30 @@ export function decodeCursor(raw: string): { startedAt: Date; id: string } | nul
 export async function listActivityPage(
   tx: DbOrTx,
   userId: string,
-  options: {
-    sports?: readonly ActivitySport[];
-    from?: string;
-    to?: string;
-    limit?: number;
-    cursor?: string | null;
-  } = {},
+  options: ActivityPageOptions = {},
 ): Promise<ActivityPage> {
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  return activityPage(tx, userId, options, Math.min(Math.max(options.limit ?? 50, 1), 100));
+}
+
+/**
+ * The same newest-first read for the app's own lists, without the API's hundred to a page:
+ * History reads rides and swims as deep as it reads workouts and runs (ADR 0044), so a
+ * hundredth ride does not end the list for every sport. `nextCursor` still says it stopped.
+ */
+export async function readActivityList(
+  tx: DbOrTx,
+  userId: string,
+  options: Omit<ActivityPageOptions, "limit" | "cursor"> & { limit: number },
+): Promise<ActivityPage> {
+  return activityPage(tx, userId, options, Math.max(options.limit, 1));
+}
+
+async function activityPage(
+  tx: DbOrTx,
+  userId: string,
+  options: ActivityPageOptions,
+  limit: number,
+): Promise<ActivityPage> {
   const where = [eq(activities.userId, userId), eq(activities.status, "completed")];
   if (options.sports && options.sports.length > 0)
     where.push(or(...options.sports.map((sport) => eq(activities.sport, sport)))!);
@@ -306,13 +329,18 @@ export async function listActivityPage(
   };
 }
 
-/** The most a calendar reads at once: a year of one activity a day, with room to spare. */
+/**
+ * The most a calendar reads at once: its two years of months at about two activities a day, a
+ * lift and a run most days, with room to spare.
+ */
 export const CALENDAR_LIMIT = 1500;
 
 /**
  * Every completed activity between two local dates, oldest first, for the calendar: what each
  * day holds (Progress's month, the calendar page, a day). Unpaged, because a month or a year is
  * read whole to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit.
+ * What it keeps is the newest: the calendar opens on this month, so the months it cannot hold
+ * are the earliest, and those are the ones it says are missing.
  */
 export async function readActivityDays(
   tx: DbOrTx,
@@ -351,14 +379,18 @@ export async function readActivityDays(
         lte(activities.occurredOn, range.to),
       ),
     )
-    .orderBy(asc(activities.startedAt), asc(activities.id))
+    // Newest first so the limit drops the oldest, then turned back to oldest first.
+    .orderBy(desc(activities.startedAt), desc(activities.id))
     .limit(CALENDAR_LIMIT + 1);
 
   return {
-    items: rows.slice(0, CALENDAR_LIMIT).map((row) => ({
-      ...row,
-      distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
-    })),
+    items: rows
+      .slice(0, CALENDAR_LIMIT)
+      .reverse()
+      .map((row) => ({
+        ...row,
+        distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+      })),
     truncated: rows.length > CALENDAR_LIMIT,
   };
 }

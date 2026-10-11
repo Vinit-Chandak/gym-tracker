@@ -36,7 +36,14 @@ export default async function CalendarPage() {
         firstDay && firstDay.slice(0, 7) > earliest ? firstDay.slice(0, 7) : earliest;
       const start = firstDay ? firstMonth : thisMonth;
       const read = await readActivityDays(tx, user.id, { from: `${start}-01`, to: today });
-      return { activities: read.items, truncated: read.truncated, first: start };
+      // More than one read holds keeps the newest: the months before the oldest one kept are
+      // left out rather than drawn as empty paper, and the note above them says so.
+      const kept = read.truncated ? read.items[0]?.occurredOn.slice(0, 7) : undefined;
+      return {
+        activities: read.items,
+        truncated: read.truncated,
+        first: kept && kept > start ? kept : start,
+      };
     },
     { readOnly: true },
   );

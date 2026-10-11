@@ -17,6 +17,8 @@ import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domai
 import { paceSecondsPerKm } from "@/domain/pace";
 import type { DateRange } from "@/server/validation/date-range";
 
+import { strengthOnDays, strengthParent } from "./strength-day";
+
 export const TRAINING_RECORD_LIMIT = 500;
 const inRange = (range: DateRange | null) =>
   range
@@ -39,6 +41,11 @@ export async function readWorkouts(
     completedOnly?: boolean;
     /** Require completion by this instant as well as starting within the range. */
     completedBy?: Date;
+    /**
+     * Read `range` as the calendar does: whole local days, each session on the day its parent
+     * froze, not the day its start falls on in the profile's zone today (`strengthOnDays`).
+     */
+    onDays?: boolean;
   } = {},
 ) {
   const matchingExercise = filter.exerciseId
@@ -66,10 +73,11 @@ export async function readWorkouts(
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(
       and(
         eq(workoutSessions.userId, userId),
-        inRange(range),
+        filter.onDays && range ? strengthOnDays(range) : inRange(range),
         filter.sessionId ? eq(workoutSessions.id, filter.sessionId) : undefined,
         matchingExercise,
         filter.completedOnly ? isNotNull(workoutSessions.completedAt) : undefined,

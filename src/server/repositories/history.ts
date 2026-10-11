@@ -1,10 +1,11 @@
-import { and, desc, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
-import { gyms, programDays, workoutSessions } from "@/db/schema";
+import { activities, gyms, programDays, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { DateRange } from "@/server/validation/date-range";
 
-import { listActivityPage } from "./activity-analytics";
+import { listActivityPage, readActivityList } from "./activity-analytics";
+import { strengthOnDays, strengthParent } from "./strength-day";
 import { readRecovery, readRunActivities, TRAINING_RECORD_LIMIT } from "./training-data";
 
 type HistoryExercise = {
@@ -14,7 +15,11 @@ type HistoryExercise = {
   machineName: string | null;
 };
 
-/** History needs labels and a set count, not every prescription and logged set. */
+/**
+ * History needs labels and a set count, not every prescription and logged set. Each workout is
+ * read on, and listed under, the day its parent froze (`strengthOnDays`), as the calendar marks
+ * it; `occurredOn` is null only for a session older than the parents.
+ */
 export async function readHistoryWorkouts(
   db: DbOrTx,
   userId: string,
@@ -25,6 +30,7 @@ export async function readHistoryWorkouts(
     .select({
       id: workoutSessions.id,
       startedAt: workoutSessions.startedAt,
+      occurredOn: activities.occurredOn,
       gymId: workoutSessions.gymId,
       gymName: gyms.name,
       dayName: programDays.name,
@@ -51,12 +57,12 @@ export async function readHistoryWorkouts(
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(
       and(
         eq(workoutSessions.userId, userId),
         isNotNull(workoutSessions.completedAt),
-        gte(workoutSessions.startedAt, range.start),
-        lt(workoutSessions.startedAt, range.end),
+        strengthOnDays(range),
       ),
     )
     .orderBy(desc(workoutSessions.startedAt), desc(workoutSessions.id))
@@ -64,20 +70,33 @@ export async function readHistoryWorkouts(
   return { workouts: rows.slice(0, limit), hasMore: rows.length > limit };
 }
 
+/**
+ * Everything History lists over a range: workouts, runs, rides and swims each read as deep as
+ * the others (ADR 0044), and the recovery readings. A reader that stopped short says so.
+ */
 export async function readHistory(db: DbOrTx, userId: string, range: DateRange) {
-  const [workouts, runs, recovery] = await Promise.all([
+  const [workouts, runs, endurance, recovery] = await Promise.all([
     readHistoryWorkouts(db, userId, range),
     readRunActivities(db, userId, range),
+    // From the same table as the runs, by a reader that does not hand back a run's pace or
+    // the gym a migrated run named: rides and swims need neither.
+    readActivityList(db, userId, {
+      sports: ["cycling", "swimming"],
+      from: range.from,
+      to: range.to,
+      limit: TRAINING_RECORD_LIMIT,
+    }),
     readRecovery(db, userId, range),
   ]);
   return {
     workouts: workouts.workouts,
     runs: runs.runs,
+    endurance: endurance.items,
     recovery,
-    truncated: workouts.hasMore || runs.hasMore,
     /** Which readers stopped short of the range: their oldest row is where the list is whole. */
     workoutsTruncated: workouts.hasMore,
     runsTruncated: runs.hasMore,
+    enduranceTruncated: endurance.nextCursor !== null,
   };
 }
 

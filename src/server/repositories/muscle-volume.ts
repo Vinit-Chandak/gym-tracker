@@ -1,11 +1,16 @@
-import { and, count, eq, gte, isNotNull, lt, ne } from "drizzle-orm";
+import { and, count, eq, isNotNull, ne } from "drizzle-orm";
 
-import { exercises, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import { activities, exercises, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { addExerciseVolume, emptyMuscleVolume } from "@/domain/muscle-volume";
 import type { DateRange } from "@/server/validation/date-range";
 
-/** The body map needs counts, not another download of every workout, slot and set. */
+import { strengthOnDays, strengthParent } from "./strength-day";
+
+/**
+ * The body map needs counts, not another download of every workout, slot and set. Its week holds
+ * the workouts the calendar marks on its days.
+ */
 export async function readMuscleVolume(db: DbOrTx, userId: string, range: DateRange) {
   const rows = await db
     .select({
@@ -16,6 +21,7 @@ export async function readMuscleVolume(db: DbOrTx, userId: string, range: DateRa
     .from(setLogs)
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .leftJoin(activities, strengthParent)
     .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
     .where(
       and(
@@ -23,8 +29,7 @@ export async function readMuscleVolume(db: DbOrTx, userId: string, range: DateRa
         eq(workoutExercises.userId, userId),
         eq(setLogs.userId, userId),
         isNotNull(workoutSessions.completedAt),
-        gte(workoutSessions.startedAt, range.start),
-        lt(workoutSessions.startedAt, range.end),
+        strengthOnDays(range),
         ne(setLogs.setType, "warmup"),
       ),
     )
