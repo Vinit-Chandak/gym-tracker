@@ -51,7 +51,7 @@ it("opens with the measurements blank", () => {
 it("works out the distance from the pool that was actually swum in", () => {
   swim({ distanceMethod: "lengths", poolLengthValue: "25", lengths: "16" });
   // One length is one trip down the pool: sixteen of them in a 25 m pool is 400 m.
-  expect(screen.getByRole("status").textContent).toContain("400 m");
+  expect(screen.getByRole("status").textContent).toContain("400\u00a0m");
 });
 
 it("says the same count in yards is a different distance", () => {
@@ -62,8 +62,8 @@ it("says the same count in yards is a different distance", () => {
     lengths: "16",
   });
   const status = screen.getByRole("status").textContent ?? "";
-  expect(status).toContain("400 yd");
-  expect(status).toContain("365.76 m");
+  expect(status).toContain("400\u00a0yd");
+  expect(status).toContain("365.76\u00a0m");
 });
 
 it("says a pool's distance once to a swimmer who swims in its unit, and in theirs otherwise", () => {
@@ -79,7 +79,7 @@ it("says a pool's distance once to a swimmer who swims in its unit, and in their
     />,
   );
   // A yard swimmer in a yard pool: "2,100 yd", not "2,100 yd · 1,920.24 m".
-  expect(screen.getByRole("status").textContent).toBe("2,100 yd");
+  expect(screen.getByRole("status").textContent).toBe("2,100\u00a0yd");
   cleanup();
   render(
     <SwimmingForm
@@ -90,7 +90,7 @@ it("says a pool's distance once to a swimmer who swims in its unit, and in their
       readIn="yd"
     />,
   );
-  expect(screen.getByRole("status").textContent).toBe("2,100 m · 2,296.59 yd");
+  expect(screen.getByRole("status").textContent).toBe("2,100\u00a0m · 2,296.59\u00a0yd");
 });
 
 it("offers no lengths at all in open water", () => {

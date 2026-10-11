@@ -57,11 +57,13 @@ it("gives a programme run's distance in the athlete's road unit, as Today does",
   const run = { distanceMinKm: 7.3, distanceMaxKm: 8.3, durationMinMinutes: 40 };
   const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
   expect(runSummary({ ...run, durationMaxMinutes: 50 }, DEFAULT_SPORT_UNITS)).toBe(
-    "7.3–8.3 km · 40–50 min",
+    "7.3–8.3\u00a0km · 40–50 min",
   );
   // The programme writes kilometres; a runner who reads miles is never shown them.
-  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles)).toBe("4.54–5.16 mi · 40–50 min");
+  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles)).toBe(
+    "4.54–5.16\u00a0mi · 40–50 min",
+  );
   expect(runSummary({ ...run, distanceMaxKm: null, durationMaxMinutes: 50 }, miles)).toBe(
-    "4.54 mi · 40–50 min",
+    "4.54\u00a0mi · 40–50 min",
   );
 });

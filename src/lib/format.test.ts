@@ -57,53 +57,53 @@ it("writes a run's distance as it was logged", () => {
 });
 
 it("writes the library's load jump as the step a reader in their unit can load", () => {
-  expect(formatLoadStep(2.5, "kg")).toBe("2.5 kg");
+  expect(formatLoadStep(2.5, "kg")).toBe("2.5\u00a0kg");
   // 2.5 kg is 5.51 lb, which no plate makes: the jump in pounds is the nearest one that is.
-  expect(formatLoadStep(2.5, "lb")).toBe("5 lb");
-  expect(formatLoadStep(1.25, "lb")).toBe("2.5 lb");
-  expect(formatLoadStep(5, "lb")).toBe("10 lb");
+  expect(formatLoadStep(2.5, "lb")).toBe("5\u00a0lb");
+  expect(formatLoadStep(1.25, "lb")).toBe("2.5\u00a0lb");
+  expect(formatLoadStep(5, "lb")).toBe("10\u00a0lb");
 });
 
 it("writes a period's total by what it counts, in the reader's unit", () => {
   expect(formatActivityMetric("workouts", 12, "kg")).toBe("12");
-  expect(formatActivityMetric("workout_time", 4320, "kg")).toBe("1 h 12 min");
+  expect(formatActivityMetric("workout_time", 4320, "kg")).toBe("1\u00a0h 12\u00a0min");
   // A volume is whole, as Progress totals it: never a tenth of a pound in five figures.
-  expect(formatActivityMetric("volume", 6240, "lb")).toBe("13,757 lb");
-  expect(formatActivityMetric("volume", 87137.06, "kg")).toBe("87,137 kg");
+  expect(formatActivityMetric("volume", 6240, "lb")).toBe("13,757\u00a0lb");
+  expect(formatActivityMetric("volume", 87137.06, "kg")).toBe("87,137\u00a0kg");
   expect(formatActivityMetric("records", 1234, "kg")).toBe("1,234");
   expect(formatActivityMetric("runs", 3, "kg")).toBe("3");
-  expect(formatActivityMetric("distance", 21450, "kg")).toBe("21.5 km");
-  expect(formatActivityMetric("time", 1870, "kg")).toBe("31 min");
-  expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25 /km");
+  expect(formatActivityMetric("distance", 21450, "kg")).toBe("21.5\u00a0km");
+  expect(formatActivityMetric("time", 1870, "kg")).toBe("31\u00a0min");
+  expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25\u00a0/km");
   // One run keeps its logged distance; a total rounds to a tenth.
-  expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25 km");
+  expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25\u00a0km");
   // Distances and paces in the reader's own unit for the sport.
-  expect(formatActivityMetric("distance", 21450, "kg", "mi")).toBe("13.3 mi");
-  expect(formatActivityMetric("best_pace", 325, "kg", "mi")).toBe("8:43 /mi");
-  expect(formatActivityMetric("longest_run", 8046.72, "kg", "mi")).toBe("5 mi");
-  expect(formatActivityMetric("distance", 12400, "kg", "m")).toBe("12,400 m");
-  expect(formatActivityMetric("distance", 1500, "kg", "yd")).toBe("1,640 yd");
+  expect(formatActivityMetric("distance", 21450, "kg", "mi")).toBe("13.3\u00a0mi");
+  expect(formatActivityMetric("best_pace", 325, "kg", "mi")).toBe("8:43\u00a0/mi");
+  expect(formatActivityMetric("longest_run", 8046.72, "kg", "mi")).toBe("5\u00a0mi");
+  expect(formatActivityMetric("distance", 12400, "kg", "m")).toBe("12,400\u00a0m");
+  expect(formatActivityMetric("distance", 1500, "kg", "yd")).toBe("1,640\u00a0yd");
 });
 
 it("writes a shared distance in the reader's unit, to the precision it is read at", () => {
-  expect(formatSharedDistance(5200, "km")).toBe("5.2 km");
-  expect(formatSharedDistance(3450, "km")).toBe("3.45 km");
-  expect(formatSharedDistance(1234567, "km", 1)).toBe("1,234.6 km");
-  expect(formatSharedDistance(5200, "mi")).toBe("3.23 mi");
-  expect(formatSharedDistance(1500, "m")).toBe("1,500 m");
-  expect(formatSharedDistance(457.2, "yd")).toBe("500 yd");
+  expect(formatSharedDistance(5200, "km")).toBe("5.2\u00a0km");
+  expect(formatSharedDistance(3450, "km")).toBe("3.45\u00a0km");
+  expect(formatSharedDistance(1234567, "km", 1)).toBe("1,234.6\u00a0km");
+  expect(formatSharedDistance(5200, "mi")).toBe("3.23\u00a0mi");
+  expect(formatSharedDistance(1500, "m")).toBe("1,500\u00a0m");
+  expect(formatSharedDistance(457.2, "yd")).toBe("500\u00a0yd");
 });
 
 it("rounds a time to the minute before splitting off the hours", () => {
   // 1:59:40 and 59:45 are a whole two hours and a whole hour, never "1 h 60 min" or "60 min".
-  expect(formatMinutes(7180 / 60)).toBe("2 h");
-  expect(formatMinutes(3585 / 60)).toBe("1 h");
-  expect(formatMinutes(59.5)).toBe("1 h");
-  expect(formatMinutes(119.6)).toBe("2 h");
-  expect(formatMinutes((13 * 3600 + 59 * 60 + 40) / 60)).toBe("14 h");
-  expect(formatMinutes(0.4)).toBe("0 min");
-  expect(formatMinutes(72.4)).toBe("1 h 12 min");
-  expect(formatMinutes(48)).toBe("48 min");
+  expect(formatMinutes(7180 / 60)).toBe("2\u00a0h");
+  expect(formatMinutes(3585 / 60)).toBe("1\u00a0h");
+  expect(formatMinutes(59.5)).toBe("1\u00a0h");
+  expect(formatMinutes(119.6)).toBe("2\u00a0h");
+  expect(formatMinutes((13 * 3600 + 59 * 60 + 40) / 60)).toBe("14\u00a0h");
+  expect(formatMinutes(0.4)).toBe("0\u00a0min");
+  expect(formatMinutes(72.4)).toBe("1\u00a0h 12\u00a0min");
+  expect(formatMinutes(48)).toBe("48\u00a0min");
 });
 
 it("writes an amount of a food in its own unit, plural where the unit is a word", () => {

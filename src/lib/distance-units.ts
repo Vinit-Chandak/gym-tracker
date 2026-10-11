@@ -103,7 +103,7 @@ const DISPLAY_DECIMALS: Record<LengthUnit, number> = { m: 0, km: 2, mi: 2, yd: 0
 /** "8.05 km" / "5 mi" / "400 m". Display rounding only; comparisons use the stored value. */
 export function formatDistance(metres: number, unit: LengthUnit, places?: number): string {
   const value = roundTo(fromMetres(metres, unit), places ?? DISPLAY_DECIMALS[unit]);
-  return `${value} ${UNIT_LABELS[unit]}`;
+  return `${value}\u00a0${UNIT_LABELS[unit]}`;
 }
 
 /** How one athlete reads one sport's distances: a road in km or mi, a pool in m or yd. */
@@ -151,5 +151,5 @@ export function formatSportDistance(
   units: SportUnits,
 ): string {
   const { figure, unit } = sportDistanceParts(metres, sport, units);
-  return `${figure} ${unit}`;
+  return `${figure}\u00a0${unit}`;
 }

@@ -99,5 +99,5 @@ export function decimal(value: number, places = 1): string {
 
 /** "1 run", "12 runs". */
 export function counted(count: number, one: string, many = `${one}s`): string {
-  return `${count.toLocaleString("en-GB")} ${count === 1 ? one : many}`;
+  return `${count.toLocaleString("en-GB")}\u00a0${count === 1 ? one : many}`;
 }

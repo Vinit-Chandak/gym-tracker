@@ -69,7 +69,7 @@ function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
 function readings(values: [string, number | null, string?][]) {
   return values
     .filter(([, value]) => value !== null)
-    .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
+    .map(([label, value, unit]) => `${label} ${value}${unit ? `\u00a0${unit}` : ""}`)
     .join(" · ");
 }
 
@@ -97,7 +97,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.
     href: `/workouts/${w.id}${originQuery("history")}` as const,
-    meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
+    meta: `${w.setCount}\u00a0${w.setCount === 1 ? "set" : "sets"}`,
     gymId: w.gymId,
     exercises: w.exercises.map((e) => ({
       id: e.exerciseId,

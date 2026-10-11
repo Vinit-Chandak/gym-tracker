@@ -243,7 +243,7 @@ it("names every exercise holding drafts, and none it cannot find", () => {
 it("says where a row stands only when that is news", () => {
   const { open } = show();
   const bench = screen.getByRole("button", { name: /Barbell bench press/ });
-  expect(bench.textContent).toContain("60 kg × 4, 60 kg × 4");
+  expect(bench.textContent).toContain("60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04");
   expect(bench.textContent).toContain("in progress, 2 of 4 sets done. Resume");
   expect(
     within(screen.getByRole("button", { name: /Barbell curl/ })).getByRole("img", { name: "Done" }),

@@ -73,22 +73,27 @@ function loadWords(set: SetLike, unitLabel: string | undefined, reading: LoadRea
   if ((reading === "bodyweight" && !set.weight) || (reading === "assisted" && set.weight === 0))
     return "Bodyweight";
   if (set.weight === null) return "—";
-  const load = `${set.weight}${unitLabel ? ` ${unitLabel}` : ""}`;
-  return reading === "assisted" ? `${load} assistance` : load;
+  const load = `${set.weight}${unitLabel ? `\u00a0${unitLabel}` : ""}`;
+  return reading === "assisted" ? `${load}\u00a0assistance` : load;
 }
 
 /**
  * "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label; with a unit, "80 kg × 10", and read
- * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6".
+ * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6". A set is one fact, its spaces
+ * unbreakable: a list of them wraps between sets, never inside one.
  */
 export function formatSet(set: SetLike, unitLabel?: string, reading: LoadReading = "load"): string {
   const weight = loadWords(set, unitLabel, reading);
-  const times = unitLabel ? " × " : "×";
+  const times = unitLabel ? "\u00a0×\u00a0" : "×";
   if (set.reps === null && set.distanceMeters !== null) {
-    return set.weight ? `${weight}${times}${set.distanceMeters} m` : `${set.distanceMeters} m`;
+    return set.weight
+      ? `${weight}${times}${set.distanceMeters}\u00a0m`
+      : `${set.distanceMeters}\u00a0m`;
   }
   if (set.durationSeconds !== null && set.reps === null) {
-    return set.weight ? `${weight}${times}${set.durationSeconds} s` : `${set.durationSeconds} s`;
+    return set.weight
+      ? `${weight}${times}${set.durationSeconds}\u00a0s`
+      : `${set.durationSeconds}\u00a0s`;
   }
   const reps = set.reps === null ? "—" : `${set.reps}`;
   return `${weight}${times}${reps}`;

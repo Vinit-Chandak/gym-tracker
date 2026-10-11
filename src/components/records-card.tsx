@@ -32,7 +32,7 @@ export function SessionRecordsCard({
       <ul>
         {records.map((record) => {
           const [figure, ...rest] = formatSharedMetric(record.metric, record.value, unit).split(
-            " ",
+            /\s/,
           );
           return (
             <li key={`${record.exerciseId}:${record.metric}`} className="figure-row">

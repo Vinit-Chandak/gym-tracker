@@ -129,7 +129,7 @@ export function ExerciseLife({
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
     { key: "sessions", figure: String(life.sessions), label: "Sessions" },
     ...bests.slice(0, 2).map((best) => {
-      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit).split(" ");
+      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit).split(/\s/);
       return {
         key: best.metric,
         figure: figure!,

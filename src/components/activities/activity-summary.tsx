@@ -114,7 +114,7 @@ type Stat = { label: string; figure: string; unit?: string };
 
 /** "5.2 km" as its figure and its unit. */
 function split(text: string): { figure: string; unit?: string } {
-  const at = text.indexOf(" ");
+  const at = text.search(/\s/);
   return at < 0 ? { figure: text } : { figure: text.slice(0, at), unit: text.slice(at + 1) };
 }
 
