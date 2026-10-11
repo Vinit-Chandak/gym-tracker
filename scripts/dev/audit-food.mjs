@@ -510,7 +510,7 @@ try {
     },
   );
   await check(
-    "History is a section of Progress, and the old paths land where they went",
+    "History is a page behind Progress, and the old paths land where they went",
     async () => {
       await navigate("/today/food/breakfast");
       expect(new URL(page.url()).pathname).toBe("/food/breakfast");
@@ -521,52 +521,25 @@ try {
         "/progress/history?kind=workout",
       );
       await expect(selectedTab()).toHaveText("Progress");
-      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
-      // The picker names the section; the filters beside it keep the kind from the old link.
-      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+      // History is a page under Progress, as the calendar is (ADR 0045): its own title, a way
+      // back to Progress, and the filters at the end of its bar keep the kind from the old link.
+      await expect(
+        page.getByRole("heading", { level: 1, name: "History", exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: /^Filters/ })).toContainText("1");
-      await page.getByRole("button", { name: "Progress section: History" }).click();
-      await dialog().getByRole("link", { name: "Strength", exact: true }).click();
-      await page.waitForURL("**/progress?kind=workout&view=strength");
-      await expect(page.getByRole("button", { name: "Progress section: Strength" })).toBeVisible();
-      // From the Progress page, History is loaded whole while the list is open, so choosing it
-      // sends no request of its own.
-      await tab("Today").click();
-      await page.waitForURL(/\/today$/);
-      await tab("Progress").click();
-      await page.waitForURL(/\/progress$/);
-      // The whole page arrives as one request without Next's prefetch header, after the one
-      // for its route that carries it.
-      const prefetched = page.waitForResponse((response) => {
-        const url = new URL(response.url());
-        return (
-          url.pathname === "/progress/history" &&
-          url.searchParams.has("_rsc") &&
-          !response.request().headers()["next-router-prefetch"]
-        );
-      });
-      await page.getByRole("button", { name: /^Progress section:/ }).click();
-      await prefetched;
-      const requests = [];
-      const record = (request) => {
-        if (new URL(request.url()).pathname === "/progress/history") requests.push(request.url());
-      };
-      page.on("request", record);
-      // Timed from the tap, once the sheet has risen: Playwright waits for moving targets.
-      await settle();
-      const started = Date.now();
-      await dialog().getByRole("link", { name: "History", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
-      const elapsed = Date.now() - started;
-      page.off("request", record);
-      expect(new URL(page.url()).pathname).toBe("/progress/history");
-      expect(requests).toEqual([]);
-      await expect(page.getByRole("status").filter({ hasText: /entr(y|ies)$/ })).toBeVisible();
-      console.log(`  History from Progress's picker: ${elapsed} ms, no request`);
-      // In Progress's place, as a section chosen in place is: Back leaves the tab.
+      await expect(page.getByRole("status").filter({ hasText: /entr(y|ies)/ })).toBeVisible();
+      const back = page.locator("a.back-link");
+      await expect(back).toHaveAccessibleName("Back to Progress");
       await settleRequests();
-      await page.goBack();
-      await page.waitForURL(/\/today$/);
+      await back.click();
+      await page.waitForURL(/\/progress$/);
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      // It is no longer one of Progress's sections: the picker lists the seven (ADR 0047).
+      await page.getByRole("button", { name: /^Progress section:/ }).click();
+      await expect(dialog().getByRole("button", { name: "Strength", exact: true })).toBeVisible();
+      await expect(dialog().getByText("History", { exact: true })).toHaveCount(0);
+      await dialog().getByRole("button", { name: "Close sheet" }).click();
+      await expect(dialog()).toHaveCount(0);
     },
   );
   await check(
@@ -764,7 +737,7 @@ try {
       await page.screenshot({ path: `${dir}/calendar-sheet-390-844-${scheme}.png` });
     }
     await dialog().getByRole("button", { name: "Close sheet" }).click();
-    // Progress's picker, with History among its sections.
+    // Progress's picker and its sections.
     await navigate("/progress");
     await page.getByRole("button", { name: /^Progress section:/ }).click();
     await settle();
