@@ -507,9 +507,14 @@ try {
         await context.setOffline(true);
         await page.goto("/progress/history", { waitUntil: "domcontentloaded" });
         await expect(page.getByText(/offline/i).first()).toBeVisible();
+        // The offline page stands in at the screen's own address and opens it again once the
+        // connection is back, so no reload is asked for here.
         await context.setOffline(false);
-        await page.reload({ waitUntil: "networkidle" });
-        await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+        // History is a page of its own behind Overview now (ADR 0045), not a Progress section.
+        await expect(
+          page.getByRole("heading", { level: 1, name: "History", exact: true }),
+        ).toBeVisible({ timeout: 15_000 });
+        expect(path()).toBe("/progress/history");
       }
     },
   );

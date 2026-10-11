@@ -861,9 +861,14 @@ try {
         await context.setOffline(true);
         await navigate("/food");
         await expect(page.getByRole("heading", { name: "You’re offline" })).toBeVisible();
-        await context.setOffline(false);
+        // The offline page stands in at the screen's own address: Try again asks for that screen
+        // again, and the connection coming back opens it by itself.
         await page.getByRole("link", { name: "Try again" }).click();
-        await expect(tab("Food")).toBeVisible();
+        await expect(page.getByRole("heading", { name: "You’re offline" })).toBeVisible();
+        expect(new URL(page.url()).pathname).toBe("/food");
+        await context.setOffline(false);
+        await expect(tab("Food")).toBeVisible({ timeout: 15_000 });
+        expect(new URL(page.url()).pathname).toBe("/food");
       } else await offlineNavigation();
     }
   });
