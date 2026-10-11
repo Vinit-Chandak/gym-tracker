@@ -61,7 +61,7 @@ export function Disclosure({
     >
       <summary
         className={cn(
-          "flex list-none flex-wrap items-center gap-2 font-medium",
+          "flex list-none items-center gap-2 font-medium",
           variant === "box" && "min-h-14 rounded-card px-4 py-3",
           variant === "inline" && "min-h-[var(--ov-target)] py-2 text-sm",
           variant === "footer" &&
@@ -72,12 +72,17 @@ export function Disclosure({
           className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
-        <span className="min-w-0 flex-auto [overflow-wrap:break-word]">{summary}</span>
-        {meta && (
-          <span className="ml-auto max-w-full text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
-            {meta}
-          </span>
-        )}
+        {/* The summary wraps between its words to keep the count on its line, and lets the
+            count go under it only when it would have less than a few words' room (large text).
+            The chevron stays beside them either way. */}
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <span className="min-w-0 flex-[1_1_8rem] [overflow-wrap:break-word]">{summary}</span>
+          {meta && (
+            <span className="ml-auto max-w-full text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
+              {meta}
+            </span>
+          )}
+        </span>
       </summary>
       <div
         className={cn(
