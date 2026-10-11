@@ -351,14 +351,36 @@ it("takes a swiped-away food out at once, and brings it back if that does not go
   expect(screen.getByRole("button", { name: /^Milk 300 ml/ })).toBeTruthy();
 });
 
-it("shows a meal starred while it is a saved meal, and unstars it in one tap", async () => {
+it("shows a meal starred while it is a saved meal, and asks before unstarring deletes it", async () => {
   editor();
   const star = screen.getByRole("button", { name: "Star" });
   expect(star.getAttribute("aria-pressed")).toBe("true");
   expect(screen.getByText("Saved as Usual breakfast")).toBeTruthy();
+
+  // Keeping it does nothing.
   fireEvent.click(star);
-  await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(USUAL.id));
-  expect(await screen.findByText("Usual breakfast unstarred.")).toBeTruthy();
+  expect(inSheet().getByRole("heading", { name: "Unstar this meal?" })).toBeTruthy();
+  expect(sheet().textContent).toContain("Usual breakfast is deleted from My foods.");
+  fireEvent.click(inSheet().getByRole("button", { name: "Keep" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(deleteSavedMealAction).not.toHaveBeenCalled();
+
+  fireEvent.click(star);
+  fireEvent.click(inSheet().getByRole("button", { name: "Unstar" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(deleteSavedMealAction).toHaveBeenCalledExactlyOnceWith(USUAL.id);
+  expect(screen.getByText("Usual breakfast unstarred.")).toBeTruthy();
+});
+
+it("keeps the unstar sheet open and says why when the saved meal was not deleted", async () => {
+  vi.mocked(deleteSavedMealAction).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  editor();
+  fireEvent.click(screen.getByRole("button", { name: "Star" }));
+  fireEvent.click(inSheet().getByRole("button", { name: "Unstar" }));
+  expect((await inSheet().findByRole("alert")).textContent).toBe(
+    "Usual breakfast was not unstarred. Check your connection and try again.",
+  );
+  expect(sheet().open).toBe(true);
 });
 
 it("stars a meal under the name it is given, saying when that replaces one", async () => {

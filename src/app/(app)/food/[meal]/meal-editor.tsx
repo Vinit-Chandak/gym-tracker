@@ -10,7 +10,7 @@ import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
-import { deleteEntryAction, deleteSavedMealAction } from "@/server/actions/nutrition";
+import { deleteEntryAction } from "@/server/actions/nutrition";
 import type {
   EntryRecord,
   FoodRecord,
@@ -20,7 +20,7 @@ import type {
 
 import { FoodSheet } from "@/components/food/food-sheet";
 import { PortionSheet, type FoodDayBowl } from "./portion-sheet";
-import { SavedMealSheet, SaveMealSheet } from "./saved-meal-sheets";
+import { SavedMealSheet, SaveMealSheet, UnstarMealSheet } from "./saved-meal-sheets";
 
 /** The sheet that is open, and what it was opened for. */
 type SheetView =
@@ -29,7 +29,8 @@ type SheetView =
   | { kind: "create"; name: string }
   | { kind: "quick"; name: string }
   | { kind: "saved"; saved: SavedMealRecord }
-  | { kind: "star" };
+  | { kind: "star" }
+  | { kind: "unstar"; saved: SavedMealRecord };
 
 /**
  * What a sheet keeps from the moment it opens: the day it logs to, that day's bowl and what the
@@ -133,20 +134,6 @@ export function MealEditor({
       });
     });
 
-  const unstar = (saved: SavedMealRecord) =>
-    startTransition(async () => {
-      setError(null);
-      const outcome = await attempted(
-        () => deleteSavedMealAction(saved.id),
-        `${saved.name} was not unstarred. Check your connection and try again.`,
-      );
-      startTransition(() => {
-        if (!outcome.ok) setError(outcome.message);
-        else if (!outcome.value.ok) setError(outcome.value.error ?? null);
-        else setSaid(`${saved.name} unstarred.`);
-      });
-    });
-
   const search = query.trim().toLowerCase();
   const matches = (name: string) => name.toLowerCase().includes(search);
   const foods = search ? screen.foods.filter((food) => matches(food.name)) : screen.foods;
@@ -181,7 +168,8 @@ export function MealEditor({
               type="button"
               aria-pressed={starred !== null}
               disabled={pending}
-              onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
+              // A lit star deletes its saved meal, so it asks first.
+              onClick={() => open(starred ? { kind: "unstar", saved: starred } : { kind: "star" })}
               className="star-button"
             >
               <Glyph
@@ -383,6 +371,15 @@ export function MealEditor({
           place={place}
           foods={held.entries}
           savedNames={screen.savedMeals.map((saved) => saved.name)}
+          onDone={done}
+        />
+      )}
+      {view?.kind === "unstar" && (
+        <UnstarMealSheet
+          key={sheet.key}
+          open={sheet.open}
+          onClose={close}
+          saved={view.saved}
           onDone={done}
         />
       )}
