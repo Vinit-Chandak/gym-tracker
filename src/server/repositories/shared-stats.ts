@@ -1047,13 +1047,24 @@ export type ActivityRow = {
   records: number;
 };
 
-/** The last shared sessions of the given people, newest first: the quiet list (plan §3.4). */
+/**
+ * The last shared sessions of the given people, newest first: the quiet list (plan §3.4).
+ *
+ * Newest by the day each row says, then by the time it started. A session keeps its owner's
+ * date, so by start time alone a New Yorker's late Thursday came after an Indian friend's early
+ * Friday, and the list read Fri, Thu, Fri. A day after the reader's `today` is said as today
+ * (the row reads it so), so it is sorted as today too.
+ */
 export async function readActivity(
   tx: DbOrTx,
   userIds: readonly string[],
-  limit = 20,
+  { today, limit = 20 }: { today?: string; limit?: number } = {},
 ): Promise<ActivityRow[]> {
   if (userIds.length === 0) return [];
+  const day =
+    today === undefined
+      ? sharedSessionStats.occurredOn
+      : sql`least(${sharedSessionStats.occurredOn}, ${today}::date)`;
   const rows = await tx
     .select({
       id: sharedSessionStats.id,
@@ -1076,7 +1087,7 @@ export async function readActivity(
     .from(sharedSessionStats)
     .innerJoin(profileDirectory, eq(profileDirectory.id, sharedSessionStats.userId))
     .where(inArray(sharedSessionStats.userId, [...userIds]))
-    .orderBy(desc(sharedSessionStats.startedAt), desc(sharedSessionStats.id))
+    .orderBy(desc(day), desc(sharedSessionStats.startedAt), desc(sharedSessionStats.id))
     .limit(limit);
   return rows;
 }

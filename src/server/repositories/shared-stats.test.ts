@@ -933,3 +933,55 @@ describe("what is shared of a session, and a rebuild of it", () => {
     expect(await day()).toBe("2026-09-13");
   });
 });
+
+describe("recent activity", () => {
+  it("lists by the day each row says, then by time, a day ahead of the reader as today", async () => {
+    // Two friends half a world apart, as the reader (Kolkata) follows them: a New Yorker's late
+    // Thursday starts after a Kolkata friend's early Friday, and by start time alone came between
+    // the two Fridays.
+    const ny = await account("ny@example.com", "ny");
+    const ist = await account("ist@example.com", "ist");
+    const reader = await account("reader@example.com", "reader");
+    for (const friend of [ny, ist]) {
+      await t.client.query("update profiles set follow_approval = false where id = $1", [friend]);
+      await as(reader)((tx) => requestFollow(tx, reader, friend));
+    }
+    const shared = (userId: string, title: string, occurredOn: string, startedAt: string) =>
+      t.db.insert(sharedSessionStats).values({
+        userId,
+        sport: "workout",
+        sourceId: crypto.randomUUID(),
+        title,
+        occurredOn,
+        startedAt: new Date(startedAt),
+        durationSeconds: 3600,
+      });
+    await shared(ny, "NY Thursday, late", "2026-09-24", "2026-09-25T03:35:00Z");
+    await shared(ny, "NY Friday", "2026-09-25", "2026-09-25T22:40:00Z");
+    await shared(ist, "IST Friday, early", "2026-09-25", "2026-09-25T00:57:00Z");
+    // Already the 12th where it was trained, the reader's 11th: it reads, and sorts, as today.
+    await shared(ist, "Ahead of the reader", "2026-10-12", "2026-10-11T19:00:00Z");
+    await shared(ny, "Today", "2026-10-11", "2026-10-11T21:00:00Z");
+
+    const titles = async (today?: string) =>
+      (await as(reader)((tx) => readActivity(tx, [ny, ist], { today }))).map((row) => row.title);
+    expect(await titles("2026-10-11")).toEqual([
+      "Today",
+      "Ahead of the reader",
+      "NY Friday",
+      "IST Friday, early",
+      "NY Thursday, late",
+    ]);
+    // Without a reader's today, by the owner's day as it stands.
+    expect(await titles()).toEqual([
+      "Ahead of the reader",
+      "Today",
+      "NY Friday",
+      "IST Friday, early",
+      "NY Thursday, late",
+    ]);
+    expect(
+      await as(reader)((tx) => readActivity(tx, [ny, ist], { today: "2026-10-11", limit: 2 })),
+    ).toHaveLength(2);
+  });
+});
