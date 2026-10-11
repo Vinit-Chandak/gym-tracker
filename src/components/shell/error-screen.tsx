@@ -1,10 +1,45 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
+
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { cn } from "@/lib/utils";
+
+import { useOnline } from "./connectivity";
+
+/** What an `error.tsx` shows: the screen below, with Try again fetching the page afresh. */
+export function RouteError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  const router = useRouter(),
+    online = useOnline();
+  // The promise about drafts is only true where there are drafts: they belong to a set
+  // being logged, and on Runs or Profile there is nothing of the sort to reassure anyone about.
+  const inWorkout = usePathname().startsWith("/workouts/");
+  const [pending, startTransition] = useTransition();
+  return (
+    <ErrorScreen
+      online={online}
+      inWorkout={inWorkout}
+      digest={error.digest}
+      pending={pending}
+      onRetry={() =>
+        startTransition(() => {
+          router.refresh();
+          reset();
+        })
+      }
+    />
+  );
+}
 
 /**
  * The one error a screen can meet (board Offline): what happened and what is kept, then Try

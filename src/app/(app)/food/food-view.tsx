@@ -16,8 +16,6 @@ import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
-import { FoodDayRollover } from "./day-rollover";
-
 /** Where the screen's links lead: the app's own pages, or in the preview the previews of them. */
 export type FoodLinks = {
   /** The Food screen itself, which a day before today opens on with its date (ADR 0037). */
@@ -28,7 +26,6 @@ export type FoodLinks = {
 };
 
 export type FoodViewProps = {
-  timeZone?: string;
   today: string;
   /** The day on screen: today, or any day before it (ADR 0037). */
   date?: string;
@@ -161,7 +158,6 @@ function FoodTile({
  * does.
  */
 export function FoodView({
-  timeZone,
   today,
   date = today,
   day,
@@ -189,7 +185,6 @@ export function FoodView({
 
   return (
     <>
-      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
       <PageHeader
         title="Food"
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}

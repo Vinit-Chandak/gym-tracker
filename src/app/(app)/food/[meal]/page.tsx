@@ -43,7 +43,6 @@ export default async function MealPage(props: PageProps<"/food/[meal]">) {
   );
   return (
     <MealView
-      timeZone={profile.timeZone}
       today={today}
       date={date}
       meal={meal}

@@ -6,7 +6,6 @@ import { formatIsoWeekdayDay } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import type { MealScreen } from "@/server/repositories/nutrition";
 
-import { FoodDayRollover } from "../day-rollover";
 import { MealEditor } from "./meal-editor";
 import type { FoodDayBowl } from "./portion-sheet";
 
@@ -16,7 +15,6 @@ import type { FoodDayBowl } from "./portion-sheet";
  * shows it; a day before today (ADR 0037) is written under it.
  */
 export function MealView({
-  timeZone,
   today,
   date = today,
   meal,
@@ -24,7 +22,6 @@ export function MealView({
   day,
   backHref = "/food",
 }: {
-  timeZone?: string;
   today: string;
   /** The day the meal is on, and what is added to it is logged on. */
   date?: string;
@@ -37,7 +34,6 @@ export function MealView({
 }) {
   return (
     <>
-      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
       <PageHeader
         title={MEAL_LABELS[meal]}
         meta={formatIsoWeekdayDay(date)}
