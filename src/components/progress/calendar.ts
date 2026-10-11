@@ -1,6 +1,10 @@
 import type { CalendarEntry } from "@/components/art/art";
 import type { PrintPart, Sport, StrengthColumn } from "@/components/art/geometry";
 import type { ActivitySport } from "@/domain/activity";
+import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
+
+/** The units an athlete reads each sport's distances in; kilometres and metres where unset. */
+export type DistanceUnits = Partial<Record<ActivitySport, SportUnits>>;
 
 /** What the calendar needs of an activity: its sport, its day and what it measured. */
 export type DayActivity = {
@@ -23,12 +27,19 @@ export const ART_SPORT: Record<ActivitySport, Sport> = {
 
 const km = (metres: number) => `${Math.round(metres / 100) / 10} km`;
 
+/** A distance in the athlete's unit for the sport, when one is known. */
+function distanceOf(metres: number, sport: ActivitySport, units?: DistanceUnits): string {
+  const own = units?.[sport];
+  if (own) return formatSportDistance(metres, sport, own);
+  return sport === "swimming" ? `${Math.round(metres).toLocaleString("en-GB")} m` : km(metres);
+}
+
 /**
  * An activity as a calendar's day is read out (DESIGN.md, The month: "every past day is a link
  * named with what it holds"): "lifting 42 min", "run 3 km indoors", "ride 25 km",
  * "swim 1,500 m".
  */
-export function saidOf(activity: DayActivity): string {
+export function saidOf(activity: DayActivity, units?: DistanceUnits): string {
   const minutes = activity.durationMs === null ? null : Math.round(activity.durationMs / 60_000);
   const indoors =
     activity.environment === "treadmill" || activity.environment === "indoor" ? " indoors" : "";
@@ -36,20 +47,18 @@ export function saidOf(activity: DayActivity): string {
     case "strength":
       return `lifting${minutes ? ` ${minutes} min` : ""}`;
     case "running":
-      return `run${activity.distanceMetres ? ` ${km(activity.distanceMetres)}` : ""}${indoors}`;
+      return `run${activity.distanceMetres ? ` ${distanceOf(activity.distanceMetres, "running", units)}` : ""}${indoors}`;
     case "cycling":
       return `ride${
         activity.distanceMetres
-          ? ` ${km(activity.distanceMetres)}`
+          ? ` ${distanceOf(activity.distanceMetres, "cycling", units)}`
           : minutes
             ? ` ${minutes} min`
             : ""
       }${indoors}`;
     case "swimming":
       return `swim${
-        activity.distanceMetres
-          ? ` ${Math.round(activity.distanceMetres).toLocaleString("en-GB")} m`
-          : ""
+        activity.distanceMetres ? ` ${distanceOf(activity.distanceMetres, "swimming", units)}` : ""
       }`;
   }
 }
@@ -58,12 +67,13 @@ export function saidOf(activity: DayActivity): string {
 export function monthDays(
   activities: readonly DayActivity[],
   month: string,
+  units?: DistanceUnits,
 ): Record<number, CalendarEntry[]> {
   const days: Record<number, CalendarEntry[]> = {};
   for (const activity of activities) {
     if (activity.occurredOn.slice(0, 7) !== month) continue;
     const day = Number(activity.occurredOn.slice(8, 10));
-    (days[day] ??= []).push({ sport: ART_SPORT[activity.sport], said: saidOf(activity) });
+    (days[day] ??= []).push({ sport: ART_SPORT[activity.sport], said: saidOf(activity, units) });
   }
   return days;
 }
@@ -120,9 +130,14 @@ export function tallyName(sport: ActivitySport, count: number): string {
   }
 }
 
-/** "30.8 km": a month's distance, to a tenth. */
-export function tallyDistance(metres: number): string {
-  return km(metres);
+/** "30.8 km": a month's distance, to a tenth, or in the athlete's unit for the sport. */
+export function tallyDistance(
+  metres: number,
+  sport?: ActivitySport,
+  units?: DistanceUnits,
+): string {
+  const own = sport ? units?.[sport] : undefined;
+  return own && sport ? formatSportDistance(metres, sport, own) : km(metres);
 }
 
 /** The months from `first` to `last`, as "2026-08", oldest first. */

@@ -103,3 +103,24 @@ describe("a day's print", () => {
     ]);
   });
 });
+
+it("says a month's distances in the athlete's units where they are known", () => {
+  const units = {
+    running: { distanceUnit: "mi", poolUnit: "yd" },
+    swimming: { distanceUnit: "mi", poolUnit: "yd" },
+  } as const;
+  expect(tallyDistance(8046.72, "running", units)).toBe("5 mi");
+  expect(tallyDistance(8046.72)).toBe("8 km");
+  expect(
+    saidOf(
+      {
+        sport: "swimming",
+        occurredOn: "2026-09-25",
+        durationMs: null,
+        distanceMetres: 914.4,
+        environment: "pool",
+      },
+      units,
+    ),
+  ).toBe("swim 1000 yd");
+});

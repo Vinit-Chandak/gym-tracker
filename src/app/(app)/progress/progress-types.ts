@@ -1,5 +1,5 @@
 import type { ExerciseGraphData } from "@/components/graph/exercise-graph";
-import type { DayActivity } from "@/components/progress/calendar";
+import type { DayActivity, DistanceUnits } from "@/components/progress/calendar";
 import type { GraphRange, RangePreset } from "@/domain/graph-range";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type {
@@ -23,7 +23,13 @@ export type ProgressData = {
   /** The span every graph is drawn over; null while dates chosen by hand hold. */
   preset: RangePreset | null;
   /** This month so far, for Overview's calendar: every activity of every day. */
-  month: { month: string; today: number; activities: readonly DayActivity[] };
+  month: {
+    month: string;
+    today: number;
+    activities: readonly DayActivity[];
+    /** The units the athlete reads each sport's distances in. */
+    units?: DistanceUnits;
+  };
   /**
    * History's latest activities of every sport, newest first: the calendar read back from today,
    * past the month's first day when it holds fewer (ADR 0045).

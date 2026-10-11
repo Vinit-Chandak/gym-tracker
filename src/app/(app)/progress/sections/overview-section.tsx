@@ -9,6 +9,7 @@ import {
   tally,
   tallyDistance,
   tallyName,
+  type DistanceUnits,
   type SportTally,
 } from "@/components/progress/calendar";
 import Link from "@/components/ui/app-link";
@@ -22,9 +23,9 @@ import type { ProgressData } from "../progress-types";
  * What a month's sport added up to, under its name: how far, then how long. Each figure keeps
  * its unit, so a narrow column breaks "18 h 26 min" between the hours and the minutes.
  */
-function measures(entry: SportTally): string[] {
+function measures(entry: SportTally, units?: DistanceUnits): string[] {
   return [
-    entry.metres === null ? null : tallyDistance(entry.metres),
+    entry.metres === null ? null : tallyDistance(entry.metres, entry.sport, units),
     entry.ms === null ? null : formatMinutes(entry.ms / 60_000),
   ]
     .filter((line) => line !== null)
@@ -44,7 +45,7 @@ export function OverviewSection({
 }: Pick<ProgressData, "month" | "overview" | "today">) {
   const year = month.month.slice(0, 4);
   const name = formatIsoMonth(month.month, year);
-  const days = monthDays(month.activities, month.month);
+  const days = monthDays(month.activities, month.month, month.units);
   const links = Object.fromEntries(
     Array.from({ length: month.today }, (_, i) => [
       i + 1,
@@ -94,7 +95,7 @@ export function OverviewSection({
                     </span>
                     <span className="month-total-name">
                       {tallyName(entry.sport, entry.count)}
-                      {measures(entry).map((line) => (
+                      {measures(entry, month.units).map((line) => (
                         <span key={line} className="block">
                           {line}
                         </span>

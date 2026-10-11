@@ -9,6 +9,7 @@ import {
   monthDays,
   tally,
   tallyName,
+  type DistanceUnits,
   type DayActivity,
 } from "@/components/progress/calendar";
 import { PageHeader } from "@/components/shell/page-header";
@@ -24,12 +25,15 @@ export function CalendarView({
   today,
   activities,
   truncated,
+  units,
 }: {
   /** "2026-08", oldest first, this month last. */
   months: readonly string[];
   today: string;
   activities: readonly DayActivity[];
   truncated: boolean;
+  /** The units each sport's distances are said in, in each day's spoken name. */
+  units?: DistanceUnits;
 }) {
   const thisMonth = today.slice(0, 7);
   const thisYear = today.slice(0, 4);
@@ -94,7 +98,7 @@ export function CalendarView({
               <Art
                 kind="month"
                 month={month}
-                days={monthDays(activities, month)}
+                days={monthDays(activities, month, units)}
                 today={current ? day : null}
                 dates
                 cellHeight={58}

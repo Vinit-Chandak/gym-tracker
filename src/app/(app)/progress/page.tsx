@@ -170,6 +170,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             month: {
               month,
               today: Number(today.slice(8, 10)),
+              units: data.units,
               activities: data.days.items.map((item) => ({
                 sport: item.sport,
                 occurredOn: item.occurredOn,
