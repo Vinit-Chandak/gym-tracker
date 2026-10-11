@@ -1083,26 +1083,35 @@ export async function readRecords(
     )
     .orderBy(asc(sharedExerciseStats.startedAt));
   const best = new Map<string, PeriodRecord>();
-  for (const row of rows) {
-    const metric = primaryMetric(row.exercise);
+  const keep = (row: (typeof rows)[number], metric: SharedMetric) => {
     const value = metricValue(row, metric);
-    if (value === null) continue;
+    if (value === null) return;
     const current = best.get(row.exercise.id);
-    if (!current || value > current.value) {
+    // A lift's estimate outranks its top weight: the weight stands in only where the span has
+    // no set an estimate can be made from.
+    const outranks = current?.metric === "top_weight" && metric === "e1rm";
+    if (!current || outranks || (current.metric === metric && value > current.value))
       best.set(row.exercise.id, {
         exercise: row.exercise,
         metric,
         value,
         occurredOn: row.occurredOn,
       });
-    }
+  };
+  for (const row of rows) {
+    const metric = primaryMetric(row.exercise);
+    keep(row, metric);
+    // Lifted only for more than ten reps in the span (35 kg × 12), a lift has no estimated 1RM;
+    // its heaviest is still its best of the span, so it is listed by its top weight.
+    if (metric === "e1rm") keep(row, "top_weight");
   }
   const all = [...best.values()];
   const byValue = (a: PeriodRecord, b: PeriodRecord) =>
     b.value - a.value || a.exercise.name.localeCompare(b.exercise.name);
-  const lifts = all.filter((r) => r.metric === "e1rm").sort(byValue);
+  const isLift = (r: PeriodRecord) => primaryMetric(r.exercise) === "e1rm";
+  const lifts = all.filter(isLift).sort(byValue);
   const others = all
-    .filter((r) => r.metric !== "e1rm")
+    .filter((r) => !isLift(r))
     .sort((a, b) => a.metric.localeCompare(b.metric) || byValue(a, b));
   return [...lifts.slice(0, PROFILE_RECORDS_LIMIT), ...others.slice(0, PROFILE_RECORDS_LIMIT)];
 }

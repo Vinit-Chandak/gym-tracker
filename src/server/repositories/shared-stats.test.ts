@@ -1077,3 +1077,34 @@ describe("the sports someone has shared", () => {
     expect(await sports(follower, [])).toEqual([]);
   });
 });
+
+describe("a span's best lifts", () => {
+  it("lists a lift done only for more than ten reps by its top weight, not leaving it out", async () => {
+    const lifter = await account("lifter@example.com", "lifter");
+    await as(lifter)((tx) => seedTestUserData(tx, { id: lifter, email: "lifter@example.com" }));
+    const home = (await as(lifter)((tx) => listGyms(tx, lifter))).find(
+      (g) => g.slug === "home",
+    )!.id;
+    // 35 × 12 and 30 × 15: no set an estimated 1RM is made from, and still the span's best.
+    await train(
+      [
+        {
+          exercise: bench,
+          sets: [
+            { weight: 35, reps: 12 },
+            { weight: 30, reps: 15 },
+          ],
+        },
+      ],
+      lifter,
+      home,
+    );
+    const best = () => as(lifter)((tx) => readRecords(tx, lifter, ALL));
+    expect((await best()).map((r) => [r.exercise.name, r.metric, r.value])).toEqual([
+      ["Barbell bench press", "top_weight", 35],
+    ]);
+    // Once the span holds a set of ten or fewer, the estimate is the lift's best again.
+    await train([{ exercise: bench, sets: [{ weight: 30, reps: 10 }] }], lifter, home);
+    expect((await best()).map((r) => [r.metric, r.value])).toEqual([["e1rm", 40]]);
+  });
+});

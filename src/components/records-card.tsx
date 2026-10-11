@@ -109,8 +109,9 @@ export function ExerciseBestsTiles({
 
 /**
  * A person's best lifts in a span (plan §3.13, as built: the span's bests, which the page heads
- * "Best lifts" since a best is not always a record): the best lifts by estimated 1RM, then the
- * other movements by what they are measured in. The same list on your own page as on a
+ * "Best lifts" since a best is not always a record): the best lifts by estimated 1RM, or by top
+ * weight where the span has no set of ten reps or fewer, then the other movements by what they
+ * are measured in. The same list on your own page as on a
  * friend's, in the reader's unit, each day as the exercise page dates it: "Tue 15 Sept", with
  * its year only outside `currentYear`.
  */

@@ -217,7 +217,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               // "Records", a best below an older one read as a record Compare said was not set.
               <Section
                 title="Best lifts"
-                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts, most reps, longest hold or longest carry for the rest. A best in the span is a record only if it beat every earlier session; Records set on Compare counts those. Machine exercises are not listed, since a machine's numbers are its own."
+                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts (from sets of 1–10 reps; a lift done only for more reps is listed by its top weight), most reps, longest hold or longest carry for the rest. A best in the span is a record only if it beat every earlier session; Records set on Compare counts those. Machine exercises are not listed, since a machine's numbers are its own."
               >
                 <Card>
                   {training.records.length > 0 ? (
