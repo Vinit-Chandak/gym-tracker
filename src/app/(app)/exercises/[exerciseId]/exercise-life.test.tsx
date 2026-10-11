@@ -67,8 +67,9 @@ it("shows an assisted machine's least help as its best, and leads each session w
   render(<ExerciseLife {...props(true)} />);
   const stat = screen.getByText("Least assistance").closest("div")!;
   expect(stat.textContent).toBe("Least assistance15 kg");
-  // The session's lightest help, and of it the most reps, not the 20 kg it started with.
-  expect(screen.getByText("15 kg × 8")).toBeTruthy();
+  // The session's lightest help, and of it the most reps, not the 20 kg it started with; read
+  // as the help it is, as the workout reads it.
+  expect(screen.getByText("15 kg assistance × 8")).toBeTruthy();
   expect(screen.queryByText("Top weight")).toBeNull();
 });
 
@@ -138,4 +139,27 @@ it("names the year of a session in another year, and not of one this year", () =
   expect(screen.getByText("Thu 10 Sept")).toBeTruthy();
   // 13 October is a Tuesday this year: last year's Monday says which year it was.
   expect(screen.getByText("Mon 13 Oct 2025")).toBeTruthy();
+});
+
+it("says a bodyweight set as the body, not as nothing lifted", () => {
+  render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{
+        ...assistedPullUp,
+        name: "Dips",
+        modality: "bodyweight",
+        loadPortability: "global",
+      }}
+      machineName={null}
+      performances={[
+        performance("dips", "2026-09-10T08:00:00Z", [
+          [0, 14],
+          [0, 12],
+        ]),
+      ]}
+    />,
+  );
+  expect(screen.getByText("Bodyweight × 14")).toBeTruthy();
+  expect(screen.queryByText(/0 kg/)).toBeNull();
 });

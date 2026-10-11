@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
-import { formatSet, formatSets } from "@/domain/sets";
+import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -58,7 +58,7 @@ export type LatestPerformance = {
  * heaviest, and of the heaviest the most reps; on an assisted machine, where the number is help
  * given, the least help.
  */
-function topSet(sets: readonly Set[], assisted: boolean): string | null {
+function topSet(sets: readonly Set[], assisted: boolean, reading: LoadReading): string | null {
   const working = sets.filter(
     (set) => set.setType !== "warmup" && set.weight !== null && (!assisted || set.weight > 0),
   );
@@ -69,7 +69,7 @@ function topSet(sets: readonly Set[], assisted: boolean): string | null {
       ? set
       : best,
   );
-  return formatSet(top, LOAD_UNIT_LABELS[top.unit]);
+  return formatSet(top, LOAD_UNIT_LABELS[top.unit], reading);
 }
 
 /** Two names for one thing, as a reader would take them: "Smith machine" and "smith machine". */
@@ -156,10 +156,12 @@ export function ExerciseLife({
   // What the figures and Latest are read on, said over them: the machine is chosen far above.
   const on = global ? null : (machineName ?? "an unrecorded machine");
 
+  // A bodyweight movement's sets say the body ("Bodyweight × 12"), an assisted one's the help.
+  const reading = loadReadingOf(exercise, life.assisted);
   const rows = (list: readonly LatestPerformance[], named: boolean) => (
     <ul>
       {list.map((performance, index) => {
-        const best = topSet(performance.sets, life.assisted);
+        const best = topSet(performance.sets, life.assisted, reading);
         return (
           <li key={performance.id}>
             <Link
@@ -179,7 +181,7 @@ export function ExerciseLife({
                 {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
               </span>
               <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
-                {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit])}
+                {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
               </span>
             </Link>
           </li>
