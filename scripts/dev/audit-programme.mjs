@@ -368,7 +368,43 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(false);
-      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      // A note typed while the switch is saving survives the switch's answer, which draws the
+      // page again. The answer is held open until the note is typed, as a slow connection would.
+      let releaseSwitch, switchHeld;
+      const answerHeld = new Promise((resolve) => (switchHeld = resolve));
+      const released = new Promise((resolve) => (releaseSwitch = resolve));
+      const switchSave = (url) => new URL(url).pathname === "/profile/ai-coach";
+      let holdError;
+      await page.route(switchSave, async (route) => {
+        if (route.request().method() !== "POST") return route.continue();
+        try {
+          const response = await route.fetch();
+          switchHeld();
+          await released;
+          await route.fulfill({ response });
+        } catch (error) {
+          holdError = error;
+        }
+      });
+      const note =
+        "Travelling next week: keep three shorter strength sessions and review my programme.";
+      try {
+        await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+        await Promise.race([
+          answerHeld,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("The switch sent no save to hold")), 15_000),
+          ),
+        ]);
+        await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeDisabled();
+        await field(page, "Notes for the coach").fill(note);
+      } finally {
+        releaseSwitch();
+        // The held answer is given before the route goes: stopping interception first would let
+        // the browser's request go on unanswered by it.
+        await page.unrouteAll({ behavior: "wait" });
+      }
+      if (holdError) throw holdError;
       await expect
         .poll(
           async () =>
@@ -376,14 +412,9 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(true);
-      // The row is saved before the switch's answer is drawn: the switch stays busy until the
-      // page has been drawn again, and that redraw starts the note's form afresh. Type once it
-      // is free, as the screen says to.
       await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
       await settle();
-      const note =
-        "Travelling next week: keep three shorter strength sessions and review my programme.";
-      await field(page, "Notes for the coach").fill(note);
+      await expect(field(page, "Notes for the coach")).toHaveValue(note);
       await button(page, "Send note").click();
       await expect
         .poll(async () =>
