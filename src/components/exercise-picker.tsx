@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from "react";
 
 import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
 import { exerciseSections, type LikeExercise } from "@/lib/exercise-search";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { holdEnter } from "@/lib/search-keys";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
@@ -131,7 +132,10 @@ export function ExercisePicker(props: ExercisePickerProps) {
             <h2 id={`${id}-${group.key}`} className="caption-head mt-3.5">
               {group.title}
               {long && group.key !== "name" && (
-                <span className="tabular-nums"> · {group.items.length}</span>
+                <span className="tabular-nums">
+                  {FACT_SEPARATOR}
+                  {group.items.length}
+                </span>
               )}
             </h2>
             <ul>

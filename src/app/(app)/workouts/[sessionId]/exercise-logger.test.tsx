@@ -1143,7 +1143,7 @@ it("says the coach's numbers under the name when the coach planned the session",
   // Off the Log tab, the line under the name gives the whole prescription.
   fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
   expect(document.querySelector(".session-meta")?.textContent).toContain(
-    "60\u00a0kg · 3 × 5 @\u00a02\u00a0RIR",
+    "60\u00a0kg ·\u00a03 × 5 @\u00a02\u00a0RIR",
   );
 });
 

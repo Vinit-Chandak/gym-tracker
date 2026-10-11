@@ -15,7 +15,7 @@ import {
   UNIT_LABELS,
   type LengthUnit,
 } from "./distance-units";
-import { joinFacts } from "./facts";
+import { FACT_SEPARATOR, joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms, loadStepIn } from "./units";
 
@@ -403,7 +403,11 @@ export function formatPortion(amount: number, unit: FoodUnit): string {
   return `${formatAmount(amount)} ${plural ?? FOOD_UNIT_LABELS[unit]}`;
 }
 
-/** "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known. */
+/**
+ * "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known: each
+ * figure held to its unit and each dot to the macro after it, so a wrapped line breaks before a
+ * dot.
+ */
 export function formatMacros(amounts: {
   carbsG: number | null;
   fatG: number | null;
@@ -416,6 +420,8 @@ export function formatMacros(amounts: {
       ["Protein", amounts.proteinG],
     ] as const
   )
-    .flatMap(([label, grams]) => (grams === null ? [] : [`${label} ${formatFoodAmount(grams)} g`]))
-    .join(" · ");
+    .flatMap(([label, grams]) =>
+      grams === null ? [] : [`${label} ${formatFoodAmount(grams)}\u00a0g`],
+    )
+    .join(FACT_SEPARATOR);
 }

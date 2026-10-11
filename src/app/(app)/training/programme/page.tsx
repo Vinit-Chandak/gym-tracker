@@ -88,13 +88,11 @@ function SessionRow({ row, units, year }: { row: ProgrammeRow; units: SportUnits
         href={`/training/programme/occurrences/${occurrence.id}` as Route}
         title={dayName ?? sport}
         badge={status && <Badge tone={status.tone}>{status.label}</Badge>}
-        subtitle={[
+        subtitle={joinFacts([
           sport,
           occurrence.prescription ? describePrescription(occurrence.prescription, units) : null,
           loggedOn,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
+        ])}
         detail={joinFacts([
           occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
           `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,

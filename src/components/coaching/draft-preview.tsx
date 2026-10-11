@@ -16,6 +16,7 @@ import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { EFFORT } from "@/domain/activity-limits";
 import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
@@ -39,7 +40,11 @@ function shape(blueprint: ProgramBlueprint): string {
       : byWeekday
         ? `${days} a week`
         : `${plural(cycles, "cycle")} of ${days}`;
-  return `${plural(blueprint.weeks, "week")} · ${cycle} · ${plural(sets, "lifting set")} per cycle`;
+  return joinFacts([
+    plural(blueprint.weeks, "week"),
+    cycle,
+    `${plural(sets, "lifting set")} per cycle`,
+  ]);
 }
 
 /**
@@ -130,8 +135,8 @@ export function DraftPreview({
           </h2>
           <p className="text-sm text-ink-muted">
             {WEEKDAY_NAMES[day.dayOfWeek]}
-            {day.focus ? ` · ${day.focus}` : ""}
-            {day.timeNote ? ` · ${day.timeNote}` : ""}
+            {day.focus ? `${FACT_SEPARATOR}${day.focus}` : ""}
+            {day.timeNote ? `${FACT_SEPARATOR}${day.timeNote}` : ""}
           </p>
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (
@@ -214,10 +219,10 @@ export function DraftPreview({
                 ? `${current.openingPlan.run.durationMinutes} minutes`
                 : "Duration to calibrate"}
               {current.openingPlan.run.distanceKm !== null
-                ? ` · ${current.openingPlan.run.distanceKm} km`
+                ? `${FACT_SEPARATOR}${current.openingPlan.run.distanceKm}\u00a0km`
                 : ""}
               {current.openingPlan.run.rpe !== null
-                ? ` · Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
+                ? `${FACT_SEPARATOR}Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
                 : ""}
               . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
             </p>

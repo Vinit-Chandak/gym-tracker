@@ -9,6 +9,7 @@ import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -81,7 +82,12 @@ function EnduranceDetails({
                 >
                   <span className="text-ink-2">{PHASE_LABELS[step.phase]}</span>{" "}
                   {stepLine(step, prescription!.sport, units)}
-                  {step.notes && <span className="text-ink-2"> · {step.notes}</span>}
+                  {step.notes && (
+                    <span className="text-ink-2">
+                      {FACT_SEPARATOR}
+                      {step.notes}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>

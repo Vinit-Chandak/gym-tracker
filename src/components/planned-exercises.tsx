@@ -1,5 +1,5 @@
 import { Figures } from "@/components/ui/figures";
-import { holdFigures, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
@@ -124,7 +124,8 @@ export function targetsLine(
   const all = <T,>(pick: (set: TargetLike) => T) => shown.every((set) => pick(set) === pick(first));
   const list = <T,>(pick: (set: TargetLike) => T, joiner: string) =>
     all(pick) ? `${pick(first) ?? "—"}` : shown.map((set) => pick(set) ?? "—").join(joiner);
-  const load = first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit} · `;
+  const load =
+    first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit}${FACT_SEPARATOR}`;
   const volume =
     first.reps === null && first.distanceMeters !== null
       ? `${list((set) => set.distanceMeters, "/")} m`
@@ -134,7 +135,7 @@ export function targetsLine(
   const effort =
     first.reps === null
       ? first.rpe != null
-        ? ` · RPE ${list((set) => set.rpe ?? null, ", ")}`
+        ? `${FACT_SEPARATOR}RPE ${list((set) => set.rpe ?? null, ", ")}`
         : ""
       : first.rir === null
         ? ""

@@ -271,7 +271,7 @@ it("says where a row stands only when that is news", () => {
   expect(crunch.textContent).toContain("Skipped");
   expect(crunch.textContent).toContain("Back is sore today.");
   expect(screen.getByRole("button", { name: /Face pull/ }).textContent).toContain(
-    "15\u00a0kg · 1 × 15 @\u00a02\u00a0RIR",
+    "15\u00a0kg ·\u00a01 × 15 @\u00a02\u00a0RIR",
   );
   // The coach's note for an exercise is its own screen's to say whole (DESIGN.md, The session):
   // the row says there is one, and that the coach added it, without cutting it short.
@@ -407,7 +407,7 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
     },
   });
   expect(screen.getByRole("button", { name: /Leg press/ }).textContent).toContain(
-    "100\u00a0lb · 3 × 5 @\u00a02\u00a0RIR",
+    "100\u00a0lb ·\u00a03 × 5 @\u00a02\u00a0RIR",
   );
   expect(screen.getByRole("button", { name: /Seated leg curl/ }).textContent).toContain(
     "4 × 3\u2060–\u20605 @\u00a02\u00a0RIR",

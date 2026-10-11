@@ -19,6 +19,7 @@ import {
 } from "@/domain/nutrition";
 import { sanitizeNumberEntry } from "@/domain/sets";
 import type { BodyLoadUnit, TrainingGoal } from "@/domain/types";
+import { joinFacts } from "@/lib/facts";
 import { formatFoodAmount, formatSplit } from "@/lib/format";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
@@ -183,14 +184,12 @@ export function TargetsForm({
           error={state.fieldErrors?.proteinPerKg}
           hint={
             perKg !== null && (weighed || unit === "lb")
-              ? [
+              ? joinFacts([
                   unit === "lb" ? `${perPound(perKg)} g per lb` : null,
                   weighed
                     ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
                     : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
+                ])
               : unit === "lb"
                 ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg`
                 : undefined

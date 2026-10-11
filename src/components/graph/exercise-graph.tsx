@@ -212,7 +212,7 @@ export function ExerciseGraph({
                       { start: group.start, end: group.end, partial: group.end >= today },
                       line.bucket,
                       today,
-                    )}${many ? ` · best of ${counted(group.indices.length, "workout")}` : ""}`
+                    )}${many ? `${FACT_SEPARATOR}best of ${counted(group.indices.length, "workout")}` : ""}`
                   : dayLabel(session.date, today),
                 ...(value === null ? { figure: null } : figure(value)),
                 context: line.bucket

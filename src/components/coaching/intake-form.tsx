@@ -13,7 +13,7 @@ import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { TRAINING_GOALS } from "@/domain/types";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { TRAINING_GOAL_LABELS, WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/labels";
 import {
   fromKilograms,
@@ -1218,17 +1218,20 @@ function ReviewStep({
             ["Goal", answers.goal || "Not answered"],
             [
               "Your week",
-              `${answers.sessionsPerWeek ?? "?"} sessions · ${
-                answers.minutesPerSession ?? "?"
-              } minutes · ${days || "flexible days"}`,
+              joinFacts([
+                `${answers.sessionsPerWeek ?? "?"}\u00a0sessions`,
+                `${answers.minutesPerSession ?? "?"}\u00a0minutes`,
+                days || "flexible days",
+              ]),
             ],
             [
               "Running",
               answers.runsPerWeek
-                ? `${answers.runsPerWeek} a week · ${
+                ? joinFacts([
+                    `${answers.runsPerWeek} a week`,
                     answers.preferredRunDays.map((d) => WEEKDAY_NAMES[d]).join(", ") ||
-                    "flexible days"
-                  }`
+                      "flexible days",
+                  ])
                 : "None",
             ],
             [

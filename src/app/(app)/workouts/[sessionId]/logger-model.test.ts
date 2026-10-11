@@ -230,7 +230,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
     });
     // The programme says 4 × 3–5 @ 2 RIR, rest 3–4 min; the coach wrote 3 × 5 @ 60 kg, 150 s.
     expect(perSetLabel(coached)).toBe("5 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60 kg · 3 × 5 @ 2 RIR");
+    expect(prescriptionLabel(coached, "kg")).toBe("60 kg ·\u00a03 × 5 @ 2 RIR");
     expect(restText(coached)).toBe("2.5 min");
     expect(restSecondsOf(coached)).toBe(150);
     expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("5");
@@ -247,7 +247,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
       ]),
     });
     expect(perSetLabel(coached)).toBe("8/6/4 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60/65/70 kg · 3 × 8/6/4 @ 3, 2, 1 RIR");
+    expect(prescriptionLabel(coached, "kg")).toBe("60/65/70 kg ·\u00a03 × 8/6/4 @ 3, 2, 1 RIR");
     expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("4");
     // The coach gave no rest: the programme's stands.
     expect(restText(coached)).toBe("3–4 min");
@@ -263,7 +263,7 @@ describe("today's targets: every number from one source (plan: today's targets)"
       coachRestSeconds: 60,
     });
     expect(perSetLabel(added)).toBe("12 reps");
-    expect(prescriptionLabel(added, "kg")).toBe("20 kg · 2 × 12 @ 2 RIR");
+    expect(prescriptionLabel(added, "kg")).toBe("20 kg ·\u00a02 × 12 @ 2 RIR");
     expect(restText(added)).toBe("60 s");
   });
 

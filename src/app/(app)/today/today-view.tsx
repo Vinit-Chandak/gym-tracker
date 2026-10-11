@@ -19,6 +19,7 @@ import { formatDuration } from "@/domain/pace";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
@@ -643,7 +644,7 @@ export function TodayView({
             <div className="activity-card-plan">
               <div className="activity-card-passage">
                 <p className="type-meta font-semibold">
-                  {restProtocol.name} · {restProtocol.drills.length} drills
+                  {joinFacts([restProtocol.name, `${restProtocol.drills.length}\u00a0drills`])}
                 </p>
                 <ul className="mt-1">
                   {restProtocol.drills.map((drill, index) => (

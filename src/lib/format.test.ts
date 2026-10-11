@@ -154,8 +154,10 @@ it("writes a food's or a saved meal's energy to the nearest whole kcal, four dig
 
 it("writes the macronutrients that are known, in whole grams", () => {
   expect(formatMacros({ carbsG: 66.3, fatG: 6.9, proteinG: 16.9 })).toBe(
-    "Carbs 66 g · Fat 7 g · Protein 17 g",
+    "Carbs 66\u00a0g ·\u00a0Fat 7\u00a0g ·\u00a0Protein 17\u00a0g",
   );
-  expect(formatMacros({ carbsG: null, fatG: 0, proteinG: 25 })).toBe("Fat 0 g · Protein 25 g");
+  expect(formatMacros({ carbsG: null, fatG: 0, proteinG: 25 })).toBe(
+    "Fat 0\u00a0g ·\u00a0Protein 25\u00a0g",
+  );
   expect(formatMacros({ carbsG: null, fatG: null, proteinG: null })).toBe("");
 });

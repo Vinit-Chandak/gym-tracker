@@ -15,6 +15,7 @@ import { describePrescription } from "@/domain/activity-prescription";
 import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { SportUnits } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -51,8 +52,11 @@ function OccurrenceRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium tracking-wide text-ink-muted uppercase tabular-nums">
-            {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {formatIsoDate(occurrence.scheduledOn)}
-            {time ? ` · ${time}` : ""}
+            {joinFacts([
+              ACTIVITY_SPORT_LABELS[occurrence.sport],
+              formatIsoDate(occurrence.scheduledOn),
+              time,
+            ])}
           </p>
           <h2 className="mt-1 text-base font-medium [overflow-wrap:break-word]">
             {occurrence.prescription

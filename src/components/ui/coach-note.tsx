@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { cn } from "@/lib/utils";
 
 import { Glyph } from "./glyphs";
@@ -61,7 +62,13 @@ export function CoachNote({
           className={cn("glyph-16", tone === "planning" && "motion-safe:animate-spin")}
         />
         {who}
-        {context && <span className="font-medium text-ink-2">· {context}</span>}
+        {/* The dot held to the context after it, so a wrapped line never ends on it. */}
+        {context && (
+          <span className="font-medium text-ink-2">
+            {FACT_SEPARATOR.trimStart()}
+            {context}
+          </span>
+        )}
       </p>
       {title && <p className="mt-1.5 type-heading leading-[1.4] tabular-nums">{title}</p>}
       {children && (
