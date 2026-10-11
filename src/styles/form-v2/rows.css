@@ -440,6 +440,11 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.25;
 }
+/* Whatever the screen puts under the person (Following, on someone else's page) stands clear
+   of the avatar rather than against it. */
+.person-card-head + * {
+  margin-top: calc(12 * var(--ov-u));
+}
 /* A detail still missing, said once under the person, as the way to add it. */
 .person-card-warning {
   display: flex;
