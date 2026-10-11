@@ -53,9 +53,10 @@ describe("the month", () => {
 
   it("draws the workout still open on its day, and counts it once it is finished", () => {
     const open = activity({ occurredOn: "2026-09-25", inProgress: true });
+    // Marked as under way, so it does not look like one of the sessions the month counts.
     expect(monthDays([...september, open], "2026-09")[25]).toEqual([
       { sport: "swim", said: "swim 1,500 m" },
-      { sport: "strength", said: "lifting in progress" },
+      { sport: "strength", said: "lifting in progress", open: true },
     ]);
     expect(tally([...september.slice(0, 3), open])).toEqual(tally(september.slice(0, 3)));
   });

@@ -66,7 +66,11 @@ export function saidOf(activity: DayActivity, units?: DistanceUnits): string {
   }
 }
 
-/** A month's days, each with its activities as marks, in the order they were done. */
+/**
+ * A month's days, each with its activities as marks, in the order they were done. The workout
+ * still open is marked as one under way, not as one of the month's sessions, which its count
+ * leaves out until it is finished (`tally`).
+ */
 export function monthDays(
   activities: readonly DayActivity[],
   month: string,
@@ -76,7 +80,11 @@ export function monthDays(
   for (const activity of activities) {
     if (activity.occurredOn.slice(0, 7) !== month) continue;
     const day = Number(activity.occurredOn.slice(8, 10));
-    (days[day] ??= []).push({ sport: ART_SPORT[activity.sport], said: saidOf(activity, units) });
+    (days[day] ??= []).push({
+      sport: ART_SPORT[activity.sport],
+      said: saidOf(activity, units),
+      ...(activity.inProgress && { open: true }),
+    });
   }
   return days;
 }

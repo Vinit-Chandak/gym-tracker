@@ -618,7 +618,9 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
   date in `control`, and is not a link; today is ringed in print ink, a 2-pt line just inside its
   edge. Each activity is its sport's icon, 16 pt, in the order it was done, the icons standing
   together in the middle of the tile: one, two side by side, three or four in two rows of two;
-  past four, three and `+N`. Every past day is a link named with what it holds. This month ends at
+  past four, three and `+N`. A workout still open is its icon drawn as a mark to do (its solid
+  parts thinned within an edge of the pigment), named "lifting in progress", and is not counted
+  until it is finished. Every past day is a link named with what it holds. This month ends at
   this week: the weeks to come get no empty rows. The overview shows the pattern alone, its tiles
   as tall as the phone gives them; the calendar page adds each date, in Jost 12, in the tile's top
   left corner and inside today's ring, its icons centred in the room under the date, on tiles of

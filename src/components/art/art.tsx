@@ -20,8 +20,11 @@ import {
 } from "./geometry";
 import { Shapes, svgId, type Surface } from "./shapes";
 
-/** One activity on a day of the calendar, and how a screen reader names it ("run 5 km"). */
-export type CalendarEntry = { sport: Sport; said: string };
+/**
+ * One activity on a day of the calendar, and how a screen reader names it ("run 5 km"); `open`
+ * for one still under way, drawn as a mark to do is ("lifting in progress").
+ */
+export type CalendarEntry = { sport: Sport; said: string; open?: boolean };
 
 export type ArtProps =
   | {
@@ -324,6 +327,7 @@ function Month({
                         entries.map((e) => e.sport),
                         ICON_BOX / 2,
                         ICON_BOX / 2,
+                        entries.map((e) => e.open ?? false),
                       )}
                       surface="paper"
                       id={`${id}-${day}`}
