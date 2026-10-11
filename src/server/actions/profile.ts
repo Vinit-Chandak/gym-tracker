@@ -10,6 +10,8 @@ import { profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import type { BodyLoadUnit } from "@/domain/types";
+import { fromKilograms } from "@/lib/units";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
@@ -32,12 +34,34 @@ function usernameTaken(formData: FormData): FormState {
 }
 
 /**
+ * Whether the weight sent back is the one the form showed, rather than a new reading.
+ *
+ * The form shows a stored weight to a tenth, in the account's units, and restates it when the
+ * units are switched; what comes back is that tenth turned back into kilograms, not the reading
+ * itself (80 kg shows as 176.4 lb and returns as 80.01 kg; 82.25 kg returns as 82.3). Compared
+ * exactly, saving the form for anything else — a new time zone, the other units — recorded a
+ * weigh-in nobody took, and the weight drifted (ADR 0020: a round trip returns what was typed).
+ * So the two are compared as the form shows them: in the units it opened in, and in the units
+ * it was sent in. A change too small to show is not one.
+ */
+function showsAsStored(
+  storedKg: number | null,
+  sentKg: number,
+  units: readonly BodyLoadUnit[],
+): boolean {
+  if (storedKg === null) return false;
+  return units.some((unit) => fromKilograms(storedKg, unit) === fromKilograms(sentKg, unit));
+}
+
+/**
  * Writes the profile and, when the weight has moved, records it as today's reading — dated in
  * the time zone the same submission just set. `recordBodyWeight` owns `profiles.body_weight_kg`
  * from there, so the trend and the number on the profile always tell the same story.
  */
 async function saveProfile(tx: DbOrTx, user: SessionUser, input: ProfileInput): Promise<void> {
-  await ensureProfile(tx, user);
+  // The units the form was opened in: this submission may be the one that changes them.
+  const openedIn: BodyLoadUnit =
+    (await ensureProfile(tx, user)).preferredUnit === "lb" ? "lb" : "kg";
   const { bodyWeightKg, ...rest } = input;
   // The weight is deliberately not among the columns written here, so what comes back is the
   // weight as it stood before this submission — the thing worth comparing against.
@@ -46,7 +70,8 @@ async function saveProfile(tx: DbOrTx, user: SessionUser, input: ProfileInput): 
     .set(rest)
     .where(eq(profiles.id, user.id))
     .returning({ bodyWeightKg: profiles.bodyWeightKg });
-  if (before?.bodyWeightKg === bodyWeightKg) return;
+  if (showsAsStored(before?.bodyWeightKg ?? null, bodyWeightKg, [openedIn, input.preferredUnit]))
+    return;
   await recordBodyWeight(tx, user.id, {
     measuredOn: todayInTimeZone(input.timeZone),
     weightKg: bodyWeightKg,
