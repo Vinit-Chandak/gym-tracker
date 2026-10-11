@@ -220,9 +220,14 @@ export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
   return `${loadStepIn(kilograms, unit)}\u00a0${unit}`;
 }
 
-/** "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. */
-export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
-  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")}\u00a0${unit}`;
+/**
+ * "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. A load as it
+ * was lifted (`asLifted`) keeps the hundredths a kilogram is logged to, "38.75 kg", which a
+ * tenth read as "38.8 kg"; an estimate, and any load read in pounds, reads to the tenth.
+ */
+export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit, asLifted = false): string {
+  const value = asLifted && unit === "kg" ? roundTo(kilograms, 2) : fromKilograms(kilograms, unit);
+  return `${value.toLocaleString("en-GB")}\u00a0${unit}`;
 }
 
 /**
@@ -245,7 +250,8 @@ export function formatSharedMetric(
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
-      return formatSharedLoad(value, unit);
+      // A top weight was lifted; an estimated 1RM and a set's volume are worked out.
+      return formatSharedLoad(value, unit, metric === "top_weight");
     case "reps":
       return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
     case "seconds":

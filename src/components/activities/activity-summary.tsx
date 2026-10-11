@@ -181,7 +181,7 @@ function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): stri
         if (exercise.topWeightKg !== null && exercise.topWeightKg > 0)
           return [
             "top_weight",
-            `${formatSharedLoad(exercise.topWeightKg, unit)}${
+            `${formatSharedLoad(exercise.topWeightKg, unit, true)}${
               exercise.topWeightReps === null ? "" : ` × ${exercise.topWeightReps}`
             }`,
           ];
