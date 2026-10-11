@@ -63,9 +63,10 @@ it("gives a programme run's distance in the athlete's road unit, as Today does",
   expect(runSummary({ ...run, durationMaxMinutes: 50 }, DEFAULT_SPORT_UNITS)).toBe(
     "7.3–8.3\u00a0km ·\u00a040–50 min",
   );
-  // The programme writes kilometres; a runner who reads miles is never shown them.
+  // The programme writes kilometres; a runner who reads miles is never shown them. A range
+  // reads to a tenth; one distance to a hundredth.
   expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles)).toBe(
-    "4.54–5.16\u00a0mi ·\u00a040–50 min",
+    "4.5–5.2\u00a0mi ·\u00a040–50 min",
   );
   expect(runSummary({ ...run, distanceMaxKm: null, durationMaxMinutes: 50 }, miles)).toBe(
     "4.54\u00a0mi ·\u00a040–50 min",
