@@ -1052,7 +1052,8 @@ export class YearSimulation {
     const deload = cycleIndex !== null && cycleIndex % 4 === 0;
     for (let i = 0; i < count; i++) {
       tick((planned?.restMinSeconds ?? 90) + 40 + a.random() * 40);
-      const target = suggested.find((set) => set.setIndex === i + 1) ?? suggested[i];
+      // The suggestion leads with its warm-up ramp where the lift has one: the work is after it.
+      const target = suggested.filter((set) => set.setType !== "warmup")[i];
       const wantReps = target?.reps ?? Math.round((low + high) / 2);
       let load =
         target?.weight != null && a.random() < a.p.followSuggestion
