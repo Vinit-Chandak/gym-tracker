@@ -7,7 +7,7 @@ import { ViewportSettle } from "@/components/shell/viewport-settle";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
-import { PLATFORM_INIT_SCRIPT } from "@/lib/platform";
+import { PLATFORM_INIT_SCRIPT, TEXT_SIZE_INIT_SCRIPT } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -43,9 +43,14 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: APP_NAME,
   },
-  // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
-  // Apple-prefixed tag, and without it an installed app opens in a browser view instead.
-  other: { "apple-mobile-web-app-capable": "yes" },
+  other: {
+    // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
+    // Apple-prefixed tag, and without it an installed app opens in a browser view instead.
+    "apple-mobile-web-app-capable": "yes",
+    // Chrome on Android applies the phone's font size to the root font size, and so to every
+    // word, only on a page that asks for it. iOS's setting is read by TEXT_SIZE_INIT_SCRIPT.
+    "text-scale": "scale",
+  },
   formatDetection: { telephone: false, email: false, address: false },
   // Private single-user app: keep it out of search engines.
   robots: { index: false, follow: false },
@@ -80,10 +85,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         {/* First thing in the body: it runs while the rest is still being parsed, so an
-            explicit Light or Dark choice, Android's larger targets and the installed app's
-            page height are in place before anything is painted. */}
+            explicit Light or Dark choice, Android's larger targets, the installed app's page
+            height and the reader's text size on iOS are in place before anything is painted. */}
         <script
-          dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT }}
+          dangerouslySetInnerHTML={{
+            __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT + TEXT_SIZE_INIT_SCRIPT,
+          }}
         />
         <AppearanceSync />
         <NavigationHistory />
