@@ -33,7 +33,9 @@
   margin-top: calc(8 * var(--ov-u));
   container-type: inline-size;
 }
-/* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. */
+/* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. The
+   weeks stand in order, oldest first, so a screen reader and the Tab key meet them in the order
+   they are drawn; the right-to-left scroller alone sets where the strip rests. */
 .food-strip-scroller {
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -47,7 +49,6 @@
 .food-strip-weeks {
   display: flex;
   width: max-content;
-  flex-direction: row-reverse;
   gap: calc(4 * var(--ov-u));
   direction: ltr;
 }

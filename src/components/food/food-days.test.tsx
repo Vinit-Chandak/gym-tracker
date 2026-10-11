@@ -104,12 +104,15 @@ it("opens a day and closes, with Today there while another day is on screen", ()
   expect(inSheet().queryByRole("link", { name: "Today" })).toBeNull();
 });
 
-it("strips back through whole weeks that end on today, the newest first", () => {
+it("strips back through whole weeks that end on today, in the order they are read", () => {
   render(<FoodWeekStrip {...PROPS} />);
   const weeks = within(screen.getByRole("navigation", { name: "Days" })).getAllByRole("list");
+  // Oldest first, left to right as drawn, so a screen reader and Tab do not run backwards: this
+  // week, where the strip rests, is the last.
   expect(weeks).toHaveLength(8);
+  expect(weeks[0]!.getAttribute("aria-label")).toBe("3 Aug – 9 Aug 2026");
   expect(
-    within(weeks[0]!)
+    within(weeks[7]!)
       .getAllByRole("link")
       .map((link) => link.getAttribute("aria-label")),
   ).toEqual([
@@ -122,6 +125,6 @@ it("strips back through whole weeks that end on today, the newest first", () => 
     "Sunday 27 September, today",
   ]);
   expect(
-    within(weeks[5]!).getByRole("link", { name: "Thursday 20 August, goal met" }),
+    within(weeks[2]!).getByRole("link", { name: "Thursday 20 August, goal met" }),
   ).toBeTruthy();
 });
