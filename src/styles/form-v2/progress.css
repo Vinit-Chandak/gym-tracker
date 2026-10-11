@@ -227,12 +227,26 @@
 }
 
 /* ---------- the calendar: the months under a header that stays ---------- */
+/* What is scrolled into view (this month as the page opens, a day reached with the keyboard)
+   stands under the header, which measures itself (calendar-view.tsx), not behind it. */
+html:has(.calendar-head) {
+  scroll-padding-top: var(--calendar-head, 0px);
+}
 .calendar-head {
   position: sticky;
   top: 0;
   z-index: 5;
   padding-bottom: calc(4 * var(--ov-u));
   background: var(--ov-ground);
+}
+/* The months one under another on a phone; beyond one, side by side, as many as each keep a
+   phone's month (21rem, its days still full targets), read across then down (ADR 0052). Larger
+   text means fewer, wider columns, and one wherever two would not fit. */
+.calendar-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  column-gap: var(--ov-section-gap);
+  align-items: start;
 }
 /* Each month's name, and how many of each sport it holds, each led by its icon. */
 .calendar-month {

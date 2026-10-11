@@ -82,6 +82,9 @@ The owner chose **adaptive + fluid**:
      "Sleep 7.25 h" broke onto two lines.
    - The other Progress sections, graphs read one at a time, stay one column at the reading
      width, so Progress narrows from its overview to them.
+   - The calendar is wide, its months side by side as many as each keep a phone's month (21rem),
+     read across then down, oldest first: two on a tablet, three on a desktop. It opens with this
+     month's name just under its header that stays, on every screen.
    - Friends' four shortcuts stand in one row beyond a phone, where their words fit.
    - Profile, settings, forms and detail pages stay one readable column.
 
