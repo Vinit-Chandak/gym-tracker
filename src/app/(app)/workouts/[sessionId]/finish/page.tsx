@@ -7,8 +7,11 @@ import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { isLeftOpen } from "@/domain/left-open";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
+import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
 import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -45,6 +48,15 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const skipped = session.exercises.filter((e) => e.skippedAt !== null);
   const untouched = session.exercises.filter((e) => e.sets.length === 0 && !e.skippedAt);
   const totalSets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // A workout left open finishes as of its last set, and Finish says so (owner, 11 October 2026).
+  const lastSetAt = done
+    .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
+    .reduce<Date | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
+  const now = new Date();
+  const asOf =
+    lastSetAt && isLeftOpen(session.startedAt, lastSetAt, now)
+      ? formatTimeOrDateTime(lastSetAt, profile.timeZone, todayInTimeZone(profile.timeZone, now))
+      : null;
 
   const title = session.day?.name ?? UNPLANNED_SESSION;
 
@@ -116,6 +128,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           userId={user.id}
           sessionId={sessionId}
           nothingLogged={totalSets === 0}
+          asOf={asOf}
           action={finishSessionAction.bind(null, sessionId)}
           unit={unit}
           initialBodyWeight={

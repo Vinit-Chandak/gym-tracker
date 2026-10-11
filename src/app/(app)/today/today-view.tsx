@@ -3,16 +3,17 @@ import type { ReactNode } from "react";
 import { Art } from "@/components/art/art";
 import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activities/today-activities";
 import { DiscardSessionButton } from "@/components/discard-session-button";
+import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
-import { todayInTimeZone } from "@/domain/program-calendar";
+import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
-import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
+import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -41,6 +42,10 @@ import { CycleMark, Fact, PlanRows, TodayPrint } from "./today-parts";
 export type TodayViewProps = {
   today: string;
   timeZone: string;
+  /** Whose device this is: a set it holds unsaved keeps a workout left open from finishing. */
+  userId: string;
+  /** The moment Today is drawn for, which says whether an open workout was left open. */
+  now?: Date;
   gyms: SwitcherGym[];
   plan: TodayPlan | null;
   inProgress: SessionSummary | null;
@@ -149,10 +154,7 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
 /** "Started 17:23", or with its day when the session was left open from another one. */
 /** "17:23", or with its day when the session was left open from another one. */
 function startedAt(session: SessionSummary, today: string, timeZone: string): string {
-  const startedOn = todayInTimeZone(timeZone, new Date(session.startedAt));
-  return startedOn === today
-    ? formatTime(session.startedAt, timeZone)
-    : formatDateTime(session.startedAt, timeZone);
+  return formatTimeOrDateTime(session.startedAt, timeZone, today);
 }
 
 /** "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. */
@@ -184,6 +186,8 @@ function Progress({
 export function TodayView({
   today,
   timeZone,
+  userId,
+  now = new Date(),
   gyms,
   plan,
   inProgress,
@@ -219,6 +223,22 @@ export function TodayView({
   // One unfinished workout at a time: while one is open, nothing on Today offers to start,
   // skip or re-plan another, and its gym is the session's, fixed (Must survive).
   const sessionOpen = inProgress !== null;
+  // Left open, with nothing logged in it for six hours, it offers to finish as of its last set;
+  // left open empty, the Discard it already offers is the way out.
+  const finishLeftOpen =
+    inProgress &&
+    inProgress.setCount > 0 &&
+    isLeftOpen(inProgress.startedAt, inProgress.lastSetAt, now) ? (
+      <FinishLeftOpenButton
+        userId={userId}
+        sessionId={inProgress.id}
+        at={formatTimeOrDateTime(
+          lastTrainedAt(inProgress.startedAt, inProgress.lastSetAt),
+          timeZone,
+          today,
+        )}
+      />
+    ) : null;
 
   // Everything due today, whatever scheduled it: the day's workout, the programme's own
   // endurance for that same day, and whatever the athlete put on the calendar. What is still
@@ -306,7 +326,11 @@ export function TodayView({
           </LinkButton>
         }
         footer={
-          inProgress.setCount === 0 ? <DiscardSessionButton sessionId={inProgress.id} /> : null
+          inProgress.setCount === 0 ? (
+            <DiscardSessionButton sessionId={inProgress.id} />
+          ) : (
+            finishLeftOpen
+          )
         }
       />
     </li>
@@ -432,6 +456,8 @@ export function TodayView({
         footer={
           openHere && inProgress && inProgress.setCount === 0 ? (
             <DiscardSessionButton sessionId={inProgress.id} />
+          ) : openHere ? (
+            finishLeftOpen
           ) : null
         }
       />

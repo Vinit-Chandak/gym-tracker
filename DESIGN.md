@@ -812,8 +812,11 @@ and every control answers a press.
   with More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it
   asks for, so two runs never share a name), See what you logged. Under it, the quieter way out
   that belongs to this card alone: Discard empty session, led by its glyph at the card's left
-  edge, only while nothing is logged. The plan unfolds under them, so opening it never moves the
-  next step away.
+  edge, only while nothing is logged; or, for a workout left open (nothing logged in it for six
+  hours), Finish it as of 19:30, its last set's time, which the workout's own screen offers too
+  (owner, 11 October 2026). Nothing finishes a workout but that tap, and finished so, its time is
+  start to last set everywhere it is read. The plan unfolds under them, so opening it never
+  moves the next step away.
 - One unfinished workout at a time: while one is open, no card offers to start, skip or re-plan
   another, every card's gym is a fact rather than a choice, and an open session that is not the
   day's stands first, with its own Resume and Discard.

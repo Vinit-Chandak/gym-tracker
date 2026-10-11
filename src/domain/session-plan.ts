@@ -168,6 +168,12 @@ export type StoredPlanExercise = PlanExercise & {
   slotLineageId: string | null;
 };
 
+/**
+ * Why a workout's exercise is skipped from the start when the coach's plan dropped it and said
+ * nothing of why. The coach's words, not the athlete's: never read back to it as their note.
+ */
+export const COACH_DROP_NOTE = "Left out by the coach's plan";
+
 /** A plan run as stored. The programme run is kept only when it is really in the programme. */
 export type StoredPlanRun = PlanRun;
 

@@ -61,3 +61,18 @@ it("finishes a session with sets in it as before", () => {
   expect(screen.getByRole("button", { name: "Finish session" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Discard session" })).toBeNull();
 });
+
+it("finishes a workout left open as of its last set, and says so on the button", () => {
+  const { container } = render(
+    <FinishForm {...props} lastBodyWeight="" asOf="Sat 10 Oct, 19:30" />,
+  );
+  const finish = screen.getByRole("button", { name: "Finish it as of Sat 10 Oct, 19:30" });
+  expect(finish.getAttribute("type")).toBe("submit");
+  expect(new FormData(container.querySelector("form")!).get("asOf")).toBe("last-set");
+  cleanup();
+
+  // Not left open, it finishes now, and asks for nothing else.
+  const fresh = render(<FinishForm {...props} lastBodyWeight="" />);
+  expect(screen.getByRole("button", { name: "Finish session" })).toBeTruthy();
+  expect(new FormData(fresh.container.querySelector("form")!).get("asOf")).toBeNull();
+});

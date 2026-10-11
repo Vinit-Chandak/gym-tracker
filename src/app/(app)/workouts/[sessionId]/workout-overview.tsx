@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
   type RefObject,
@@ -14,6 +15,8 @@ import {
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { DiscardSessionButton } from "@/components/discard-session-button";
+import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -23,7 +26,10 @@ import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
+import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSet } from "@/domain/sets";
+import { formatTimeOrDateTime } from "@/lib/format";
 import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
@@ -56,6 +62,35 @@ export function draftsWarning({ count, names }: Drafts): string {
   return one
     ? `A set ${where} is not saved yet. Save or remove it before finishing.`
     : `Sets ${where} are not saved yet. Save or remove them before finishing.`;
+}
+
+/** Checks the clock each minute, and as the app comes back into view. */
+function everyMinute(listener: () => void): () => void {
+  const timer = window.setInterval(listener, 60_000);
+  document.addEventListener("visibilitychange", listener);
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", listener);
+  };
+}
+
+/**
+ * When an open workout left open was last trained, as the screen says it ("19:30", "Sat 10 Oct,
+ * 19:30"); null while it is being trained. Read from the sets as they stand on this screen, so a
+ * set saved here a moment ago counts.
+ */
+export function leftOpenSince(session: SessionVM, now: number): string | null {
+  const last = session.exercises
+    .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
+    .reduce<string | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
+  const startedAt = new Date(session.startedAt);
+  const lastSetAt = last === null ? null : new Date(last);
+  if (!isLeftOpen(startedAt, lastSetAt, new Date(now))) return null;
+  return formatTimeOrDateTime(
+    lastTrainedAt(startedAt, lastSetAt),
+    session.timeZone,
+    todayInTimeZone(session.timeZone, new Date(now)),
+  );
 }
 
 /** Sets of the work done so far, warm-ups aside. */
@@ -322,6 +357,8 @@ function WarmupRow({
 type OverviewProps = {
   session: SessionVM;
   readOnly: boolean;
+  /** Whose device this is: a set it holds unsaved keeps a workout left open from finishing. */
+  userId?: string;
   /** Set drafts on this device, which hold Finish back until they are saved or removed. */
   drafts?: Drafts;
   onOpenExercise: (workoutExerciseId: string) => void;
@@ -356,6 +393,7 @@ export function addedLine(names: readonly string[]): string {
 export function WorkoutOverview({
   session,
   readOnly,
+  userId,
   drafts = NO_DRAFTS,
   onOpenExercise,
   onOpenDetails,
@@ -369,6 +407,15 @@ export function WorkoutOverview({
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const hasDrafts = drafts.count > 0;
+  // Left open, with nothing logged for six hours, the workout offers to finish as of its last set,
+  // or to be discarded while it holds none (owner, 11 October 2026). The clock is the browser's,
+  // so the server's render never offers it.
+  const leftOpen = useSyncExternalStore(
+    everyMinute,
+    () => (readOnly ? null : leftOpenSince(session, Date.now())),
+    () => null,
+  );
+  const anyLogged = session.exercises.some((exercise) => exercise.sets.length > 0);
   const draftsId = useId();
   const actionsRef = useRef<HTMLSpanElement>(null);
   // Folded, never dropped: when the reader's text is so large that Minimise, the rest pill,
@@ -551,6 +598,22 @@ export function WorkoutOverview({
           </span>
         )}
       </p>
+      {/* A set on this device not saved holds either way out, said under the advice beside
+          Finish's own reason. */}
+      {leftOpen !== null &&
+        (anyLogged ? (
+          userId && (
+            <FinishLeftOpenButton
+              userId={userId}
+              sessionId={session.id}
+              at={leftOpen}
+              held={hasDrafts}
+              explainHeld={false}
+            />
+          )
+        ) : (
+          <DiscardSessionButton sessionId={session.id} disabled={hasDrafts} />
+        ))}
       {/* A print draws only what is planned or done: an ad hoc session with nothing yet has no
           print, rather than an empty paper (DESIGN.md, Prints). */}
       {parts.length > 0 && (

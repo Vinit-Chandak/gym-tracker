@@ -8,6 +8,7 @@ import { EFFORT_INPUT_VERSION, effortError } from "@/domain/effort";
 import { WORKING_SET_TYPES } from "@/domain/progression";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
+  adoptDrafts,
   draftMatchesSet,
   DRAFT_VALUE_FIELDS,
   moveDrafts,
@@ -112,21 +113,27 @@ function initialRows(exercise: ExerciseVM): RowState[] {
   // coach wrote, or the programme's working sets.
   const lead = targets.findIndex((set) => set.setType !== "warmup");
   const warmups = lead === -1 ? targets.length : lead;
+  const highest = Math.max(0, ...saved.map((r) => r.setIndex));
   const target = Math.max(
     coach
       ? targets.length || (exercise.planned?.sets ?? 1)
       : warmups + (exercise.planned?.sets ?? 1),
-    Math.max(0, ...saved.map((r) => r.setIndex)) + (exercise.completedAt ? 0 : 1),
+    highest + (exercise.completedAt ? 0 : 1),
   );
   const rows: RowState[] = [];
   for (let i = 1; i <= Math.min(MAX_SETS, target); i++) {
+    const own = saved.find((r) => r.setIndex === i);
+    if (own) {
+      rows.push(own);
+      continue;
+    }
     const planned = targets.find((set) => set.setIndex === i)?.setType;
-    rows.push(
-      saved.find((r) => r.setIndex === i) ?? {
-        ...emptyRow(i),
-        setType: coach ? (planned ?? "working") : planned === "warmup" ? "warmup" : "working",
-      },
-    );
+    const setType = coach ? (planned ?? "working") : planned === "warmup" ? "warmup" : "working";
+    // A set deleted from among those done, or removed before it was done, is not asked for
+    // again: the next set goes after the last one done, so the sets stay in the order they were
+    // done (ADR 0038), as they do while the exercise stays open. A warm-up row keeps its place.
+    if (i < highest && setType !== "warmup") continue;
+    rows.push({ ...emptyRow(i), setType });
   }
   return rows;
 }
@@ -286,8 +293,17 @@ export function useSetRows({
   const settled = async (): Promise<boolean> =>
     (await Promise.all([...inFlight.current])).every(Boolean);
 
+  // Rows typed for this exercise before its exercise or machine changed some way that could not
+  // carry them are taken in once, as it opens, so they are here to save or discard rather than
+  // holding Finish back from where no screen shows them. Ones that cannot be taken in stay where
+  // they are, still counted, as they were.
+  const adopted = useRef(false);
   useEffect(() => {
     try {
+      if (!adopted.current) {
+        adopted.current = true;
+        adoptDrafts(localStorage, draftContext);
+      }
       const drafts = readDrafts(localStorage, draftContext);
       const restored = drafts.filter((d) => {
         const saved = exercise.sets.find((s) => s.setIndex === d.setIndex);
@@ -580,9 +596,6 @@ export function useSetRows({
     });
   };
 
-  /** Puts a set saved as a warm-up back to a working set, to be saved again with its RIR. */
-  const undoWarmup = (row: RowState) => editRow(row, { setType: "working" });
-
   const addRow = () =>
     setRows((current) => [...current, emptyRow(Math.max(...current.map((r) => r.setIndex)) + 1)]);
 
@@ -607,7 +620,6 @@ export function useSetRows({
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
     ghost: (index: number) => ghostFor(exercise, rows, index),
     editRow,
-    undoWarmup,
     restore,
     logRow,
     removeRow,

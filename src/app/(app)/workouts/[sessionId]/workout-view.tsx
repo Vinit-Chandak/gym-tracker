@@ -177,6 +177,7 @@ export function WorkoutView({
           <WorkoutOverview
             session={session}
             readOnly={readOnly}
+            userId={userId}
             drafts={drafts}
             onOpenExercise={openExercise}
             onOpenDetails={() => setDetailsOpen(true)}

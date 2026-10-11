@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adoptDrafts,
   draftKey,
   draftMatchesSet,
   moveDrafts,
@@ -151,5 +152,57 @@ describe("drafts carried with the exercise", () => {
     expect(readDrafts(store, context)).toHaveLength(1);
     expect(moveDrafts(store, { ...context, workoutExerciseId: "x" }, context)).toBe(true);
     expect(readDrafts(store, context)).toHaveLength(1);
+  });
+});
+
+describe("drafts left under another exercise or machine", () => {
+  const full = () => {
+    const data = new Map<string, string>();
+    return {
+      get length() {
+        return data.size;
+      },
+      key: (index: number) => [...data.keys()][index] ?? null,
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+      removeItem: (key: string) => void data.delete(key),
+      clear: () => data.clear(),
+    } as Storage;
+  };
+
+  it("takes them in, keeps its own, and drops the old keys", () => {
+    const store = full();
+    // Typed while the machine question was open, before Register with details answered it; and
+    // typed on another machine before the exercise was swapped from it.
+    const unregistered = { ...context, equipmentId: null };
+    const swapped = { ...context, exerciseId: "other", equipmentId: "old" };
+    writeDraft(store, unregistered, { ...draft, setIndex: 2, reps: "8" });
+    writeDraft(store, swapped, { ...draft, setIndex: 3, reps: "6", carried: true });
+    writeDraft(store, context, { ...draft, weight: "65" });
+    // Another exercise of the workout keeps what is its own.
+    const elsewhere = { ...context, workoutExerciseId: "x", equipmentId: null };
+    writeDraft(store, elsewhere, draft);
+    expect(adoptDrafts(store, context)).toBe(true);
+    expect(store.getItem(draftKey(unregistered))).toBeNull();
+    expect(store.getItem(draftKey(swapped))).toBeNull();
+    expect(readDrafts(store, elsewhere)).toHaveLength(1);
+    // The answer to the machine question moved the first, so it comes as the row it was; the
+    // swapped one comes back as a draft to review.
+    expect(
+      readDrafts(store, context).map((row) => [row.setIndex, row.weight, row.reps, row.carried]),
+    ).toEqual([
+      [1, "65", "5", undefined],
+      [2, "60", "8", true],
+      [3, "60", "6", undefined],
+    ]);
+    // The session still counts each set once.
+    expect(sessionDraftExercises(store, "a", "s")).toEqual(["w", "x"]);
+  });
+
+  it("changes nothing when nothing was left behind", () => {
+    const store = full();
+    writeDraft(store, context, draft);
+    expect(adoptDrafts(store, context)).toBe(true);
+    expect(readDrafts(store, context)).toEqual([draft]);
   });
 });

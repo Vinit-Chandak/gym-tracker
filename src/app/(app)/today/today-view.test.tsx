@@ -7,6 +7,7 @@ import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/acti
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
+import { writeDraft } from "@/lib/workout-drafts";
 
 import { TodayView } from "./today-view";
 
@@ -21,6 +22,7 @@ vi.mock("@/server/actions/sessions", () => ({
   skipSlotAction: vi.fn(),
   completeRestSlotAction: vi.fn(),
   discardSessionAction: vi.fn(),
+  finishLeftOpenAction: vi.fn(),
 }));
 vi.mock("@/server/actions/coach", () => ({ requestCoachPlanAction: vi.fn() }));
 vi.mock("@/server/actions/gyms", () => ({ setDefaultGymAction: vi.fn() }));
@@ -138,6 +140,8 @@ function show(patch: Partial<ComponentProps<typeof TodayView>> = {}) {
     <TodayView
       today="2026-09-11"
       timeZone="Asia/Kolkata"
+      userId="user"
+      now={new Date("2026-09-11T07:40:00.000Z")}
       gyms={[
         { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true },
         { id: "g2", name: "Home", kind: "home", isDefault: false },
@@ -216,6 +220,58 @@ it("never offers Discard once a set is in", () => {
   show({ inProgress: session({ setCount: 2 }) });
   expect(screen.queryByRole("button", { name: "Discard empty session" })).toBeNull();
   expect(card("Easy Run + Arms").textContent).toContain("2 sets");
+  // Trained a moment ago, it is in progress, not left open: nothing offers to finish it here.
+  expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
+});
+
+it("offers to finish a workout left open as of its last set, and nothing closes it unasked", () => {
+  const open = session({ setCount: 12, lastSetAt: new Date("2026-09-11T08:10:00.000Z") });
+  // The next morning: nothing logged in it since 13:40 yesterday.
+  show({ today: "2026-09-12", now: new Date("2026-09-12T03:00:00.000Z"), inProgress: open });
+  const workout = within(screen.getAllByRole("article")[0]!);
+  expect(workout.getByRole("button", { name: "Finish it as of Fri 11 Sept, 13:40" })).toBeTruthy();
+  // Resume is still the card's next step; the finish is its quiet way out.
+  expect(workout.getByRole("link", { name: /^Resume session/ })).toBeTruthy();
+  cleanup();
+
+  // A set typed on this device and not saved holds it, and says why.
+  writeDraft(
+    localStorage,
+    {
+      userId: "user",
+      sessionId: open.id,
+      workoutExerciseId: "slot",
+      exerciseId: "curl",
+      equipmentId: null,
+    },
+    {
+      setIndex: 3,
+      setType: "working",
+      weight: "15",
+      reps: "",
+      rir: "",
+      duration: "",
+      distance: "",
+      baseCompletedAt: null,
+    },
+  );
+  show({ today: "2026-09-12", now: new Date("2026-09-12T03:00:00.000Z"), inProgress: open });
+  expect(
+    (screen.getByRole("button", { name: /^Finish it as of/ }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  expect(screen.getByText(/A set on this device is not saved yet/)).toBeTruthy();
+  localStorage.clear();
+  cleanup();
+
+  // Six hours after the last set is not yet left open.
+  show({ now: new Date("2026-09-11T14:00:00.000Z"), inProgress: open });
+  expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
+  cleanup();
+
+  // Left open with nothing in it, Discard is the way out, as it always is for an empty one.
+  show({ now: new Date("2026-09-12T03:00:00.000Z"), inProgress: session() });
+  expect(screen.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
 });
 
 it("puts another open session first, and says why the day cannot start", () => {

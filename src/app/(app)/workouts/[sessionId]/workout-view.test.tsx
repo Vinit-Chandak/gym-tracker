@@ -237,3 +237,22 @@ it("brings the list up to date when a save lands after the exercise was left", a
   await act(async () => land({ ok: true, set: saved }));
   expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
 });
+
+it("lets Finish go once a set left saving lands after its exercise was closed", async () => {
+  const rendered = workout(crypto.randomUUID());
+  const seen = setChangesMade();
+  let land!: (value: { ok: true; set: SetVM }) => void;
+  actions.log.mockReturnValue(new Promise((resolve) => (land = resolve)));
+  window.history.replaceState(null, "", "/workouts/session?exercise=slot");
+  const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  enterFirstSet();
+
+  // Back while it is still on its way: its draft holds Finish, as any unsaved set does.
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  expect(screen.getByText(/A set in Bench press is not saved yet/)).toBeTruthy();
+  // Landed, nothing is left to save, and nothing holds Finish back.
+  await act(async () => land({ ok: true, set: saved }));
+  expect(screen.queryByText(/not saved yet/)).toBeNull();
+  expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
+});
