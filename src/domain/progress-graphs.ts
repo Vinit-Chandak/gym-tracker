@@ -1,5 +1,5 @@
 import { estimated1RM } from "./analytics";
-import { daysBetween } from "./program-calendar";
+import { addDays, daysBetween } from "./program-calendar";
 import type { RecoveryReading } from "./recovery";
 import { rangeSlots, slotIndex, type GraphRange, type Slot } from "./graph-range";
 import { splitGroupOf } from "./muscle-split";
@@ -95,11 +95,21 @@ export type StrengthGraph = {
   /** Workouts in the range that trained each group. */
   workouts: GroupFigures;
   /**
-   * Weeks with at least one finished workout. A week off is not a week of no volume for the
-   * weekly average: the average is taken over the weeks that were trained.
+   * Weeks with at least one finished workout, in weeks of the range. A week off is not a week
+   * of no volume for the weekly average: the average is taken over the weeks that were trained.
+   * A week the range cuts short, at its start or at today, counts for its days in the range, so
+   * a month of trained weeks is about 4.3 of them, not the five calendar weeks it touches.
    */
   weeksTrained: number;
 };
+
+/** How much of the week starting `start` falls between `from` and `last`, in weeks. */
+function weekInRange(start: string, from: string, last: string): number {
+  const first = start < from ? from : start;
+  const end = addDays(start, 6);
+  const stop = end < last ? end : last;
+  return Math.max(1, daysBetween(first, stop) + 1) / 7;
+}
 
 type Sessions = Record<StrengthGroupChoice, Set<string>>;
 const noSessions = (): Sessions =>
@@ -152,7 +162,10 @@ export function strengthGraph(
     })),
     totals: { volume: roundFigures(totals.volume), sets: roundFigures(totals.sets) },
     workouts: countsOf(sessions),
-    weeksTrained: weeks.size,
+    weeksTrained: [...weeks].reduce(
+      (sum, start) => sum + weekInRange(start, range.from, lastDayOf(range, today)),
+      0,
+    ),
   };
 }
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { HeadToHeadData } from "@/components/graph/head-to-head-graph";
 import { presetRange, readWindowOf } from "@/domain/graph-range";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { socialWindow } from "@/server/validation/period";
 
 import CompareExercisePage from "./page";
 
@@ -71,6 +72,8 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.bests.mockResolvedValue(new Map());
+  mocks.weights.mockResolvedValue(new Map());
   mocks.trend.mockResolvedValue(
     new Map([
       [
@@ -110,7 +113,9 @@ it("draws the head to head over the span every graph shares, each point opening 
   expect(html).toContain("Trend");
   const today = todayInTimeZone("UTC");
   // The remembered span decides what is read, whatever period the URL still carries.
-  expect(mocks.trend.mock.calls[0]![4]).toMatchObject(readWindowOf({ preset: "3m" }, today));
+  // Up to now, as every friend's window runs: a friend ahead of the reader still counts.
+  const window = readWindowOf({ preset: "3m" }, today);
+  expect(mocks.trend.mock.calls[0]![4]).toMatchObject(socialWindow(window.from, window.to, "UTC"));
   // Every measure the movement has, as an exercise's own graph offers them, primary first.
   expect(mocks.trend.mock.calls[0]![3]).toEqual([
     "e1rm",
@@ -161,4 +166,38 @@ it("reads a best against each person's latest body weight, and says it is the la
   expect(html).toContain("1.76× latest BW");
   expect(html).toContain("0.65× latest BW");
   expect(html).not.toMatch(/\d× BW/);
+});
+
+it("names each number under a top weight, and calls a set's volume what it is", async () => {
+  mocks.bests.mockResolvedValue(
+    new Map([
+      [
+        "me",
+        [
+          {
+            metric: "top_weight",
+            value: 15,
+            occurredOn: "2026-10-07",
+            work: { sets: 2, reps: 11 },
+          },
+          { metric: "best_set_volume", value: 165, occurredOn: "2026-10-07", work: null },
+        ],
+      ],
+      [
+        "friend",
+        [{ metric: "top_weight", value: 25, occurredOn: "2026-02-26", work: { sets: 1, reps: 2 } }],
+      ],
+    ]),
+  );
+  const html = renderToStaticMarkup(
+    await CompareExercisePage({
+      params: Promise.resolve({ username: "friend", exerciseId: EXERCISE }),
+      searchParams: Promise.resolve({}),
+    } as never),
+  );
+  // Two sets at the top weight, the better of them eleven reps: never "2 × 11".
+  expect(html).toContain("11 reps · 2 sets");
+  expect(html).toContain("2 reps · 1 set");
+  expect(html).not.toMatch(/\d × \d/);
+  expect(html).toContain("Best set volume");
 });

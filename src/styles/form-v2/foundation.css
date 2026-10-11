@@ -208,6 +208,10 @@
   --ov-series-2: var(--ov-control);
   --ov-series-3: var(--ov-ink-2);
   --ov-series-4: var(--ov-on-ink-2);
+  /* Two shapes over each other (a radar on Compare): the wash under each series' edge. In
+     dark a wash of light ink is a grey like the control's, so it is thinner and the edges, ink
+     and control, say whose shape is whose. */
+  --ov-series-wash: 0.32;
   /* Working sets on the body map, none to 15+, as greys from the palette. */
   --ov-volume-0: var(--ov-surface-2);
   --ov-volume-1: var(--ov-on-ink-2);
@@ -333,6 +337,7 @@
     --ov-grain-screen: var(--ov-dark-grain-screen);
     --ov-avatar-surface-l: 0.3;
     --ov-avatar-ink-l: 0.92;
+    --ov-series-wash: 0.14;
   }
 }
 
@@ -377,6 +382,7 @@
   --ov-grain-screen: var(--ov-dark-grain-screen);
   --ov-avatar-surface-l: 0.3;
   --ov-avatar-ink-l: 0.92;
+  --ov-series-wash: 0.14;
 }
 
 /* With reduced motion nothing moves: a press does not scale, a set appears, a sheet fades. */

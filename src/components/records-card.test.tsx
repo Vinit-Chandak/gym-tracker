@@ -66,7 +66,8 @@ it("tiles the bests with their dates, labelled for the movement", () => {
   );
   expect(screen.getByText("Added load")).toBeTruthy();
   expect(screen.getByText("10 kg")).toBeTruthy();
-  expect(screen.getByText("3 × 8 · 30 Aug 2026")).toBeTruthy();
+  // Each number named: "3 × 8" read as three sets of eight, which it need not have been.
+  expect(screen.getByText("8 reps · 3 sets · 30 Aug 2026")).toBeTruthy();
   expect(screen.getByText("8 Sept 2026")).toBeTruthy();
 });
 

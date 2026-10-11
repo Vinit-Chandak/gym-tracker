@@ -6,7 +6,7 @@ export type CompareSide = {
   value: number | null;
   /** The value as the reader should see it — "6,240 kg", "5:25 /km". */
   text: string;
-  /** Lines under the value: the day a best was set, "4 × 12", "1.18× body weight". */
+  /** Lines under the value: the day a best was set, "12 reps · 4 sets", "1.18× BW". */
   sub?: readonly string[];
 };
 
@@ -19,7 +19,10 @@ export type CompareRow = {
   lowerIsBetter?: boolean;
 };
 
-/** "+20%", "−16.7%", "=" for equal, "—" when the friend's side has nothing to be a share of. */
+/**
+ * "+20%", "−16.7%", "=" for equal, "—" when the friend's side has nothing to be a share of. A
+ * row with a leader says "You lead" or "They lead" in place of that dash.
+ */
 export function percentLabel(comparison: Comparison): string {
   if (comparison.percent === null) return "—";
   if (comparison.percent === 0) return "=";
@@ -33,8 +36,9 @@ export function percentLabel(comparison: Comparison): string {
  * chart give them — and one row per metric, the values side by side and the difference
  * under the metric's name as a percentage from the viewer's side, with an arrow: success
  * when ahead, muted when behind. The leading value is the heavier one; a side with nothing
- * reads muted and the percentage "—". A real table, so a screen reader hears whose number
- * each is; server-renderable, so a page of these costs no JavaScript.
+ * reads muted, and with no percentage to give the lead is said in words ("You lead"), or "—"
+ * when neither has anything. A real table, so a screen reader hears whose number each is;
+ * server-renderable, so a page of these costs no JavaScript.
  */
 export function CompareTable({
   names,
@@ -67,6 +71,7 @@ export function CompareTable({
           const comparison = compareValues(row.a.value, row.b.value, row.lowerIsBetter);
           const ahead = comparison.leader === "a";
           const behind = comparison.leader === "b";
+          const lead = ahead ? "You lead" : behind ? "They lead" : null;
           return (
             <tr key={row.key} className="border-t border-line">
               <th scope="row" className="py-3 pr-3 text-left align-top font-normal">
@@ -79,10 +84,16 @@ export function CompareTable({
                 >
                   {ahead && <span aria-hidden>↑ </span>}
                   {behind && <span aria-hidden>↓ </span>}
-                  <span className="sr-only">
-                    {ahead ? "You lead " : behind ? "They lead " : ""}
-                  </span>
-                  {percentLabel(comparison)}
+                  {/* Ahead of nothing there is no percentage: who leads is said in words, not
+                      as "↑ —". */}
+                  {lead && comparison.percent === null ? (
+                    lead
+                  ) : (
+                    <>
+                      {lead && <span className="sr-only">{lead} </span>}
+                      {percentLabel(comparison)}
+                    </>
+                  )}
                 </span>
               </th>
               <Value side={row.a} leads={ahead} />

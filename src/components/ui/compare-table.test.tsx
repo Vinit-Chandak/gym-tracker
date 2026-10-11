@@ -30,7 +30,7 @@ it("puts the two people across the top and says the difference from the viewer's
   expect(screen.getByText("5,200 kg").className).not.toContain("font-semibold");
 });
 
-it("reads a dash for the percentage and mutes the side that has nothing", () => {
+it("says who leads in words where there is no percentage, and mutes the side that has nothing", () => {
   render(
     <CompareTable
       names={names}
@@ -41,11 +41,41 @@ it("reads a dash for the percentage and mutes the side that has nothing", () => 
           a: { value: 3, text: "3" },
           b: { value: null, text: "0" },
         },
+        {
+          key: "runs",
+          label: "Runs",
+          a: { value: 0, text: "0" },
+          b: { value: 2, text: "2" },
+        },
+        {
+          key: "active_days",
+          label: "Active days",
+          a: { value: 0, text: "0" },
+          b: { value: null, text: "0" },
+        },
       ]}
     />,
   );
-  expect(screen.getByText("—")).toBeTruthy();
-  expect(screen.getByText("0").className).toContain("text-ink-muted");
+  const [records, runs, days] = screen.getAllByRole("rowheader");
+  // Three records against none: ahead, by no percentage, so said, and never "↑ —".
+  expect(records!.textContent).toBe("Records set↑ You lead");
+  expect(runs!.textContent).toBe("Runs↓ They lead");
+  // Nothing on either side: no leader, so the dash.
+  expect(days!.textContent).toBe("Active days—");
+  expect(screen.getByText("3").className).toContain("font-semibold");
+  expect(screen.getAllByText("0")[0]!.className).toContain("text-ink-muted");
+});
+
+it("keeps the leader for a screen reader beside a percentage", () => {
+  render(
+    <CompareTable
+      names={names}
+      rows={[
+        { key: "w", label: "Workouts", a: { value: 6, text: "6" }, b: { value: 5, text: "5" } },
+      ]}
+    />,
+  );
+  expect(screen.getByRole("rowheader").textContent).toBe("Workouts↑ You lead +20%");
 });
 
 it("puts the day, the work and the body-weight ratio under a value", () => {
@@ -56,13 +86,13 @@ it("puts the day, the work and the body-weight ratio under a value", () => {
         {
           key: "top_weight",
           label: "Top weight",
-          a: { value: 88, text: "88 kg", sub: ["4 × 12", "8 Sept 2026", "1.18× BW"] },
+          a: { value: 88, text: "88 kg", sub: ["12 reps · 4 sets", "8 Sept 2026", "1.18× BW"] },
           b: { value: 85, text: "85 kg", sub: ["1 Sept 2026"] },
         },
       ]}
     />,
   );
-  expect(screen.getByText("4 × 12")).toBeTruthy();
+  expect(screen.getByText("12 reps · 4 sets")).toBeTruthy();
   expect(screen.getByText("1.18× BW")).toBeTruthy();
   expect(screen.getByText("+3.5%")).toBeTruthy();
 });

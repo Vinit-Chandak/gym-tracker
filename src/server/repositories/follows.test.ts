@@ -16,6 +16,7 @@ import {
   listFollowing,
   listFollowingWhoShare,
   listRequests,
+  listSentRequests,
   removeFollower,
   requestFollow,
   unfollow,
@@ -161,6 +162,21 @@ describe("answering a request", () => {
     await expect(
       t.client.query("update follows set status = 'pending' where follower_id = $1", [alice]),
     ).rejects.toThrow(/only be accepted/);
+  });
+
+  it("lists a request among the asker's sent ones until it is answered or withdrawn", async () => {
+    const sent = (id: string) =>
+      as(id)((tx) => listSentRequests(tx, id)).then((people) => people.map((p) => p.username));
+    expect(await sent(alice)).toEqual(["bob"]);
+    // Only the asker's: bob was asked, he sent nothing, and carol sees neither side of it.
+    expect(await sent(bob)).toEqual([]);
+    expect(await sent(carol)).toEqual([]);
+    await as(alice)((tx) => requestFollow(tx, alice, carol));
+    expect(await sent(alice)).toEqual(["carol", "bob"]);
+    // Accepted, it is a follow and no longer waits; withdrawn, it is gone.
+    await as(bob)((tx) => acceptFollow(tx, bob, alice));
+    await as(alice)((tx) => unfollow(tx, alice, carol));
+    expect(await sent(alice)).toEqual([]);
   });
 
   it("declining deletes the row, so they may ask again", async () => {

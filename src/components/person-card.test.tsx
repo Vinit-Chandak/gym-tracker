@@ -37,3 +37,11 @@ it("links nothing on the person's own page, which is where it would lead", () =>
   expect(screen.queryAllByRole("link")).toHaveLength(0);
   expect(screen.getByText("@vinit")).toBeTruthy();
 });
+
+it("leaves the name to the title on the person's own page, starting at the handle", () => {
+  const { container } = render(<PersonCard person={person} counts={counts} named={false} />);
+  expect(screen.queryByText("Vinit")).toBeNull();
+  expect(container.querySelector(".person-card-text")?.textContent).toBe(
+    "@vinit · 3 followers · 5 following",
+  );
+});

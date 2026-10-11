@@ -41,10 +41,12 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
         listFollowing(tx, user.id),
         readDistanceUnits(tx, user.id),
       ]);
-      // Only the people you follow; the policies leave out anyone who stopped sharing.
+      // Only the people you follow; the policies leave out anyone who stopped sharing. In the
+      // order of the days the rows say, as the reader's today clamps them.
       const activity = await readActivity(
         tx,
         following.map((person) => person.id),
+        { today },
       );
       return { requests, activity, distanceUnits };
     },

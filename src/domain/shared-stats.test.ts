@@ -9,6 +9,7 @@ import {
   primaryMetric,
   runStats,
   sessionStats,
+  topWeightWorkLabel,
   type StatsSet,
   type StatsSlot,
   type StatsWorkout,
@@ -82,6 +83,14 @@ describe("metricsForExercise", () => {
     expect(metricLabel("top_weight", bench)).toBe("Top weight");
     expect(metricLabel("top_weight", pullUp)).toBe("Added load");
     expect(metricLabel("top_weight", plank)).toBe("Heaviest hold");
+    // A set's volume says it is one, so its kilograms are not read as a lift.
+    expect(metricLabel("best_set_volume", bench)).toBe("Best set volume");
+  });
+  it("says how a top weight was worked with each number named", () => {
+    expect(topWeightWorkLabel({ sets: 2, reps: 11 })).toBe("11 reps · 2 sets");
+    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1 rep · 1 set");
+    // A hold or a carry has no reps to count: its sets alone.
+    expect(topWeightWorkLabel({ sets: 3, reps: null })).toBe("3 sets");
   });
   it("compares only global library movements", () => {
     expect(isComparable(bench)).toBe(true);
