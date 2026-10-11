@@ -8,6 +8,7 @@ import { ViewportSettle } from "@/components/shell/viewport-settle";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
 import { PLATFORM_INIT_SCRIPT, TEXT_SIZE_INIT_SCRIPT } from "@/lib/platform";
+import startupImages from "@/lib/startup-images.json";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -42,6 +43,7 @@ export const metadata: Metadata = {
      */
     statusBarStyle: "default",
     title: APP_NAME,
+    // The launch images are links of their own, in the layout below.
   },
   other: {
     // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
@@ -92,6 +94,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT + TEXT_SIZE_INIT_SCRIPT,
           }}
         />
+        {/*
+          What iOS shows while the installed app opens: it draws nothing from the manifest, so
+          without these the screen stays blank until the first page arrives. One image per
+          screen size, orientation and scheme, the icon on the ground the app opens on;
+          rendered, and listed, by scripts/render-icons.mjs. React moves the links into the
+          head. They are here rather than in `metadata.appleWebApp`, which would send all 58
+          again with every screen and every prefetch (about 15 KB each); the layout's are sent
+          only with a whole page, which is the only time iOS reads them.
+        */}
+        {startupImages.map(({ url, media }) => (
+          <link key={url} rel="apple-touch-startup-image" href={url} media={media} />
+        ))}
         <AppearanceSync />
         <NavigationHistory />
         <ViewportSettle />

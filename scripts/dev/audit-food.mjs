@@ -848,14 +848,18 @@ try {
       await page.getByRole("button", { name: /^Install / }).click();
       expect(await page.evaluate(() => window.__auditPrompted)).toBe(true);
       await page.getByRole("button", { name: /^Install / }).click();
-      await expect(page.getByText("iPhone and iPad", { exact: true })).toBeVisible();
+      // Only this phone's steps: Safari's on an iPhone, Chrome's on Android.
+      await expect(
+        page.getByText(engine === "webkit" ? "iPhone and iPad" : "Android", { exact: true }),
+      ).toBeVisible();
       await dialog().getByRole("button", { name: "Close sheet" }).click();
     },
   );
   await check("PWA manifest, service worker and private cache boundaries", async () => {
     const manifest = await (await page.request.get("/manifest.webmanifest")).json();
     expect(manifest.display).toBe("standalone");
-    expect(manifest.orientation).toBe("any");
+    // No orientation: the phone's rotation lock decides.
+    expect(manifest.orientation).toBeUndefined();
     expect(manifest.start_url).toBe("/today");
     for (const icon of manifest.icons) expect((await page.request.get(icon.src)).ok()).toBe(true);
     if (process.env.AUDIT_PRODUCTION === "true") {
