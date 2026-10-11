@@ -289,6 +289,18 @@ export const RUN_MODE_LABELS: Record<RunMode, string> = {
   treadmill: "Treadmill",
 };
 
+/**
+ * Where a run, ride or swim happened, as its log form offers it. Said beside the session's name
+ * (Run, Ride, Swim), as a workout's gym is beside its day, never in place of it.
+ */
+export const ENDURANCE_PLACE_LABELS: Readonly<Record<string, string>> = {
+  outdoor: "Outdoor",
+  treadmill: "Treadmill",
+  indoor: "Indoor",
+  pool: "Pool",
+  open_water: "Open water",
+};
+
 /** ISO weekday (1 = Monday) to its name. Index 0 is unused, so the day number indexes it. */
 /** A swim's stroke, as the swim form names it. */
 export const SWIM_STROKE_LABELS: Record<import("@/domain/activity").SwimStroke, string> = {

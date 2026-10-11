@@ -1,6 +1,7 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
+import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
 import { ART_SPORT, dayParts, type DayPiece } from "@/components/progress/calendar";
 import { PageContent } from "@/components/shell/page-content";
@@ -15,7 +16,7 @@ import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
-import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
@@ -34,10 +35,6 @@ type Entry = {
   href: Route;
   piece: DayPiece;
 };
-
-const RUN_PLACE: Record<string, string> = { outdoor: "Outdoor", treadmill: "Treadmill" };
-const RIDE_PLACE: Record<string, string> = { outdoor: "Ride", indoor: "Indoor ride" };
-const SWIM_PLACE: Record<string, string> = { pool: "Pool", open_water: "Open water" };
 
 /**
  * A day (board Day): its record as a print, in full ink, in the day's order, then each thing
@@ -76,12 +73,10 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   const entries: Entry[] = [
     ...endurance.map((item): Entry => {
       const seconds = item.durationMs === null ? null : Math.round(item.durationMs / 1000);
-      const place =
-        item.sport === "running"
-          ? (RUN_PLACE[item.environment ?? ""] ?? "Run")
-          : item.sport === "cycling"
-            ? (RIDE_PLACE[item.environment ?? ""] ?? "Ride")
-            : (SWIM_PLACE[item.environment ?? ""] ?? "Swim");
+      // Named as History and its own page name it, its title or "Run", "Ride", "Swim"; where it
+      // happened leads the line under it, as a workout's gym does.
+      const name = item.title ?? enduranceName(item.sport);
+      const place = item.environment ? ENDURANCE_PLACE_LABELS[item.environment] : null;
       // In the unit the athlete reads the sport in, as the activity's own page says it.
       const sportUnits = units[item.sport as keyof typeof units] ?? DEFAULT_SPORT_UNITS;
       const distance =
@@ -106,8 +101,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: item.id,
         sport: item.sport,
         at: item.startedAt,
-        title: joinFacts([place, distance]),
-        meta: joinFacts([seconds === null ? null : formatDuration(seconds), pace, stroke]),
+        title: joinFacts([name, distance]),
+        meta: joinFacts([place, seconds === null ? null : formatDuration(seconds), pace, stroke]),
         href: `/training/activities/${item.id}` as Route,
         piece: { sport: item.sport as Exclude<ActivitySport, "strength"> },
       };
