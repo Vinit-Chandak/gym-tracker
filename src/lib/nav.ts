@@ -151,3 +151,13 @@ export function originPath(
 ): string {
   return origin ? ORIGIN_PATHS[origin] : ORIGIN_PATHS[fallback];
 }
+
+/**
+ * Where a workout's Back goes without a page before it. The open workout is Today's, where it is
+ * started and finished. A finished one goes where its link said it was opened from, and
+ * otherwise to History, where finished workouts live (NAV-03): opened from the calendar's day,
+ * a year-old session or a link of its own, it said "Today" (year audit, October 2026).
+ */
+export function workoutBackPath(origin: NavOrigin | null, finished: boolean): string {
+  return finished ? originPath(origin) : "/today";
+}

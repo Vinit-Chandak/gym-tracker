@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
+import { enduranceName } from "@/components/activities/endurance-line";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -42,9 +43,14 @@ export default async function EditActivityPage(
   const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
   return (
     // As it was logged (boards Log a run, a ride, a swim): a layer over the tabs, Save pinned.
+    // Opened from the run, it goes back to the run, and says so: "Training" named the tab its
+    // path is under, not where Back went.
     <SessionPage
       title={`Correct the ${noun}`}
-      back={{ href: `/training/activities/${activityId}${originQuery(origin)}` as Route }}
+      back={{
+        href: `/training/activities/${activityId}${originQuery(origin)}` as Route,
+        label: enduranceName(actual.sport),
+      }}
     >
       <ActivityEditor
         userId={user.id}
