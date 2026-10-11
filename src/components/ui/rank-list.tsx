@@ -14,7 +14,7 @@ export type RankRow = Ranked<{
   value: number | null;
   /** The day a best was set, under the value; null on a period's totals. */
   occurredOn: string | null;
-  /** How a top weight was worked — "4 × 12" — between the value and its day; null otherwise. */
+  /** How a top weight was worked — "12 reps · 4 sets" — between the value and its day. */
   detail?: string | null;
 }>;
 

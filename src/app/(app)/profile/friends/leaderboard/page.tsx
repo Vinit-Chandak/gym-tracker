@@ -226,7 +226,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                 title={board.exercise.name}
                 info={`All-time bests, with the day each was set. ${
                   perKgBase(board.metric) === "top_weight" || board.metric === "top_weight"
-                    ? "Under a top weight, how it was worked: working sets at that load × the most reps one of them reached. "
+                    ? "Under a top weight, the most reps a set at it reached and how many working sets were at it. "
                     : ""
                 }${
                   perKgBase(board.metric) === "e1rm" || board.metric === "e1rm"

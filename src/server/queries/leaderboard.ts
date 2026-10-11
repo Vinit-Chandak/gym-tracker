@@ -1,7 +1,7 @@
 import type { DbOrTx } from "@/db/types";
 import { bodyWeightRatio } from "@/domain/compare";
 import { perKgBase, rank, type BoardMetric, type Ranked } from "@/domain/leaderboard";
-import { formatTopWeightWork } from "@/lib/format";
+import { topWeightWorkLabel } from "@/domain/shared-stats";
 import { listFollowingWhoShare } from "@/server/repositories/follows";
 import { getDirectoryProfileById, type DirectoryProfile } from "@/server/repositories/people";
 import type { ExerciseBest, SharedReading } from "@/server/repositories/shared-stats";
@@ -74,7 +74,7 @@ export function perKgAvailable(readings: ReadonlyMap<string, SharedReading>): bo
 
 /**
  * The circle ranked on one movement's metric over all time, with the day each best was set
- * and, for a top weight, how it was worked ("4 × 12"). A per-kg metric divides the load by
+ * and, for a top weight, how it was worked ("12 reps · 4 sets"). A per-kg metric divides the load by
  * each person's latest reading and lists only the people whose reading the viewer holds;
  * everyone else is left off rather than trailing as "—".
  */
@@ -89,7 +89,7 @@ export function rankExercise(
   for (const person of circle) {
     const best = bests.get(person.id)?.find((b) => b.metric === (base ?? metric));
     if (!best) continue;
-    const detail = best.work ? formatTopWeightWork(best.work) : null;
+    const detail = best.work ? topWeightWorkLabel(best.work) : null;
     if (base === null) {
       values.set(person.id, { value: best.value, occurredOn: best.occurredOn, detail });
       continue;
