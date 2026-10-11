@@ -25,8 +25,9 @@ it("opens your own page from the avatar and the name on your Profile card", () =
   const avatar = container.querySelector('a[aria-hidden="true"]');
   expect(avatar?.getAttribute("href")).toBe("/u/vinit");
   expect(avatar?.getAttribute("tabindex")).toBe("-1");
-  // The counts stay links of their own, and no link sits inside another.
-  expect(screen.getByRole("link", { name: "3 followers" }).getAttribute("href")).toBe(
+  // The counts stay links of their own, and no link sits inside another. Each keeps its word
+  // on its line ("3 followers", never "3 / followers").
+  expect(screen.getByRole("link", { name: "3\u00a0followers" }).getAttribute("href")).toBe(
     "/profile/friends/people?people=followers",
   );
   expect(container.querySelector("a a")).toBeNull();

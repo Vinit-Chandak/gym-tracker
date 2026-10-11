@@ -276,7 +276,7 @@ function LineNote({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="flex items-start gap-1.5 pb-2 type-meta-small text-ink">
       <Glyph name="warn" className="mt-0.5 glyph-16" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }

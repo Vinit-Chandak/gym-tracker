@@ -9,6 +9,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Switch } from "@/components/ui/switch";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { attempted, keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
@@ -184,10 +185,10 @@ export function AiCoachSettings({
                     {attempt.when.split(",")[0]}
                   </span>
                 </p>
-                <p className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2">
+                <p className="type-caption font-medium [overflow-wrap:break-word] text-ink-2">
                   {attempt.status === "failed" && attempt.error
                     ? attempt.error
-                    : [attempt.gymName, attempt.when].filter(Boolean).join(" · ")}
+                    : [attempt.gymName, attempt.when].filter(Boolean).join(FACT_SEPARATOR)}
                 </p>
               </li>
             ))}

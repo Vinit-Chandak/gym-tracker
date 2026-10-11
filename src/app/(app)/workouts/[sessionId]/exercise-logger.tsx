@@ -909,7 +909,7 @@ export function ExerciseLogger({
   ) => (
     <p id={id} role={role} className="entry-slot entry-slot-message">
       <Glyph name={glyphName} className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{text}</span>
     </p>
   );
   const slot: ReactNode = entryRow?.error ? (

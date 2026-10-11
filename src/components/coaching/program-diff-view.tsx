@@ -10,6 +10,7 @@ import {
   type RunSummary,
   type SummaryLine,
 } from "@/domain/program-change-summary";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
 /**
@@ -260,9 +261,9 @@ function DayGroup({
   return (
     <section className="diff-section">
       <h3 className="diff-section-head">
-        <span className="min-w-0 [overflow-wrap:anywhere]">{day.name}</span>
+        <span className="min-w-0 [overflow-wrap:break-word]">{day.name}</span>
         <span className="diff-section-when">
-          {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
+          {[weekday, status].filter(Boolean).join(FACT_SEPARATOR) || "Changed"}
         </span>
       </h3>
       {dayReason && <div className="diff-reason mb-1.5">{dayReason}</div>}
@@ -310,7 +311,7 @@ export function ProgramDiffView({
             ? "Only the programme's description changes"
             : "No programme changes"}
         </h3>
-        {emptyReason && <div className="type-meta [overflow-wrap:anywhere]">{emptyReason}</div>}
+        {emptyReason && <div className="type-meta [overflow-wrap:break-word]">{emptyReason}</div>}
       </section>
     );
   // A longer block or a new name made for an ask: the ask's words, once, under the change.

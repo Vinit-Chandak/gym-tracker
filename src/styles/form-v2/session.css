@@ -124,7 +124,7 @@ html:has(.session-layer) body {
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* A meta line: facts, each led by its glyph, in ink 2. */
@@ -1019,14 +1019,14 @@ html:has(.session-page) .pinned-actions {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .record-row-sets {
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* A finished workout open for changes (ADR 0049): each exercise a row that opens its log, its
    chevron at the end, and what the edit is said once above them. */
@@ -1046,7 +1046,7 @@ html:has(.session-page) .pinned-actions {
   font-size: var(--ov-type-meta);
   font-weight: 500;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .not-done {
   padding: calc(6 * var(--ov-u)) 0 calc(10 * var(--ov-u));
@@ -1055,7 +1055,7 @@ html:has(.session-page) .pinned-actions {
   font-size: var(--ov-type-meta);
   font-weight: 500;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* A row that comes to a figure (records): the name and what it is at the gutter, the figure
    trailing in Jost with its unit. */
@@ -1080,7 +1080,7 @@ html:has(.session-page) .pinned-actions {
   font-weight: 500;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .figure-row-value {
   margin-left: auto;
@@ -1111,6 +1111,13 @@ html:has(.session-page) .pinned-actions {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
   gap: calc(8 * var(--ov-u));
+}
+/* A name that wraps ("Sleep quality" in a narrow column) stands on its figure like the others:
+   each name sits just over its figure, and the figures of a row share one line. */
+.finished-check-in > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 /* ---------- the Log tab's decision block (plan: gradual confirmation during workouts) ---------- */

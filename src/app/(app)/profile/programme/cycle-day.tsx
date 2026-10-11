@@ -4,6 +4,7 @@ import { PlannedExerciseList, planSummary } from "@/components/planned-exercises
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
@@ -11,7 +12,7 @@ import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule
 /** What the day is, on one line under its name. */
 function subtitle(day: ScheduleDay): string | null {
   const parts = [day.focus, day.timeNote].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
 /** What it asks for: the sets, or the run, or neither. */
@@ -19,7 +20,7 @@ function cost(plan: ProgramDayPlan): string {
   if (plan.exercises.length > 0)
     return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run)}` : null]
       .filter(Boolean)
-      .join(" · ");
+      .join(FACT_SEPARATOR);
   if (plan.run) return runSummary(plan.run);
   return "Rest day";
 }
@@ -44,7 +45,7 @@ export function CycleDay({ plan, open = false }: { plan: ProgramDayPlan; open?: 
     <>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+          <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
           {open ? (
             <Badge tone="accent">In progress</Badge>
           ) : plan.isNext ? (

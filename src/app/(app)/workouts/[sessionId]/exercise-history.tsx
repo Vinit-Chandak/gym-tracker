@@ -130,7 +130,7 @@ export function ExerciseHistory({
               <span className="tabular-nums">
                 {formatIsoDay(todayInTimeZone(timeZone, new Date(entry.performedAt)))}
               </span>
-              <span className="min-w-0 type-meta-small [overflow-wrap:anywhere] text-ink-2">
+              <span className="min-w-0 type-meta-small [overflow-wrap:break-word] text-ink-2">
                 {entry.gymName}
                 {entry.equipmentName ? ` · ${entry.equipmentName}` : ""}
               </span>

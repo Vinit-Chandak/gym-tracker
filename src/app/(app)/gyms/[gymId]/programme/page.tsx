@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { AVAILABILITY_LABELS, exerciseOnMachine } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
@@ -86,9 +87,11 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                   href={`/exercises/${row.exercise.id}`}
                   className="flex min-h-[var(--ov-target)] flex-col justify-center"
                 >
-                  <span className="font-medium [overflow-wrap:anywhere]">{row.exercise.name}</span>
-                  <span className="text-xs [overflow-wrap:anywhere] text-ink-muted">
-                    {row.days.join(" · ")}
+                  <span className="font-medium [overflow-wrap:break-word]">
+                    {row.exercise.name}
+                  </span>
+                  <span className="text-xs [overflow-wrap:break-word] text-ink-muted">
+                    {row.days.join(FACT_SEPARATOR)}
                   </span>
                 </Link>
               </div>
@@ -120,7 +123,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                 className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-control bg-surface-raised px-3 py-2 text-sm"
               >
                 {/* Wraps rather than cutting the name off: Remove moves under it when it must. */}
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="min-w-0 [overflow-wrap:break-word]">
                   Fallback here:{" "}
                   {exerciseOnMachine(fallback.fallbackExerciseName, fallback.fallbackInstanceName)}
                 </span>

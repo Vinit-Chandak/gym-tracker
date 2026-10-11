@@ -325,7 +325,7 @@ export function MachineDecision({
                       <EquipmentArt src={variant.art} className="equipment-tile-art" />
                     )}
                     <span className="equipment-tile-name">
-                      <span className="min-w-0 [overflow-wrap:anywhere]">{variant.name}</span>
+                      <span className="min-w-0 [overflow-wrap:break-word]">{variant.name}</span>
                     </span>
                     {/* The words that tell it apart: a picture alone is not enough. */}
                     {variant.identification && (

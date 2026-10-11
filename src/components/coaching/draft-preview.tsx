@@ -104,7 +104,9 @@ export function DraftPreview({
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-2xl font-medium [overflow-wrap:anywhere]">{current.blueprint.name}</h1>
+        <h1 className="text-2xl font-medium [overflow-wrap:break-word]">
+          {current.blueprint.name}
+        </h1>
         <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
         {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
         {current.blueprint.notes && (
@@ -123,7 +125,7 @@ export function DraftPreview({
       </Card>
       {current.blueprint.days.map((day) => (
         <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+          <h2 className="text-lg font-medium [overflow-wrap:break-word]">
             {day.dayIndex}. {day.name}
           </h2>
           <p className="text-sm text-ink-muted">
@@ -134,7 +136,7 @@ export function DraftPreview({
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (
               <li key={i}>
-                <p className="font-medium [overflow-wrap:anywhere]">
+                <p className="font-medium [overflow-wrap:break-word]">
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
                 <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>

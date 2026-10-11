@@ -75,7 +75,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search name, muscle or equipment…"
+          placeholder="Name, muscle or equipment"
           aria-label="Search exercises"
           className="search-box-input"
           autoCapitalize="none"
@@ -104,7 +104,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
       {long && selected && (
         <p className="mt-2 type-meta-small text-ink-2">
           Selected:{" "}
-          <span className="font-bold [overflow-wrap:anywhere] text-ink">{selected.name}</span>
+          <span className="font-bold [overflow-wrap:break-word] text-ink">{selected.name}</span>
         </p>
       )}
 

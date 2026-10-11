@@ -8,6 +8,7 @@ import { formatSet, formatSets } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
@@ -171,11 +172,13 @@ export function ExerciseLife({
                     todayInTimeZone(timeZone, new Date(performance.performedAt)),
                     today.slice(0, 4),
                   )}
-                  {named ? ` · ${performance.machineName ?? "Unrecorded machine"}` : ""}
+                  {named
+                    ? `${FACT_SEPARATOR}${performance.machineName ?? "Unrecorded machine"}`
+                    : ""}
                 </span>
                 {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
               </span>
-              <span className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+              <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
                 {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit])}
               </span>
             </Link>

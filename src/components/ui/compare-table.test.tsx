@@ -97,6 +97,35 @@ it("puts the day, the work and the body-weight ratio under a value", () => {
   expect(screen.getByText("+3.5%")).toBeTruthy();
 });
 
+it("says whose each figure is beside it too, for when the metrics stack", () => {
+  render(
+    <CompareTable
+      names={names}
+      rows={[
+        {
+          key: "volume",
+          label: "Total volume",
+          a: { value: 85342.5, text: "85,342.5 kg" },
+          b: { value: 82645, text: "82,645 kg" },
+        },
+      ]}
+    />,
+  );
+  // Still read as a table when its rows are laid out as blocks.
+  expect(screen.getByRole("table")).toBeTruthy();
+  expect(screen.getByRole("rowheader").textContent).toContain("Total volume");
+  const cells = screen.getAllByRole("cell");
+  // The name beside each figure is for the eye only: the column head says it aloud.
+  expect(cells.map((cell) => cell.querySelector(".compare-who")?.textContent)).toEqual([
+    "You",
+    "Phani",
+  ]);
+  for (const cell of cells)
+    expect(cell.querySelector(".compare-who")!.getAttribute("aria-hidden")).toBe("true");
+  // A difference never splits from its sign or its percent.
+  expect(screen.getByText("+3.3%").className).toContain("whitespace-nowrap");
+});
+
 it("labels equal and behind without colour, and lets a faster pace lead", () => {
   expect(percentLabel({ leader: null, percent: 0 })).toBe("=");
   expect(percentLabel({ leader: "b", percent: -16.7 })).toBe("−16.7%");

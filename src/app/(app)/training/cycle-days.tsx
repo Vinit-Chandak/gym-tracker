@@ -106,7 +106,7 @@ function DayTile({
           className="cycle-day-print"
         />
         <span className="cycle-day-name">
-          <span className="min-w-0 [overflow-wrap:anywhere]">{day.name}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{day.name}</span>
           {day.word && <span className="cycle-day-next-word">{day.word}</span>}
         </span>
       </Link>

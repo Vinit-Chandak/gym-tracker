@@ -9,6 +9,7 @@ import {
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 /**
  * What today's endurance session asks for (plan §8.2 item 5).
@@ -71,7 +72,7 @@ export function stepLine(
   const parts = [ACTION_LABELS[step.action], target];
   if (step.effort) parts.push(effortLine(step.effort));
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
-  return parts.join(" · ");
+  return parts.join(FACT_SEPARATOR);
 }
 
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
@@ -82,7 +83,7 @@ export function sessionLine(prescription: EndurancePrescription, units: SportUni
     durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
     effort ? effortLine(effort) : null,
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
 export type ActivityPlanProps = {
@@ -117,7 +118,7 @@ export function ActivityPlan({
             {ACTIVITY_SPORT_LABELS[sport]} · planned
           </p>
           {prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">
+            <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
               {prescription.title}
             </h2>
           )}

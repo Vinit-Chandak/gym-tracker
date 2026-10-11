@@ -52,7 +52,7 @@ function OccurrenceRow({
             {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {formatIsoDate(occurrence.scheduledOn)}
             {time ? ` · ${time}` : ""}
           </p>
-          <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
+          <h2 className="mt-1 text-base font-medium [overflow-wrap:break-word]">
             {occurrence.prescription
               ? describePrescription(occurrence.prescription, units)
               : "No targets set"}

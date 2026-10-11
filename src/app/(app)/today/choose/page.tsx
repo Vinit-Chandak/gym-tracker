@@ -89,7 +89,7 @@ export default async function ChooseDayPage() {
           />
         ) : complete ? (
           <section aria-labelledby="choose-complete">
-            <h2 id="choose-complete" className="text-lg font-medium [overflow-wrap:anywhere]">
+            <h2 id="choose-complete" className="text-lg font-medium [overflow-wrap:break-word]">
               {plan.program.name}
             </h2>
             <ProgrammeComplete
@@ -105,7 +105,7 @@ export default async function ChooseDayPage() {
         ) : (
           <>
             {inProgress && (
-              <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+              <p className="text-sm [overflow-wrap:break-word] text-ink-muted">
                 {openDay ? `${openDay.name} is in progress.` : "A workout is in progress."} Finish
                 or discard it to start another day.
               </p>
@@ -119,7 +119,7 @@ export default async function ChooseDayPage() {
                   <li key={day.id} className="space-y-2 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+                        <p className="font-medium [overflow-wrap:break-word]">{day.name}</p>
                         {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
                       </div>
                       {/* Every day starts out pending, so only a changed status earns a badge. */}

@@ -53,7 +53,7 @@ export function CoachNoteMore({
         ref={words}
         id={id}
         className={cn(
-          "mt-1 leading-[1.45] [overflow-wrap:anywhere] text-ink tabular-nums",
+          "mt-1 leading-[1.45] [overflow-wrap:break-word] text-ink tabular-nums",
           size === "body" ? "type-body" : "type-meta",
           !open && "line-clamp-2",
         )}

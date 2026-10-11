@@ -13,6 +13,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
+import { joinFacts } from "@/lib/facts";
 import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
@@ -49,14 +50,14 @@ const APP_LINKS: FoodLinks = {
 
 /**
  * "2 foods · 1 meal": what My foods holds, or nothing while it holds nothing. Each count keeps
- * its noun on its line.
+ * its noun on its line, and the dot goes with the meals when the line wraps.
  */
 function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
   const parts = [
     foods > 0 ? `${foods}\u00a0${foods === 1 ? "food" : "foods"}` : null,
     meals > 0 ? `${meals}\u00a0${meals === 1 ? "meal" : "meals"}` : null,
-  ].filter((part) => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  ];
+  return joinFacts(parts) || undefined;
 }
 
 /**

@@ -61,7 +61,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name, muscle or equipment"
+          placeholder="Name, muscle or equipment"
           aria-label="Search exercises"
           className="pl-9"
           autoCapitalize="none"

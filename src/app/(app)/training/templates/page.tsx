@@ -61,7 +61,7 @@ export default async function TemplatesPage() {
                 <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
                   {ACTIVITY_SPORT_LABELS[template.sport]}
                 </p>
-                <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
+                <h2 className="mt-1 text-base font-medium [overflow-wrap:break-word]">
                   {template.name}
                 </h2>
                 <p className="text-sm text-ink-muted">
@@ -83,7 +83,7 @@ export default async function TemplatesPage() {
           <Section title="Strength routines">
             {routines.map((routine) => (
               <Card key={routine.id}>
-                <h2 className="text-base font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
+                <h2 className="text-base font-medium [overflow-wrap:break-word]">{routine.name}</h2>
                 <p className="text-sm text-ink-muted">
                   {routine.day.exercises.length} exercise
                   {routine.day.exercises.length === 1 ? "" : "s"}

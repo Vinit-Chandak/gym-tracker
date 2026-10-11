@@ -9,7 +9,8 @@ export type ComparePerson = { username: string; displayName: string | null };
  * Head to head (plan §3.10): two large avatars with "VS" between and the names under each,
  * the viewer always on the left. The exercise screen adds a Stronger badge under whoever
  * leads on the movement's primary metric; the overall screen never does, since "more
- * active" is not a contest anyone asked to enter.
+ * active" is not a contest anyone asked to enter. Where the two halves cannot hold a name's
+ * longest word beside "VS" (large text), "VS" gives its column up (people.css).
  */
 export function CompareHeader({
   a,
@@ -21,11 +22,11 @@ export function CompareHeader({
   stronger?: Side | null;
 }) {
   return (
-    <Card>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+    <Card className="compare-head">
+      <div className="compare-head-people">
         <Person person={a} stronger={stronger === "a"} />
         <span
-          className="self-center pt-1 text-sm font-medium tracking-wide text-ink-subtle"
+          className="compare-head-vs self-center pt-1 text-sm font-medium tracking-wide text-ink-subtle"
           aria-hidden
         >
           VS
@@ -41,10 +42,10 @@ function Person({ person, stronger }: { person: ComparePerson; stronger: boolean
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0">
-        <span className="block font-medium [overflow-wrap:anywhere]">
+        <span className="block font-medium [overflow-wrap:break-word]">
           {person.displayName || person.username}
         </span>
-        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+        <span className="block text-sm [overflow-wrap:break-word] text-ink-muted">
           @{person.username}
         </span>
       </p>

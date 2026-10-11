@@ -36,7 +36,7 @@ export default async function WelcomeGymPage() {
                 <span className="mark-cell">
                   <Glyph name={gymKindGlyph(gym.kind)} className="glyph-20" />
                 </span>
-                <span className="min-w-0 type-meta font-semibold [overflow-wrap:anywhere]">
+                <span className="min-w-0 type-meta font-semibold [overflow-wrap:break-word]">
                   {gym.name}
                   {gym.equipmentCount > 0 ? ` · ${gym.equipmentCount} machines` : ""}
                 </span>
