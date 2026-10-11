@@ -39,12 +39,15 @@ export type ExerciseChoice = {
  */
 export function LeaderboardControls({
   sport,
+  sports,
   mode,
   activityMetric,
   period,
   exercise,
 }: {
   sport: TrainingSport;
+  /** The viewer's sports, `sport` among them: one sport has no switch. */
+  sports: readonly TrainingSport[];
   mode: BoardMode;
   activityMetric: ActivityMetric;
   period: Period;
@@ -65,7 +68,7 @@ export function LeaderboardControls({
   return (
     <Card className={pending ? "opacity-60 transition-opacity" : undefined} aria-busy={pending}>
       {/* The mode and metric belong to the sport: the other sport starts on its own board. */}
-      <SportSwitch value={sport} resets={["mode", "metric"]} />
+      <SportSwitch value={sport} sports={sports} resets={["mode", "metric"]} />
       {sport === "workout" && (
         <SegmentedControl
           name="mode"

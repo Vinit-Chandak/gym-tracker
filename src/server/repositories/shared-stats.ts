@@ -466,6 +466,23 @@ export async function canViewTraining(tx: DbOrTx, ownerId: string): Promise<bool
   return row?.ok === true;
 }
 
+/**
+ * The sports any of these people has a shared session in, ever, as the policies let the
+ * signed-in user see them: what their social screens have a sport to switch to. A ride or swim
+ * is here only while its own sharing is on, since turning it off deletes its rows.
+ */
+export async function readSharedSports(
+  tx: DbOrTx,
+  userIds: readonly string[],
+): Promise<Set<TrainingSport>> {
+  if (userIds.length === 0) return new Set();
+  const rows = await tx
+    .selectDistinct({ sport: sharedSessionStats.sport })
+    .from(sharedSessionStats)
+    .where(inArray(sharedSessionStats.userId, [...userIds]));
+  return new Set(rows.map((row) => row.sport));
+}
+
 const EXERCISE_COLUMNS = {
   id: exercises.id,
   name: exercises.name,

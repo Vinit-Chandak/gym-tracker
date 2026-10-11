@@ -20,7 +20,7 @@ import { ACTIVITY_METRIC_LABELS, activityValue, type ActivityMetric } from "@/do
 import { RANGE_PRESET_WORDS, readWindowOf } from "@/domain/graph-range";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import type { TrainingSport } from "@/domain/sport-scope";
+import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
 import { formatActivityMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -36,10 +36,11 @@ import {
   readGroupSets,
   readPeriodTotals,
   readRecords,
+  readSharedSports,
 } from "@/server/repositories/shared-stats";
 import { requireUsername } from "@/server/validation/params";
 import { socialWindow } from "@/server/validation/period";
-import { parseSport } from "@/server/validation/sport";
+import { askedSport } from "@/server/validation/sport";
 
 export const metadata: Metadata = { title: "Person" };
 
@@ -57,15 +58,15 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
  * A person as others see them (plan §3.14): the header card with the follow button in place
  * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
  * span's totals for the chosen sport and, for lifting, the shape of their split and their best
- * lifts in the span — or one line saying why not. Your own page shows what a follower sees while you
- * share, and says so: the privacy screen's promise, demonstrated. With sharing off it says
- * that a follower sees the card alone.
+ * lifts in the span — or one line saying why not. Your own page shows what a follower sees
+ * while you share, and says so: the privacy screen's promise, demonstrated. With sharing off it
+ * says that a follower sees the card alone.
  */
 export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const user = await requireUser();
   const handle = requireUsername((await props.params).username);
   const params = await props.searchParams;
-  const sport = parseSport(params.sport);
+  const asked = askedSport(params.sport);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
   // The span every graph shares (ADR 0044), from the viewer's calendar: it is the viewer asking
@@ -89,6 +90,10 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
         self ? readProfile(tx, user.id).then((profile) => profile?.shareTraining ?? true) : true,
       ]);
       if (!visible) return { person, relation, sharing, training: null };
+      // Their sports, as a follower can see them: a sport they do not share, or have never
+      // done, has no tab (on your own page either, since a follower would not see it).
+      const sports = sportsOnOffer(await readSharedSports(tx, [person.id]), asked);
+      const sport = asked ?? sports[0]!;
       const lifting = sport === "workout";
       const [totals, groupSets, records, distanceUnits] = await Promise.all([
         readPeriodTotals(tx, [person.id], sport, range),
@@ -101,6 +106,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
         relation,
         sharing,
         training: {
+          sport,
+          sports,
           totals: totals.get(person.id) ?? EMPTY_TOTALS,
           split: muscleSplit(groupSets),
           trained: Object.keys(groupSets).length > 0,
@@ -150,12 +157,14 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               </p>
             )}
             <GraphRangeProvider preset={preset}>
-              <SportSpanControls sport={sport} />
+              <SportSpanControls sport={training.sport} sports={training.sports} />
             </GraphRangeProvider>
             <Card>
               {/* Three lifting tiles share the row; four running tiles pair up under 440px. */}
-              <StatTileRow className={sport === "workout" ? "min-[440px]:grid-cols-3" : undefined}>
-                {TILES[sport].map((metric) => {
+              <StatTileRow
+                className={training.sport === "workout" ? "min-[440px]:grid-cols-3" : undefined}
+              >
+                {TILES[training.sport].map((metric) => {
                   const value = activityValue(training.totals, metric);
                   return (
                     <StatTile
@@ -216,7 +225,10 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
             )}
             {relation && (
               // Keep the same sport when opening the comparison; the span is remembered anyway.
-              <LinkButton href={`/u/${person.username}/compare?sport=${sport}`} className="w-full">
+              <LinkButton
+                href={`/u/${person.username}/compare?sport=${training.sport}`}
+                className="w-full"
+              >
                 Compare
               </LinkButton>
             )}

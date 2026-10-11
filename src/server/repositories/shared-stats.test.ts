@@ -47,6 +47,7 @@ import {
   readPeriodTotals,
   readRecords,
   readSessionRecords,
+  readSharedSports,
 } from "./shared-stats";
 import { readWorkouts } from "./training-data";
 
@@ -983,5 +984,32 @@ describe("recent activity", () => {
     expect(
       await as(reader)((tx) => readActivity(tx, [ny, ist], { today: "2026-10-11", limit: 2 })),
     ).toHaveLength(2);
+  });
+});
+
+describe("the sports someone has shared", () => {
+  it("names each sport with a shared row once, and only as the policies let the reader see", async () => {
+    const rider = await account("rider@example.com", "rider");
+    const follower = await account("follower@example.com", "follower");
+    const stranger = await account("stranger@example.com", "stranger");
+    await t.client.query("update profiles set follow_approval = false where id = $1", [rider]);
+    await as(follower)((tx) => requestFollow(tx, follower, rider));
+    for (const sport of ["workout", "workout", "cycle"] as const)
+      await t.db.insert(sharedSessionStats).values({
+        userId: rider,
+        sport,
+        sourceId: crypto.randomUUID(),
+        title: sport,
+        occurredOn: "2026-10-01",
+        startedAt: new Date("2026-10-01T07:00:00Z"),
+        durationSeconds: 3600,
+      });
+    const sports = (viewer: string, ids: string[]) =>
+      as(viewer)((tx) => readSharedSports(tx, ids)).then((found) => [...found].sort());
+    expect(await sports(follower, [rider])).toEqual(["cycle", "workout"]);
+    expect(await sports(rider, [rider])).toEqual(["cycle", "workout"]);
+    // Somebody who does not follow the rider sees no sport of theirs, so no tab for one.
+    expect(await sports(stranger, [rider])).toEqual([]);
+    expect(await sports(follower, [])).toEqual([]);
   });
 });
