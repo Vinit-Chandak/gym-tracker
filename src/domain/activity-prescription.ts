@@ -53,9 +53,9 @@ const range = (schema: z.ZodNumber, label: string) =>
 
 const durationRange = range(z.number().int().min(0).max(DURATION_MS.max), "A duration range");
 const distanceRange = range(z.number().min(0).max(DISTANCE_METRES.cycling.max), "A distance range");
-// A target may legitimately be written from zero — the old programme sheet did — and it is
-// still written in RPE out of ten, while the athlete's own report is now 1–5. These are
-// different questions, so they keep different bounds: see `PRESCRIBED_EFFORT`.
+// A target may legitimately be written from zero — the old programme sheet did — while the
+// athlete's own report starts at 1. Both are out of five since 0034; they differ only at the
+// bottom, so they keep different bounds: see `PRESCRIBED_EFFORT`.
 const effortRange = range(
   z.number().min(PRESCRIBED_EFFORT.min).max(PRESCRIBED_EFFORT.max),
   "An effort range",

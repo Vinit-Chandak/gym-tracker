@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
+import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import {
   expandSteps,
   prescriptionTotals,
@@ -51,6 +52,15 @@ function range(low: number, high: number, format: (value: number) => string): st
   return low === high ? format(high) : `${format(low)}–${format(high)}`;
 }
 
+/**
+ * "Effort 2–3 of 5". A prescribed effort is on the athlete's own five steps since 0034, and it
+ * says so, so the target reads against the answer the log form asks for. It said "of 10" after
+ * the scale changed, which made an easy 2 read as almost nothing.
+ */
+function effortLine([low, high]: readonly [number, number]): string {
+  return `Effort ${range(low, high, String)} of ${PRESCRIBED_EFFORT.max}`;
+}
+
 /** "8 × 50 m · freestyle": one written step, said the way it was written. */
 export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
   const target =
@@ -58,9 +68,7 @@ export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
       ? range(step.target.ms[0], step.target.ms[1], minutes)
       : range(step.target.metres[0], step.target.metres[1], metres);
   const parts = [ACTION_LABELS[step.action], target];
-  // A prescribed effort is out of ten; the athlete's own report is out of five, so each says
-  // its scale rather than sharing a bare "Effort".
-  if (step.effort) parts.push(`Effort ${range(step.effort[0], step.effort[1], String)} of 10`);
+  if (step.effort) parts.push(effortLine(step.effort));
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
   return parts.join(" · ");
 }
@@ -71,7 +79,7 @@ export function sessionLine(prescription: EndurancePrescription): string | null 
   const parts = [
     distanceMetres ? range(distanceMetres[0], distanceMetres[1], metres) : null,
     durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
-    effort ? `Effort ${range(effort[0], effort[1], String)} of 10` : null,
+    effort ? effortLine(effort) : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
 }

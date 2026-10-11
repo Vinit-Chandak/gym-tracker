@@ -1,4 +1,5 @@
 import { DetailList } from "@/components/ui/detail-list";
+import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import { rangeLabel } from "@/lib/labels";
 import type { RunTarget } from "@/server/repositories/schedule";
 
@@ -15,16 +16,21 @@ export type RunTargets = {
   rpeMax?: number | null;
 };
 
-/** "5 km · 25–30 min · Effort 2": how far, how long, and how hard. */
+/**
+ * "5 km · 25–30 min · Effort 2 of 5": how far, how long, and how hard. Effort is out of five
+ * since 0034, the scale the athlete answers on; a stored zero means none was asked for, so it
+ * says nothing rather than "Effort 0".
+ */
 export function runSummary(run: RunTargets): string {
+  const rpeMax = run.rpeMax ?? run.rpeMin;
   const parts = [
     run.distanceMinKm === null
       ? null
       : rangeLabel(run.distanceMinKm, run.distanceMaxKm ?? run.distanceMinKm, " km"),
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
-    run.rpeMin === null || run.rpeMin === undefined
+    run.rpeMin === null || run.rpeMin === undefined || !rpeMax
       ? null
-      : `Effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)} of 10`,
+      : `Effort ${rangeLabel(run.rpeMin, rpeMax)} of ${PRESCRIBED_EFFORT.max}`,
   ];
   return parts.filter(Boolean).join(" · ");
 }
