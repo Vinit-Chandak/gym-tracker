@@ -20,7 +20,7 @@ import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { joinFacts } from "@/lib/facts";
+import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -54,7 +54,7 @@ function Archived({
           {programmes.map((programme) => (
             <li key={programme.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
               <p className="font-medium [overflow-wrap:break-word]">
-                {programme.name} · version {programme.version}
+                {joinFacts([holdHyphens(programme.name), `version\u00a0${programme.version}`])}
               </p>
               <ProgrammeTools id={programme.id} active={false} />
             </li>
@@ -146,7 +146,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
               <div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-lg font-medium [overflow-wrap:break-word]">
-                    {overview.program.name}
+                    {holdHyphens(overview.program.name)}
                   </h2>
                   {/* Today's word for it, "Programme complete", as the card's badge. */}
                   {complete && <Badge tone="success">Complete</Badge>}

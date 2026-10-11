@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
+import { holdHyphens, joinFacts } from "@/lib/facts";
 import { EXERCISE_MODALITY_LABELS, LOAD_PORTABILITY_TAGS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
+/** "Bodyweight · Chest, Triceps": a wrapped line breaks before the dot, never after it. */
 function subtitle(exercise: ExerciseListItem): string {
   const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ");
-  return `${EXERCISE_MODALITY_LABELS[exercise.modality]} · ${muscles}`;
+  return joinFacts([EXERCISE_MODALITY_LABELS[exercise.modality], muscles]);
 }
 
 function Rows({ items }: { items: ExerciseListItem[] }) {
@@ -26,7 +28,8 @@ function Rows({ items }: { items: ExerciseListItem[] }) {
             <LinkRow
               prefetch="intent"
               href={`/exercises/${exercise.id}`}
-              title={exercise.name}
+              // "Archer push-up" breaks between its words, never at its hyphen.
+              title={holdHyphens(exercise.name)}
               subtitle={subtitle(exercise)}
               badge={tag ? <Badge>{tag}</Badge> : undefined}
             />

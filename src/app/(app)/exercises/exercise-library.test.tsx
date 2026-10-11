@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { listItem } from "@/components/exercise-picker.test-data";
+import { holdHyphens } from "@/lib/facts";
 
 import { ExerciseLibrary } from "./exercise-library";
 
@@ -24,7 +25,8 @@ it("tags each row with where its history is kept: per machine, per setup, or not
       ]}
     />,
   );
-  const row = (name: string) => screen.getByText(name).closest("a")!.textContent;
+  // A name is held at its hyphens, so a row never ends "push-" (holdHyphens).
+  const row = (name: string) => screen.getByText(holdHyphens(name)).closest("a")!.textContent;
   expect(row("Chest press machine")).toContain("Per machine");
   // A push-up off a bench is kept per setup: its height is the load, and it is no machine.
   expect(row("Incline push-up")).toContain("Per setup");
