@@ -321,7 +321,7 @@ async function checkRecords(page, data, window, kind = "all") {
   await expect(page.getByRole("heading", { level: 1, name: "History", exact: true })).toBeVisible();
   const count = page
     .getByRole("status")
-    .filter({ hasText: /^[\d,]+ entr(?:y|ies)(?: · page \d+ of \d+)?$/ });
+    .filter({ hasText: /^[\d,]+\sentr(?:y|ies)(?:\s·\spage\s\d+\sof\s\d+)?$/ });
   await expect(count).toHaveCount(1);
   const expected = expectedFor(data, window, kind);
   const pages = Math.max(1, Math.ceil(expected.length / PAGE_SIZE));

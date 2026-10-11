@@ -242,7 +242,8 @@ for (const config of [
       const entry = page.locator("a.day-row").first();
       await target(entry);
       await entry.tap();
-      await page.waitForURL(/\/(?:workouts|training\/activities)\/[0-9a-f-]+$/);
+      // A day's entries say where they were opened from (`?from=history`), so Progress stays lit.
+      await page.waitForURL(/\/(?:workouts|training\/activities)\/[0-9a-f-]+(?:\?from=[a-z]+)?$/);
       await page.waitForLoadState("networkidle");
       await target(page.locator("a.back-link"));
       await page.locator("a.back-link").tap();
