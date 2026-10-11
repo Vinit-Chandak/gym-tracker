@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   coachJobs,
@@ -7,7 +7,9 @@ import {
   occurrenceEditClaims,
   occurrenceVersions,
   plannedOccurrences,
+  profiles,
   programFamilies,
+  programs,
   sessionPlans,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
@@ -18,16 +20,18 @@ import {
   endurancePrescriptionSchema,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
+import { ensureProfile } from "@/server/queries/profile";
 import { activePlanForOccurrence, storeOccurrencePlan } from "./coach-plans";
 import { PlanValidationError } from "./coach-plans";
 import {
+  claimCoachJob,
   enqueueCoachJob,
   enqueueOccurrencePreparations,
   programmeSports,
   replanAfterReview,
 } from "./coaching-jobs";
 import { materialiseOccurrences, openOccurrencesBetween } from "./program-occurrences";
-import { createProgramFromBlueprint } from "./programs";
+import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 
 /**
@@ -764,4 +768,81 @@ it("carries occurrences across a revision, freezing the past and cancelling what
   // The past one keeps what was actually prescribed on the day, untouched.
   expect(past?.prescription?.sessionTargets.durationMs).toEqual([30 * MINUTE, 40 * MINUTE]);
   expect(rows.find((row) => row.id === before[1]!.id)?.disposition).toBe("cancelled");
+});
+
+/**
+ * A revision that leaves a run alone carries it forward on the revision an earlier version
+ * wrote. Matching the active version rather than the programme's lineage stopped preparing
+ * every such run from the first change the athlete approved, and dropped a ride out of the
+ * sports a review has to cover.
+ */
+describe("a programme revised around its occurrences", () => {
+  /** The next version of the same programme, changing none of its occurrences. */
+  async function nextVersion(a: Athlete, previous: { id: string; familyId: string }) {
+    return as(a, async (tx) => {
+      const [row] = await tx.select().from(programs).where(eq(programs.id, previous.id));
+      const current = await readProgramBlueprint(tx, a.id, previous.id);
+      return createProgramFromBlueprint(tx, a.id, current!.blueprint, {
+        startDate: row!.startDate!,
+        familyId: previous.familyId,
+      });
+    });
+  }
+
+  async function coached(a: Athlete) {
+    await as(a, async (tx) => {
+      await ensureProfile(tx, { id: a.id, email: null });
+      await tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.id));
+    });
+  }
+
+  it("keeps preparing the runs it carried forward", async () => {
+    const a = await athlete();
+    const v1 = await programme(a);
+    await schedule(a, v1.familyId, v1.id, [
+      { sport: "running", date: "2026-09-21", week: 2 },
+      { sport: "cycling", date: "2026-09-22", week: 2 },
+    ]);
+    const v2 = await nextVersion(a, v1);
+
+    const queued = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+    expect(queued).toHaveLength(2);
+    const jobs = await as(a, (tx) =>
+      tx.select().from(coachJobs).where(inArray(coachJobs.id, queued)),
+    );
+    expect(jobs.every((job) => job.target.programId === v2.id)).toBe(true);
+    expect([...(await as(a, (tx) => programmeSports(tx, a.id, v2.id)))].sort()).toEqual([
+      "cycling",
+      "running",
+      "strength",
+    ]);
+  });
+
+  it("lets a preparation queued before the revision go ahead", async () => {
+    const a = await athlete();
+    await coached(a);
+    const v1 = await programme(a);
+    await schedule(a, v1.familyId, v1.id, [{ sport: "running", date: "2026-09-21", week: 2 }]);
+    const [queued] = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+    await nextVersion(a, v1);
+
+    // Its key is the occurrence and its revision, which the revision did not touch, so a job
+    // refused here could never be queued for that run again.
+    const claimed = await as(a, (tx) => claimCoachJob(tx, a.id, queued!));
+    expect(claimed?.status).toBe("claimed");
+  });
+
+  it("refuses a preparation queued for a programme the athlete has left", async () => {
+    const a = await athlete();
+    await coached(a);
+    const v1 = await programme(a);
+    await schedule(a, v1.familyId, v1.id, [{ sport: "running", date: "2026-09-21", week: 2 }]);
+    const [queued] = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+    // A new block: a family of its own.
+    await programme(a);
+
+    expect(await as(a, (tx) => claimCoachJob(tx, a.id, queued!))).toBeNull();
+    const [job] = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.id, queued!)));
+    expect(job?.status).toBe("superseded");
+  });
 });
