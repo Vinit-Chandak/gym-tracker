@@ -13,6 +13,10 @@ export type Person = { username: string; displayName: string | null };
  * One person in a list: avatar, name, handle, and whatever sits at the trailing edge — a
  * follow button, a value, or a chevron. The name is the link to their page; the trailing
  * control stays outside it, so a button never sits inside a link.
+ *
+ * At large text a control goes under the name, at the row's end, rather than squeeze the name
+ * to a letter a line: the avatar and the name keep 10rem between them, growing with the text,
+ * and the row folds when the control cannot have the rest. A chevron never folds.
  */
 export function PersonRow<T extends string>({
   person,
@@ -41,20 +45,27 @@ export function PersonRow<T extends string>({
       </span>
     </>
   );
+  // With a control at the end, the person keeps a basis of their own, so the row folds rather
+  // than giving the control the room the name needs.
+  const lead = cn("flex min-w-0 items-center gap-3", children ? "flex-[1_1_10rem]" : "flex-1");
   return (
-    <div className={cn(ROW_CLASS, "gap-3", className)}>
+    <div className={cn(ROW_CLASS, "gap-3", children && "flex-wrap", className)}>
       {link ? (
         <Link
           href={href ?? (`/u/${person.username}` as Route)}
           prefetch="intent"
-          className="-my-3 -ml-4 flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 pl-4 focus-visible:-outline-offset-2"
+          className={cn(lead, "-my-3 -ml-4 min-h-14 py-3 pl-4 focus-visible:-outline-offset-2")}
         >
           {body}
         </Link>
       ) : (
-        body
+        <span className={lead}>{body}</span>
       )}
-      {children ?? (link && <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />)}
+      {children ? (
+        <span className="ml-auto flex max-w-full shrink-0">{children}</span>
+      ) : (
+        link && <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+      )}
     </div>
   );
 }
