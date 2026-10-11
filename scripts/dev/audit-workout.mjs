@@ -388,7 +388,9 @@ try {
       await page.waitForLoadState("networkidle");
       await context.setOffline(true);
       await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
-      await expect(page.getByRole("alert")).toBeVisible();
+      // Next's route announcer is an alert too, holding the page's title after a client
+      // navigation; the form's own alert says the start could not be sent.
+      await expect(page.getByRole("alert").filter({ hasText: /^Connection lost/ })).toBeVisible();
       await expect(page).toHaveURL(/\/workouts\/start\?/);
       await context.setOffline(false);
     },
