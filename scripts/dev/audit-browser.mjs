@@ -220,7 +220,7 @@ for (const config of configurations.filter((c) =>
     // Setup resumes at the first step not answered (ADR 0053): for Taylor, the first.
     const beforeFirstStep =
       persona === "taylor" &&
-      /^\/welcome\/(?:sports|gym|equipment|programme(?:\/create)?)$/.test(route);
+      /^\/welcome\/(?:sports|gym|equipment|programme(?:\/(?:create|split|template))?)$/.test(route);
     const expectedRoute =
       route === "/"
         ? "/today"
@@ -406,6 +406,8 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme",
               "/welcome/programme/create",
               "/welcome/programme/manual",
+              "/welcome/programme/split",
+              "/welcome/programme/template",
             ];
     for (const [i, route] of extra.entries()) await visit(route, persona, i);
   }
