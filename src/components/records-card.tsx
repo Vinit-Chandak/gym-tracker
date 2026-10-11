@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDay, formatSharedMetric } from "@/lib/format";
 import type {
   ExerciseBest,
@@ -87,8 +88,10 @@ export function ExerciseBestsTiles({
               <>
                 {formatSharedMetric(best.metric, best.value, unit)}
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-                  {best.work ? `${topWeightWorkLabel(best.work)} · ` : ""}
-                  {formatIsoDay(best.occurredOn)}
+                  {joinFacts([
+                    best.work && topWeightWorkLabel(best.work),
+                    formatIsoDay(best.occurredOn),
+                  ])}
                 </span>
               </>
             }

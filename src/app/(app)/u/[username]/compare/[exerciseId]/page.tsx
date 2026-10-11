@@ -68,7 +68,7 @@ function side(
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
   // Of the latest weight, not the weight on the day of a lift long ago: only the latest reading
   // is shared (plan §3.8), so neither side can be read against an older one, and says so.
-  if (times !== null) sub.push(`${times}× latest BW`);
+  if (times !== null) sub.push(`${times}× latest\u00a0BW`);
   return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
 }
 

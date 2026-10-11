@@ -1,3 +1,4 @@
+import { joinFacts } from "@/lib/facts";
 import { convertLoad } from "@/lib/units";
 
 import { unroundedEstimated1RM } from "./analytics";
@@ -102,9 +103,10 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
  * "11 reps" under its load: "2 × 11" read as two sets of eleven, which it need not have been.
  */
 export function topWeightWorkLabel(work: { sets: number; reps: number | null }): string {
-  const sets = `${work.sets} ${work.sets === 1 ? "set" : "sets"}`;
+  // Each count held to its noun, and the dot to the count after it (FACT_SEPARATOR).
+  const sets = `${work.sets}\u00a0${work.sets === 1 ? "set" : "sets"}`;
   if (work.reps === null) return sets;
-  return `${work.reps} ${work.reps === 1 ? "rep" : "reps"} · ${sets}`;
+  return joinFacts([`${work.reps}\u00a0${work.reps === 1 ? "rep" : "reps"}`, sets]);
 }
 
 export type ComparableExercise = { userId: string | null; loadPortability: LoadPortability };

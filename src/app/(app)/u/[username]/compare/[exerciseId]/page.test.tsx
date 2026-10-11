@@ -163,8 +163,8 @@ it("reads a best against each person's latest body weight, and says it is the la
     } as never),
   );
   // A lift from last December over this October's weight: the line says which weight it is.
-  expect(html).toContain("1.76× latest BW");
-  expect(html).toContain("0.65× latest BW");
+  expect(html).toContain("1.76× latest\u00a0BW");
+  expect(html).toContain("0.65× latest\u00a0BW");
   expect(html).not.toMatch(/\d× BW/);
 });
 
@@ -196,8 +196,8 @@ it("names each number under a top weight, and calls a set's volume what it is", 
     } as never),
   );
   // Two sets at the top weight, the better of them eleven reps: never "2 × 11".
-  expect(html).toContain("11 reps · 2 sets");
-  expect(html).toContain("2 reps · 1 set");
+  expect(html).toContain("11\u00a0reps ·\u00a02\u00a0sets");
+  expect(html).toContain("2\u00a0reps ·\u00a01\u00a0set");
   expect(html).not.toMatch(/\d × \d/);
   expect(html).toContain("Best set volume");
 });
