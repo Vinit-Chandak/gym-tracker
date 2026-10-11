@@ -27,6 +27,11 @@ function unitAfter(unit: FoodUnit, amount: number | null): string {
  * The amount a step up or down from `current`, on the half portions (the amounts the app has
  * always offered a tap away: half a portion, the portion, one and a half, two, and on). A typed
  * amount between two of them steps to the nearer one that way. Null where there is none.
+ *
+ * The halves are stepped as they are kept, to the hundredth: half of 0.75 cup is 0.38, a little
+ * over the exact 0.375, and one and a half of 0.15 is 0.22, a little under 0.225. A step that
+ * found its own half again would leave the amount where it was, so it goes on to the next half
+ * that is truly past it.
  */
 export function steppedAmount(
   current: number,
@@ -35,9 +40,12 @@ export function steppedAmount(
 ): number | null {
   const step = portionAmount / 2;
   if (!(step > 0)) return null;
-  const at = current / step;
-  const index = direction > 0 ? Math.floor(at + 1e-6) + 1 : Math.ceil(at - 1e-6) - 1;
-  const next = toHundredth(index * step);
+  const half = (index: number) => toHundredth(index * step);
+  // A half moves by at least 0.005, and rounding by at most that, so each loop is a step or two.
+  let index = Math.round(current / step);
+  if (direction > 0) while (half(index) <= current) index += 1;
+  else while (index > 0 && half(index) >= current) index -= 1;
+  const next = half(index);
   return next > 0 && next <= NUTRITION_LIMITS.amount ? next : null;
 }
 
