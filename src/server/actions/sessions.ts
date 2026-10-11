@@ -35,7 +35,7 @@ import {
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
-  reopenSkippedSession,
+  returnRestDaysPassedBy,
 } from "@/server/repositories/schedule";
 import {
   addExercisesToSession,
@@ -190,16 +190,20 @@ async function startPlanned(
       ? fromCycleIndex
       : null;
   // A run still owed on a combined day must not make its completed lift pending again.
+  //
+  // A skipped day stays skipped while its workout is open: finishing the workout is what turns
+  // the skip into a completion (recordSlotEvent), so one discarded before a set leaves the day
+  // as it was, reason and all, instead of putting it back in front of the sequence.
   const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
   if (cycleIndex === null) return null;
-  if (shown !== null) {
-    await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
-  }
-  // Passing rest days and starting the session write different rows; both land or neither.
-  const [, { sessionId }] = await Promise.all([
-    completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),
-    startPlannedSession(tx, user.id, { gymId, programDayId, cycleIndex }),
-  ]);
+  const { sessionId } = await startPlannedSession(tx, user.id, {
+    gymId,
+    programDayId,
+    cycleIndex,
+  });
+  // In the same transaction as the session, so both land or neither. The rest days passed name
+  // the workout that passed them, which is what lets a discard give them back.
+  await completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today, sessionId);
   return { sessionId, created: true };
 }
 
@@ -796,6 +800,9 @@ async function finishAndRecord(
     // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
     // that evening's; dating it by the finish made the next morning's Today say the day
     // had been done that morning, and hold back the day that was actually up next.
+    //
+    // A skipped day trained after all, from Train another day, is still skipped until now;
+    // the completion replaces the skip.
     if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
       await recordSlotEvent(
         tx,
@@ -898,10 +905,18 @@ export async function removeSupersetAction(
   return { ok: true };
 }
 
+/**
+ * Throws away a workout nothing was logged in, and with it what its start did to the
+ * programme: the rest days it passed are owed again, as they were before it. A skipped day it
+ * was training was never taken back, so it simply stays skipped.
+ */
 export async function discardSessionAction(sessionId: string): Promise<ActionResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) => discardSession(tx, user.id, sessionId));
+    await withUser(getDb(), user.id, async (tx) => {
+      await discardSession(tx, user.id, sessionId);
+      await returnRestDaysPassedBy(tx, user.id, sessionId);
+    });
   } catch (error) {
     // Discard pressed again after its first reply was lost: the session is gone, as asked.
     if (!(error instanceof SessionNotFoundError)) return { ok: false, error: describe(error) };

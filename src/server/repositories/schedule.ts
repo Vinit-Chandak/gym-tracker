@@ -141,14 +141,16 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
       // The programme's own endurance work, as the sequence needs to read it: which slot of
-      // the cycle it belongs to and whether anything still owes an answer. Joined here rather
-      // than fetched after, so the day a running slot completes costs no extra round trip.
+      // the cycle it belongs to, whether anything still owes an answer, and the day a logged one
+      // was done on. Joined here rather than fetched after, so the day a running slot completes
+      // costs no extra round trip.
       enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
         select json_agg(json_build_object(
           'cycleIndex', o.cycle_index,
           'cycleDayIndex', o.cycle_day_index,
           'disposition', o.disposition,
-          'logged', (a.id is not null)
+          'logged', (a.id is not null),
+          'occurredOn', a.occurred_on
         ))
         from planned_occurrences o
         left join activities a
@@ -204,6 +206,8 @@ type EnduranceRow = {
   cycleDayIndex: number;
   disposition: OccurrenceDisposition;
   logged: boolean;
+  /** The local date of the activity that answered it; null until one has. */
+  occurredOn: string | null;
 };
 
 /**
@@ -233,15 +237,30 @@ function slotOccurrences(
           : row.disposition === "pending"
             ? ("incomplete" as const)
             : row.disposition,
+        ...(row.logged && row.occurredOn ? { occurredOn: row.occurredOn } : {}),
       },
     ];
   });
 }
 
+/** Where a slot's part is answered: one event each, for good. */
+const SLOT_PART = [
+  programSlotEvents.programId,
+  programSlotEvents.cycleIndex,
+  programSlotEvents.dayIndex,
+  programSlotEvents.part,
+];
+
 /**
  * Records what happened to one part of a slot: the workout, or the run. Returns false when
- * that part already had an event, so finishing a session twice, or logging a second run
- * against one planned run, changes nothing.
+ * that part already had an answer that stands, so finishing a session twice, or logging a
+ * second run against one planned run, changes nothing.
+ *
+ * A skip is the one answer that gives way, and only to a completion: a day trained after all
+ * was done. That is how a skipped day picked from "Train another day" is recorded once its
+ * workout is finished. Nothing is taken back when the workout starts, so one discarded before
+ * a set leaves the day skipped, with the reason given for skipping it, rather than putting it
+ * back in front of the sequence.
  */
 export async function recordSlotEvent(
   db: DbOrTx,
@@ -257,38 +276,38 @@ export async function recordSlotEvent(
     note?: string | null;
   },
 ): Promise<boolean> {
-  const inserted = await db
-    .insert(programSlotEvents)
-    .values({
-      userId,
-      programId,
-      cycleIndex: ref.cycleIndex,
-      dayIndex: ref.dayIndex,
-      part,
-      status,
-      workoutSessionId: details.workoutSessionId ?? null,
-      runId: details.runId ?? null,
-      occurredOn: details.occurredOn,
-      note: details.note ?? null,
-    })
-    .onConflictDoNothing({
-      target: [
-        programSlotEvents.programId,
-        programSlotEvents.cycleIndex,
-        programSlotEvents.dayIndex,
-        programSlotEvents.part,
-      ],
-    })
-    .returning({ id: programSlotEvents.id });
-  return inserted.length > 0;
+  const answer = {
+    status,
+    workoutSessionId: details.workoutSessionId ?? null,
+    runId: details.runId ?? null,
+    occurredOn: details.occurredOn,
+    note: details.note ?? null,
+  };
+  const insert = db.insert(programSlotEvents).values({
+    userId,
+    programId,
+    cycleIndex: ref.cycleIndex,
+    dayIndex: ref.dayIndex,
+    part,
+    ...answer,
+  });
+  const written = await (
+    status === "completed"
+      ? insert.onConflictDoUpdate({
+          target: SLOT_PART,
+          set: answer,
+          setWhere: eq(programSlotEvents.status, "skipped"),
+        })
+      : insert.onConflictDoNothing({ target: SLOT_PART })
+  ).returning({ id: programSlotEvents.id });
+  return written.length > 0;
 }
 
 /**
- * Takes back the skip on a slot's session, so the day can be trained after all.
+ * Takes back the skip on a slot's session, so the day is owed again.
  *
- * Picking a skipped day from "Train another day" trains the occurrence the list showed, which
- * means the skip on it has to go: a slot event is written once, so a workout finished against a
- * day still marked skipped would never be recorded as done.
+ * Training a skipped day does not need it: finishing its workout replaces the skip (see
+ * `recordSlotEvent`), and the app no longer takes the skip back when such a workout starts.
  */
 export async function reopenSkippedSession(
   db: DbOrTx,
@@ -310,13 +329,26 @@ export async function reopenSkippedSession(
     );
 }
 
-/** Completes every pending rest slot that comes before `ref` in the sequence, in one statement. */
+/**
+ * The note on a rest day a workout's start passed. It names the workout, which is what lets a
+ * discard give back exactly the rest days that start passed and no others: nothing else ties a
+ * rest day's event to a session, and `workout_session_id` is kept for the slot a session trained.
+ */
+function restPassedBy(sessionId: string): string {
+  return `Rest day passed by workout ${sessionId}`;
+}
+
+/**
+ * Completes every pending rest slot that comes before `ref` in the sequence, in one statement.
+ * `passedBy` is the workout whose start passes them, so that discarding it can give them back.
+ */
 export async function completeRestSlotsBefore(
   db: DbOrTx,
   userId: string,
   schedule: Schedule,
   ref: SlotRef,
   occurredOn: string,
+  passedBy?: string,
 ): Promise<number> {
   const pendingRest: SlotRef[] = [];
   for (const candidate of allSlots(schedule.state)) {
@@ -344,19 +376,38 @@ export async function completeRestSlotsBefore(
         status: "completed" as const,
         workoutSessionId: null,
         occurredOn,
-        note: "Rest day passed",
+        note: passedBy ? restPassedBy(passedBy) : "Rest day passed",
       })),
     )
-    .onConflictDoNothing({
-      target: [
-        programSlotEvents.programId,
-        programSlotEvents.cycleIndex,
-        programSlotEvents.dayIndex,
-        programSlotEvents.part,
-      ],
-    })
+    .onConflictDoNothing({ target: SLOT_PART })
     .returning({ id: programSlotEvents.id });
   return inserted.length;
+}
+
+/**
+ * Gives back the rest days a workout's start passed, when that workout is discarded before
+ * anything was trained: they were passed only because it was about to be, so without it they
+ * are as they were. Looked for in every version of the athlete's programmes, so a revision that
+ * copied them onto a new version gives those copies back too.
+ */
+export async function returnRestDaysPassedBy(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  await db.delete(programSlotEvents).where(
+    and(
+      eq(programSlotEvents.userId, userId),
+      // By programme, so the slot index is what finds them rather than a scan of every event.
+      inArray(
+        programSlotEvents.programId,
+        db.select({ id: programs.id }).from(programs).where(eq(programs.userId, userId)),
+      ),
+      eq(programSlotEvents.part, "session"),
+      eq(programSlotEvents.status, "completed"),
+      eq(programSlotEvents.note, restPassedBy(sessionId)),
+    ),
+  );
 }
 
 /**
@@ -551,9 +602,9 @@ export type TodayPlan = {
   sessionStatus: SlotStatus | "pending";
   /**
    * The programme day finished today, when there is one: the day offered is then the next one,
-   * not today's.
+   * not today's. With its cycle, so Today can still show the endurance it logged.
    */
-  finishedToday: ScheduleDay | null;
+  finishedToday: (ScheduleDay & { cycleIndex: number }) | null;
   /** Training days the calendar has passed with something still owed, oldest first. */
   missed: { cycleIndex: number; dayIndex: number; name: string }[];
   /** The day "Pick up from today" would resume at: the calendar's day for today. */
@@ -600,6 +651,7 @@ export async function getTodayPlan(
   const startDate = schedule.program.startDate ?? today;
   const finishedRef = slotFinishedOn(state, today);
   const dayOf = (ref: SlotRef) => schedule.days.find((d) => d.dayIndex === ref.dayIndex) ?? null;
+  const finishedDay = finishedRef ? dayOf(finishedRef) : null;
   const resumeAt = pickUpFromToday(state, startDate, today).resumeAt;
   const resumeDay = resumeAt ? dayOf(resumeAt) : null;
   return {
@@ -621,9 +673,8 @@ export async function getTodayPlan(
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
     sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
-    finishedToday: finishedRef
-      ? (schedule.days.find((d) => d.dayIndex === finishedRef.dayIndex) ?? null)
-      : null,
+    finishedToday:
+      finishedRef && finishedDay ? { ...finishedDay, cycleIndex: finishedRef.cycleIndex } : null,
     cycleDays,
   };
 }

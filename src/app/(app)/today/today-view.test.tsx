@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -11,11 +11,13 @@ import { writeDraft } from "@/lib/workout-drafts";
 
 import { TodayView } from "./today-view";
 
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ refresh, push: vi.fn() }),
   unstable_rethrow: () => {},
 }));
 vi.mock("@/server/actions/sessions", () => ({
@@ -28,7 +30,11 @@ vi.mock("@/server/actions/coach", () => ({ requestCoachPlanAction: vi.fn() }));
 vi.mock("@/server/actions/gyms", () => ({ setDefaultGymAction: vi.fn() }));
 vi.mock("@/server/actions/coaching-workflow", () => ({ startWaitingCoachJobAction: vi.fn() }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  refresh.mockClear();
+});
 
 // The day the feature inventory samples: Easy Run + Arms, which lifts and runs.
 const DAY: NonNullable<TodayPlan["suggestedDay"]> = {
@@ -300,4 +306,140 @@ it("says once that an empty session was discarded, and drops it from the address
   show({ discarded: true });
   expect(await screen.findByText("Empty session discarded.")).toBeTruthy();
   expect(window.location.search).toBe("");
+});
+
+it("renders again once the day it shows is over, as an installed app left open overnight", () => {
+  vi.useFakeTimers();
+  // 23:59 in Kolkata, on the day the screen shows.
+  vi.setSystemTime(new Date("2026-09-11T18:29:00Z"));
+  show();
+  expect(refresh).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(120_000));
+  expect(refresh).toHaveBeenCalled();
+});
+
+describe("what is scheduled today, without a programme day to stand under", () => {
+  const ride = run("ride-1", [60, 60]);
+
+  it("is shown to an athlete with no gym and no programme", () => {
+    show({ gyms: [], plan: null, programmeOccurrences: [], standaloneOccurrences: [ride] });
+    expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Add a gym to start training" })).toBeTruthy();
+  });
+
+  it("is shown beside a programme that is finished", () => {
+    show({
+      plan: { ...plan(), suggestion: null, suggestedDay: null },
+      programmeOccurrences: [],
+      standaloneOccurrences: [ride],
+    });
+    expect(screen.getByText("Programme complete")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
+  });
+
+  it("does not ask for a gym on a day with no lifting", () => {
+    show({
+      gyms: [],
+      plan: { ...plan(), suggestedDay: { ...DAY, name: "Easy run", includesLifting: false } },
+    });
+    expect(screen.queryByRole("heading", { name: "Add a gym to start training" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Log run: 25–30 min" })).toBeTruthy();
+  });
+});
+
+it("offers no start on a rest day for a next day that only runs", () => {
+  const rest = {
+    ...DAY,
+    id: "rest",
+    dayIndex: 4,
+    name: "Rest",
+    includesLifting: false,
+    includesRun: false,
+  };
+  const runDay = { ...DAY, id: "run-day", dayIndex: 5, name: "Easy run", includesLifting: false };
+  const restPlan: TodayPlan = {
+    ...plan(),
+    suggestion: {
+      slot: { cycleIndex: 1, dayIndex: 4 },
+      restSlotsBefore: [],
+      nextTrainingSlot: { cycleIndex: 1, dayIndex: 5 },
+    },
+    suggestedDay: rest,
+    suggestedExercises: [],
+  };
+  show({
+    plan: { ...restPlan, nextTrainingDay: { ...runDay, cycleIndex: 1 } },
+    programmeOccurrences: [],
+  });
+  // Nothing to start: the check-in it led to went back to Today with nothing started.
+  expect(screen.queryByRole("link", { name: /instead/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
+
+  cleanup();
+  const lifting = { ...runDay, name: "Lower B", includesLifting: true, includesRun: false };
+  show({
+    plan: { ...restPlan, nextTrainingDay: { ...lifting, cycleIndex: 1 } },
+    programmeOccurrences: [],
+  });
+  expect(screen.getByRole("link", { name: "Start Lower B instead" })).toBeTruthy();
+});
+
+it("keeps the run of a day finished today on today, and the next day up next", () => {
+  const logged: ScheduledOccurrence = {
+    ...run("run-done", [30, 30]),
+    familyId: "family",
+    resolution: {
+      kind: "logged",
+      activityId: "activity-1",
+      outcome: "logged",
+      occurredOn: "2026-09-11",
+    },
+    loggable: false,
+  };
+  const easyRun = { ...DAY, id: "easy-run", dayIndex: 2, name: "Easy run", includesLifting: false };
+  show({
+    plan: { ...plan(), finishedToday: { ...easyRun, cycleIndex: 1 } },
+    finishedOccurrences: [logged],
+  });
+  const today = within(screen.getByRole("region", { name: "Today" }));
+  const [ran, ...others] = today.getAllByRole("article");
+  expect(others).toHaveLength(0);
+  // A day that only runs is its run: its card says so, and no second card says the same.
+  expect(ran!.textContent).toContain("Logged");
+  expect(ran!.textContent).toContain("Part of Easy run");
+  expect(within(ran!).getByRole("link", { name: /See what you logged/ })).toBeTruthy();
+  expect(screen.getByRole("list", { name: "Up next: Easy Run + Arms" })).toBeTruthy();
+});
+
+it("draws no run in the print for one a revision withdrew", () => {
+  const withdrawn: ScheduledOccurrence = {
+    ...run("run-cancelled", [25, 30]),
+    disposition: "cancelled",
+    resolution: { kind: "cancelled" },
+    loggable: false,
+  };
+  show({ programmeOccurrences: [withdrawn] });
+  expect(screen.getByRole("img", { name: /^Easy Run \+ Arms:/ }).getAttribute("aria-label")).toBe(
+    "Easy Run + Arms: 2 exercises as columns of their sets, to do.",
+  );
+});
+
+it("says skipping a day that also runs skips only its workout", () => {
+  // jsdom has no <dialog> implementation; the sheet only needs these to exist.
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+  show();
+  fireEvent.click(screen.getByRole("button", { name: /More options/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Skip the workout" }));
+  expect(screen.getByText("Skip the workout?")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "The run stays on Today. Skip it from its own card if you are not running either.",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Skip workout" })).toBeTruthy();
 });

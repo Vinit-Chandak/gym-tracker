@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { todayInTimeZone } from "@/domain/program-calendar";
 
 /**
- * An installed app may stay open overnight. Open drafts retain their own original day.
+ * Renders a screen keyed to the day again once that day is over. An installed app may stay open
+ * overnight, and a phone resumes it showing the last screen from memory (ADR 0050), so Today
+ * and Food would otherwise go on saying yesterday's date, and what was done yesterday, until
+ * something else was tapped. Checked when the app is shown again, when it comes back online,
+ * and once a minute while it is open. Open food drafts retain their own original day.
  *
- * Once the account's day has changed, the Food screen moves on to the new one (ADR 0037, decision
- * 5). A meal's page showing today passes `keep`, its own address on that day, and stays there
- * instead, the day now written in its header: what is being added to the meal is not moved to
- * the next day under the athlete's thumb. Its address changes in place, so a sheet open on it
- * stays open.
+ * Food moves on to the new day (ADR 0037, decision 5). A meal's page showing today passes
+ * `keep`, its own address on that day, and stays there instead, the day now written in its
+ * header: what is being added to the meal is not moved to the next day under the athlete's
+ * thumb. Its address changes in place, so a sheet open on it stays open.
  */
-export function FoodDayRollover({
+export function DayRollover({
   today,
   timeZone,
   keep,

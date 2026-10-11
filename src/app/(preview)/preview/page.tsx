@@ -45,6 +45,7 @@ const PREVIOUS_DAY: NonNullable<TodayPlan["finishedToday"]> = {
   name: "Upper A",
   focus: "Chest, back, shoulders",
   includesRun: false,
+  cycleIndex: 1,
 };
 
 const EXERCISES: TodayPlan["suggestedExercises"] = [

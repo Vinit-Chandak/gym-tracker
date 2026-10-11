@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   completeRestSlotsBefore: vi.fn(),
   recordSlotEvent: vi.fn(),
   reopenSkippedSession: vi.fn(),
+  returnRestDaysPassedBy: vi.fn(),
+  discardSession: vi.fn(),
   voidPlanForSlot: vi.fn(),
 }));
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
@@ -26,9 +28,11 @@ vi.mock("@/server/repositories/schedule", async (original) => ({
   completeRestSlotsBefore: mocks.completeRestSlotsBefore,
   recordSlotEvent: mocks.recordSlotEvent,
   reopenSkippedSession: mocks.reopenSkippedSession,
+  returnRestDaysPassedBy: mocks.returnRestDaysPassedBy,
 }));
 vi.mock("@/server/repositories/sessions", async (original) => ({
   ...(await original<typeof import("@/server/repositories/sessions")>()),
+  discardSession: mocks.discardSession,
   getInProgressSession: mocks.getInProgressSession,
   startPlannedSession: mocks.startPlannedSession,
   startAdHocSession: mocks.startAdHocSession,
@@ -45,9 +49,15 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
+import { SessionHasSetsError } from "@/server/repositories/sessions";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
-import { completeRestSlotAction, startSessionAction, type StartRequest } from "./sessions";
+import {
+  completeRestSlotAction,
+  discardSessionAction,
+  startSessionAction,
+  type StartRequest,
+} from "./sessions";
 
 // Start's request is checked like any input, so the ids are what the address would carry.
 const GYM = "00000000-0000-4000-8000-0000000000a1";
@@ -161,20 +171,49 @@ it("does not create another planned lift when all its cycles are complete", asyn
   expect(mocks.completeRestSlotsBefore).not.toHaveBeenCalled();
 });
 
-it("still reopens the skipped lifting cycle the athlete explicitly chose", async () => {
+it("trains the skipped cycle the athlete explicitly chose, leaving its skip until it is finished", async () => {
   const current = schedule();
   current.state.events = [{ cycleIndex: 1, dayIndex: 1, part: "session", status: "skipped" }];
   mocks.getSchedule.mockResolvedValue(current);
   await expect(start(planned(COMBINED, 1, 1))).rejects.toThrow("redirect:/workouts/new-workout");
-  expect(mocks.reopenSkippedSession).toHaveBeenCalledWith({}, "athlete", "current-programme", {
-    cycleIndex: 1,
-    dayIndex: 1,
-  });
   expect(mocks.startPlannedSession).toHaveBeenCalledWith({}, "athlete", {
     gymId: GYM,
     programDayId: COMBINED,
     cycleIndex: 1,
   });
+  // Finishing the workout turns the skip into a completion; a discard leaves it as it was.
+  expect(mocks.reopenSkippedSession).not.toHaveBeenCalled();
+  expect(mocks.recordSlotEvent).not.toHaveBeenCalled();
+});
+
+it("names the workout on the rest days its start passes, so a discard can give them back", async () => {
+  // Day 3 lifting too, so starting it passes the rest day before it.
+  const current = schedule();
+  current.days[2] = { ...current.days[2]!, includesLifting: true };
+  current.state.slots = current.days;
+  mocks.getSchedule.mockResolvedValue(current);
+  await expect(start(planned(RUN, 3))).rejects.toThrow("redirect:/workouts/new-workout");
+  expect(mocks.completeRestSlotsBefore).toHaveBeenCalledWith(
+    {},
+    "athlete",
+    current,
+    { cycleIndex: 1, dayIndex: 3 },
+    expect.any(String),
+    "new-workout",
+  );
+});
+
+it("gives back the rest days a discarded workout's start passed, in the discard's transaction", async () => {
+  await expect(discardSessionAction("new-workout")).rejects.toThrow("redirect:/today?discarded=1");
+  expect(mocks.withUser).toHaveBeenCalledTimes(1);
+  expect(mocks.discardSession).toHaveBeenCalledWith({}, "athlete", "new-workout");
+  expect(mocks.returnRestDaysPassedBy).toHaveBeenCalledWith({}, "athlete", "new-workout");
+});
+
+it("gives nothing back when the workout could not be discarded", async () => {
+  mocks.discardSession.mockRejectedValue(new SessionHasSetsError());
+  await expect(discardSessionAction("new-workout")).resolves.toMatchObject({ ok: false });
+  expect(mocks.returnRestDaysPassedBy).not.toHaveBeenCalled();
 });
 
 it("returns the open workout even when the chosen programme has since changed", async () => {

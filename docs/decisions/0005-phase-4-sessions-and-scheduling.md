@@ -50,6 +50,9 @@ pick; Finish takes optional notes and body weight; the check-in is documented fo
    optional reason; completing needs at least one set; both can be undone while the session
    is open. Finishing records the slot as completed for planned sessions only. Ad hoc sessions
    never advance the programme. A session can be discarded only while it has no sets.
+   _Note, 11 October 2026:_ a discard also gives back the rest days its start passed (each
+   names the workout that passed it), and a skipped day trained from "Train another day" stays
+   skipped until its workout is finished, when the completion replaces the skip.
 
 6. **Starting a day that is already done serves its next pending cycle** ("Choose a day"), so
    a day can be repeated deliberately without breaking the sequence.

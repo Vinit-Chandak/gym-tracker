@@ -151,8 +151,11 @@ export function MoreOptions({
   coach = null,
 }: {
   gymId: string | null;
-  /** The session that can be skipped. Null on a rest day, which is completed instead. */
-  skip: { dayIndex: number; dayName: string } | null;
+  /**
+   * The session that can be skipped. Null on a rest day, which is completed instead. `runOwed`
+   * when the day also asks for a run still to do, which skipping the workout leaves on Today.
+   */
+  skip: { dayIndex: number; dayName: string; runOwed?: boolean } | null;
   /** The coach's options, when the athlete has switched the coach on for a lifting day. */
   coach?: CoachOptions | null;
 }) {
@@ -216,7 +219,9 @@ export function MoreOptions({
         onClose={close}
         title={
           asking === "skip" && skip
-            ? `Skip ${skip.dayName}?`
+            ? skip.runOwed
+              ? "Skip the workout?"
+              : `Skip ${skip.dayName}?`
             : asking === "coach"
               ? coachLabel
               : "More options"
@@ -232,13 +237,19 @@ export function MoreOptions({
           />
         ) : asking === "skip" && skip ? (
           <form action={formAction} className="mt-2 space-y-4">
+            {/* The workout alone: titled with the day's name, the sheet read as skipping all of it. */}
+            {skip.runOwed && (
+              <p className="type-body [overflow-wrap:anywhere] text-ink-2">
+                The run stays on Today. Skip it from its own card if you are not running either.
+              </p>
+            )}
             <Field label="Reason" hint="Optional">
               <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
             </Field>
             {!state.ok && <ActionError>{state.error}</ActionError>}
             <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
               <Glyph name="skip" className="glyph-18" />
-              {skipping ? "Skipping…" : "Skip session"}
+              {skipping ? "Skipping…" : skip.runOwed ? "Skip workout" : "Skip session"}
             </Button>
             <Button variant="text" className="w-full" onClick={() => setAsking(null)}>
               Back
@@ -282,11 +293,16 @@ export function MoreOptions({
                 </button>
               </li>
             )}
-            {/* Skipping drops the day, so it stands apart from the rest, under a rule. */}
+            {/* Skipping drops the day's workout, so it stands apart from the rest, under a rule. */}
             {skip && (
               <li className="mt-3.5 border-t border-hair pt-1.5">
                 <button type="button" onClick={() => setAsking("skip")} className={ROW}>
-                  {row("skip", <span className="font-bold">Skip this session</span>)}
+                  {row(
+                    "skip",
+                    <span className="font-bold">
+                      {skip.runOwed ? "Skip the workout" : "Skip this session"}
+                    </span>,
+                  )}
                 </button>
               </li>
             )}
@@ -403,7 +419,7 @@ export function PickUpFromToday({
   return (
     <>
       <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="min-w-0 flex-1 type-meta text-ink-2 [overflow-wrap:anywhere]">
+        <p className="min-w-0 flex-1 type-meta [overflow-wrap:anywhere] text-ink-2">
           <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
         </p>
         <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
@@ -417,7 +433,7 @@ export function PickUpFromToday({
             {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
             stay in History as skipped.
           </p>
-          <ul className="ruled-list type-meta">
+          <ul className="type-meta ruled-list">
             {listed.map((day) => (
               <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
                 <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{day.name}</span>

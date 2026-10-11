@@ -7,8 +7,8 @@ import { formatIsoWeekdayDay } from "@/lib/format";
 import { MealView } from "./meal-view";
 
 const { rollover } = vi.hoisted(() => ({ rollover: vi.fn() }));
-vi.mock("../day-rollover", () => ({
-  FoodDayRollover: (props: unknown) => {
+vi.mock("@/components/shell/day-rollover", () => ({
+  DayRollover: (props: unknown) => {
     rollover(props);
     return null;
   },
