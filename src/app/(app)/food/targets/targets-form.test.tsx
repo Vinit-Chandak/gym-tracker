@@ -20,7 +20,7 @@ afterEach(() => {
 
 const field = (name: string) => screen.getByRole<HTMLInputElement>("textbox", { name });
 const KCAL = "Daily target, kcal";
-const PROTEIN = "Protein, g per kg of body weight";
+const PROTEIN = "Protein per body weight, g per kg";
 const FAT = "Fat, % of daily target";
 const USE_SPLIT = "Use this split";
 
@@ -135,6 +135,15 @@ it("reads protein per pound for an account in pounds, without changing what is s
   );
   expect(screen.getByText("0.82 g per lb · 155 g at 190 lb")).toBeTruthy();
   expect(new FormData(container.querySelector("form")!).get("proteinPerKg")).toBe("1.8");
+  // The label names the field's unit, not the body's: "g per kg of body weight" read as a
+  // kilogram body weight to someone who weighs in pounds.
+  expect(field(PROTEIN)).toBeTruthy();
+  expect(screen.queryByText(/of body weight/)).toBeNull();
+  cleanup();
+  // Before there is a figure, a pounds reader is told what a gram per pound is in the field's unit.
+  render(<TargetsForm targets={null} bodyWeightKg={86.2} unit="lb" goal="get_stronger" />);
+  expect(field(PROTEIN).value).toBe("");
+  expect(screen.getByText("1 g per lb is 2.2 g per kg")).toBeTruthy();
   cleanup();
   // With no body weight there are no grams to give, but the ratio still reads per pound.
   render(<TargetsForm targets={null} bodyWeightKg={null} unit="lb" goal="lose_fat" />);

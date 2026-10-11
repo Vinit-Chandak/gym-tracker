@@ -174,13 +174,16 @@ export function TargetsForm({
           </div>
         </div>
 
+        {/* Typed and kept per kilogram, which the label says as the field's unit, as "Daily
+            target, kcal" does, rather than "per kg of body weight" as though the body were
+            weighed in kilograms; someone who weighs in pounds reads the ratio per pound beside
+            it, and before there is one, what a gram per pound comes to. */}
         <Field
-          label="Protein, g per kg of body weight"
+          label="Protein per body weight, g per kg"
           error={state.fieldErrors?.proteinPerKg}
           hint={
             perKg !== null && (weighed || unit === "lb")
               ? [
-                  // Typed and kept per kilogram; someone who weighs in pounds reads it per pound too.
                   unit === "lb" ? `${perPound(perKg)} g per lb` : null,
                   weighed
                     ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
@@ -188,7 +191,9 @@ export function TargetsForm({
                 ]
                   .filter(Boolean)
                   .join(" · ")
-              : undefined
+              : unit === "lb"
+                ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg`
+                : undefined
           }
         >
           <Input
