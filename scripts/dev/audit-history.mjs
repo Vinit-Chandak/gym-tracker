@@ -403,8 +403,9 @@ function compareRecords(actual, data, expected) {
       assert(row.date, "A non-link History row did not identify its recovery date.");
       const raw = byDay.get(row.date);
       assert(raw, `Unexpected recovery date ${row.date}.`);
+      // A figure keeps its unit and a dot its fact with no-break spaces; the words are the same.
       assert.equal(
-        row.readings,
+        row.readings?.replaceAll("\u00a0", " "),
         [raw.readings, raw.notes].filter(Boolean).join(" · "),
         `Recovery readings/notes disagree on ${row.date}.`,
       );
