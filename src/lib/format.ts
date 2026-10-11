@@ -4,7 +4,7 @@ import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 
-import { formatDuration, formatPace } from "@/domain/pace";
+import { formatHold, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { dateTimeFormatter } from "./date-time-format";
 import {
@@ -236,7 +236,7 @@ export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
 
 /**
  * A shared metric's value as a reader in `unit` should see it (ADR 0026): loads in their
- * unit, reps as a count, holds as a clock, carries in metres.
+ * unit, reps as a count, holds as a set list says them ("45 s", "1:12"), carries in metres.
  */
 export function formatSharedMetric(
   metric: SharedMetric,
@@ -249,7 +249,7 @@ export function formatSharedMetric(
     case "reps":
       return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
     case "seconds":
-      return formatDuration(value);
+      return formatHold(value);
     case "metres":
       return `${value.toLocaleString("en-GB")}\u00a0m`;
   }
