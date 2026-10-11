@@ -1,7 +1,6 @@
 "use client";
 
 import type { Route } from "next";
-import { useSyncExternalStore } from "react";
 
 import { Art } from "@/components/art/art";
 import {
@@ -15,37 +14,9 @@ import {
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { formatIsoMonth, formatMinutes } from "@/lib/format";
-import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 
 import { HistoryList } from "../history/history-list";
 import type { ProgressData } from "../progress-types";
-
-const subscribeResize = (onChange: () => void) => {
-  window.addEventListener("resize", onChange);
-  return () => window.removeEventListener("resize", onChange);
-};
-const noSubscription = () => () => {};
-
-/**
- * The calendar's cells are as tall as the phone gives them (the generator's rule): 42 pt under
- * 360 wide, 44 on a short screen, 58 on a tall one, 50 otherwise. Each day is a link, so its
- * cell is never shorter than a target: 44 pt, 48 dp on Android.
- */
-function useCellHeight(): number {
-  const size = useSyncExternalStore(
-    subscribeResize,
-    () => `${window.innerWidth}x${window.innerHeight}`,
-    () => "402x874",
-  );
-  const android = useSyncExternalStore(
-    noSubscription,
-    () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
-    () => false,
-  );
-  const [width, height] = size.split("x").map(Number) as [number, number];
-  const fit = width < 360 || height < 800 ? 44 : height >= 860 ? 58 : 50;
-  return Math.max(android ? 48 : 44, fit);
-}
 
 /**
  * What a month's sport added up to, under its name: how far, then how long. Each figure keeps
@@ -71,7 +42,6 @@ export function OverviewSection({
   overview,
   today,
 }: Pick<ProgressData, "month" | "overview" | "today">) {
-  const cellHeight = useCellHeight();
   const year = month.month.slice(0, 4);
   const name = formatIsoMonth(month.month, year);
   const days = monthDays(month.activities, month.month);
@@ -98,7 +68,8 @@ export function OverviewSection({
           month={month.month}
           days={days}
           today={month.today}
-          cellHeight={cellHeight}
+          // Each day as tall as the screen gives it, from the stylesheet (progress.css), so
+          // the month is drawn at its height on the first paint and never jumps after.
           links={links}
           label={`${name} ${year}, every activity of every day`}
         />

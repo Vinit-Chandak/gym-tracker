@@ -83,7 +83,10 @@ export type ArtProps =
       today?: number | null;
       /** The calendar page's dates, small, in each tile's corner. */
       dates?: boolean;
-      /** Each tile's height: a day is a link, so never under a target. */
+      /**
+       * Each tile's height: a day is a link, so never under a target. Without one, the tile is
+       * as tall as the screen gives it (progress.css).
+       */
       cellHeight?: number;
       /** Where each past day opens, when it can. */
       links?: Readonly<Record<number, Route>>;
@@ -253,7 +256,7 @@ function Month({
   days,
   today = null,
   dates = false,
-  cellHeight = 50,
+  cellHeight,
   links = {},
   label,
   className,
@@ -270,7 +273,11 @@ function Month({
       role="group"
       aria-label={label ?? `${MONTH_NAMES[monthNumber - 1]} ${year}`}
       className={cn("month", dates && "month-dated", className)}
-      style={{ "--month-day": `${cellHeight}px` } as CSSProperties}
+      style={
+        cellHeight === undefined
+          ? undefined
+          : ({ "--month-day": `${cellHeight}px` } as CSSProperties)
+      }
     >
       <div aria-hidden className="month-weekdays">
         {WEEKDAYS.map((letter, i) => (
