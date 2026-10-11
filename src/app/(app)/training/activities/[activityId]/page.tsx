@@ -12,17 +12,19 @@ import {
   actualDistanceMetres,
   formatPaceSeconds,
   formatSpeed,
+  pacePerUnit,
   paceSecondsPerKm,
   speedMetresPerSecond,
   swimPaceSecondsPer100,
 } from "@/domain/activity-metrics";
 import { formatDuration } from "@/domain/pace";
-import { formatDistance } from "@/lib/distance-units";
+import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
 import { formatDateTime } from "@/lib/format";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
@@ -65,17 +67,30 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
-    readOnly: true,
-  });
+  const { activity, units } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const activity = await getActivity(tx, user.id, activityId);
+      return {
+        activity,
+        units: activity ? await unitsFor(tx, user.id, activity.sport) : DEFAULT_SPORT_UNITS,
+      };
+    },
+    { readOnly: true },
+  );
   if (!activity) notFound();
 
+  // Read in the athlete's own units: a distance and its pace or speed in km or mi, a swim and
+  // its pace in m or yd, whatever unit each number was typed in. The record keeps both.
   const actual = activity.actual;
   const metres = actual ? actualDistanceMetres(actual) : null;
   const stats: Stat[] = [
     {
       label: "Distance",
-      ...(metres === null ? { figure: "—" } : split(formatDistance(metres, "km"))),
+      ...(metres === null || !actual
+        ? { figure: "—" }
+        : sportDistanceParts(metres, actual.sport, units)),
     },
     {
       label: "Time",
@@ -85,23 +100,34 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   if (actual?.sport === "running")
     stats.push({
       label: "Pace",
-      figure: formatPaceSeconds(paceSecondsPerKm(actual.distance.metres, actual.durationMs)),
-      unit: "/km",
+      figure: formatPaceSeconds(
+        pacePerUnit(
+          paceSecondsPerKm(actual.distance.metres, actual.durationMs),
+          units.distanceUnit,
+        ),
+      ),
+      unit: `/${units.distanceUnit}`,
     });
   if (actual?.sport === "cycling")
     stats.push({
       label: "Speed",
-      ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs))),
+      ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs), units.distanceUnit)),
     });
   if (actual?.sport === "swimming") {
-    const yards = actual.poolLength?.unit === "yd";
-    const pace = swimPaceSecondsPer100(actual, yards ? "yd" : "m");
+    const pace = swimPaceSecondsPer100(actual, units.poolUnit);
     stats.push({
       label: "Pace",
       figure: pace === null ? "—" : formatPaceSeconds(pace, 1),
-      unit: yards ? "/100 yd" : "/100 m",
+      unit: `/100 ${units.poolUnit}`,
     });
   }
+  // The day and time it happened where it was recorded, as History dates it and the
+  // correction form shows it. A record from another zone says which, rather than being
+  // quietly moved into the zone the profile is in now.
+  const elsewhere = activity.recordedTimeZone !== profile.timeZone;
+  const startedAt = `${formatDateTime(activity.startedAt, activity.recordedTimeZone)}${
+    elsewhere ? ` (${activity.recordedTimeZone.replaceAll("_", " ")})` : ""
+  }`;
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
 
   const sport = activity.sport === "strength" ? null : activity.sport;
@@ -141,7 +167,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         <p className="meta-line mt-1">
           <span className="meta-fact">
             <Glyph name="calendar" label="Date" className="glyph-16" />
-            {formatDateTime(activity.startedAt, profile.timeZone)}
+            {startedAt}
           </span>
           {where && (
             <span className="meta-fact">

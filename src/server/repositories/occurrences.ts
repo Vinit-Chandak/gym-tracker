@@ -101,6 +101,17 @@ function hydrate(row: Row): ScheduledOccurrence {
   };
 }
 
+/**
+ * How one day's sessions are ordered: by the time somebody gave them, then the order the
+ * programme wrote them in. A session without a time follows the timed ones, and the id only
+ * settles a true tie, so the same day reads the same way every time it is opened.
+ */
+const withinDay = [
+  sql`${occurrenceVersions.scheduledLocalTime} asc nulls last`,
+  asc(occurrenceVersions.orderIndex),
+  asc(plannedOccurrences.id),
+];
+
 /** The base query: an occurrence, the revision in force, and the activity that answered it. */
 function occurrenceQuery(tx: DbOrTx, userId: string) {
   return tx
@@ -158,7 +169,7 @@ export async function standaloneOccurrencesOnDate(
         sql`${plannedOccurrences.familyId} is null`,
       ),
     )
-    .orderBy(asc(occurrenceVersions.orderIndex), asc(plannedOccurrences.id))) as Row[];
+    .orderBy(...withinDay)) as Row[];
   return rows.map(hydrate);
 }
 
@@ -190,7 +201,7 @@ export async function occurrencesForSlot(
         eq(plannedOccurrences.cycleIndex, slot.cycleIndex),
       ),
     )
-    .orderBy(asc(occurrenceVersions.orderIndex), asc(plannedOccurrences.id))) as Row[];
+    .orderBy(...withinDay)) as Row[];
   return rows.map(hydrate);
 }
 
@@ -202,7 +213,7 @@ export async function standaloneSchedule(
 ): Promise<{ upcoming: ScheduledOccurrence[]; earlier: ScheduledOccurrence[] }> {
   const rows = (await occurrenceQuery(tx, userId)
     .where(and(eq(plannedOccurrences.userId, userId), sql`${plannedOccurrences.familyId} is null`))
-    .orderBy(asc(occurrenceVersions.scheduledOn), asc(occurrenceVersions.orderIndex))) as Row[];
+    .orderBy(asc(occurrenceVersions.scheduledOn), ...withinDay)) as Row[];
   return splitByDate(rows.map(hydrate), today);
 }
 
@@ -254,7 +265,7 @@ export async function programmeOccurrences(
   if (options.to) where.push(lt(occurrenceVersions.scheduledOn, options.to));
   const rows = (await occurrenceQuery(tx, userId)
     .where(and(...where))
-    .orderBy(asc(occurrenceVersions.scheduledOn), asc(occurrenceVersions.orderIndex))) as Row[];
+    .orderBy(asc(occurrenceVersions.scheduledOn), ...withinDay)) as Row[];
   return rows.map(hydrate);
 }
 
@@ -309,6 +320,33 @@ export async function reopenOccurrence(
     userId,
     occurrenceId,
     kind: "reopened",
+    actor: "athlete",
+  });
+}
+
+/**
+ * Takes a session the athlete put on the calendar off it again.
+ *
+ * Only standalone work, and only while nothing has answered it: a programme's sessions change
+ * when the programme does, and a logged one belongs to its activity, which is deleted on its
+ * own page. The row stays, cancelled, beside the event that says who removed it, so nothing
+ * that ever pointed at it is left pointing at nothing.
+ */
+export async function removeStandaloneOccurrence(
+  tx: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+): Promise<void> {
+  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  if (occurrence.familyId !== null || !occurrence.loggable) throw new OccurrenceNotFoundError();
+  await tx
+    .update(plannedOccurrences)
+    .set({ disposition: "cancelled", updatedAt: new Date() })
+    .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)));
+  await tx.insert(occurrenceEvents).values({
+    userId,
+    occurrenceId,
+    kind: "cancelled",
     actor: "athlete",
   });
 }

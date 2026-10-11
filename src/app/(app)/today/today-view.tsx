@@ -9,9 +9,11 @@ import { CoachNote } from "@/components/ui/coach-note";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
+import type { ActivitySport } from "@/domain/activity";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
+import type { SportUnits } from "@/lib/distance-units";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
@@ -53,6 +55,8 @@ export type TodayViewProps = {
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
+  /** How the athlete reads each sport's distances, which the endurance cards say targets in. */
+  distanceUnits?: Partial<Record<ActivitySport, SportUnits>>;
   /** An empty session was just discarded, which Today says once. */
   discarded?: boolean;
 };
@@ -192,6 +196,7 @@ export function TodayView({
   unit = "kg",
   programmeOccurrences = [],
   standaloneOccurrences = [],
+  distanceUnits = {},
   discarded = false,
 }: TodayViewProps) {
   const defaultGym =
@@ -528,6 +533,7 @@ export function TodayView({
           occurrence={occurrence}
           partOf={isProgramme(occurrence) && finishedToday && day ? day.name : null}
           coachSummary={isProgramme(occurrence) && occurrence.sport === "running" ? coachRun : null}
+          units={distanceUnits[occurrence.sport]}
         />
       </li>
     ));

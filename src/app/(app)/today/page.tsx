@@ -16,6 +16,7 @@ import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 
 import Loading from "./loading";
 import { TodayView } from "./today-view";
@@ -108,12 +109,17 @@ export default async function TodayPage(props: PageProps<"/today">) {
           coach,
           standalone: preparedStandalone,
           programme: preparedProgramme,
+          // The endurance cards say their targets in the athlete's own units.
+          distanceUnits:
+            preparedStandalone.length + preparedProgramme.length > 0
+              ? await unitsBySport(tx, user.id)
+              : {},
         };
       },
       { readOnly: true },
     ),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, distanceUnits } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
   return (
@@ -132,6 +138,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        distanceUnits={distanceUnits}
         discarded={discarded === "1"}
       />
     </FreshAfterSets>

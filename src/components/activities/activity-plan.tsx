@@ -7,6 +7,7 @@ import {
   prescriptionTotals,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
+import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
 
 /**
  * What today's endurance session asks for (plan §8.2 item 5).
@@ -43,20 +44,20 @@ function minutes(ms: number): string {
   return `${Number.isInteger(whole) ? whole : whole.toFixed(1)} min`;
 }
 
-function metres(value: number): string {
-  return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)} km` : `${value} m`;
-}
-
 function range(low: number, high: number, format: (value: number) => string): string {
   return low === high ? format(high) : `${format(low)}–${format(high)}`;
 }
 
-/** "8 × 50 m · freestyle": one written step, said the way it was written. */
-export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
+/** "8 × 50 m · freestyle": one written step, its distance in the athlete's own unit. */
+export function stepLine(
+  step: ReturnType<typeof expandSteps>[number],
+  sport: EndurancePrescription["sport"],
+  units: SportUnits,
+): string {
   const target =
     step.target.kind === "duration"
       ? range(step.target.ms[0], step.target.ms[1], minutes)
-      : range(step.target.metres[0], step.target.metres[1], metres);
+      : formatSportDistance(step.target.metres, sport, units);
   const parts = [ACTION_LABELS[step.action], target];
   // A prescribed effort is out of ten; the athlete's own report is out of five, so each says
   // its scale rather than sharing a bare "Effort".
@@ -66,10 +67,10 @@ export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
 }
 
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
-export function sessionLine(prescription: EndurancePrescription): string | null {
+export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
   const parts = [
-    distanceMetres ? range(distanceMetres[0], distanceMetres[1], metres) : null,
+    distanceMetres ? formatSportDistance(distanceMetres, prescription.sport, units) : null,
     durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
     effort ? `Effort ${range(effort[0], effort[1], String)} of 10` : null,
   ].filter(Boolean);
@@ -84,6 +85,8 @@ export type ActivityPlanProps = {
   preparation?: { summary: string; note: string } | null;
   /** Said out loud rather than left blank when the coach has not prepared this one. */
   preparedByCoach?: boolean;
+  /** How the athlete reads this sport's distances. */
+  units?: SportUnits;
 };
 
 export function ActivityPlan({
@@ -91,11 +94,12 @@ export function ActivityPlan({
   prescription,
   preparation = null,
   preparedByCoach = false,
+  units = DEFAULT_SPORT_UNITS,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   const steps = prescription ? expandSteps(prescription) : [];
   const totals = prescription ? prescriptionTotals(prescription) : null;
-  const overall = prescription ? sessionLine(prescription) : null;
+  const overall = prescription ? sessionLine(prescription, units) : null;
 
   return (
     <Card>
@@ -123,7 +127,7 @@ export function ActivityPlan({
           {steps.map((step, index) => (
             <li key={`${step.id}-${step.repetition}-${index}`} className="text-sm">
               <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>{" "}
-              <span className="tabular-nums">{stepLine(step)}</span>
+              <span className="tabular-nums">{stepLine(step, prescription!.sport, units)}</span>
               {step.notes && <span className="text-ink-muted"> — {step.notes}</span>}
             </li>
           ))}

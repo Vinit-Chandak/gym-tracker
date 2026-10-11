@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   decimalPlaces,
   formatDistance,
+  formatSportDistance,
   fromMetres,
   roundTo,
   sameDistance,
+  sportDistanceParts,
   toMetres,
 } from "./distance-units";
 
@@ -66,5 +68,33 @@ describe("distance units", () => {
     expect(decimalPlaces(1.5)).toBe(1);
     expect(decimalPlaces(0.000001)).toBe(6);
     expect(decimalPlaces(1e-7)).toBe(7);
+  });
+});
+
+/** Decision: distances are read in the athlete's own unit for the sport, everywhere. */
+describe("a distance in the reader's unit", () => {
+  const km = { distanceUnit: "km", poolUnit: "m" } as const;
+  const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
+
+  it("reads a swim in the pool's unit and a run or ride on the road's", () => {
+    expect(formatSportDistance(1500, "swimming", km)).toBe("1500 m");
+    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1000 yd");
+    expect(formatSportDistance(toMetres(5, "mi"), "running", km)).toBe("8.05 km");
+    expect(formatSportDistance(toMetres(5, "mi"), "cycling", miles)).toBe("5 mi");
+  });
+
+  it("says a road distance under a kilometre in metres, and leaves miles as miles", () => {
+    expect(formatSportDistance(400, "running", km)).toBe("400 m");
+    expect(formatSportDistance(toMetres(0.25, "mi"), "running", miles)).toBe("0.25 mi");
+  });
+
+  it("gives a range as one figure with its unit", () => {
+    expect(sportDistanceParts([5000, 6000], "running", km)).toEqual({ figure: "5–6", unit: "km" });
+    expect(sportDistanceParts([800, 1200], "running", km)).toEqual({
+      figure: "0.8–1.2",
+      unit: "km",
+    });
+    // Two ends that round to the same figure are one figure.
+    expect(sportDistanceParts([5000, 5001], "running", km)).toEqual({ figure: "5", unit: "km" });
   });
 });

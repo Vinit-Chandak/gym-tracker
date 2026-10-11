@@ -9,17 +9,26 @@ import {
   isEnduranceSport,
   type EnduranceSport,
 } from "@/domain/activity";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import { readingUnit } from "@/lib/distance-units";
 import { saveTemplateAction } from "@/server/actions/activity-templates";
 import { requireUser } from "@/server/auth";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "New template" };
 
 export default async function NewTemplatePage(props: PageProps<"/training/templates/new">) {
-  await requireUser();
+  const user = await requireUser();
   const search = await props.searchParams;
   const requested = typeof search.sport === "string" ? search.sport : null;
   const sport: EnduranceSport =
     requested && isActivitySport(requested) && isEnduranceSport(requested) ? requested : "running";
+  // A distance is first offered in the unit the athlete reads this sport in.
+  const unit = readingUnit(
+    sport,
+    await withUser(getDb(), user.id, (tx) => unitsFor(tx, user.id, sport), { readOnly: true }),
+  );
 
   return (
     <>
@@ -29,7 +38,7 @@ export default async function NewTemplatePage(props: PageProps<"/training/templa
           action={saveTemplateAction.bind(null, null)}
           sport={sport}
           sports={ENDURANCE_SPORTS}
-          initial={{ sport, distanceUnit: sport === "swimming" ? "m" : "km" }}
+          initial={{ sport, distanceUnit: unit, stepDistanceUnit: unit }}
           submitLabel="Save template"
         />
       </PageContent>
