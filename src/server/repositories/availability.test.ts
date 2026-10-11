@@ -102,6 +102,8 @@ describe("planned-exercise availability", () => {
     const result = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, anytimeId));
     if (!result) throw new Error("no result");
     expect(result.program?.name).toContain("8-Week");
+    // Its sessions are still to do, so it is not said to be complete.
+    expect(result.program?.complete).toBe(false);
     // 37 slots collapse to one row per distinct exercise.
     expect(result.rows.length).toBeLessThan(37);
     expect(row(result.rows, "pull-up").days).toEqual(["Upper A", "Upper B"]);

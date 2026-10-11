@@ -11,6 +11,7 @@ import {
   equipmentCountLabel,
   equipmentLoadLabel,
   GYM_KIND_LABELS,
+  programmeLabel,
 } from "@/lib/labels";
 import {
   markEquipmentAbsentFromFormAction,
@@ -98,10 +99,14 @@ export function GymDetails({ data }: { data: GymDetailData }) {
   const summary = availability?.summary;
   const fitLabel =
     availability?.program && summary
-      ? (["direct", "fallback", "unknown", "unavailable"] as const)
-          .filter((status) => summary[status] > 0)
-          .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
-          .join(FACT_SEPARATOR) || "Nothing to lift in it"
+      ? [
+          // A finished programme is named as one, so its fit is not read as the current block's.
+          ...(availability.program.complete ? [programmeLabel(availability.program)] : []),
+          (["direct", "fallback", "unknown", "unavailable"] as const)
+            .filter((status) => summary[status] > 0)
+            .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
+            .join(FACT_SEPARATOR) || "Nothing to lift in it",
+        ].join(FACT_SEPARATOR)
       : "No active programme";
   // A combination machine is each of its types, so none of them is offered as missing.
   const registeredTypeIds = new Set(activeEquipment.flatMap((item) => item.typeIds));

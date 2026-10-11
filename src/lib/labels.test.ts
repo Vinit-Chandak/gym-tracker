@@ -4,6 +4,7 @@ import {
   equipmentLoadLabel,
   exerciseOnMachine,
   nameSaysEquipment,
+  programmeLabel,
   rangeLabel,
   restLabel,
 } from "./labels";
@@ -14,6 +15,13 @@ describe("labels", () => {
     expect(rangeLabel(5, 5)).toBe("5");
     expect(rangeLabel(20, 45, " s")).toBe("20–45 s");
     expect(rangeLabel(null, null)).toBe("—");
+  });
+
+  it("says a finished programme is complete wherever it is named", () => {
+    expect(programmeLabel({ name: "Push Pull Legs", complete: false })).toBe("Push Pull Legs");
+    expect(programmeLabel({ name: "Push Pull Legs", complete: true })).toBe(
+      "Push Pull Legs (complete)",
+    );
   });
 
   it("formats rest targets", () => {

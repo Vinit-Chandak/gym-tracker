@@ -59,6 +59,7 @@ import {
 import { PREFERRED_RANK } from "./exercises";
 
 import type { GymRow } from "./gyms";
+import { getSchedule, scheduleComplete } from "./schedule";
 
 /*
  * Every read in this file is written so that nothing waits for another query's result: the ids
@@ -106,7 +107,8 @@ export type AvailabilitySummary = Record<AvailabilityStatus, number>;
 
 export type GymAvailability = {
   gym: GymRow;
-  program: { id: string; name: string } | null;
+  /** The active programme; complete once nothing but rest is left in it (ADR 0051). */
+  program: { id: string; name: string; complete: boolean } | null;
   rows: PlannedExerciseAvailability[];
   summary: AvailabilitySummary;
 };
@@ -138,13 +140,19 @@ function idsCondition(column: AnyPgColumn, ids: Ids): SQL {
   return Array.isArray(ids) ? inArray(column, ids) : inArray(column, ids as SQLWrapper);
 }
 
+/**
+ * The active programme, and whether it is complete. A complete one is still the one whose fit is
+ * read, which is what repeating the block needs; the screens say it is complete.
+ */
 async function activeProgram(db: DbOrTx, userId: string) {
-  const [program] = await db
-    .select({ id: programs.id, name: programs.name })
-    .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
-    .limit(1);
-  return program ?? null;
+  const schedule = await getSchedule(db, userId);
+  return schedule
+    ? {
+        id: schedule.program.id,
+        name: schedule.program.name,
+        complete: scheduleComplete(schedule),
+      }
+    : null;
 }
 
 /** Ids of the active programme's slots, optionally only those planning one exercise. */

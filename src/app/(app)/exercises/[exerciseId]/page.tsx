@@ -58,6 +58,7 @@ import {
   type ExerciseProgramUsage,
 } from "@/server/repositories/exercises";
 import { readExerciseLife } from "@/server/repositories/exercise-life";
+import { getSchedule, scheduleComplete } from "@/server/repositories/schedule";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
 import {
   parseSeriesId,
@@ -140,7 +141,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       // a machine's numbers stay with its machine, in the trend below. The same movements are
       // the ones friends are ranked on, so one read of the circle's bests serves both.
       const circle = isComparable(exercise) ? await loadCircle(tx, user.id) : [];
-      const [availability, options, bests, profile, written] = await Promise.all([
+      const [availability, options, bests, profile, written, schedule] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
         // This movement's series only: one machine's loads are not another's.
         readExerciseSeriesOptions(tx, user.id, window, exerciseId),
@@ -154,6 +155,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         requestProfile,
         // The guide and its demonstrations, from the cached library; drafts only where shown.
         guidanceFor(tx, exerciseId, showsDrafts()),
+        // Whether the programme it is planned in is finished, said over its days.
+        exercise.programUsage.length > 0 ? getSchedule(tx, user.id) : null,
       ]);
       const selected = pickSeries(
         options,
@@ -207,6 +210,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             })
           : [],
         life,
+        programmeComplete: schedule !== null && scheduleComplete(schedule),
         machineName: machine ? (latest.scoped[0]?.equipmentInstanceName ?? null) : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
@@ -231,7 +235,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     unit,
     life,
     machineName,
+    programmeComplete,
   } = data;
+  // A finished programme's days are still worth reading (repeating the block asks for them), but
+  // not as the programme being trained: Today says it is complete, and so does this.
+  const usageTitle = programmeComplete ? "In your last programme (complete)" : "In your programme";
   const latestRow = (performance: ComparablePerformance): LatestPerformance => ({
     id: performance.workoutExerciseId,
     sessionId: performance.workoutSessionId,
@@ -343,7 +351,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             <h2 className="text-xs font-medium text-ink-muted">Defaults</h2>
             <InfoTip label="About the defaults" className="-my-2">
               {exercise.programUsage.length > 0
-                ? "What it starts on when it is added to a workout or a programme on its own. Your programme's days ask for their own, under In your programme."
+                ? `What it starts on when it is added to a workout or a programme on its own. Your programme's days ask for their own, under ${usageTitle}.`
                 : "What it starts on when it is added to a workout or a programme."}
             </InfoTip>
           </div>
@@ -408,7 +416,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-medium">In your programme</h2>
+            <h2 className="text-base font-medium">{usageTitle}</h2>
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
