@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import {
   activities,
@@ -32,9 +45,11 @@ import {
   type StatsWorkout,
 } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
+import { DEFAULT_DISTANCE_UNITS, type SharedDistanceUnits } from "@/lib/format";
 import type { DateRange } from "@/server/validation/date-range";
 
 import type { BodyWeightReading } from "./body-weight";
+import { listSportPreferences } from "./sport-preferences";
 
 /**
  * The shared tables (ADR 0026). Every function names the user ids it reads; the policies —
@@ -427,6 +442,21 @@ export async function writeBodyWeight(
     });
 }
 
+/**
+ * The units the signed-in user reads shared distances in, per sport: their own, as their own
+ * activities are entered (owner decision). Runs and rides in kilometres or miles; swims in
+ * metres or yards, which is what a swim is measured in, never kilometres.
+ */
+export async function readDistanceUnits(tx: DbOrTx, userId: string): Promise<SharedDistanceUnits> {
+  const preferences = await listSportPreferences(tx, userId);
+  const of = (sport: ActivitySport) => preferences.find((p) => p.sport === sport);
+  return {
+    run: of("running")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.run,
+    cycle: of("cycling")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.cycle,
+    swim: of("swimming")?.poolUnit ?? DEFAULT_DISTANCE_UNITS.swim,
+  };
+}
+
 /** Whether the signed-in user may see `ownerId`'s training, as the policies decide it. */
 export async function canViewTraining(tx: DbOrTx, ownerId: string): Promise<boolean> {
   const [row] = await tx
@@ -728,6 +758,8 @@ export type CommonExercise = {
 /**
  * The comparable movements both people logged in the period, by name, and how many machine
  * or context-bound movements they also share, which are counted but never compared (§3.9).
+ * Logged means worked: a row without a working set, which older sessions wrote for a skipped
+ * movement, does not count.
  */
 export async function readExercisesInCommon(
   tx: DbOrTx,
@@ -748,6 +780,7 @@ export async function readExercisesInCommon(
     .where(
       and(
         inArray(sharedExerciseStats.userId, [a, b]),
+        gt(sharedExerciseStats.workingSets, 0),
         gte(sharedExerciseStats.occurredOn, range.from),
         lte(sharedExerciseStats.occurredOn, range.to),
       ),
@@ -859,7 +892,7 @@ export type CircleExercise = ComparableExerciseRow & {
 
 /**
  * Exercise mode's picker (plan §3.12): the comparable movements anyone in the circle has
- * ever logged, the ones most of them share first, then by name.
+ * ever worked, the ones most of them share first, then by name.
  */
 export async function readCircleExercises(
   tx: DbOrTx,
@@ -878,6 +911,7 @@ export async function readCircleExercises(
       and(
         inArray(sharedExerciseStats.userId, [...userIds]),
         eq(sharedExerciseStats.comparable, true),
+        gt(sharedExerciseStats.workingSets, 0),
       ),
     )
     .groupBy(exercises.id)

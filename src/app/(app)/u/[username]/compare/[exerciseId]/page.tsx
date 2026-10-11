@@ -89,7 +89,7 @@ export default async function CompareExercisePage(
     async (tx) => {
       const [exercise, head] = await Promise.all([
         getComparableExercise(tx, exerciseId),
-        loadHeadToHead(tx, { id: user.id, username: viewer.username }, handle),
+        loadHeadToHead(tx, user.id, handle),
       ]);
       if (!exercise || head === null) return null;
       if (head === "self") return "self";
@@ -98,7 +98,7 @@ export default async function CompareExercisePage(
       const metric = primaryMetric(exercise);
       // The friend is in the circle whenever their training is visible (you follow them), so
       // one read of the circle's bests serves the bar pairs and the board beneath.
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username }, head.me);
+      const circle = await loadCircle(tx, user.id, head.me);
       const [bests, readings, trend] = await Promise.all([
         readExerciseBests(
           tx,
@@ -164,7 +164,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? " An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads 0." : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
         >
           <Card>
             <CompareTable
@@ -189,7 +189,8 @@ export default async function CompareExercisePage(
               note={`${metricLabel(metric, exercise)} per session over the last ${PERIOD_LABELS[period]}. A line runs across the other person's training days rather than breaking there.`}
               series={[
                 {
-                  name: names[0],
+                  // "You", as the table above heads your column: two people can share a name.
+                  name: "You",
                   color: "var(--color-series-1)",
                   points: aligned.a.map((p) => ({ ...p, value: inUnit(p.value) })),
                 },

@@ -1,7 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
-import { formatDuration, formatPace } from "@/domain/pace";
-import { formatIsoDate, formatRunKm, formatSharedLoad } from "@/lib/format";
+import { formatDuration } from "@/domain/pace";
+import {
+  formatIsoDate,
+  formatSharedDistance,
+  formatSharedLoad,
+  formatSharedPace,
+  type SharedDistanceUnits,
+} from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
 import { SPORT_LABELS, type TrainingSport } from "@/domain/sport-scope";
 import type { SharedActivityDetail } from "@/server/repositories/shared-stats";
@@ -18,13 +24,18 @@ import type { SharedActivityDetail } from "@/server/repositories/shared-stats";
  * the bike was assisted and whether the ride was indoors; a swim's depends on a time basis
  * nobody else can see. Publishing either as a bare number would invite a comparison the data
  * does not support, so it is not published at all this release.
+ *
+ * Loads read in the reader's load unit and distances in the one they use for the sport, as
+ * every friend's number does.
  */
 export function ActivitySummary({
   activity,
   unit,
+  distanceUnits,
 }: {
   activity: SharedActivityDetail;
   unit: BodyLoadUnit;
+  distanceUnits: SharedDistanceUnits;
 }) {
   return (
     <Card>
@@ -36,7 +47,7 @@ export function ActivitySummary({
         {formatIsoDate(activity.occurredOn)}
       </p>
       <div className="mt-3">
-        <DetailList entries={entries(activity, unit)} />
+        <DetailList entries={entries(activity, unit, distanceUnits)} />
       </div>
     </Card>
   );
@@ -45,6 +56,7 @@ export function ActivitySummary({
 function entries(
   activity: SharedActivityDetail,
   unit: BodyLoadUnit,
+  distanceUnits: SharedDistanceUnits,
 ): readonly (readonly [string, string | null])[] {
   const duration: readonly [string, string | null] = [
     "Time",
@@ -61,14 +73,16 @@ function entries(
       return [
         [
           "Distance",
-          activity.distanceMeters === null ? null : formatRunKm(activity.distanceMeters),
+          activity.distanceMeters === null
+            ? null
+            : formatSharedDistance(activity.distanceMeters, distanceUnits.run),
         ],
         duration,
         [
           "Average pace",
           activity.paceSecondsPerKm === null
             ? null
-            : `${formatPace(activity.paceSecondsPerKm)} /km`,
+            : formatSharedPace(activity.paceSecondsPerKm, distanceUnits.run),
         ],
       ];
     case "cycle":
@@ -76,7 +90,9 @@ function entries(
       return [
         [
           "Distance",
-          activity.distanceMeters === null ? null : formatRunKm(activity.distanceMeters),
+          activity.distanceMeters === null
+            ? null
+            : formatSharedDistance(activity.distanceMeters, distanceUnits[activity.sport]),
         ],
         duration,
       ];

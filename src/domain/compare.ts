@@ -18,10 +18,11 @@ export type Comparison = {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
- * Nothing (null) and zero are the same absence: a side that logged nothing reads "0" on the
- * bar and the percentage is "—", because there is no value to be a fraction of. A side with
- * a value leads a side without one whichever way the metric points, since for pace and the
- * like a zero is not a fast time but a missing one.
+ * Nothing (null) and zero are the same absence: the percentage is "—", because there is no
+ * value to be a fraction of. A side with a value leads a side without one whichever way the
+ * metric points, since for pace and the like a zero is not a fast time but a missing one. Two
+ * values closer than the percentage can show, which reads "=", are a tie: nobody leads by a
+ * difference that rounds to nothing.
  */
 export function compareValues(
   a: number | null,
@@ -34,6 +35,8 @@ export function compareValues(
   if (vb === 0) return { leader: "a", percent: null };
   if (va === 0) return { leader: "b", percent: null };
   const percent = round1(((va - vb) / vb) * 100);
+  // Under 0.05% apart rounds to 0, or -0: "↑ =" would contradict itself.
+  if (percent === 0) return { leader: null, percent: 0 };
   const aLeads = lowerIsBetter ? va < vb : va > vb;
   return { leader: aLeads ? "a" : "b", percent };
 }

@@ -368,6 +368,49 @@ describe("who may read", () => {
     ).resolves.toEqual([]);
   });
 
+  it("refuses even the owner's write without the server-write marker", async () => {
+    // A browser holding alice's own token and the public key: authenticated as her, but not a
+    // server write. It could otherwise top every board with a lift no set limit allowed.
+    const changed = await t.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select set_config('request.jwt.claim.sub', ${alice}, true),
+                 set_config('role', 'authenticated', true)`,
+      );
+      return tx
+        .update(sharedExerciseStats)
+        .set({ bestE1rmKg: 400 })
+        .where(eq(sharedExerciseStats.userId, alice))
+        .returning();
+    });
+    expect(changed).toEqual([]);
+    await expect(
+      t.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select set_config('request.jwt.claim.sub', ${alice}, true),
+                   set_config('role', 'authenticated', true)`,
+        );
+        await tx.insert(sharedSessionStats).values({
+          userId: alice,
+          sport: "workout",
+          sourceId: crypto.randomUUID(),
+          title: "Forged",
+          occurredOn: "2026-09-10",
+          startedAt: new Date(),
+          durationSeconds: 1,
+        });
+      }),
+    ).rejects.toThrow();
+    // Past the policies too, the records have to be a list: every follower's feed counts them.
+    await expect(
+      t.db
+        .update(sharedSessionStats)
+        .set({ records: sql`'{}'::jsonb` })
+        .where(eq(sharedSessionStats.userId, alice)),
+    ).rejects.toThrow();
+    const bests = await as(alice)((tx) => readExerciseBests(tx, [alice], bench));
+    expect(bests.get(alice)!.find((b) => b.metric === "e1rm")!.value).toBe(75.8);
+  });
+
   it("lists a follower's activity with the records count, newest first", async () => {
     const rows = await as(bob)((tx) => readActivity(tx, [alice]));
     expect(rows.map((r) => [r.person.username, r.title, r.workingSets, r.records])).toEqual([
@@ -518,7 +561,7 @@ describe("leaderboard", () => {
       (g) => g.slug === "home",
     )!.id;
     await train([{ exercise: bench, sets: [{ weight: 80, reps: 3 }] }], carol, carolGym);
-    circle = (await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }))).map((p) => p.id);
+    circle = (await as(bob)((tx) => loadCircle(tx, bob))).map((p) => p.id);
   });
 
   it("is the viewer and the people they follow, by name", () => {
@@ -537,15 +580,16 @@ describe("leaderboard", () => {
         traced,
         bob,
         async (tx) => {
-          const viewer = { id: bob, username: "bob" };
-          const head = await loadHeadToHead(tx, viewer, "alice");
+          const head = await loadHeadToHead(tx, bob, "alice");
           if (head === null || head === "self") throw new Error("Expected a comparison");
-          const existing = await loadCircle(tx, viewer);
+          const existing = await loadCircle(tx, bob);
           queries.length = 0;
-          const reused = await loadCircle(tx, viewer, head.me);
+          const reused = await loadCircle(tx, bob, head.me);
           expect(reused).toEqual(existing);
           expect(queries).toHaveLength(1);
           expect(queries[0]).toContain('from "follows"');
+          // Carol stopped sharing: she is not on the board, not even as "—".
+          expect(reused.map((person) => person.id)).toEqual([alice, bob]);
           // Reusing a public directory row does not bypass the policies on training reads.
           const bests = await readExerciseBests(
             tx,
@@ -602,7 +646,7 @@ describe("leaderboard", () => {
   });
 
   it("ranks a movement's bests over all time, and per kg only among those sharing", async () => {
-    const people = await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }));
+    const people = await as(bob)((tx) => loadCircle(tx, bob));
     const bests = await as(bob)((tx) => readExerciseBests(tx, circle, bench));
     const board = rankExercise(people, bests, new Map(), "e1rm");
     expect(board.map((r) => [r.username, r.rank, r.value])).toEqual([
@@ -634,7 +678,28 @@ describe("leaderboard", () => {
     ]);
     const bests = await as(bob)((tx) => readExerciseBests(tx, circle, bench));
     expect(bests.has(carol)).toBe(false);
+    // Not listed at all: a "—" would tell bob she had not trained.
+    const people = await as(bob)((tx) => loadCircle(tx, bob));
+    const board = rankCircle(people, new Map([...workouts].map(([id, value]) => [id, { value }])));
+    expect(board.map((r) => r.username)).toEqual(["alice", "bob"]);
+    expect(rankExercise(people, bests, new Map(), "e1rm").map((r) => r.username)).toEqual([
+      "alice",
+      "bob",
+    ]);
     await opt(carol, "share_training", true);
+    expect((await as(bob)((tx) => loadCircle(tx, bob))).map((p) => p.id)).toEqual(circle);
+  });
+
+  it("finds the viewer by id, whatever username a cached profile still holds", async () => {
+    await t.client.query("update profiles set username = 'bobby' where id = $1", [bob]);
+    try {
+      const people = await as(bob)((tx) => loadCircle(tx, bob));
+      expect(people.map((p) => [p.id, p.username])).toContainEqual([bob, "bobby"]);
+      const head = await as(bob)((tx) => loadHeadToHead(tx, bob, "alice"));
+      expect(head).toMatchObject({ me: { id: bob, username: "bobby" } });
+    } finally {
+      await t.client.query("update profiles set username = 'bob' where id = $1", [bob]);
+    }
   });
 });
 
@@ -642,7 +707,7 @@ describe("running", () => {
   let circle: string[];
 
   beforeAll(async () => {
-    circle = (await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }))).map((p) => p.id);
+    circle = (await as(bob)((tx) => loadCircle(tx, bob))).map((p) => p.id);
   });
 
   it("sums a period's runs, takes the best pace only from runs of a kilometre or more", async () => {
@@ -719,7 +784,7 @@ describe("running", () => {
     expect(of("longest_run")).toEqual([5200, 3000, 500]);
     // Carol ran, but never a kilometre: no pace to rank, so "—" rather than a fast sprint.
     expect(of("best_pace")).toEqual([325, 360, undefined]);
-    const people = await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }));
+    const people = await as(bob)((tx) => loadCircle(tx, bob));
     const ranked = rankCircle(
       people,
       new Map([...boards.get("best_pace")!].map(([id, value]) => [id, { value }])),
@@ -764,12 +829,85 @@ describe("top weight, worked", () => {
       value: 65,
       work: { sets: 3, reps: 6 },
     });
-    const circle = await as(alice)((tx) => loadCircle(tx, { id: alice, username: "alice" }));
+    const circle = await as(alice)((tx) => loadCircle(tx, alice));
     const board = rankExercise(circle, new Map([[alice, bests]]), new Map(), "top_weight");
     expect(board[0]).toMatchObject({ key: alice, rank: 1, value: 65, detail: "3 × 6" });
     expect(rankExercise(circle, new Map([[alice, bests]]), new Map(), "e1rm")[0]).toMatchObject({
       value: 78,
       detail: null,
     });
+  });
+});
+
+describe("what is shared of a session, and a rebuild of it", () => {
+  it("leaves out a movement without a working set, live and when rebuilt", async () => {
+    const row = await exerciseId("barbell-row");
+    await train([{ exercise: row, sets: [{ weight: 50, reps: 8 }] }]);
+    const bobGym = (await as(bob)((tx) => listGyms(tx, bob))).find((g) => g.slug === "home")!.id;
+    // Bob's programme day had the row too; he skipped it, and only warmed up for pull-ups.
+    const skipped = await train(
+      [
+        { exercise: bench, sets: [{ weight: 60, reps: 5 }] },
+        { exercise: row, sets: [] },
+        { exercise: pullUp, sets: [{ weight: 0, reps: 10, warmup: true }] },
+      ],
+      bob,
+      bobGym,
+    );
+    const rowsOf = async (session: string) =>
+      (
+        await t.db
+          .select({ exerciseId: sharedExerciseStats.exerciseId })
+          .from(sharedExerciseStats)
+          .where(eq(sharedExerciseStats.workoutSessionId, session))
+      ).map((r) => r.exerciseId);
+    expect(await rowsOf(skipped)).toEqual([bench]);
+    const inCommon = async () =>
+      (await as(bob)((tx) => readExercisesInCommon(tx, bob, alice, ALL))).comparable.map(
+        (e) => e.name,
+      );
+    expect(await inCommon()).not.toContain("Barbell bent-over row");
+
+    // A row an earlier version wrote for the skipped movement counts for nothing either...
+    const [session] = await t.db
+      .select()
+      .from(sharedSessionStats)
+      .where(eq(sharedSessionStats.sourceId, skipped));
+    await t.db.insert(sharedExerciseStats).values({
+      userId: bob,
+      workoutSessionId: skipped,
+      exerciseId: row,
+      occurredOn: session!.occurredOn,
+      startedAt: session!.startedAt,
+      comparable: true,
+      workingSets: 0,
+    });
+    expect(await inCommon()).not.toContain("Barbell bent-over row");
+    const picker = await as(bob)((tx) => readCircleExercises(tx, [alice, bob, carol]));
+    expect(picker.find((e) => e.id === row)?.people).toBe(1);
+    // ...and rebuilding the shared rows from history removes it.
+    await backfillSharedStats(t.db);
+    expect(await rowsOf(skipped)).toEqual([bench]);
+  });
+
+  it("keeps a run on the day it was saved when rebuilt, wherever the profile is now", async () => {
+    // 21:00 in London, where alice was; in Kolkata, her profile's zone, it was already the 14th.
+    const { id } = await as(alice)((tx) =>
+      logTestRun(
+        tx,
+        alice,
+        run({ startedAt: new Date("2026-09-13T20:00:00Z"), timeZone: "Europe/London" }),
+      ),
+    );
+    const day = async () =>
+      (
+        await t.db
+          .select({ occurredOn: sharedSessionStats.occurredOn })
+          .from(sharedSessionStats)
+          .where(eq(sharedSessionStats.sourceId, id))
+      )[0]?.occurredOn;
+    expect(await day()).toBe("2026-09-13");
+    await backfillSharedStats(t.db);
+    expect(await day()).toBe("2026-09-13");
   });
 });

@@ -8,6 +8,7 @@ import { PersonRow } from "@/components/person-row";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { List } from "@/components/ui/link-row";
+import { isEmailQuery } from "@/domain/username";
 import { searchPeopleAction, type PersonResult } from "@/server/actions/people";
 
 /** How long typing has to pause before people are looked up. */
@@ -15,8 +16,9 @@ export const PEOPLE_SEARCH_DELAY_MS = 350;
 
 /**
  * Find people (plan §3.4): one field, and the matches beneath it as rows with the follow
- * button in the state that applies. A query with `@` is an exact email; anything else is the
- * start of a username or of a word in a name. Results are an action's reply, kept here.
+ * button in the state that applies. A query shaped like an email is an exact email; anything
+ * else, "@alice" included, is the start of a username or of a word in a name. Results are an
+ * action's reply, kept here.
  */
 export function PeopleSearch({
   autoFocus = false,
@@ -96,7 +98,7 @@ export function PeopleSearch({
       {results && results.length === 0 && (
         <p className="px-1 text-sm text-ink-muted">
           Nobody called that.
-          {trimmed.includes("@") ? " An email has to match exactly." : ""}
+          {isEmailQuery(trimmed) ? " An email has to match exactly." : ""}
         </p>
       )}
       {results && results.length > 0 && (

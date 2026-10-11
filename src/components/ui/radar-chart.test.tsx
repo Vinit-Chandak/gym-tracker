@@ -73,3 +73,24 @@ it("adds a legend and a second column once there are two shapes", () => {
     "Bob",
   ]);
 });
+
+it("draws both shapes and both columns when two people share a name", () => {
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => errors.push(args);
+  try {
+    const { container } = render(
+      <RadarChart
+        title="Muscle split"
+        axes={SPLIT_GROUPS}
+        series={[one, { ...two, name: "Alice" }]}
+      />,
+    );
+    expect(container.querySelectorAll("polygon")).toHaveLength(6);
+    expect(screen.getAllByRole("cell")).toHaveLength(SPLIT_GROUPS.length * 2);
+    // No duplicate keys for React to warn about, and so nothing dropped on a re-render.
+    expect(errors).toEqual([]);
+  } finally {
+    console.error = original;
+  }
+});

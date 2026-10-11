@@ -28,6 +28,7 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   readBodyWeights,
   readCircleExercises,
+  readDistanceUnits,
   readExerciseBests,
   readLeaderboard,
 } from "@/server/repositories/shared-stats";
@@ -83,18 +84,23 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
     getDb(),
     user.id,
     async (tx) => {
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username });
-      // A board of one ranks nobody: the way out is to follow someone.
+      const circle = await loadCircle(tx, user.id);
+      // A board of one ranks nobody: the way out is to follow someone who shares.
       if (circle.length < 2) return { kind: "alone" as const };
       const ids = circle.map((person) => person.id);
       if (mode === "activity") {
-        const values = await readLeaderboard(tx, ids, sport, activityMetric, range);
+        const [values, units] = await Promise.all([
+          readLeaderboard(tx, ids, sport, activityMetric, range),
+          sport === "workout" ? null : readDistanceUnits(tx, user.id),
+        ]);
         const rows = rankCircle(
           circle,
           new Map([...values].map(([id, value]) => [id, { value }])),
           lowerIsBetter(activityMetric),
         );
-        return { kind: "activity" as const, rows };
+        // Distances read in the viewer's own unit for the sport, as their own do.
+        const distanceUnit = sport !== "workout" && units ? units[sport] : undefined;
+        return { kind: "activity" as const, rows, distanceUnit };
       }
       const [exercises, readings] = await Promise.all([
         readCircleExercises(tx, ids),
@@ -166,7 +172,9 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                 <RankList
                   rows={board.rows}
                   you={user.id}
-                  format={(value) => formatActivityMetric(activityMetric, value, unit)}
+                  format={(value) =>
+                    formatActivityMetric(activityMetric, value, unit, board.distanceUnit)
+                  }
                 />
               </Section>
             ) : board.kind === "exercise" ? (

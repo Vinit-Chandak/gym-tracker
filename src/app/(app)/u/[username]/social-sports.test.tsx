@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   circleExercises: vi.fn(),
   weights: vi.fn(),
   exerciseBests: vi.fn(),
+  profile: vi.fn(),
 }));
 
 vi.mock("@/server/auth", () => ({
@@ -34,6 +35,7 @@ vi.mock("@/server/queries/head-to-head", () => ({
   hiddenTrainingLine: () => "Hidden training",
 }));
 vi.mock("@/server/repositories/people", () => ({ getDirectoryProfile: mocks.directory }));
+vi.mock("@/server/queries/profile", () => ({ readProfile: mocks.profile }));
 vi.mock("@/server/repositories/follows", () => ({
   followState: async () => ({ outgoing: "accepted", incoming: null, followApproval: true }),
 }));
@@ -48,6 +50,7 @@ vi.mock("@/server/repositories/shared-stats", () => ({
   readCircleExercises: mocks.circleExercises,
   readBodyWeights: mocks.weights,
   readExerciseBests: mocks.exerciseBests,
+  readDistanceUnits: async () => ({ run: "mi", cycle: "km", swim: "m" }),
 }));
 vi.mock("@/server/queries/leaderboard", () => ({
   loadCircle: async () => [{ id: "me" }, { id: "friend" }],
@@ -195,3 +198,24 @@ it.each([
     );
   },
 );
+
+it("reads a running comparison's distances and paces in the viewer's own unit", async () => {
+  const html = renderToStaticMarkup(await ComparePage(props("run")));
+  // 5 km and 5:00 /km, for a viewer who runs in miles.
+  expect(html).toContain("3.1 mi");
+  expect(html).toContain("8:03 /mi");
+  // Only the rule in the help still says "1 km"; no figure does.
+  expect(html).not.toMatch(/\d km</);
+  expect(html).toContain("3.11 mi");
+});
+
+it.each([
+  [true, "This is what a follower sees of your training."],
+  [false, "Sharing is off: followers see only your profile card."],
+])("your own page, sharing %s, says what a follower sees", async (shareTraining, line) => {
+  mocks.directory.mockResolvedValue(me);
+  mocks.profile.mockResolvedValue({ shareTraining });
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain(line);
+  expect(mocks.profile).toHaveBeenCalledWith(expect.anything(), "me");
+});

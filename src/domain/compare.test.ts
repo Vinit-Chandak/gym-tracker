@@ -15,6 +15,15 @@ describe("compareValues", () => {
   it("calls equal values equal", () => {
     expect(compareValues(80, 80)).toEqual({ leader: null, percent: 0 });
   });
+  it("calls values closer than a tenth of a percent equal, never '↓ ='", () => {
+    // These round to -0 and 0; one side leading by "=" would contradict itself.
+    expect(compareValues(12345.6, 12350)).toEqual({ leader: null, percent: 0 });
+    expect(compareValues(250.1, 250)).toEqual({ leader: null, percent: 0 });
+    expect(Object.is(compareValues(250, 250.1).percent, 0)).toBe(true);
+    expect(compareValues(250, 250.1, true)).toEqual({ leader: null, percent: 0 });
+    // A difference the percentage can show still has a leader.
+    expect(compareValues(1000, 999)).toEqual({ leader: "a", percent: 0.1 });
+  });
   it("turns the leader around for a metric that improves downwards", () => {
     expect(compareValues(300, 325, true)).toEqual({ leader: "a", percent: -7.7 });
     // A missing time is not a fast one.
@@ -28,6 +37,8 @@ describe("strongerVerdict", () => {
     expect(strongerVerdict(85, 88)).toBe("b");
     expect(strongerVerdict(88, 88)).toBeNull();
     expect(strongerVerdict(null, null)).toBeNull();
+    // Too close for the row beneath to tell apart: nobody is Stronger.
+    expect(strongerVerdict(250.1, 250)).toBeNull();
   });
 });
 

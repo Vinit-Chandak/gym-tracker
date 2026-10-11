@@ -9,7 +9,11 @@ import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getDirectoryProfile } from "@/server/repositories/people";
-import { canViewTraining, readSharedActivity } from "@/server/repositories/shared-stats";
+import {
+  canViewTraining,
+  readDistanceUnits,
+  readSharedActivity,
+} from "@/server/repositories/shared-stats";
 import { requireUuid, requireUsername } from "@/server/validation/params";
 import type { BodyLoadUnit, LoadUnit } from "@/domain/types";
 
@@ -38,7 +42,7 @@ export default async function SharedActivityPage(
   requireUuid(sharedStatId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const activity = await withUser(
+  const found = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -46,17 +50,26 @@ export default async function SharedActivityPage(
       if (!person) return null;
       // Not found and not permitted read the same on purpose.
       if (person.id !== user.id && !(await canViewTraining(tx, person.id))) return null;
-      return readSharedActivity(tx, person.id, sharedStatId);
+      const [activity, distanceUnits] = await Promise.all([
+        readSharedActivity(tx, person.id, sharedStatId),
+        // A distance reads in the reader's own unit for the sport, as on every friend's row.
+        readDistanceUnits(tx, user.id),
+      ]);
+      return activity ? { activity, distanceUnits } : null;
     },
     { readOnly: true },
   );
-  if (!activity) notFound();
+  if (!found) notFound();
 
   return (
     <>
       <PageHeader title="Session" backHref={`/u/${username}`} />
       <PageContent>
-        <ActivitySummary activity={activity} unit={bodyLoadUnit(profile.preferredUnit)} />
+        <ActivitySummary
+          activity={found.activity}
+          unit={bodyLoadUnit(profile.preferredUnit)}
+          distanceUnits={found.distanceUnits}
+        />
       </PageContent>
     </>
   );
