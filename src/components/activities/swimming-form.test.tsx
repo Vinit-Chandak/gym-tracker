@@ -66,6 +66,33 @@ it("says the same count in yards is a different distance", () => {
   expect(status).toContain("365.76 m");
 });
 
+it("says a pool's distance once to a swimmer who swims in its unit, and in theirs otherwise", () => {
+  const lengths = { distanceMethod: "lengths", poolLengthValue: "25", lengths: "84" };
+  const inYards = { ...lengths, poolLengthUnit: "yd" };
+  render(
+    <SwimmingForm
+      action={action}
+      initial={{ ...initial, ...inYards }}
+      submissionKey="11111111-1111-4111-8111-111111111111"
+      submitLabel="Save activity"
+      readIn="yd"
+    />,
+  );
+  // A yard swimmer in a yard pool: "2,100 yd", not "2,100 yd · 1,920.24 m".
+  expect(screen.getByRole("status").textContent).toBe("2,100 yd");
+  cleanup();
+  render(
+    <SwimmingForm
+      action={action}
+      initial={{ ...initial, ...lengths }}
+      submissionKey="11111111-1111-4111-8111-111111111111"
+      submitLabel="Save activity"
+      readIn="yd"
+    />,
+  );
+  expect(screen.getByRole("status").textContent).toBe("2,100 m · 2,296.59 yd");
+});
+
 it("offers no lengths at all in open water", () => {
   swim({ environment: "open_water" });
   expect(screen.queryByRole("radio", { name: "Count lengths" })).toBeNull();

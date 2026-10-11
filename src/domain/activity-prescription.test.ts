@@ -146,9 +146,9 @@ describe("what a session is said to ask for", () => {
       distanceMetres: [toMetres(1000, "yd"), toMetres(1000, "yd")],
     });
     expect(describePrescription(thousandYards, KM)).toBe("914 m");
-    expect(describePrescription(thousandYards, MILES)).toBe("1000 yd");
+    expect(describePrescription(thousandYards, MILES)).toBe("1,000 yd");
     const mile = simplePrescription("swimming", { distanceMetres: [1500, 1500] });
-    expect(describePrescription(mile, KM)).toBe("1500 m");
+    expect(describePrescription(mile, KM)).toBe("1,500 m");
   });
 
   it("says a run in kilometres or miles, rounded for reading", () => {

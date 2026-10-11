@@ -122,5 +122,5 @@ it("says a month's distances in the athlete's units where they are known", () =>
       },
       units,
     ),
-  ).toBe("swim 1000 yd");
+  ).toBe("swim 1,000 yd");
 });

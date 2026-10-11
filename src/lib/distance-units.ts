@@ -119,7 +119,8 @@ export function readingUnit(sport: string, units: SportUnits): DistanceUnit | Po
 
 /**
  * A distance, or a range of them, as a figure and its unit in the reader's own unit for that
- * sport: "1500" m, "1000" yd, "8.05" km, "5" mi, "5–6" km.
+ * sport: "1,500" m, "1,000" yd, "8.05" km, "5" mi, "5–6" km, thousands separated as the
+ * swim's own form and a friend's distances write them.
  *
  * Whatever it was written in, it is read the one way: a swim set written in yards reads in
  * metres for an athlete who swims in metres, and a five-mile run reads 8.05 km. A road distance
@@ -134,8 +135,11 @@ export function sportDistanceParts(
   const [low, high] = typeof metres === "number" ? [metres, metres] : metres;
   const reading = readingUnit(sport, units);
   const unit: LengthUnit = reading === "km" && high < METRES_PER_KM ? "m" : reading;
+  const places = DISPLAY_DECIMALS[unit];
   const figure = (value: number) =>
-    String(roundTo(fromMetres(value, unit), DISPLAY_DECIMALS[unit]));
+    roundTo(fromMetres(value, unit), places).toLocaleString("en-GB", {
+      maximumFractionDigits: places,
+    });
   const [from, to] = [figure(low), figure(high)];
   return { figure: from === to ? to : `${from}–${to}`, unit: UNIT_LABELS[unit] };
 }

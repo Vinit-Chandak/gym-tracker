@@ -11,7 +11,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { SWIM_STROKES } from "@/domain/activity";
 import { formatPaceSeconds } from "@/domain/activity-metrics";
-import { formatDistance, toMetres } from "@/lib/distance-units";
+import { formatDistance, toMetres, type PoolUnit } from "@/lib/distance-units";
 import { SWIM_STROKE_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -81,6 +81,8 @@ type Props = {
   keptEffort?: { value: number | null } | null;
   /** Opens the folded details from the start, when something in them needs reading. */
   openDetails?: boolean;
+  /** The unit the athlete reads swims in; a pool measured in the other is also said in it. */
+  readIn?: PoolUnit;
 };
 
 export function SwimmingForm({
@@ -94,6 +96,7 @@ export function SwimmingForm({
   notice,
   keptEffort = null,
   openDetails = false,
+  readIn = "m",
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -222,9 +225,10 @@ export function SwimmingForm({
                 derivedMetres !== null ? (
                   <span role="status">
                     {grouped(formatDistance(derivedMetres, poolUnit as "m" | "yd"))}
-                    {/* A yard pool is not a metre pool, and the metres say so exactly. */}
-                    {poolUnit === "yd"
-                      ? ` · ${grouped(formatDistance(derivedMetres, "m", 2))}`
+                    {/* A yard pool is not a metre pool, and the athlete's own unit says so
+                        exactly; a pool in their own unit needs saying once. */}
+                    {poolUnit !== readIn
+                      ? ` · ${grouped(formatDistance(derivedMetres, readIn, 2))}`
                       : ""}
                   </span>
                 ) : (

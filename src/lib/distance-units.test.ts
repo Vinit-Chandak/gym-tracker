@@ -77,10 +77,20 @@ describe("a distance in the reader's unit", () => {
   const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
 
   it("reads a swim in the pool's unit and a run or ride on the road's", () => {
-    expect(formatSportDistance(1500, "swimming", km)).toBe("1500 m");
-    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1000 yd");
+    expect(formatSportDistance(1500, "swimming", km)).toBe("1,500 m");
+    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1,000 yd");
     expect(formatSportDistance(toMetres(5, "mi"), "running", km)).toBe("8.05 km");
     expect(formatSportDistance(toMetres(5, "mi"), "cycling", miles)).toBe("5 mi");
+  });
+
+  it("separates a figure's thousands, as the swim's form and a friend's distances do", () => {
+    // A swim's page said "2100" yd under a form that said "2,100 yd".
+    expect(sportDistanceParts(toMetres(2100, "yd"), "swimming", miles)).toEqual({
+      figure: "2,100",
+      unit: "yd",
+    });
+    expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000 m");
+    expect(formatSportDistance(1234567, "running", km)).toBe("1,234.57 km");
   });
 
   it("says a road distance under a kilometre in metres, and leaves miles as miles", () => {

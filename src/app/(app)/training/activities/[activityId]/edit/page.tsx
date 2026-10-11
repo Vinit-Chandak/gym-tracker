@@ -11,6 +11,7 @@ import { timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getActivity } from "@/server/repositories/activities";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Correct an activity" };
@@ -23,9 +24,19 @@ export default async function EditActivityPage(
   requireUuid(activityId);
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
-  const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
-    readOnly: true,
-  });
+  const { activity, units } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const found = await getActivity(tx, user.id, activityId);
+      return {
+        activity: found,
+        // How the athlete reads the sport: a swim's lengths also say their distance in it.
+        units: found?.actual ? await unitsFor(tx, user.id, found.actual.sport) : null,
+      };
+    },
+    { readOnly: true },
+  );
   if (!activity?.actual) notFound();
   const actual = activity.actual;
   const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
@@ -75,6 +86,7 @@ export default async function EditActivityPage(
           outcome: activity.outcome,
         }}
         submitLabel="Save changes"
+        poolUnit={units?.poolUnit}
       />
     </SessionPage>
   );

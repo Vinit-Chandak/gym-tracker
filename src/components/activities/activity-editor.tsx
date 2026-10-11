@@ -15,6 +15,7 @@ import {
   saveDraft,
   type ActivityDraft,
 } from "@/lib/activity-drafts";
+import type { PoolUnit } from "@/lib/distance-units";
 import { formatIsoDate } from "@/lib/format";
 import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
@@ -38,6 +39,8 @@ type Props = {
   submitLabel: string;
   /** A corrected record's unconfirmed legacy effort, offered as "As recorded" (LOG-03). */
   keptEffort?: { value: number | null } | null;
+  /** The unit the athlete reads swims in, which a swim's distance is also said in. */
+  poolUnit?: PoolUnit;
 };
 
 const subscribe = () => () => {};
@@ -264,7 +267,12 @@ function StoredEditor(props: Props) {
         <CyclingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
       )}
       {props.sport === "swimming" && (
-        <SwimmingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+        <SwimmingForm
+          key={initialDraft.draftId}
+          {...shared}
+          notice={draftNotice}
+          readIn={props.poolUnit}
+        />
       )}
     </div>
   );

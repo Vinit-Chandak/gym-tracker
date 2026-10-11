@@ -111,6 +111,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
       : null,
     target,
     submitLabel: "Save activity",
+    poolUnit: units.poolUnit,
   };
 
   // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was
