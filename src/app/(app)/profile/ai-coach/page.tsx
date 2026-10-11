@@ -10,6 +10,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { NOTE_DISPOSITION_LABELS } from "@/domain/coach-memory";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -32,6 +33,8 @@ export const metadata: Metadata = { title: "AI coach" };
 export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
+  // A note or a plan from another year says which.
+  const year = todayInTimeZone(profile.timeZone).slice(0, 4);
   const workflow = process.env.COACH_WORKFLOW_ENABLED === "true";
   const { memo, plan, pending, attempts, waiting, changes } = await withUser(
     getDb(),
@@ -69,9 +72,9 @@ export default async function AiCoachSettingsPage() {
     : workflow
       ? null
       : pending
-        ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone)}`
+        ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone, year)}`
         : plan
-          ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone)}`
+          ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone, year)}`
           : "No plan yet; the first arrives after the next overnight run";
 
   const proposals = changes?.proposals ?? [];
@@ -147,7 +150,7 @@ export default async function AiCoachSettingsPage() {
           notes={memo.notes.recent.map((note) => ({
             id: note.id,
             text: note.text,
-            when: formatDateTime(note.createdAt, profile.timeZone),
+            when: formatDateTime(note.createdAt, profile.timeZone, year),
             // What became of it, not merely that it was read: a request the coach has parked
             // until your programme review reads very differently from one it declined.
             outcome:
@@ -163,7 +166,7 @@ export default async function AiCoachSettingsPage() {
           overview={memo.overview}
           attempts={attempts.map((attempt) => ({
             id: attempt.id,
-            when: formatDateTime(attempt.requestedAt, profile.timeZone),
+            when: formatDateTime(attempt.requestedAt, profile.timeZone, year),
             trigger: attempt.trigger === "nightly" ? "Overnight" : "You asked",
             status: attempt.status,
             gymName: attempt.gymName,

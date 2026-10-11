@@ -8,7 +8,7 @@ import { formatSet, formatSets } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoWeekdayDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import type { ExerciseMonth } from "@/server/repositories/exercise-life";
@@ -79,6 +79,7 @@ export function ExerciseLife({
   bests,
   unit,
   timeZone,
+  today,
   graph,
   performances,
 }: {
@@ -90,6 +91,8 @@ export function ExerciseLife({
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
   timeZone: string;
+  /** Today in the account's zone: a session in another year is named with it. */
+  today: string;
   /** The exercise's graph, under its equipment and where. */
   graph: ReactNode;
   performances: readonly LatestPerformance[];
@@ -187,8 +190,9 @@ export function ExerciseLife({
                 >
                   <span className="flex flex-wrap items-baseline justify-between gap-x-2">
                     <span className="min-w-[min(100%,8rem)] flex-1 type-meta font-bold">
-                      {formatIsoWeekdayDay(
+                      {formatIsoDate(
                         todayInTimeZone(timeZone, new Date(performance.performedAt)),
+                        today.slice(0, 4),
                       )}
                       {exercise.loadPortability !== "global" && performance.machineName
                         ? ` · ${performance.machineName}`

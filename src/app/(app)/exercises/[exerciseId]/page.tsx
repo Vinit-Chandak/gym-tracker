@@ -240,6 +240,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           bests={bests}
           unit={unit}
           timeZone={timeZone}
+          today={today}
           graph={
             <GraphRangeProvider preset={choice.preset ?? null}>
               {rangeError && (

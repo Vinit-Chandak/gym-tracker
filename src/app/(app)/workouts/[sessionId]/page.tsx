@@ -55,6 +55,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
           detail,
           profile.timeZone,
           profile.preferredUnit === "lb" ? "lb" : "kg",
+          todayInTimeZone(profile.timeZone),
         ),
         records,
       };

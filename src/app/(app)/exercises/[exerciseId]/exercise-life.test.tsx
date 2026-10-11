@@ -53,6 +53,7 @@ const props = (assisted: boolean) => ({
   bests: [],
   unit: "kg" as const,
   timeZone: "UTC",
+  today: "2026-10-11",
   performances: [
     performance("september", "2026-09-10T08:00:00Z", [
       [20, 8],
@@ -75,4 +76,19 @@ it("shows any other machine's heaviest", () => {
   render(<ExerciseLife {...props(false)} />);
   expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40kg");
   expect(screen.getByText("20 kg × 8")).toBeTruthy();
+});
+
+it("names the year of a session in another year, and not of one this year", () => {
+  render(
+    <ExerciseLife
+      {...props(false)}
+      performances={[
+        performance("this-year", "2026-09-10T08:00:00Z", [[20, 8]]),
+        performance("last-year", "2025-10-13T08:00:00Z", [[17.5, 8]]),
+      ]}
+    />,
+  );
+  expect(screen.getByText(/^Thu 10 Sept ·/)).toBeTruthy();
+  // 13 October is a Tuesday this year: last year's Monday says which year it was.
+  expect(screen.getByText(/^Mon 13 Oct 2025 ·/)).toBeTruthy();
 });

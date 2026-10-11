@@ -13,7 +13,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets } from "@/domain/sets";
-import { formatIsoWeekdayDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -254,7 +254,7 @@ export function FinishedWorkout({
           {!justFinished && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
-              {formatIsoWeekdayDay(day)}
+              {formatIsoDate(day, session.today.slice(0, 4))}
             </span>
           )}
           <span className="meta-fact">
@@ -280,7 +280,7 @@ export function FinishedWorkout({
             <Glyph name="edit" className="mt-px glyph-18 shrink-0" />
             <span className="min-w-0">
               Tap an exercise to change its sets. Each change saves as you make it, until{" "}
-              {formatIsoWeekdayDay(edit.until)}.
+              {formatIsoDate(edit.until, session.today.slice(0, 4))}.
             </span>
           </p>
         )}

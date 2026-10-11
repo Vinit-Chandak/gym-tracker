@@ -54,3 +54,17 @@ it("keeps today's meal on its day past midnight, and writes the day once it is n
   });
   expect(document.querySelector(".meta-line")?.textContent).toBe(day);
 });
+
+it("names the year of a day from another year", () => {
+  // New Year's Eve's late snack, opened again after midnight.
+  render(
+    <MealView
+      timeZone="Asia/Kolkata"
+      today="2026-01-01"
+      date="2025-12-31"
+      meal="late_night_snack"
+      screen={EMPTY}
+    />,
+  );
+  expect(document.querySelector(".meta-line")?.textContent).toBe("Wed 31 Dec 2025");
+});
