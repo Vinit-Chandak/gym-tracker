@@ -2,6 +2,7 @@
 
 import { unstable_rethrow } from "next/navigation";
 
+import { isOutOfDate, reloadForUpdate } from "@/lib/app-update";
 import { formValues, type FormState } from "@/server/validation/form";
 
 /**
@@ -17,6 +18,12 @@ import { formValues, type FormState } from "@/server/validation/form";
  * the action throws is passed on untouched, so a genuine server failure still reaches the
  * error boundary rather than being reported as a connection that was never the problem.
  *
+ * One other failure is answered here rather than passed on: a save from a page that is older
+ * than the server, after a deploy (lib/app-update). Retrying on the same page cannot work, so
+ * the page is loaded afresh into the new release instead of the error screen taking its place.
+ * Only a form that hands back what was typed asks first: that work is nowhere else, so the page
+ * reloads when the athlete saves again, having been told.
+ *
  * The four ways in — sign in, sign up, forgot and reset password — are deliberately left
  * unwrapped. A form whose action is a client function loses the `method="POST"` that lets
  * it submit before the page's JavaScript arrives, and those are the pages where that
@@ -27,7 +34,23 @@ import { formValues, type FormState } from "@/server/validation/form";
 export const OFFLINE_SUBMIT_MESSAGE =
   "Connection lost. We could not confirm the save. What you typed is still here; retry when connected.";
 
+/** Said for the moment before the page reloads into the new release. */
+export const UPDATING_MESSAGE = "Overload has been updated. Opening the new version…";
+
+/** Said when the page cannot reload by itself, having just done so. */
+export const OUT_OF_DATE_MESSAGE =
+  "Overload has been updated. Close it and open it again, then retry.";
+
+/** A form's first refusal: what was typed stays on screen until the athlete saves again. */
+export const FORM_OUT_OF_DATE_MESSAGE =
+  "Overload was updated while this page was open, so this was not saved. Copy anything you want to keep, then save again to reload the page.";
+
 type Action<S> = (state: S, form: FormData) => Promise<S>;
+
+/** Reloads into the new release where it can, and says which happened. */
+function reload(): string {
+  return reloadForUpdate() ? UPDATING_MESSAGE : OUT_OF_DATE_MESSAGE;
+}
 
 /**
  * Whether the request never reached the server.
@@ -49,6 +72,14 @@ export function keepsFormOnDisconnect<S extends FormState>(action: Action<S>): A
       return await action(state, form);
     } catch (error) {
       unstable_rethrow(error);
+      if (isOutOfDate(error))
+        return {
+          ...state,
+          fieldErrors: undefined,
+          formError:
+            state.formError === FORM_OUT_OF_DATE_MESSAGE ? reload() : FORM_OUT_OF_DATE_MESSAGE,
+          values: formValues(form),
+        };
       if (!neverSent(error)) throw error;
       return {
         ...state,
@@ -71,6 +102,7 @@ export function keepsOutcomeOnDisconnect(action: Action<ActionOutcome>): Action<
       return await action(state, form);
     } catch (error) {
       unstable_rethrow(error);
+      if (isOutOfDate(error)) return { ok: false, error: reload() };
       if (!neverSent(error)) throw error;
       return { ok: false, error: OFFLINE_SUBMIT_MESSAGE };
     }
@@ -80,6 +112,7 @@ export function keepsOutcomeOnDisconnect(action: Action<ActionOutcome>): Action<
 /**
  * For an action that reports a single message. Nothing submitted is echoed back: these are
  * the sign-in, password and deletion forms, and their fields are not ours to hand around.
+ * For the same reason a page older than the server reloads at once, rather than holding them.
  */
 export function keepsErrorOnDisconnect<S extends { error?: string }>(action: Action<S>): Action<S> {
   return async (state, form) => {
@@ -87,6 +120,7 @@ export function keepsErrorOnDisconnect<S extends { error?: string }>(action: Act
       return await action(state, form);
     } catch (error) {
       unstable_rethrow(error);
+      if (isOutOfDate(error)) return { ...state, error: reload() };
       if (!neverSent(error)) throw error;
       return { ...state, error: OFFLINE_SUBMIT_MESSAGE };
     }
@@ -101,6 +135,10 @@ export function keepsErrorOnDisconnect<S extends { error?: string }>(action: Act
  * every failure as a lost connection, including the one that is not a failure at all: an
  * expired sign-in makes the action redirect, and swallowing that left the athlete pressing
  * Retry against a session that had ended, told to check a connection that was fine.
+ *
+ * Saved from a page older than the server, the page reloads at once: these are mostly taps, and
+ * the typed work among them that matters, a set being logged, is already kept on the device as
+ * a draft before it is sent, and comes back after the reload.
  */
 export async function attempted<T>(
   action: () => Promise<T>,
@@ -110,6 +148,7 @@ export async function attempted<T>(
     return { ok: true, value: await action() };
   } catch (error) {
     unstable_rethrow(error);
+    if (isOutOfDate(error)) return { ok: false, message: reload() };
     if (!neverSent(error)) throw error;
     return { ok: false, message: whenDisconnected };
   }

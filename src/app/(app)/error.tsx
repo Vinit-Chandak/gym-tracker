@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
 
 import { useOnline } from "@/components/shell/connectivity";
 import { ErrorScreen } from "@/components/shell/error-screen";
+import { reloadIfOutOfDate } from "@/lib/app-update";
 
 export default function AppError({
   error,
@@ -19,6 +20,9 @@ export default function AppError({
   // being logged, and on Runs or Profile there is nothing of the sort to reassure anyone about.
   const inWorkout = usePathname().startsWith("/workouts/");
   const [pending, startTransition] = useTransition();
+  // A page older than the server, after a deploy, is not fixed by Try again on the same page:
+  // it reloads into the new release instead, once (lib/app-update).
+  useEffect(() => reloadIfOutOfDate(error), [error]);
   return (
     <ErrorScreen
       online={online}
