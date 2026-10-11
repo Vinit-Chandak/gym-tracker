@@ -27,7 +27,7 @@ import {
   type SharedMetric,
 } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -58,11 +58,13 @@ function side(
   reading: SharedReading | undefined,
   ratio: boolean,
   unit: BodyLoadUnit,
+  currentYear: string,
 ): CompareSide {
   const best = bests?.find((b) => b.metric === metric);
   // No best is not a best of nothing: an estimated 1RM needs a set of ten reps or fewer.
   if (!best) return { value: null, text: "—" };
-  const sub = [formatIsoDay(best.occurredOn)];
+  // The day as the exercise page dates it, its year only outside this one (ADR 0044).
+  const sub = [formatIsoDate(best.occurredOn, currentYear)];
   if (best.work) sub.unshift(topWeightWorkLabel(best.work));
   const bodyWeight = ratio && RATIO_METRICS.has(metric) ? (reading?.weightKg ?? null) : null;
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
@@ -203,8 +205,8 @@ export default async function CompareExercisePage(
               rows={metricsForExercise(exercise).map((m) => ({
                 key: m,
                 label: metricLabel(m, exercise),
-                a: side(m, mine, readings.get(me.id), ratio, unit),
-                b: side(m, theirs, readings.get(them.id), ratio, unit),
+                a: side(m, mine, readings.get(me.id), ratio, unit, today.slice(0, 4)),
+                b: side(m, theirs, readings.get(them.id), ratio, unit, today.slice(0, 4)),
               }))}
             />
           </Card>
@@ -238,6 +240,7 @@ export default async function CompareExercisePage(
           rows={board}
           you={me.id}
           unit={unit}
+          currentYear={today.slice(0, 4)}
         />
       </PageContent>
     </>

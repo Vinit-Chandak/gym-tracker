@@ -73,7 +73,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
   // "what did they do lately". It runs to now, so a friend's session dated ahead of the viewer
   // still counts.
   const preset = await rememberedRange();
-  const read = readWindowOf({ preset }, todayInTimeZone(viewer.timeZone));
+  const today = todayInTimeZone(viewer.timeZone);
+  const read = readWindowOf({ preset }, today);
   const range = socialWindow(read.from, read.to, viewer.timeZone);
   const found = await withUser(
     getDb(),
@@ -213,7 +214,11 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               >
                 <Card>
                   {training.records.length > 0 ? (
-                    <PeriodRecordsList records={training.records} unit={unit} />
+                    <PeriodRecordsList
+                      records={training.records}
+                      unit={unit}
+                      currentYear={today.slice(0, 4)}
+                    />
                   ) : (
                     <p className="text-sm text-ink-muted">
                       {preset === "all"

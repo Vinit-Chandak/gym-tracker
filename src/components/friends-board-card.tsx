@@ -17,6 +17,7 @@ export function FriendsBoardCard({
   rows,
   you,
   unit,
+  currentYear,
 }: {
   exercise: MetricExercise & { id: string };
   metric: SharedMetric;
@@ -24,13 +25,20 @@ export function FriendsBoardCard({
   rows: readonly RankRow[];
   you: string;
   unit: BodyLoadUnit;
+  /** The year it is in the viewer's zone: a best set in it does not name it. */
+  currentYear?: string;
 }) {
   return (
     <Section
       title="Friends' leaderboard"
       info={`You and the people you follow, ranked by ${metricLabel(metric, exercise).toLowerCase()} over all time, with the day each best was set. Equal values share a rank.`}
     >
-      <RankList rows={rows} you={you} format={(value) => formatSharedMetric(metric, value, unit)} />
+      <RankList
+        rows={rows}
+        you={you}
+        format={(value) => formatSharedMetric(metric, value, unit)}
+        currentYear={currentYear}
+      />
       <LinkButton
         href={`/profile/friends/leaderboard?mode=exercise&exercise=${exercise.id}`}
         variant="ghost"

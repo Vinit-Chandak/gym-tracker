@@ -60,15 +60,17 @@ it("tiles the bests with their dates, labelled for the movement", () => {
       exercise={pullUp}
       bests={[
         { metric: "most_reps", value: 12, occurredOn: "2026-09-08", work: null },
-        { metric: "top_weight", value: 10, occurredOn: "2026-08-30", work: { sets: 3, reps: 8 } },
+        { metric: "top_weight", value: 10, occurredOn: "2025-08-30", work: { sets: 3, reps: 8 } },
       ]}
+      currentYear="2026"
     />,
   );
   expect(screen.getByText("Added load")).toBeTruthy();
   expect(screen.getByText("10 kg")).toBeTruthy();
-  // Each number named: "3 × 8" read as three sets of eight, which it need not have been.
-  expect(screen.getByText("8 reps · 3 sets · 30 Aug 2026")).toBeTruthy();
-  expect(screen.getByText("8 Sept 2026")).toBeTruthy();
+  // Each number named: "3 × 8" read as three sets of eight, which it need not have been. A day
+  // in another year names it; one in this year does not.
+  expect(screen.getByText(/^8 reps · 3 sets · Sat\s30\sAug\s2025$/)).toBeTruthy();
+  expect(screen.getByText(/^Tue\s8\sSept$/)).toBeTruthy();
 });
 
 it("lists period records with the metric and day under the name", () => {
@@ -76,10 +78,13 @@ it("lists period records with the metric and day under the name", () => {
     <PeriodRecordsList
       unit="kg"
       records={[{ exercise: bench, metric: "e1rm", value: 81.7, occurredOn: "2026-09-08" }]}
+      currentYear="2026"
     />,
   );
   expect(screen.getByText("Barbell bench press")).toBeTruthy();
-  expect(screen.getByText("Est. 1RM · 8 Sept 2026")).toBeTruthy();
+  // "Est. 1RM · 15 Sept 2026" on a profile beside the exercise page's "Thu 8 Oct": the same
+  // day as the exercise page writes it, with no year inside this one (ADR 0044).
+  expect(screen.getByText(/^Est\. 1RM ·\sTue\s8\sSept$/)).toBeTruthy();
   expect(screen.getByText("81.7 kg")).toBeTruthy();
 });
 
