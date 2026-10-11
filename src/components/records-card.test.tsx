@@ -86,7 +86,10 @@ it("lists period records with the metric and day under the name", () => {
   );
   expect(screen.getByText("Barbell bench press")).toBeTruthy();
   expect(screen.getByText("Est. 1RM · 8 Sept 2026")).toBeTruthy();
-  expect(screen.getByText("81.7 kg")).toBeTruthy();
+  // The value at the row's end, its figure in Jost.
+  const value = screen.getByText("Barbell bench press").closest("li")!.lastElementChild!;
+  expect(value.textContent).toBe("81.7\u00a0kg");
+  expect(value.querySelector(".figures")?.textContent).toBe("81.7");
 });
 
 const row = (over: Partial<Activity>): Activity => ({
