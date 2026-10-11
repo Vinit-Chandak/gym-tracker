@@ -99,7 +99,9 @@ it("is named for its day, and keeps a line of its plan once it is logged", async
   expect(html).toContain("<h1>Tempo run</h1>");
   expect(html).toContain("Running ·\u00a0Cycle 5 ·\u00a0planned for Thu 23\u00a0Jul");
   // What was asked for stays beside what was done: how far, how long, how hard, and how.
-  expect(html).toContain("4.2–5.0\u00a0km ·\u00a026–31\u00a0min ·\u00a0Effort 3\u2060–\u20604 of\u00a05");
+  expect(html).toContain(
+    "4.2–5.0\u00a0km ·\u00a026–31\u00a0min ·\u00a0Effort 3\u2060–\u20604 of\u00a05",
+  );
   expect(html).toContain("10K effort");
   // A date of this year is said without its year.
   expect(html).toContain("Logged on Thu 6\u00a0Aug.");
