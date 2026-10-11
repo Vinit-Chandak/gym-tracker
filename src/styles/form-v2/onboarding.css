@@ -197,7 +197,8 @@ html:has(.onboarding) .pinned-actions {
 .date-row {
   position: relative;
   display: flex;
-  min-height: var(--ov-target);
+  /* The target is the row inside its rule: a whole target, the rule on top of it. */
+  min-height: calc(var(--ov-target) + 1px);
   align-items: center;
   margin-top: calc(6 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);

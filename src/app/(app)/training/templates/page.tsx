@@ -69,7 +69,7 @@ export default async function TemplatesPage() {
                 </p>
                 <Link
                   href={`/training/templates/${template.id}/edit`}
-                  className="text-sm text-accent"
+                  className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
                 >
                   Edit
                 </Link>

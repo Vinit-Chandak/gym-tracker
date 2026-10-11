@@ -510,6 +510,20 @@
   padding-right: max(var(--page-gutter), env(safe-area-inset-right));
 }
 
+/*
+ * A link set in a line of text, where a full-height target would open the line: its target
+ * reaches the platform's size above and below the words without moving them (44 pt, 48 dp on
+ * Android). Not sideways, where the next link in the line is.
+ */
+@utility tap-area {
+  position: relative;
+  &::after {
+    position: absolute;
+    inset: min(0px, (1lh - var(--ov-target)) / 2) 0;
+    content: "";
+  }
+}
+
 /* A screen of cards and sections: as wide as the size class allows (ADR 0052). */
 @utility page-wide {
   --content-width: var(--content-width-wide);

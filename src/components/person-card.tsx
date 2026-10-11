@@ -67,13 +67,17 @@ export function PersonCard<T extends string>({
           <span className="tabular-nums">
             {" · "}
             {countsLinkToFriends ? (
-              <Link href="/profile/friends/people?people=followers">{followers}</Link>
+              <Link href="/profile/friends/people?people=followers" className="tap-area">
+                {followers}
+              </Link>
             ) : (
               followers
             )}
             {" · "}
             {countsLinkToFriends ? (
-              <Link href="/profile/friends/people?people=following">{following}</Link>
+              <Link href="/profile/friends/people?people=following" className="tap-area">
+                {following}
+              </Link>
             ) : (
               following
             )}

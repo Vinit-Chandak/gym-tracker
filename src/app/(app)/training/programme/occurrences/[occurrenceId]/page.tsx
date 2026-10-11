@@ -107,7 +107,7 @@ export default async function OccurrencePage(
             </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="text-sm text-accent"
+              className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
             >
               See what you logged
             </Link>
