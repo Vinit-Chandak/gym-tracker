@@ -98,7 +98,10 @@ export type SessionSummary = {
   startedAt: Date;
   completedAt: Date | null;
   exerciseCount: number;
+  /** Every set logged, warm-ups too: whether there is anything to keep (Discard, Finish). */
   setCount: number;
+  /** The sets it counts, warm-ups aside, as the workout lists them (`workingSetCount`). */
+  workingSetCount: number;
   /** When its latest set was saved; null before any. Says whether it was left open. */
   lastSetAt: Date | null;
 };
@@ -120,6 +123,11 @@ function summarySelection() {
       select count(*) from set_logs sl
       join workout_exercises we on we.id = sl.workout_exercise_id
       where we.workout_session_id = workout_sessions.id
+    )::int`,
+    workingSetCount: sql<number>`(
+      select count(*) from set_logs sl
+      join workout_exercises we on we.id = sl.workout_exercise_id
+      where we.workout_session_id = workout_sessions.id and sl.set_type <> 'warmup'
     )::int`,
     lastSetAt: sql<Date | null>`(
       select max(sl.completed_at) from set_logs sl

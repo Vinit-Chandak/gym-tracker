@@ -11,6 +11,7 @@ import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { formatIsoDate, formatTime } from "@/lib/format";
 import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
@@ -112,7 +113,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
       };
     }),
     ...workouts.map((workout): Entry => {
-      const sets = workout.exercises.flatMap((exercise) => exercise.sets);
+      const sets = workingSetCount(workout.exercises.flatMap((exercise) => exercise.sets));
       const minutes = workout.completedAt
         ? Math.round((workout.completedAt.getTime() - workout.startedAt.getTime()) / 60_000)
         : null;
@@ -124,7 +125,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         meta: [
           workout.gym.name,
           minutes === null ? null : `${minutes} min`,
-          `${sets.length} ${sets.length === 1 ? "set" : "sets"}`,
+          `${sets} ${sets === 1 ? "set" : "sets"}`,
         ]
           .filter(Boolean)
           .join(" · "),

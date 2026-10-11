@@ -142,6 +142,7 @@ const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
     completedAt: null,
     exerciseCount: 2,
     setCount: 0,
+    workingSetCount: 0,
     ...patch,
   }) as SessionSummary;
 
@@ -226,10 +227,15 @@ it("keeps Resume and Discard in the day's card while its session is open, and no
   expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();
 });
 
-it("never offers Discard once a set is in", () => {
-  show({ inProgress: session({ setCount: 2 }) });
+it("never offers Discard once a set is in, and counts the work, not the warm-ups", () => {
+  show({ inProgress: session({ setCount: 3, workingSetCount: 2 }) });
   expect(screen.queryByRole("button", { name: "Discard empty session" })).toBeNull();
   expect(card("Easy Run + Arms").textContent).toContain("2 sets");
+  cleanup();
+  // Warmed up and nothing more: no work to count, but something logged that Discard would lose.
+  show({ inProgress: session({ setCount: 1, workingSetCount: 0 }) });
+  expect(screen.queryByRole("button", { name: "Discard empty session" })).toBeNull();
+  expect(card("Easy Run + Arms").textContent).toContain("0 sets");
   // Trained a moment ago, it is in progress, not left open: nothing offers to finish it here.
   expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
 });

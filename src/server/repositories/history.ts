@@ -16,7 +16,7 @@ type HistoryExercise = {
 };
 
 /**
- * History needs labels and a set count, not every prescription and logged set. Each workout is
+ * History needs labels and a count of working sets, not every prescription and logged set. Each workout is
  * read on, and listed under, the day its parent froze (`strengthOnDays`), as the calendar marks
  * it; `occurredOn` is null only for a session older than the parents.
  */
@@ -35,11 +35,12 @@ export async function readHistoryWorkouts(
       gymName: gyms.name,
       dayName: programDays.name,
       sleepHours: workoutSessions.sleepHours,
-      // Explicit qualifiers keep correlated columns intact in Drizzle's select list.
+      // Explicit qualifiers keep correlated columns intact in Drizzle's select list. The sets
+      // are counted as the workout lists them, warm-ups aside (`workingSetCount`).
       setCount: sql<number>`(
         select count(*) from set_logs s
         join workout_exercises e on e.id = s.workout_exercise_id
-        where e.workout_session_id = workout_sessions.id
+        where e.workout_session_id = workout_sessions.id and s.set_type <> 'warmup'
       )::int`,
       exercises: sql<HistoryExercise[]>`coalesce((
         select json_agg(json_build_object(

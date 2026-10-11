@@ -902,6 +902,64 @@ export async function readSharedActivity(
   return row ?? null;
 }
 
+export type SharedSessionExercise = MetricExercise & {
+  id: string;
+  name: string;
+  /** A load that means the same everywhere; a machine's is its own, and is not said. */
+  comparable: boolean;
+  workingSets: number;
+  topWeightKg: number | null;
+  /** The most reps a set at the top weight reached. */
+  topWeightReps: number | null;
+  mostReps: number | null;
+  longestDurationSeconds: number | null;
+  longestDistanceMeters: number | null;
+};
+
+/**
+ * What a shared workout was made of (ADR 0026): its shared-library movements, each with the
+ * numbers its shared row carries, read through the session's own shared row by that row's id,
+ * so the workout's own id is never asked for. A movement someone created themselves has no
+ * shared row, which is why these sets can add up to fewer than the session's. By name: the
+ * rows keep no order of their own.
+ */
+export async function readSharedSessionExercises(
+  tx: DbOrTx,
+  ownerId: string,
+  sharedStatId: string,
+): Promise<SharedSessionExercise[]> {
+  return tx
+    .select({
+      ...EXERCISE_COLUMNS,
+      comparable: sharedExerciseStats.comparable,
+      workingSets: sharedExerciseStats.workingSets,
+      topWeightKg: sharedExerciseStats.topWeightKg,
+      topWeightReps: sharedExerciseStats.topWeightReps,
+      mostReps: sharedExerciseStats.mostReps,
+      longestDurationSeconds: sharedExerciseStats.longestDurationSeconds,
+      longestDistanceMeters: sharedExerciseStats.longestDistanceMeters,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(
+      sharedSessionStats,
+      and(
+        eq(sharedSessionStats.userId, sharedExerciseStats.userId),
+        eq(sharedSessionStats.sport, "workout"),
+        eq(sharedSessionStats.sourceId, sharedExerciseStats.workoutSessionId),
+      ),
+    )
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
+    .where(
+      and(
+        eq(sharedSessionStats.id, sharedStatId),
+        eq(sharedSessionStats.userId, ownerId),
+        eq(sharedExerciseStats.userId, ownerId),
+        gt(sharedExerciseStats.workingSets, 0),
+      ),
+    )
+    .orderBy(asc(exercises.name));
+}
+
 export type ComparableExerciseRow = MetricExercise & {
   id: string;
   name: string;

@@ -20,6 +20,7 @@ import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, reportedEffort } from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { EARLIEST_DAY } from "@/domain/graph-range";
+import { workingSetCount } from "@/domain/sets";
 import { dateWindow, parseDateRange } from "@/server/validation/date-range";
 import { createActivity, type SaveActivityInput } from "./activities";
 import { readHistory, readHistoryWorkouts, readLatestActivities } from "./history";
@@ -101,7 +102,7 @@ afterAll(async () => {
 });
 
 describe("history projection", () => {
-  it("preserves completed-workout labels, ordering, recovery and counts including warm-ups", async () => {
+  it("preserves completed-workout labels, ordering, recovery and counts working sets", async () => {
     const [summary, full] = await withUser(t.db, alice.id, (tx) =>
       Promise.all([readHistoryWorkouts(tx, alice.id, range), readWorkouts(tx, alice.id, range)]),
     );
@@ -117,7 +118,7 @@ describe("history projection", () => {
           gymName: w.gym.name,
           dayName: w.day?.name ?? null,
           sleepHours: w.sleepHours,
-          setCount: w.exercises.reduce((n, e) => n + e.sets.length, 0),
+          setCount: w.exercises.reduce((n, e) => n + workingSetCount(e.sets), 0),
           exercises: w.exercises.map((e) => ({
             exerciseId: e.exerciseId,
             name: e.exercise.name,
@@ -127,7 +128,8 @@ describe("history projection", () => {
         })),
     );
     expect(summary.workouts).toHaveLength(2);
-    expect(summary.workouts[0]?.setCount).toBe(2);
+    // A warm-up and a working set: the warm-up is done, not counted.
+    expect(summary.workouts[0]?.setCount).toBe(1);
   });
 
   it("applies the limit after excluding open sessions and reports truncation", async () => {
