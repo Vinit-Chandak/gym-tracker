@@ -17,12 +17,13 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { resolvePlannedDay } from "@/server/repositories/availability";
 import { listGyms } from "@/server/repositories/gyms";
 import { getProgramOverview, getSchedule } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
-import { programmeDayParts, runLeads } from "../../programme-day";
+import { atGymLines, programmeDayParts, runLeads } from "../../programme-day";
 
 export const metadata: Metadata = { title: "Programme day" };
 
@@ -53,9 +54,19 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           unitsFor(tx, user.id, "running"),
         ]);
         const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
-        const warmup = plan?.day.warmupProtocolId
-          ? await getWarmupProtocol(tx, plan.day.warmupProtocolId)
-          : null;
+        const gym = gyms.find((each) => each.isActive && each.isDefault) ?? null;
+        const [warmup, resolved] = await Promise.all([
+          plan?.day.warmupProtocolId ? getWarmupProtocol(tx, plan.day.warmupProtocolId) : null,
+          // What Start would do with each exercise at the default gym, as starting it resolves
+          // them: read-only, and only for a day that lifts.
+          plan?.day.includesLifting && gym
+            ? resolvePlannedDay(tx, user.id, gym.id, plan.day.id, {
+                id: gym.id,
+                kind: gym.kind,
+                name: gym.name,
+              })
+            : null,
+        ]);
         return {
           overview,
           plan,
@@ -65,7 +76,8 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
             plan && overview && schedule
               ? liftingStartOption(schedule.state, overview.currentCycle, plan.day.dayIndex)
               : null,
-          defaultGymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
+          defaultGymId: gym?.id ?? null,
+          atGym: gym && resolved ? atGymLines(resolved, gym.name) : new Map<string, string>(),
         };
       },
       { readOnly: true },
@@ -76,8 +88,12 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   const { plan, warmup, start } = data;
   const { day } = plan;
   const drills = warmup?.drills.length ?? 0;
-  // The programme's own rows carry no load, so no unit is written into them.
-  const rows = planRows(plan.exercises, null, "");
+  // The programme's own rows carry no load, so no unit is written into them. Each says what it
+  // becomes at the default gym where that is not itself.
+  const rows = planRows(plan.exercises, null, "").map((row) => ({
+    ...row,
+    at: data.atGym.get(row.key) ?? null,
+  }));
   const parts = programmeDayParts(plan, { drills, warmup: true });
   const exercises = plan.exercises.length;
   const rest = !day.includesLifting && !day.includesRun;

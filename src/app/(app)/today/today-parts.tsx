@@ -235,6 +235,13 @@ export function PlanRow({
             </Fact>
           </MetaLine>
         )}
+        {row.at && (
+          <MetaLine className="plan-row-meta">
+            <Fact glyph="pin">
+              <span className="min-w-0 [overflow-wrap:break-word]">{row.at}</span>
+            </Fact>
+          </MetaLine>
+        )}
         {row.note && notes === "full" && (
           <span className="plan-row-note">
             <Glyph name="coach" label="Coach:" className="mt-0.5 glyph-15" />

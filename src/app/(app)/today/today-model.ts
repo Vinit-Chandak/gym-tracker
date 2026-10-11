@@ -68,6 +68,8 @@ export type PlanRowModel = {
   /** The sets it asks for, for its column in the print. */
   sets: number;
   supersetGroup: string | null;
+  /** What it becomes at the athlete's gym, where that is news (a programme day's page). */
+  at?: string | null;
 };
 
 /**
