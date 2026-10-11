@@ -72,6 +72,11 @@ export function AiCoachSettings({
     state.fieldErrors === undefined &&
     state.formError === undefined &&
     state.values === undefined;
+  // The note starts afresh, under the new id the page was drawn with, only once one is saved.
+  // The switch's save draws the page again too, with an id of its own, and a note being typed
+  // meanwhile is not to be cleared by it.
+  const [fresh, setFresh] = useState({ id: noteId, after: state });
+  if (saved && fresh.after !== state) setFresh({ id: noteId, after: state });
 
   const change = (next: boolean) =>
     startTransition(async () => {
@@ -198,8 +203,8 @@ export function AiCoachSettings({
 
       {/* Telling the coach is always at hand: pinned over the tabs, the note's words and Send. */}
       <PinnedActions stack>
-        <form key={noteId} action={formAction}>
-          <input type="hidden" name="noteId" value={state.values?.noteId ?? noteId} />
+        <form key={fresh.id} action={formAction}>
+          <input type="hidden" name="noteId" value={state.values?.noteId ?? fresh.id} />
           <div className="coach-compose" data-field-error={state.formError ? "true" : undefined}>
             <label htmlFor="coach-note" className="sr-only">
               Notes for the coach
