@@ -10,19 +10,27 @@ export function joinFacts(facts: readonly (string | null | undefined | false)[])
   return facts.filter((fact): fact is string => Boolean(fact)).join(FACT_SEPARATOR);
 }
 
-/** Units and nouns a figure is held to when it is written as text ("60–75 min", "2 sets"). */
+/**
+ * Units and nouns a figure is held to when it is written as text ("60–75 min", "2 sets", "1–2
+ * RIR").
+ */
 const UNIT =
-  /(\d) (?=(?:min|mins|minutes?|h|hrs?|hours?|s|secs?|seconds?|km|mi|m|yd|kg|lb|lbs|kcal|g|reps?|sets?|days?|weeks?)\b)/g;
+  /(\d) (?=(?:min|mins|minutes?|h|hrs?|hours?|s|secs?|seconds?|km|mi|m|yd|kg|lb|lbs|kcal|g|reps?|sets?|days?|weeks?|RIR)\b)/g;
 
 /**
  * Figures written as text held whole where a line wraps: a range never breaks at its dash (a
  * word joiner either side of it, U+2060, keeps the en dash itself), and a figure keeps its unit
- * by a no-break space: "60–75 min", "2.6–3.1 km". For what the coach or the athlete wrote, such
- * as a day's time note, and for ranges whose text is kept as it is where it is compared
- * (rangeLabel); a figure from a shared formatter already keeps its unit.
+ * by a no-break space: "60–75 min", "2.6–3.1 km", as "@" and RPE keep the figure after them
+ * ("@ 1–2 RIR", "RPE 7"). For what the coach or the athlete wrote, such as a day's time note,
+ * and for ranges whose text is kept as it is where it is compared (rangeLabel, a prescription's
+ * "3 × 8–12 @ 1–2 RIR"), held only where it is shown; a figure from a shared formatter already
+ * keeps its unit.
  */
 export function holdFigures(text: string): string {
-  return text.replace(/(\d)–(?=\d)/g, "$1\u2060–\u2060").replace(UNIT, "$1\u00a0");
+  return text
+    .replace(/(\d)–(?=\d)/g, "$1\u2060–\u2060")
+    .replace(UNIT, "$1\u00a0")
+    .replace(/(@|\bRPE) (?=\d)/g, "$1\u00a0");
 }
 
 /** A word of letters joined by hyphens: "push-up", "Front-foot-elevated". */

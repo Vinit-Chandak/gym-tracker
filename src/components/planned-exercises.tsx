@@ -1,4 +1,5 @@
-import { joinFacts } from "@/lib/facts";
+import { Figures } from "@/components/ui/figures";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
@@ -84,7 +85,10 @@ export function PlannedExerciseList({
           {block.items.map((exercise) => (
             <div key={exercise.programExerciseId} className="min-w-0">
               <p className="text-sm [overflow-wrap:break-word]">{exercise.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
+              {/* Its figures in Jost, each range held at its dash: "@ 1–" never ends a line. */}
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">
+                <Figures>{holdFigures(prescription(exercise))}</Figures>
+              </p>
             </div>
           ))}
         </li>

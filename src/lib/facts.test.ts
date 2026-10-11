@@ -16,6 +16,11 @@ it("holds a written range at its dash and a figure to its unit", () => {
   expect(holdFigures("Squat + hinge, then 20 min easy")).toBe(
     "Squat + hinge, then 20\u00a0min easy",
   );
+  // A prescription, as a row shows it: "@ 1–" never ends a line, nor "@" or "1–2" its RIR.
+  expect(holdFigures("3 × 10–12 per side @ 1–2 RIR")).toBe(
+    "3 × 10\u2060–\u206012 per side @\u00a01\u2060–\u20602\u00a0RIR",
+  );
+  expect(holdFigures("32 kg · 3 × 30 m · RPE 7")).toBe("32\u00a0kg · 3 × 30\u00a0m · RPE\u00a07");
   // Words that are not a unit, and text with no figures, are left as they were.
   expect(holdFigures("Effort 2 of 5")).toBe("Effort 2 of 5");
   expect(holdFigures("Push + pull")).toBe("Push + pull");

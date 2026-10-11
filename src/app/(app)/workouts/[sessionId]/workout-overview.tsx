@@ -29,6 +29,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSet, loadReadingOf } from "@/domain/sets";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
@@ -117,7 +118,7 @@ function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): s
   if (!line) return machine;
   // A machine still to settle is news on the row, as it is under the exercise's name.
   return machine === "Machine not chosen" && !exercise.completedAt && !exercise.skippedAt
-    ? `${line} · ${machine}`
+    ? `${line}${FACT_SEPARATOR}${machine}`
     : line;
 }
 
@@ -533,7 +534,7 @@ export function WorkoutOverview({
               <span className="meta-line plan-row-meta">
                 <span className="meta-fact">
                   <Glyph name={glyph} label={equipmentLabel(exercise)} className="glyph-16" />
-                  <Figures>{rowLine(exercise, session, readOnly)}</Figures>
+                  <Figures>{holdFigures(rowLine(exercise, session, readOnly))}</Figures>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>
