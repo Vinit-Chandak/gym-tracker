@@ -61,7 +61,9 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
             summary.mean === null
               ? null
               : [
-                  `${summary.days.toLocaleString("en-GB")} of ${counted(graph.days, "day")} logged`,
+                  kcal
+                    ? `${summary.days.toLocaleString("en-GB")} of ${counted(graph.days, "day")} logged`
+                    : `${summary.days.toLocaleString("en-GB")} of ${counted(graph.days, "day")} with protein recorded`,
                   target ? `target ${figure(target)}` : null,
                 ]
                   .filter(Boolean)
@@ -72,7 +74,18 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
           const value = kcal ? bucket.kcal : bucket.protein;
           const days = kcal ? bucket.kcalDays : bucket.proteinDays;
           const label = bucketLabel(bucket, range.bucket, today);
-          if (value === null) return { label, figure: null, context: "Nothing logged" };
+          const open = bucket.lastDay
+            ? {
+                href: foodDayHref(bucket.lastDay, today),
+                action: range.bucket === "day" ? "Open day" : "Open food log",
+              }
+            : {};
+          // Food logged by its energy alone (a quick add, a food saved without macros) is a day
+          // with nothing to say about protein, not a day with nothing logged.
+          if (value === null)
+            return bucket.kcal === null
+              ? { label, figure: null, context: "Nothing logged" }
+              : { label, figure: null, context: "No protein recorded", ...open };
           // A day says what else it came to; a week or a month what its average is over.
           const other = kcal ? bucket.protein : bucket.kcal;
           const context =
@@ -88,12 +101,7 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
             figure: figure(value),
             unit,
             context,
-            ...(bucket.lastDay
-              ? {
-                  href: foodDayHref(bucket.lastDay, today),
-                  action: range.bucket === "day" ? "Open day" : "Open food log",
-                }
-              : {}),
+            ...open,
           };
         }}
         note={{

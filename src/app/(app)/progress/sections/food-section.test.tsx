@@ -91,3 +91,16 @@ it("says aloud which days reached the target, in the values a screen reader read
   // Newest first: today, 6 Oct and 5 Oct reached it; 4 Oct did not.
   expect(rows.map((row) => row.includes(", reached"))).toEqual([true, true, true, false]);
 });
+
+it("counts the days with protein recorded, not every day logged", () => {
+  route.search = "food=protein";
+  const days: FoodDayInput[] = [...DAYS, { date: "2026-10-03", kcal: 1200, protein: 0 }];
+  render(
+    <FoodSection
+      today={TODAY}
+      food={{ range: MONTH, graph: foodGraph(days, MONTH, TODAY), targets: TARGETS }}
+    />,
+  );
+  // Four of the five logged days carry a protein figure.
+  expect(screen.getByText(/4 of \d+ days with protein recorded/)).toBeTruthy();
+});

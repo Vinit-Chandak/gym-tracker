@@ -48,7 +48,9 @@ export function hiddenTrainingLine(head: {
   relation: Pick<FollowRelation, "outgoing">;
 }): string {
   const name = head.them.displayName || head.them.username;
-  return head.relation.outgoing === "accepted"
-    ? `${name} keeps their training private.`
-    : `Follow @${head.them.username} to see their training.`;
+  if (head.relation.outgoing === "accepted") return `${name} keeps their training private.`;
+  // Under a button that already says Requested, asking to follow would be asking twice.
+  if (head.relation.outgoing === "pending")
+    return `Waiting for @${head.them.username} to accept your request.`;
+  return `Follow @${head.them.username} to see their training.`;
 }
