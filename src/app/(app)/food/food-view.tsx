@@ -194,7 +194,12 @@ export function FoodView({
       />
       <div className="food page-width">
         <FoodWeekStrip {...daysProps} />
-        <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
+        <FoodSummary
+          eaten={day.eaten}
+          target={target}
+          entries={day.entries}
+          isToday={date === today}
+        />
         {!target && (
           <div className="food-no-target">
             <div className="min-w-0">

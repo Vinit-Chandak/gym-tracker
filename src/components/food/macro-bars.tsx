@@ -69,11 +69,14 @@ export function MacroBars({
   eaten,
   target,
   entries,
+  isToday = true,
 }: {
   eaten: FoodTotals;
   target: MacroTargets;
-  /** Everything eaten today, which each breakdown ranks. */
+  /** Everything eaten on the day on screen, which each breakdown ranks. */
   entries: readonly EatenEntry[];
+  /** Whether that day is today, which may yet have more to come (ADR 0037). */
+  isToday?: boolean;
 }) {
   // A new key for every opening mounts the sheet afresh; closing keeps the key, so the dialog is
   // closed where it is and hands the focus back to whatever opened it.
@@ -122,6 +125,7 @@ export function MacroBars({
           eaten={eaten[chosen.key]}
           target={target[chosen.key]}
           entries={entries}
+          isToday={isToday}
         />
       )}
     </>
@@ -142,6 +146,7 @@ function MacroSheet({
   eaten,
   target,
   entries,
+  isToday,
 }: {
   open: boolean;
   onClose: () => void;
@@ -150,6 +155,7 @@ function MacroSheet({
   eaten: number;
   target: number;
   entries: readonly EatenEntry[];
+  isToday: boolean;
 }) {
   const rows = contributions(entries, macro);
   const state = macroState(macro, eaten, target);
@@ -175,7 +181,10 @@ function MacroSheet({
         </div>
         <MacroRail state={state} eaten={eaten} target={target} />
         {rows.length === 0 ? (
-          <p className="mt-4 type-meta text-ink-2">Nothing yet today.</p>
+          // Today may have more to come; a day before it is done, and none of its foods gave any.
+          <p className="mt-4 type-meta text-ink-2">
+            {isToday ? "Nothing yet today." : "None on this day."}
+          </p>
         ) : (
           <ul className="food-list mt-2" aria-label={`${label} by food`}>
             {rows.map((row) => (

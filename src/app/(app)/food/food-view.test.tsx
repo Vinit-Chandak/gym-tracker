@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import type { FoodDayTotal } from "@/domain/food-days";
 import { addUp, eaten, type Meal } from "@/domain/nutrition";
@@ -16,6 +16,20 @@ vi.mock("@/components/ui/app-link", () => ({
 }));
 vi.mock("@/components/shell/back-link", () => ({ BackLink: () => null }));
 vi.mock("@/server/actions/nutrition", () => ({ readFoodMonthAction: vi.fn(async () => []) }));
+const { showModal, close } = HTMLDialogElement.prototype;
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.open = false;
+    this.dispatchEvent(new Event("close"));
+  };
+});
+afterAll(() => {
+  HTMLDialogElement.prototype.showModal = showModal;
+  HTMLDialogElement.prototype.close = close;
+});
 afterEach(cleanup);
 
 /** What a row reads as, the spaces kept for screen readers collapsed. */
@@ -236,4 +250,16 @@ it("opens a day before today with its meals on that day, and today still marked"
   expect(screen.getByRole("link", { name: /^My foods/ }).getAttribute("href")).toBe(
     "/food/my-foods",
   );
+});
+
+it("says a day before today had none of a macronutrient, and today that there is none yet", () => {
+  const fat = () => {
+    fireEvent.click(screen.getByRole("button", { name: /^Fat:/ }));
+    return within(screen.getByRole("dialog", { name: "Fat" }));
+  };
+  view([], { date: "2026-09-24" });
+  expect(fat().getByText("None on this day.")).toBeTruthy();
+  cleanup();
+  view([]);
+  expect(fat().getByText("Nothing yet today.")).toBeTruthy();
 });
