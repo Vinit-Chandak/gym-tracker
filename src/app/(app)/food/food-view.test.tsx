@@ -219,7 +219,8 @@ it("puts the last seven days under the header, ending on today, and the month ab
   });
   expect(screen.getByRole("button", { name: "September, calendar" })).toBeTruthy();
   const days = within(screen.getByRole("navigation", { name: "Days" }));
-  const newest = days.getAllByRole("list")[0]!;
+  // The weeks in the order they are drawn: this one, where the strip rests, last.
+  const newest = days.getAllByRole("list").at(-1)!;
   expect(
     within(newest)
       .getAllByRole("link")
