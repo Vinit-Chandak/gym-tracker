@@ -112,6 +112,14 @@ it("says what its figures and its latest sessions are read on, and lists other m
   );
 });
 
+it("leads the machine's name with its kind's glyph, never beside the kind's name", () => {
+  render(<ExerciseLife {...props(false)} machineName="Lat pulldown" />);
+  // "Machine Lat pulldown" read as one name; the glyph says the kind, as a workout's rows do.
+  const fact = screen.getByRole("img", { name: "Machine" }).parentElement!;
+  expect(fact.textContent).toBe("Lat pulldown");
+  expect(screen.queryByText("Machine")).toBeNull();
+});
+
 it("names a machine called after its kind once", () => {
   const smithBench = { ...assistedPullUp, modality: "smith_machine" } as const;
   render(<ExerciseLife {...props(false)} exercise={smithBench} machineName="Smith machine" />);
