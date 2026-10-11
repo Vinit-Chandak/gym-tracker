@@ -116,6 +116,9 @@ export function MachineDecision({
   const questionId = machineQuestionId(exercise.id);
   // The type being asked about, which Register with details opens on.
   const askedType = ask?.typeId ?? decision.missingTypes[0]?.id ?? null;
+  // A custom exercise away from the machine it was made on names no kind of machine, so no
+  // machine registered here could take it: Register with details would only end in an error.
+  const registrable = !(resolution.status === "unknown" && askedType === null);
   const substitute = (remember: boolean) =>
     `/workouts/${session.id}/exercises/${exercise.id}/substitute${remember ? "" : "?remember=0"}` as Route;
 
@@ -227,13 +230,15 @@ export function MachineDecision({
               Add a fallback
             </LinkButton>
             {/* Carries the workout along, so registering it lands back here. */}
-            <LinkButton
-              href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}${askedType ? `&type=${askedType}` : ""}`}
-              variant="text"
-              size="sm"
-            >
-              Register with details
-            </LinkButton>
+            {registrable && (
+              <LinkButton
+                href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}${askedType ? `&type=${askedType}` : ""}`}
+                variant="text"
+                size="sm"
+              >
+                Register with details
+              </LinkButton>
+            )}
           </>
         )}
       </div>

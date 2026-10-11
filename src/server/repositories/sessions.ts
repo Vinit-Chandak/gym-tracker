@@ -265,11 +265,15 @@ export async function startPlannedSession(
       ...base,
       exerciseId: substituted ? r.exercise.id : item.exercise.id,
       // A fallback takes its own machine. Otherwise a machine the plan names wins, then the
-      // gym's own resolution; a machine named for one exercise never goes onto another.
+      // gym's own resolution; a machine named for one exercise never goes onto another. One of
+      // several alike that nobody chose and the exercise was never done on is left for the
+      // workout to ask about.
       equipmentInstanceId: substituted
         ? (r.equipmentInstance?.id ?? null)
         : (entry?.equipmentInstanceId ??
-          (r.status === "direct" ? (r.equipmentInstance?.id ?? null) : null)),
+          (r.status === "direct" && !item.machineUndecided
+            ? (r.equipmentInstance?.id ?? null)
+            : null)),
       substitutionReason: substituted
         ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
         : null,

@@ -229,6 +229,22 @@ it("asks whether a registered machine has gone when Not here meets one", async (
   await waitFor(() => expect(given.archiveMachine).toHaveBeenCalledWith("slot", "m1"));
 });
 
+it("offers no registering for a custom exercise away from its own machine", () => {
+  // It names no kind of machine, so nothing registered here could take it.
+  show(
+    decision({
+      resolution: {
+        status: "unknown",
+        exercise: exerciseRef,
+        missingEquipmentTypeIds: [],
+      },
+      missingTypes: [],
+    }),
+  );
+  expect(screen.queryByRole("link", { name: "Register with details" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Add a fallback" })).toBeTruthy();
+});
+
 it("offers Not here beside Use for a registered machine", () => {
   show(
     decision({

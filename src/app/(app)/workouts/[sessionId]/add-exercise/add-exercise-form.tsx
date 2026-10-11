@@ -27,6 +27,8 @@ type Props = {
    * nothing about the gym (plan: gradual confirmation during workouts).
    */
   rememberByDefault?: boolean;
+  /** The lift the slot plans: going back to it is no fallback, so the box is not offered. */
+  plannedExerciseId?: string | null;
   exerciseFieldName?: string;
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
@@ -46,6 +48,7 @@ export function PickExerciseForm({
   submitLabel,
   remember = false,
   rememberByDefault = true,
+  plannedExerciseId = null,
   exerciseFieldName = "exerciseId",
   long = false,
 }: Props) {
@@ -103,7 +106,7 @@ export function PickExerciseForm({
             </p>
           ))}
 
-        {remember && (
+        {remember && exerciseId !== plannedExerciseId && (
           <label className="check-row">
             <input
               type="checkbox"

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, isNotNull } from "drizzle-orm";
 
 import {
   equipmentInstances,
@@ -224,6 +224,12 @@ export async function getExercise(
   return { ...row, isCustom: row.userId !== null, equipmentOptions, equipmentWays, programUsage };
 }
 
+/**
+ * The rank of a machine the athlete chose for an exercise at a gym. A custom exercise's own
+ * machine, the one it was made on, keeps the default rank, so the two are never confused.
+ */
+export const PREFERRED_RANK = 0;
+
 export type PreferredMachine = { equipmentInstanceId: string; gymId: string; instanceName: string };
 
 /** The user's "use this machine for this exercise" choices, one per gym at most. */
@@ -247,14 +253,17 @@ export async function listPreferredMachines(
       and(
         eq(exerciseEquipmentOptions.userId, userId),
         eq(exerciseEquipmentOptions.exerciseId, exerciseId),
+        eq(exerciseEquipmentOptions.preferenceRank, PREFERRED_RANK),
         isNotNull(exerciseEquipmentOptions.equipmentInstanceId),
       ),
     );
 }
 
 /**
- * The machine set for each exercise at one gym ("use this machine"), keyed by exercise. Add
- * exercise names it rather than asking which of several machines to use.
+ * The machine set for each exercise at one gym ("use this machine", or a custom exercise's own),
+ * keyed by exercise. Add exercise names it rather than asking which of several machines to use.
+ * A machine chosen here comes before the one a custom exercise was made on, as the resolver
+ * takes them.
  */
 export async function preferredMachinesAtGym(
   db: DbOrTx,
@@ -277,7 +286,8 @@ export async function preferredMachinesAtGym(
         eq(equipmentInstances.gymId, gymId),
         eq(equipmentInstances.isActive, true),
       ),
-    );
+    )
+    .orderBy(desc(exerciseEquipmentOptions.preferenceRank));
   const preferred: Record<string, string> = {};
   for (const row of rows)
     if (row.equipmentInstanceId) preferred[row.exerciseId] = row.equipmentInstanceId;
@@ -312,12 +322,16 @@ export async function setPreferredMachine(
     if (!compatible[exerciseId]?.includes(equipmentInstanceId)) throw new MachineNotAtGymError();
   }
   if (gymInstanceIds.length > 0) {
+    // Only the choice made here: a custom exercise's own machine is its tie, not a preference,
+    // and Automatic is that machine. Deleted with it, the exercise could never be put on a
+    // machine again.
     await db
       .delete(exerciseEquipmentOptions)
       .where(
         and(
           eq(exerciseEquipmentOptions.userId, userId),
           eq(exerciseEquipmentOptions.exerciseId, exerciseId),
+          eq(exerciseEquipmentOptions.preferenceRank, PREFERRED_RANK),
           inArray(exerciseEquipmentOptions.equipmentInstanceId, gymInstanceIds),
         ),
       );
@@ -327,7 +341,7 @@ export async function setPreferredMachine(
       userId,
       exerciseId,
       equipmentInstanceId,
-      preferenceRank: 0,
+      preferenceRank: PREFERRED_RANK,
       notes: "Preferred machine at this gym",
     });
   }

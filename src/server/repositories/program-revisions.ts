@@ -19,6 +19,7 @@ import {
 import type { ProposalSource } from "@/domain/types";
 
 import { carryPlansToRevision, patchCarryChanges } from "./coach-plans";
+import { carryGymFallbacks } from "./fallbacks";
 import { materialiseProgramme } from "./program-occurrences";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 
@@ -252,6 +253,8 @@ export async function applyProposal(
     familyId: program.familyId,
     status: "active",
   });
+  // What the athlete said each gym does instead of a lift is not part of the change.
+  await carryGymFallbacks(db, userId, { fromProgramId: program.id, toProgramId: created.id });
 
   // Where the athlete had got to, carried over slot for slot — each half of a day with it.
   // A day that lifts and runs answers the two separately and keeps an event for each, so the

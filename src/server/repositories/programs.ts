@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import {
   equipmentTypes,
@@ -386,6 +386,10 @@ export async function readProgramBlueprint(
       .orderBy(asc(programRuns.weekIndex), asc(programRuns.dayOfWeek)),
   ]);
   const slotIds = slots.map((row) => row.slot.id);
+  // Only the programme's own fallbacks. One the athlete added for a gym is theirs, not the
+  // programme's: written back without its gym and machine, it would stand in at every gym, and a
+  // swap remembered week after week could outgrow the blueprint's limit. A new version gets them
+  // from `carryGymFallbacks`.
   const fallbacks = slotIds.length
     ? await db
         .select({
@@ -399,7 +403,12 @@ export async function readProgramBlueprint(
           equipmentTypes,
           eq(equipmentTypes.id, programExerciseFallbacks.fallbackEquipmentTypeId),
         )
-        .where(inArray(programExerciseFallbacks.programExerciseId, slotIds))
+        .where(
+          and(
+            inArray(programExerciseFallbacks.programExerciseId, slotIds),
+            isNull(programExerciseFallbacks.gymId),
+          ),
+        )
         .orderBy(asc(programExerciseFallbacks.rank))
     : [];
 

@@ -38,6 +38,7 @@ import {
   storePlan,
   type LibraryEntry,
 } from "./coach-plans";
+import { carryGymFallbacks } from "./fallbacks";
 import { materialiseProgramme, withdrawFamilyOccurrences } from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
 import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
@@ -688,6 +689,8 @@ export async function activateProgramDraft(
     familyId,
   });
   if (input.transition === "continue" && active) {
+    // What the athlete said each gym does instead of a lift is not part of the draft.
+    await carryGymFallbacks(db, userId, { fromProgramId: active.id, toProgramId: created.id });
     const events = await db
       .select()
       .from(programSlotEvents)

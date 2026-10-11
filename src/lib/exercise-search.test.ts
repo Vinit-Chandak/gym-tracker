@@ -76,6 +76,25 @@ describe("exercise search", () => {
     expect(names(searchExercises(library, "lat")?.byName ?? [])).toContain("Lateral raise machine");
   });
 
+  it.each([
+    ["bench presses", "Barbell bench press"],
+    ["leg presses", "45° leg press"],
+    ["shoulder presses", "Shoulder press machine"],
+    ["crunches", "Crunch"],
+    ["flyes", "Dumbbell chest fly"],
+    // On its way to "bench presses", the word is no longer the start of "press".
+    ["bench presse", "Barbell bench press"],
+  ])("reads %j as the plural it is", (query, name) => {
+    expect(names(searchExercises(library, query)?.byName ?? [])).toContain(name);
+  });
+
+  it("keeps a word that only ever took an s", () => {
+    expect(names(searchExercises(library, "lateral raises")?.byName ?? [])).toContain(
+      "Lateral raise machine",
+    );
+    expect(names(searchExercises(library, "lunges")?.byName ?? []).length).toBeGreaterThan(0);
+  });
+
   it("lists exercises for a muscle after the names that mention it, primary movers first", () => {
     const results = searchExercises(library, "biceps");
     // A name match is the name or one of the names it goes by.

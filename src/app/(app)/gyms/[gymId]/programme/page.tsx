@@ -33,7 +33,10 @@ function detail(row: PlannedExerciseAvailability): string {
     case "fallback":
       return `Do ${row.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
-      return `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}: register it, or mark it as not here.`;
+      // A custom exercise names no kind of machine, only its own, which is at another gym.
+      return row.missingTypes.length === 0
+        ? "Needs the machine it was made for, which is not registered here."
+        : `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}: register it, or mark it as not here.`;
     case "unavailable":
       return "Not available here, and no fallback fits.";
   }
@@ -75,14 +78,18 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
 
         {rows.map((row) => (
           <Card key={row.exercise.id} className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
+            {/* The badge wraps under a name too long to share the line with it, as on the
+                exercise page; a long word breaks rather than running under the badge. */}
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               <div className="min-w-0">
                 <Link
                   href={`/exercises/${row.exercise.id}`}
                   className="flex min-h-[var(--ov-target)] flex-col justify-center"
                 >
-                  <span className="font-medium">{row.exercise.name}</span>
-                  <span className="text-xs text-ink-muted">{row.days.join(" · ")}</span>
+                  <span className="font-medium [overflow-wrap:anywhere]">{row.exercise.name}</span>
+                  <span className="text-xs [overflow-wrap:anywhere] text-ink-muted">
+                    {row.days.join(" · ")}
+                  </span>
                 </Link>
               </div>
               <AvailabilityBadge status={row.resolution.status} />
@@ -110,9 +117,10 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
             {row.gymFallbacks.map((fallback) => (
               <div
                 key={fallback.id}
-                className="flex items-center justify-between gap-3 rounded-control bg-surface-raised px-3 py-2 text-sm"
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-control bg-surface-raised px-3 py-2 text-sm"
               >
-                <span className="min-w-0 truncate">
+                {/* Wraps rather than cutting the name off: Remove moves under it when it must. */}
+                <span className="min-w-0 [overflow-wrap:anywhere]">
                   Fallback here: {fallback.fallbackExerciseName}
                   {fallback.fallbackInstanceName ? ` on ${fallback.fallbackInstanceName}` : ""}
                 </span>

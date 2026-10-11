@@ -54,9 +54,12 @@ export function ExerciseGuide({
   return (
     <div className="guide">
       {draft && <p className="guide-draft">Draft for review</p>}
-      {/* A custom exercise is the athlete's own: their notes are its guide. */}
-      {!guide && !ownNotes && (
-        <p className="guide-row guide-text text-ink-2">Guide not available yet.</p>
+      {/* A custom exercise is the athlete's own: their notes are its guide, and without any it
+          says so rather than leaving the heading over nothing. */}
+      {!guide && (!ownNotes || !shownNotes) && (
+        <p className="guide-row guide-text text-ink-2">
+          {ownNotes ? "No notes yet." : "Guide not available yet."}
+        </p>
       )}
       {(guide || shownNotes || logNote || programmeCue) && (
         <dl>

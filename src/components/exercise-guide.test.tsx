@@ -119,6 +119,16 @@ it("keeps a custom exercise's own notes as its guide", () => {
   );
   expect(terms()).toEqual(["Your notes", "How to log"]);
   expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.queryByText("No notes yet.")).toBeNull();
+});
+
+it("says a custom exercise saved without notes has none, rather than showing nothing", () => {
+  // As the exercise page has it: a custom exercise's guidance, with nothing written.
+  const own = guidanceOf({ userId: "me", formNotes: "", formUrl: null, logNote: null }, null, []);
+  render(<ExerciseGuide guidance={own} />);
+  expect(screen.getByText("No notes yet.")).toBeTruthy();
+  expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.queryByRole("term")).toBeNull();
 });
 
 it("marks a draft guide or a candidate video as awaiting review", () => {
