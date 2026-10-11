@@ -273,17 +273,196 @@ describe("what the workout screen asks for next (ADR 0040)", () => {
 });
 
 describe("pounds", () => {
+  /** The same performance logged in pounds. */
+  const inPounds = (performance: ComparablePerformance): ComparablePerformance => ({
+    ...performance,
+    sets: performance.sets.map((set) => ({ ...set, unit: "lb" as const })),
+  });
+
   it("steps a pound lifter by the plate jump, never by 2.5 kg converted", () => {
-    const inPounds = (daysAgo: number) => {
-      const performance = session(daysAgo, 140, 5, 2);
-      return {
-        ...performance,
-        sets: performance.sets.map((set) => ({ ...set, unit: "lb" as const })),
-      };
-    };
-    const outcome = rule({ preferredUnit: "lb", history: [inPounds(2), inPounds(5)] });
+    const outcome = rule({
+      preferredUnit: "lb",
+      history: [inPounds(session(2, 140, 5, 2)), inPounds(session(5, 140, 5, 2))],
+    });
     expect(outcome.weightStep).toBe(5);
     expect(outcome.suggestion?.kind).toBe("increase");
     expect(weights(outcome)).toEqual([145, 145, 145]);
+  });
+
+  it("steps registered pound dumbbells and bars by the plate jump too", () => {
+    // Onboarding registers a pound lifter's dumbbells and bar in pounds, without an increment.
+    const dumbbells = rule({
+      exercise: { ...exercise, defaultLoadIncrement: 2, modality: "dumbbell" },
+      planned: { ...bench, repMin: 8, repMax: 12, rirMin: 1, rirMax: 2, loadIncrement: null },
+      preferredUnit: "lb",
+      equipment: { id: "dumbbells", unit: "lb", loadIncrement: null },
+      history: [inPounds(session(3, 50, 12, 3, "dumbbells"))],
+    });
+    expect(dumbbells.weightStep).toBe(5);
+    expect(weights(dumbbells)).toEqual([55, 55, 55]);
+    // The programme's own 2.5 kg increment is a 5 lb jump on a registered bar as well.
+    const bar = rule({
+      preferredUnit: "lb",
+      equipment: { id: "bar", unit: "lb", loadIncrement: null },
+      history: [inPounds(session(3, 135, 5, 3, "bar"))],
+    });
+    expect(weights(bar)).toEqual([140, 140, 140]);
+    // A machine's own increment is already in its unit.
+    const typed = rule({
+      preferredUnit: "lb",
+      equipment: { id: "bar", unit: "lb", loadIncrement: 2.5 },
+      planned: { ...bench, loadIncrement: null },
+      history: [inPounds(session(3, 135, 5, 3, "bar"))],
+    });
+    expect(weights(typed)).toEqual([137.5, 137.5, 137.5]);
+  });
+
+  it("reads kilograms in pounds as a load that can be put on the bar", () => {
+    // 100 kg is 220.46 lb: the plates make 220, and the step from there is 225.
+    const stepped = rule({ preferredUnit: "lb", history: [session(3, 100, 5, 3)] });
+    expect(weights(stepped)).toEqual([225, 225, 225]);
+    const held = rule({ preferredUnit: "lb", history: [session(3, 100, 5, 2)] });
+    expect(held.suggestion?.kind).toBe("hold");
+    expect(weights(held)).toEqual([220, 220, 220]);
+    expect(held.previous?.sets.map((set) => [set.weight, set.unit])).toEqual([
+      [220, "lb"],
+      [220, "lb"],
+      [220, "lb"],
+    ]);
+    // Where the equipment lists its loads, the nearest of them.
+    const listed = rule({
+      preferredUnit: "lb",
+      equipment: { id: "bar", unit: "lb", loadIncrement: 5 },
+      ladder: { known: [215, 225, 235], stack: false, assisted: false, increment: 5 },
+      history: [session(3, 100, 5, 2)],
+    });
+    expect(weights(listed)).toEqual([225, 225, 225]);
+  });
+});
+
+describe("free weights and bodyweight are the same lift at any gym (ADR 0006 §5)", () => {
+  const homeBar = { id: "home-bar", unit: "kg" as const, loadIncrement: null };
+
+  it("reads a bar's history at another gym, on another bar or on none registered", () => {
+    const history = [session(3, 100, 5, 3, "home-bar"), session(7, 100, 5, 3, "home-bar")];
+    for (const equipment of [null, { ...homeBar, id: "gym-bar" }]) {
+      const outcome = rule({ equipment, history });
+      expect(outcome.basis).toBe("exercise");
+      expect(outcome.previous?.workoutSessionId).toBe("s3");
+      expect(outcome.suggestion?.kind).toBe("increase");
+      expect(weights(outcome)).toEqual([102.5, 102.5, 102.5]);
+    }
+  });
+
+  it("goes on from the newest session wherever it was done", () => {
+    // At home today, after a session at the gym on a bar nobody registered.
+    const outcome = rule({
+      equipment: homeBar,
+      history: [session(2, 102.5, 5, 2), session(5, 100, 5, 3, "home-bar")],
+    });
+    expect(outcome.basisPerformance?.workoutSessionId).toBe("s2");
+    expect(outcome.suggestion?.kind).toBe("hold");
+    expect(weights(outcome)).toEqual([102.5, 102.5, 102.5]);
+  });
+
+  it("starts from a coach's change made on another bar", () => {
+    const outcome = rule({
+      changes: [
+        decision(1, {
+          kind: "progression",
+          equipmentId: "home-bar",
+          before: { loads: loads(100) },
+          after: { loads: loads(102.5) },
+        }),
+      ],
+      history: [session(3, 100, 5, 2, "home-bar")],
+    });
+    expect(outcome.suggestion?.reason).toMatch(/last accepted change/);
+    expect(weights(outcome)).toEqual([102.5, 102.5, 102.5]);
+  });
+
+  it("keeps a machine's history to that machine", () => {
+    const machine = {
+      exercise: { ...exercise, loadPortability: "equipment_specific" as const },
+      equipment: { id: "press-a", unit: "kg" as const, loadIncrement: 5 },
+    };
+    const outcome = rule({ ...machine, history: [session(3, 60, 5, 3, "press-b")] });
+    expect(outcome.basis).toBe("none");
+    expect(outcome.suggestion?.kind).toBe("start");
+  });
+});
+
+describe("bodyweight sets saved without a load", () => {
+  // Pull-ups, 3 × 6–10 at 1–2 RIR; the logger saves an untouched "kg added" as nothing.
+  const pullUp = {
+    planned: { ...bench, repMin: 6, repMax: 10, rirMin: 1, rirMax: 2 },
+    exerciseSlug: "pull-up",
+    exercise: { ...exercise, modality: "bodyweight", movementPattern: "vertical_pull" },
+  };
+  const unloaded = (daysAgo: number, reps: number, rir: number): ComparablePerformance => {
+    const performance = session(daysAgo, 0, reps, rir);
+    return { ...performance, sets: performance.sets.map((set) => ({ ...set, weight: null })) };
+  };
+
+  it("builds reps on the body alone, as it does on a logged 0", () => {
+    const history = [2, 5, 9, 12].map((daysAgo) => unloaded(daysAgo, 7, 3));
+    const outcome = rule({ ...pullUp, history });
+    expect(outcome.suggestion?.kind).toBe("hold");
+    expect(outcome.suggestion?.sets.map((set) => [set.weight, set.reps, set.rir])).toEqual([
+      [0, 9, 1],
+      [0, 9, 1],
+      [0, 9, 1],
+    ]);
+    // What the athlete is shown as last time stays as it was logged.
+    expect(outcome.previous?.sets[0]?.weight).toBeNull();
+  });
+
+  it("says a rep to spare at the top needs a load to add, not a second confirmation", () => {
+    const outcome = rule({ ...pullUp, history: [unloaded(2, 10, 2), unloaded(5, 10, 2)] });
+    expect(outcome.suggestion).toMatchObject({
+      kind: "hold",
+      reason: "Every set had a rep to spare at the top of the range.",
+      advice: expect.stringMatching(/^Bodyweight has no next weight here/),
+    });
+  });
+
+  it("leaves an unweighed barbell set unknown", () => {
+    const unweighed = session(3, 0, 5, 3);
+    const outcome = rule({
+      history: [{ ...unweighed, sets: unweighed.sets.map((set) => ({ ...set, weight: null })) }],
+    });
+    expect(weights(outcome)).toEqual([null, null, null]);
+  });
+});
+
+describe("back after a break (owner decision)", () => {
+  it("brings the last session back about a tenth lighter, on a load that exists", () => {
+    const outcome = rule({ history: [session(60, 100, 5, 2)] });
+    expect(outcome).toMatchObject({ basis: "exercise", previous: { workoutSessionId: "s60" } });
+    expect(outcome.suggestion).toMatchObject({
+      kind: "resume",
+      reason: "Not done for over 8 weeks: last time's sets, about 10% lighter.",
+    });
+    expect(weights(outcome)).toEqual([90, 90, 90]);
+  });
+
+  it("reads a machine's old session as its own, never as another machine's guess", () => {
+    const history = [session(60, 140, 10, 2, "leg-press"), session(64, 140, 10, 2, "leg-press")];
+    const outcome = rule({
+      exercise: { ...exercise, loadPortability: "equipment_specific" },
+      equipment: { id: "leg-press", unit: "kg", loadIncrement: 5 },
+      planned: { ...bench, repMin: 8, repMax: 12, loadIncrement: null },
+      history,
+      elsewhere: history[0]!,
+    });
+    expect(outcome.basis).toBe("same_equipment");
+    expect(outcome.suggestion?.kind).toBe("resume");
+    expect(weights(outcome)).toEqual([125, 125, 125]);
+  });
+
+  it("goes on as usual from the first session back", () => {
+    const outcome = rule({ history: [session(3, 90, 5, 3), session(63, 100, 5, 2)] });
+    expect(outcome.suggestion?.kind).toBe("increase");
+    expect(weights(outcome)).toEqual([92.5, 92.5, 92.5]);
   });
 });

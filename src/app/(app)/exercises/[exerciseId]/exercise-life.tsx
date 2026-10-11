@@ -52,18 +52,24 @@ export type LatestPerformance = {
   sets: Set[];
 };
 
-/** The session's heaviest working set, the figure a row of Latest leads with: "72.5 kg × 6". */
-function topSet(sets: readonly Set[]): string | null {
+/**
+ * The session's best working set, the figure a row of Latest leads with: "72.5 kg × 6". The
+ * heaviest, or on an assisted machine, where the number is help given, the least help.
+ */
+function topSet(sets: readonly Set[], assisted: boolean): string | null {
   const working = sets.filter((set) => set.setType !== "warmup" && set.weight !== null);
   if (working.length === 0) return null;
-  const top = working.reduce((best, set) => (set.weight! > best.weight! ? set : best));
+  const top = working.reduce((best, set) =>
+    (assisted ? set.weight! < best.weight! : set.weight! > best.weight!) ? set : best,
+  );
   return formatSet(top, LOAD_UNIT_LABELS[top.unit]);
 }
 
 /**
- * An exercise across its whole life (board Exercise): its equipment and where, the heaviest
+ * An exercise across its whole life (board Exercise): its equipment and where, the best
  * working set of each month as a bar, the latest in ink, then the count of sessions and its
- * records, and the latest sessions, each led by its heaviest set.
+ * records, and the latest sessions, each led by its best set. Best is the heaviest, except on
+ * an assisted machine, where less help is the stronger set and the least is shown.
  */
 export function ExerciseLife({
   exercise,
@@ -75,7 +81,7 @@ export function ExerciseLife({
   performances,
 }: {
   exercise: MetricExercise & { modality: ExerciseModality; loadPortability: string };
-  life: { months: ExerciseMonth[]; sessions: number };
+  life: { months: ExerciseMonth[]; sessions: number; assisted?: boolean };
   /** The machine the months are read on, for a movement bound to its machine. */
   machineName: string | null;
   bests: readonly ExerciseBest[];
@@ -96,8 +102,10 @@ export function ExerciseLife({
       (shownUnit === "kg" || shownUnit === "lb" ? fromKilograms(kg, shownUnit) : kg) * 10,
     ) / 10;
   const label = LOAD_UNIT_LABELS[shownUnit];
+  const assisted = life.assisted ?? false;
+  const title = assisted ? "Least assistance each month" : "Heaviest set each month";
 
-  const byMonth = new Map(life.months.map((month) => [month.month, month.topKg]));
+  const byMonth = new Map(life.months.map((month) => [month.month, month.bestKg]));
   const first = life.months[0];
   const last = life.months.at(-1);
   const months = first && last ? monthsBetween(`${first.month}-01`, `${last.month}-01`) : [];
@@ -105,7 +113,10 @@ export function ExerciseLife({
     const kg = byMonth.get(month);
     return { date: `${month}-01`, value: kg === undefined ? null : inUnit(kg) };
   });
-  const top = life.months.length ? inUnit(Math.max(...life.months.map((m) => m.topKg))) : null;
+  const monthly = life.months.map((m) => m.bestKg);
+  const top = monthly.length
+    ? inUnit(assisted ? Math.min(...monthly) : Math.max(...monthly))
+    : null;
 
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
     { key: "sessions", figure: String(life.sessions), label: "Sessions" },
@@ -119,7 +130,14 @@ export function ExerciseLife({
       };
     }),
     ...(bests.length === 0 && top !== null
-      ? [{ key: "top", figure: String(top), unit: label, label: "Top weight" }]
+      ? [
+          {
+            key: "top",
+            figure: String(top),
+            unit: label,
+            label: assisted ? "Least assistance" : "Top weight",
+          },
+        ]
       : []),
   ];
 
@@ -140,18 +158,22 @@ export function ExerciseLife({
       </p>
 
       {first && last && (
-        <section aria-label="Heaviest set each month">
+        <section aria-label={title}>
           <p className="chart-head mt-3.5">
-            <span>Heaviest set each month</span>
+            <span>{title}</span>
             <span className="font-medium tabular-nums">
-              {inUnit(first.topKg)} → {inUnit(last.topKg)} {label}
+              {inUnit(first.bestKg)} → {inUnit(last.bestKg)} {label}
             </span>
           </p>
           <InkBars
             points={points}
-            label={`The heaviest working set each month, from ${inUnit(first.topKg)} ${label} in ${formatIsoShortMonth(
+            label={`${
+              assisted
+                ? "The least assistance on a working set each month, lower is stronger"
+                : "The heaviest working set each month"
+            }, from ${inUnit(first.bestKg)} ${label} in ${formatIsoShortMonth(
               first.month,
-            )} to ${inUnit(last.topKg)} ${label} in ${formatIsoShortMonth(last.month)}`}
+            )} to ${inUnit(last.bestKg)} ${label} in ${formatIsoShortMonth(last.month)}`}
             format={(value) => String(Math.round(value))}
             ends={[formatIsoShortMonth(first.month), formatIsoShortMonth(last.month)]}
           />
@@ -179,7 +201,7 @@ export function ExerciseLife({
       ) : (
         <ul>
           {performances.map((performance, index) => {
-            const best = topSet(performance.sets);
+            const best = topSet(performance.sets, assisted);
             return (
               <li key={performance.id}>
                 <Link

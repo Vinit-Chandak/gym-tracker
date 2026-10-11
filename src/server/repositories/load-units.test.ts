@@ -80,7 +80,9 @@ it("stores the entered unit, converts displayed copies, and normalizes progressi
       equipmentInstanceId: null,
     });
     const nextDetail = (await getSessionDetail(tx, user.id, next.sessionId))!;
-    expect(nextDetail.exercises[0]!.previous!.sets[0]).toMatchObject({ weight: 18.14, unit: "kg" });
+    // The history is read in kilograms on a load that can be lifted: 40 lb is 18.14 kg, and the
+    // nearest 2.5 kg step is 17.5.
+    expect(nextDetail.exercises[0]!.previous!.sets[0]).toMatchObject({ weight: 17.5, unit: "kg" });
     expect(nextDetail.exercises[0]!.suggestion!.sets[0]!.weight).toBeLessThan(25);
     await finishSession(tx, user.id, next.sessionId, { notes: null, bodyWeightKg: null });
   });

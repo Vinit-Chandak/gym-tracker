@@ -610,4 +610,22 @@ describe("a load never held in the range, and the body under the load (ADR 0040)
       "7.5 kg comes after one session with every working set at 12 reps and 2 RIR (or 13 reps at 1 RIR), or after two sessions running with every working set at 12 reps and 1 RIR.",
     );
   });
+
+  it("says an assisted machine's next step is less help, and when there is none left", () => {
+    const assisted: Prescription = {
+      ...deadlift,
+      repMin: 6,
+      repMax: 10,
+      rirMin: 1,
+      ladder: { known: [5, 10, 15], stack: true, assisted: true },
+    };
+    expect(summarizeExerciseEvidence(assisted, sessions([5, straight(3, 8, 2)])).nextStep).toBe(
+      "5 kg is the least assistance this machine gives: reps build within the range, and what is harder is the movement without the machine.",
+    );
+    // A single stop says nothing about the one below it: it is asked for, as a step down.
+    const single = { ...assisted, ladder: { known: [], stack: true, assisted: true } };
+    expect(summarizeExerciseEvidence(single, sessions([20, straight(3, 8, 2)])).nextStep).toBe(
+      "Nobody knows the next step down from 20 kg yet: reps build within the range until the athlete enters it.",
+    );
+  });
 });

@@ -26,3 +26,10 @@ it("counts today's sets as stops, and asks for less help on an assisted machine"
     guess: 20,
   });
 });
+
+it("asks nothing at the least help an assisted machine gives", () => {
+  const assisted = { ...stack, known: [5, 10, 15, 20, 25, 30], assisted: true };
+  expect(nextLoadQuestion(assisted, [5, 5, 5])).toBeNull();
+  // A single stop says nothing about the step below it yet, so that one is still asked.
+  expect(nextLoadQuestion({ ...assisted, known: [] }, [5])).toEqual({ from: 5, guess: null });
+});
