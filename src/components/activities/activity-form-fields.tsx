@@ -205,8 +205,11 @@ export function parseDuration(value: string): number | null {
   return numbers[0]! * 3600 + numbers[1]! * 60 + numbers[2]!;
 }
 
+/** A duration's stored parts, as the form posts them and a record restores them. */
+export type DurationParts = { hours: string; minutes: string; seconds: string };
+
 /** The parts of a duration, as the form posts them. */
-function durationParts(value: string): { hours: string; minutes: string; seconds: string } {
+function durationParts(value: string): DurationParts {
   const total = parseDuration(value);
   if (total === null) return { hours: "", minutes: "", seconds: "" };
   const tenths = Math.round(total * 10);
@@ -217,17 +220,23 @@ function durationParts(value: string): { hours: string; minutes: string; seconds
   };
 }
 
-/** The figure a form's stored parts make, or blank. */
+/**
+ * The figure a form's stored parts make, or blank: to the whole second, as the record's own
+ * page reads it ("32:17", not "32:16.6"). A tenth the record holds is not lost by it, because
+ * DurationField posts the parts it was given until the figure is changed.
+ */
 export function durationFromParts(hours: string, minutes: string, seconds: string): string {
   if (hours.trim() === "" && minutes.trim() === "" && seconds.trim() === "") return "";
   const total =
     Number(hours || 0) * 3600 + Number(minutes || 0) * 60 + Number(seconds.replace(",", ".") || 0);
-  return Number.isFinite(total) && total >= 0 ? formatDuration(total) : "";
+  return Number.isFinite(total) && total >= 0 ? formatDuration(Math.round(total)) : "";
 }
 
 /**
  * A duration as a figure in a row (boards Log a run, a ride, a swim): typed as the clock writes
- * it, − and + by a minute. The form posts it as hours, minutes and seconds, as it always has.
+ * it, − and + by a minute. The form posts it as hours, minutes and seconds, as it always has;
+ * while the figure still reads as the `recorded` parts do, it posts those, so correcting the
+ * notes keeps a time stored to the tenth.
  */
 export function DurationField({
   label = "Duration",
@@ -235,14 +244,22 @@ export function DurationField({
   value,
   onChange,
   error,
+  recorded,
 }: {
   label?: string;
   hint?: ReactNode;
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  /** The parts the record or the draft holds, which the figure opened on. */
+  recorded?: DurationParts;
 }) {
-  const parts = durationParts(value);
+  const parts =
+    recorded &&
+    value !== "" &&
+    value === durationFromParts(recorded.hours, recorded.minutes, recorded.seconds)
+      ? recorded
+      : durationParts(value);
   return (
     <>
       <input type="hidden" name="hours" value={parts.hours} />

@@ -169,6 +169,11 @@ export function SwimmingForm({
           hint="Rests included"
           value={elapsed}
           onChange={setElapsed}
+          recorded={{
+            hours: values("hours"),
+            minutes: values("minutes"),
+            seconds: values("seconds"),
+          }}
           error={errors?.elapsed ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
         />
 
