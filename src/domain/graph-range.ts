@@ -225,3 +225,12 @@ export function readWindowOf(choice: RangeChoice, today: string): { from: string
   const range = rangeOf(choice, today);
   return { from: range.from, to: range.to };
 }
+
+/**
+ * The days a list reads (History): dates chosen by hand exactly as chosen. A graph widens its
+ * first week or month to a whole one so no mark is cut short; a list has no marks, and an entry
+ * before From would contradict the dates over it.
+ */
+export function listWindowOf(choice: RangeChoice, today: string): { from: string; to: string } {
+  return choice.custom ?? readWindowOf(choice, today);
+}

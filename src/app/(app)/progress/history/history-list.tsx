@@ -12,9 +12,9 @@ export type HistoryItem = {
   id: string;
   /** Every sport history holds, plus the recovery readings that are not training at all. */
   kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
-  /** When it began, for the order; a recovery reading has only its date. */
+  /** When it began, for the order within its day; a recovery reading has only its date. */
   date: string;
-  /** The local day it is listed under. */
+  /** The local day it is listed under: the day it was recorded on, as the calendar marks it. */
   day: string;
   title: string;
   /** Its time and where: "19:00 · Anytime Fitness"; a recovery reading's answers. */

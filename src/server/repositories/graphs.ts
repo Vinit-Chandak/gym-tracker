@@ -1,6 +1,7 @@
-import { and, asc, eq, gte, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, lte, ne, sql } from "drizzle-orm";
 
 import {
+  activities,
   equipmentInstances,
   exercises,
   foodEntries,
@@ -26,26 +27,26 @@ import {
 import { LB_PER_KG } from "@/lib/units";
 import type { DateRange } from "@/server/validation/date-range";
 
+import { strengthDay, strengthOnDays, strengthParent } from "./strength-day";
+
 /**
  * What Progress's graphs read (ADR 0042): counts and bests per workout rather than every
  * workout, slot and set, so a graph over every year of an account costs a few thousand small
  * rows and never stops at a sample.
  */
 
-/** A workout's day in the account's time zone, as `YYYY-MM-DD`. */
-const workoutDay = (timeZone: string) =>
-  sql<string>`to_char(${workoutSessions.startedAt} at time zone ${timeZone}, 'YYYY-MM-DD')`;
-
-/** Finished workouts' working sets of one account inside a window. */
-const workingSetsOf = (userId: string, window: Pick<DateRange, "start" | "end"> | null) =>
+/**
+ * Finished workouts' working sets of one account inside a window: the workouts done on its days,
+ * each on the day the calendar marks it (`strengthOnDays`). Needs the parent joined.
+ */
+const workingSetsOf = (userId: string, window: DateRange | null) =>
   and(
     eq(workoutSessions.userId, userId),
     eq(workoutExercises.userId, userId),
     eq(setLogs.userId, userId),
     isNotNull(workoutSessions.completedAt),
     ne(setLogs.setType, "warmup"),
-    window ? gte(workoutSessions.startedAt, window.start) : undefined,
-    window ? lt(workoutSessions.startedAt, window.end) : undefined,
+    window ? strengthOnDays(window) : undefined,
   );
 
 /**
@@ -71,7 +72,7 @@ export async function readStrengthRows(
   const rows = await db
     .select({
       sessionId: workoutSessions.id,
-      date: workoutDay(timeZone),
+      date: strengthDay(timeZone),
       primaryMuscles: exercises.primaryMuscles,
       workingSets: sql<number>`count(*)::int`,
       volumeKg: sql<number>`coalesce(sum(${SET_VOLUME_KG}), 0)::float8`,
@@ -79,10 +80,11 @@ export async function readStrengthRows(
     .from(setLogs)
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .leftJoin(activities, strengthParent)
     .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
     .where(workingSetsOf(userId, window))
-    // Both keys are primary keys: the day and the muscles follow from them.
-    .groupBy(workoutSessions.id, exercises.id)
+    // All three keys are primary keys: the day and the muscles follow from them.
+    .groupBy(workoutSessions.id, activities.id, exercises.id)
     .orderBy(asc(workoutSessions.startedAt));
   return rows.map((row) => ({
     ...row,
@@ -138,13 +140,14 @@ export async function readExerciseSeriesOptions(
       unit: setLogs.unit,
       machineName: sql<string | null>`max(${equipmentInstances.name})`,
       gymName: sql<string | null>`max(${gyms.name})`,
-      sessionsInRange: sql<number>`count(distinct ${workoutSessions.id}) filter (where ${workoutSessions.startedAt} >= ${window.start} and ${workoutSessions.startedAt} < ${window.end})::int`,
+      sessionsInRange: sql<number>`count(distinct ${workoutSessions.id}) filter (where ${strengthOnDays(window)})::int`,
       sessions: sql<number>`count(distinct ${workoutSessions.id})::int`,
       lastAt: sql<string>`max(${workoutSessions.startedAt})`,
     })
     .from(setLogs)
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .leftJoin(activities, strengthParent)
     .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
     .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
     .leftJoin(
@@ -257,7 +260,7 @@ export async function readExerciseSetRows(
   const rows = await db
     .select({
       sessionId: workoutSessions.id,
-      date: workoutDay(timeZone),
+      date: strengthDay(timeZone),
       weight: setLogs.weight,
       reps: setLogs.reps,
       durationSeconds: setLogs.durationSeconds,
@@ -266,6 +269,7 @@ export async function readExerciseSetRows(
     .from(setLogs)
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .leftJoin(activities, strengthParent)
     .where(
       and(
         workingSetsOf(userId, window),

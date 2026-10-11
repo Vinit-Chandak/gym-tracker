@@ -52,9 +52,11 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
     getDb(),
     user.id,
     async (tx) => {
+      // Every sport on the day it was recorded on, as the calendar marks it: a lift too, not
+      // on the day its start falls on in the profile's zone today.
       const [days, lifted] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
-        readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true }),
+        readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true, onDays: true }),
       ]);
       return {
         endurance: days.items.filter((item) => item.sport !== "strength"),

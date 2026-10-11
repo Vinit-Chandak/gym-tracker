@@ -21,7 +21,10 @@ export const LATEST_COUNT = 10;
 type HistoryWorkout = Awaited<ReturnType<typeof readHistoryWorkouts>>["workouts"][number];
 type RecoveryReading = Awaited<ReturnType<typeof readRecovery>>[number];
 
-/** Each entry under its own local day, at its local time, as the list is read. */
+/**
+ * Each entry at its local time, as the list is read. Its day is the one it was recorded on, as
+ * the calendar marks it; `dayOf` dates only a workout older than its parent activity.
+ */
 export type HistoryClock = { dayOf: (at: Date) => string; timeOf: (at: Date) => string };
 
 export function historyClock(timeZone: string): HistoryClock {
@@ -56,7 +59,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     id: w.id,
     kind: "workout",
     date: w.startedAt.toISOString(),
-    day: clock.dayOf(w.startedAt),
+    day: w.occurredOn ?? clock.dayOf(w.startedAt),
     title: w.dayName ?? UNPLANNED_SESSION,
     subtitle: `${clock.timeOf(w.startedAt)} · ${w.gymName}`,
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
@@ -79,7 +82,7 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
     id: r.id,
     kind: "run",
     date: r.startedAt.toISOString(),
-    day: clock.dayOf(r.startedAt),
+    day: r.occurredOn,
     title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
     subtitle: clock.timeOf(r.startedAt),
     href: `/training/activities/${r.id}${originQuery("history")}` as const,
@@ -135,8 +138,14 @@ export function recoveryItem(r: RecoveryReading): HistoryItem {
   };
 }
 
-/** Newest first, as every list of them is read. */
-export const newestFirst = (a: HistoryItem, b: HistoryItem) => b.date.localeCompare(a.date);
+/**
+ * Newest first, as every list of them is read: by day, then by when in it. The day leads because
+ * `date` is an instant in UTC for what was trained and a bare date for a recovery reading, and
+ * west of UTC an evening's instant already reads as the next day's date; a day's entries must
+ * also stay together, one section each, wherever their instants fall.
+ */
+export const newestFirst = (a: HistoryItem, b: HistoryItem) =>
+  b.day.localeCompare(a.day) || b.date.localeCompare(a.date);
 
 /**
  * Overview's latest (ADR 0045): the newest activities of every sport, newest first, ten at most.

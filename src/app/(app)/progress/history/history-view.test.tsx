@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import type { HistoryItem } from "./history-list";
@@ -11,8 +12,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/progress/history",
 }));
-// The regression is the history list's URL-driven filtering, not the header or its sheet.
-vi.mock("@/components/shell/page-header", () => ({ PageHeader: () => null }));
+// The regression is the history list's URL-driven filtering, not the header: only its action,
+// the filter sheet, is drawn.
+vi.mock("@/components/shell/page-header", () => ({
+  PageHeader: ({ action }: { action?: ReactNode }) => action ?? null,
+}));
 afterEach(cleanup);
 
 it("replaces local filters when Back or a deep link changes the URL", () => {
@@ -152,4 +156,55 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "page=2";
   rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
   expect(screen.queryByRole("note")).toBeNull();
+});
+
+it("offers Recovery among the activities only where there is a reading of its own to show", () => {
+  // jsdom has no modal dialog; the filter sheet is one.
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    },
+  });
+  const lift: HistoryItem = {
+    id: "lift",
+    kind: "workout",
+    date: "2026-09-28T13:30:00.000Z",
+    day: "2026-09-28",
+    title: "Upper",
+    subtitle: "",
+    meta: "",
+    gymId: null,
+    exercises: [],
+    // A check-in today is the workout's own, read on its row.
+    recovery: "Sleep 7 h",
+  };
+  const props = { today: "2026-10-07", range: { from: "2026-09-01", to: "2026-09-28" }, gyms: [] };
+  const activity = () => screen.getByRole("combobox", { name: "Activity" }) as HTMLSelectElement;
+  const choices = () => Array.from(activity().options, (option) => option.textContent);
+  navigation.query = "";
+  const { rerender } = render(<HistoryView {...props} items={[lift]} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+  expect(choices()).toEqual(["All activity", "Workouts", "Runs"]);
+  // An older account's daily reading is there to be chosen.
+  rerender(
+    <HistoryView
+      {...props}
+      items={[lift, { ...lift, id: "daily", kind: "recovery", title: "Recovery" }]}
+    />,
+  );
+  expect(choices()).toContain("Recovery");
+  // A link that asks for it still shows what is chosen, though nothing matches.
+  navigation.query = "kind=recovery";
+  rerender(<HistoryView {...props} items={[lift]} />);
+  expect(activity().value).toBe("recovery");
+  cleanup();
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
 });

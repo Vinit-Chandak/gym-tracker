@@ -1,12 +1,14 @@
 import { and, eq, gt, isNotNull, ne, sql } from "drizzle-orm";
 
-import { setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import { activities, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+
+import { strengthDay, strengthParent } from "./strength-day";
 
 const POUND = 0.45359237;
 
 export type ExerciseMonth = {
-  /** "2026-09", in the account's time zone. */
+  /** "2026-09": the month of the day each workout is dated on (`strengthDay`). */
   month: string;
   /** The heaviest working set's load that month, in kilograms. */
   topKg: number;
@@ -28,7 +30,8 @@ export async function readExerciseLife(
   const onMachine = equipmentInstanceId
     ? eq(workoutExercises.equipmentInstanceId, equipmentInstanceId)
     : undefined;
-  const month = sql<string>`to_char(date_trunc('month', ${workoutSessions.startedAt} at time zone ${timeZone}), 'YYYY-MM')`;
+  // The month of the day the calendar marks the workout on.
+  const month = sql<string>`left(${strengthDay(timeZone)}, 7)`;
   const [months, [count]] = await Promise.all([
     tx
       .select({
@@ -38,6 +41,7 @@ export async function readExerciseLife(
       .from(setLogs)
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+      .leftJoin(activities, strengthParent)
       .where(
         and(
           eq(setLogs.userId, userId),

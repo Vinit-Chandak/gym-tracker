@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { chooseRange, readWindowOf } from "@/domain/graph-range";
+import { chooseRange, listWindowOf } from "@/domain/graph-range";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
-import { listActivityPage } from "@/server/repositories/activity-analytics";
 import { readHistory } from "@/server/repositories/history";
 import { dateWindow } from "@/server/validation/date-range";
 import {
@@ -47,7 +46,9 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     { from: date("from"), to: date("to") },
     today,
   );
-  const read = readWindowOf(choice, today);
+  // Dates chosen by hand are read as chosen, not widened to a whole first week or month as a
+  // graph's are: the list never holds a day before the From over it.
+  const read = listWindowOf(choice, today);
   const range = dateWindow(read.from, read.to, profile.timeZone);
   const data = await withUser(
     getDb(),
@@ -57,33 +58,28 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
         readHistory(tx, user.id, range),
         listGyms(tx, user.id),
       ]);
-      // Runs are already in `training`, read from this same canonical table by a reader that
-      // also hands back their pace and the gym a migrated one named. These two need neither.
-      const endurance = await listActivityPage(tx, user.id, {
-        sports: ["cycling", "swimming"],
-        from: range.from,
-        to: range.to,
-        limit: 100,
-      });
-      return { training, gyms, endurance };
+      return { training, gyms };
     },
     { readOnly: true },
   );
   const clock = historyClock(profile.timeZone);
+  const workouts = data.training.workouts.map((w) => workoutItem(w, clock));
+  const runs = data.training.runs.map((r) => runItem(r, clock));
+  const endurance = data.training.endurance.map((activity) => enduranceItem(activity, clock));
   const items = [
-    ...data.training.workouts.map((w) => workoutItem(w, clock)),
-    ...data.training.runs.map((r) => runItem(r, clock)),
-    ...data.endurance.items.map((activity) => enduranceItem(activity, clock)),
+    ...workouts,
+    ...runs,
+    ...endurance,
     ...data.training.recovery.map(recoveryItem),
   ].sort(newestFirst);
   // A reader that stopped short of the range leaves the days before its oldest row incomplete:
   // the other kinds would run on alone. So the list stops after the last whole day, for every
   // kind, and says where; dates chosen behind the funnel read further back.
   const stops = [
-    data.training.workoutsTruncated ? data.training.workouts.at(-1)?.startedAt : undefined,
-    data.training.runsTruncated ? data.training.runs.at(-1)?.startedAt : undefined,
-    data.endurance.nextCursor !== null ? data.endurance.items.at(-1)?.startedAt : undefined,
-  ].flatMap((at) => (at ? [clock.dayOf(at)] : []));
+    data.training.workoutsTruncated ? workouts.at(-1)?.day : undefined,
+    data.training.runsTruncated ? runs.at(-1)?.day : undefined,
+    data.training.enduranceTruncated ? endurance.at(-1)?.day : undefined,
+  ].flatMap((day) => (day ? [day] : []));
   const partialDay = stops.sort().at(-1) ?? null;
   const listed = partialDay ? items.filter((item) => item.day > partialDay) : items;
   return (

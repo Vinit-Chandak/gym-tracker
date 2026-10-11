@@ -6,7 +6,15 @@ import {
   LATEST_COUNT,
   latestItems,
 } from "@/app/(app)/progress/history/history-items";
-import { exercises, gyms, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import {
+  activities,
+  cyclingActivityDetails,
+  exercises,
+  gyms,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, reportedEffort } from "@/domain/activity";
@@ -14,7 +22,7 @@ import { nativeDistance } from "@/domain/activity-metrics";
 import { EARLIEST_DAY } from "@/domain/graph-range";
 import { dateWindow, parseDateRange } from "@/server/validation/date-range";
 import { createActivity, type SaveActivityInput } from "./activities";
-import { readHistoryWorkouts, readLatestActivities } from "./history";
+import { readHistory, readHistoryWorkouts, readLatestActivities } from "./history";
 import { readWorkouts } from "./training-data";
 
 let t: TestDatabase;
@@ -103,6 +111,8 @@ describe("history projection", () => {
         .map((w) => ({
           id: w.id,
           startedAt: w.startedAt,
+          // Written straight to the table, these have no parent activity to be dated by.
+          occurredOn: null,
           gymId: w.gymId,
           gymName: w.gym.name,
           dayName: w.day?.name ?? null,
@@ -188,6 +198,50 @@ function logged(sport: "running" | "cycling", date: string): SaveActivityInput {
     notes: null,
   };
 }
+
+describe("History's read", () => {
+  it("reads rides and swims as deep as workouts and runs, not a page of the API's hundred", async () => {
+    const erin = await t.createAuthUser("deep-rides@example.test");
+    // 120 rides, one a morning from 1 January: more than the API hands back in a page.
+    const rides = Array.from({ length: 120 }, (_, index) => {
+      const startedAt = new Date(Date.UTC(2026, 0, 1 + index, 6));
+      return {
+        id: crypto.randomUUID(),
+        startedAt,
+        occurredOn: startedAt.toISOString().slice(0, 10),
+      };
+    });
+    await t.db.transaction(async (tx) => {
+      await tx.insert(activities).values(
+        rides.map((ride) => ({
+          ...ride,
+          userId: erin.id,
+          sport: "cycling" as const,
+          recordedTimeZone: "UTC",
+          timeZoneSource: "profile_at_entry" as const,
+          durationMs: 1_800_000,
+        })),
+      );
+      await tx.insert(cyclingActivityDetails).values(
+        rides.map((ride) => ({
+          activityId: ride.id,
+          userId: erin.id,
+          sport: "cycling" as const,
+          environment: "outdoor" as const,
+        })),
+      );
+    });
+    const read = await withUser(
+      t.db,
+      erin.id,
+      (tx) => readHistory(tx, erin.id, dateWindow(EARLIEST_DAY, "2026-09-30", "UTC")),
+      { readOnly: true },
+    );
+    expect(read.endurance).toHaveLength(120);
+    expect(read.enduranceTruncated).toBe(false);
+    expect(read.endurance.at(-1)?.occurredOn).toBe("2026-01-01");
+  });
+});
 
 describe("Overview's latest (ADR 0045)", () => {
   it("lists the newest ten of every sport together, newest first, and no one else's", async () => {
