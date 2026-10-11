@@ -208,23 +208,74 @@ export function searchExercises<T extends SearchableExercise>(
 export type ExerciseSection<T> = { key: string; title: string; items: T[] };
 
 /**
+ * The exercise a swap or a fallback replaces: its movement chooses the list it opens on, and
+ * the rest of it, where given, how that list is ordered.
+ */
+export type LikeExercise = Pick<SearchableExercise, "movementPattern"> &
+  Partial<Pick<SearchableExercise, "name" | "modality" | "primaryMuscles">>;
+
+/**
+ * How close an exercise of the same movement is to the one it would replace, as the figures
+ * to compare in turn, higher closer: the same equipment (a barbell squat's swap is another
+ * barbell squat before a leg press), how far their primary muscles agree (those shared, over
+ * all either works, so a squat that is all quads is nearer than a thruster's quads and front
+ * delts), then the words their names share ("High-bar barbell squat" for a "Low-bar barbell
+ * squat"). Alphabetically, a low-bar squat's swap read the leg press, the thruster and the
+ * belt squat before the high-bar, the safety-bar and the pause squat.
+ */
+function likeness(exercise: SearchableExercise, like: LikeExercise): number[] {
+  const muscles = new Set(like.primaryMuscles ?? []);
+  const shared = exercise.primaryMuscles.filter((muscle) => muscles.has(muscle)).length;
+  const either = new Set([...muscles, ...exercise.primaryMuscles]).size;
+  const words = new Set(like.name ? searchWords(like.name) : []);
+  return [
+    like.modality !== undefined && exercise.modality === like.modality ? 1 : 0,
+    either === 0 ? 0 : shared / either,
+    new Set(searchWords(exercise.name).filter((word) => words.has(word))).size,
+  ];
+}
+
+/** What a list opening on an exercise's movement needs of it; null when there is none. */
+export function likeOf(
+  exercise: (LikeExercise & Pick<SearchableExercise, "name">) | null | undefined,
+): LikeExercise | null {
+  if (!exercise?.movementPattern) return null;
+  const { movementPattern, name, modality, primaryMuscles } = exercise;
+  return { movementPattern, name, modality, primaryMuscles };
+}
+
+/** The same movement, closest first; equal ones keep the order they came in. */
+function closestFirst<T extends SearchableExercise>(items: readonly T[], like: LikeExercise): T[] {
+  const scored = items.map((exercise) => ({ exercise, score: likeness(exercise, like) }));
+  return scored
+    .sort((a, b) => {
+      for (let i = 0; i < a.score.length; i += 1) {
+        const difference = b.score[i]! - a.score[i]!;
+        if (difference !== 0) return difference;
+      }
+      return 0;
+    })
+    .map((entry) => entry.exercise);
+}
+
+/**
  * What a list of exercises shows for a query: the library by body region when nothing is
  * typed, and the ranked results when something is. Grouping search results by region put an
  * "Assisted pull-up" above the Pull-up just because both are back exercises and "A" < "P".
  *
  * Choosing one to do instead of another (`like`: a swap, a fallback), the library opens on the
- * same movement, the rest by region under it: a squat's swap began at the chest exercises. Each
- * is listed once, so a choice is one row, never two.
+ * same movement, closest first (`likeness`), the rest by region under it: a squat's swap began
+ * at the chest exercises. Each is listed once, so a choice is one row, never two.
  */
 export function exerciseSections<T extends SearchableExercise>(
   exercises: readonly T[],
   query: string,
-  like: Pick<SearchableExercise, "movementPattern"> | null = null,
+  like: LikeExercise | null = null,
 ): ExerciseSection<T>[] {
   const results = searchExercises(exercises, query);
   if (!results) {
     const same = (e: T) => like !== null && e.movementPattern === like.movementPattern;
-    const first = exercises.filter(same);
+    const first = like === null ? [] : closestFirst(exercises.filter(same), like);
     return [
       ...(first.length > 0 ? [{ key: "like", title: "Same movement", items: first }] : []),
       ...groupByRegion(exercises.filter((e) => !same(e))).map((group) => ({

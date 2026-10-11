@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { likeOf } from "@/lib/exercise-search";
 import { substituteExerciseAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -57,8 +58,9 @@ export default async function SubstitutePage(
         exercises: exercises.filter(
           (e) => e.isActive && (e.id !== slot.exercise.id || otherMachine),
         ),
-        // The list opens on the same movement: a squat's swap began at the chest exercises.
-        movementPattern: exercises.find((e) => e.id === slot.exercise.id)?.movementPattern ?? null,
+        // The list opens on the same movement, closest first: a squat's swap began at the chest
+        // exercises, and then at the leg press rather than the high-bar squat.
+        like: likeOf(exercises.find((e) => e.id === slot.exercise.id)),
         machines: machines.filter((m) => m.isActive),
         machinesByExercise,
       };
@@ -102,7 +104,7 @@ export default async function SubstitutePage(
         remember={data.plannedExerciseId !== null}
         rememberByDefault={rememberParam !== "0"}
         plannedExerciseId={data.plannedExerciseId}
-        like={data.movementPattern ? { movementPattern: data.movementPattern } : null}
+        like={data.like}
         long
       />
     </SessionPage>
