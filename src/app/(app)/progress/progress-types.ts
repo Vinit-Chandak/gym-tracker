@@ -33,7 +33,13 @@ export type ProgressData = {
   strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit };
   exercise: ExerciseGraphData;
   /** `truncated`: more runs than a graph reads, so the oldest are left out (and said so). */
-  running: { range: GraphRange; graph: RunningGraph; truncated: boolean };
+  running: {
+    range: GraphRange;
+    graph: RunningGraph;
+    truncated: boolean;
+    /** The athlete's road unit, which distances and paces are said in; kilometres if unset. */
+    distanceUnit?: "km" | "mi";
+  };
   food: {
     range: GraphRange;
     graph: FoodGraph;

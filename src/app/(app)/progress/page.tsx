@@ -209,6 +209,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
               range: runningRange,
               graph: runningGraph(runs, runningRange, today),
               truncated: data.runs.hasMore,
+              distanceUnit: data.units.running?.distanceUnit ?? "km",
             },
             food: {
               range: foodRange,
