@@ -21,6 +21,11 @@ export function useMeasure(
   ref: RefObject<HTMLElement | null>,
   probe?: RefObject<HTMLElement | null>,
   fallback: Measure = { width: 402, height: 874, root: 16 },
+  /**
+   * Measure the width inside the element's own side padding: the session layer's column, which
+   * beyond a phone is narrower than the screen it covers.
+   */
+  inner = false,
 ): Measure {
   const [box, setBox] = useState(fallback);
   useLayoutEffect(() => {
@@ -29,13 +34,16 @@ export function useMeasure(
     const measure = () => {
       const rect = element.getBoundingClientRect();
       const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      if (rect.width <= 0) return;
+      let width = rect.width;
+      if (inner) {
+        const style = getComputedStyle(element);
+        width -= (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      }
+      if (width <= 0) return;
       setBox((current) =>
-        SAME(current.width, rect.width) &&
-        SAME(current.height, rect.height) &&
-        current.root === root
+        SAME(current.width, width) && SAME(current.height, rect.height) && current.root === root
           ? current
-          : { width: rect.width, height: rect.height, root },
+          : { width, height: rect.height, root },
       );
     };
     measure();
@@ -44,7 +52,7 @@ export function useMeasure(
     observer.observe(element);
     if (probe?.current) observer.observe(probe.current);
     return () => observer.disconnect();
-  }, [ref, probe]);
+  }, [ref, probe, inner]);
   return box;
 }
 

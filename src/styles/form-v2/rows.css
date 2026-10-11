@@ -544,8 +544,10 @@ li:last-child > .sheet-row {
   min-height: calc(calc(52 * var(--ov-u)) + var(--ov-grow) * 0.6);
   align-items: center;
   gap: calc(10 * var(--ov-u));
-  margin: 0 max(var(--ov-gutter), env(safe-area-inset-right)) calc(8 * var(--ov-u))
-    max(var(--ov-gutter), env(safe-area-inset-left));
+  /* Between the gutters, and beyond a phone over the page's column (ADR 0052). */
+  --strip-side: max(var(--ov-gutter), (100% - var(--content-width)) / 2 + var(--ov-gutter));
+  margin: 0 max(var(--strip-side), env(safe-area-inset-right)) calc(8 * var(--ov-u))
+    max(var(--strip-side), env(safe-area-inset-left));
   padding: 0 calc(4 * var(--ov-u)) 0 calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-card);
   background: var(--ov-ink);
@@ -677,7 +679,7 @@ li:last-child > .sheet-row {
 .today.page-wide {
   --content-width: min(var(--content-width-wide), 62rem);
 }
-/* Beyond a phone the day's cards stand side by side where they fit (ADR 0051). */
+/* Beyond a phone the day's cards stand side by side where they fit (ADR 0052). */
 @media (width >= 600px) {
   .today-cards {
     display: grid;

@@ -127,7 +127,7 @@
 
   /*
    * Tailwind's own scale (p-4, gap-3, size-11…) grows with the design's lengths on wide screens
-   * (ADR 0051): an eighth larger at 1440 px and wider, exactly as before on a phone.
+   * (ADR 0052): an eighth larger at 1440 px and wider, exactly as before on a phone.
    */
   --spacing: calc(0.25rem + var(--ov-fluid) * 0.5);
 
@@ -331,7 +331,7 @@
 }
 
 /*
- * Size classes (ADR 0051), named as the native apps will name them: compact under 600 pt (a
+ * Size classes (ADR 0052), named as the native apps will name them: compact under 600 pt (a
  * phone, laid out as DESIGN.md draws it), medium to 1024 (a tablet, or a phone on its side:
  * the tab bar stays), expanded beyond (the navigation becomes a rail). Reading and form
  * screens widen a little; screens of cards and sections widen a lot and fold into columns.
@@ -510,7 +510,7 @@
   padding-right: max(var(--page-gutter), env(safe-area-inset-right));
 }
 
-/* A screen of cards and sections: as wide as the size class allows (ADR 0051). */
+/* A screen of cards and sections: as wide as the size class allows (ADR 0052). */
 @utility page-wide {
   --content-width: var(--content-width-wide);
 }
@@ -874,6 +874,8 @@ html:has(.pinned-actions) {
     position: sticky;
     bottom: var(--session-chrome-height, 0px);
     margin-top: calc(24 * var(--ov-u));
+    /* At the foot of a landscape phone, clear of the home indicator. */
+    padding-bottom: max(calc(12 * var(--ov-u)), env(safe-area-inset-bottom, 0px));
   }
   /* In the page's flow, inside its gutters, they reach back out to them: the ground runs edge to
      edge and the actions keep the page's one left edge. */

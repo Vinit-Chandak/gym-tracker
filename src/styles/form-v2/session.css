@@ -24,6 +24,18 @@
   display: flex;
   flex-direction: column;
   padding-top: env(safe-area-inset-top);
+  /*
+   * Beyond a phone the session is the page's column, centred, not a desktop table stretched
+   * across the screen (ADR 0052); on a phone in landscape its sides clear the notch and the
+   * rounded corners, with the gutter inside that. The column is the layer's content box, which
+   * is what its container queries and the logger's measure read.
+   */
+  padding-inline: max(
+      0px,
+      (100% - var(--content-width)) / 2,
+      env(safe-area-inset-left, 0px) - var(--ov-gutter)
+    )
+    max(0px, (100% - var(--content-width)) / 2, env(safe-area-inset-right, 0px) - var(--ov-gutter));
   background: var(--ov-ground);
   color: var(--ov-ink);
   container: session / inline-size;
@@ -203,9 +215,9 @@ html:has(.session-layer) body {
   display: grid;
   width: 100%;
   min-height: max(var(--ov-target), calc(var(--log-size, calc(32 * var(--ov-u))) * 1.8));
-  grid-template-columns: calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(
-      --op
-    ) minmax(0, 1fr);
+  grid-template-columns:
+    calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(--op)
+    minmax(0, 1fr);
   align-items: baseline;
   padding: calc(10 * var(--ov-u)) 0 calc(8 * var(--ov-u));
   text-align: center;
@@ -373,9 +385,9 @@ button.log-line {
    up whatever its hint. */
 .entry-figures {
   display: grid;
-  grid-template-columns: calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(
-      --op
-    ) minmax(0, 1fr);
+  grid-template-columns:
+    calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(--op)
+    minmax(0, 1fr);
   grid-template-rows: auto auto auto;
   row-gap: calc(6 * var(--ov-u));
 }

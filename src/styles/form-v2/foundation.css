@@ -19,7 +19,7 @@
   --ov-title-tracking: -0.012em;
 
   /*
-   * Wider screens (ADR 0051): from 600 px of viewport to 1440, type, spacing, radii and targets
+   * Wider screens (ADR 0052): from 600 px of viewport to 1440, type, spacing, radii and targets
    * grow smoothly, then stop. --ov-fluid runs from 0 to 1 px across that span, so a length that
    * adds `var(--ov-fluid) * N` is N px larger at 1440 and wider and exactly as before on a phone.
    * It adds to the reader's text size rather than replacing it: zooming or a larger text setting

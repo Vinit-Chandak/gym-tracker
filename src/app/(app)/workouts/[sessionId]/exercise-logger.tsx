@@ -355,7 +355,7 @@ export function ExerciseLogger({
   // Complete pressed in the message slot: focus follows the exercise to its Done line.
   const focusDone = useRef(false);
   const shownTab = useRef(tab);
-  const box = useMeasure(layer, probe);
+  const box = useMeasure(layer, probe, undefined, true);
   const android = useSyncExternalStore(
     noSubscription,
     () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
