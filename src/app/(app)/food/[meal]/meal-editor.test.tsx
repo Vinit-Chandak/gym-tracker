@@ -493,6 +493,71 @@ it("lists meals five and foods ten a page, starting again at the first for a sea
   expect(screen.queryByRole("navigation", { name: "Foods pages" })).toBeNull();
 });
 
+it("adds to the day a sheet was opened on, though the page moves on to the next under it", async () => {
+  // An app left open over midnight: the page is drawn again for the next day, empty, while a
+  // sheet opened on the day before is still being filled in.
+  const NEXT_DAY = "2026-09-26";
+  const page = (date: string, entries: EntryRecord[], kcal: number) => (
+    <MealEditor
+      date={date}
+      meal="breakfast"
+      screen={{ entries, foods: [OATS, MILK, WHEY], savedMeals: [SHAKE, USUAL] }}
+      day={{ meals: kcal > 0 ? [{ meal: "breakfast", kcal }] : [], targetKcal: 2000 }}
+    />
+  );
+  const opened = () => render(page(TODAY, [MILK_300], 156));
+  const midnight = (rerender: (ui: React.ReactNode) => void) => rerender(page(NEXT_DAY, [], 0));
+  const add = async () => {
+    fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+    await waitFor(() => expect(sheet().open).toBe(false));
+  };
+
+  let view = opened();
+  fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
+  midnight(view.rerender);
+  // The bowl is still the day the sheet was opened on: its breakfast, and the oats on top.
+  expect(inSheet().getByRole("img").getAttribute("aria-label")).toBe(
+    "The bowl with Oats in: 545 of 2,000 kcal",
+  );
+  await add();
+  expect(logFoodAction).toHaveBeenCalledWith(expect.objectContaining({ eatenOn: TODAY }));
+  cleanup();
+
+  view = opened();
+  fireEvent.click(myFoods().getAllByRole("button")[0]!);
+  type("kcal", "300");
+  midnight(view.rerender);
+  await add();
+  expect(logQuickFoodAction).toHaveBeenCalledWith(expect.objectContaining({ eatenOn: TODAY }));
+  cleanup();
+
+  view = opened();
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "paneer" } });
+  fireEvent.click(screen.getByRole("button", { name: "New food “paneer”" }));
+  type("kcal", "265");
+  midnight(view.rerender);
+  await add();
+  expect(createFoodAction).toHaveBeenCalledWith(expect.objectContaining({ eatenOn: TODAY }));
+  cleanup();
+
+  view = opened();
+  fireEvent.click(screen.getByRole("button", { name: /^Shake/ }));
+  midnight(view.rerender);
+  await add();
+  expect(logSavedMealAction).toHaveBeenCalledWith(expect.objectContaining({ eatenOn: TODAY }));
+  cleanup();
+
+  view = opened();
+  fireEvent.click(screen.getByRole("button", { name: "Star" }));
+  midnight(view.rerender);
+  // What is starred is the meal as it was, not the next day's empty one.
+  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  type("Name", "Milk breakfast");
+  fireEvent.click(inSheet().getByRole("button", { name: "Save meal" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(saveMealAction).toHaveBeenCalledWith(expect.objectContaining({ eatenOn: TODAY }));
+});
+
 it("leaves correcting a food to My foods: its sheet here only says how much", () => {
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));

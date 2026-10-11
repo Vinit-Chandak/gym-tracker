@@ -31,6 +31,13 @@ type SheetView =
   | { kind: "saved"; saved: SavedMealRecord }
   | { kind: "star" };
 
+/**
+ * What a sheet keeps from the moment it opens: the day it logs to, that day's bowl and what the
+ * meal held. An app left open over midnight may move the page on under it; what is being typed
+ * stays on the day it was begun on (ADR 0032, decision 7).
+ */
+type Held = { date: string; day?: FoodDayBowl; entries: readonly EntryRecord[] };
+
 function scrollBehaviour(): ScrollBehavior {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
@@ -65,27 +72,31 @@ export function MealEditor({
   day?: FoodDayBowl;
 }) {
   const label = MEAL_LABELS[meal];
-  const place = { eatenOn: date, meal, mealLabel: label };
   const [query, setQuery] = useState("");
   const [said, setSaid] = useState("");
   const [error, setError] = useState<string | null>(null);
   // A new key for every opening mounts the sheet afresh; closing keeps the key, so the dialog
   // is closed where it is and hands the focus back to whatever opened it.
-  const [sheet, setSheet] = useState<{ key: number; open: boolean; view: SheetView | null }>({
-    key: 0,
-    open: false,
-    view: null,
-  });
-  const open = (view: SheetView) =>
-    setSheet((current) => ({ key: current.key + 1, open: true, view }));
-  const close = () => setSheet((current) => ({ ...current, open: false }));
-  const top = useRef<HTMLDivElement>(null);
-
+  const [sheet, setSheet] = useState<{
+    key: number;
+    open: boolean;
+    view: SheetView | null;
+    held: Held | null;
+  }>({ key: 0, open: false, view: null, held: null });
   // A food taken out leaves the list at once; if that does not go through, it comes back.
   const [entries, hide] = useOptimistic(
     screen.entries,
     (current: readonly EntryRecord[], id: string) => current.filter((entry) => entry.id !== id),
   );
+  const open = (view: SheetView) =>
+    setSheet((current) => ({
+      key: current.key + 1,
+      open: true,
+      view,
+      held: { date, day, entries },
+    }));
+  const close = () => setSheet((current) => ({ ...current, open: false }));
+  const top = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
   const total = addUp(entries.map(eaten));
   const starred =
@@ -146,6 +157,8 @@ export function MealEditor({
     : screen.savedMeals;
   const nothingFound = foods.length === 0 && savedMeals.length === 0;
   const view = sheet.view;
+  const held = sheet.held ?? { date, day, entries };
+  const place = { eatenOn: held.date, meal, mealLabel: label };
 
   return (
     <>
@@ -316,7 +329,7 @@ export function MealEditor({
           food={view.food}
           amount={view.food.portionAmount}
           target={{ kind: "log", foodId: view.food.id, ...place }}
-          day={day}
+          day={held.day}
           meal={meal}
           onDone={done}
         />
@@ -329,7 +342,7 @@ export function MealEditor({
           food={view.entry}
           amount={view.entry.amount}
           target={{ kind: "entry", entryId: view.entry.id }}
-          day={day}
+          day={held.day}
           meal={meal}
           onDone={done}
         />
@@ -368,7 +381,7 @@ export function MealEditor({
           open={sheet.open}
           onClose={close}
           place={place}
-          foods={entries}
+          foods={held.entries}
           savedNames={screen.savedMeals.map((saved) => saved.name)}
           onDone={done}
         />
