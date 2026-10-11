@@ -166,7 +166,7 @@ export function Fact({
 
 /**
  * A programme with nothing left but rest (ADR 0051), said the same wherever it is shown: Today,
- * Choose a day, Training and the programme's own card. Finished on the day its last day was
+ * Choose a day and Training (its own card says Complete). Finished on the day its last day was
  * answered, which the waiting sequence makes later than the end it was written with whenever a
  * week went missing; named without its year inside `today`'s.
  */
