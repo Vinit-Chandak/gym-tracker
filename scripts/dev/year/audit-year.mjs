@@ -37,7 +37,8 @@ for (const person of people) {
   const [topExercise] = await sql`select we.exercise_id as id from workout_exercises we
     join set_logs s on s.workout_exercise_id = we.id
     where we.user_id = ${person.id} group by we.exercise_id order by count(*) desc limit 1`;
-  const [gym] = await sql`select id from gyms where user_id = ${person.id} order by created_at limit 1`;
+  const [gym] =
+    await sql`select id from gyms where user_id = ${person.id} order by created_at limit 1`;
   const [machine] = gym
     ? await sql`select id from equipment_instances where gym_id = ${gym.id} order by name limit 1`
     : [];
@@ -45,7 +46,8 @@ for (const person of people) {
     where user_id = ${person.id} and sport <> 'strength' order by sport, started_at desc`;
   const [day] = await sql`select occurred_on::text as day from activities
     where user_id = ${person.id} group by occurred_on order by count(*) desc, occurred_on desc limit 1`;
-  const [program] = await sql`select id from programs where user_id = ${person.id} and status = 'active'`;
+  const [program] =
+    await sql`select id from programs where user_id = ${person.id} and status = 'active'`;
   const programDays = program
     ? await sql`select id from program_days where program_id = ${program.id} order by day_index`
     : [];
@@ -138,8 +140,7 @@ function routesFor(username) {
   if (id.open && id.openExercise)
     routes.push(`/workouts/${id.open}/exercises/${id.openExercise}/substitute`);
   if (id.exercise) routes.push(`/exercises/${id.exercise}`);
-  if (id.gym)
-    routes.push(`/gyms/${id.gym}`, `/gyms/${id.gym}/programme`, `/gyms/${id.gym}/edit`);
+  if (id.gym) routes.push(`/gyms/${id.gym}`, `/gyms/${id.gym}/programme`, `/gyms/${id.gym}/edit`);
   if (id.gym && id.machine) routes.push(`/gyms/${id.gym}/equipment/${id.machine}`);
   for (const activity of id.activities)
     routes.push(`/training/activities/${activity.id}`, `/training/activities/${activity.id}/edit`);
@@ -204,10 +205,14 @@ const configurations = [
 
 const wantedDevices = process.env.YEAR_AUDIT_DEVICES?.split(",");
 const wantedPeople = process.env.YEAR_AUDIT_PERSONAS?.split(",");
-const routeFilter = process.env.YEAR_AUDIT_ROUTES ? new RegExp(process.env.YEAR_AUDIT_ROUTES) : null;
+const routeFilter = process.env.YEAR_AUDIT_ROUTES
+  ? new RegExp(process.env.YEAR_AUDIT_ROUTES)
+  : null;
 const results = [];
 const browser = await chromium.launch({ executablePath });
-for (const config of configurations.filter((c) => !wantedDevices || wantedDevices.includes(c.name))) {
+for (const config of configurations.filter(
+  (c) => !wantedDevices || wantedDevices.includes(c.name),
+)) {
   for (const person of people.filter((p) => !wantedPeople || wantedPeople.includes(p.username))) {
     const context = await browser.newContext({
       ...config.options,
@@ -215,11 +220,14 @@ for (const config of configurations.filter((c) => !wantedDevices || wantedDevice
       colorScheme: config.dark ? "dark" : "light",
       timezoneId: person.time_zone,
     });
-    await context.addInitScript((mode) => {
-      try {
-        localStorage.setItem("overload:appearance", mode);
-      } catch {}
-    }, config.dark ? "dark" : "light");
+    await context.addInitScript(
+      (mode) => {
+        try {
+          localStorage.setItem("overload:appearance", mode);
+        } catch {}
+      },
+      config.dark ? "dark" : "light",
+    );
     const login = await context.newPage();
     await login.goto("/login");
     await login.getByLabel("Email", { exact: true }).fill(`${person.username}@local.test`);
@@ -281,26 +289,41 @@ for (const config of configurations.filter((c) => !wantedDevices || wantedDevice
             });
             const main = document.querySelector("main") ?? document.body;
             const overflowing = [...main.querySelectorAll("*")]
-              .filter((element) => visible(element) && element.getBoundingClientRect().right > width + 1)
+              .filter(
+                (element) => visible(element) && element.getBoundingClientRect().right > width + 1,
+              )
               .slice(0, 6)
               .map(describe);
-            const smallTargets = [...document.querySelectorAll("a[href], button, [role='button'], input, select, [role='tab'], summary")]
+            const smallTargets = [
+              ...document.querySelectorAll(
+                "a[href], button, [role='button'], input, select, [role='tab'], summary",
+              ),
+            ]
               .filter(visible)
               .filter((element) => {
                 const rect = element.getBoundingClientRect();
                 return (rect.height < 43.5 || rect.width < 24) && element.type !== "hidden";
               })
               .slice(0, 8)
-              .map((element) => ({ ...describe(element), h: Math.round(element.getBoundingClientRect().height), w: Math.round(element.getBoundingClientRect().width) }));
+              .map((element) => ({
+                ...describe(element),
+                h: Math.round(element.getBoundingClientRect().height),
+                w: Math.round(element.getBoundingClientRect().width),
+              }));
             const tinyText = [...main.querySelectorAll("*")]
               .filter(
                 (element) =>
                   visible(element) &&
-                  [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim()) &&
+                  [...element.childNodes].some(
+                    (node) => node.nodeType === 3 && node.textContent.trim(),
+                  ) &&
                   parseFloat(getComputedStyle(element).fontSize) < 11.5,
               )
               .slice(0, 6)
-              .map((element) => ({ ...describe(element), size: getComputedStyle(element).fontSize }));
+              .map((element) => ({
+                ...describe(element),
+                size: getComputedStyle(element).fontSize,
+              }));
             const h1 = document.querySelector("h1");
             return {
               url: location.pathname + location.search,
@@ -312,8 +335,12 @@ for (const config of configurations.filter((c) => !wantedDevices || wantedDevice
               overflowing,
               smallTargets,
               tinyText,
-              alerts: [...document.querySelectorAll('[role="alert"]')].map((e) => e.textContent?.trim()).filter(Boolean),
-              notFound: /This page could not be found|Not found/i.test(document.body.innerText.slice(0, 2000)),
+              alerts: [...document.querySelectorAll('[role="alert"]')]
+                .map((e) => e.textContent?.trim())
+                .filter(Boolean),
+              notFound: /This page could not be found|Not found/i.test(
+                document.body.innerText.slice(0, 2000),
+              ),
               text: document.body.innerText.slice(0, 4000),
             };
           }),

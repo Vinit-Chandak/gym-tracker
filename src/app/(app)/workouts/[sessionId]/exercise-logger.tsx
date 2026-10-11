@@ -1475,7 +1475,13 @@ export function ExerciseLogger({
         title={editTitle}
         fields={
           editShown
-            ? fieldsFor(exercise, measure, editShown, unit, targetFor(exercise, sets.rows, editShown))
+            ? fieldsFor(
+                exercise,
+                measure,
+                editShown,
+                unit,
+                targetFor(exercise, sets.rows, editShown),
+              )
             : []
         }
         onUpdate={(row) => {

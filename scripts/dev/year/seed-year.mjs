@@ -56,7 +56,11 @@ await run(
     YEAR_OUT: process.env.YEAR_OUT ?? "output/year",
   },
 );
-await run(process.execPath, ["node_modules/tsx/dist/cli.mjs", "src/db/programme-schedule-audit.ts"], env);
+await run(
+  process.execPath,
+  ["node_modules/tsx/dist/cli.mjs", "src/db/programme-schedule-audit.ts"],
+  env,
+);
 console.log(
   `\nReady: ${name}. Serve it with AUDIT_DATABASE_URL=${database} npm run audit:auth / audit:start.`,
 );
