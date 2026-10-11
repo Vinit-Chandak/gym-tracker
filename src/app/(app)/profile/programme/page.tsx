@@ -118,6 +118,10 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const end = overview
     ? ((complete ? overview.finishedOn : overview.projectedEnd) ?? overview.program.endDate)
     : null;
+  // A span inside this year names no year; one that crosses into another names both ends' years.
+  const start = overview?.program.startDate;
+  const spanYear =
+    start && end && start.slice(0, 4) !== end.slice(0, 4) ? undefined : today.slice(0, 4);
   // Starting over: rarely why anyone comes here, so folded at the foot of the cycle — until the
   // programme is finished, when it is the next thing to do and opens under the card.
   const nextBlock = (
@@ -152,8 +156,8 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                   {complete && <Badge tone="success">Complete</Badge>}
                 </div>
                 <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
-                  {overview.program.startDate ? formatIsoDate(overview.program.startDate) : "—"} →{" "}
-                  {end ? formatIsoDate(end) : "—"}
+                  {start ? formatIsoDate(start, spanYear) : "—"} →{" "}
+                  {end ? formatIsoDate(end, spanYear) : "—"}
                 </p>
               </div>
               <ProgressBar
@@ -189,7 +193,9 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                       entries={[
                         [
                           "Planned end",
-                          overview.program.endDate ? formatIsoDate(overview.program.endDate) : null,
+                          overview.program.endDate
+                            ? formatIsoDate(overview.program.endDate, today.slice(0, 4))
+                            : null,
                         ],
                         [
                           "Repeats",

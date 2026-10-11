@@ -96,7 +96,7 @@ export default async function OccurrencePage(
         title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
         meta={[
           dayName && occurrence.cycleIndex !== null && `${dayName}, cycle ${occurrence.cycleIndex}`,
-          formatIsoDate(occurrence.scheduledOn),
+          formatIsoDate(occurrence.scheduledOn, today.slice(0, 4)),
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -118,7 +118,7 @@ export default async function OccurrencePage(
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {formatIsoDate(occurrence.originalScheduledOn)}.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn, today.slice(0, 4))}.
                 {standalone ? "" : " Adherence still counts against that week."}
               </p>
             )}
@@ -137,7 +137,7 @@ export default async function OccurrencePage(
         {occurrence.resolution.kind === "logged" ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
+              Logged on {formatIsoDate(occurrence.resolution.occurredOn, today.slice(0, 4))}.
             </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
