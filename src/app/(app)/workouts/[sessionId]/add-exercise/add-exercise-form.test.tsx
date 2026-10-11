@@ -88,3 +88,37 @@ it("keeps the choice and the machine through a failed save, so a retry sends the
   expect(action.mock.calls[1]![1].get("exerciseId")).toBe("legpress");
   expect(action.mock.calls[1]![1].get("equipmentInstanceId")).toBe("m-flat");
 });
+
+it("does not offer to remember going back to the planned lift as its fallback", () => {
+  render(
+    <PickExerciseForm
+      action={vi.fn(async () => ({}))}
+      exercises={EXERCISES}
+      machines={MACHINES}
+      machinesByExercise={{ press: ["m-press"], legpress: ["m-45", "m-flat"] }}
+      submitLabel="Use this instead"
+      remember
+      plannedExerciseId="legpress"
+      long
+    />,
+  );
+  const remember = () =>
+    screen.queryByRole("checkbox", { name: "Remember this as the fallback at this gym" });
+  fireEvent.click(screen.getByRole("radio", { name: /Leg press/ }));
+  expect(remember()).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: /Machine chest press/ }));
+  expect(remember()).not.toBeNull();
+});
+
+it("still sends the chosen exercise when a later search hides it", async () => {
+  const action = renderForm();
+  fireEvent.click(screen.getByRole("radio", { name: /Machine chest press/ }));
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search exercises" }), {
+    target: { value: "leg" },
+  });
+  expect(screen.queryByRole("radio", { name: /Machine chest press/ })).toBeNull();
+  expect(screen.getByText("Machine chest press")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Use this instead" }));
+  await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+  expect(action.mock.calls[0]![1].getAll("exerciseId")).toEqual(["press"]);
+});

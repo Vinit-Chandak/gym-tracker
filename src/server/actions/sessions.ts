@@ -22,7 +22,7 @@ import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable
 import { ensureProfile } from "@/server/queries/profile";
 import { getRequestProfile, profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
-import { addGymFallback } from "@/server/repositories/fallbacks";
+import { rememberSlotFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
 import {
   completeRestSlotsBefore,
@@ -584,12 +584,15 @@ const substituteSchema = z.object({
   remember: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
 });
 
-/** Manual substitution from the picker; optionally remembered as a fallback at this gym. */
+/**
+ * Manual substitution from the picker; optionally remembered as a fallback at this gym, for the
+ * exercise the row's programme slot plans.
+ */
 export async function substituteExerciseAction(
   sessionId: string,
   workoutExerciseId: string,
   gymId: string,
-  plannedExerciseId: string | null,
+  programExerciseId: string | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -604,14 +607,10 @@ export async function substituteExerciseAction(
         equipmentInstanceId: parsed.data.equipmentInstanceId,
         reason: "Chosen during the session",
       });
-      if (
-        parsed.data.remember &&
-        plannedExerciseId &&
-        plannedExerciseId !== parsed.data.exerciseId
-      ) {
-        await addGymFallback(tx, user.id, {
+      if (parsed.data.remember && programExerciseId) {
+        await rememberSlotFallback(tx, user.id, {
           gymId,
-          exerciseId: plannedExerciseId,
+          programExerciseId,
           fallbackExerciseId: parsed.data.exerciseId,
           fallbackEquipmentInstanceId: parsed.data.equipmentInstanceId,
         });

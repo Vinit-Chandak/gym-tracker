@@ -98,7 +98,10 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
     case "fallback":
       return `Do ${entry.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
-      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
+      // A custom exercise names no kind of machine, only its own, which is at another gym.
+      return entry.missingTypes.length === 0
+        ? "Needs the machine it was made for, which is not registered here."
+        : `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
     case "unavailable":
       return "This place is marked as not having the equipment, and no fallback fits.";
   }
