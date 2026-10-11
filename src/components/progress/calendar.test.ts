@@ -51,6 +51,15 @@ describe("the month", () => {
     ]);
   });
 
+  it("draws the workout still open on its day, and counts it once it is finished", () => {
+    const open = activity({ occurredOn: "2026-09-25", inProgress: true });
+    expect(monthDays([...september, open], "2026-09")[25]).toEqual([
+      { sport: "swim", said: "swim 1,500 m" },
+      { sport: "strength", said: "lifting in progress" },
+    ]);
+    expect(tally([...september.slice(0, 3), open])).toEqual(tally(september.slice(0, 3)));
+  });
+
   it("counts each sport, its distance and its time, in the legend's order", () => {
     expect(tally(september.slice(0, 3))).toEqual([
       { sport: "strength", count: 1, metres: null, ms: 48 * 60_000 },

@@ -177,6 +177,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 durationMs: item.durationMs,
                 distanceMetres: item.distanceMetres,
                 environment: item.environment,
+                inProgress: item.inProgress,
               })),
             },
             overview: { latest: latestItems(data.latest, historyClock(timeZone, data.units)) },

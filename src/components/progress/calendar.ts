@@ -15,6 +15,8 @@ export type DayActivity = {
   distanceMetres: number | null;
   /** "treadmill", "indoor", "pool", "open_water"; null where the sport has none. */
   environment: string | null;
+  /** The workout still open: on its day, but not yet one of the month's sessions. */
+  inProgress?: boolean;
 };
 
 /** Each sport as the art draws it: lifting a block, a run a runner, a ride a wheel, a swim a wave. */
@@ -45,6 +47,7 @@ export function saidOf(activity: DayActivity, units?: DistanceUnits): string {
     activity.environment === "treadmill" || activity.environment === "indoor" ? " indoors" : "";
   switch (activity.sport) {
     case "strength":
+      if (activity.inProgress) return "lifting in progress";
       return `lifting${minutes ? ` ${minutes} min` : ""}`;
     case "running":
       return `run${activity.distanceMetres ? ` ${distanceOf(activity.distanceMetres, "running", units)}` : ""}${indoors}`;
@@ -89,12 +92,13 @@ export type SportTally = {
 
 /**
  * How many of each sport, how far and for how long, in the order the calendar's legend names
- * them. A distance or a time adds up what was recorded, and is null where nothing was.
+ * them. A distance or a time adds up what was recorded, and is null where nothing was. A workout
+ * still open is not counted until it is finished, as History lists it then.
  */
 export function tally(activities: readonly DayActivity[]): SportTally[] {
   const order: ActivitySport[] = ["strength", "running", "cycling", "swimming"];
   return order.flatMap((sport) => {
-    const own = activities.filter((activity) => activity.sport === sport);
+    const own = activities.filter((activity) => activity.sport === sport && !activity.inProgress);
     if (own.length === 0) return [];
     const measured = own.filter((activity) => activity.distanceMetres !== null);
     const timed = own.filter((activity) => activity.durationMs !== null);

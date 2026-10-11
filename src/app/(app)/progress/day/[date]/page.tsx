@@ -55,10 +55,11 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
     user.id,
     async (tx) => {
       // Every sport on the day it was recorded on, as the calendar marks it: a lift too, not
-      // on the day its start falls on in the profile's zone today.
+      // on the day its start falls on in the profile's zone today. The workout still open is
+      // on its day as well, in progress, rather than leaving the day "nothing logged".
       const [days, lifted, units] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
-        readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true, onDays: true }),
+        readWorkouts(tx, user.id, range, 0, 20, { onDays: true }),
         unitsBySport(tx, user.id),
       ]);
       return {
@@ -123,7 +124,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         title: workout.day?.name ?? UNPLANNED_SESSION,
         meta: [
           workout.gym.name,
-          minutes === null ? null : `${minutes} min`,
+          minutes === null ? "In progress" : `${minutes} min`,
           `${sets.length} ${sets.length === 1 ? "set" : "sets"}`,
         ]
           .filter(Boolean)

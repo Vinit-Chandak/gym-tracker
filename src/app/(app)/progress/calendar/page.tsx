@@ -66,6 +66,7 @@ export default async function CalendarPage() {
         durationMs: item.durationMs,
         distanceMetres: item.distanceMetres,
         environment: item.environment,
+        inProgress: item.inProgress,
       }))}
     />
   );

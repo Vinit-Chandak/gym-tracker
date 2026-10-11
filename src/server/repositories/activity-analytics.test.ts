@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   activities,
   cyclingActivityDetails,
+  gyms,
   occurrenceVersions,
   plannedOccurrences,
+  workoutSessions,
 } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
@@ -25,7 +27,7 @@ import {
   readComparableBests,
   readWeeklyActivityVolume,
 } from "./activity-analytics";
-import { createActivity, type SaveActivityInput } from "./activities";
+import { createActivity, openStrengthParent, type SaveActivityInput } from "./activities";
 
 /**
  * AT-STAT: totals that are computed rather than sampled.
@@ -401,6 +403,37 @@ async function manyRides(userId: string, count: number) {
   });
   return rides;
 }
+
+describe("the calendar's days", () => {
+  it("hold the workout still open, said to be in progress", async () => {
+    const userId = await athlete("open-workout@example.test");
+    const [ridden] = await manyRides(userId, 1);
+    // Opened as the app opens a workout, and not finished.
+    const open = await withUser(t.db, userId, async (tx) => {
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId, name: "Test gym", slug: "test-gym" })
+        .returning({ id: gyms.id });
+      const startedAt = at(ridden!.occurredOn, 8);
+      const [session] = await tx
+        .insert(workoutSessions)
+        .values({ userId, gymId: gym!.id, startedAt })
+        .returning({ id: workoutSessions.id });
+      await openStrengthParent(tx, userId, { id: session!.id, startedAt }, "UTC");
+      return session!.id;
+    });
+    const read = await withUser(
+      t.db,
+      userId,
+      (tx) => readActivityDays(tx, userId, { from: ridden!.occurredOn, to: ridden!.occurredOn }),
+      { readOnly: true },
+    );
+    expect(read.items.map((item) => [item.id, item.inProgress])).toEqual([
+      [ridden!.id, false],
+      [open, true],
+    ]);
+  });
+});
 
 describe("reads deeper than a page", () => {
   it("keeps the calendar's newest activities when there are more than it holds", async () => {
