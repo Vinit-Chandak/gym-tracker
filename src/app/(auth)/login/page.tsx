@@ -41,10 +41,12 @@ export default async function LoginPage(props: PageProps<"/login">) {
             /auth/confirm). What it was for went with that browser, so both cases are said. */}
         {error === "browser" && (
           <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
-            <Glyph name="warn" className="mt-px glyph-18" />
-            That link was opened in a different browser from the one that asked for it. If it
-            confirmed your email, you can sign in now. If it was to reset your password, ask for a
-            new link here, in this browser.
+            <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
+            <span className="min-w-0">
+              That link was opened in a different browser from the one that asked for it. If it
+              confirmed your email, you can sign in now. If it was to reset your password, ask for a
+              new link from this browser.
+            </span>
           </p>
         )}
         <LoginForm next={nextPath} />
