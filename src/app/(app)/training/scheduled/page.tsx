@@ -21,13 +21,15 @@ import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositor
 import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { formatIsoDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Scheduled" };
+export const metadata: Metadata = { title: "Scheduled by you" };
 
 /**
  * Standalone scheduled work: what is coming, what was missed, and what was done (SCHED-08).
+ * Titled for whose it is, "Scheduled by you": "Scheduled on their own" said neither what nor
+ * whose (year audit, October 2026).
  *
- * Programme sessions are not here — they belong to the programme, which has its own full
- * view. Nothing on this page is a coach target either: scheduling something yourself puts it
+ * Programme sessions are not here — they belong to the programme, whose days are Training's
+ * cycle. Nothing on this page is a coach target either: scheduling something yourself puts it
  * on the calendar without making it part of a programme.
  *
  * Each session opens its own page, where it is skipped, moved or taken off the calendar, so a
@@ -113,14 +115,16 @@ export default async function ScheduledPage() {
 
   return (
     <>
-      <PageHeader title="Scheduled on their own" backHref="/training" />
+      <PageHeader title="Scheduled by you" backHref="/training" />
       <PageContent>
         <Section title="Upcoming">
           {upcoming.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
-              title={missed.length > 0 ? "Nothing coming up" : "Nothing scheduled on its own"}
-              description="Sessions you put on the calendar yourself wait here. Your programme's own sessions are under Programme, and today's are on Today."
+              title={missed.length > 0 ? "Nothing coming up" : "Nothing scheduled by you"}
+              // Where the programme's sessions are, all of them: its days, runs among them, are
+              // Training's cycle. "Under Programme" sent a lifter to a page that sent them back.
+              description="Sessions you put on the calendar yourself wait here. Your programme's days are on Training, a cycle at a time, and today's sessions are on Today."
               action={
                 <LinkButton href="/training/schedule" variant="secondary">
                   Schedule an activity
