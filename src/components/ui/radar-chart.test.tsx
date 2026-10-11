@@ -5,6 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import { SPLIT_GROUPS } from "@/domain/muscle-split";
 
 import { RadarChart } from "./radar-chart";
+import { radarLayout } from "./radar-plot";
 
 afterEach(cleanup);
 
@@ -72,4 +73,16 @@ it("adds a legend and a second column once there are two shapes", () => {
     "Alice",
     "Bob",
   ]);
+});
+
+it("draws its labels at 12 px on a small phone, larger with larger text, with room kept", () => {
+  // A 288-px box (a 320-pt phone): 12 px on screen is 13.3 units of the 320-unit drawing.
+  const phone = radarLayout(288, 16, "Shoulders".length);
+  expect(phone.fontSize * (288 / 320)).toBeCloseTo(12);
+  expect(phone.radius).toBe(96);
+  // At 200% text the labels double, and the shape gives them the room, never below a third.
+  const large = radarLayout(288, 32, "Shoulders".length);
+  expect(large.fontSize * (288 / 320)).toBeCloseTo(24);
+  expect(large.radius).toBeLessThan(96);
+  expect(large.radius).toBeGreaterThanOrEqual(32);
 });
