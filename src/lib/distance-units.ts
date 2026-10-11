@@ -103,6 +103,23 @@ const DISPLAY_DECIMALS: Record<LengthUnit, number> = { m: 0, km: 2, mi: 2, yd: 0
 /** A range of road distances reads to a tenth; see `sportDistanceParts`. */
 const RANGE_DECIMALS = 1;
 
+/**
+ * A distance as it was entered, read in another unit for a form to open on: to the places a
+ * distance reads in there (1,500 m is 1,640 yd; 7.2 km is 4.47 mi), and whether that figure is
+ * the same distance exactly. What was entered is not rewritten by it: a form posts the entry
+ * itself until the figure is changed.
+ */
+export function entryIn(
+  value: number,
+  from: LengthUnit,
+  to: LengthUnit,
+): { value: number; exact: boolean } {
+  if (from === to) return { value, exact: true };
+  const metres = toMetres(value, from);
+  const shown = roundTo(fromMetres(metres, to), DISPLAY_DECIMALS[to]);
+  return { value: shown, exact: sameDistance(toMetres(shown, to), metres) };
+}
+
 /** "8.05 km" / "5 mi" / "400 m". Display rounding only; comparisons use the stored value. */
 export function formatDistance(metres: number, unit: LengthUnit, places?: number): string {
   const value = roundTo(fromMetres(metres, unit), places ?? DISPLAY_DECIMALS[unit]);
@@ -114,6 +131,21 @@ export type SportUnits = { distanceUnit: DistanceUnit; poolUnit: PoolUnit };
 
 /** What an athlete who has never chosen reads: kilometres on the road, metres in the pool. */
 export const DEFAULT_SPORT_UNITS: SportUnits = { distanceUnit: "km", poolUnit: "m" };
+
+/** A foot, by definition. */
+export const METRES_PER_FOOT = 0.3048;
+
+/** What a climb is read in: feet beside miles, metres beside kilometres. It is kept in metres. */
+export type ClimbUnit = "m" | "ft";
+
+export function climbUnit(distanceUnit: DistanceUnit): ClimbUnit {
+  return distanceUnit === "mi" ? "ft" : "m";
+}
+
+/** A climb in metres read in `unit`, whole: 89 m is 292 ft. */
+export function climbIn(metres: number, unit: ClimbUnit): number {
+  return Math.round(unit === "ft" ? metres / METRES_PER_FOOT : metres);
+}
 
 /** The unit a sport's distances are read in. A swim is never described in kilometres. */
 export function readingUnit(sport: string, units: SportUnits): DistanceUnit | PoolUnit {

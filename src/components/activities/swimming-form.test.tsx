@@ -134,3 +134,31 @@ it("gives no pace until a swimming time is stated", () => {
   const statuses = screen.getAllByRole("status").map((node) => node.textContent ?? "");
   expect(statuses.some((text) => text.includes("per 100"))).toBe(false);
 });
+
+it("opens a distance entered in metres in the swimmer's yards, and keeps it until it is changed", () => {
+  // Liam swims in yards; his open-water swim was entered as 1500 m, and its page reads 1,640 yd.
+  const { container } = render(
+    <SwimmingForm
+      action={action}
+      initial={{
+        ...initial,
+        environment: "open_water",
+        distanceMethod: "manual",
+        distanceValue: "1500",
+        distanceUnit: "m",
+      }}
+      submissionKey="11111111-1111-4111-8111-111111111111"
+      submitLabel="Save changes"
+      readIn="yd"
+    />,
+  );
+  const distance = screen.getByLabelText("Distance") as HTMLInputElement;
+  expect(distance.value).toBe("1640");
+  expect(screen.getByText("Entered as 1,500 m")).toBeTruthy();
+  const posted = () => new FormData(container.querySelector("form")!);
+  // Saved as it is, nothing is converted: the swim is still the 1500 m it was entered as.
+  expect([posted().get("distanceValue"), posted().get("distanceUnit")]).toEqual(["1500", "m"]);
+  fireEvent.change(distance, { target: { value: "1650" } });
+  expect([posted().get("distanceValue"), posted().get("distanceUnit")]).toEqual(["1650", "yd"]);
+  expect(screen.queryByText(/Entered as/)).toBeNull();
+});

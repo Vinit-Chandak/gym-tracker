@@ -204,3 +204,31 @@ it("shows a time held to the tenth as its page does, and keeps the tenth unless 
   fireEvent.change(duration, { target: { value: "32:20" } });
   expect([posted().get("minutes"), posted().get("seconds")]).toEqual(["32", "20"]);
 });
+
+it("opens a correction in the athlete's own units, and changes nothing that is not changed", async () => {
+  // A run entered as 7.2 km and 89 m of climb, corrected by someone who runs in miles.
+  const { container } = render(
+    <ActivityEditor
+      {...props}
+      sport="running"
+      activityId="run-1"
+      expectedRevision={1}
+      units={{ distanceUnit: "mi", poolUnit: "yd" }}
+      initial={{
+        ...props.initial,
+        distanceValue: "7.2",
+        distanceUnit: "km",
+        elevationGainMetres: "89",
+        minutes: "40",
+      }}
+      action={vi.fn()}
+    />,
+  );
+  expect(((await screen.findByLabelText("Distance")) as HTMLInputElement).value).toBe("4.47");
+  expect((screen.getByLabelText("Elevation gain ft") as HTMLInputElement).value).toBe("292");
+  const posted = new FormData(container.querySelector("form")!);
+  expect([posted.get("distanceValue"), posted.get("distanceUnit")]).toEqual(["7.2", "km"]);
+  expect(posted.get("elevationGainMetres")).toBe("89");
+  // Opening it keeps no draft: nothing was changed.
+  expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0);
+});

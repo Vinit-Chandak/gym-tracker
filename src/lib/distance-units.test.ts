@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  climbIn,
+  climbUnit,
   decimalPlaces,
+  entryIn,
   formatDistance,
   formatSportDistance,
   fromMetres,
@@ -121,5 +124,23 @@ describe("a distance in the reader's unit", () => {
     // A distance on its own, or a range in metres, is not rounded further.
     expect(formatSportDistance(toMetres(7, "km"), "running", miles)).toBe("4.35 mi");
     expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000 m");
+  });
+});
+
+describe("a recorded distance opened in another unit", () => {
+  it("reads it to the places a distance reads in there, and says whether that is exact", () => {
+    // Liam swims in yards; his open-water swim was entered as 1500 m.
+    expect(entryIn(1500, "m", "yd")).toEqual({ value: 1640, exact: false });
+    expect(entryIn(7.2, "km", "mi")).toEqual({ value: 4.47, exact: false });
+    // A figure that is the same distance in both says so, and one in its own unit is itself.
+    expect(entryIn(1609.344, "m", "mi")).toEqual({ value: 1, exact: true });
+    expect(entryIn(4.4, "mi", "mi")).toEqual({ value: 4.4, exact: true });
+  });
+
+  it("reads a climb in feet beside miles and in metres beside kilometres, whole", () => {
+    expect(climbUnit("mi")).toBe("ft");
+    expect(climbUnit("km")).toBe("m");
+    expect(climbIn(89, "ft")).toBe(292);
+    expect(climbIn(89.4, "m")).toBe(89);
   });
 });

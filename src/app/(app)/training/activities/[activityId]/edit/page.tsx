@@ -32,7 +32,8 @@ export default async function EditActivityPage(
       const found = await getActivity(tx, user.id, activityId);
       return {
         activity: found,
-        // How the athlete reads the sport: a swim's lengths also say their distance in it.
+        // How the athlete reads the sport: the distance opens in it, whatever it was entered
+        // in, and a swim's lengths also say their distance in it.
         units: found?.actual ? await unitsFor(tx, user.id, found.actual.sport) : null,
       };
     },
@@ -92,7 +93,7 @@ export default async function EditActivityPage(
           outcome: activity.outcome,
         }}
         submitLabel="Save changes"
-        poolUnit={units?.poolUnit}
+        units={units ?? undefined}
       />
     </SessionPage>
   );
