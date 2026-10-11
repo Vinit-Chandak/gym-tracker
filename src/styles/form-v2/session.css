@@ -1086,6 +1086,13 @@ html:has(.session-page) .pinned-actions {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
   gap: calc(8 * var(--ov-u));
 }
+/* A name that wraps ("Sleep quality" in a narrow column) stands on its figure like the others:
+   each name sits just over its figure, and the figures of a row share one line. */
+.finished-check-in > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
 
 /* ---------- the Log tab's decision block (plan: gradual confirmation during workouts) ---------- */
 /* One quiet block on surface: the machine's drawing beside the question, the answer that keeps
