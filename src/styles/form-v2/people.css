@@ -300,6 +300,95 @@
   padding: calc(8 * var(--ov-u)) 0;
 }
 
+/* ---------- head to head (a friend's compare page; compare-header, compare-table) ---------- */
+/* The two people in halves of one width, "VS" between. */
+.compare-head {
+  container: compare-head / inline-size;
+}
+.compare-head-people {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: calc(12 * var(--ov-u));
+}
+/* Large text: "VS" gives its column to the names, which the two avatars already set apart. */
+@container compare-head (width < 15rem) {
+  .compare-head-people {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .compare-head-vs {
+    display: none;
+  }
+}
+/* Three columns while the metric's words and both figures fit whole beside each other. A
+   figure never splits, and a word breaks only where it cannot fit a line of its own. */
+.compare-table {
+  container: compare / inline-size;
+}
+.compare-metric,
+.compare-value {
+  overflow-wrap: break-word;
+}
+.compare-who {
+  display: none;
+}
+/* Too narrow for that (320 pt, large text): each metric stacks, its name and difference on a
+   line, then each person's figure on a line of its own after their name, the figure going under
+   the name where both cannot share the line. */
+@container compare (width < 18rem) {
+  .compare-table table,
+  .compare-table tbody {
+    display: block;
+  }
+  /* The column heads are still heard, each a point on the page, so a long name in one never
+     reaches past the screen's edge. */
+  .compare-table thead th {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .compare-table tbody > tr {
+    display: flex;
+    flex-direction: column;
+    padding-block: calc(10 * var(--ov-u));
+    gap: calc(6 * var(--ov-u));
+  }
+  .compare-table tbody > tr:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .compare-table tbody > tr:last-child {
+    padding-bottom: 0;
+  }
+  .compare-metric {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 calc(8 * var(--ov-u));
+    padding: 0;
+  }
+  .compare-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 calc(12 * var(--ov-u));
+    padding: 0;
+  }
+  .compare-who {
+    display: block;
+    min-width: 0;
+    text-align: left;
+  }
+  .compare-figures {
+    margin-left: auto;
+  }
+}
+
 /* ---------- friends (board Friends) ---------- */
 .shortcut-grid {
   display: grid;
