@@ -25,6 +25,7 @@ import { earliestOf, exerciseSessions } from "@/domain/progress-graphs";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
 import { showsDrafts } from "@/lib/drafts";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatKilograms } from "@/lib/format";
 import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
@@ -385,7 +386,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
                     <p className="text-xs [overflow-wrap:break-word] text-ink-subtle">
-                      {[usage.targetLoadNote, usage.progressionNotes].filter(Boolean).join(" · ")}
+                      {[usage.targetLoadNote, usage.progressionNotes]
+                        .filter(Boolean)
+                        .join(FACT_SEPARATOR)}
                     </p>
                   )}
                 </li>

@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { AVAILABILITY_LABELS } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
@@ -90,7 +91,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                     {row.exercise.name}
                   </span>
                   <span className="text-xs [overflow-wrap:break-word] text-ink-muted">
-                    {row.days.join(" · ")}
+                    {row.days.join(FACT_SEPARATOR)}
                   </span>
                 </Link>
               </div>

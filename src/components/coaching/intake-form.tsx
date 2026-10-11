@@ -13,6 +13,7 @@ import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { TRAINING_GOALS } from "@/domain/types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { TRAINING_GOAL_LABELS, WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/labels";
 import {
   fromKilograms,
@@ -1246,7 +1247,7 @@ function ReviewStep({
                 answers.ageYears ? `${answers.ageYears} years` : null,
               ]
                 .filter(Boolean)
-                .join(" · ") || "Not answered",
+                .join(FACT_SEPARATOR) || "Not answered",
             ],
             ["Injuries", answers.restrictions || "None reported"],
             ["Preferences", answers.preferences || "None reported"],

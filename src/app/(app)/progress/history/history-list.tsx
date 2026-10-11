@@ -5,6 +5,7 @@ import type { Sport } from "@/components/art/geometry";
 import { dayLabel } from "@/components/graph/labels";
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ function byDay(items: readonly HistoryItem[]) {
 }
 
 function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
-  const line = [item.subtitle, item.recovery].filter(Boolean).join(" · ");
+  const line = joinFacts([item.subtitle, item.recovery]);
   const content = (
     <>
       <span className="mark-cell">

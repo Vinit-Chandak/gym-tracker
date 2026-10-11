@@ -19,6 +19,7 @@ import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -125,11 +126,15 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 max={overview.progress.total}
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
+              {/* Each count kept with its words ("0 to go", never "0 to / go"), and each dot with
+                  the fact after it, when the line wraps. */}
               <p className="text-xs text-ink-muted tabular-nums">
-                Cycle {overview.currentCycle} of {overview.program.cycles} ·{" "}
-                {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
-                {overview.progress.remaining} to go
-                {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
+                {joinFacts([
+                  `Cycle\u00a0${overview.currentCycle}\u00a0of\u00a0${overview.program.cycles}`,
+                  `${overview.progress.completed}\u00a0of\u00a0${overview.progress.total} programme days`,
+                  `${overview.progress.remaining}\u00a0to\u00a0go`,
+                  overview.progress.skipped > 0 && `${overview.progress.skipped}\u00a0skipped`,
+                ])}
               </p>
               <StatTileRow>
                 <StatTile label="Weeks" value={overview.program.weeks} />

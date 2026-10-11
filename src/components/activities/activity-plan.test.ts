@@ -20,7 +20,9 @@ it("gives a session's effort out of five", () => {
     sport: "running",
     sessionTargets: { durationMs: [25 * MINUTE, 30 * MINUTE], effort: [1, 2] },
   });
-  expect(sessionLine(prescription, DEFAULT_SPORT_UNITS)).toBe("25 min–30 min · Effort 1–2 of 5");
+  expect(sessionLine(prescription, DEFAULT_SPORT_UNITS)).toBe(
+    "25 min–30 min ·\u00a0Effort 1–2 of 5",
+  );
 });
 
 it("gives a step's effort out of five", () => {
@@ -40,13 +42,15 @@ it("gives a step's effort out of five", () => {
       ],
     }),
   );
-  expect(stepLine(step!, "running", DEFAULT_SPORT_UNITS)).toBe("Run · 10 min · Effort 3 of 5");
+  expect(stepLine(step!, "running", DEFAULT_SPORT_UNITS)).toBe(
+    "Run ·\u00a010 min ·\u00a0Effort 3 of 5",
+  );
 });
 
 it("gives a programme run's effort out of five, and none when it asks for none", () => {
   const run = { distanceMinKm: null, distanceMaxKm: null, durationMinMinutes: 20 };
   expect(runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 1, rpeMax: 2 })).toBe(
-    "20–25 min · Effort 1–2 of 5",
+    "20–25 min ·\u00a0Effort 1–2 of 5",
   );
   expect(runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 0, rpeMax: 0 })).toBe("20–25 min");
 });

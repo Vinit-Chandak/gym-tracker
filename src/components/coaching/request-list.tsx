@@ -9,6 +9,7 @@ import { SpeechTextarea } from "@/components/ui/dictation";
 import { Glyph } from "@/components/ui/glyphs";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDay } from "@/lib/format";
 import {
   answerProgramRequestAction,
@@ -49,7 +50,7 @@ function waitingLine(request: RequestView): string {
       request.condition,
     ]
       .filter(Boolean)
-      .join(" · ");
+      .join(FACT_SEPARATOR);
   return "At the next coach run";
 }
 

@@ -16,6 +16,7 @@ import { diffPrograms } from "@/domain/program-diff";
 import { OPEN_REQUEST_STATES } from "@/domain/program-request";
 import { progress } from "@/domain/schedule";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatDay, formatIsoDay } from "@/lib/format";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { listOpenRequests } from "@/server/repositories/coach-program-requests";
@@ -314,7 +315,7 @@ export function ProgrammeChanges({
                 data.history.changes > 0 && plural(data.history.changes, "change"),
               ]
                 .filter(Boolean)
-                .join(" · ")}
+                .join(FACT_SEPARATOR)}
             />
           </li>
         </List>

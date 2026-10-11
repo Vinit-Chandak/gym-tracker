@@ -16,6 +16,7 @@ import {
 } from "@/components/graph/labels";
 import { Select } from "@/components/ui/select";
 import { STRENGTH_GROUP_CHOICES, type StrengthGroupChoice } from "@/domain/progress-graphs";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { fromKilograms } from "@/lib/units";
 
 import type { ProgressData } from "../progress-types";
@@ -197,7 +198,7 @@ function GroupVolume({
             many > 1 ? counted(many, "workout") : null,
           ]
             .filter(Boolean)
-            .join(" · "),
+            .join(FACT_SEPARATOR),
           ...(one
             ? { href: workoutHref(one, "history"), action: "Open workout" }
             : range.bucket === "day"

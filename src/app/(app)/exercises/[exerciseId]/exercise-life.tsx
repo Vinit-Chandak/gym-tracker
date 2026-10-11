@@ -8,6 +8,7 @@ import { formatSet, formatSets } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
@@ -191,7 +192,7 @@ export function ExerciseLife({
                         todayInTimeZone(timeZone, new Date(performance.performedAt)),
                       )}
                       {exercise.loadPortability !== "global" && performance.machineName
-                        ? ` · ${performance.machineName}`
+                        ? `${FACT_SEPARATOR}${performance.machineName}`
                         : ""}
                     </span>
                     {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}

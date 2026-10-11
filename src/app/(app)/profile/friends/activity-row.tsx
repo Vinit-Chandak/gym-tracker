@@ -4,6 +4,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { formatDuration } from "@/domain/pace";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
+import { joinFacts } from "@/lib/facts";
 import {
   formatRelativeDay,
   formatSharedDistance,
@@ -24,10 +25,11 @@ function summary(row: Activity, unit: BodyLoadUnit, distanceUnits: SharedDistanc
     case "workout": {
       const parts = [
         row.title,
-        `${row.workingSets} ${row.workingSets === 1 ? "set" : "sets"}`,
+        `${row.workingSets}\u00a0${row.workingSets === 1 ? "set" : "sets"}`,
         formatSharedLoad(row.volumeKg, unit),
       ];
-      if (row.records > 0) parts.push(`${row.records} ${row.records === 1 ? "record" : "records"}`);
+      if (row.records > 0)
+        parts.push(`${row.records}\u00a0${row.records === 1 ? "record" : "records"}`);
       return parts;
     }
     case "run":
@@ -102,7 +104,7 @@ export function ActivityRow({
           <span className="grid w-4 shrink-0 justify-items-center">
             <Art kind="mark" sport={MARK[row.sport]} size={16} />
           </span>
-          <span className="activity-row-text">{summary(row, unit, distanceUnits).join(" · ")}</span>
+          <span className="activity-row-text">{joinFacts(summary(row, unit, distanceUnits))}</span>
         </span>
       </span>
     </Link>

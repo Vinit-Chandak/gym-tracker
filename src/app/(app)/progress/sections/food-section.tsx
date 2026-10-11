@@ -7,6 +7,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { reachesTarget } from "@/domain/progress-graphs";
 
 import type { ProgressData } from "../progress-types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 const METRICS = [
   { value: "kcal", label: "Calories" },
@@ -67,7 +68,7 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
                   target ? `target ${figure(target)}` : null,
                 ]
                   .filter(Boolean)
-                  .join(" · "),
+                  .join(FACT_SEPARATOR),
         }}
         describe={(index) => {
           const bucket = graph.buckets[index]!;

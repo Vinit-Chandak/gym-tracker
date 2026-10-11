@@ -26,6 +26,7 @@ import {
 } from "@/server/repositories/equipment";
 import { getGym } from "@/server/repositories/gyms";
 import { EQUIPMENT_CATEGORIES } from "@/domain/types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 export type GymDetailData = {
   gym: NonNullable<Awaited<ReturnType<typeof getGym>>>;
@@ -97,7 +98,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
       ? (["direct", "fallback", "unknown", "unavailable"] as const)
           .filter((status) => summary[status] > 0)
           .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
-          .join(" · ") || "Nothing to lift in it"
+          .join(FACT_SEPARATOR) || "Nothing to lift in it"
       : "No active programme";
   // A combination machine is each of its types, so none of them is offered as missing.
   const registeredTypeIds = new Set(activeEquipment.flatMap((item) => item.typeIds));

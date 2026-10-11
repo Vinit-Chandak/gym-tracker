@@ -20,6 +20,7 @@ import {
   type StrengthGroup,
 } from "@/domain/progress-graphs";
 import type { ExerciseModality, LoadUnit } from "@/domain/types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import type { NavOrigin } from "@/lib/nav";
 
@@ -205,7 +206,7 @@ export function ExerciseGraph({
               label: named(measure).best,
               ...(best ? figure(best[measure]!) : { figure: null }),
               context: best
-                ? [detail(best), dayLabel(best.date, today)].filter(Boolean).join(" · ")
+                ? [detail(best), dayLabel(best.date, today)].filter(Boolean).join(FACT_SEPARATOR)
                 : null,
             }}
             describe={(index) => {
@@ -223,7 +224,9 @@ export function ExerciseGraph({
                   : dayLabel(session.date, today),
                 ...(value === null ? { figure: null } : figure(value)),
                 context: line.bucket
-                  ? [detail(session), dayLabel(session.date, today)].filter(Boolean).join(" · ")
+                  ? [detail(session), dayLabel(session.date, today)]
+                      .filter(Boolean)
+                      .join(FACT_SEPARATOR)
                   : detail(session),
                 href: workoutHref(session.sessionId, origin),
                 action: "Open workout",
