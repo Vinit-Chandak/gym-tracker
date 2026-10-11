@@ -70,6 +70,15 @@ The owner chose **adaptive + fluid**:
      rem, so larger text means fewer, wider columns rather than squeezed ones.
    - Today holds at most two columns (62rem). A day with one card gives it the whole row, and a
      Today with no card keeps its buttons at a phone's width.
+   - Training is a screen of tiles. It is wide, with the cycle's days in as many columns as fit
+     and the next day across two, and its header widens with it.
+   - The Progress overview and Food keep the reading width. Where that column holds two
+     phone-wide panes (40rem and up: a tablet or a desktop at 100% text), they split in two:
+     the month and its totals beside History, and the day's bowl and macronutrients beside its
+     meals. At larger text they stay one column. The other Progress sections, graphs read one
+     at a time, stay one column.
+   - Friends' four shortcuts stand in one row beyond a phone, where their words fit.
+   - Profile, settings, forms and detail pages stay one readable column.
 
 4. **The workout is the page's column, centred.** The session layer still covers the screen.
    - It pads its sides to the size class's content width. On a phone in landscape it pads them
