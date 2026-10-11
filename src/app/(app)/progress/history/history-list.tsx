@@ -67,7 +67,7 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
       <span className="flex min-w-0 flex-1 flex-col">
         {/* The figure stands beside the name while both fit, under it when not. */}
         <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
-          <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:anywhere] tabular-nums">
+          <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:break-word] tabular-nums">
             {item.title}
           </span>
           {item.meta && (
@@ -75,7 +75,7 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
           )}
         </span>
         {line && (
-          <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+          <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
             {line}
           </span>
         )}

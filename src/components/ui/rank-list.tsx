@@ -62,16 +62,16 @@ export function RankList({
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
                 <span className="min-w-0 flex-[1_1_8ch]">
-                  <span className="block font-medium [overflow-wrap:anywhere]">
+                  <span className="block font-medium [overflow-wrap:break-word]">
                     {mine ? "You" : row.displayName || row.username}
                   </span>
-                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+                  <span className="block text-sm [overflow-wrap:break-word] text-ink-muted">
                     @{row.username}
                   </span>
                 </span>
               </span>
               {/* Values get their own line when the name and rank need the available width. */}
-              <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:anywhere] tabular-nums">
+              <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums">
                 {row.value === null ? (
                   <span aria-label="No data">—</span>
                 ) : (

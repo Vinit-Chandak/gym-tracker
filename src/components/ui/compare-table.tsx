@@ -45,7 +45,7 @@ export function CompareTable({
   rows: CompareRow[];
 }) {
   return (
-    <table className="w-full table-fixed border-collapse text-sm [overflow-wrap:anywhere]">
+    <table className="w-full table-fixed border-collapse text-sm [overflow-wrap:break-word]">
       {/* Fixed widths, so a long name or a wrapped line never squeezes the metric column to
           one word per line on a 320 px phone; the two value columns share what is left. */}
       <colgroup>
@@ -100,7 +100,7 @@ function Who({ name, title, color }: { name: string; title?: string; color: stri
     <th
       scope="col"
       title={title}
-      className="pb-2 pl-2 text-right font-medium [overflow-wrap:anywhere]"
+      className="pb-2 pl-2 text-right font-medium [overflow-wrap:break-word]"
     >
       <span
         className="mr-1.5 inline-block size-2 rounded-full align-middle"

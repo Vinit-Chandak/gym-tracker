@@ -21,6 +21,11 @@
   min-width: 0;
   align-items: flex-start;
   gap: calc(5 * var(--ov-u));
+  /* The one place a word may break anywhere: a fact's words sit beside its glyph with no box of
+     their own to shrink, so a name with no spaces longer than the line ("PureGymShoreditch…")
+     could not break inside it otherwise and would run off the screen. The fact itself never
+     gives its room to a neighbour (the line wraps instead), so no word is broken sooner. */
+  overflow-wrap: anywhere;
 }
 /* A fact that wraps (large text) keeps its glyph on its first line: centred on it, by the
    glyph's own size (glyph-16, 8 px + 0.5 rem). */
@@ -332,7 +337,28 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-body);
   font-weight: 600;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+/* The name, and what marks it out beside it (a badge, a tag). The name keeps room for a word
+   (6rem, so it grows with the text) and the mark folds under it rather than take that room:
+   "PureGym Shoreditch" wraps between its words at 320 pt, and its Default tag goes under it at
+   200% text rather than leaving the name a letter or two a line. */
+.nav-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
+}
+.nav-row-main > .nav-row-label,
+.nav-row-text {
+  min-width: min(100%, 6rem);
+  flex: 1 1 0;
+}
+.nav-row-text {
+  display: flex;
+  flex-direction: column;
 }
 /* A row with a second line is taller, its name in bold (boards Gyms, Gym). */
 .nav-row:has(.nav-row-sub) {
@@ -348,7 +374,7 @@ li:last-child > .sheet-row {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* What marks a row out, in an ink outline: Default. */
 .nav-row-tag {
@@ -366,7 +392,7 @@ li:last-child > .sheet-row {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-align: right;
 }
 .nav-row-badge {
@@ -405,7 +431,7 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .person-card-name {
   display: block;
@@ -481,14 +507,14 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .switch-row-effect {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- a switch (boards Profile, Privacy) ---------- */
@@ -611,7 +637,7 @@ li:last-child > .sheet-row {
 }
 .gym-choice-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* A screen's title at its measured size (fit-title.tsx). */
@@ -620,7 +646,7 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- Today ---------- */
@@ -1216,7 +1242,7 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .picker-row-meta {
   display: flex;

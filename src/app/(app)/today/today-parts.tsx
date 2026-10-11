@@ -190,7 +190,9 @@ export function PlanRow({
   return (
     <li className={cn("plan-row", last && "plan-row-last", small && "plan-row-small")}>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className={cn("plan-row-name [overflow-wrap:anywhere]", row.dropped && "text-ink-2")}>
+        <span
+          className={cn("plan-row-name [overflow-wrap:break-word]", row.dropped && "text-ink-2")}
+        >
           {row.name}
         </span>
         {row.line && (

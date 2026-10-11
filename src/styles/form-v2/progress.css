@@ -59,7 +59,7 @@
 }
 .month-total-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;

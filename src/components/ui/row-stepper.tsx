@@ -120,7 +120,7 @@ export function RowStepper({
   return (
     <div className="row-stepper" data-field-error={error ? "true" : undefined}>
       <span className="row-stepper-text">
-        <label htmlFor={id} className="font-bold [overflow-wrap:anywhere]">
+        <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">
           {label}
         </label>
         {hint && (

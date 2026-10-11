@@ -49,7 +49,7 @@ function Archived({
         <ul className="ruled-list">
           {programmes.map((programme) => (
             <li key={programme.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
-              <p className="font-medium [overflow-wrap:anywhere]">
+              <p className="font-medium [overflow-wrap:break-word]">
                 {programme.name} · version {programme.version}
               </p>
               <ProgrammeTools id={programme.id} active={false} />
@@ -112,7 +112,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             {/* What the programme is and how far through it you are. */}
             <Card>
               <div>
-                <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+                <h2 className="text-lg font-medium [overflow-wrap:break-word]">
                   {overview.program.name}
                 </h2>
                 <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
@@ -142,7 +142,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 <Disclosure summary="How it is meant to go" variant="footer">
                   <div className="space-y-3">
                     {overview.program.notes && (
-                      <p className="text-sm [overflow-wrap:anywhere]">{overview.program.notes}</p>
+                      <p className="text-sm [overflow-wrap:break-word]">{overview.program.notes}</p>
                     )}
                     <DetailList
                       entries={[

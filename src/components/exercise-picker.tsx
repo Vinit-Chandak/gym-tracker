@@ -102,7 +102,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
       {long && selected && (
         <p className="mt-2 type-meta-small text-ink-2">
           Selected:{" "}
-          <span className="font-bold [overflow-wrap:anywhere] text-ink">{selected.name}</span>
+          <span className="font-bold [overflow-wrap:break-word] text-ink">{selected.name}</span>
         </p>
       )}
 

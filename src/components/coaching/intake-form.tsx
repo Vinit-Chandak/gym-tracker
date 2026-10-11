@@ -351,7 +351,7 @@ function Header({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0 flex-[1_1_10ch]">
-        <h2 className="text-xl font-medium [overflow-wrap:anywhere]">{title}</h2>
+        <h2 className="text-xl font-medium [overflow-wrap:break-word]">{title}</h2>
         <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
           {status}
         </p>
@@ -1035,7 +1035,7 @@ function TrainingStep({
           <ul className="ruled-list">
             {answers.avoidExerciseSlugs.map((slug) => (
               <li key={slug} className="flex items-center justify-between gap-2 py-1 text-sm">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="min-w-0 [overflow-wrap:break-word]">
                   {library.find((exercise) => exercise.slug === slug)?.name ?? slug}
                 </span>
                 <Button
@@ -1133,7 +1133,7 @@ function StartingPointStep({
                       })
                     }
                   />
-                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{file.name}</span>
+                  <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{file.name}</span>
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
                   <a
@@ -1283,7 +1283,7 @@ function ReviewStep({
           <dl className="text-sm ruled-list">
             {answers.clarifications.map((entry) => (
               <div key={entry.question} className="space-y-0.5 py-2">
-                <dt className="[overflow-wrap:anywhere] text-ink-muted">{entry.question}</dt>
+                <dt className="[overflow-wrap:break-word] text-ink-muted">{entry.question}</dt>
                 <dd className="break-words whitespace-pre-wrap">{entry.answer}</dd>
               </div>
             ))}

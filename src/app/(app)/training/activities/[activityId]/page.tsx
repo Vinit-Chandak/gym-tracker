@@ -201,7 +201,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           </p>
         )}
         {activity.notes && (
-          <p className="mt-3.5 type-body [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <p className="mt-3.5 type-body [overflow-wrap:break-word] whitespace-pre-wrap">
             {activity.notes}
           </p>
         )}

@@ -488,7 +488,7 @@ function StarterTile({
           <span aria-hidden className="tick-box">
             {checked && <Glyph name="check" className="glyph-15" />}
           </span>
-          <span className="min-w-0 [overflow-wrap:anywhere]">{item.name}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{item.name}</span>
         </span>
         {!compact && item.purpose && <span className="equipment-tile-purpose">{item.purpose}</span>}
         {note && <span className="equipment-tile-note">{note}</span>}
@@ -727,7 +727,7 @@ function VariantTile({
       <button type="button" onClick={onChoose} className="equipment-tile w-full text-left">
         {art ? <EquipmentArt src={art} className="equipment-tile-art" /> : null}
         <span className="equipment-tile-name">
-          <span className="min-w-0 [overflow-wrap:anywhere]">{variant.name}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{variant.name}</span>
         </span>
         {(variant.identification ?? variant.purpose) && (
           <span className="equipment-tile-purpose">

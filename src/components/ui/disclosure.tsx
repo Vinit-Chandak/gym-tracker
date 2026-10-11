@@ -72,9 +72,9 @@ export function Disclosure({
           className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
-        <span className="min-w-0 flex-auto [overflow-wrap:anywhere]">{summary}</span>
+        <span className="min-w-0 flex-auto [overflow-wrap:break-word]">{summary}</span>
         {meta && (
-          <span className="ml-auto max-w-full text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="ml-auto max-w-full text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}

@@ -21,7 +21,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .cycle-count {
   max-width: 100%;
@@ -30,7 +30,7 @@
   font-size: var(--ov-type-meta-small);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* Two to a row, 10 apart, 14 between rows; the day on offer the full width. */
 .cycle-days {
@@ -100,7 +100,7 @@
   font-size: var(--ov-type-meta);
   font-weight: 700;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- a programme day (board Programme day) ---------- */

@@ -331,7 +331,7 @@
   font-size: var(--ov-type-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- a meal's page (board Dinner) and a portion (board Portion) ---------- */
@@ -437,7 +437,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* Every list of food leads its rows with a round tile, 36 pt as a food's plus was and growing
    with the text as glyphs do: Quick add's bolt, a saved meal's star, a food's bowl (the Food
@@ -505,7 +505,7 @@
   font-weight: 500;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* What a row comes to stands over its unit, both centred in a column four of Jost's tabular
    digits wide (0.614 em each): figures there are whole (kcal, grams), so every row's words end at

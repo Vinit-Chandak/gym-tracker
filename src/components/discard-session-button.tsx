@@ -55,13 +55,13 @@ export function DiscardSessionButton({
           onClick={discard}
         >
           <Glyph name="trash" className="glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{words}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{words}</span>
         </button>
       )}
       {error && (
         <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{error}</span>
         </p>
       )}
     </div>

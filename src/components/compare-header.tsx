@@ -41,10 +41,10 @@ function Person({ person, stronger }: { person: ComparePerson; stronger: boolean
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0">
-        <span className="block font-medium [overflow-wrap:anywhere]">
+        <span className="block font-medium [overflow-wrap:break-word]">
           {person.displayName || person.username}
         </span>
-        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+        <span className="block text-sm [overflow-wrap:break-word] text-ink-muted">
           @{person.username}
         </span>
       </p>

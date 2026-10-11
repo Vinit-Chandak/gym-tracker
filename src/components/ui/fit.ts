@@ -38,10 +38,15 @@ export function fitFigure(
 
 /**
  * A title steps down for a long name before it wraps: one line at its size or 4 under, else
- * smaller and two lines (Jost 700 at about 0.52 em a character).
+ * smaller and two lines (Jost 700 at about 0.52 em a character). A size is kept only while the
+ * longest word fits a line of its own, measured more widely (0.56 em, a word's letters having
+ * no spaces to average with), so a one-word name such as "Leaderboard" steps down rather than
+ * breaking inside the word at large text.
  */
 export function titleSize(name: string, available: number, base: number, min = 26): number {
-  for (const size of [base, base - 4]) if (name.length * size * 0.52 <= available) return size;
+  const word = Math.max(0, ...name.split(/\s+/).map((part) => part.length));
+  for (const size of [base, base - 4])
+    if (name.length * size * 0.52 <= available && word * size * 0.56 <= available) return size;
   return Math.max(min, base - 8);
 }
 

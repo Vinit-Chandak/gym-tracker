@@ -70,7 +70,7 @@ export function CoachNote({
           role={role}
           className={cn(
             small ? "mt-1 type-meta leading-[1.45] text-ink" : "mt-1 type-body",
-            "[overflow-wrap:anywhere] tabular-nums",
+            "[overflow-wrap:break-word] tabular-nums",
             title && "mt-0.5",
             clamp && "line-clamp-2",
           )}

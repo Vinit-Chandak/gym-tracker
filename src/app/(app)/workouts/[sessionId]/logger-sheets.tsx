@@ -356,7 +356,7 @@ function SetEditor({
               className="flex items-center justify-between gap-3 border-b border-hair py-2.5"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="type-heading text-[length:var(--ov-type-body)] [overflow-wrap:anywhere]">
+                <span className="type-heading text-[length:var(--ov-type-body)] [overflow-wrap:break-word]">
                   {field.inputLabel}
                 </span>
                 {field.hint && (
@@ -447,7 +447,7 @@ function SetEditor({
           className="flex items-start gap-2 text-[length:var(--ov-type-meta)] leading-[1.4] font-semibold"
         >
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{row.error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{row.error}</span>
         </p>
       )}
       <div className="grid gap-2">
@@ -539,7 +539,7 @@ export function MoreSheet({
         <span className="flex min-w-0 flex-1 flex-col">
           <span
             className={cn(
-              "text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
+              "text-[length:var(--ov-type-button)] [overflow-wrap:break-word]",
               option.apart ? "font-bold" : "font-semibold",
             )}
           >

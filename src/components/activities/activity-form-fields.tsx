@@ -443,10 +443,10 @@ export function TargetCard({ title, lines }: { title: string; lines: readonly st
           <span className="target-card-unit">{split[2]}</span>
         </p>
       ) : (
-        <p className="font-bold [overflow-wrap:anywhere]">{first}</p>
+        <p className="font-bold [overflow-wrap:break-word]">{first}</p>
       )}
       {rest.map((line, index) => (
-        <p key={index} className="type-meta [overflow-wrap:anywhere] text-ink-2">
+        <p key={index} className="type-meta [overflow-wrap:break-word] text-ink-2">
           {line}
         </p>
       ))}

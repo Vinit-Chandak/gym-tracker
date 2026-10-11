@@ -151,7 +151,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
             id={id}
             role="note"
             tabIndex={0}
-            className="fixed z-[var(--ov-z-notice)] overflow-y-auto overscroll-contain rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal [overflow-wrap:anywhere] text-ink normal-case shadow-sm"
+            className="fixed z-[var(--ov-z-notice)] overflow-y-auto overscroll-contain rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal [overflow-wrap:break-word] text-ink normal-case shadow-sm"
           >
             {children}
           </span>,

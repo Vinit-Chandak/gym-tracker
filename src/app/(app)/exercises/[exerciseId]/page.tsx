@@ -381,10 +381,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
-                  <p className="text-sm font-medium">{usage.dayName}</p>
+                  <p className="text-sm font-medium [overflow-wrap:break-word]">{usage.dayName}</p>
                   <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
-                    <p className="text-xs text-ink-subtle">
+                    <p className="text-xs [overflow-wrap:break-word] text-ink-subtle">
                       {[usage.targetLoadNote, usage.progressionNotes].filter(Boolean).join(" · ")}
                     </p>
                   )}
@@ -411,7 +411,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="min-w-0 font-medium [overflow-wrap:anywhere]">{entry.gym.name}</h3>
+                <h3 className="min-w-0 font-medium [overflow-wrap:break-word]">{entry.gym.name}</h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>

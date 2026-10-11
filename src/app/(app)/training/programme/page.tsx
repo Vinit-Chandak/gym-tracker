@@ -154,7 +154,7 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
                       <Link
                         prefetch="intent"
                         href={`/training/programme/occurrences/${occurrence.id}`}
-                        className="tap-area text-base font-medium [overflow-wrap:anywhere]"
+                        className="tap-area text-base font-medium [overflow-wrap:break-word]"
                       >
                         {ACTIVITY_SPORT_LABELS[occurrence.sport]}
                         {occurrence.prescription

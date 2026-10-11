@@ -79,7 +79,7 @@ export function GymChoice({
     return (
       <span className="meta-fact">
         <Glyph name="pin" label="Gym" className="glyph-16" />
-        <span className="[overflow-wrap:anywhere]">{name}</span>
+        <span className="[overflow-wrap:break-word]">{name}</span>
       </span>
     );
 

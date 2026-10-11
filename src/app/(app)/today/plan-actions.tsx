@@ -26,7 +26,7 @@ function ActionError({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
       <Glyph name="warn" className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }
@@ -191,7 +191,7 @@ export function MoreOptions({
         <Glyph name={glyph} className="glyph-22" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[length:var(--ov-type-button)] font-semibold [overflow-wrap:anywhere]">
+        <span className="text-[length:var(--ov-type-button)] font-semibold [overflow-wrap:break-word]">
           {label}
         </span>
         {sub}
@@ -239,7 +239,7 @@ export function MoreOptions({
           <form action={formAction} className="mt-2 space-y-4">
             {/* The workout alone: titled with the day's name, the sheet read as skipping all of it. */}
             {skip.runOwed && (
-              <p className="type-body [overflow-wrap:anywhere] text-ink-2">
+              <p className="type-body [overflow-wrap:break-word] text-ink-2">
                 The run stays on Today. Skip it from its own card if you are not running either.
               </p>
             )}
@@ -419,7 +419,7 @@ export function PickUpFromToday({
   return (
     <>
       <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="min-w-0 flex-1 type-meta [overflow-wrap:anywhere] text-ink-2">
+        <p className="min-w-0 flex-1 type-meta [overflow-wrap:break-word] text-ink-2">
           <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
         </p>
         <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
@@ -428,7 +428,7 @@ export function PickUpFromToday({
       </div>
       <Sheet open={open} onClose={() => setOpen(false)} title="Pick up from today">
         <form action={formAction} className="space-y-4">
-          <p className="type-body [overflow-wrap:anywhere]">
+          <p className="type-body [overflow-wrap:break-word]">
             Skip the {sessions} you missed and carry on from{" "}
             {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
             stay in History as skipped.
@@ -436,7 +436,7 @@ export function PickUpFromToday({
           <ul className="type-meta ruled-list">
             {listed.map((day) => (
               <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
-                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{day.name}</span>
+                <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{day.name}</span>
                 <span className="shrink-0 text-ink-2">Cycle {day.cycleIndex}</span>
               </li>
             ))}

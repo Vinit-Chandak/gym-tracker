@@ -40,7 +40,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:anywhere] select-none disabled:pointer-events-none",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:break-word] select-none disabled:pointer-events-none",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

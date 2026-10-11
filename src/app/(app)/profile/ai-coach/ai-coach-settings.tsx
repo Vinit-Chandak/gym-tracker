@@ -184,7 +184,7 @@ export function AiCoachSettings({
                     {attempt.when.split(",")[0]}
                   </span>
                 </p>
-                <p className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2">
+                <p className="type-caption font-medium [overflow-wrap:break-word] text-ink-2">
                   {attempt.status === "failed" && attempt.error
                     ? attempt.error
                     : [attempt.gymName, attempt.when].filter(Boolean).join(" · ")}

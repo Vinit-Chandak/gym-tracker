@@ -9,7 +9,7 @@
   font-size: calc(calc(6.5 * var(--ov-u)) + 1.21875rem); /* 26, k 0.75 */
   font-weight: 700;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .change-why {
   margin-top: calc(10 * var(--ov-u));
@@ -78,7 +78,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .diff-targets,
 .diff-line {
@@ -87,14 +87,14 @@
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .diff-note {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .diff-new {
   color: var(--ov-ink);
@@ -117,7 +117,7 @@
   background: var(--ov-surface);
   font-size: var(--ov-type-caption);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- the coach (board AI coach) ---------- */
@@ -149,7 +149,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .request-card-answer textarea {
   min-height: calc(70 * var(--ov-u));
@@ -176,14 +176,14 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .waiting-row-sub {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* What the athlete told the coach, and what became of it. */
 .coach-note {
@@ -197,7 +197,7 @@
   font-size: var(--ov-type-meta);
   font-weight: 600;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: pre-line;
 }
 /* Telling the coach, pinned: the note's words and Send in one bordered box. */
@@ -252,7 +252,7 @@
   font-size: var(--ov-type-body);
   font-weight: 500;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-knows > li {
   display: inline;
@@ -328,7 +328,7 @@
   font-size: var(--ov-type-meta);
   font-weight: 700;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .shortcut-tile-badge {
   position: absolute;
@@ -366,7 +366,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .activity-row-day {
   flex-shrink: 0;
@@ -381,5 +381,5 @@
   font-size: var(--ov-type-meta-small);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }

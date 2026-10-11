@@ -32,7 +32,7 @@ function Fact({ glyph, children }: { glyph: GlyphName; children: React.ReactNode
   return (
     <span className="meta-fact">
       <Glyph name={glyph} className="glyph-16" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </span>
   );
 }
@@ -77,7 +77,7 @@ function EnduranceDetails({
               {steps.map((step, index) => (
                 <li
                   key={`${step.id}-${step.repetition}-${index}`}
-                  className="type-meta-small [overflow-wrap:anywhere] tabular-nums"
+                  className="type-meta-small [overflow-wrap:break-word] tabular-nums"
                 >
                   <span className="text-ink-2">{PHASE_LABELS[step.phase]}</span>{" "}
                   {stepLine(step, prescription!.sport, units)}
@@ -93,7 +93,7 @@ function EnduranceDetails({
           {how.map(([label, value], index) => (
             <div key={`${label}-${index}`} className="min-w-0">
               <dt className="type-caption text-ink-2">{label}</dt>
-              <dd className="type-meta [overflow-wrap:anywhere]">{value}</dd>
+              <dd className="type-meta [overflow-wrap:break-word]">{value}</dd>
             </div>
           ))}
         </dl>

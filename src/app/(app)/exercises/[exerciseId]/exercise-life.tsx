@@ -196,7 +196,7 @@ export function ExerciseLife({
                     </span>
                     {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
                   </span>
-                  <span className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+                  <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
                     {formatSets(performance.sets, (loadUnit) => LOAD_UNIT_LABELS[loadUnit])}
                   </span>
                 </Link>

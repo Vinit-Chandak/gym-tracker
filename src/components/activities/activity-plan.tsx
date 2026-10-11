@@ -117,7 +117,7 @@ export function ActivityPlan({
             {ACTIVITY_SPORT_LABELS[sport]} · planned
           </p>
           {prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">
+            <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
               {prescription.title}
             </h2>
           )}

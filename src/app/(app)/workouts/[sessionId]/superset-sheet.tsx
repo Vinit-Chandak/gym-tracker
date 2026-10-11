@@ -117,7 +117,7 @@ export function SupersetSheet({
                   className="flex min-h-12 w-full items-center gap-3 py-2 pl-2 text-left text-sm superset-row active:bg-surface-raised"
                   style={supersetStyle(entry.hue)}
                 >
-                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex-1 [overflow-wrap:break-word]">
                     {entry.members.join(" + ")}
                   </span>
                   <span className="shrink-0 text-xs font-medium text-ink-muted">Edit</span>
@@ -150,7 +150,7 @@ export function SupersetSheet({
                     onChange={() => toggle(exercise.id)}
                     className="size-5 shrink-0 accent-[var(--ov-accent)]"
                   />
-                  <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex-1 text-sm [overflow-wrap:break-word]">
                     {exercise.exercise.name}
                   </span>
                   {/* Already in another group: its colour says which, no words needed. */}
