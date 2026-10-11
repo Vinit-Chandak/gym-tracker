@@ -21,7 +21,7 @@ const MARK: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "swim"> 
 };
 
 /** "Log run", "Log ride", "Log swim": the action names the sport, so three cards never share it. */
-const LOG_LABEL: Record<Exclude<ActivitySport, "strength">, string> = {
+export const LOG_LABEL: Record<Exclude<ActivitySport, "strength">, string> = {
   running: "Log run",
   cycling: "Log ride",
   swimming: "Log swim",

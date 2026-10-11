@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { isOutstanding, LOG_LABEL } from "@/components/activities/today-activities";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -15,6 +16,7 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
+import { occurrencesForSlot } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan, listExercisesByDay } from "@/server/repositories/schedule";
 import { CalendarDays } from "@/components/ui/icons";
 
@@ -34,7 +36,7 @@ export const metadata: Metadata = { title: "Choose a day" };
 export default async function ChooseDayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  const [inProgress, { plan, defaultGymId, exercisesByDay, starts }] = await Promise.all([
+  const [inProgress, { plan, defaultGymId, exercisesByDay, starts, runs }] = await Promise.all([
     // The per-request read the session strip also makes.
     getActiveSession(user.id),
     withUser(
@@ -47,13 +49,26 @@ export default async function ChooseDayPage() {
           listGyms(tx, user.id),
         ]);
         const plan = await getTodayPlan(tx, user.id, profile.timeZone, schedule);
-        const exercisesByDay = await listExercisesByDay(
-          tx,
-          (plan?.cycleDays ?? []).filter(({ day }) => day.includesLifting).map(({ day }) => day.id),
-        );
+        const [exercisesByDay, runs] = await Promise.all([
+          listExercisesByDay(
+            tx,
+            (plan?.cycleDays ?? [])
+              .filter(({ day }) => day.includesLifting)
+              .map(({ day }) => day.id),
+          ),
+          // The endurance of the day Today is offering, found as Today finds it: by its slot.
+          plan?.suggestion && plan.suggestedDay?.includesRun
+            ? occurrencesForSlot(tx, user.id, {
+                familyId: plan.program.familyId,
+                cycleDayIndex: plan.suggestedDay.dayIndex,
+                cycleIndex: plan.suggestion.slot.cycleIndex,
+              })
+            : Promise.resolve([]),
+        ]);
         return {
           plan,
           exercisesByDay,
+          runs,
           starts: new Map(
             (plan?.cycleDays ?? []).map(({ day, cycleIndex }) => [
               day.id,
@@ -115,6 +130,10 @@ export default async function ChooseDayPage() {
                 const exercises = exercisesByDay.get(day.id) ?? [];
                 const start = starts.get(day.id);
                 const open = day.id === openDay?.id;
+                // The day Today is offering, run or lift: Next here as on Training and the
+                // programme, and its runs loggable here as they are there.
+                const next = day.id === plan.suggestedDay?.id;
+                const owed = next ? runs.filter(isOutstanding) : [];
                 return (
                   <li key={day.id} className="space-y-2 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
@@ -125,12 +144,12 @@ export default async function ChooseDayPage() {
                       {/* Every day starts out pending, so only a changed status earns a badge. */}
                       {open ? (
                         <Badge tone="accent">In progress</Badge>
+                      ) : status !== "pending" ? (
+                        <Badge tone={status === "completed" ? "success" : "warning"}>
+                          {SLOT_STATUS_LABELS[status]}
+                        </Badge>
                       ) : (
-                        status !== "pending" && (
-                          <Badge tone={status === "completed" ? "success" : "warning"}>
-                            {SLOT_STATUS_LABELS[status]}
-                          </Badge>
-                        )
+                        next && <Badge tone="accent">Next</Badge>
                       )}
                     </div>
 
@@ -152,7 +171,8 @@ export default async function ChooseDayPage() {
                             programDayId={day.id}
                             dayIndex={day.dayIndex}
                             label={start.label}
-                            dayName={day.name}
+                            // Said once: a label that names the day is not named again.
+                            dayName={start.label.includes(day.name) ? undefined : day.name}
                             fromCycleIndex={start.cycleIndex}
                             // One calm button per row: seven primary buttons make none primary.
                             variant="secondary"
@@ -166,6 +186,19 @@ export default async function ChooseDayPage() {
                     ) : !day.includesRun ? (
                       <p className="text-sm text-ink-subtle">Rest day</p>
                     ) : null}
+                    {owed.map((occurrence) =>
+                      occurrence.sport === "strength" ? null : (
+                        <LinkButton
+                          key={occurrence.id}
+                          href={`/training/new?occurrence=${occurrence.id}`}
+                          variant="secondary"
+                          className="w-full"
+                          aria-label={`${LOG_LABEL[occurrence.sport]}: ${day.name}`}
+                        >
+                          {LOG_LABEL[occurrence.sport]}
+                        </LinkButton>
+                      ),
+                    )}
                     {day.includesRun && (
                       <LinkButton
                         href="/training/programme?sport=running"
