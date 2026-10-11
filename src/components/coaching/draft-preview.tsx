@@ -13,6 +13,7 @@ import {
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { EFFORT } from "@/domain/activity-limits";
 import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import { rangeLabel } from "@/lib/labels";
@@ -214,7 +215,7 @@ export function DraftPreview({
                 ? ` · ${current.openingPlan.run.distanceKm} km`
                 : ""}
               {current.openingPlan.run.rpe !== null
-                ? ` · Effort ${current.openingPlan.run.rpe} of 10`
+                ? ` · Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
                 : ""}
               . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
             </p>
