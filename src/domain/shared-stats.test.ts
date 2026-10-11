@@ -9,6 +9,7 @@ import {
   primaryMetric,
   runStats,
   sessionStats,
+  topWeightWorkLabel,
   type StatsSet,
   type StatsSlot,
   type StatsWorkout,
@@ -82,6 +83,18 @@ describe("metricsForExercise", () => {
     expect(metricLabel("top_weight", bench)).toBe("Top weight");
     expect(metricLabel("top_weight", pullUp)).toBe("Added load");
     expect(metricLabel("top_weight", plank)).toBe("Heaviest hold");
+    // A set's volume says it is one, so its kilograms are not read as a lift.
+    expect(metricLabel("best_set_volume", bench)).toBe("Best set volume");
+  });
+  it("says how a top weight was worked with each number named", () => {
+    // 20 kg × 12 and × 11: two sets, the better of them twelve, never two sets of twelve.
+    expect(topWeightWorkLabel({ sets: 2, reps: 12 })).toBe(
+      "2\u00a0sets ·\u00a0best\u00a012\u00a0reps",
+    );
+    // One set has no best to single out.
+    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1\u00a0set ·\u00a01\u00a0rep");
+    // A hold or a carry has no reps to count: its sets alone.
+    expect(topWeightWorkLabel({ sets: 3, reps: null })).toBe("3\u00a0sets");
   });
   it("compares only global library movements", () => {
     expect(isComparable(bench)).toBe(true);
@@ -172,6 +185,27 @@ describe("sessionStats", () => {
       totalReps: 12,
     });
   });
+  it("counts an assisted machine's help as no volume, and any other machine's load", () => {
+    const { session } = sessionStats(
+      workout([
+        {
+          exerciseId: "assisted",
+          exercise: { ...legPress, primaryMuscles: ["lats"] },
+          equipment: { typeSlug: "assisted_pullup" },
+          sets: [set({ weight: 30, reps: 8 })],
+        },
+        {
+          exerciseId: "leg-press",
+          exercise: legPress,
+          equipment: { typeSlug: "leg_press_45" },
+          sets: [set({ weight: 100, reps: 10 })],
+        },
+      ]),
+      "UTC",
+    );
+    expect(session.volumeKg).toBe(1000);
+    expect(session.workingSets).toBe(2);
+  });
   it("converts pounds, merges two slots of one movement and leaves a custom exercise out", () => {
     const { session, exercises } = sessionStats(
       workout(
@@ -241,6 +275,33 @@ describe("sessionStats", () => {
     expect(session.durationSeconds).toBe(MAX_SESSION_SECONDS);
     expect(exercises[0]).toMatchObject({ longestDurationSeconds: 60, topWeightKg: 10 });
   });
+  it("leaves out a movement with no working set: skipped, left undone or warm-ups only", () => {
+    const { session, exercises } = sessionStats(
+      workout([
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+        { exerciseId: "pull-up", exercise: pullUp, sets: [] },
+        {
+          exerciseId: "leg-press",
+          exercise: legPress,
+          sets: [set({ setType: "warmup", weight: 40, reps: 10 })],
+        },
+      ]),
+      "UTC",
+    );
+    expect(exercises.map((e) => e.exerciseId)).toEqual(["bench"]);
+    expect(session.workingSets).toBe(1);
+    expect(session.muscleSets).not.toHaveProperty("lats");
+    // The same movement worked in another slot of the session still has its row.
+    const again = sessionStats(
+      workout([
+        { exerciseId: "bench", exercise: bench, sets: [] },
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+      ]),
+      "UTC",
+    );
+    expect(again.exercises).toHaveLength(1);
+    expect(again.exercises[0]).toMatchObject({ workingSets: 1, topWeightKg: 60 });
+  });
   it("refuses an unfinished workout", () => {
     expect(() => sessionStats(workout([], { completedAt: null }), "UTC")).toThrow();
   });
@@ -272,6 +333,19 @@ describe("runStats", () => {
       muscleSets: {},
     });
   });
+  it("keeps the date frozen on the run over the zone passed alongside", () => {
+    // Recorded in London at 23:30; the profile has since moved to Kolkata, where it was the 9th.
+    const run = {
+      id: "run-1",
+      startedAt: new Date("2026-09-08T22:30:00Z"),
+      durationSeconds: 1690,
+      distanceMeters: 5200,
+    };
+    expect(runStats(run, "Asia/Kolkata").occurredOn).toBe("2026-09-09");
+    expect(runStats({ ...run, occurredOn: "2026-09-08" }, "Asia/Kolkata").occurredOn).toBe(
+      "2026-09-08",
+    );
+  });
 });
 
 describe("detectRecords", () => {
@@ -294,10 +368,28 @@ describe("detectRecords", () => {
       ["pull-up", { most_reps: 10, top_weight: 0 }],
     ]);
     expect(detectRecords(previous, stats)).toEqual([
-      // 70 × (1 + 5/30) = 81.7 beats 80; top weight ties at 70; 350 beats 300; 5 reps does not beat 8.
-      { exerciseId: "bench", metric: "e1rm", value: 81.7, previous: 80 },
+      // 70 × (1 + 5/30) = 81.67 beats 80; top weight ties at 70; 350 beats 300; 5 reps does not beat 8.
+      { exerciseId: "bench", metric: "e1rm", value: 81.67, previous: 80 },
       { exerciseId: "bench", metric: "best_set_volume", value: 350, previous: 300 },
     ]);
+  });
+  it("keeps a pound lift's estimate so it reads back as itself, and never re-announces it", () => {
+    // 30 lb × 6 is 36 lb: 16.33 kg kept to the hundredth, where a tenth read back as 35.9 lb.
+    const [press] = sessionStats(
+      workout([
+        {
+          exerciseId: "bench",
+          exercise: bench,
+          sets: [set({ weight: 30, unit: "lb", reps: 6 })],
+        },
+      ]),
+      "UTC",
+    ).exercises;
+    expect(press!.bestE1rmKg).toBe(16.33);
+    // The same lift against an older row kept to the tenth is a tie, not a record...
+    expect(detectRecords(new Map([["bench", { e1rm: 16.3 }]]), [press!])).toEqual([]);
+    // ...while a real step up still is.
+    expect(detectRecords(new Map([["bench", { e1rm: 16.2 }]]), [press!])).toHaveLength(1);
   });
   it("never announces a first performance, nor a machine's number", () => {
     expect(detectRecords(new Map(), stats)).toEqual([]);

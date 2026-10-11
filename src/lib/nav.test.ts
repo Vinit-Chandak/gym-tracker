@@ -6,6 +6,7 @@ import {
   originQuery,
   parseOrigin,
   sectionLabel,
+  workoutBackPath,
   type NavOrigin,
 } from "./nav";
 
@@ -96,6 +97,16 @@ it("accepts only the origins it knows, and never an arbitrary destination", () =
   expect(originPath(null)).toBe("/progress/history");
   expect(originPath(null, "training")).toBe("/training");
   expect(originPath("programme")).toBe("/training/programme");
+});
+
+it("sends a finished workout back to History unless its link names where it was opened", () => {
+  expect(workoutBackPath(null, true)).toBe("/progress/history");
+  expect(sectionLabel(workoutBackPath(null, true))).toBe("History");
+  expect(workoutBackPath("today", true)).toBe("/today");
+  expect(workoutBackPath("shared", true)).toBe("/profile/friends");
+  // The open workout is Today's, wherever it was opened from.
+  expect(workoutBackPath(null, false)).toBe("/today");
+  expect(workoutBackPath("history", false)).toBe("/today");
 });
 
 it.each<[string, NavOrigin, string]>([

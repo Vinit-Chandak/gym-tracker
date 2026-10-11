@@ -6,7 +6,9 @@ import { useId, useState, type ReactNode } from "react";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { FigureInput } from "@/components/ui/figure-input";
 import { FigureText } from "@/components/ui/figure-text";
+import { emWidth } from "@/components/ui/fit";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
@@ -242,6 +244,7 @@ function draftOf(row: RowState): Draft {
  */
 export function SetEditSheet({
   row,
+  initialType,
   title,
   fields,
   onUpdate,
@@ -250,6 +253,8 @@ export function SetEditSheet({
   onClose,
 }: {
   row: RowState | null;
+  /** The type the sheet opens on when it is not the set's own: Undo's working set. */
+  initialType?: SetType;
   title: string;
   /** Load, the count and effort: the same three the entry has. */
   fields: readonly EntryField[];
@@ -264,6 +269,7 @@ export function SetEditSheet({
         <SetEditor
           key={`${row.setIndex}:${row.logged?.completedAt ?? ""}`}
           row={row}
+          initialType={initialType}
           fields={fields}
           onUpdate={onUpdate}
           onDelete={onDelete}
@@ -277,6 +283,7 @@ export function SetEditSheet({
 
 function SetEditor({
   row,
+  initialType,
   fields,
   onUpdate,
   onDelete,
@@ -284,13 +291,18 @@ function SetEditor({
   onClose,
 }: {
   row: RowState;
+  initialType?: SetType;
   fields: readonly EntryField[];
   onUpdate: (row: RowState) => void;
   onDelete: (row: RowState) => void;
   onDiscard: (row: RowState) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => draftOf(row));
+  // Opened on another type, the change is the sheet's own until Update, as any other is.
+  const [draft, setDraft] = useState<Draft>(() => ({
+    ...draftOf(row),
+    ...(initialType ? { setType: initialType } : {}),
+  }));
   // A logged set cannot be brought back once deleted, so Delete asks once, in place.
   const [deleting, setDeleting] = useState(false);
   const original = draftOf(row);
@@ -344,7 +356,7 @@ function SetEditor({
               className="flex items-center justify-between gap-3 border-b border-hair py-2.5"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="type-heading text-[length:var(--ov-type-body)] [overflow-wrap:anywhere]">
+                <span className="type-heading text-[length:var(--ov-type-body)] [overflow-wrap:break-word]">
                   {field.inputLabel}
                 </span>
                 {field.hint && (
@@ -376,9 +388,12 @@ function SetEditor({
                 >
                   <Glyph name="minus" className="glyph-20" />
                 </button>
-                <span className="flex w-[calc(60px+3.75rem)] items-baseline justify-center gap-[3px]">
-                  <Input
-                    type="text"
+                {/* The value's column, as a row stepper's (DESIGN.md, In a row): the figure in
+                    Figure L, as wide as what it holds, so 102.5 or 1500 is never cut short; a
+                    unit with no room beside it goes under it. */}
+                <span className="row-stepper-figure flex-wrap">
+                  <FigureInput
+                    className="shrink-0"
                     inputMode={field.inputMode}
                     aria-label={field.inputLabel}
                     value={value}
@@ -391,10 +406,10 @@ function SetEditor({
                         effort,
                       )
                     }
-                    className="min-h-0 w-[3.6ch] border-0 border-b-[2.5px] border-transparent bg-transparent p-0 pb-[3px] text-center type-figure-l focus:border-ink"
+                    style={{ width: `${Math.max(0.9, emWidth(value || "–")) + 0.08}em` }}
                   />
                   {!effort && (
-                    <span className="text-[length:var(--ov-type-caption)] font-semibold text-ink-2">
+                    <span aria-hidden className="row-stepper-unit">
                       {field.unit}
                     </span>
                   )}
@@ -432,7 +447,7 @@ function SetEditor({
           className="flex items-start gap-2 text-[length:var(--ov-type-meta)] leading-[1.4] font-semibold"
         >
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{row.error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{row.error}</span>
         </p>
       )}
       <div className="grid gap-2">
@@ -524,7 +539,7 @@ export function MoreSheet({
         <span className="flex min-w-0 flex-1 flex-col">
           <span
             className={cn(
-              "text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
+              "text-[length:var(--ov-type-button)] [overflow-wrap:break-word]",
               option.apart ? "font-bold" : "font-semibold",
             )}
           >

@@ -22,10 +22,13 @@ import {
   type ActivityMetric,
 } from "@/domain/leaderboard";
 import { RANGE_PRESET_WORDS, readWindowOf } from "@/domain/graph-range";
+import { legacySportOf } from "@/domain/activity";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { sportsOnOffer } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 import { formatActivityMetric } from "@/lib/format";
+import type { LengthUnit } from "@/lib/distance-units";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -33,21 +36,32 @@ import { hiddenTrainingLine, loadHeadToHead } from "@/server/queries/head-to-hea
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   EMPTY_TOTALS,
+  readDistanceUnits,
   readExercisesInCommon,
   readGroupSets,
   readPeriodTotals,
+  readSharedSports,
   type PeriodTotals,
 } from "@/server/repositories/shared-stats";
-import { dateWindow } from "@/server/validation/date-range";
+import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 import { requireUsername } from "@/server/validation/params";
-import { parseSport } from "@/server/validation/sport";
+import { socialWindow } from "@/server/validation/period";
+import { askedSport } from "@/server/validation/sport";
 
 export const metadata: Metadata = { title: "Compare" };
 
 /** One side of a stats row: the span's number, or "—" where the span cannot give one. */
-function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit): CompareSide {
+function side(
+  totals: PeriodTotals,
+  metric: ActivityMetric,
+  unit: BodyLoadUnit,
+  distanceUnit: LengthUnit | undefined,
+): CompareSide {
   const value = activityValue(totals, metric);
-  return { value, text: value === null ? "—" : formatActivityMetric(metric, value, unit) };
+  return {
+    value,
+    text: value === null ? "—" : formatActivityMetric(metric, value, unit, distanceUnit),
+  };
 }
 
 /**
@@ -55,33 +69,43 @@ function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit):
  * each split, the span's numbers side by side with the difference under each, and the
  * comparable movements you both did, each leading to its own comparison; endurance sports
  * show their own numbers, since a split and exercises in common do not apply. Everything is in
- * the viewer's unit.
+ * the viewer's unit, distances in the one they use for the sport.
  */
 export default async function ComparePage(props: PageProps<"/u/[username]/compare">) {
   const user = await requireUser();
   const handle = requireUsername((await props.params).username);
   const params = await props.searchParams;
-  const sport = parseSport(params.sport);
-  const selection = `sport=${sport}`;
+  const asked = askedSport(params.sport);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
-  // The span every graph shares (ADR 0044), ending on the viewer's today.
+  // The span every graph shares (ADR 0044), from the viewer's calendar and on to now.
   const preset = await rememberedRange();
   const read = readWindowOf({ preset }, todayInTimeZone(viewer.timeZone));
-  const range = dateWindow(read.from, read.to, viewer.timeZone);
+  const range = socialWindow(read.from, read.to, viewer.timeZone);
   const found = await withUser(
     getDb(),
     user.id,
     async (tx) => {
-      const head = await loadHeadToHead(tx, { id: user.id, username: viewer.username }, handle);
+      const head = await loadHeadToHead(tx, user.id, handle);
       if (head === null || head === "self" || !head.visible) return head;
       const ids = [head.me.id, head.them.id];
+      // A sport either of you does: shared by either, or on in your own sports. Neither of you
+      // swims, so there is no Swimming tab to read two zeros under.
+      const [shared, enabled] = await Promise.all([
+        readSharedSports(tx, ids),
+        enabledSportsFor(tx, head.me.id),
+      ]);
+      const sports = sportsOnOffer([...shared, ...enabled.map(legacySportOf)], asked);
+      const sport = asked ?? sports[0]!;
       const totals = await readPeriodTotals(tx, ids, sport, range);
       const pair = [
         totals.get(head.me.id) ?? EMPTY_TOTALS,
         totals.get(head.them.id) ?? EMPTY_TOTALS,
       ] as const;
-      if (sport !== "workout") return { ...head, totals: pair, lifting: null };
+      if (sport !== "workout") {
+        const units = await readDistanceUnits(tx, user.id);
+        return { ...head, sport, sports, totals: pair, lifting: null, distanceUnit: units[sport] };
+      }
       const [mine, theirs, common] = await Promise.all([
         readGroupSets(tx, head.me.id, range),
         readGroupSets(tx, head.them.id, range),
@@ -89,7 +113,10 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
       ]);
       return {
         ...head,
+        sport,
+        sports,
         totals: pair,
+        distanceUnit: undefined,
         lifting: {
           splits: [muscleSplit(mine), muscleSplit(theirs)] as const,
           trained: Object.keys(mine).length > 0 || Object.keys(theirs).length > 0,
@@ -100,8 +127,11 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
     { readOnly: true },
   );
   if (found === null) notFound();
-  if (found === "self") redirect(`/u/${handle}?${selection}`);
+  if (found === "self") redirect(`/u/${handle}${asked ? `?sport=${asked}` : ""}`);
   const { me, them } = found;
+  // Back to the person in the sport being compared, or the one asked for while it is hidden.
+  const sport = "sport" in found ? found.sport : asked;
+  const back = `/u/${them.username}${sport ? `?sport=${sport}` : ""}` as const;
   const names: [string, string] = [
     me.displayName || me.username,
     them.displayName || them.username,
@@ -109,7 +139,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
 
   return (
     <>
-      <PageHeader title="Compare" backHref={`/u/${them.username}?${selection}`} />
+      <PageHeader title="Compare" backHref={back} />
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (
@@ -117,7 +147,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
         ) : (
           <>
             <GraphRangeProvider preset={preset}>
-              <SportSpanControls sport={sport} />
+              <SportSpanControls sport={found.sport} sports={found.sports} />
             </GraphRangeProvider>
 
             {found.lifting?.trained && (
@@ -127,7 +157,9 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                   axes={SPLIT_GROUPS}
                   series={[
                     {
-                      name: names[0],
+                      // "You", as the table beneath heads your column: two people can share
+                      // a display name, and the legend has to say which shape is yours.
+                      name: "You",
                       color: "var(--color-series-1)",
                       values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
                     },
@@ -148,17 +180,17 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
 
             <Section
               title="Stats"
-              info={`Over ${RANGE_PRESET_WORDS[preset]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
+              info={`Over ${RANGE_PRESET_WORDS[preset]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${found.sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
             >
               <Card>
                 <CompareTable
                   names={names}
-                  rows={ACTIVITY_METRICS[sport].map((metric) => ({
+                  rows={ACTIVITY_METRICS[found.sport].map((metric) => ({
                     key: metric,
                     label: ACTIVITY_METRIC_LABELS[metric],
                     lowerIsBetter: lowerIsBetter(metric),
-                    a: side(found.totals[0], metric, unit),
-                    b: side(found.totals[1], metric, unit),
+                    a: side(found.totals[0], metric, unit, found.distanceUnit),
+                    b: side(found.totals[1], metric, unit, found.distanceUnit),
                   }))}
                 />
               </Card>

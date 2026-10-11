@@ -1,31 +1,39 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
+import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
 import { BackLink } from "@/components/shell/back-link";
 import { FitTitle } from "@/components/ui/fit-title";
+import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ACTIVITY_SPORT_LABELS, describeEffort } from "@/domain/activity";
+import { describeEffort } from "@/domain/activity";
 import {
   actualDistanceMetres,
   formatPaceSeconds,
   formatSpeed,
+  pacePerUnit,
   paceSecondsPerKm,
   speedMetresPerSecond,
   swimPaceSecondsPer100,
 } from "@/domain/activity-metrics";
 import { formatDuration } from "@/domain/pace";
-import { formatDistance } from "@/lib/distance-units";
-import { formatDateTime } from "@/lib/format";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
+import { namedOccurrence } from "@/server/repositories/occurrences";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
+import { AnsweredSession } from "./answered-session";
+import { recordedExtras, type ActivityStat } from "./recorded-extras";
+import { startedAtLine } from "./started-at";
 
 export const metadata: Metadata = { title: "Activity" };
 
@@ -47,8 +55,6 @@ function split(text: string): { figure: string; unit?: string } {
   return at < 0 ? { figure: text } : { figure: text.slice(0, at), unit: text.slice(at + 1) };
 }
 
-type Stat = { label: string; figure: string; unit?: string };
-
 /**
  * One logged activity, whatever sport it is (board Run): its print in full ink, its name, when
  * and where, then what it recorded two by two, and its notes. Correcting and deleting it are
@@ -65,17 +71,33 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
-    readOnly: true,
-  });
+  const { activity, units, answered } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const activity = await getActivity(tx, user.id, activityId);
+      return {
+        activity,
+        units: activity ? await unitsFor(tx, user.id, activity.sport) : DEFAULT_SPORT_UNITS,
+        answered: activity?.origin.occurrenceId
+          ? await namedOccurrence(tx, user.id, activity.origin.occurrenceId)
+          : null,
+      };
+    },
+    { readOnly: true },
+  );
   if (!activity) notFound();
 
+  // Read in the athlete's own units: a distance and its pace or speed in km or mi, a swim and
+  // its pace in m or yd, whatever unit each number was typed in. The record keeps both.
   const actual = activity.actual;
   const metres = actual ? actualDistanceMetres(actual) : null;
-  const stats: Stat[] = [
+  const stats: ActivityStat[] = [
     {
       label: "Distance",
-      ...(metres === null ? { figure: "—" } : split(formatDistance(metres, "km"))),
+      ...(metres === null || !actual
+        ? { figure: "—" }
+        : sportDistanceParts(metres, actual.sport, units)),
     },
     {
       label: "Time",
@@ -85,27 +107,36 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   if (actual?.sport === "running")
     stats.push({
       label: "Pace",
-      figure: formatPaceSeconds(paceSecondsPerKm(actual.distance.metres, actual.durationMs)),
-      unit: "/km",
+      figure: formatPaceSeconds(
+        pacePerUnit(
+          paceSecondsPerKm(actual.distance.metres, actual.durationMs),
+          units.distanceUnit,
+        ),
+      ),
+      unit: `/${units.distanceUnit}`,
     });
   if (actual?.sport === "cycling")
     stats.push({
       label: "Speed",
-      ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs))),
+      ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs), units.distanceUnit)),
     });
   if (actual?.sport === "swimming") {
-    const yards = actual.poolLength?.unit === "yd";
-    const pace = swimPaceSecondsPer100(actual, yards ? "yd" : "m");
+    const pace = swimPaceSecondsPer100(actual, units.poolUnit);
     stats.push({
       label: "Pace",
       figure: pace === null ? "—" : formatPaceSeconds(pace, 1),
-      unit: yards ? "/100 yd" : "/100 m",
+      unit: `/100 ${units.poolUnit}`,
     });
   }
+  // The day and time it happened where it was recorded, as History dates it and the
+  // correction says it over its form.
+  const startedAt = startedAtLine(activity.startedAt, activity.recordedTimeZone, profile.timeZone);
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
+  if (actual) stats.push(...recordedExtras(actual, units));
 
   const sport = activity.sport === "strength" ? null : activity.sport;
-  const title = activity.title ?? ACTIVITY_SPORT_LABELS[activity.sport];
+  // A session's name, as History and its day name it: "Ride", not the sport's "Cycling".
+  const title = activity.title ?? enduranceName(activity.sport);
   const where = actual ? WHERE[actual.environment] : undefined;
 
   return (
@@ -141,7 +172,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         <p className="meta-line mt-1">
           <span className="meta-fact">
             <Glyph name="calendar" label="Date" className="glyph-16" />
-            {formatDateTime(activity.startedAt, profile.timeZone)}
+            {/* Its time in Jost, whose zero is plain, as History's is. */}
+            <Figures>{startedAt}</Figures>
           </span>
           {where && (
             <span className="meta-fact">
@@ -166,16 +198,22 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           ))}
         </dl>
 
-        {activity.origin.kind === "planned" && (
-          <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
-        )}
+        {activity.origin.kind === "planned" &&
+          (answered ? (
+            <AnsweredSession
+              session={answered}
+              year={todayInTimeZone(profile.timeZone).slice(0, 4)}
+            />
+          ) : (
+            <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
+          ))}
         {actual?.sport === "swimming" && actual.activeMs === null && (
           <p className="mt-3 type-meta text-ink-2">
             Elapsed time only, so there is no swimming pace for this one.
           </p>
         )}
         {activity.notes && (
-          <p className="mt-3.5 type-body [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <p className="mt-3.5 type-body [overflow-wrap:break-word] whitespace-pre-wrap">
             {activity.notes}
           </p>
         )}

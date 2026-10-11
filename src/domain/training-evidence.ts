@@ -1,4 +1,4 @@
-import { stepEasier, stepHarder, type LoadLadder } from "./load-steps";
+import { leastAssistance, stepEasier, stepHarder, type LoadLadder } from "./load-steps";
 import type { PerformedSet, Prescription } from "./progression";
 import type { LoadUnit, SetType } from "./types";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -45,6 +45,11 @@ export const TRAINING_POLICY = {
   noiseMultiplier: 2,
   maxLoadIncrease: 0.05,
   maxLoadReduction: 0.1,
+  /**
+   * Back after a break longer than `trendDays`, the last session's loads come back this much
+   * lighter, rounded down to a load that exists and never less than one step (owner decision).
+   */
+  breakLoadReduction: 0.1,
   maxCumulativeLoadIncrease: 0.1,
   /** Real steps the 14-day brake always allows, however coarse they are. */
   maxCumulativeLoadSteps: 2,
@@ -845,8 +850,10 @@ function summarize(
     if (revert) return null;
     const from = loadText(latest.load, p.unit);
     const next = stepHarder(ladder, latest.load);
+    if (!next && leastAssistance(ladder, latest.load))
+      return `${from} is the least assistance this machine gives: reps build within the range, and what is harder is the movement without the machine.`;
     if (!next || (p.requireKnownLoads && next.source !== "known"))
-      return `Nobody knows the next load up from ${from} yet: reps build within the range until the athlete enters it.`;
+      return `Nobody knows the next ${assisted ? "step down" : "load up"} from ${from} yet: reps build within the range until the athlete enters it.`;
     const to = loadText(next.load, p.unit);
     const ceiling = repCeiling(p, latest.load, next.load, assisted) ?? maximum;
     // After a coarse step the load starts below the range; that is the plan, not a miss.

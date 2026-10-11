@@ -22,3 +22,19 @@ export function formatDuration(totalSeconds: number): string {
   const mm = hours > 0 ? minutes.toString().padStart(2, "0") : minutes.toString();
   return `${hours > 0 ? `${hours}:` : ""}${mm}:${seconds.toString().padStart(2, "0")}`;
 }
+
+/**
+ * A hold's time as a figure and its unit: seconds under a minute ("45" s), a clock from one
+ * ("1:12", which needs none). A session listed "72 s, 67 s" under a profile's "Longest hold
+ * 0:51"; a set list, a best and a friend's best now say a hold the one way.
+ */
+export function holdParts(totalSeconds: number): { figure: string; unit?: string } {
+  const s = Math.max(0, Math.round(totalSeconds));
+  return s < 60 ? { figure: String(s), unit: "s" } : { figure: formatDuration(s) };
+}
+
+/** The same, as one phrase: "45 s", "1:12". */
+export function formatHold(totalSeconds: number): string {
+  const { figure, unit } = holdParts(totalSeconds);
+  return unit ? `${figure} ${unit}` : figure;
+}

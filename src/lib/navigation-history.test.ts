@@ -75,6 +75,24 @@ it("does not count the same page, or one of its own sub-pages, as somewhere to g
   expect(previousPageFrom("/workouts/abc/add-exercise")).toBe("/workouts/abc");
 });
 
+it("does not go back into the New form that made this page", () => {
+  window.history.replaceState(null, "", "/gyms");
+  stop = trackNavigationHistory();
+  window.history.pushState({}, "", "/gyms/new");
+  expect(previousPageFrom("/gyms/new")).toBe("/gyms");
+  // Create gym lands on the gym it made.
+  window.history.pushState({}, "", "/gyms/abc-123");
+  expect(previousPageFrom("/gyms/abc-123")).toBeNull();
+  // Made in place of the form, as creating does now, it goes back to where New was opened.
+  window.history.replaceState(null, "", "/exercises");
+  window.history.pushState({}, "", "/exercises/new");
+  window.history.replaceState({}, "", "/exercises/xyz");
+  expect(previousPageFrom("/exercises/xyz")).toBe("/exercises");
+  // Any other page beside this one is still a way back.
+  window.history.pushState({}, "", "/exercises/other");
+  expect(previousPageFrom("/exercises/other")).toBe("/exercises/xyz");
+});
+
 it("tells subscribers of Next's own entries after the commit, and the app's at once", async () => {
   window.history.replaceState(null, "", "/today");
   stop = trackNavigationHistory();

@@ -11,10 +11,15 @@
 
 const IGNORED = new Set(["a", "an", "and", "the", "with", "on", "of", "for", "to", "in"]);
 
-/** One word as the search compares it: lower case, and a plural cut to its singular. */
+/**
+ * One word as the search compares it: lower case, and a plural cut to its singular. A word that
+ * takes "es" loses all of it, so "presses", "crunches" and "flyes" are the press, the crunch and
+ * the fly; "raises" and "lunges" only ever took an "s".
+ */
 function stem(word: string): string {
   if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
   if (word.length > 4 && word.endsWith("ves")) return `${word.slice(0, -3)}f`;
+  if (word.length > 4 && /(?:sses|[cs]hes|xes|zzes|yes)$/.test(word)) return word.slice(0, -2);
   if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
   return word;
 }

@@ -83,7 +83,7 @@ function Held(props: Omit<ComponentProps<typeof MachineDecision>, "unsure" | "on
   return <MachineDecision {...props} unsure={unsure} onUnsure={setUnsure} />;
 }
 
-function show(d: ExerciseDecision, given = actions()) {
+function show(d: ExerciseDecision, given = actions(), blocked = false) {
   const onFallback = vi.fn();
   const onMessage = vi.fn();
   const onAnnounce = vi.fn();
@@ -93,7 +93,7 @@ function show(d: ExerciseDecision, given = actions()) {
       <Held
         exercise={exercise(d)}
         session={SESSION}
-        blocked={false}
+        blocked={blocked}
         busy={false}
         onFallback={onFallback}
         onMessage={onMessage}
@@ -229,6 +229,22 @@ it("asks whether a registered machine has gone when Not here meets one", async (
   await waitFor(() => expect(given.archiveMachine).toHaveBeenCalledWith("slot", "m1"));
 });
 
+it("offers no registering for a custom exercise away from its own machine", () => {
+  // It names no kind of machine, so nothing registered here could take it.
+  show(
+    decision({
+      resolution: {
+        status: "unknown",
+        exercise: exerciseRef,
+        missingEquipmentTypeIds: [],
+      },
+      missingTypes: [],
+    }),
+  );
+  expect(screen.queryByRole("link", { name: "Register with details" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Add a fallback" })).toBeTruthy();
+});
+
 it("offers Not here beside Use for a registered machine", () => {
   show(
     decision({
@@ -285,4 +301,38 @@ it("says what Not here recorded", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Not here" }));
   await waitFor(() => expect(given.notHere).toHaveBeenCalledWith("slot", "hack"));
   expect(onAnnounce).toHaveBeenCalledWith("Recorded: no hack squat here.");
+});
+
+it("holds every way to another exercise or machine while a set typed here is not saved", async () => {
+  // Register with details and Out of use today put another machine or exercise on the slot, and
+  // a draft typed for this one could not follow it there.
+  show(UNKNOWN, actions(), true);
+  expect(screen.queryByRole("link", { name: "Register with details" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Add a fallback" })).toBeNull();
+  const held = screen.getByRole("button", { name: "Save or remove drafts first" });
+  expect((held as HTMLButtonElement).disabled).toBe(true);
+  // Answering the question is still open to it: the answer carries the draft with it.
+  expect((screen.getByRole("button", { name: "Available" }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  cleanup();
+
+  show(
+    UNKNOWN,
+    actions({
+      notHere: vi.fn(async () => ({
+        ok: false as const,
+        error: null,
+        machines: [{ id: "m1", name: "Garage hack squat" }],
+      })),
+    }),
+    true,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Not here" }));
+  await screen.findByText(/Has it gone\?/);
+  expect(screen.queryByRole("link", { name: "Out of use today" })).toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Save or remove drafts first" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
 });

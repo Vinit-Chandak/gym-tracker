@@ -13,18 +13,38 @@ import {
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { EFFORT } from "@/domain/activity-limits";
+import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
-/** "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one. */
+/**
+ * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
+ * with the cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
+ */
 function shape(blueprint: ProgramBlueprint): string {
   const sets = blueprint.days.reduce(
     (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
     0,
   );
   const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
-  return `${plural(blueprint.weeks, "week")} · ${plural(blueprint.days.length, "day")} per cycle · ${plural(sets, "lifting set")} per cycle`;
+  // A first programme that has not chosen takes the repeat its days suggest when it starts.
+  const plan = { ...blueprint, repeats: blueprint.repeats ?? inferCycleRepeat(blueprint.days) };
+  const { cycles, byWeekday } = cycleLayout(plan);
+  const days = plural(blueprint.days.length, "day");
+  const cycle =
+    blueprint.days.length === 7
+      ? `${days} per cycle`
+      : byWeekday
+        ? `${days} a week`
+        : `${plural(cycles, "cycle")} of ${days}`;
+  return joinFacts([
+    plural(blueprint.weeks, "week"),
+    cycle,
+    `${plural(sets, "lifting set")} per cycle`,
+  ]);
 }
 
 /**
@@ -89,7 +109,9 @@ export function DraftPreview({
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-2xl font-medium [overflow-wrap:anywhere]">{current.blueprint.name}</h1>
+        <h1 className="text-2xl font-medium [overflow-wrap:break-word]">
+          {current.blueprint.name}
+        </h1>
         <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
         {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
         {current.blueprint.notes && (
@@ -108,18 +130,18 @@ export function DraftPreview({
       </Card>
       {current.blueprint.days.map((day) => (
         <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+          <h2 className="text-lg font-medium [overflow-wrap:break-word]">
             {day.dayIndex}. {day.name}
           </h2>
           <p className="text-sm text-ink-muted">
             {WEEKDAY_NAMES[day.dayOfWeek]}
-            {day.focus ? ` · ${day.focus}` : ""}
-            {day.timeNote ? ` · ${day.timeNote}` : ""}
+            {day.focus ? `${FACT_SEPARATOR}${day.focus}` : ""}
+            {day.timeNote ? `${FACT_SEPARATOR}${day.timeNote}` : ""}
           </p>
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (
               <li key={i}>
-                <p className="font-medium [overflow-wrap:anywhere]">
+                <p className="font-medium [overflow-wrap:break-word]">
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
                 <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>
@@ -140,7 +162,9 @@ export function DraftPreview({
           )}
           {day.includesRun && (
             <details>
-              <summary className="min-h-11 cursor-pointer py-2">Run targets</summary>
+              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2">
+                Run targets
+              </summary>
               <ul className="space-y-2 text-sm">
                 {current.blueprint.runs
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)
@@ -195,10 +219,10 @@ export function DraftPreview({
                 ? `${current.openingPlan.run.durationMinutes} minutes`
                 : "Duration to calibrate"}
               {current.openingPlan.run.distanceKm !== null
-                ? ` · ${current.openingPlan.run.distanceKm} km`
+                ? `${FACT_SEPARATOR}${current.openingPlan.run.distanceKm}\u00a0km`
                 : ""}
               {current.openingPlan.run.rpe !== null
-                ? ` · Effort ${current.openingPlan.run.rpe} of 10`
+                ? `${FACT_SEPARATOR}Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
                 : ""}
               . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
             </p>

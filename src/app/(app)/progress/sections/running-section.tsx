@@ -15,6 +15,8 @@ import { useUrlChoice } from "@/components/graph/use-url-choice";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { averagePace, type RunBucket } from "@/domain/progress-graphs";
+import { METRES_PER_MILE } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatMinutes } from "@/lib/format";
 
 import type { ProgressData } from "../progress-types";
@@ -37,14 +39,18 @@ const MINUTE_STEPS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 360, 48
 /** Seconds a pace scale may step by. */
 const PACE_STEPS = [5, 10, 15, 20, 30, 60, 120, 300];
 
-const km = (metres: number) => decimal(metres / 1000);
-
 /**
  * Running (ADR 0042): distance and time as totals, a bar per day, week or month, and pace as
  * a line, a point per run, faster higher. Outdoor and treadmill paces are never one line.
  */
 export function RunningSection({ running, today }: Pick<ProgressData, "running" | "today">) {
   const { range, graph, truncated } = running;
+  // Distances and paces in the athlete's road unit, as the run's own page says them.
+  const unit = running.distanceUnit ?? "km";
+  const metresPer = unit === "mi" ? METRES_PER_MILE : 1000;
+  const distance = (metres: number) => decimal(metres / metresPer);
+  const paceIn = (secondsPerKm: number | null) =>
+    secondsPerKm === null ? null : (secondsPerKm * metresPer) / 1000;
   const [metric, setMetric] = useUrlChoice<RunMetric>(
     "run",
     METRICS.map((m) => m.value),
@@ -88,7 +94,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
   const average = averagePace(paced);
   // Past about sixty runs, a point per week or month: the pace of all its kilometres together.
   const paceLine = thinRecords(
-    paced.map((point) => ({ date: point.date, value: point.pace })),
+    paced.map((point) => ({ date: point.date, value: paceIn(point.pace) })),
     range,
     { reduce: "mean", weights: paced.map((point) => point.metres) },
   );
@@ -116,22 +122,22 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
           range={range}
           data={graph.buckets.map((bucket) => ({
             date: bucket.start,
-            value: bucket.runs > 0 ? bucket.metres / 1000 : null,
+            value: bucket.runs > 0 ? bucket.metres / metresPer : null,
           }))}
           format={(value) => decimal(value)}
           summary={{
             label: "Total distance",
-            figure: graph.totals.runs > 0 ? km(graph.totals.metres) : null,
-            unit: "km",
+            figure: graph.totals.runs > 0 ? distance(graph.totals.metres) : null,
+            unit,
             context: graph.totals.runs > 0 ? counted(graph.totals.runs, "run") : null,
           }}
           describe={(index) => {
             const bucket = graph.buckets[index]!;
             return bucketReadout(
               bucket,
-              km(bucket.metres),
-              "km",
-              `${counted(bucket.runs, "run")} · ${formatMinutes(bucket.seconds / 60)}`,
+              distance(bucket.metres),
+              unit,
+              joinFacts([counted(bucket.runs, "run"), formatMinutes(bucket.seconds / 60)]),
             );
           }}
           empty="No runs in this range."
@@ -160,7 +166,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
               bucket,
               formatMinutes(bucket.seconds / 60),
               undefined,
-              `${counted(bucket.runs, "run")} · ${km(bucket.metres)} km`,
+              joinFacts([counted(bucket.runs, "run"), `${distance(bucket.metres)}\u00a0${unit}`]),
             );
           }}
           empty="No runs in this range."
@@ -189,8 +195,8 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
             scale={{ invert: true, steps: PACE_STEPS }}
             summary={{
               label: "Average pace",
-              figure: average === null ? null : formatPace(average),
-              unit: "/km",
+              figure: average === null ? null : formatPace(paceIn(average)),
+              unit: `/${unit}`,
               context:
                 paced.length > 0
                   ? counted(paced.length, place === "outdoor" ? "outdoor run" : "treadmill run")
@@ -207,10 +213,11 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
                     today,
                   ),
                   figure: formatPace(paceLine.points[index]!.value),
-                  unit: "/km",
-                  context: `Average of ${counted(runs.length, "run")} · ${km(
-                    runs.reduce((sum, run) => sum + run.metres, 0),
-                  )} km`,
+                  unit: `/${unit}`,
+                  context: joinFacts([
+                    `Average of ${counted(runs.length, "run")}`,
+                    `${distance(runs.reduce((sum, run) => sum + run.metres, 0))}\u00a0${unit}`,
+                  ]),
                   href: historyHref(group.start, group.end, "run"),
                   action: paceLine.bucket === "week" ? "Open week" : "Open month",
                 };
@@ -218,17 +225,19 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
               const point = paced[group.indices[0]!]!;
               return {
                 label: dayLabel(point.date, today),
-                figure: formatPace(point.pace),
-                unit: "/km",
-                context: `${km(point.metres)} km · ${formatDuration(point.seconds)}`,
+                figure: formatPace(paceIn(point.pace)),
+                unit: `/${unit}`,
+                context: joinFacts([
+                  `${distance(point.metres)}\u00a0${unit}`,
+                  formatDuration(point.seconds),
+                ]),
                 href: activityHref(point.id, "history"),
                 action: "Open run",
               };
             }}
             note={{
               label: "About pace",
-              content:
-                "Each run's average pace, time over distance; faster is higher. The average is the runs' total time over their total distance, so a long run counts for every kilometre of it.",
+              content: `Each run's average pace, time over distance; faster is higher. The average is the runs' total time over their total distance, so a long run counts for every ${unit === "mi" ? "mile" : "kilometre"} of it.`,
             }}
             empty="No runs with a pace in this range."
           />

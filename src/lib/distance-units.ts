@@ -100,8 +100,97 @@ export function sameDistance(a: number, b: number): boolean {
 
 const DISPLAY_DECIMALS: Record<LengthUnit, number> = { m: 0, km: 2, mi: 2, yd: 0 };
 
+/** A range of road distances reads to a tenth; see `sportDistanceParts`. */
+const RANGE_DECIMALS = 1;
+
+/**
+ * A distance as it was entered, read in another unit for a form to open on: to the places a
+ * distance reads in there (1,500 m is 1,640 yd; 7.2 km is 4.47 mi), and whether that figure is
+ * the same distance exactly. What was entered is not rewritten by it: a form posts the entry
+ * itself until the figure is changed.
+ */
+export function entryIn(
+  value: number,
+  from: LengthUnit,
+  to: LengthUnit,
+): { value: number; exact: boolean } {
+  if (from === to) return { value, exact: true };
+  const metres = toMetres(value, from);
+  const shown = roundTo(fromMetres(metres, to), DISPLAY_DECIMALS[to]);
+  return { value: shown, exact: sameDistance(toMetres(shown, to), metres) };
+}
+
 /** "8.05 km" / "5 mi" / "400 m". Display rounding only; comparisons use the stored value. */
 export function formatDistance(metres: number, unit: LengthUnit, places?: number): string {
   const value = roundTo(fromMetres(metres, unit), places ?? DISPLAY_DECIMALS[unit]);
-  return `${value} ${UNIT_LABELS[unit]}`;
+  return `${value}\u00a0${UNIT_LABELS[unit]}`;
+}
+
+/** How one athlete reads one sport's distances: a road in km or mi, a pool in m or yd. */
+export type SportUnits = { distanceUnit: DistanceUnit; poolUnit: PoolUnit };
+
+/** What an athlete who has never chosen reads: kilometres on the road, metres in the pool. */
+export const DEFAULT_SPORT_UNITS: SportUnits = { distanceUnit: "km", poolUnit: "m" };
+
+/** A foot, by definition. */
+export const METRES_PER_FOOT = 0.3048;
+
+/** What a climb is read in: feet beside miles, metres beside kilometres. It is kept in metres. */
+export type ClimbUnit = "m" | "ft";
+
+export function climbUnit(distanceUnit: DistanceUnit): ClimbUnit {
+  return distanceUnit === "mi" ? "ft" : "m";
+}
+
+/** A climb in metres read in `unit`, whole: 89 m is 292 ft. */
+export function climbIn(metres: number, unit: ClimbUnit): number {
+  return Math.round(unit === "ft" ? metres / METRES_PER_FOOT : metres);
+}
+
+/** The unit a sport's distances are read in. A swim is never described in kilometres. */
+export function readingUnit(sport: string, units: SportUnits): DistanceUnit | PoolUnit {
+  return sport === "swimming" ? units.poolUnit : units.distanceUnit;
+}
+
+/**
+ * A distance, or a range of them, as a figure and its unit in the reader's own unit for that
+ * sport: "1,500" m, "1,000" yd, "8.05" km, "5" mi, "5–6" km, thousands separated as the
+ * swim's own form and a friend's distances write them.
+ *
+ * Whatever it was written in, it is read the one way: a swim set written in yards reads in
+ * metres for an athlete who swims in metres, and a five-mile run reads 8.05 km. A road distance
+ * short of a kilometre reads in metres, which is how a 400 m repeat is said; miles stay miles.
+ * Display rounding only — the metres underneath are never rewritten from it.
+ *
+ * A road range is a target, not a measurement: it reads to a tenth, and both ends alike —
+ * "4.3–5.6 mi" and "4.5–6.0 km", never "4.35–5.59 mi" beside "8.57–9.2 mi" — or whole when
+ * both ends are ("5–6 km"). A single distance keeps its hundredths ("8.05 km").
+ */
+export function sportDistanceParts(
+  metres: number | readonly [number, number],
+  sport: string,
+  units: SportUnits,
+): { figure: string; unit: string } {
+  const [low, high] = typeof metres === "number" ? [metres, metres] : metres;
+  const reading = readingUnit(sport, units);
+  const unit: LengthUnit = reading === "km" && high < METRES_PER_KM ? "m" : reading;
+  const range = low !== high;
+  const places = range ? Math.min(DISPLAY_DECIMALS[unit], RANGE_DECIMALS) : DISPLAY_DECIMALS[unit];
+  const [from, to] = [low, high].map((value) => roundTo(fromMetres(value, unit), places));
+  // One end that needs its tenth gives the other one too: "4.5–6.0 km", not "4.5–6 km".
+  const fixed = range && [from!, to!].some((value) => !Number.isInteger(value)) ? places : 0;
+  const figure = (value: number) =>
+    value.toLocaleString("en-GB", { minimumFractionDigits: fixed, maximumFractionDigits: places });
+  const [first, last] = [figure(from!), figure(to!)];
+  return { figure: first === last ? last : `${first}–${last}`, unit: UNIT_LABELS[unit] };
+}
+
+/** The same, as one phrase: "8 × 50 m" is built from it, and so is "5–6 km". */
+export function formatSportDistance(
+  metres: number | readonly [number, number],
+  sport: string,
+  units: SportUnits,
+): string {
+  const { figure, unit } = sportDistanceParts(metres, sport, units);
+  return `${figure}\u00a0${unit}`;
 }

@@ -52,7 +52,7 @@ export function SegmentedLinks({
           href={option.href as Route}
           aria-current={option.current ? "page" : undefined}
           className={cn(
-            "flex min-h-11 min-w-0 items-center justify-center rounded-control border border-transparent px-2 py-1 text-center text-sm leading-tight font-medium transition-colors duration-[var(--ov-duration-feedback)]",
+            "flex min-h-[var(--ov-target)] min-w-0 items-center justify-center rounded-control border border-transparent px-2 py-1 text-center text-sm leading-tight font-medium transition-colors duration-[var(--ov-duration-feedback)]",
             "focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none",
             option.current
               ? "border-line-strong bg-accent-soft text-ink"

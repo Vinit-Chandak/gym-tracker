@@ -1,19 +1,20 @@
 "use client";
 
 import type { Route } from "next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
 import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
 import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets } from "@/domain/sets";
-import { formatIsoWeekdayDay } from "@/lib/format";
+import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
+import { formatIsoDate, formatSleep } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -84,12 +85,15 @@ export function finishedParts(session: SessionVM): PrintPart[] {
 /** Load moved, the app's rule (working sets, load × reps), in the reader's unit. */
 function volumeOf(session: SessionVM): number {
   let total = 0;
-  for (const exercise of session.exercises)
+  for (const exercise of session.exercises) {
+    // An assisted machine's number is help, and more help is not more work: it lifts no volume.
+    if (exercise.equipment?.ladder?.assisted) continue;
     for (const set of exercise.sets) {
       if (isWarmup(set.setType) || set.weight === null || set.reps === null) continue;
       if (!canConvertLoad(set.unit, session.preferredUnit)) continue;
       total += convertLoad(set.weight, set.unit, session.preferredUnit) * set.reps;
     }
+  }
   return Math.round(total);
 }
 
@@ -108,9 +112,16 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
   );
 }
 
-/** An exercise's sets as the app lists a past session's: its working sets, each with its unit. */
+/**
+ * An exercise's sets as the app lists a past session's: its working sets, each with its unit,
+ * a bodyweight movement's and an assisted machine's read as the logger reads them.
+ */
 function setsLine(exercise: ExerciseVM): string {
-  return formatSets(exercise.sets, (unit) => LOAD_UNIT_LABELS[unit]);
+  return formatSets(
+    exercise.sets,
+    (unit) => LOAD_UNIT_LABELS[unit],
+    loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+  );
 }
 
 /**
@@ -155,7 +166,8 @@ export function FinishedWorkout({
   const editing = edit?.editing === true && !justFinished;
   const done = session.exercises.filter((exercise) => exercise.sets.length > 0);
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
-  const sets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // The sets listed under it, warm-ups aside: the print draws those, grey, and counts nothing.
+  const sets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
   const volume = volumeOf(session);
   const minutes = session.completedAt
     ? Math.round(
@@ -163,9 +175,18 @@ export function FinishedWorkout({
       )
     : null;
   const day = todayInTimeZone(session.timeZone, new Date(session.startedAt));
-  const checkIn = CHECK_IN_LABELS.flatMap(([key, label]) => {
+  // Each reading as figures and their units: a night's sleep is said as every other time is,
+  // "7 h 45 min", two of each, not "7.75 h".
+  const checkIn = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
-    return typeof value === "number" ? [{ label, value }] : [];
+    if (typeof value !== "number") return [];
+    const parts =
+      key === "sleepHours"
+        ? formatSleep(value)
+            .split(" ")
+            .map((part) => part.split("\u00a0"))
+        : [[String(value), unit]];
+    return [{ label, parts }];
   });
 
   // What Add exercise just added stands at the end of the list: named on the status line, and
@@ -251,7 +272,7 @@ export function FinishedWorkout({
           {!justFinished && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
-              {formatIsoWeekdayDay(day)}
+              {formatIsoDate(day, session.today.slice(0, 4))}
             </span>
           )}
           <span className="meta-fact">
@@ -277,7 +298,7 @@ export function FinishedWorkout({
             <Glyph name="edit" className="mt-px glyph-18 shrink-0" />
             <span className="min-w-0">
               Tap an exercise to change its sets. Each change saves as you make it, until{" "}
-              {formatIsoWeekdayDay(edit.until)}.
+              {formatIsoDate(edit.until, session.today.slice(0, 4))}.
             </span>
           </p>
         )}
@@ -303,7 +324,9 @@ export function FinishedWorkout({
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="record-row-name">{exercise.exercise.name}</span>
                           {exercise.sets.length > 0 ? (
-                            <span className="record-row-sets">{setsLine(exercise)}</span>
+                            <span className="record-row-sets">
+                              <Figures>{setsLine(exercise)}</Figures>
+                            </span>
                           ) : (
                             <span className="record-row-sets text-ink-2">
                               {exercise.skippedAt ? "Skipped" : "No sets"}
@@ -322,7 +345,7 @@ export function FinishedWorkout({
               {edit.drafts.count > 0 && (
                 <p className="mt-2 flex items-start gap-2 type-meta font-semibold">
                   <Glyph name="warn" className="mt-px glyph-18" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="min-w-0 [overflow-wrap:break-word]">
                     {draftsLine(edit.drafts)}
                   </span>
                 </p>
@@ -342,7 +365,9 @@ export function FinishedWorkout({
                     className="record-row w-full text-left"
                   >
                     <span className="record-row-name">{exercise.exercise.name}</span>{" "}
-                    <span className="record-row-sets">{setsLine(exercise)}</span>
+                    <span className="record-row-sets">
+                      <Figures>{setsLine(exercise)}</Figures>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -382,15 +407,28 @@ export function FinishedWorkout({
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in">
+          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>
             <dl className="finished-check-in">
-              {checkIn.map(({ label, value }) => (
-                <div key={label} className="min-w-0">
+              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
+                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+              {checkIn.map(({ label, parts }) => (
+                <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  <dd className="mt-0.5 type-figure">{value}</dd>
+                  {/* A sleep's hours and minutes may part in a narrow cell, each whole. */}
+                  <dd className="mt-0.5">
+                    {parts.map(([figure, unit], index) => (
+                      <Fragment key={index}>
+                        {index > 0 && " "}
+                        <span className="whitespace-nowrap">
+                          <span className="type-figure">{figure}</span>
+                          <span className="figure-row-unit"> {unit}</span>
+                        </span>
+                      </Fragment>
+                    ))}
+                  </dd>
                 </div>
               ))}
             </dl>

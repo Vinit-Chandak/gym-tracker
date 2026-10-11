@@ -3,6 +3,8 @@ import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import { FACT_SEPARATOR } from "@/lib/facts";
+import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
 
@@ -29,9 +31,9 @@ export function cycleCells(plan: TodayPlan): CycleCell[] {
     );
 }
 
-/** How far the programme is behind the calendar: "25 days behind", "1 day behind". */
-export function daysBehind(days: number): string {
-  return `${days} ${days === 1 ? "day" : "days"} behind`;
+/** How far the programme is behind the calendar: "3 sessions behind", "1 session behind". */
+export function sessionsBehindLabel(sessions: number): string {
+  return `${sessions} ${sessions === 1 ? "session" : "sessions"} behind`;
 }
 
 /** What the squares say aloud, and where they go. */
@@ -39,9 +41,9 @@ export function cycleLabel(plan: TodayPlan): string {
   const cycle = plan.suggestion?.slot.cycleIndex;
   const day = plan.suggestedDay?.dayIndex;
   const parts = [
-    cycle ? `Cycle ${cycle} of ${plan.program.weeks}` : null,
+    cycle ? `Cycle ${cycle} of ${plan.program.cycles}` : null,
     day ? `day ${day} of ${plan.cycleDays.length}` : null,
-    plan.behind > 0 ? daysBehind(plan.behind) : null,
+    plan.behind > 0 ? sessionsBehindLabel(plan.behind) : null,
   ].filter(Boolean);
   return `${parts.join(", ")}. Open the programme`;
 }
@@ -67,6 +69,8 @@ export type PlanRowModel = {
   /** The sets it asks for, for its column in the print. */
   sets: number;
   supersetGroup: string | null;
+  /** What it becomes at the athlete's gym, where that is news (a programme day's page). */
+  at?: string | null;
 };
 
 /**
@@ -114,7 +118,7 @@ export function planRows(
           ? prescription(slot)
           : ""
         : `${line ?? (slot ? prescription(slot) : "By the rule")}${
-            entry.equipmentInstanceName ? ` · ${entry.equipmentInstanceName}` : ""
+            entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
           }`,
       note: entry.note || null,
       dropped,
@@ -141,6 +145,38 @@ export function groupRows<T extends { supersetGroup: string | null }>(rows: read
   return groups;
 }
 
+// ---------- what was logged today besides ----------
+
+/**
+ * What was finished today that no card of Today's already stands for (year audit, October
+ * 2026): a ride nobody scheduled, an unplanned workout, a run logged late against a day long
+ * gone. History, the calendar and the day's page all had them while Today said only "Rest".
+ *
+ * A run, ride or swim that answered a session on the page is that session's card, inked done;
+ * a workout of a programme day the page shows done is that day's card. Everything else logged
+ * today gets a card of its own, in the order it was done.
+ */
+export function loggedBesides(
+  logged: readonly LoggedActivity[],
+  shown: {
+    /** The scheduled sessions Today has cards for. */
+    occurrences: readonly ScheduledOccurrence[];
+    /** The programme days whose cards say their workout is done. */
+    doneDayIds: readonly string[];
+  },
+): LoggedActivity[] {
+  const answered = new Set(
+    shown.occurrences.flatMap((occurrence) =>
+      occurrence.resolution.kind === "logged" ? [occurrence.resolution.activityId] : [],
+    ),
+  );
+  return logged.filter((activity) =>
+    activity.sport === "strength"
+      ? activity.programDayId === null || !shown.doneDayIds.includes(activity.programDayId)
+      : !answered.has(activity.id),
+  );
+}
+
 // ---------- the day's print ----------
 
 /**
@@ -163,15 +199,18 @@ export function todayParts({
   /** The day's workout is logged: its columns print full. */
   lifted?: boolean;
 }): PrintPart[] {
+  // Work a revision withdrew asks for nothing, so it is not drawn as a run still to do; work
+  // answered by history the app has no activity for was done.
   const endurance = (occurrence: ScheduledOccurrence): PrintPart | null =>
-    occurrence.sport === "strength"
+    occurrence.sport === "strength" || occurrence.resolution.kind === "cancelled"
       ? null
       : {
           kind: PRINT_SPORT[occurrence.sport],
           state:
             occurrence.disposition === "skipped"
               ? "skipped"
-              : occurrence.resolution.kind === "logged"
+              : occurrence.resolution.kind === "logged" ||
+                  occurrence.resolution.kind === "legacy_completed"
                 ? "done"
                 : "todo",
         };

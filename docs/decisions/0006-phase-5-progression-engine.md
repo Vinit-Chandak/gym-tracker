@@ -61,3 +61,28 @@ and a machine with no history of its own may borrow the exercise's history from 
 - Technique rating exists in the schema but is not collected; the "technique acceptable"
   condition is therefore not part of the increase rule.
 - Programme changes through versioned proposals are unchanged from Phase 1.
+
+## Amendment, 11 October 2026: across gyms, after a break, and on an assisted machine
+
+Decided by the owner with the year audit. Decisions 1 to 8 stand; these say what they meant.
+
+1. **Free weights and bodyweight compare across gyms, whatever bar is registered.** Decision 5
+   applies to the exercise's load portability, not to the equipment row: a barbell or dumbbell
+   lift reads its history from every gym, on a registered bar, another gym's bar or none, and a
+   coach's change to it holds wherever it is done. Only machine work stays on its machine, and a
+   machine's own old session is never read as another machine's starting guess. A load logged in
+   the other unit lands on a load that exists: 100 kg read in pounds is 220 lb, not 220.46. A
+   pound lifter's registered bar or dumbbells without an increment step by the plate jump.
+2. **Back after a break.** When nothing comparable falls in the weeks the rule reads
+   (`TRAINING_POLICY.trendDays`) but there is older history, the kind is `resume` ("Back after a
+   break"): the last session's sets with each working load stepped down to the first load at
+   least 10% easier (`breakLoadReduction`; at least one step, more help on an assisted machine),
+   and the rule goes on from what is logged then. Last time stays visible however old it is.
+3. **A bodyweight set saved without a load is the body alone.** On a bodyweight movement measured
+   in reps, an empty load reads as 0 added, so its reps build as they do on a logged 0. Anywhere
+   else an empty load stays unknown.
+4. **Time and distance never go down under "Add time".** A set already past the top of the range
+   keeps what it did; when every set is there, it is the hold decision 4 describes.
+5. **The least help an assisted machine gives** holds with advice to move to the movement without
+   the machine, and the Next up box stops asking for a step below it. The exercise page reads an
+   assisted machine's best as its least help.

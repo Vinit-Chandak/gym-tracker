@@ -9,6 +9,7 @@ import { SpeechTextarea } from "@/components/ui/dictation";
 import { Glyph } from "@/components/ui/glyphs";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDay } from "@/lib/format";
 import {
   answerProgramRequestAction,
@@ -49,7 +50,7 @@ function waitingLine(request: RequestView): string {
       request.condition,
     ]
       .filter(Boolean)
-      .join(" · ");
+      .join(FACT_SEPARATOR);
   return "At the next coach run";
 }
 
@@ -118,19 +119,24 @@ function RequestRow({
       )}
       <p className="request-card-quote">“{request.quote}”</p>
       {settled ? (
-        <p className="type-meta-small [overflow-wrap:anywhere] text-ink-2">
+        <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">
           {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
-          {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
+          {request.settledOn && (
+            <span className="tabular-nums">
+              {FACT_SEPARATOR}
+              {request.settledOn}
+            </span>
+          )}
         </p>
       ) : request.state === "needs_answer" ? (
-        request.detail && <p className="type-body [overflow-wrap:anywhere]">{request.detail}</p>
+        request.detail && <p className="type-body [overflow-wrap:break-word]">{request.detail}</p>
       ) : (
         <p className="type-meta-small text-ink-2 tabular-nums">{waitingLine(request)}</p>
       )}
       {settled && request.draftId && (
         <Link
           href={`${base}/drafts/${request.draftId}` as Route}
-          className="flex min-h-11 items-center type-meta font-bold underline underline-offset-4"
+          className="flex min-h-[var(--ov-target)] items-center type-meta font-bold underline underline-offset-4"
         >
           See the change
         </Link>

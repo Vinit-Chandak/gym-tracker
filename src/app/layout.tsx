@@ -7,7 +7,8 @@ import { ViewportSettle } from "@/components/shell/viewport-settle";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
-import { PLATFORM_INIT_SCRIPT } from "@/lib/platform";
+import { PLATFORM_INIT_SCRIPT, TEXT_SIZE_INIT_SCRIPT } from "@/lib/platform";
+import startupImages from "@/lib/startup-images.json";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -42,10 +43,16 @@ export const metadata: Metadata = {
      */
     statusBarStyle: "default",
     title: APP_NAME,
+    // The launch images are links of their own, in the layout below.
   },
-  // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
-  // Apple-prefixed tag, and without it an installed app opens in a browser view instead.
-  other: { "apple-mobile-web-app-capable": "yes" },
+  other: {
+    // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
+    // Apple-prefixed tag, and without it an installed app opens in a browser view instead.
+    "apple-mobile-web-app-capable": "yes",
+    // Chrome on Android applies the phone's font size to the root font size, and so to every
+    // word, only on a page that asks for it. iOS's setting is read by TEXT_SIZE_INIT_SCRIPT.
+    "text-scale": "scale",
+  },
   formatDetection: { telephone: false, email: false, address: false },
   // Private single-user app: keep it out of search engines.
   robots: { index: false, follow: false },
@@ -80,11 +87,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         {/* First thing in the body: it runs while the rest is still being parsed, so an
-            explicit Light or Dark choice, Android's larger targets and the installed app's
-            page height are in place before anything is painted. */}
+            explicit Light or Dark choice, Android's larger targets, the installed app's page
+            height and the reader's text size on iOS are in place before anything is painted. */}
         <script
-          dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT }}
+          dangerouslySetInnerHTML={{
+            __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT + TEXT_SIZE_INIT_SCRIPT,
+          }}
         />
+        {/*
+          What iOS shows while the installed app opens: it draws nothing from the manifest, so
+          without these the screen stays blank until the first page arrives. One image per
+          screen size, orientation and scheme, the icon on the ground the app opens on;
+          rendered, and listed, by scripts/render-icons.mjs. React moves the links into the
+          head. They are here rather than in `metadata.appleWebApp`, which would send all 58
+          again with every screen and every prefetch (about 15 KB each); the layout's are sent
+          only with a whole page, which is the only time iOS reads them.
+        */}
+        {startupImages.map(({ url, media }) => (
+          <link key={url} rel="apple-touch-startup-image" href={url} media={media} />
+        ))}
         <AppearanceSync />
         <NavigationHistory />
         <ViewportSettle />

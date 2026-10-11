@@ -1,21 +1,26 @@
-import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import {
   activities,
   occurrenceEvents,
   occurrenceVersions,
   plannedOccurrences,
+  profiles,
   programFamilies,
   programRuns,
   programs,
 } from "@/db/schema";
-import type { DbOrTx } from "@/db/types";
+import type { Db, DbOrTx } from "@/db/types";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
 import { jsonEqual } from "@/domain/json-equal";
 import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { nextPendingSlot, type SlotRef } from "@/domain/schedule";
 import { supersedeStalePlans } from "./coach-plans";
+import { readProgramBlueprint } from "./programs";
+import { getSchedule } from "./schedule";
 
 /**
  * Turning an approved programme into occurrences that exist (plan §§8.2 item 2, 10.2).
@@ -86,6 +91,8 @@ type ExistingOccurrence = {
   prescription: EndurancePrescription | null;
   /** The activity that answered it, if one did. */
   activityId: string | null;
+  /** Whether the athlete has moved it to another date themselves. */
+  movedByAthlete: boolean;
 };
 
 async function existingOccurrences(
@@ -104,6 +111,15 @@ async function existingOccurrences(
       scheduledOn: occurrenceVersions.scheduledOn,
       prescription: occurrenceVersions.prescription,
       activityId: activities.id,
+      // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers, and an
+      // unqualified `id` in here would be the event's own (see listGyms).
+      movedByAthlete: sql<boolean>`exists (
+        select 1 from occurrence_events e
+        where e.user_id = planned_occurrences.user_id
+          and e.occurrence_id = planned_occurrences.id
+          and e.kind = 'rescheduled'
+          and e.actor = 'athlete'
+      )`,
     })
     .from(plannedOccurrences)
     .leftJoin(
@@ -124,19 +140,45 @@ async function existingOccurrences(
   return rows;
 }
 
+/** Whether one slot of the sequence comes before another. */
+function slotBefore(slot: SlotRef, other: SlotRef): boolean {
+  return (
+    slot.cycleIndex < other.cycleIndex ||
+    (slot.cycleIndex === other.cycleIndex && slot.dayIndex < other.dayIndex)
+  );
+}
+
 /**
  * Whether this occurrence's prescription may still be rewritten.
  *
- * Anything answered, abandoned or in the past is history. A revision may only change what has
- * not happened yet, which is the whole of COACH-08 in one predicate.
+ * Anything answered, abandoned or already behind the athlete is history. A revision may only
+ * change what has not happened yet, which is the whole of COACH-08 in one predicate.
+ *
+ * "Behind" is where the sequence has got to, not the calendar. Today offers the programme's
+ * run by slot, so an athlete a fortnight behind the dates is about to do a run whose date went
+ * by a fortnight ago. Freezing that one by its date kept the old target on Today and on the
+ * log screen while the programme's own day showed the approved change. Only work no slot
+ * owns — or a caller that cannot say where the sequence is — still goes by the date.
  */
-function frozen(occurrence: ExistingOccurrence, today: string): boolean {
+function frozen(
+  occurrence: ExistingOccurrence,
+  today: string,
+  position: SlotRef | null | undefined,
+): boolean {
   if (occurrence.activityId !== null) return true;
   if (occurrence.disposition === "legacy_completed") return true;
-  if (occurrence.scheduledOn !== null && occurrence.scheduledOn < today) return true;
   // A skip is not history: logging it undoes it, and what it then asks for should be what the
-  // current programme asks for, so a future skipped occurrence is still revised.
-  return false;
+  // current programme asks for, so a skipped occurrence the sequence has not left behind is
+  // still revised.
+  if (position !== undefined && occurrence.cycleIndex !== null && occurrence.cycleDayIndex !== null)
+    return (
+      position === null ||
+      slotBefore(
+        { cycleIndex: occurrence.cycleIndex, dayIndex: occurrence.cycleDayIndex },
+        position,
+      )
+    );
+  return occurrence.scheduledOn !== null && occurrence.scheduledOn < today;
 }
 
 /**
@@ -164,10 +206,15 @@ export type MaterialiseInput = {
   /** The version the occurrences are approved by; revisions repoint to the new one. */
   blueprint: ProgramBlueprintV2;
   schedulingZone: string;
-  /** The athlete's own today, in their zone. Everything before it is history. */
+  /** The athlete's own today, in their zone. Work no slot owns is history before it. */
   today: string;
   /** A continuation keeps the family's existing occurrences; a new block starts fresh. */
   transition: "new_block" | "continue";
+  /**
+   * The slot the sequence has reached — the one Today offers — or null once nothing is left.
+   * A slot's work before it is history whatever its date. Left out, the date decides.
+   */
+  position?: SlotRef | null;
 };
 
 /**
@@ -217,16 +264,23 @@ export async function materialiseOccurrences(
     const current = byKey.get(key);
     if (current) {
       seen.add(current.id);
-      if (frozen(current, input.today)) {
+      if (frozen(current, input.today, input.position)) {
         counts.frozen++;
         continue;
       }
+      // A date the athlete moved it to is theirs. The blueprint only knows where the block
+      // first put it, and writing that back undid the move and withdrew the preparation the
+      // coach had written for it, over a change to some other day.
+      const scheduledOn =
+        current.movedByAthlete && current.scheduledOn !== null
+          ? current.scheduledOn
+          : occurrence.scheduledOn;
       // The stored prescription comes out of `jsonb`, which reorders an object's keys, and the
       // blueprint's comes out of the schema, which orders them as it declares them. Compared as
       // strings the two never matched, so every rescale wrote a fresh revision of an unchanged
       // session and superseded the preparation waiting on it. Compare the content (`jsonEqual`).
       const unchanged =
-        current.scheduledOn === occurrence.scheduledOn &&
+        current.scheduledOn === scheduledOn &&
         jsonEqual(current.prescription, occurrence.prescription);
       if (unchanged) {
         // The slot it belongs to is not part of what it asks for, so correcting one the
@@ -248,7 +302,7 @@ export async function materialiseOccurrences(
           userId,
           sport: occurrence.sport,
           programVersionId: input.programId,
-          scheduledOn: occurrence.scheduledOn,
+          scheduledOn,
           schedulingZone: input.schedulingZone,
           scheduledLocalTime: occurrence.scheduledLocalTime,
           orderIndex: occurrence.orderIndex,
@@ -269,7 +323,7 @@ export async function materialiseOccurrences(
         kind: "revised",
         actor: "coach",
         source: `programs:${input.programId}`,
-        occurredOn: occurrence.scheduledOn,
+        occurredOn: scheduledOn,
       });
       // A preparation written against the old revision describes a session the programme no
       // longer asks for, so it stops being the card the athlete is shown (§8.4).
@@ -403,6 +457,178 @@ export function occurrencesFromBlueprint(
   };
 }
 
+/** The athlete's own zone, which the programme's dates are laid out in. */
+async function schedulingZoneOf(tx: DbOrTx, userId: string): Promise<string> {
+  const [athlete] = await tx
+    .select({ timeZone: profiles.timeZone })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return athlete?.timeZone ?? "UTC";
+}
+
+/**
+ * Writes the occurrences a programme version that has just been written asks for.
+ *
+ * Every way a programme comes to run goes through here — a template adopted, a draft approved,
+ * a proposal applied — because the run half of a day that lifts and runs is answered only by
+ * its occurrence. A version written without them asks for a run nothing can ever answer: the
+ * template path once did exactly that, and every athlete who adopted it stopped for good on
+ * its first running day.
+ *
+ * A continuation is placed by where the sequence has got to, read after the new version's
+ * events are in, so a change reaches the run Today is about to offer however far behind the
+ * calendar the athlete is.
+ */
+export async function materialiseProgramme(
+  tx: DbOrTx,
+  userId: string,
+  input: {
+    programId: string;
+    familyId: string;
+    blueprint: ProgramBlueprint;
+    startDate: string;
+    transition: "new_block" | "continue";
+    now?: Date;
+  },
+): Promise<MaterialisedOccurrences> {
+  const zone = await schedulingZoneOf(tx, userId);
+  const schedule = input.transition === "continue" ? await getSchedule(tx, userId) : null;
+  return materialiseOccurrences(tx, userId, {
+    programId: input.programId,
+    familyId: input.familyId,
+    blueprint: occurrencesFromBlueprint(input.blueprint, {
+      familyId: input.familyId,
+      startDate: input.startDate,
+      schedulingTimeZone: zone,
+    }),
+    schedulingZone: zone,
+    today: todayInTimeZone(zone, input.now ?? new Date()),
+    transition: input.transition,
+    position:
+      schedule && schedule.program.familyId === input.familyId
+        ? nextPendingSlot(schedule.state)
+        : undefined,
+  });
+}
+
+/**
+ * Gives every running programme with runs and no occurrences the ones it should have had.
+ *
+ * Adopting a template wrote the programme and never its occurrences, and the multisport
+ * backfill that could have written them had already run. So every athlete who adopted one is
+ * held on their first running day, with a run nothing can answer. This writes them now, as a
+ * continuation: matched by lineage, placed by where the sequence has got to, and safe to run
+ * again. A programme is repaired in its own transaction, so one that cannot be read does not
+ * hold back the others; its id is reported instead.
+ */
+export async function materialiseMissingOccurrences(
+  db: Db,
+): Promise<{ programmes: number; occurrences: number; failed: string[] }> {
+  const stranded = await db
+    .select({
+      id: programs.id,
+      userId: programs.userId,
+      familyId: programs.familyId,
+      startDate: programs.startDate,
+    })
+    .from(programs)
+    .where(
+      and(
+        eq(programs.status, "active"),
+        isNotNull(programs.startDate),
+        // Plain SQL, qualified by hand, so neither subquery's own columns can stand in.
+        sql`exists (select 1 from program_runs r where r.program_id = programs.id)`,
+        sql`not exists (
+          select 1 from planned_occurrences o
+          where o.user_id = programs.user_id and o.family_id = programs.family_id
+        )`,
+      ),
+    );
+  const summary = { programmes: 0, occurrences: 0, failed: [] as string[] };
+  for (const programme of stranded) {
+    try {
+      const counts = await db.transaction(async (tx) => {
+        const current = await readProgramBlueprint(tx, programme.userId, programme.id);
+        if (!current) return null;
+        return materialiseProgramme(tx, programme.userId, {
+          programId: programme.id,
+          familyId: programme.familyId,
+          blueprint: current.blueprint,
+          startDate: programme.startDate!,
+          transition: "continue",
+        });
+      });
+      if (!counts) continue;
+      summary.programmes++;
+      summary.occurrences += counts.created;
+    } catch {
+      summary.failed.push(programme.id);
+    }
+  }
+  return summary;
+}
+
+/**
+ * Withdraws what a programme the athlete has moved on from still had ahead of them.
+ *
+ * A new block is a new family, so nothing offers the old one's runs again, but they stayed
+ * pending and adherence went on counting each as missed as its date went by. From today on
+ * they are cancelled, the way a revision cancels work it drops (§9.1). What was due before
+ * today and never answered stays as it is: that was missed while the programme still ran.
+ */
+export async function withdrawFamilyOccurrences(
+  tx: DbOrTx,
+  userId: string,
+  familyId: string,
+  source: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const today = todayInTimeZone(await schedulingZoneOf(tx, userId), now);
+  const ahead = await tx
+    .select({ id: plannedOccurrences.id })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .leftJoin(
+      activities,
+      and(
+        eq(activities.occurrenceId, plannedOccurrences.id),
+        eq(activities.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        eq(plannedOccurrences.familyId, familyId),
+        eq(plannedOccurrences.disposition, "pending"),
+        isNull(activities.id),
+        gte(occurrenceVersions.scheduledOn, today),
+      ),
+    );
+  if (ahead.length === 0) return 0;
+  const ids = ahead.map((row) => row.id);
+  await tx
+    .update(plannedOccurrences)
+    .set({ disposition: "cancelled", updatedAt: new Date() })
+    .where(and(eq(plannedOccurrences.userId, userId), inArray(plannedOccurrences.id, ids)));
+  await tx.insert(occurrenceEvents).values(
+    ids.map((occurrenceId) => ({
+      userId,
+      occurrenceId,
+      kind: "cancelled" as const,
+      actor: "athlete",
+      source,
+    })),
+  );
+  return ids.length;
+}
+
 /**
  * Occurrences that are still open on or after a date, for the daily preparation window.
  *
@@ -419,6 +645,8 @@ export async function openOccurrencesBetween(
   {
     id: string;
     sport: string;
+    /** The programme lineage it belongs to; null for the athlete's own scheduled work. */
+    familyId: string | null;
     revisionId: string;
     scheduledOn: string;
     programVersionId: string | null;
@@ -429,6 +657,7 @@ export async function openOccurrencesBetween(
     .select({
       id: plannedOccurrences.id,
       sport: plannedOccurrences.sport,
+      familyId: plannedOccurrences.familyId,
       revisionId: occurrenceVersions.id,
       scheduledOn: occurrenceVersions.scheduledOn,
       programVersionId: occurrenceVersions.programVersionId,

@@ -23,10 +23,11 @@ import {
   metricLabel,
   metricsForExercise,
   primaryMetric,
+  topWeightWorkLabel,
   type SharedMetric,
 } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric, formatTopWeightWork } from "@/lib/format";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -43,8 +44,8 @@ import {
   type SharedReading,
   type TrendPoint,
 } from "@/server/repositories/shared-stats";
-import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername, requireUuid } from "@/server/validation/params";
+import { socialWindow } from "@/server/validation/period";
 
 export const metadata: Metadata = { title: "Compare exercise" };
 
@@ -57,15 +58,19 @@ function side(
   reading: SharedReading | undefined,
   ratio: boolean,
   unit: BodyLoadUnit,
+  currentYear: string,
 ): CompareSide {
   const best = bests?.find((b) => b.metric === metric);
   // No best is not a best of nothing: an estimated 1RM needs a set of ten reps or fewer.
   if (!best) return { value: null, text: "—" };
-  const sub = [formatIsoDay(best.occurredOn)];
-  if (best.work) sub.unshift(formatTopWeightWork(best.work));
+  // The day as the exercise page dates it, its year only outside this one (ADR 0044).
+  const sub = [formatIsoDate(best.occurredOn, currentYear)];
+  if (best.work) sub.unshift(topWeightWorkLabel(best.work));
   const bodyWeight = ratio && RATIO_METRICS.has(metric) ? (reading?.weightKg ?? null) : null;
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
-  if (times !== null) sub.push(`${times}× BW`);
+  // Of the latest weight, not the weight on the day of a lift long ago: only the latest reading
+  // is shared (plan §3.8), so neither side can be read against an older one, and says so.
+  if (times !== null) sub.push(`${times}×\u00a0latest\u00a0BW`);
   return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
 }
 
@@ -96,7 +101,7 @@ export default async function CompareExercisePage(
     async (tx) => {
       const [exercise, head] = await Promise.all([
         getComparableExercise(tx, exerciseId),
-        loadHeadToHead(tx, { id: user.id, username: viewer.username }, handle),
+        loadHeadToHead(tx, user.id, handle),
       ]);
       if (!exercise || head === null) return null;
       if (head === "self") return "self";
@@ -105,7 +110,7 @@ export default async function CompareExercisePage(
       const metric = primaryMetric(exercise);
       // The friend is in the circle whenever their training is visible (you follow them), so
       // one read of the circle's bests serves the bar pairs and the board beneath.
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username }, head.me);
+      const circle = await loadCircle(tx, user.id, head.me);
       const [bests, readings, trends] = await Promise.all([
         readExerciseBests(
           tx,
@@ -119,7 +124,7 @@ export default async function CompareExercisePage(
           ids,
           exerciseId,
           metricsForExercise(exercise),
-          dateWindow(trendDays.from, trendDays.to, viewer.timeZone),
+          socialWindow(trendDays.from, trendDays.to, viewer.timeZone),
         ),
       ]);
       const board = topWithYou(rankExercise(circle, bests, new Map(), metric), head.me.id, 5);
@@ -192,7 +197,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? " An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads 0." : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how many working sets were at it and the most reps the best of them reached. Best set volume is the biggest single set, its load × reps. Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (×\u00a0latest\u00a0BW), since you both share it: today's weight, not the weight on the day of the lift." : ""}`}
         >
           <Card>
             <CompareTable
@@ -200,8 +205,8 @@ export default async function CompareExercisePage(
               rows={metricsForExercise(exercise).map((m) => ({
                 key: m,
                 label: metricLabel(m, exercise),
-                a: side(m, mine, readings.get(me.id), ratio, unit),
-                b: side(m, theirs, readings.get(them.id), ratio, unit),
+                a: side(m, mine, readings.get(me.id), ratio, unit, today.slice(0, 4)),
+                b: side(m, theirs, readings.get(them.id), ratio, unit, today.slice(0, 4)),
               }))}
             />
           </Card>
@@ -235,6 +240,7 @@ export default async function CompareExercisePage(
           rows={board}
           you={me.id}
           unit={unit}
+          currentYear={today.slice(0, 4)}
         />
       </PageContent>
     </>

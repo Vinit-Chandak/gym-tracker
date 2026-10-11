@@ -2,9 +2,10 @@ import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
+import { Figures } from "@/components/ui/figures";
 import { List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import type { Ranked } from "@/domain/leaderboard";
-import { formatIsoDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type RankRow = Ranked<{
@@ -14,7 +15,7 @@ export type RankRow = Ranked<{
   value: number | null;
   /** The day a best was set, under the value; null on a period's totals. */
   occurredOn: string | null;
-  /** How a top weight was worked — "4 × 12" — between the value and its day; null otherwise. */
+  /** How a top weight was worked — "4 sets · best 12 reps" — between the value and its day. */
   detail?: string | null;
 }>;
 
@@ -22,12 +23,14 @@ export type RankRow = Ranked<{
  * Leaderboard rows (plan §3.12): rank, avatar, name, value. Your own row reads "You" and is
  * tinted; a row with nothing to rank trails, greyed, with "—", so a friend's absence is
  * visible rather than mysterious. Each row opens the person's page. Server-renderable, so a
- * board costs no JavaScript.
+ * board costs no JavaScript. The day a best was set reads as the exercise page reads it, its
+ * year only outside `currentYear` (ADR 0044).
  */
 export function RankList({
   rows,
   you,
   format,
+  currentYear,
   className,
 }: {
   rows: readonly RankRow[];
@@ -35,6 +38,8 @@ export function RankList({
   you: string;
   /** How a value reads in the viewer's unit: "88 kg", "12 reps", "1.18×". */
   format: (value: number) => string;
+  /** The year it is in the viewer's zone, "2026". */
+  currentYear?: string;
   className?: string;
 }) {
   return (
@@ -55,34 +60,45 @@ export function RankList({
                 absent && "text-ink-muted",
               )}
             >
-              <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
+              {/* The person's basis is what the rank, the avatar and 4.25rem of name need side by
+                  side (1.5 + 0.75 + 2.25 + 0.75 + 4.25rem), so where the name goes never depends
+                  on the value beside it: every row puts it beside the avatar or, at large text,
+                  every row puts it under, with the value under that. */}
+              <span className="flex min-w-0 flex-[1_1_9.5rem] flex-wrap items-center gap-x-3 gap-y-1">
                 {/* Wide enough for two digits, so names start on one line whatever the rank. */}
                 <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
-                <span className="min-w-0 flex-[1_1_8ch]">
-                  <span className="block font-medium [overflow-wrap:anywhere]">
+                <span className="min-w-0 flex-[1_1_4.25rem]">
+                  <span className="block font-medium [overflow-wrap:break-word]">
                     {mine ? "You" : row.displayName || row.username}
                   </span>
-                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+                  <span className="block text-sm [overflow-wrap:break-word] text-ink-muted">
                     @{row.username}
                   </span>
                 </span>
               </span>
-              {/* Values get their own line when the name and rank need the available width. */}
-              <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:anywhere] tabular-nums">
+              {/* Values get their own line when the name and rank need the available width. The
+                  value is as wide in every row (6.25rem holds "Fri 12 Dec 2025" and "12 reps · 4
+                  sets"), so whether it goes under the name never depends on what it says: at
+                  320 pt every row puts it under, rather than the one with a year in its date. */}
+              <span className="ml-auto max-w-full min-w-0 flex-[0_0_6.25rem] text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums">
                 {row.value === null ? (
                   <span aria-label="No data">—</span>
                 ) : (
                   <>
-                    <span className="block font-medium">{format(row.value)}</span>
+                    <span className="block font-medium">
+                      <Figures>{format(row.value)}</Figures>
+                    </span>
                     {row.detail && (
-                      <span className="block text-xs text-ink-muted">{row.detail}</span>
+                      <span className="block text-xs text-ink-muted">
+                        <Figures>{row.detail}</Figures>
+                      </span>
                     )}
                     {row.occurredOn && (
                       <span className="block text-xs text-ink-muted">
-                        {formatIsoDay(row.occurredOn)}
+                        <Figures>{formatIsoDate(row.occurredOn, currentYear)}</Figures>
                       </span>
                     )}
                   </>

@@ -1,34 +1,45 @@
 import { Art } from "@/components/art/art";
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
-import { formatDuration, formatPace } from "@/domain/pace";
+import { Figures } from "@/components/ui/figures";
+import { formatDuration } from "@/domain/pace";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatRelativeDay, formatRunKm, formatSharedLoad } from "@/lib/format";
+import { joinFacts } from "@/lib/facts";
+import {
+  formatRelativeDay,
+  formatSharedDistance,
+  formatSharedPace,
+  formatVolume,
+  type SharedDistanceUnits,
+} from "@/lib/format";
 import type { ActivityRow as Activity } from "@/server/repositories/shared-stats";
 
 /**
- * What one shared session says of itself, by sport. Exhaustive on purpose: a sport added
- * later has to say what its row reads before it can appear here.
+ * What one shared session says of itself, by sport, distances in the reader's own unit for
+ * it. Exhaustive on purpose: a sport added later has to say what its row reads before it can
+ * appear here.
  */
-function summary(row: Activity, unit: BodyLoadUnit): string[] {
+function summary(row: Activity, unit: BodyLoadUnit, distanceUnits: SharedDistanceUnits): string[] {
   const sport: TrainingSport = row.sport;
   switch (sport) {
     case "workout": {
+      // A session of bodyweight sets and holds moved no load: "3 sets", never "3 sets \u00b7 0 kg".
       const parts = [
         row.title,
-        `${row.workingSets} ${row.workingSets === 1 ? "set" : "sets"}`,
-        formatSharedLoad(row.volumeKg, unit),
+        `${row.workingSets}\u00a0${row.workingSets === 1 ? "set" : "sets"}`,
+        ...(row.volumeKg > 0 ? [formatVolume(row.volumeKg, unit)] : []),
       ];
-      if (row.records > 0) parts.push(`${row.records} ${row.records === 1 ? "record" : "records"}`);
+      if (row.records > 0)
+        parts.push(`${row.records}\u00a0${row.records === 1 ? "record" : "records"}`);
       return parts;
     }
     case "run":
       return [
         row.title,
-        `${formatRunKm(row.distanceMeters ?? 0)} km`,
+        formatSharedDistance(row.distanceMeters ?? 0, distanceUnits.run),
         formatDuration(row.durationSeconds),
-        `${formatPace(row.paceSecondsPerKm)} /km`,
+        formatSharedPace(row.paceSecondsPerKm, distanceUnits.run),
       ];
     // A shared ride or swim says it happened, how long it took, and how far where a distance
     // is known. No pace: without the environment, the assistance or the pool it would be a
@@ -37,7 +48,9 @@ function summary(row: Activity, unit: BodyLoadUnit): string[] {
     case "swim":
       return [
         row.title,
-        row.distanceMeters === null ? null : `${formatRunKm(row.distanceMeters)} km`,
+        row.distanceMeters === null
+          ? null
+          : formatSharedDistance(row.distanceMeters, distanceUnits[sport]),
         formatDuration(row.durationSeconds),
       ].filter((part): part is string => part !== null);
   }
@@ -58,13 +71,18 @@ const MARK: Record<TrainingSport, "strength" | "run" | "ride" | "swim"> = {
 export function ActivityRow({
   row,
   unit,
+  distanceUnits,
   today,
 }: {
   row: Activity;
   unit: BodyLoadUnit;
+  distanceUnits: SharedDistanceUnits;
   today: string;
 }) {
   const { person } = row;
+  // A session keeps its owner's local date, which a friend ahead of the reader's time zone
+  // can have on the reader's tomorrow: it happened today all the same, not on a weekday to come.
+  const day = row.occurredOn > today ? today : row.occurredOn;
   return (
     // The shared row's own id, never the activity's: a raw id names a private record, and a
     // link is a place where guessing one would be easiest (AT-PRIV-04).
@@ -80,15 +98,20 @@ export function ActivityRow({
         className="activity-row-avatar"
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline justify-between gap-2">
+        {/* The day stands at the row's end beside the name and goes under it, at the name's
+            edge, before the name would have less than a few words' room (large text). */}
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
           <span className="activity-row-name">{person.displayName || person.username}</span>
-          <span className="activity-row-day">{formatRelativeDay(row.occurredOn, today)}</span>
+          <span className="activity-row-day">{formatRelativeDay(day, today)}</span>
         </span>
         <span className="flex items-center gap-2">
           <span className="grid w-4 shrink-0 justify-items-center">
             <Art kind="mark" sport={MARK[row.sport]} size={16} />
           </span>
-          <span className="activity-row-text">{summary(row, unit).join(" · ")}</span>
+          {/* Its figures in Jost, whose zero is plain: "12,021 lb", not a slashed one. */}
+          <span className="activity-row-text">
+            <Figures>{joinFacts(summary(row, unit, distanceUnits))}</Figures>
+          </span>
         </span>
       </span>
     </Link>

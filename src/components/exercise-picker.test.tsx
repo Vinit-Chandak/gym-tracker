@@ -42,11 +42,12 @@ function Several({ note }: { note?: (id: string) => string | null }) {
 
 it("chooses one exercise as a radio and names it under the search when the list is long", () => {
   const onChange = vi.fn();
-  const { rerender } = render(
+  const { container, rerender } = render(
     <ExercisePicker name="exerciseId" exercises={EXERCISES} value="" onChange={onChange} long />,
   );
   const radio = screen.getByRole("radio", { name: /Cable curl/ });
-  expect(radio.getAttribute("name")).toBe("exerciseId");
+  // The radios are one group, but the choice is submitted under the field's own name.
+  expect(radio.getAttribute("name")).not.toBe("exerciseId");
   expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   fireEvent.click(radio);
   expect(onChange).toHaveBeenCalledWith("curl");
@@ -60,6 +61,14 @@ it("chooses one exercise as a radio and names it under the search when the list 
     />,
   );
   expect(screen.getByText("Selected:").textContent).toContain("Cable curl");
+  // A search that hides the chosen row still leaves the choice to be sent.
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search exercises" }), {
+    target: { value: "push" },
+  });
+  expect(screen.queryByRole("radio", { name: /Cable curl/ })).toBeNull();
+  const field = container.querySelector<HTMLInputElement>('input[name="exerciseId"]');
+  expect(field?.type).toBe("hidden");
+  expect(field?.value).toBe("curl");
 });
 
 it("chooses several as checkboxes that submit nothing themselves, each showing its place", () => {
@@ -99,4 +108,26 @@ it("says what is news about a row, such as being in the workout already", () => 
   const row = screen.getByRole("checkbox", { name: /Push-up/ }).closest("label")!;
   expect(within(row).getByText("In this workout")).toBeTruthy();
   expect(screen.getAllByText("In this workout")).toHaveLength(1);
+});
+
+it("opens a swap on the movement being replaced, the rest by region under it", () => {
+  render(
+    <ExercisePicker
+      name="exerciseId"
+      exercises={EXERCISES}
+      value=""
+      onChange={vi.fn()}
+      like={{ movementPattern: "pull" }}
+      long
+    />,
+  );
+  const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+  expect(headings[0]).toBe("Same movement ·\u00a02");
+  const first = within(screen.getByRole("heading", { name: /Same movement/ }).closest("section")!);
+  expect(first.getAllByRole("radio").map((radio) => radio.closest("label")!.textContent)).toEqual([
+    expect.stringContaining("Cable curl"),
+    expect.stringContaining("Seated cable row"),
+  ]);
+  // Each once: the row is not listed again under its region.
+  expect(screen.getAllByRole("radio", { name: /Seated cable row/ })).toHaveLength(1);
 });

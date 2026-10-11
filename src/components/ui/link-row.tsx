@@ -31,6 +31,11 @@ type LinkRowProps<T extends string> = {
   subtitle?: string;
   badge?: ReactNode;
   meta?: string;
+  /**
+   * A line of its own under the subtitle, at every width: where a list's rows must read alike,
+   * which `meta` cannot promise, since it stands beside the words when they leave it room.
+   */
+  detail?: string;
   icon?: AppIcon;
   /** `danger` for a destination that destroys something, so the row says so before it is opened. */
   tone?: "default" | "danger";
@@ -45,36 +50,52 @@ export function LinkRow<T extends string>({
   subtitle,
   badge,
   meta,
+  detail,
   icon,
   tone = "default",
   prefetch,
 }: LinkRowProps<T>) {
   const danger = tone === "danger";
   return (
-    <Link href={href} prefetch={prefetch} className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
-      <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
-        {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
-        <div className="min-w-0 flex-[1_1_8rem]">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className={cn("font-medium [overflow-wrap:anywhere]", danger && "text-danger")}>
-              {title}
-            </p>
-            {badge}
+    <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
+          {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
+          <div className="min-w-0 flex-[1_1_8rem]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {/* min-w-0: a flex item is otherwise as wide as its longest word, and a word too
+                  long for the line runs past the row rather than breaking (overflow-wrap). */}
+              <p
+                className={cn(
+                  "max-w-full min-w-0 font-medium [overflow-wrap:break-word]",
+                  danger && "text-danger",
+                )}
+              >
+                {title}
+              </p>
+              {badge}
+            </div>
+            {subtitle && (
+              <p className="mt-0.5 text-sm [overflow-wrap:break-word] text-ink-muted">{subtitle}</p>
+            )}
+            {detail && (
+              <p className="mt-0.5 text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
+                {detail}
+              </p>
+            )}
           </div>
-          {subtitle && (
-            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
-          )}
         </div>
-      </div>
-      {/* Move secondary content below the label before it squeezes words into letter stacks. */}
-      <div className="ml-auto flex max-w-full items-center gap-3">
+        {/* Move secondary content below the label before it squeezes words into letter stacks.
+            Beside the label it stands at the row's end, the label taking the room between; under
+            it, it starts at the label's edge rather than floating mid-row (large text). */}
         {meta && (
-          <span className="min-w-0 text-right text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="max-w-full min-w-0 text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}
-        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
       </div>
+      {/* The chevron stays at the row's end, beside the words, however they fold. */}
+      <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
     </Link>
   );
 }
@@ -101,11 +122,11 @@ export function Row({
       <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
         {icon && <RowIcon icon={icon} />}
         <div className="min-w-0 flex-[1_1_8rem]">
-          <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:anywhere]">
+          <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:break-word]">
             {title}
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
+            <p className="mt-0.5 text-sm [overflow-wrap:break-word] text-ink-muted">{subtitle}</p>
           )}
         </div>
       </div>

@@ -51,8 +51,12 @@ export function draftKey(ctx: DraftContext) {
 }
 
 export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
+  return readKey(storage, draftKey(ctx));
+}
+
+function readKey(storage: StorageLike, key: string): Draft[] {
   try {
-    const raw = storage.getItem(draftKey(ctx));
+    const raw = storage.getItem(key);
     if (!raw || raw.length > 50_000) return [];
     const value: unknown = JSON.parse(raw);
     if (!Array.isArray(value)) return [];
@@ -152,6 +156,43 @@ export function moveDrafts(storage: StorageLike, from: DraftContext, to: DraftCo
       JSON.stringify([...kept, ...moving.map((row) => ({ ...row, carried: true as const }))]),
     );
     storage.removeItem(draftKey(from));
+    notify();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Takes in the rows an exercise left under another exercise or machine: one changed by a way
+ * that could not carry them (Register with details, Out of use today, another device), whose
+ * drafts no screen read any more while the workout went on counting them. Rows already here for
+ * the same set win. Rows typed while the machine question was open come as carried, since an
+ * answer to it is what moved them (and a machine answer's own carry may land after this screen
+ * opens); the rest come as they were typed, restored as drafts to review, retry or discard. The
+ * old keys go once their rows are written here.
+ */
+export function adoptDrafts(storage: Storage, ctx: DraftContext): boolean {
+  const own = draftKey(ctx);
+  const prefix = `overload:draft:v1:${ctx.userId}:${ctx.sessionId}:${ctx.workoutExerciseId}:`;
+  try {
+    const strays: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key !== own && key.startsWith(prefix)) strays.push(key);
+    }
+    if (strays.length === 0) return true;
+    const rows = readDrafts(storage, ctx);
+    for (const key of strays) {
+      const answered = key.endsWith(":none");
+      for (const { carried: _carried, ...row } of readKey(storage, key))
+        if (!rows.some((kept) => kept.setIndex === row.setIndex))
+          rows.push(answered ? { ...row, carried: true } : row);
+    }
+    const payload = JSON.stringify(rows);
+    if (rows.length > 50 || payload.length > 50_000) return false;
+    if (rows.length > 0) storage.setItem(own, payload);
+    for (const key of strays) storage.removeItem(key);
     notify();
     return true;
   } catch {

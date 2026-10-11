@@ -1,5 +1,5 @@
 import type { ExerciseGraphData } from "@/components/graph/exercise-graph";
-import type { DayActivity } from "@/components/progress/calendar";
+import type { DayActivity, DistanceUnits } from "@/components/progress/calendar";
 import type { GraphRange, RangePreset } from "@/domain/graph-range";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type {
@@ -23,7 +23,13 @@ export type ProgressData = {
   /** The span every graph is drawn over; null while dates chosen by hand hold. */
   preset: RangePreset | null;
   /** This month so far, for Overview's calendar: every activity of every day. */
-  month: { month: string; today: number; activities: readonly DayActivity[] };
+  month: {
+    month: string;
+    today: number;
+    activities: readonly DayActivity[];
+    /** The units the athlete reads each sport's distances in. */
+    units?: DistanceUnits;
+  };
   /**
    * History's latest activities of every sport, newest first: the calendar read back from today,
    * past the month's first day when it holds fewer (ADR 0045).
@@ -33,7 +39,13 @@ export type ProgressData = {
   strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit };
   exercise: ExerciseGraphData;
   /** `truncated`: more runs than a graph reads, so the oldest are left out (and said so). */
-  running: { range: GraphRange; graph: RunningGraph; truncated: boolean };
+  running: {
+    range: GraphRange;
+    graph: RunningGraph;
+    truncated: boolean;
+    /** The athlete's road unit, which distances and paces are said in; kilometres if unset. */
+    distanceUnit?: "km" | "mi";
+  };
   food: {
     range: GraphRange;
     graph: FoodGraph;

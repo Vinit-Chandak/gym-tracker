@@ -1,6 +1,8 @@
+import { joinFacts } from "@/lib/facts";
 import { convertLoad } from "@/lib/units";
 
-import { estimated1RM } from "./analytics";
+import { unroundedEstimated1RM } from "./analytics";
+import { ASSISTED_EQUIPMENT_TYPES } from "./load-steps";
 import { addExerciseVolume, emptyMuscleVolume } from "./muscle-volume";
 import type { MuscleSets } from "./muscle-split";
 import { paceSecondsPerKm } from "./pace";
@@ -82,8 +84,9 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
           : exercise.modality === "barbell" || exercise.modality === "dumbbell"
             ? "Top weight"
             : "Added load";
+    // Its volume, load × reps, named so: "Best set 180 kg" read as a 180 kg lift.
     case "best_set_volume":
-      return "Best set";
+      return "Best set volume";
     case "most_reps":
       return "Most reps";
     case "longest_hold":
@@ -91,6 +94,21 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
     case "longest_carry":
       return "Longest carry";
   }
+}
+
+/**
+ * How a top weight was worked, said under it: how many working sets were at it, then the most
+ * reps one of them reached ("2 sets · best 12 reps"), or the sets alone for a hold or a carry,
+ * which have no reps. Each number names what it counts, and the reps say they are the best
+ * set's: "2 × 12" and "12 reps · 2 sets" both read as two sets of twelve, where the sets at
+ * 20 kg were 12 and 11. One set has no best to single out ("1 set · 8 reps").
+ */
+export function topWeightWorkLabel(work: { sets: number; reps: number | null }): string {
+  // Each count held to its noun, and the dot to the count after it (FACT_SEPARATOR).
+  const sets = `${work.sets}\u00a0${work.sets === 1 ? "set" : "sets"}`;
+  if (work.reps === null) return sets;
+  const reps = `${work.reps}\u00a0${work.reps === 1 ? "rep" : "reps"}`;
+  return joinFacts([sets, work.sets === 1 ? reps : `best\u00a0${reps}`]);
 }
 
 export type ComparableExercise = { userId: string | null; loadPortability: LoadPortability };
@@ -120,6 +138,8 @@ export type StatsSlot = {
       secondaryMuscles: readonly MuscleGroup[] | null;
     };
   sets: readonly StatsSet[];
+  /** The machine the slot was done on; its type says whether its number is load or help. */
+  equipment?: { typeSlug: string | null } | null;
 };
 
 export type StatsWorkout = {
@@ -204,8 +224,9 @@ function weightKg(set: StatsSet): number | null {
 
 /**
  * One finished workout's shared numbers: the session row and one exercise row per library
- * exercise, a movement done in two slots of one session counting once. Sets that are not
- * warm-ups are working sets, as on Progress; only kg and lb sets weigh anything.
+ * exercise with a working set, a movement done in two slots of one session counting once.
+ * Sets that are not warm-ups are working sets, as on Progress; only kg and lb sets weigh
+ * anything.
  */
 export function sessionStats(
   workout: StatsWorkout,
@@ -228,9 +249,17 @@ export function sessionStats(
       const kg = weightKg(set);
       return kg === null ? [] : [{ kg, reps: set.reps }];
     });
-    for (const set of loaded) if (set.reps !== null) volumeKg += set.kg * set.reps;
+    // An assisted machine's number is help, and more help is not more work: no volume, as
+    // Progress counts it (graphs.ts).
+    const assisted =
+      slot.exercise.loadPortability !== "global" &&
+      ASSISTED_EQUIPMENT_TYPES.has(slot.equipment?.typeSlug ?? "");
+    if (!assisted) for (const set of loaded) if (set.reps !== null) volumeKg += set.kg * set.reps;
     // A movement someone added themselves has no counterpart in anyone else's account.
     if (slot.exercise.userId !== null) continue;
+    // A slot with no working set was not trained: skipped, left undone, or warm-ups only. A
+    // row for it would list the movement as one you both logged, with nothing to compare.
+    if (working.length === 0) continue;
     const reps = working.flatMap((set) => (set.reps === null ? [] : [set.reps]));
     const current = byExercise.get(slot.exerciseId) ?? {
       exerciseId: slot.exerciseId,
@@ -272,8 +301,9 @@ export function sessionStats(
       current.bestE1rmKg,
       max(
         loaded.flatMap((set) => {
-          const value = estimated1RM(set.kg, set.reps, slot.exercise.modality, "kg");
-          return value === null ? [] : [value];
+          // Kept to the column's hundredths, so a pound lift reads back as itself (30 × 6, 36 lb).
+          const value = unroundedEstimated1RM(set.kg, set.reps, slot.exercise.modality, "kg");
+          return value === null ? [] : [round2(value)];
         }),
       ),
     );
@@ -320,6 +350,12 @@ export type StatsRun = {
   startedAt: Date;
   durationSeconds: number;
   distanceMeters: number;
+  /**
+   * The local date frozen on the run when it was saved, in the zone it was recorded in. Given,
+   * it is the shared row's date, so a rebuild cannot move a run logged while travelling to
+   * another day; without it the date is resolved in the zone passed alongside.
+   */
+  occurredOn?: string;
 };
 
 /**
@@ -367,7 +403,7 @@ export function runStats(run: StatsRun, timeZone: string): SessionStats {
     sport: "run",
     sourceId: run.id,
     title: "Run",
-    occurredOn: todayInTimeZone(timeZone, run.startedAt),
+    occurredOn: run.occurredOn ?? todayInTimeZone(timeZone, run.startedAt),
     startedAt: run.startedAt,
     durationSeconds: run.durationSeconds,
     workingSets: 0,

@@ -6,10 +6,17 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { fromMetres } from "@/lib/distance-units";
+import {
+  DISTANCE_UNITS,
+  fromMetres,
+  POOL_UNITS,
+  readingUnit,
+  type LengthUnit,
+} from "@/lib/distance-units";
 import { saveTemplateAction } from "@/server/actions/activity-templates";
 import { requireUser } from "@/server/auth";
 import { getTemplate } from "@/server/repositories/activity-templates";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Edit template" };
@@ -24,15 +31,29 @@ export default async function EditTemplatePage(
   const { templateId } = await props.params;
   requireUuid(templateId);
   const user = await requireUser();
-  const template = await withUser(getDb(), user.id, (tx) => getTemplate(tx, user.id, templateId), {
-    readOnly: true,
-  });
-  if (!template) notFound();
+  const { template, units } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const template = await getTemplate(tx, user.id, templateId);
+      return { template, units: template ? await unitsFor(tx, user.id, template.sport) : null };
+    },
+    { readOnly: true },
+  );
+  if (!template || !units) notFound();
 
   const targets = template.prescription.sessionTargets;
-  const unit = template.sport === "swimming" ? "m" : "km";
   const block = template.prescription.nodes.find((node) => node.kind === "repeat");
   const step = block?.kind === "repeat" ? block.steps[0] : undefined;
+  // Each distance comes back in the unit it was typed in, so a five-mile run is still 5 mi
+  // here. One written before units were kept, or in a unit this editor does not offer for the
+  // sport, opens in the athlete's own unit; the metres are the same either way.
+  const offered: readonly LengthUnit[] =
+    template.sport === "swimming" ? POOL_UNITS : DISTANCE_UNITS;
+  const asWritten = (written: LengthUnit | undefined): LengthUnit =>
+    written && offered.includes(written) ? written : readingUnit(template.sport, units);
+  const unit = asWritten(targets.distanceUnit);
+  const stepUnit = asWritten(step?.target.kind === "distance" ? step.target.unit : undefined);
 
   return (
     <>
@@ -65,11 +86,11 @@ export default async function EditTemplatePage(
             stepTargetKind: step ? step.target.kind : "none",
             stepDistance:
               step?.target.kind === "distance"
-                ? String(fromMetres(step.target.metres[1], unit))
+                ? String(fromMetres(step.target.metres[1], stepUnit))
                 : "",
             stepDurationSeconds:
               step?.target.kind === "duration" ? String(step.target.ms[1] / 1000) : "",
-            stepDistanceUnit: unit,
+            stepDistanceUnit: stepUnit,
           }}
           submitLabel="Save changes"
         />

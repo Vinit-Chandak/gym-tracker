@@ -7,6 +7,7 @@ import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
+import type { LikeExercise } from "@/lib/exercise-search";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -27,9 +28,13 @@ type Props = {
    * nothing about the gym (plan: gradual confirmation during workouts).
    */
   rememberByDefault?: boolean;
+  /** The lift the slot plans: going back to it is no fallback, so the box is not offered. */
+  plannedExerciseId?: string | null;
   exerciseFieldName?: string;
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
+  /** The exercise being replaced: the list opens on its movement. */
+  like?: LikeExercise | null;
 };
 
 /**
@@ -46,8 +51,10 @@ export function PickExerciseForm({
   submitLabel,
   remember = false,
   rememberByDefault = true,
+  plannedExerciseId = null,
   exerciseFieldName = "exerciseId",
   long = false,
+  like = null,
 }: Props) {
   const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -66,6 +73,7 @@ export function PickExerciseForm({
         onChange={setExerciseId}
         error={state.fieldErrors?.[exerciseFieldName]}
         long={long}
+        like={like}
       />
 
       <PinnedActions stack>
@@ -94,7 +102,7 @@ export function PickExerciseForm({
             <p className="pinned-fact">
               <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
               <Glyph name="machine" className="glyph-18" />
-              <span className="min-w-0 [overflow-wrap:anywhere]">On {applicable[0]!.name}</span>
+              <span className="min-w-0 [overflow-wrap:break-word]">On {applicable[0]!.name}</span>
             </p>
           ) : (
             <p className="pinned-fact text-ink-2">
@@ -103,7 +111,7 @@ export function PickExerciseForm({
             </p>
           ))}
 
-        {remember && (
+        {remember && exerciseId !== plannedExerciseId && (
           <label className="check-row">
             <input
               type="checkbox"

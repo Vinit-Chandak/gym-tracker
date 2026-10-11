@@ -16,6 +16,7 @@ import {
 } from "@/components/graph/labels";
 import { Select } from "@/components/ui/select";
 import { STRENGTH_GROUP_CHOICES, type StrengthGroupChoice } from "@/domain/progress-graphs";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { fromKilograms } from "@/lib/units";
 
 import type { ProgressData } from "../progress-types";
@@ -172,7 +173,10 @@ function GroupVolume({
         unit,
         context:
           total > 0 && graph.weeksTrained > 0
-            ? `${amount(total / graph.weeksTrained)} ${unit} a week · ${counted(workouts, "workout")}`
+            ? joinFacts([
+                `${amount(total / graph.weeksTrained)}\u00a0${unit} a week`,
+                counted(workouts, "workout"),
+              ])
             : null,
       }}
       describe={(index) => {
@@ -197,7 +201,7 @@ function GroupVolume({
             many > 1 ? counted(many, "workout") : null,
           ]
             .filter(Boolean)
-            .join(" · "),
+            .join(FACT_SEPARATOR),
           ...(one
             ? { href: workoutHref(one, "history"), action: "Open workout" }
             : range.bucket === "day"
@@ -210,7 +214,7 @@ function GroupVolume({
       }}
       note={{
         label: "About volume",
-        content: `Load × reps of every working set from finished workouts, in ${unit}; warm-ups are left out. Each exercise counts under one muscle group, the one its main muscle is in, and is listed there, so the groups add up to All. Bodyweight, timed and machine-stack sets carry no load and add nothing here: choose the exercise to see its reps or time. The weekly figure is taken over the weeks you trained.`,
+        content: `Load × reps of every working set from finished workouts, in ${unit}; warm-ups are left out. Each exercise counts under one muscle group, the one its main muscle is in, and is listed there, so the groups add up to All. Bodyweight, timed and machine-stack sets carry no load and add nothing here, nor does an assisted machine's help: choose the exercise to see its reps or time. The weekly figure is taken over the weeks you trained; a week the range starts or ends partway through counts for its days in the range.`,
       }}
       empty={
         sets > 0

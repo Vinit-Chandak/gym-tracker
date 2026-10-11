@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PRESCRIBED_EFFORT } from "./activity-limits";
 import {
   blueprintExerciseSchema,
   type BlueprintExercise,
@@ -62,7 +63,13 @@ export const programPatchOperationSchema = z.discriminatedUnion("op", [
     weekIndex: z.number().int().min(1).max(52),
     dayOfWeek: z.number().int().min(1).max(7),
     duration: range(z.number().int().min(1).max(600)).optional(),
-    rpe: range(z.number().min(0).max(10)).optional(),
+    /** Out of five, as every programme's runs have been since 0034. */
+    rpe: range(
+      z
+        .number("Give the run its effort, out of five.")
+        .min(PRESCRIBED_EFFORT.min)
+        .max(PRESCRIBED_EFFORT.max),
+    ).optional(),
     paceNote: z.string().trim().max(300).optional(),
     reason,
   }),

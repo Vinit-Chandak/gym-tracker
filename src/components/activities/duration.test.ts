@@ -34,5 +34,7 @@ it("shows the parts a form posted, and nothing for none", () => {
   expect(durationFromParts("", "", "")).toBe("");
   expect(durationFromParts("0", "42", "0")).toBe("42:00");
   expect(durationFromParts("1", "5", "")).toBe("1:05:00");
-  expect(durationFromParts("", "40", "12.5")).toBe("40:12.5");
+  // A tenth the record holds is read to the second, as its page reads it; the field keeps it.
+  expect(durationFromParts("", "40", "12.5")).toBe("40:13");
+  expect(durationFromParts("0", "32", "16.4")).toBe("32:16");
 });

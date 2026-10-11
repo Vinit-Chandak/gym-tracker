@@ -97,8 +97,9 @@ export default async function EquipmentPage(
         )}
         {equipment.isActive && (
           <Card>
-            <div className="flex items-center justify-between gap-3">
-              <p className="flex items-center gap-1 font-medium">
+            {/* At large text the button goes under its words rather than past the card. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="flex min-w-0 items-center gap-1 font-medium">
                 Archive machine
                 <InfoTip label="About archiving">
                   Hides it from new sessions at {equipment.gymName}. Sets logged on it stay in

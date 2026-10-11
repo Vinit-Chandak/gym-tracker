@@ -22,10 +22,12 @@ export function previousAppPage(): string | null {
  *
  * A page that moves within itself through the History API — the workout opening one exercise
  * and closing it again — leaves entries behind that are still this page, and a form finished
- * on one of its own sub-pages (Finish, Check-in) leaves that sub-page behind. Neither is
- * somewhere Back can go: returning to the same page does nothing, and returning into a form
- * already submitted is a step the athlete has finished with. So both count as having no
- * previous page, and the header's own destination is used instead.
+ * on one of its own sub-pages (Finish, Check-in) leaves that sub-page behind. A "New …" form
+ * beside this page — New gym before the gym it made — is the same: creating something lands
+ * on the thing created, one step along from the form. None of these is somewhere Back can go:
+ * returning to the same page does nothing, and returning into a form already submitted, now
+ * empty, is a step the athlete has finished with. So each counts as having no previous page,
+ * and the header's own destination is used instead.
  */
 export function previousPageFrom(pathname: string): string | null {
   const previous = previousAppPage();
@@ -33,6 +35,7 @@ export function previousPageFrom(pathname: string): string | null {
   const previousPath = previous.split(/[?#]/)[0]!;
   const here = pathname.replace(/\/+$/, "") || "/";
   if (previousPath === here || previousPath.startsWith(`${here}/`)) return null;
+  if (previousPath === `${here.slice(0, here.lastIndexOf("/"))}/new`) return null;
   return previous;
 }
 

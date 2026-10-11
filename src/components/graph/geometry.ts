@@ -53,9 +53,26 @@ export function barScale(
 // `+ 0` turns a negative zero into zero, so a scale never writes "-0".
 const round = (value: number) => Math.round(value * 1000) / 1000 + 0;
 
+/** A step a count can stop at: whole, and at least one. */
+const whole = (step: number) => step >= 1 && Number.isInteger(step);
+
 /**
- * A line's scale: the readings with air above and below, and the round values inside as its
- * lines. A fixed scale (a 1–5 answer) is drawn whole whatever the readings.
+ * A step whose lines are labelled exactly as the graphs write values: to a tenth under 100, whole
+ * from 100 up ("190.4", "215"). A quarter step would be labelled 180.8, 181, 181.3: equal
+ * steps that read as unequal ones.
+ */
+function writable(step: number, high: number): boolean {
+  const scaled = step * (Math.abs(high) >= 100 ? 1 : 10);
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
+/**
+ * A line's scale: two or three round values an equal step apart, the lowest at or under the
+ * lowest reading and the highest at or over the highest, so no reading stands above the top
+ * line or under the bottom one; the line floats between them, never from zero. Of the steps that
+ * manage it, the one leaving least room around the readings wins. A fixed scale (a 1–5 answer)
+ * is drawn whole whatever the readings. A count (reps) is `integral`: its lines are whole
+ * numbers, never 7.5 reps.
  */
 export function lineScale(
   values: readonly number[],
@@ -64,7 +81,14 @@ export function lineScale(
     max,
     ticks: fixedTicks,
     steps,
-  }: { min?: number; max?: number; ticks?: readonly number[]; steps?: readonly number[] } = {},
+    integral = false,
+  }: {
+    min?: number;
+    max?: number;
+    ticks?: readonly number[];
+    steps?: readonly number[];
+    integral?: boolean;
+  } = {},
 ): { ticks: number[]; lo: number; hi: number } {
   if (min !== undefined && max !== undefined)
     return { ticks: [...(fixedTicks ?? [min, max])], lo: min, hi: max };
@@ -72,32 +96,42 @@ export function lineScale(
   const low = Math.min(...values);
   const high = Math.max(...values);
   const span = high - low;
-  if (span === 0) return flatScale(high, steps);
-  const pad = span * 0.14;
-  const lo = low - pad;
-  const hi = high + pad;
-  // Two or three lines inside the readings: the smallest round step that gives at most three.
-  const ordered = [...(steps ?? candidates((hi - lo) / 2.5))].sort((a, b) => a - b);
-  const step =
-    ordered.find((s) => Math.floor(hi / s) - Math.ceil(lo / s) + 1 <= 3) ?? ordered.at(-1)!;
-  const ticks: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-9; t += step) ticks.push(round(t));
-  return { ticks, lo, hi };
+  if (span === 0) return flatScale(high, steps, integral);
+  const ordered = [...(steps ?? candidates(span / 2).filter((step) => writable(step, high)))]
+    .filter((step) => !integral || whole(step))
+    .sort((a, b) => a - b);
+  if (ordered.length === 0) ordered.push(1);
+  const around = (step: number) => {
+    const from = Math.floor(low / step + 1e-9);
+    const to = Math.ceil(high / step - 1e-9);
+    return { step, from, count: Math.max(1, to - from) };
+  };
+  // Two steps at most, so three lines; failing that (a span far past the largest step a scale is
+  // given), the largest step, with as many lines as it takes.
+  const fits = ordered.map(around).filter((scale) => scale.count <= 2);
+  const best = fits.length
+    ? fits.reduce((a, b) => (b.count * b.step < a.count * a.step - 1e-9 ? b : a))
+    : around(ordered.at(-1)!);
+  const ticks = Array.from({ length: best.count + 1 }, (_, i) =>
+    round((best.from + i) * best.step),
+  );
+  return { ticks, lo: ticks[0]!, hi: ticks.at(-1)! };
 }
 
 /**
  * One value, however many times: it stands on the middle line, a round step either side, the
  * step about a tenth of the value and one it is a whole number of where one is near (17.5 kg
  * between 15 and 20, not between 17.2 and 18), so the scale never claims a precision the
- * readings do not have.
+ * readings do not have. A count steps by whole numbers.
  */
 function flatScale(
   value: number,
   steps: readonly number[] | undefined,
+  integral: boolean,
 ): { ticks: number[]; lo: number; hi: number } {
   const wanted = Math.max(Math.abs(value) * 0.08, 0.5);
   const ordered = [...(steps ?? candidates(wanted))]
-    .filter((step) => step >= wanted - 1e-9)
+    .filter((step) => step >= wanted - 1e-9 && (!integral || whole(step)))
     .sort((a, b) => a - b);
   const fits = (step: number) => Math.abs(value / step - Math.round(value / step)) < 1e-6;
   const step = ordered.slice(0, 4).find(fits) ?? ordered[0] ?? wanted;
@@ -226,6 +260,17 @@ export function axisTicks(
     if (fits) return kept;
   }
   return [];
+}
+
+/**
+ * Whether a value's label on the scale stands clear of the rule's label (the rule's takes the
+ * place of one it would touch): their lines a label's height and a little apart, `px` being the
+ * labels' size. The plot keeps its height at any text size while its labels grow, so at 200%
+ * text 4 h and 8 h stand 37 pt either side of a 6 h rule in 24-pt labels and keep theirs; a
+ * label half a step from the rule gives way.
+ */
+export function clearOfRule(tickY: number, ruleY: number, px: number): boolean {
+  return Math.abs(tickY - ruleY) >= 1.2 * px;
 }
 
 /** The mark nearest a point along the axis, among those that have one. */

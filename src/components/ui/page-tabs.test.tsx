@@ -32,6 +32,33 @@ it("says which page is being read, and moves to another with a tap", () => {
   expect(onChange).toHaveBeenCalledTimes(1);
 });
 
+it("folds the tray onto a second row rather than shrinking a tab under its target", () => {
+  render(<PageTabs page={6} total={25} onChange={vi.fn()} label="History pages" />);
+  const pages = screen.getByRole("navigation", { name: "History pages" });
+  // At 200% text a tab is 64 px, and five with two gaps do not fit a 320-pt phone's row.
+  expect(pages.querySelector("ul")!.className).toContain("flex-wrap");
+  const tabs = within(pages).getAllByRole("button");
+  expect(tabs.map((tab) => tab.textContent)).toEqual(["1", "5", "6", "7", "25"]);
+  for (const tab of tabs) {
+    const slot = tab.closest("li")!;
+    expect(slot.className).toContain("grow");
+    expect(slot.className).not.toContain("min-w-0");
+    // Its width on one row, at least its target; a column's where the tray folds.
+    expect(slot.style.flexBasis).toContain("var(--fold-w");
+    expect(slot.style.maxWidth).toContain("calc((100% - ");
+  }
+  // A gap is its ellipsis, in the tabs' own type, not a width that grows past it, until the
+  // tray folds and it is a column as wide as a page's.
+  const gaps = pages.querySelectorAll<HTMLElement>('li[aria-hidden="true"]:not(.fold-break)');
+  expect(gaps).toHaveLength(2);
+  for (const gap of gaps) {
+    expect(gap.className).not.toMatch(/\bw-\d/);
+    expect(gap.className).toContain("shrink-0");
+    expect(gap.className).not.toMatch(/\bgrow\b/);
+    expect(gap.style.flexBasis).toContain("calc((100% - ");
+  }
+});
+
 it("draws nothing for a list of one page", () => {
   render(<PageTabs page={1} total={1} onChange={vi.fn()} label="History pages" />);
   expect(screen.queryByRole("navigation")).toBeNull();

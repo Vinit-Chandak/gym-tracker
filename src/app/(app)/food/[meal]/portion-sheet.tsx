@@ -6,6 +6,7 @@ import type { BowlMeal } from "@/components/art/geometry";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { scaleFood, type Food, type Meal } from "@/domain/nutrition";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { deleteEntryAction, logFoodAction, updateEntryAction } from "@/server/actions/nutrition";
@@ -197,8 +198,11 @@ export function PortionSheet({
         }}
       >
         <p className="type-meta-small text-ink-2 tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-          {macros && ` · ${macros}`}
+          {joinFacts([
+            `Per ${holdFigures(formatPortion(food.portionAmount, food.unit))}`,
+            `${formatKcal(food.kcal)}\u00a0kcal`,
+            macros,
+          ])}
         </p>
         <AmountField
           label="Amount eaten"

@@ -4,7 +4,9 @@ import { Art } from "@/components/art/art";
 import type { Sport } from "@/components/art/geometry";
 import { dayLabel } from "@/components/graph/labels";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -12,9 +14,9 @@ export type HistoryItem = {
   id: string;
   /** Every sport history holds, plus the recovery readings that are not training at all. */
   kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
-  /** When it began, for the order; a recovery reading has only its date. */
+  /** When it began, for the order within its day; a recovery reading has only its date. */
   date: string;
-  /** The local day it is listed under. */
+  /** The local day it is listed under: the day it was recorded on, as the calendar marks it. */
   day: string;
   title: string;
   /** Its time and where: "19:00 · Anytime Fitness"; a recovery reading's answers. */
@@ -54,7 +56,7 @@ function byDay(items: readonly HistoryItem[]) {
 }
 
 function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
-  const line = [item.subtitle, item.recovery].filter(Boolean).join(" · ");
+  const line = joinFacts([item.subtitle, item.recovery]);
   const content = (
     <>
       <span className="mark-cell">
@@ -67,16 +69,19 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
       <span className="flex min-w-0 flex-1 flex-col">
         {/* The figure stands beside the name while both fit, under it when not. */}
         <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
-          <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:anywhere] tabular-nums">
+          <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:break-word] tabular-nums">
             {item.title}
           </span>
           {item.meta && (
-            <span className="shrink-0 type-meta font-semibold tabular-nums">{item.meta}</span>
+            <span className="shrink-0 type-meta font-semibold tabular-nums">
+              <Figures>{item.meta}</Figures>
+            </span>
           )}
         </span>
+        {/* Its time and its readings are facts: their digits in Jost, whose zero is plain. */}
         {line && (
-          <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
-            {line}
+          <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
+            <Figures>{line}</Figures>
           </span>
         )}
       </span>

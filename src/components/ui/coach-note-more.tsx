@@ -53,7 +53,7 @@ export function CoachNoteMore({
         ref={words}
         id={id}
         className={cn(
-          "mt-1 leading-[1.45] [overflow-wrap:anywhere] text-ink tabular-nums",
+          "mt-1 leading-[1.45] [overflow-wrap:break-word] text-ink tabular-nums",
           size === "body" ? "type-body" : "type-meta",
           !open && "line-clamp-2",
         )}
@@ -67,7 +67,7 @@ export function CoachNoteMore({
           aria-controls={id}
           aria-label={`${open ? "Less" : "More"} from ${who === "Coach" ? "the coach" : who}`}
           className={cn(
-            "-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold",
+            "-my-2.5 -ml-1.5 min-h-[var(--ov-target)] min-w-[var(--ov-target)] px-1.5 font-bold",
             size === "body" ? "type-body" : "type-meta",
           )}
           onClick={() => setOpen((value) => !value)}

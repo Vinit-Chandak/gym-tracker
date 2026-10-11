@@ -8,6 +8,8 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays, readFirstActivityDay } from "@/server/repositories/activity-analytics";
 
+import { unitsBySport } from "@/server/repositories/sport-preferences";
+
 import { CalendarView } from "./calendar-view";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -27,7 +29,7 @@ export default async function CalendarPage() {
   // Two years before this month's first day, as a month.
   const earliest = addDays(`${thisMonth}-01`, -MONTHS_BACK * 31).slice(0, 7);
 
-  const { activities, truncated, first } = await withUser(
+  const { activities, units, truncated, first } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -35,8 +37,19 @@ export default async function CalendarPage() {
       const firstMonth =
         firstDay && firstDay.slice(0, 7) > earliest ? firstDay.slice(0, 7) : earliest;
       const start = firstDay ? firstMonth : thisMonth;
-      const read = await readActivityDays(tx, user.id, { from: `${start}-01`, to: today });
-      return { activities: read.items, truncated: read.truncated, first: start };
+      const [read, units] = await Promise.all([
+        readActivityDays(tx, user.id, { from: `${start}-01`, to: today }),
+        unitsBySport(tx, user.id),
+      ]);
+      // More than one read holds keeps the newest: the months before the oldest one kept are
+      // left out rather than drawn as empty paper, and the note above them says so.
+      const kept = read.truncated ? read.items[0]?.occurredOn.slice(0, 7) : undefined;
+      return {
+        activities: read.items,
+        units,
+        truncated: read.truncated,
+        first: kept && kept > start ? kept : start,
+      };
     },
     { readOnly: true },
   );
@@ -46,12 +59,14 @@ export default async function CalendarPage() {
       months={monthsBetween(`${first}-01`, today)}
       today={today}
       truncated={truncated}
+      units={units}
       activities={activities.map((item): DayActivity => ({
         sport: item.sport,
         occurredOn: item.occurredOn,
         durationMs: item.durationMs,
         distanceMetres: item.distanceMetres,
         environment: item.environment,
+        inProgress: item.inProgress,
       }))}
     />
   );

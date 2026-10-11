@@ -51,6 +51,16 @@ describe("the month", () => {
     ]);
   });
 
+  it("draws the workout still open on its day, and counts it once it is finished", () => {
+    const open = activity({ occurredOn: "2026-09-25", inProgress: true });
+    // Marked as under way, so it does not look like one of the sessions the month counts.
+    expect(monthDays([...september, open], "2026-09")[25]).toEqual([
+      { sport: "swim", said: "swim 1,500 m" },
+      { sport: "strength", said: "lifting in progress", open: true },
+    ]);
+    expect(tally([...september.slice(0, 3), open])).toEqual(tally(september.slice(0, 3)));
+  });
+
   it("counts each sport, its distance and its time, in the legend's order", () => {
     expect(tally(september.slice(0, 3))).toEqual([
       { sport: "strength", count: 1, metres: null, ms: 48 * 60_000 },
@@ -102,4 +112,25 @@ describe("a day's print", () => {
       },
     ]);
   });
+});
+
+it("says a month's distances in the athlete's units where they are known", () => {
+  const units = {
+    running: { distanceUnit: "mi", poolUnit: "yd" },
+    swimming: { distanceUnit: "mi", poolUnit: "yd" },
+  } as const;
+  expect(tallyDistance(8046.72, "running", units)).toBe("5\u00a0mi");
+  expect(tallyDistance(8046.72)).toBe("8 km");
+  expect(
+    saidOf(
+      {
+        sport: "swimming",
+        occurredOn: "2026-09-25",
+        durationMs: null,
+        distanceMetres: 914.4,
+        environment: "pool",
+      },
+      units,
+    ),
+  ).toBe("swim 1,000\u00a0yd");
 });

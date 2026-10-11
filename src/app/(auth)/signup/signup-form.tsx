@@ -37,7 +37,7 @@ export function SignUpForm() {
         </p>
         <p className="type-body text-ink-2">
           A confirmation link was sent to{" "}
-          <span className="font-bold [overflow-wrap:anywhere] text-ink">{state.checkEmail}</span>.
+          <span className="font-bold [overflow-wrap:break-word] text-ink">{state.checkEmail}</span>.
           Open it to finish setting up your account. If it is not there, look in your spam folder.
         </p>
         <p className="type-meta text-ink-2">
@@ -89,7 +89,7 @@ export function SignUpForm() {
             // The word on screen leads the name, so a voice command saying it still finds it.
             aria-label={shown ? "Hide password" : "Show password"}
             onClick={() => setShown((value) => !value)}
-            className="-my-3 inline-flex min-h-11 min-w-11 items-center justify-end px-1 font-bold text-ink underline underline-offset-4"
+            className="-my-3 inline-flex min-h-[var(--ov-target)] min-w-[var(--ov-target)] items-center justify-end px-1 font-bold text-ink underline underline-offset-4"
           >
             {shown ? "Hide" : "Show"}
           </button>
@@ -106,7 +106,7 @@ export function SignUpForm() {
       {general && (
         <p id={alertId} role="alert" className="flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{state.error}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{state.error}</span>
         </p>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>

@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -30,6 +31,7 @@ import {
   barLayout,
   barPath,
   barScale,
+  clearOfRule,
   dayX,
   linePath,
   lineScale,
@@ -123,10 +125,15 @@ export type GraphProps = {
   className?: string;
 };
 
-/** The drawing's height: the plot, then a row for the dates under it. */
-const HEIGHT = 188;
-const DATE_ROW = 24;
+/** The plot's height, whatever the reader's text size. */
+const PLOT = 152;
+/**
+ * At 100% text, the room over the plot for its top value's label and the row for the dates
+ * under it: a drawing 188 pt tall. Both grow with the labels, so larger text never runs the
+ * dates into the plot or out of the drawing.
+ */
 const TOP = 12;
+const DATE_ROW = 24;
 /** Values listed before "Show all", so a year of records opens at once. */
 const FIRST_VALUES = 60;
 
@@ -173,9 +180,19 @@ export function Graph({
   const probe = useRef<HTMLSpanElement>(null);
   const { width, root: rem } = useMeasure(holder, probe, {
     width: 362,
-    height: HEIGHT,
+    height: TOP + PLOT + DATE_ROW,
     root: 16,
   });
+  // The scale's labels are 0.75 rem. The rows over and under the plot are sized from them; the
+  // plot itself is not, so a mark keeps its height at any text size.
+  const px = 0.75 * rem;
+  const plotTop = Math.max(TOP, Math.ceil(0.75 * px));
+  const dateRow = Math.max(DATE_ROW, Math.ceil(1.5 * px));
+  const height = plotTop + PLOT + dateRow;
+  // A date stands high enough in its row that its descenders stay in the drawing; a value's
+  // label drops about a third of its size below its line, so its figures are centred on it.
+  const dateY = height - Math.max(6, Math.ceil(0.3 * px));
+  const drop = Math.round(0.35 * px);
   const shared = useGraphRange();
   const readoutId = useId();
   const [chosen, setChosen] = useState<{ index: number; date: string; pinned: boolean } | null>(
@@ -222,11 +239,11 @@ export function Graph({
         max: scale.max,
         ticks: scale.ticks,
         steps: scale.steps,
+        integral: scale.integral,
       });
   const ticks = hasData ? (barScaled?.ticks ?? lineScaled!.ticks) : [];
   const shownTicks = bars ? ticks.filter((tick) => tick !== 0) : ticks;
   const labels = [...shownTicks.map(format), ...(rule ? [rule.label] : [])];
-  const px = 0.75 * rem;
   const left = Math.max(
     26,
     Math.ceil(Math.max(0, ...labels.map((l) => l.length)) * 0.62 * px) + 10,
@@ -235,8 +252,8 @@ export function Graph({
     width,
     left,
     right: width - (bars ? 0 : 8),
-    top: TOP,
-    bottom: HEIGHT - DATE_ROW,
+    top: plotTop,
+    bottom: plotTop + PLOT,
   };
   const plot = frame.bottom - frame.top;
   const y = (value: number) => {
@@ -405,8 +422,11 @@ export function Graph({
               ) : (
                 <Figure text={readout.figure} unit={readout.unit} />
               )}
-              {/* Held even when empty, so a mark without a second line keeps the figure in place. */}
-              <span className="graph-readout-context">{readout.context || "\u00a0"}</span>
+              {/* Held even when empty, so a mark without a second line keeps the figure in place.
+                  Its figures in Jost, whose zero is plain: "36,390 lb a week · 13 workouts". */}
+              <span className="graph-readout-context">
+                {readout.context ? <Figures>{readout.context}</Figures> : "\u00a0"}
+              </span>
             </p>
             {selected && readout.href && (
               <Link href={readout.href} className="graph-readout-open">
@@ -421,7 +441,7 @@ export function Graph({
       <div
         ref={holder}
         className="graph-plot"
-        style={{ height: HEIGHT }}
+        style={{ height }}
         tabIndex={hasData ? 0 : -1}
         role="group"
         aria-roledescription="graph"
@@ -432,8 +452,8 @@ export function Graph({
         <span ref={probe} aria-hidden className="graph-probe" />
         <svg
           width={width}
-          height={HEIGHT}
-          viewBox={`0 0 ${width} ${HEIGHT}`}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
           aria-hidden
           className="block w-full touch-pan-y overflow-visible select-none"
           onPointerDown={onPointerDown}
@@ -454,8 +474,8 @@ export function Graph({
                 strokeWidth={1}
               />
               {/* The rule's own label takes its place where the two would touch. */}
-              {!(hasData && rule && Math.abs(y(tick) - y(rule.value)) < 1.6 * px) && (
-                <text x={0} y={y(tick) + 4} style={LABEL}>
+              {!(hasData && rule && !clearOfRule(y(tick), y(rule.value), px)) && (
+                <text x={0} y={y(tick) + drop} style={LABEL}>
                   {format(tick)}
                 </text>
               )}
@@ -495,7 +515,7 @@ export function Graph({
               />
               <text
                 x={0}
-                y={y(rule.value) + 4}
+                y={y(rule.value) + drop}
                 style={{ ...LABEL, fontWeight: 700, fill: "var(--ov-ink)" }}
               >
                 {rule.label}
@@ -586,13 +606,13 @@ export function Graph({
             />
           )}
           {ticksX.map((tick) => (
-            <text key={tick.date} x={tick.x} y={HEIGHT - 6} style={LABEL}>
+            <text key={tick.date} x={tick.x} y={dateY} style={LABEL}>
               {tick.label}
             </text>
           ))}
         </svg>
         {!hasData && (
-          <p className="graph-empty" style={{ left, bottom: DATE_ROW }}>
+          <p className="graph-empty" style={{ left, top: plotTop, bottom: dateRow }}>
             {empty}
           </p>
         )}
@@ -672,7 +692,9 @@ function ReadoutSide({
           <Glyph name="chevronRight" className="glyph-16" />
         </span>
       ) : (
-        <span className="graph-readout-context">{side.context || "\u00a0"}</span>
+        <span className="graph-readout-context">
+          {side.context ? <Figures>{side.context}</Figures> : "\u00a0"}
+        </span>
       )}
     </>
   );
@@ -828,7 +850,9 @@ function GraphValues({
                 <span className="flex min-w-0 flex-col">
                   <span className="text-ink-2">{row.label}</span>
                   {row.context && (
-                    <span className="type-caption font-medium text-ink-2">{row.context}</span>
+                    <span className="type-caption font-medium text-ink-2">
+                      <Figures>{row.context}</Figures>
+                    </span>
                   )}
                 </span>
                 <span className="graph-value-figure">

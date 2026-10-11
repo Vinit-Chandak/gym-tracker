@@ -10,7 +10,7 @@ found on the way, and a shorter flow for each kind of athlete.
 
 The shorter flow was built on 11 October 2026: [What was built](#what-was-built-11-october-2026)
 records it and where each finding stands, and
-[ADR 0051](../decisions/0051-a-setup-that-asks-once.md) the decisions.
+[ADR 0053](../decisions/0053-a-setup-that-asks-once.md) the decisions.
 
 ## How it was run
 

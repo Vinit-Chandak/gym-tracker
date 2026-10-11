@@ -78,10 +78,14 @@ export function fromDateTimeLocal(
   const first = wall - timeZoneOffsetMinutes(timeZone, new Date(wall)) * 60_000;
   const offset = timeZoneOffsetMinutes(timeZone, new Date(first));
   const instant = new Date(wall - offset * 60_000);
-  // Calendar boundaries may advance across a midnight clock change. Actual performances
-  // instead reject a local time that never occurred during a daylight-saving jump.
-  if (options.rejectNonexistent && toDateTimeLocal(instant, timeZone) !== local) return null;
-  return instant;
+  if (toDateTimeLocal(instant, timeZone) === local) return instant;
+  // A local time the clocks jumped over. Actual performances reject it. Calendar boundaries
+  // advance to the moment the clocks jumped, the first instant of a day whose midnight never
+  // happened (Santiago, Havana): either offset lands on the other side of the change, and
+  // the earlier one would end the day before at 23:00 and leave its last hour out.
+  if (options.rejectNonexistent) return null;
+  const other = timeZoneOffsetMinutes(timeZone, instant);
+  return new Date(wall - Math.min(offset, other) * 60_000);
 }
 
 /** Instant → "YYYY-MM-DDTHH:mm" wall-clock time in `timeZone`, for datetime-local inputs. */

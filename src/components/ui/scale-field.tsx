@@ -45,6 +45,7 @@ export function ScaleField({
         options={descending ? FIVE_DOWN : FIVE}
         defaultValue={defaultValue || undefined}
         columns={5}
+        scale
         clearable
         aria-labelledby={id}
         aria-describedby={`${id}-ends${error ? ` ${id}-error` : ""}`}

@@ -1,6 +1,7 @@
-import { chromium, webkit, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { launch, skipDevice } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
@@ -157,11 +158,11 @@ const routes = [
   `/u/shreyash/activities/${fixtures.shared.find((a) => a.userId === user("shreyash") && a.sport === "cycle").id}`,
 ];
 const configurations = [
-  { name: "android", browser: chromium, options: devices["Pixel 7"] },
-  { name: "iphone", browser: webkit, options: devices["iPhone 13"] },
+  { name: "android", browser: "chromium", options: devices["Pixel 7"] },
+  { name: "iphone", browser: "webkit", options: devices["iPhone 13"] },
   {
     name: "iphone17",
-    browser: webkit,
+    browser: "webkit",
     explicitOnly: true,
     options: {
       ...devices["iPhone 17"],
@@ -174,10 +175,10 @@ const configurations = [
   },
   {
     name: "narrow",
-    browser: chromium,
+    browser: "chromium",
     options: { viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true },
   },
-  { name: "desktop", browser: chromium, options: { viewport: { width: 1440, height: 1000 } } },
+  { name: "desktop", browser: "chromium", options: { viewport: { width: 1440, height: 1000 } } },
 ];
 for (const config of configurations.filter((c) =>
   process.env.AUDIT_DEVICE ? c.name === process.env.AUDIT_DEVICE : !c.explicitOnly,
@@ -187,10 +188,12 @@ for (const config of configurations.filter((c) =>
   const fontSize = Number(process.env.AUDIT_FONT_SIZE ?? 16);
   if (fontSize !== 16) config.name += `-text${fontSize}`;
   if (process.env.AUDIT_EXPAND_DETAILS === "true") config.name += "-expanded";
-  // A machine whose browsers predate this Playwright can point at its own Chromium.
-  const browser = await config.browser.launch({
-    executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-  });
+  if (skipDevice(config.name, config.browser)) {
+    const skipped = { device: config.name, status: "SKIPPED", skipped: true };
+    await writeFile(`${output}/screens-${config.name}.json`, JSON.stringify([skipped], null, 2));
+    continue;
+  }
+  const browser = await launch(config.browser);
   const context = await browser.newContext({ ...config.options, baseURL, colorScheme: theme });
   await context.addInitScript((mode) => {
     if (location.origin !== "null") localStorage.setItem("overload:appearance", mode);
@@ -214,6 +217,10 @@ for (const config of configurations.filter((c) =>
       return;
     const screenshotName = `${persona}-${String(index).padStart(2, "0")}`;
     const screenshots = {};
+    // Setup resumes at the first step not answered (ADR 0053): for Taylor, the first.
+    const beforeFirstStep =
+      persona === "taylor" &&
+      /^\/welcome\/(?:sports|gym|equipment|programme(?:\/(?:create|split|template))?)$/.test(route);
     const expectedRoute =
       route === "/"
         ? "/today"
@@ -223,20 +230,28 @@ for (const config of configurations.filter((c) =>
             ? "/training/new?sport=running"
             : route.startsWith("/runs/")
               ? route.replace("/runs/", "/training/activities/")
-              : persona === "taylor" && route === "/welcome/equipment"
-                ? "/welcome/gym"
+              : beforeFirstStep
+                ? "/welcome"
                 : route;
+    // Setup's draft page reads only a first programme: a revision of a running one, and the job
+    // that wrote it, open on Profile.
+    const arrived = (url) =>
+      url.href === new URL(expectedRoute, baseURL).href ||
+      (/^\/welcome\/programme\/(?:drafts|jobs)\//.test(route) &&
+        /^\/profile\/programme\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
     try {
       await freshPage();
       const started = performance.now();
       const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
       // A streamed redirect can briefly reach network-idle while only its shell is visible.
       // Wait for the promised destination and real page content before judging that screen.
-      await page.waitForURL(new URL(expectedRoute, baseURL).href, { timeout: 15_000 });
-      await page
-        .getByRole("heading", { level: 1 })
-        .first()
-        .waitFor({ state: "visible", timeout: 15_000 });
+      await page.waitForURL(arrived, { timeout: 15_000 });
+      // /warm is what a keep-warm scheduler asks for (ADR 0050): a page with one line, no title.
+      await (
+        route === "/warm"
+          ? page.getByText("Warm.", { exact: true })
+          : page.getByRole("heading", { level: 1 }).first()
+      ).waitFor({ state: "visible", timeout: 15_000 });
       const durationMs = Math.round(performance.now() - started);
       await page.evaluate(
         ({ fontSize, expand }) => {
@@ -300,7 +315,7 @@ for (const config of configurations.filter((c) =>
             nodes: v.nodes.map((n) => ({ target: n.target, summary: n.failureSummary })),
           }))
         : [];
-      const unexpectedDestination = page.url() !== new URL(expectedRoute, baseURL).href;
+      const unexpectedDestination = !arrived(new URL(page.url()));
       results.push({
         device: config.name,
         persona,
@@ -344,7 +359,13 @@ for (const config of configurations.filter((c) =>
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   }
-  for (const [i, route] of ["/login", "/signup", "/forgot-password", "/reset-password"].entries())
+  for (const [i, route] of [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/warm",
+  ].entries())
     await visit(route, "public", i);
   await login("vinit");
   for (const [i, route] of routes.entries()) await visit(route, "vinit", i);
@@ -385,6 +406,8 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme",
               "/welcome/programme/create",
               "/welcome/programme/manual",
+              "/welcome/programme/split",
+              "/welcome/programme/template",
             ];
     for (const [i, route] of extra.entries()) await visit(route, persona, i);
   }

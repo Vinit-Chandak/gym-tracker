@@ -27,6 +27,23 @@ export const SPORT_LABELS: Record<TrainingSport, string> = {
   swim: "Swimming",
 };
 
+/**
+ * The sports a social screen's switch offers, in the switch's order: the ones the people on
+ * the screen do (shared rows, or a sport the viewer has on), never all four whatever they do.
+ * The sport a link asked for is offered too, so it still lands where it pointed rather than on
+ * another sport's numbers. With nothing done, lifting, which the screens always opened on. The
+ * first is the one shown when the URL names none.
+ */
+export function sportsOnOffer(
+  done: Iterable<TrainingSport>,
+  asked: TrainingSport | null = null,
+): TrainingSport[] {
+  const offered = new Set(done);
+  if (asked) offered.add(asked);
+  const sports = TRAINING_SPORTS.filter((sport) => offered.has(sport));
+  return sports.length > 0 ? sports : ["workout"];
+}
+
 /** Exhaustive routing also works for warnings saved before sport-specific displays existed. */
 const WARNING_SPORT: Record<PlanWarningCode, TrainingSport> = {
   big_jump: "workout",

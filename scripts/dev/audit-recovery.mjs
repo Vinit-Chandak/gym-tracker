@@ -1,9 +1,10 @@
 // Real form submissions against the local production build; no hosted data or mocked saves.
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import postgres from "postgres";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -18,9 +19,9 @@ if (
   throw new Error("Local audit only.");
 const device = process.env.AUDIT_DEVICE ?? "android";
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
-const browser = await (device === "iphone" ? webkit : chromium).launch({
-  executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+const engine = device === "iphone" ? "webkit" : "chromium";
+await skipWholeRun(device, engine, `${output}/recovery-${device}.json`);
+const browser = await launch(engine);
 let context, page;
 const sql = postgres(database, { max: 1 });
 const results = [],

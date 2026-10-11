@@ -15,6 +15,10 @@ import { describePrescription } from "@/domain/activity-prescription";
 import { requireUser } from "@/server/auth";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
+import { joinFacts } from "@/lib/facts";
+
+import { templateSessions } from "./template-sessions";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -27,12 +31,14 @@ export const metadata: Metadata = { title: "Templates" };
  */
 export default async function TemplatesPage() {
   const user = await requireUser();
-  const { templates, routines } = await withUser(
+  const { templates, routines, units, enabled } = await withUser(
     getDb(),
     user.id,
     async (tx) => ({
       templates: await listTemplates(tx, user.id),
       routines: await listSavedRoutines(tx, user.id),
+      units: await unitsBySport(tx, user.id),
+      enabled: await enabledSportsFor(tx, user.id),
     }),
     { readOnly: true },
   );
@@ -45,41 +51,45 @@ export default async function TemplatesPage() {
           New template
         </LinkButton>
 
-        <Section title="Endurance">
-          {templates.length === 0 ? (
-            <EmptyState
-              icon={CalendarDays}
-              title="No templates yet"
-              description="Write a session once and schedule it whenever you want it."
-            />
-          ) : (
-            templates.map((template) => (
+        {/* A heading names a list; over nothing, the empty state says what a template is. */}
+        {templates.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="No templates yet"
+            description={`Write ${templateSessions(enabled)} once and schedule it whenever you want it.`}
+          />
+        ) : (
+          <Section title="Endurance">
+            {templates.map((template) => (
               <Card key={template.id}>
                 <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
                   {ACTIVITY_SPORT_LABELS[template.sport]}
                 </p>
-                <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
+                <h2 className="mt-1 text-base font-medium [overflow-wrap:break-word]">
                   {template.name}
                 </h2>
                 <p className="text-sm text-ink-muted">
-                  {describePrescription(template.prescription)} · version {template.version}
+                  {joinFacts([
+                    describePrescription(template.prescription, units[template.sport]),
+                    `version\u00a0${template.version}`,
+                  ])}
                 </p>
                 <Link
                   href={`/training/templates/${template.id}/edit`}
-                  className="text-sm text-accent"
+                  className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
                 >
                   Edit
                 </Link>
               </Card>
-            ))
-          )}
-        </Section>
+            ))}
+          </Section>
+        )}
 
         {routines.length > 0 && (
           <Section title="Strength routines">
             {routines.map((routine) => (
               <Card key={routine.id}>
-                <h2 className="text-base font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
+                <h2 className="text-base font-medium [overflow-wrap:break-word]">{routine.name}</h2>
                 <p className="text-sm text-ink-muted">
                   {routine.day.exercises.length} exercise
                   {routine.day.exercises.length === 1 ? "" : "s"}

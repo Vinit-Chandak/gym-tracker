@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  climbIn,
+  climbUnit,
   decimalPlaces,
+  entryIn,
   formatDistance,
+  formatSportDistance,
   fromMetres,
   roundTo,
   sameDistance,
+  sportDistanceParts,
   toMetres,
 } from "./distance-units";
 
@@ -53,9 +58,9 @@ describe("distance units", () => {
   });
 
   it("rounds only for display and leaves the stored value alone", () => {
-    expect(formatDistance(8046.72, "km")).toBe("8.05 km");
-    expect(formatDistance(8046.72, "mi")).toBe("5 mi");
-    expect(formatDistance(365.76, "yd")).toBe("400 yd");
+    expect(formatDistance(8046.72, "km")).toBe("8.05\u00a0km");
+    expect(formatDistance(8046.72, "mi")).toBe("5\u00a0mi");
+    expect(formatDistance(365.76, "yd")).toBe("400\u00a0yd");
     expect(roundTo(1.005, 2)).toBe(1.01);
     expect(roundTo(-1.005, 2)).toBe(-1.01);
   });
@@ -66,5 +71,76 @@ describe("distance units", () => {
     expect(decimalPlaces(1.5)).toBe(1);
     expect(decimalPlaces(0.000001)).toBe(6);
     expect(decimalPlaces(1e-7)).toBe(7);
+  });
+});
+
+/** Decision: distances are read in the athlete's own unit for the sport, everywhere. */
+describe("a distance in the reader's unit", () => {
+  const km = { distanceUnit: "km", poolUnit: "m" } as const;
+  const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
+
+  it("reads a swim in the pool's unit and a run or ride on the road's", () => {
+    expect(formatSportDistance(1500, "swimming", km)).toBe("1,500\u00a0m");
+    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1,000\u00a0yd");
+    expect(formatSportDistance(toMetres(5, "mi"), "running", km)).toBe("8.05\u00a0km");
+    expect(formatSportDistance(toMetres(5, "mi"), "cycling", miles)).toBe("5\u00a0mi");
+  });
+
+  it("separates a figure's thousands, as the swim's form and a friend's distances do", () => {
+    // A swim's page said "2100" yd under a form that said "2,100 yd".
+    expect(sportDistanceParts(toMetres(2100, "yd"), "swimming", miles)).toEqual({
+      figure: "2,100",
+      unit: "yd",
+    });
+    expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000\u00a0m");
+    expect(formatSportDistance(1234567, "running", km)).toBe("1,234.57\u00a0km");
+  });
+
+  it("says a road distance under a kilometre in metres, and leaves miles as miles", () => {
+    expect(formatSportDistance(400, "running", km)).toBe("400\u00a0m");
+    expect(formatSportDistance(toMetres(0.25, "mi"), "running", miles)).toBe("0.25\u00a0mi");
+  });
+
+  it("gives a range as one figure with its unit", () => {
+    expect(sportDistanceParts([5000, 6000], "running", km)).toEqual({ figure: "5–6", unit: "km" });
+    expect(sportDistanceParts([800, 1200], "running", km)).toEqual({
+      figure: "0.8–1.2",
+      unit: "km",
+    });
+    // Two ends that round to the same figure are one figure.
+    expect(sportDistanceParts([5000, 5001], "running", km)).toEqual({ figure: "5", unit: "km" });
+  });
+
+  it("reads a road range to a tenth, both ends alike, and a single distance to a hundredth", () => {
+    // A programme listed "4.35–5.59 mi" and "8.57–9.2 mi" beside Today's "4.6–5.9 mi".
+    const range = (lowKm: number, highKm: number) =>
+      formatSportDistance([toMetres(lowKm, "km"), toMetres(highKm, "km")], "running", miles);
+    expect(range(7, 9)).toBe("4.3–5.6 mi");
+    expect(range(13.8, 14.8)).toBe("8.6–9.2 mi");
+    expect(range(16.8, 17.8)).toBe("10.4–11.1 mi");
+    // One end that needs its tenth gives the other one too.
+    expect(formatSportDistance([4500, 6000], "running", km)).toBe("4.5–6.0 km");
+    expect(formatSportDistance([5000, 6000], "cycling", km)).toBe("5–6 km");
+    // A distance on its own, or a range in metres, is not rounded further.
+    expect(formatSportDistance(toMetres(7, "km"), "running", miles)).toBe("4.35 mi");
+    expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000 m");
+  });
+});
+
+describe("a recorded distance opened in another unit", () => {
+  it("reads it to the places a distance reads in there, and says whether that is exact", () => {
+    // Liam swims in yards; his open-water swim was entered as 1500 m.
+    expect(entryIn(1500, "m", "yd")).toEqual({ value: 1640, exact: false });
+    expect(entryIn(7.2, "km", "mi")).toEqual({ value: 4.47, exact: false });
+    // A figure that is the same distance in both says so, and one in its own unit is itself.
+    expect(entryIn(1609.344, "m", "mi")).toEqual({ value: 1, exact: true });
+    expect(entryIn(4.4, "mi", "mi")).toEqual({ value: 4.4, exact: true });
+  });
+
+  it("reads a climb in feet beside miles and in metres beside kilometres, whole", () => {
+    expect(climbUnit("mi")).toBe("ft");
+    expect(climbUnit("km")).toBe("m");
+    expect(climbIn(89, "ft")).toBe(292);
+    expect(climbIn(89.4, "m")).toBe(89);
   });
 });

@@ -11,9 +11,10 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { SWIM_STROKES } from "@/domain/activity";
 import { formatPaceSeconds } from "@/domain/activity-metrics";
-import { formatDistance, toMetres } from "@/lib/distance-units";
+import { formatDistance, toMetres, type PoolUnit } from "@/lib/distance-units";
 import { SWIM_STROKE_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
@@ -27,6 +28,8 @@ import {
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  openDistance,
+  postedDistance,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -77,6 +80,12 @@ type Props = {
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
   notice?: ReactNode;
+  /** A correction's unconfirmed legacy effort, which stays unless another answer is chosen. */
+  keptEffort?: { value: number | null } | null;
+  /** Opens the folded details from the start, when something in them needs reading. */
+  openDetails?: boolean;
+  /** The unit the athlete reads swims in; a pool measured in the other is also said in it. */
+  readIn?: PoolUnit;
 };
 
 export function SwimmingForm({
@@ -88,6 +97,9 @@ export function SwimmingForm({
   expectedRevision = null,
   submitLabel,
   notice,
+  keptEffort = null,
+  openDetails = false,
+  readIn = "m",
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -96,8 +108,13 @@ export function SwimmingForm({
   const [poolLength, setPoolLength] = useState(() => values("poolLengthValue"));
   const [poolUnit, setPoolUnit] = useState(() => values("poolLengthUnit") || "m");
   const [lengths, setLengths] = useState(() => values("lengths"));
-  const [distance, setDistance] = useState(() => values("distanceValue"));
-  const [distanceUnit, setDistanceUnit] = useState(() => values("distanceUnit") || "m");
+  // A swim entered in metres opens in yards for a yards swimmer, and the other way round.
+  const [opened] = useState(() =>
+    openDistance(values("distanceValue"), values("distanceUnit") || readIn, readIn),
+  );
+  const [distance, setDistance] = useState(opened.value);
+  const [distanceUnit, setDistanceUnit] = useState(opened.unit);
+  const posted = postedDistance(distance, distanceUnit, opened.recorded);
   const [elapsed, setElapsed] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
@@ -107,8 +124,8 @@ export function SwimmingForm({
   const derivedMetres =
     method === "lengths" && poolLength.trim() !== "" && lengths.trim() !== ""
       ? toMetres(Number(poolLength.replace(",", ".")), poolUnit as "m" | "yd") * Number(lengths)
-      : method === "manual" && distance.trim() !== ""
-        ? toMetres(Number(distance.replace(",", ".")), distanceUnit as "m" | "yd")
+      : method === "manual" && posted.value.trim() !== ""
+        ? toMetres(Number(posted.value.replace(",", ".")), posted.unit as "m" | "yd")
         : null;
   const activeMs =
     activeMinutes.trim() === "" && activeSeconds.trim() === ""
@@ -160,6 +177,11 @@ export function SwimmingForm({
           hint="Rests included"
           value={elapsed}
           onChange={setElapsed}
+          recorded={{
+            hours: values("hours"),
+            minutes: values("minutes"),
+            seconds: values("seconds"),
+          }}
           error={errors?.elapsed ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
         />
 
@@ -216,9 +238,10 @@ export function SwimmingForm({
                 derivedMetres !== null ? (
                   <span role="status">
                     {grouped(formatDistance(derivedMetres, poolUnit as "m" | "yd"))}
-                    {/* A yard pool is not a metre pool, and the metres say so exactly. */}
-                    {poolUnit === "yd"
-                      ? ` · ${grouped(formatDistance(derivedMetres, "m", 2))}`
+                    {/* A yard pool is not a metre pool, and the athlete's own unit says so
+                        exactly; a pool in their own unit needs saying once. */}
+                    {poolUnit !== readIn
+                      ? `${FACT_SEPARATOR}${grouped(formatDistance(derivedMetres, readIn, 2))}`
                       : ""}
                   </span>
                 ) : (
@@ -252,15 +275,17 @@ export function SwimmingForm({
             onValueChange={setDistance}
             onUnitChange={setDistanceUnit}
             units={POOL_UNITS}
+            recorded={opened.recorded}
             step={25}
             error={errors?.distance ?? errors?.distanceValue}
           />
         )}
 
-        <EffortField value={values("effort")} error={errors?.effort} />
+        <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
       <MoreDetails
+        defaultOpen={openDetails}
         hasErrors={[
           "startedAt",
           "startedAtOffsetMinutes",

@@ -4,56 +4,73 @@ import { PlannedExerciseList, planSummary } from "@/components/planned-exercises
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
+import { Figures } from "@/components/ui/figures";
+import type { SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
-/** What the day is, on one line under its name. */
+/** What the day is, on one line under its name, its time held whole ("60–75 min"). */
 function subtitle(day: ScheduleDay): string | null {
-  const parts = [day.focus, day.timeNote].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return joinFacts([day.focus, day.timeNote && holdFigures(day.timeNote)]) || null;
 }
 
-/** What it asks for: the sets, or the run, or neither. */
-function cost(plan: ProgramDayPlan): string {
+/** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
+function cost(plan: ProgramDayPlan, units: SportUnits): string {
   if (plan.exercises.length > 0)
-    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run)}` : null]
+    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run, units)}` : null]
       .filter(Boolean)
-      .join(" · ");
-  if (plan.run) return runSummary(plan.run);
+      .join(FACT_SEPARATOR);
+  if (plan.run) return runSummary(plan.run, units);
   return "Rest day";
 }
 
-const HEAD = "flex min-h-14 items-start gap-3 px-4 py-3";
+/* The chevron stands beside the name only, so what the day is and asks for take the box's whole
+   width under it. */
+const HEAD = "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-3";
 
 /**
  * One day of the cycle: its own box, opening on to everything the day prescribes.
  *
  * A native <details>, so a seven-day cycle sends no JavaScript to the browser and costs
  * nothing until a day is opened. A day with nothing to open — a plain rest day — is the
- * same box without the fold, rather than a control that does nothing.
+ * same box without the fold, rather than a control that does nothing. `open` is a day whose
+ * workout is under way, which is in progress rather than next.
  */
-export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
+export function CycleDay({
+  plan,
+  units,
+  open = false,
+}: {
+  plan: ProgramDayPlan;
+  units: SportUnits;
+  open?: boolean;
+}) {
   const { day } = plan;
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
   const expandable = plan.exercises.length > 0 || guidance || extras;
+  const about = subtitle(day);
 
   const head = (
     <>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
-          {plan.isNext ? (
-            <Badge tone="accent">Next</Badge>
-          ) : plan.status === "completed" || plan.status === "skipped" ? (
-            <Badge tone={plan.status === "completed" ? "success" : "warning"}>
-              {SLOT_STATUS_LABELS[plan.status]}
-            </Badge>
-          ) : null}
-        </div>
-        {subtitle(day) && <p className="mt-0.5 text-sm text-ink-muted">{subtitle(day)}</p>}
-        <p className="mt-1 text-xs text-ink-muted tabular-nums">{cost(plan)}</p>
+      <div
+        className={cn(
+          "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1",
+          !expandable && "col-span-full",
+        )}
+      >
+        <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
+        {open ? (
+          <Badge tone="accent">In progress</Badge>
+        ) : plan.isNext ? (
+          <Badge tone="accent">Next</Badge>
+        ) : plan.status === "completed" || plan.status === "skipped" ? (
+          <Badge tone={plan.status === "completed" ? "success" : "warning"}>
+            {SLOT_STATUS_LABELS[plan.status]}
+          </Badge>
+        ) : null}
       </div>
       {expandable && (
         <ChevronDown
@@ -61,6 +78,15 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
           aria-hidden
         />
       )}
+      {about && (
+        <p className="col-span-full mt-0.5 text-sm text-ink-muted">
+          <Figures>{about}</Figures>
+        </p>
+      )}
+      {/* Its time and its counts in Jost, whose zero is plain: "60–75 min", "13 sets". */}
+      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
+        <Figures>{cost(plan, units)}</Figures>
+      </p>
     </>
   );
 
@@ -68,10 +94,13 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
 
   return (
     <details className="group box min-w-0">
+      {/* The day answers a press with its tint, not the controls' 0.97: at large text the head
+          is hundreds of points tall, and shrinking it took its rounded corner out from under a
+          thumb pressed near it, so the press landed on the card and the day stayed shut. */}
       <summary
         className={cn(
           HEAD,
-          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:scale-100 active:bg-surface-raised",
         )}
       >
         {head}

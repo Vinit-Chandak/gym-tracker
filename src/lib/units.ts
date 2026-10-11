@@ -92,14 +92,14 @@ export function toFeetAndInches(centimetres: number): { feet: number; inches: nu
 
 /** "74.5 kg" / "164.2 lb". */
 export function formatBodyWeight(kilograms: number, unit: BodyLoadUnit): string {
-  return `${fromKilograms(kilograms, unit)} ${unit}`;
+  return `${fromKilograms(kilograms, unit)}\u00a0${unit}`;
 }
 
 /** "178 cm" / "5′ 10″". */
 export function formatHeight(centimetres: number, unit: BodyLoadUnit): string {
-  if (heightUnitFor(unit) === "cm") return `${round(centimetres, 1)} cm`;
+  if (heightUnitFor(unit) === "cm") return `${round(centimetres, 1)}\u00a0cm`;
   const { feet, inches } = toFeetAndInches(centimetres);
-  return `${feet}′ ${inches}″`;
+  return `${feet}′\u00a0${inches}″`;
 }
 
 /**

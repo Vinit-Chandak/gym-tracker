@@ -233,7 +233,7 @@ export function DictationButton({
       aria-pressed={listening}
       aria-label={listening ? `Stop dictating ${label}` : `Dictate ${label}`}
       className={cn(
-        "flex size-11 items-center justify-center rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
+        "flex size-[var(--ov-target)] items-center justify-center rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
         listening
           ? "bg-accent text-on-accent"
           : "bg-surface-raised text-ink-muted hover:text-ink active:bg-surface",

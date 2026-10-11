@@ -44,9 +44,9 @@ export function PageHeader<T extends string>({
       <header className="page-header page-width pt-safe">
         <div className="page-header-top">
           <div className="min-w-0">
-            <h1 className="type-title [overflow-wrap:anywhere]">{title}</h1>
+            <h1 className="type-title [overflow-wrap:break-word]">{title}</h1>
             {meta && (
-              <p className="mt-1 type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+              <p className="mt-1 type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
                 {meta}
               </p>
             )}
@@ -72,11 +72,11 @@ export function PageHeader<T extends string>({
           {title}
         </FitTitle>
       ) : (
-        <h1 className="mt-0.5 type-display [overflow-wrap:anywhere]">{title}</h1>
+        <h1 className="mt-0.5 type-display [overflow-wrap:break-word]">{title}</h1>
       )}
       {meta && !metaHidden && (
         // Words are one fact; facts given as elements are laid out by the line.
-        <p className="meta-line mt-1 [overflow-wrap:anywhere]">
+        <p className="meta-line mt-1 [overflow-wrap:break-word]">
           {typeof meta === "string" ? <span className="min-w-0">{meta}</span> : meta}
         </p>
       )}

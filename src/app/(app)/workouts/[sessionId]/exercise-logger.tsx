@@ -26,8 +26,9 @@ import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
-import { formatSets, SET_LIMITS } from "@/domain/sets";
+import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
 import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
@@ -120,7 +121,8 @@ type Sheet =
   | { kind: "why" }
   | { kind: "effort" }
   | { kind: "options" }
-  | { kind: "edit"; setIndex: number }
+  // A set's own sheet; `setType` opens it on another type than the set has (Undo's working set).
+  | { kind: "edit"; setIndex: number; setType?: SetType }
   | { kind: "more" }
   | { kind: "skip" }
   | { kind: "gone" };
@@ -355,7 +357,7 @@ export function ExerciseLogger({
   // Complete pressed in the message slot: focus follows the exercise to its Done line.
   const focusDone = useRef(false);
   const shownTab = useRef(tab);
-  const box = useMeasure(layer, probe);
+  const box = useMeasure(layer, probe, undefined, true);
   const android = useSyncExternalStore(
     noSubscription,
     () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
@@ -389,6 +391,9 @@ export function ExerciseLogger({
   useEffect(() => {
     onDirtyChange(sets.dirty);
   }, [sets.dirty, onDirtyChange]);
+  // Left, the exercise holds nothing back: a row still typed or saving is a draft in storage,
+  // which the workout counts, and a save that lands after this has gone clears its own.
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   // Save reads Saved for half a second, then turns to the next set's Save.
   useEffect(() => {
@@ -572,8 +577,9 @@ export function ExerciseLogger({
     <>
       {/* The glyph says the kind; the machine itself is said once, in words. */}
       <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-      {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
-      <Figures>{range ?? equipment}</Figures>
+      {/* Its figures in Jost, whose zero is plain, as every meta line's are, and each range
+          held at its dash: "@ 1–" never ends a line. */}
+      <Figures>{range === null ? equipment : holdFigures(range)}</Figures>
     </>,
   ];
   if (rest)
@@ -647,12 +653,13 @@ export function ExerciseLogger({
                   suggestion.basis === "other_equipment"
                     ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
                     : "this exercise"
-                }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
+                }, ${formatDay(exercise.basis.performedAt, session.timeZone, session.today.slice(0, 4))}${
                   // The sets it read, so the reason can be checked against what was done.
                   exercise.basis.sets.length > 0
                     ? `: ${formatSets(
                         exercise.basis.sets.map((set) => setInUnit(set, unit)),
                         (load) => LOAD_UNIT_LABELS[load],
+                        loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
                       )}`
                     : ""
                 }.`
@@ -905,7 +912,7 @@ export function ExerciseLogger({
   ) => (
     <p id={id} role={role} className="entry-slot entry-slot-message">
       <Glyph name={glyphName} className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{text}</span>
     </p>
   );
   const slot: ReactNode = entryRow?.error ? (
@@ -922,10 +929,11 @@ export function ExerciseLogger({
           type="button"
           className="entry-slot-action"
           aria-label={`Set ${setNumber(sets.rows, { ...autoWarmupRow, setType: "working" })} was a working set`}
-          onClick={() => {
-            sets.undoWarmup(autoWarmupRow);
-            setSheet({ kind: "edit", setIndex: autoWarmupRow.setIndex });
-          }}
+          // The set's sheet opens on a working set, to be saved again with its RIR; the set
+          // stays the warm-up it was until Update, so closing the sheet changes nothing.
+          onClick={() =>
+            setSheet({ kind: "edit", setIndex: autoWarmupRow.setIndex, setType: "working" })
+          }
         >
           Undo
         </button>
@@ -945,6 +953,9 @@ export function ExerciseLogger({
           disabled={pending}
           onClick={() => {
             focusDone.current = true;
+            // The press says the set typed past the plan is not wanted: it goes with the press,
+            // rather than staying behind as a draft that holds Finish. One on its way is saved.
+            if (entryRow?.dirty && !entryRow.saving) sets.restore(entryRow);
             setCompletedState(true);
           }}
         >
@@ -962,7 +973,9 @@ export function ExerciseLogger({
       <Glyph name="link" className="glyph-18 text-ink-2" />
       <span className="font-bold">Then {partner.exercise.name}</span>
       {partnerLine && (
-        <span className="type-meta-small text-ink-2 tabular-nums">{partnerLine}</span>
+        <span className="type-meta-small text-ink-2 tabular-nums">
+          <Figures>{holdFigures(partnerLine)}</Figures>
+        </span>
       )}
     </p>
   ) : null;
@@ -1036,14 +1049,17 @@ export function ExerciseLogger({
   })();
 
   // ---------- sheets ----------
+  const editType = sheet?.kind === "edit" ? sheet.setType : undefined;
   const editRow =
     sheet?.kind === "edit"
       ? (sets.rows.find((row) => row.setIndex === sheet.setIndex) ?? null)
       : null;
-  const editTitle = editRow
-    ? isWarmup(editRow.setType)
-      ? `Warm-up ${sets.rows.filter((row) => isWarmup(row.setType) && row.setIndex <= editRow.setIndex).length}`
-      : `Set ${setNumber(sets.rows, editRow)}`
+  // The set as its sheet opens on: its own type, or the one the sheet was opened to give it.
+  const editShown = editRow && editType ? { ...editRow, setType: editType } : editRow;
+  const editTitle = editShown
+    ? isWarmup(editShown.setType)
+      ? `Warm-up ${sets.rows.filter((row) => isWarmup(row.setType) && row.setIndex <= editShown.setIndex).length}`
+      : `Set ${setNumber(sets.rows, editShown)}`
     : "Set";
   const optionsTitle = heading
     ? `${heading.kind === "warmup" ? "Warm-up" : "Set"} ${heading.n}`
@@ -1237,13 +1253,18 @@ export function ExerciseLogger({
                   .map((row) => (
                     <div key={row.setIndex} className="type-meta-small">
                       <p className="tabular-nums">
-                        Set {row.setIndex}: {row.weight || "—"} {unitLabel} ·{" "}
-                        {measure === "duration"
-                          ? `${row.duration || "—"} s`
-                          : measure === "distance"
-                            ? `${row.distance || "—"} m`
-                            : `${row.reps || "—"} reps`}{" "}
-                        · {effort === "rir" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
+                        Set {row.setIndex}:{" "}
+                        {joinFacts([
+                          `${row.weight || "—"}\u00a0${unitLabel}`,
+                          measure === "duration"
+                            ? `${row.duration || "—"}\u00a0s`
+                            : measure === "distance"
+                              ? `${row.distance || "—"}\u00a0m`
+                              : `${row.reps || "—"}\u00a0reps`,
+                          effort === "rir"
+                            ? `RIR\u00a0${row.rir || "—"}`
+                            : `RPE\u00a0${row.rpe || "—"}`,
+                        ])}
                       </p>
                       <Button
                         variant="text"
@@ -1315,7 +1336,9 @@ export function ExerciseLogger({
                 exerciseId={exercise.exercise.id}
                 workoutExerciseId={exercise.id}
                 loadPortability={exercise.exercise.loadPortability}
-                preferredUnit={session.preferredUnit}
+                // The Log tab's unit, so a lift reads the same on both tabs: a weight, never a
+                // machine's stops or plates.
+                unit={unit === "kg" || unit === "lb" ? unit : session.preferredUnit}
                 timeZone={session.timeZone}
                 measure={measure}
                 width={box.width}
@@ -1458,10 +1481,17 @@ export function ExerciseLogger({
       />
       <SetEditSheet
         row={editRow}
+        initialType={editType}
         title={editTitle}
         fields={
-          editRow
-            ? fieldsFor(exercise, measure, editRow, unit, targetFor(exercise, sets.rows, editRow))
+          editShown
+            ? fieldsFor(
+                exercise,
+                measure,
+                editShown,
+                unit,
+                targetFor(exercise, sets.rows, editShown),
+              )
             : []
         }
         onUpdate={(row) => {

@@ -153,7 +153,8 @@ const SCROLL_GAP = 3;
  * them waiting behind a fade in the gutter, never cut through.
  */
 export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysProps) {
-  const weeks = stripWeeks(today, date);
+  // Oldest first, as they are read and stepped through; the strip still rests on the newest.
+  const weeks = stripWeeks(today, date).reverse();
   const marks = markDays(days, targetKcal);
   const nav = useRef<HTMLElement>(null);
   const shownWeek = useRef<HTMLOListElement>(null);

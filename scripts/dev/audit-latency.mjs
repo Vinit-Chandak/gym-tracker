@@ -14,7 +14,8 @@
 //   npm run audit:latency  # terminal 3
 //
 // LATENCY_RTTS=0,2,24 chooses the round trips (ms); LATENCY_RUNS=5 the samples per point.
-import { chromium, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
+import { launch } from "./audit-engines.mjs";
 import net from "node:net";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
@@ -79,7 +80,7 @@ const proxy = net.createServer((client) => {
 await new Promise((resolve) => proxy.listen(proxyPort, "127.0.0.1", resolve));
 
 // --- Capture the request each tab switch really makes. ---
-const browser = await chromium.launch();
+const browser = await launch("chromium");
 const context = await browser.newContext({ ...devices["Pixel 7"], baseURL });
 const page = await context.newPage();
 page.setDefaultTimeout(30_000);

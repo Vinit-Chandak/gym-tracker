@@ -83,6 +83,22 @@ describe("what is on a day", () => {
     expect(earlier.map((item) => item.id)).toEqual(["c"]);
   });
 
+  /** Within a day it keeps the order it was given: the time of day, then the written order. */
+  it("keeps one day's sessions in the order they were handed over", () => {
+    const { upcoming, earlier } = splitByDate(
+      [
+        occurrence({ id: "early-swim", scheduledOn: "2026-09-10" }),
+        occurrence({ id: "late-swim", scheduledOn: "2026-09-10" }),
+        occurrence({ id: "morning", scheduledOn: "2026-09-20" }),
+        occurrence({ id: "evening", scheduledOn: "2026-09-20" }),
+        occurrence({ id: "next", scheduledOn: "2026-09-21" }),
+      ],
+      "2026-09-18",
+    );
+    expect(upcoming.map((item) => item.id)).toEqual(["morning", "evening", "next"]);
+    expect(earlier.map((item) => item.id)).toEqual(["early-swim", "late-swim"]);
+  });
+
   /** SCHED-08: "upcoming" counts what is owed, not what is on the calendar. */
   it("stops owing a session the moment it is logged, however it is dated", () => {
     const entries = [

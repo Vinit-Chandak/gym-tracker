@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -95,4 +95,52 @@ it("says a measure was not answered where the span has check-ins without it", ()
     />,
   );
   expect(screen.getByText("No check-ins in this range.")).toBeTruthy();
+});
+
+it("writes sleep's scale in hours, with the 6 h rule on a line of its own rather than over one", () => {
+  route.search = "recovery=sleepHours";
+  const { container } = render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{
+        range: MONTH,
+        graph: recoveryGraph(
+          [reading("2026-09-20", { sleepHours: 7 }), reading("2026-09-27", { sleepHours: 9 })],
+          MONTH,
+          TODAY,
+        ),
+      }}
+    />,
+  );
+  const labels = [...container.querySelectorAll(".graph-plot svg text")]
+    .filter((text) => /h$/.test(text.textContent ?? ""))
+    .sort((a, b) => Number(a.getAttribute("y")) - Number(b.getAttribute("y")))
+    .map((text) => text.textContent);
+  // 0, 3, 6 and 9: the rule is the line at 6, named once, in ink.
+  expect(labels).toEqual(["9 h", "6 h", "3 h"]);
+});
+
+it("gives a night's sleep and an average of nights to a tenth of an hour, as every graph does", () => {
+  route.search = "recovery=sleepHours";
+  const { container } = render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{
+        range: MONTH,
+        graph: recoveryGraph(
+          [reading("2026-09-20", { sleepHours: 6.5 }), reading("2026-09-27", { sleepHours: 7.75 })],
+          MONTH,
+          TODAY,
+        ),
+      }}
+    />,
+  );
+  // (6.5 + 7.75) / 2 is 7.125 hours a night.
+  expect(container.querySelector(".graph-readout")?.textContent).toContain("7.1 h");
+  fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+  const nights = [...container.querySelectorAll(".graph-value-figure")].map(
+    (figure) => figure.textContent,
+  );
+  // Newest first, to a tenth: a graph's figures are, sleep's too (the owner's choice, ADR 0047).
+  expect(nights).toEqual(["7.8 h", "6.5 h"]);
 });

@@ -3,10 +3,13 @@ import { and, asc, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm";
 import {
   activities,
   cyclingActivityDetails,
+  gyms,
   plannedOccurrences,
   occurrenceVersions,
+  programDays,
   runningActivityDetails,
   swimmingActivityDetails,
+  workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport, type SwimStroke } from "@/domain/activity";
@@ -233,6 +236,14 @@ export function decodeCursor(raw: string): { startedAt: Date; id: string } | nul
   return { startedAt, id: match[2]! };
 }
 
+type ActivityPageOptions = {
+  sports?: readonly ActivitySport[];
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string | null;
+};
+
 /**
  * One page of history, newest first, paged by a stable cursor.
  *
@@ -243,15 +254,30 @@ export function decodeCursor(raw: string): { startedAt: Date; id: string } | nul
 export async function listActivityPage(
   tx: DbOrTx,
   userId: string,
-  options: {
-    sports?: readonly ActivitySport[];
-    from?: string;
-    to?: string;
-    limit?: number;
-    cursor?: string | null;
-  } = {},
+  options: ActivityPageOptions = {},
 ): Promise<ActivityPage> {
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  return activityPage(tx, userId, options, Math.min(Math.max(options.limit ?? 50, 1), 100));
+}
+
+/**
+ * The same newest-first read for the app's own lists, without the API's hundred to a page:
+ * History reads rides and swims as deep as it reads workouts and runs (ADR 0044), so a
+ * hundredth ride does not end the list for every sport. `nextCursor` still says it stopped.
+ */
+export async function readActivityList(
+  tx: DbOrTx,
+  userId: string,
+  options: Omit<ActivityPageOptions, "limit" | "cursor"> & { limit: number },
+): Promise<ActivityPage> {
+  return activityPage(tx, userId, options, Math.max(options.limit, 1));
+}
+
+async function activityPage(
+  tx: DbOrTx,
+  userId: string,
+  options: ActivityPageOptions,
+  limit: number,
+): Promise<ActivityPage> {
   const where = [eq(activities.userId, userId), eq(activities.status, "completed")];
   if (options.sports && options.sports.length > 0)
     where.push(or(...options.sports.map((sport) => eq(activities.sport, sport)))!);
@@ -306,21 +332,34 @@ export async function listActivityPage(
   };
 }
 
-/** The most a calendar reads at once: a year of one activity a day, with room to spare. */
+/**
+ * The most a calendar reads at once: its two years of months at about two activities a day, a
+ * lift and a run most days, with room to spare.
+ */
 export const CALENDAR_LIMIT = 1500;
 
 /**
- * Every completed activity between two local dates, oldest first, for the calendar: what each
- * day holds (Progress's month, the calendar page, a day). Unpaged, because a month or a year is
- * read whole to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit.
+ * Every activity between two local dates, oldest first, for the calendar: what each day holds
+ * (Progress's month, the calendar page, a day). Unpaged, because a month or a year is read whole
+ * to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit. What it keeps
+ * is the newest: the calendar opens on this month, so the months it cannot hold are the
+ * earliest, and those are the ones it says are missing.
+ *
+ * The workout still open is on its day too, `inProgress`: a day with a session under way was a
+ * blank tile that said "nothing logged" (year audit). Only a workout is ever open; every other
+ * activity is saved finished.
  */
 export async function readActivityDays(
   tx: DbOrTx,
   userId: string,
   range: { from: string; to: string },
-): Promise<{ items: (ActivityListItem & { stroke: SwimStroke | null })[]; truncated: boolean }> {
+): Promise<{
+  items: (ActivityListItem & { stroke: SwimStroke | null; inProgress: boolean })[];
+  truncated: boolean;
+}> {
   const rows = await tx
     .select({
+      status: activities.status,
       stroke: swimmingActivityDetails.stroke,
       id: activities.id,
       sport: activities.sport,
@@ -346,21 +385,98 @@ export async function readActivityDays(
     .where(
       and(
         eq(activities.userId, userId),
-        eq(activities.status, "completed"),
         gte(activities.occurredOn, range.from),
         lte(activities.occurredOn, range.to),
       ),
     )
-    .orderBy(asc(activities.startedAt), asc(activities.id))
+    // Newest first so the limit drops the oldest, then turned back to oldest first.
+    .orderBy(desc(activities.startedAt), desc(activities.id))
     .limit(CALENDAR_LIMIT + 1);
 
   return {
-    items: rows.slice(0, CALENDAR_LIMIT).map((row) => ({
-      ...row,
-      distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
-    })),
+    items: rows
+      .slice(0, CALENDAR_LIMIT)
+      .reverse()
+      .map(({ status, ...row }) => ({
+        ...row,
+        distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+        inProgress: status === "in_progress",
+      })),
     truncated: rows.length > CALENDAR_LIMIT,
   };
+}
+
+/** A finished activity of one day, as Today shows what was already logged on it. */
+export type LoggedActivity = {
+  id: string;
+  sport: ActivitySport;
+  startedAt: Date;
+  durationMs: number | null;
+  distanceMetres: number | null;
+  /** "treadmill", "indoor", "pool", "open_water"; null where the sport has none. */
+  environment: string | null;
+  /** The scheduled session it answered; null for work nobody scheduled. */
+  occurrenceId: string | null;
+  /** A workout: its session, the programme day it trained (none for an unplanned one), its gym. */
+  sessionId: string | null;
+  programDayId: string | null;
+  dayName: string | null;
+  gymName: string | null;
+};
+
+/**
+ * Everything finished on one local date, in the order it was done: each run, ride and swim, and
+ * each workout with the programme day it trained. The workout still open is not here: it is not
+ * logged until it is finished, and Today has its own card for it.
+ */
+export async function readLoggedOn(
+  tx: DbOrTx,
+  userId: string,
+  date: string,
+): Promise<LoggedActivity[]> {
+  const rows = await tx
+    .select({
+      id: activities.id,
+      sport: activities.sport,
+      startedAt: activities.startedAt,
+      durationMs: activities.durationMs,
+      distanceMetres: DISTANCE,
+      environment: sql<string | null>`coalesce(
+        ${runningActivityDetails.environment}::text,
+        ${cyclingActivityDetails.environment}::text,
+        ${swimmingActivityDetails.environment}::text
+      )`,
+      occurrenceId: activities.occurrenceId,
+      sessionId: workoutSessions.id,
+      programDayId: workoutSessions.programDayId,
+      dayName: programDays.name,
+      gymName: gyms.name,
+    })
+    .from(activities)
+    .leftJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+    .leftJoin(cyclingActivityDetails, eq(cyclingActivityDetails.activityId, activities.id))
+    .leftJoin(swimmingActivityDetails, eq(swimmingActivityDetails.activityId, activities.id))
+    .leftJoin(
+      workoutSessions,
+      and(
+        eq(workoutSessions.activityId, activities.id),
+        eq(workoutSessions.userId, activities.userId),
+      ),
+    )
+    .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(gyms, eq(gyms.id, workoutSessions.gymId))
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.occurredOn, date),
+        eq(activities.status, "completed"),
+      ),
+    )
+    .orderBy(asc(activities.startedAt), asc(activities.id));
+  return rows.map((row) => ({
+    ...row,
+    distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+  }));
 }
 
 /** The local date of a user's first completed activity, where the calendar begins. */

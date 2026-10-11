@@ -16,6 +16,7 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { readSetupState } from "@/server/queries/setup-state";
+import { knownTimeZone } from "@/server/queries/time-zone";
 import { GymNotFoundError } from "@/server/repositories/equipment";
 import { createGym, getGym, updateGym } from "@/server/repositories/gyms";
 import { setSportPreference } from "@/server/repositories/sport-preferences";
@@ -23,8 +24,8 @@ import {
   confirmStarterEquipment,
   StarterChoiceError,
 } from "@/server/repositories/starter-equipment";
-import { parseForm, type FormState } from "@/server/validation/form";
-import { timeZoneSchema } from "@/server/validation/profile";
+import { formValues, parseForm, type FormState } from "@/server/validation/form";
+import { timeZoneSchema, UNKNOWN_TIME_ZONE } from "@/server/validation/profile";
 
 const youStepSchema = z.object({
   trainingExperience: z.enum(TRAINING_EXPERIENCES, {
@@ -57,14 +58,17 @@ export async function saveYouStepAction(
     parsed.data;
   const lifts = sports.includes("strength");
 
-  await withUser(getDb(), user.id, async (tx) => {
+  const saved = await withUser(getDb(), user.id, async (tx) => {
+    // Stored as Postgres spells it, so every screen and the graphs read one zone.
+    const zone = await knownTimeZone(tx, timeZone);
+    if (!zone) return false;
     await ensureProfile(tx, user);
     await tx
       .update(profiles)
       .set({
         trainingExperience,
         preferredUnit,
-        timeZone,
+        timeZone: zone,
         ...(lifts ? {} : { onboardedAt: new Date() }),
       })
       .where(eq(profiles.id, user.id));
@@ -76,7 +80,11 @@ export async function saveYouStepAction(
         ...(sport === "swimming" ? { poolUnit } : {}),
       });
     }
+    return true;
   });
+  // A zone the browser reads but Postgres, which dates the graphs, does not: said under the line
+  // that names it.
+  if (!saved) return { fieldErrors: { timeZone: UNKNOWN_TIME_ZONE }, values: formValues(formData) };
   await profileChanged(user.id);
   revalidatePath("/training");
   revalidatePath("/profile/sports");

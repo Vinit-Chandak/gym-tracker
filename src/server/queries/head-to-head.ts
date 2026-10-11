@@ -1,7 +1,11 @@
 import type { DbOrTx } from "@/db/types";
 import type { FollowRelation } from "@/domain/follows";
 import { followState } from "@/server/repositories/follows";
-import { getDirectoryProfile, type DirectoryProfile } from "@/server/repositories/people";
+import {
+  getDirectoryProfile,
+  getDirectoryProfileById,
+  type DirectoryProfile,
+} from "@/server/repositories/people";
 import { canViewTraining } from "@/server/repositories/shared-stats";
 
 export type HeadToHead = {
@@ -18,19 +22,20 @@ export type HeadToHead = {
  * Who a comparison is between (plan §3.10): the viewer and the person at the handle. Null
  * when no such person exists, or when the handle is the viewer's own, which the page turns
  * into their profile. Reads the directory and the policies only; the training itself is read
- * by the screen that needs it.
+ * by the screen that needs it. The viewer is found by id: a username from a cached profile
+ * can be one they have just given up.
  */
 export async function loadHeadToHead(
   tx: DbOrTx,
-  viewer: { id: string; username: string },
+  viewerId: string,
   handle: string,
 ): Promise<HeadToHead | "self" | null> {
   const them = await getDirectoryProfile(tx, handle);
   if (!them) return null;
-  if (them.id === viewer.id) return "self";
+  if (them.id === viewerId) return "self";
   const [me, relation, visible] = await Promise.all([
-    getDirectoryProfile(tx, viewer.username),
-    followState(tx, viewer.id, them),
+    getDirectoryProfileById(tx, viewerId),
+    followState(tx, viewerId, them),
     canViewTraining(tx, them.id),
   ]);
   if (!me) return null;
@@ -43,7 +48,9 @@ export function hiddenTrainingLine(head: {
   relation: Pick<FollowRelation, "outgoing">;
 }): string {
   const name = head.them.displayName || head.them.username;
-  return head.relation.outgoing === "accepted"
-    ? `${name} keeps their training private.`
-    : `Follow @${head.them.username} to see their training.`;
+  if (head.relation.outgoing === "accepted") return `${name} keeps their training private.`;
+  // Under a button that already says Requested, asking to follow would be asking twice.
+  if (head.relation.outgoing === "pending")
+    return `Waiting for @${head.them.username} to accept your request.`;
+  return `Follow @${head.them.username} to see their training.`;
 }

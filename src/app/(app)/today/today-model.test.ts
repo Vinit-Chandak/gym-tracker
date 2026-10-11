@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
 
@@ -8,7 +9,9 @@ import {
   cycleCells,
   cycleLabel,
   groupRows,
+  loggedBesides,
   planRows,
+  printLabel,
   rowPrescription,
   todayParts,
 } from "./today-model";
@@ -70,8 +73,10 @@ const WRIST = slot({
 /** The fields the squares read; the rest of a plan does not reach them. */
 function plan(statuses: readonly ("completed" | "skipped" | "pending")[], offered: number) {
   return {
-    program: { weeks: 8 },
+    program: { weeks: 8, cycles: 8 },
     behind: 0,
+    missed: [],
+    pickUpDay: null,
     suggestion: { slot: { cycleIndex: 1, dayIndex: offered } },
     suggestedDay: { dayIndex: offered },
     cycleDays: statuses.map((status, index) => ({ day: { dayIndex: index + 1 }, status })),
@@ -86,7 +91,9 @@ describe("the cycle's squares", () => {
 
   it("are read aloud with where the cycle stands, behind included", () => {
     const week = { ...plan(["completed", "completed", "pending"], 3), behind: 25 } as TodayPlan;
-    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 days behind. Open the programme");
+    expect(cycleLabel(week)).toBe(
+      "Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme",
+    );
   });
 });
 
@@ -154,7 +161,7 @@ describe("the day's rows", () => {
       "kg",
     );
     expect(rows[0]).toMatchObject({
-      line: "30 kg · 3 × 10 @ 2, 2, 1 RIR",
+      line: "30 kg ·\u00a03 × 10 @ 2, 2, 1 RIR",
       note: "Add 2.5 kg after clean sets.",
       dropped: false,
       sets: 3,
@@ -184,5 +191,70 @@ describe("the day's print", () => {
       { sets: 3, done: 0, skipped: false, pair: true },
       { sets: 2, done: 0, skipped: false, pair: false },
     ]);
+  });
+
+  it("draws no run a revision withdrew, and a run history answered as done", () => {
+    const run = (resolution: ScheduledOccurrence["resolution"]["kind"]) =>
+      ({
+        sport: "running",
+        disposition: resolution === "incomplete" ? "pending" : resolution,
+        resolution: { kind: resolution },
+        prescription: null,
+      }) as unknown as ScheduledOccurrence;
+    const parts = todayParts({
+      programme: [run("cancelled"), run("legacy_completed")],
+      rows: planRows([CURL], null, "kg"),
+      standalone: [],
+    });
+    // The withdrawn run has no card under the print, so the print does not owe it either.
+    expect(parts).toEqual([
+      { kind: "run", state: "done" },
+      expect.objectContaining({ kind: "strength" }),
+    ]);
+    expect(printLabel("Easy Run + Arms", parts)).toBe(
+      "Easy Run + Arms: a run done, then 1 exercise as columns of their sets, to do.",
+    );
+  });
+});
+
+describe("what was logged today besides the cards", () => {
+  const logged = (patch: Partial<LoggedActivity>): LoggedActivity => ({
+    id: "a1",
+    sport: "cycling",
+    startedAt: new Date("2026-10-11T08:48:00Z"),
+    durationMs: 3_092_000,
+    distanceMetres: null,
+    environment: "indoor",
+    occurrenceId: null,
+    sessionId: null,
+    programDayId: null,
+    dayName: null,
+    gymName: null,
+    ...patch,
+  });
+  const answered = {
+    id: "o1",
+    sport: "running",
+    resolution: { kind: "logged", activityId: "a2", outcome: "logged", occurredOn: "2026-10-11" },
+  } as unknown as ScheduledOccurrence;
+
+  it("keeps a ride nobody scheduled and an unplanned workout, which no card stands for", () => {
+    // Sofia's rest day in the year audit: an indoor ride, and Today said only "Rest".
+    const ride = logged({});
+    const unplanned = logged({ id: "a3", sport: "strength", sessionId: "a3" });
+    expect(loggedBesides([ride, unplanned], { occurrences: [], doneDayIds: [] })).toEqual([
+      ride,
+      unplanned,
+    ]);
+  });
+
+  it("leaves out a run its session's card shows, and a workout its day's card shows", () => {
+    const run = logged({ id: "a2", sport: "running", occurrenceId: "o1" });
+    const workout = logged({ id: "a4", sport: "strength", sessionId: "a4", programDayId: "d1" });
+    // Logged today against a session from a day long gone, which no card here shows.
+    const late = logged({ id: "a5", sport: "running", occurrenceId: "o-old" });
+    expect(
+      loggedBesides([run, workout, late], { occurrences: [answered], doneDayIds: ["d1"] }),
+    ).toEqual([late]);
   });
 });

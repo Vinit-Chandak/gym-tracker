@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { assertReadableText } from "./audit-text-readability.mjs";
 import {
-  chooseOnboardingUnits,
   addStarterChestPress,
+  answerFirstStep,
+  choosePlace,
   clickWithSlowNavigation,
+  signUp,
 } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -35,9 +38,7 @@ const field = (page, name) => page.getByLabel(name, { exact: true });
 const password = "AuditProgramme123!";
 
 async function runDevice(device) {
-  const browser = await (device === "iphone" ? webkit : chromium).launch({
-    executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-  });
+  const browser = await launch(device === "iphone" ? "webkit" : "chromium");
   const context = await browser.newContext({
     ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
     baseURL,
@@ -74,8 +75,8 @@ async function runDevice(device) {
     await page.waitForLoadState("networkidle");
     await page.goto(route, { waitUntil: "networkidle" });
   };
-  const username = `auditpr${device[0]}${Date.now().toString(36)}`;
-  const email = `${username}@local.test`;
+  const key = `auditpr${device[0]}${Date.now().toString(36)}`;
+  const email = `${key}@local.test`;
   let userId, gymId, custom, draftId, activeProgram;
   const programmeName = "Audit controlled strength — practical training across busy weeks";
   const routineName = "Upper strength — controlled tempo and core stability";
@@ -129,27 +130,19 @@ async function runDevice(device) {
   try {
     await step("signup-and-custom-exercise-validation", async () => {
       await go("/signup");
-      await field(page, "Name").fill("Programme Audit");
-      await field(page, "Username").fill(username);
-      await field(page, "Email").fill(email);
-      await field(page, "Password").fill(password);
-      await field(page, "Confirm password").fill(password);
-      await button(page, "Create account").click();
-      await page.waitForURL(/\/welcome$/);
-      await chooseOnboardingUnits(page, "lb");
-      await field(page, "Time zone").fill("America/New_York");
-      await button(page, "Continue").click();
-      await page.waitForURL(/\/welcome\/sports$/);
-      await button(page, "Continue").click();
-      await page.waitForURL(/\/welcome\/gym$/);
-      await field(page, "Name").fill(`${username} training gym`);
-      await button(page, "Add gym").click();
-      await page.waitForURL(/\/welcome\/equipment\?gym=/);
+      await signUp(page, { name: "Programme Audit", email, password });
+      await answerFirstStep(page, {
+        sports: ["Strength", "Running"],
+        weight: "lb",
+        timeZone: "America/New_York",
+      });
+      await choosePlace(page, { name: `${key} training gym` });
       await addStarterChestPress(page);
       await page.waitForURL(/\/welcome\/programme$/);
-      await button(page, "Just track my workouts").click();
+      await button(page, "Log my own workouts").click();
       await page.waitForURL(/\/today$/);
-      [{ id: userId }] = await sql`select id from profiles where username=${username}`;
+      [{ id: userId }] =
+        await sql`select p.id from profiles p join auth.users u on u.id = p.id where u.email = ${email}`;
       [{ id: gymId }] = await sql`select id from gyms where user_id=${userId} and is_default`;
       await go("/exercises/new");
       await field(page, "Exercise name").fill(customName);
@@ -369,7 +362,43 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(false);
-      await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+      // A note typed while the switch is saving survives the switch's answer, which draws the
+      // page again. The answer is held open until the note is typed, as a slow connection would.
+      let releaseSwitch, switchHeld;
+      const answerHeld = new Promise((resolve) => (switchHeld = resolve));
+      const released = new Promise((resolve) => (releaseSwitch = resolve));
+      const switchSave = (url) => new URL(url).pathname === "/profile/ai-coach";
+      let holdError;
+      await page.route(switchSave, async (route) => {
+        if (route.request().method() !== "POST") return route.continue();
+        try {
+          const response = await route.fetch();
+          switchHeld();
+          await released;
+          await route.fulfill({ response });
+        } catch (error) {
+          holdError = error;
+        }
+      });
+      const note =
+        "Travelling next week: keep three shorter strength sessions and review my programme.";
+      try {
+        await page.getByRole("switch", { name: "AI coach", exact: true }).click();
+        await Promise.race([
+          answerHeld,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("The switch sent no save to hold")), 15_000),
+          ),
+        ]);
+        await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeDisabled();
+        await field(page, "Notes for the coach").fill(note);
+      } finally {
+        releaseSwitch();
+        // The held answer is given before the route goes: stopping interception first would let
+        // the browser's request go on unanswered by it.
+        await page.unrouteAll({ behavior: "wait" });
+      }
+      if (holdError) throw holdError;
       await expect
         .poll(
           async () =>
@@ -377,9 +406,9 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(true);
-      const note =
-        "Travelling next week: keep three shorter strength sessions and review my programme.";
-      await field(page, "Notes for the coach").fill(note);
+      await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
+      await settle();
+      await expect(field(page, "Notes for the coach")).toHaveValue(note);
       await button(page, "Send note").click();
       await expect
         .poll(async () =>
@@ -562,7 +591,9 @@ async function runDevice(device) {
     await step("saved-routine-starts-without-copying-sets", async () => {
       await go("/profile/routines");
       await expect(page.getByRole("heading", { name: routineName, exact: true })).toBeVisible();
-      await expect(button(page, "Start this routine")).toBeDisabled();
+      // The location starts on the athlete's default gym, so the routine can start at once.
+      await expect(field(page, "Where will you train?")).toHaveValue(gymId);
+      await expect(button(page, "Start this routine")).toBeEnabled();
       await field(page, "Where will you train?").selectOption(gymId);
       await clickWithSlowNavigation(
         page,
@@ -656,11 +687,11 @@ try {
   for (const device of process.env.AUDIT_DEVICE
     ? [process.env.AUDIT_DEVICE]
     : ["android", "iphone"])
-    await runDevice(device);
+    if (!skipDevice(device, device === "iphone" ? "webkit" : "chromium")) await runDevice(device);
   const passed = results.every((result) => result.passed) && runtimeErrors.length === 0;
   await writeFile(
     `${output}/results.json`,
-    JSON.stringify({ passed, results, runtimeErrors }, null, 2),
+    JSON.stringify({ passed, results, runtimeErrors, skipped: skippedDevices }, null, 2),
   );
   console.log(
     JSON.stringify({
@@ -668,6 +699,7 @@ try {
       checks: results.length,
       failed: results.filter((result) => !result.passed).length,
       runtimeErrors: runtimeErrors.length,
+      skipped: skippedDevices.map((row) => row.device),
     }),
   );
   if (!passed) process.exitCode = 1;

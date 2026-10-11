@@ -116,6 +116,9 @@ export function MachineDecision({
   const questionId = machineQuestionId(exercise.id);
   // The type being asked about, which Register with details opens on.
   const askedType = ask?.typeId ?? decision.missingTypes[0]?.id ?? null;
+  // A custom exercise away from the machine it was made on names no kind of machine, so no
+  // machine registered here could take it: Register with details would only end in an error.
+  const registrable = !(resolution.status === "unknown" && askedType === null);
   const substitute = (remember: boolean) =>
     `/workouts/${session.id}/exercises/${exercise.id}/substitute${remember ? "" : "?remember=0"}` as Route;
 
@@ -179,9 +182,16 @@ export function MachineDecision({
           ))}
           <p className="type-meta-small text-ink-2">Archived, its sets stay in your history.</p>
           <div className="flex flex-wrap gap-2">
-            <LinkButton href={substitute(false)} variant="tonal" size="sm">
-              Out of use today
-            </LinkButton>
+            {/* A substitute moves the exercise where unsaved drafts cannot follow it. */}
+            {blocked ? (
+              <Button disabled variant="tonal" size="sm">
+                Save or remove drafts first
+              </Button>
+            ) : (
+              <LinkButton href={substitute(false)} variant="tonal" size="sm">
+                Out of use today
+              </LinkButton>
+            )}
             <Button variant="text" size="sm" onClick={() => setGone(null)}>
               It&rsquo;s here after all
             </Button>
@@ -207,25 +217,30 @@ export function MachineDecision({
           {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
         </Button>
       ))}
-      {/* Text buttons keep their words on the block's edge, as elsewhere. */}
+      {/* Text buttons keep their words on the block's edge, as elsewhere. Both put another
+          exercise or machine on the slot, where unsaved drafts cannot follow, so both wait. */}
       <div className="-ml-2.5 flex flex-wrap gap-2">
         {blocked ? (
           <Button disabled variant="text" size="sm">
             Save or remove drafts first
           </Button>
         ) : (
-          <LinkButton href={substitute(true)} variant="text" size="sm">
-            Add a fallback
-          </LinkButton>
+          <>
+            <LinkButton href={substitute(true)} variant="text" size="sm">
+              Add a fallback
+            </LinkButton>
+            {/* Carries the workout along, so registering it lands back here. */}
+            {registrable && (
+              <LinkButton
+                href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}${askedType ? `&type=${askedType}` : ""}`}
+                variant="text"
+                size="sm"
+              >
+                Register with details
+              </LinkButton>
+            )}
+          </>
         )}
-        {/* Carries the workout along, so registering it lands back here. */}
-        <LinkButton
-          href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}${askedType ? `&type=${askedType}` : ""}`}
-          variant="text"
-          size="sm"
-        >
-          Register with details
-        </LinkButton>
       </div>
     </>
   );
@@ -310,7 +325,7 @@ export function MachineDecision({
                       <EquipmentArt src={variant.art} className="equipment-tile-art" />
                     )}
                     <span className="equipment-tile-name">
-                      <span className="min-w-0 [overflow-wrap:anywhere]">{variant.name}</span>
+                      <span className="min-w-0 [overflow-wrap:break-word]">{variant.name}</span>
                     </span>
                     {/* The words that tell it apart: a picture alone is not enough. */}
                     {variant.identification && (

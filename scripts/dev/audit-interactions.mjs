@@ -1,34 +1,40 @@
 // First-tap, hitbox and fixed-action checks against the actual production app.
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { assertReadableText } from "./audit-text-readability.mjs";
+import { launch, skipDevice } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3107";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
   throw new Error("Local audit only.");
 const output = `${process.env.AUDIT_OUTPUT_DIR ?? "output/audit-2026-10-07"}/interactions`;
-const fixtures = JSON.parse(await readFile(`${output}/../fixtures.json`, "utf8"));
 await mkdir(output, { recursive: true });
+const fixtures = JSON.parse(await readFile(`${output}/../fixtures.json`, "utf8"));
 const results = [];
 
 for (const config of [
-  { name: "android", engine: chromium, options: devices["Pixel 7"], size: 16 },
-  { name: "iphone", engine: webkit, options: devices["iPhone 13"], size: 16 },
+  { name: "android", engine: "chromium", options: devices["Pixel 7"], size: 16 },
+  { name: "iphone", engine: "webkit", options: devices["iPhone 13"], size: 16 },
   {
     name: "narrow",
-    engine: chromium,
+    engine: "chromium",
     options: { ...devices["Pixel 7"], viewport: { width: 320, height: 740 } },
     size: 16,
   },
   {
     name: "narrow-large",
-    engine: chromium,
+    engine: "chromium",
     options: { ...devices["Pixel 7"], viewport: { width: 320, height: 740 } },
     size: 32,
   },
 ].filter((item) => !process.env.AUDIT_DEVICE || item.name === process.env.AUDIT_DEVICE)) {
-  const browser = await config.engine.launch();
+  if (skipDevice(config.name, config.engine)) {
+    results.push({ device: config.name, name: "every check", status: "SKIPPED", skipped: true });
+    await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
+    continue;
+  }
+  const browser = await launch(config.engine);
   const context = await browser.newContext({ ...config.options, baseURL });
   const page = await context.newPage();
   page.setDefaultTimeout(10_000);
@@ -236,7 +242,8 @@ for (const config of [
       const entry = page.locator("a.day-row").first();
       await target(entry);
       await entry.tap();
-      await page.waitForURL(/\/(?:workouts|training\/activities)\/[0-9a-f-]+$/);
+      // A day's entries say where they were opened from (`?from=history`), so Progress stays lit.
+      await page.waitForURL(/\/(?:workouts|training\/activities)\/[0-9a-f-]+(?:\?from=[a-z]+)?$/);
       await page.waitForLoadState("networkidle");
       await target(page.locator("a.back-link"));
       await page.locator("a.back-link").tap();
@@ -264,7 +271,12 @@ for (const config of [
     await browser.close();
   }
 }
+const ran = results.filter((r) => !r.skipped);
 console.log(
-  JSON.stringify({ checks: results.length, failed: results.filter((r) => !r.passed).length }),
+  JSON.stringify({
+    checks: ran.length,
+    failed: ran.filter((r) => !r.passed).length,
+    skipped: results.filter((r) => r.skipped).map((r) => r.device),
+  }),
 );
-if (results.some((r) => !r.passed)) process.exitCode = 1;
+if (ran.some((r) => !r.passed)) process.exitCode = 1;

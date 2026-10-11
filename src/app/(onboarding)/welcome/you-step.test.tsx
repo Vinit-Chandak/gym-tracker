@@ -106,3 +106,44 @@ it("changes the units from the sheet", () => {
   expect(sent()).toMatchObject({ preferredUnit: "lb", distanceUnit: "mi" });
   expect(document.querySelector(".units-line-text")!.textContent).toBe("lb · miles · London time");
 });
+
+/** The phone's zone, as the device in India that ICU, as Chrome, says is in Asia/Calcutta. */
+function inIndia(check: () => void) {
+  const before = process.env.TZ;
+  process.env.TZ = "Asia/Kolkata";
+  try {
+    check();
+  } finally {
+    if (before === undefined) delete process.env.TZ;
+    else process.env.TZ = before;
+  }
+}
+
+it("starts the account in the phone's zone by its place's current name", () => {
+  inIndia(() => {
+    const { sent } = show({ zone: null });
+    // Asia/Kolkata, which every Postgres the save is checked against knows.
+    expect(sent().timeZone).toBe("Asia/Kolkata");
+    expect(document.querySelector(".units-line-text")!.textContent).toBe("kg · Kolkata time");
+  });
+});
+
+it("knows the phone is in a zone saved by its old name, and lists the place once", () => {
+  inIndia(() => {
+    const { sent } = show({ zone: "Asia/Calcutta" });
+    expect(sent().timeZone).toBe("Asia/Calcutta");
+    expect(document.querySelector(".units-line-text")!.textContent).toBe("kg · Kolkata time");
+    fireEvent.click(screen.getByRole("button", { name: "Change units and time zone" }));
+    const zone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLSelectElement;
+    expect(zone.value).toBe("Asia/Calcutta");
+    // The same place is the phone's, under the name it was saved by, and not a second choice.
+    const phone = zone.querySelector<HTMLOptionElement>('optgroup[label="This phone"] option')!;
+    expect(phone.value).toBe("Asia/Calcutta");
+    expect(phone.textContent).toMatch(/^Kolkata · /);
+    const options = Array.from(zone.options, (option) => option.value);
+    expect(options).not.toContain("Asia/Kolkata");
+    // Nor is any other place listed by a name the zone database has retired.
+    expect(options).not.toContain("Africa/Asmera");
+    expect(options).toContain("Africa/Asmara");
+  });
+});

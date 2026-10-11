@@ -101,6 +101,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     warnings: [],
     timeZone: "UTC",
     preferredUnit: "kg",
+    today: "2026-09-08",
     exercises: [{ ...exercise, sets }],
   };
 }
@@ -170,7 +171,7 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(view());
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
@@ -201,7 +202,7 @@ it("takes a render that already holds the set as it is", async () => {
   render(
     <WorkoutView session={workout(id, [saved])} seenSetChanges={setChangesMade()} userId="user" />,
   );
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
 });
 
 it("drops a deleted set from the list", async () => {
@@ -219,7 +220,7 @@ it("drops a deleted set from the list", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.queryByText(whole("60 kg × 5"))).toBeNull();
+  expect(screen.queryByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeNull();
   expect(screen.queryByText("Resume")).toBeNull();
 });
 
@@ -236,7 +237,7 @@ it("brings the list up to date when a save lands after the exercise was left", a
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.queryByText("Resume")).toBeNull();
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
 });
 
 it("opens a finished workout for changes within its week, and closes the edit in place (ADR 0049)", async () => {
@@ -297,4 +298,46 @@ it("opens a finished workout for changes within its week, and closes the edit in
   page.rerender(view("2026-09-15"));
   expect(screen.queryByRole("button", { name: LINE })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add set" })).toBeNull();
+});
+
+it("names the year of a finished workout from another year, not of one from this year", () => {
+  const record = (startedAt: string, today: string): SessionVM => ({
+    ...workout(crypto.randomUUID(), [saved]),
+    startedAt,
+    completedAt: startedAt,
+    today,
+  });
+  const view = (session: SessionVM) => (
+    <WorkoutView
+      session={session}
+      seenSetChanges={setChangesMade()}
+      userId="user"
+      title="Full body A"
+      backHref="/progress/history"
+    />
+  );
+  const page = render(view(record("2026-09-08T11:00:00.000Z", "2026-10-11")));
+  expect(screen.getByText(whole("Tue\u00a08\u00a0Sept"))).toBeTruthy();
+  // 13 October is a Tuesday this year: a year-old Monday says which year it was.
+  page.rerender(view(record("2025-10-13T11:00:00.000Z", "2026-10-11")));
+  expect(screen.getByText(whole("Mon\u00a013\u00a0Oct\u00a02025"))).toBeTruthy();
+});
+
+it("lets Finish go once a set left saving lands after its exercise was closed", async () => {
+  const rendered = workout(crypto.randomUUID());
+  const seen = setChangesMade();
+  let land!: (value: { ok: true; set: SetVM }) => void;
+  actions.log.mockReturnValue(new Promise((resolve) => (land = resolve)));
+  window.history.replaceState(null, "", "/workouts/session?exercise=slot");
+  const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  enterFirstSet();
+
+  // Back while it is still on its way: its draft holds Finish, as any unsaved set does.
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  expect(screen.getByText(/A set in Bench press is not saved yet/)).toBeTruthy();
+  // Landed, nothing is left to save, and nothing holds Finish back.
+  await act(async () => land({ ok: true, set: saved }));
+  expect(screen.queryByText(/not saved yet/)).toBeNull();
+  expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
 });

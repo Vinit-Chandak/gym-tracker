@@ -38,9 +38,12 @@ import type { DbOrTx } from "./types";
 /**
  * Versioned: a new name makes the next deploy run the backfill again. "shared_stats" was the
  * first run, when the tables arrived; "_v2" re-derives every row for the top-weight sets and
- * reps columns (migration 0022), which rows written before it do not have.
+ * reps columns (migration 0022), which rows written before it do not have; "_v3" removes the
+ * rows earlier sessions wrote for a movement skipped or left without a working set, which
+ * listed it as an exercise in common with nothing to compare, and re-dates runs logged while
+ * travelling to the day they were saved on.
  */
-export const SHARED_STATS_BACKFILL = "shared_stats_v2";
+export const SHARED_STATS_BACKFILL = "shared_stats_v3";
 
 /** Whether a named backfill has completed on this database. */
 export async function hasBackfillRun(db: DbOrTx, name: string): Promise<boolean> {
@@ -76,6 +79,7 @@ export async function backfillSharedStats(db: DbOrTx): Promise<BackfillSummary> 
       if (!batch.hasMore) break;
     }
     workouts.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+    // A workout keeps no zone of its own, so it is dated in the profile's, as finishing it is.
     for (const workout of workouts) {
       await writeSessionStats(db, account.id, workout, account.timeZone);
       summary.workouts++;
@@ -83,6 +87,9 @@ export async function backfillSharedStats(db: DbOrTx): Promise<BackfillSummary> 
     for (let page = 0; ; page++) {
       const batch = await readRunActivities(db, account.id, ALL_TIME, page);
       for (const run of batch.runs) {
+        // The run carries the date frozen when it was saved, in the zone it was recorded in,
+        // and keeps it, as the live write does: the profile's zone would move a run logged
+        // while travelling to another day.
         await writeRunStats(db, account.id, run, account.timeZone);
         summary.runs++;
       }

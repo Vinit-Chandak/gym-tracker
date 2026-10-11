@@ -45,7 +45,9 @@ owner chose the strip, and answered two more questions below.
    - The strip's own marks fill every month it holds from the first. Any other month is read once,
      when it is first turned to, by `readFoodMonthAction`, a read with nothing revalidated.
 5. **After midnight the Food tab opens today**, which the owner chose over keeping yesterday on
-   screen until 4 am. Yesterday is one tap to the left of today.
+   screen until 4 am. Yesterday is one tap to the left of today. Since October 2026 a meal's
+   page left open over midnight keeps its day, written in its header, and an open sheet logs to
+   the day it was opened on, so nothing being added moves to the new day.
 6. **One read more per visit.** The Food screen reads each day in the strip with food on it, as
    `readFoodDays`: one grouped query over `food_entries_user_day_idx`, every entry rounded to the
    tenth before it is added, as `eaten` rounds it, so a day's mark agrees with its own screen.

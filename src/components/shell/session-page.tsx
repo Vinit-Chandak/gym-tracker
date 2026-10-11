@@ -63,7 +63,7 @@ export function SessionPage({
           <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-0.5">
             {title}
           </FitTitle>
-          {meta && <p className="meta-line mt-1 [overflow-wrap:anywhere]">{meta}</p>}
+          {meta && <p className="meta-line mt-1 [overflow-wrap:break-word]">{meta}</p>}
         </header>
       )}
       <div className="session-page-body page-width">{children}</div>

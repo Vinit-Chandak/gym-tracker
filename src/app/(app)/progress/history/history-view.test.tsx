@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import type { HistoryItem } from "./history-list";
 import { HISTORY_PAGE_SIZE, HistoryView } from "./history-view";
+
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
 
 const navigation = vi.hoisted(() => ({ query: "kind=run" }));
 vi.mock("next/navigation", () => ({
@@ -11,8 +25,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/progress/history",
 }));
-// The regression is the history list's URL-driven filtering, not the header or its sheet.
-vi.mock("@/components/shell/page-header", () => ({ PageHeader: () => null }));
+// The regression is the history list's URL-driven filtering, not the header: only its action,
+// the filter sheet, is drawn.
+vi.mock("@/components/shell/page-header", () => ({
+  PageHeader: ({ action }: { action?: ReactNode }) => action ?? null,
+}));
 afterEach(cleanup);
 
 it("replaces local filters when Back or a deep link changes the URL", () => {
@@ -86,7 +103,7 @@ it("lists each entry under its day, its mark naming the sport", () => {
           date: "2026-09-27",
           day: "2026-09-27",
           title: "Recovery",
-          subtitle: "Sleep 7.5 h · Fatigue 4 · Soreness 2",
+          subtitle: "Sleep 7 h 30 min · Fatigue 4 · Soreness 2",
           meta: "",
           gymId: null,
           exercises: [],
@@ -94,14 +111,14 @@ it("lists each entry under its day, its mark naming the sport", () => {
       ]}
     />,
   );
-  expect(screen.getByRole("heading", { name: "Mon 28 Sept" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Sun 27 Sept" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Mon\u00a028\u00a0Sept" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Sun\u00a027\u00a0Sept" })).toBeTruthy();
   const lift = screen.getByRole("link", { name: /Unplanned session/ });
   expect(lift.textContent).toContain("13 sets");
   expect(lift.textContent).toContain("19:00 · Anytime Fitness");
   expect(screen.getByRole("img", { name: "Workout" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Recovery" })).toBeTruthy();
-  expect(screen.getByText("2 entries")).toBeTruthy();
+  expect(screen.getByText(whole("2 entries"))).toBeTruthy();
 });
 
 it("lists ten entries a page, newest first, and turns the page with its tabs", () => {
@@ -130,7 +147,7 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "";
   const { rerender } = render(<HistoryView {...props} />);
   expect(HISTORY_PAGE_SIZE).toBe(10);
-  expect(screen.getByText("23 entries · page 1 of 3")).toBeTruthy();
+  expect(screen.getByText(whole("23 entries · page 1 of 3"))).toBeTruthy();
   expect(screen.getByText("Workout 1")).toBeTruthy();
   expect(screen.getByText("Workout 10")).toBeTruthy();
   expect(screen.queryByText("Workout 11")).toBeNull();
@@ -152,4 +169,55 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "page=2";
   rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
   expect(screen.queryByRole("note")).toBeNull();
+});
+
+it("offers Recovery among the activities only where there is a reading of its own to show", () => {
+  // jsdom has no modal dialog; the filter sheet is one.
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    },
+  });
+  const lift: HistoryItem = {
+    id: "lift",
+    kind: "workout",
+    date: "2026-09-28T13:30:00.000Z",
+    day: "2026-09-28",
+    title: "Upper",
+    subtitle: "",
+    meta: "",
+    gymId: null,
+    exercises: [],
+    // A check-in today is the workout's own, read on its row.
+    recovery: "Sleep 7 h",
+  };
+  const props = { today: "2026-10-07", range: { from: "2026-09-01", to: "2026-09-28" }, gyms: [] };
+  const activity = () => screen.getByRole("combobox", { name: "Activity" }) as HTMLSelectElement;
+  const choices = () => Array.from(activity().options, (option) => option.textContent);
+  navigation.query = "";
+  const { rerender } = render(<HistoryView {...props} items={[lift]} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+  expect(choices()).toEqual(["All activity", "Workouts", "Runs"]);
+  // An older account's daily reading is there to be chosen.
+  rerender(
+    <HistoryView
+      {...props}
+      items={[lift, { ...lift, id: "daily", kind: "recovery", title: "Recovery" }]}
+    />,
+  );
+  expect(choices()).toContain("Recovery");
+  // A link that asks for it still shows what is chosen, though nothing matches.
+  navigation.query = "kind=recovery";
+  rerender(<HistoryView {...props} items={[lift]} />);
+  expect(activity().value).toBe("recovery");
+  cleanup();
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
 });

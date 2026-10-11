@@ -152,8 +152,10 @@ export function PrescriptionEditor({
               </Field>
             </div>
           </div>
+          {/* Out of five, the scale the athlete answers on, and it says so: a target written
+              out of ten was refused with nothing on the form to say why. */}
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Effort from" hint="Optional" error={state.fieldErrors?.effortMin}>
+            <Field label="Effort from" hint="1 to 5, optional" error={state.fieldErrors?.effortMin}>
               <Input
                 name="effortMin"
                 inputMode="decimal"
@@ -161,7 +163,7 @@ export function PrescriptionEditor({
                 placeholder="3"
               />
             </Field>
-            <Field label="Effort to" hint="Optional" error={state.fieldErrors?.effortMax}>
+            <Field label="Effort to" hint="1 to 5, optional" error={state.fieldErrors?.effortMax}>
               <Input
                 name="effortMax"
                 inputMode="decimal"

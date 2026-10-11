@@ -10,6 +10,12 @@ import { Sheet } from "@/components/ui/sheet";
 import type { ActivitySport } from "@/domain/activity";
 import type { MeasureUnits } from "@/lib/setup-path";
 import { zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
+import {
+  listedTimeZones,
+  preferredTimeZone,
+  sameTimeZone,
+  supportedTimeZones,
+} from "@/lib/time-zones";
 
 const WEIGHT = [
   { value: "kg", label: "kg" },
@@ -50,7 +56,8 @@ export function UnitsLine({
     units.weight,
     distanceMatters(sports) ? (units.distance === "mi" ? "miles" : "km") : null,
     sports.includes("swimming") ? (units.pool === "yd" ? "yard pools" : "metre pools") : null,
-    zoneLine(zone),
+    // Named as the zone database names the place now: Kolkata, not a saved Calcutta.
+    zoneLine(preferredTimeZone(zone)),
   ].filter(Boolean);
   return (
     <div className="units-line-wrap">
@@ -77,23 +84,24 @@ export function UnitsLine({
   );
 }
 
-/** Every zone this device knows, by region, each with its city and its offset now. */
+/**
+ * Every zone this device knows, by region, each with its city and its offset now. A place the
+ * browser still lists by an old name (Calcutta, Asmera, Godthab) is listed once, by its current
+ * one; the zone already chosen stands under the name it was saved by, so it is never a second
+ * place.
+ */
 function useZoneOptions(open: boolean, current: string) {
   return useMemo(() => {
     if (!open) return [] as { region: string; zones: { value: string; label: string }[] }[];
-    let zones: string[];
-    try {
-      zones = Intl.supportedValuesOf("timeZone");
-    } catch {
-      zones = [];
-    }
+    let zones = listedTimeZones(supportedTimeZones(), current);
     if (!zones.includes(current)) zones = [current, ...zones];
     const now = new Date();
     const byRegion = new Map<string, { value: string; label: string }[]>();
     for (const value of zones) {
       const region = value.includes("/") ? value.split("/")[0]! : "Other";
       const offset = zoneOffset(value, now);
-      const label = offset ? `${zoneCity(value)} · ${offset}` : zoneCity(value);
+      const city = zoneCity(preferredTimeZone(value));
+      const label = offset ? `${city} · ${offset}` : city;
       byRegion.set(region, [...(byRegion.get(region) ?? []), { value, label }]);
     }
     return [...byRegion.entries()]
@@ -130,6 +138,9 @@ export function UnitsSheet({
   onZone: (zone: string) => void;
 }) {
   const regions = useZoneOptions(open, zone);
+  // The phone's zone is the one chosen when they are one place under two names (a saved
+  // Asia/Calcutta, a phone's Asia/Kolkata), so the list never says the phone is elsewhere.
+  const phone = phoneZone !== null && sameTimeZone(phoneZone, zone) ? zone : phoneZone;
   return (
     <Sheet
       open={open}
@@ -204,11 +215,11 @@ export function UnitsSheet({
               Time zone
             </label>
             <Select id="units-zone" value={zone} onChange={(event) => onZone(event.target.value)}>
-              {phoneZone && (
+              {phone && (
                 <optgroup label="This phone">
-                  <option value={phoneZone}>
-                    {zoneCity(phoneZone)}
-                    {zoneOffset(phoneZone) ? ` · ${zoneOffset(phoneZone)}` : ""}
+                  <option value={phone}>
+                    {zoneCity(preferredTimeZone(phone))}
+                    {zoneOffset(phone) ? ` · ${zoneOffset(phone)}` : ""}
                   </option>
                 </optgroup>
               )}

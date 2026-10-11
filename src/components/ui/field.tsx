@@ -56,7 +56,7 @@ export function Field({
   const labelId = `${controlId}-label`;
   const feedbackId = `${controlId}-feedback`;
   const text = (
-    <span id={labelId} className="min-w-0 [overflow-wrap:anywhere]">
+    <span id={labelId} className="min-w-0 [overflow-wrap:break-word]">
       {label}
     </span>
   );

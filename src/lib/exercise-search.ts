@@ -33,6 +33,11 @@ type AskedWord = {
    * Typed as a plural, so finished: "lats" asks for the lats, not for anything "lateral".
    */
   whole: boolean;
+  /**
+   * For the word still being typed, the singular of the plural it has started: "presse" is on
+   * its way to "presses", the press, though it is no longer the start of "press".
+   */
+  heading: string | null;
 };
 
 function askedWords(query: string): AskedWord[] {
@@ -48,7 +53,10 @@ function askedWords(query: string): AskedWord[] {
     const [word] = searchWords(raw);
     if (!word) return [];
     const whole = word !== raw;
-    return [{ word, whole, partial: !whole && stillTyping && i === typed.length - 1 }];
+    const partial = !whole && stillTyping && i === typed.length - 1;
+    const [singular] = partial ? searchWords(`${word}s`) : [];
+    const heading = singular && singular.length < word.length ? singular : null;
+    return [{ word, whole, partial, heading }];
   });
 }
 
@@ -59,7 +67,7 @@ function askedWords(query: string): AskedWord[] {
  * for pull-ups with every row in the library.
  */
 function wordMatches(asked: AskedWord, known: string, inName: boolean): boolean {
-  if (asked.word === known) return true;
+  if (asked.word === known || asked.heading === known) return true;
   if (asked.whole || !known.startsWith(asked.word)) return false;
   return asked.word.length >= 3 || (asked.partial && inName);
 }
@@ -79,6 +87,8 @@ function compactMatch(
   // to here; the query run together is long enough to lose it.
   const compacts =
     joined.length > 3 && joined.endsWith("s") ? [joined, joined.slice(0, -1)] : [joined];
+  const heading = asked.at(-1)?.heading;
+  if (heading) compacts.push([...asked.slice(0, -1).map((a) => a.word), heading].join(""));
   const partial = asked.at(-1)?.partial ?? false;
   let best: { atStart: boolean; whole: boolean; partial: boolean } | null = null;
   for (let i = 0; i < nameWords.length; i += 1) {
@@ -198,21 +208,82 @@ export function searchExercises<T extends SearchableExercise>(
 export type ExerciseSection<T> = { key: string; title: string; items: T[] };
 
 /**
+ * The exercise a swap or a fallback replaces: its movement chooses the list it opens on, and
+ * the rest of it, where given, how that list is ordered.
+ */
+export type LikeExercise = Pick<SearchableExercise, "movementPattern"> &
+  Partial<Pick<SearchableExercise, "name" | "modality" | "primaryMuscles">>;
+
+/**
+ * How close an exercise of the same movement is to the one it would replace, as the figures
+ * to compare in turn, higher closer: the same equipment (a barbell squat's swap is another
+ * barbell squat before a leg press), how far their primary muscles agree (those shared, over
+ * all either works, so a squat that is all quads is nearer than a thruster's quads and front
+ * delts), then the words their names share ("High-bar barbell squat" for a "Low-bar barbell
+ * squat"). Alphabetically, a low-bar squat's swap read the leg press, the thruster and the
+ * belt squat before the high-bar, the safety-bar and the pause squat.
+ */
+function likeness(exercise: SearchableExercise, like: LikeExercise): number[] {
+  const muscles = new Set(like.primaryMuscles ?? []);
+  const shared = exercise.primaryMuscles.filter((muscle) => muscles.has(muscle)).length;
+  const either = new Set([...muscles, ...exercise.primaryMuscles]).size;
+  const words = new Set(like.name ? searchWords(like.name) : []);
+  return [
+    like.modality !== undefined && exercise.modality === like.modality ? 1 : 0,
+    either === 0 ? 0 : shared / either,
+    new Set(searchWords(exercise.name).filter((word) => words.has(word))).size,
+  ];
+}
+
+/** What a list opening on an exercise's movement needs of it; null when there is none. */
+export function likeOf(
+  exercise: (LikeExercise & Pick<SearchableExercise, "name">) | null | undefined,
+): LikeExercise | null {
+  if (!exercise?.movementPattern) return null;
+  const { movementPattern, name, modality, primaryMuscles } = exercise;
+  return { movementPattern, name, modality, primaryMuscles };
+}
+
+/** The same movement, closest first; equal ones keep the order they came in. */
+function closestFirst<T extends SearchableExercise>(items: readonly T[], like: LikeExercise): T[] {
+  const scored = items.map((exercise) => ({ exercise, score: likeness(exercise, like) }));
+  return scored
+    .sort((a, b) => {
+      for (let i = 0; i < a.score.length; i += 1) {
+        const difference = b.score[i]! - a.score[i]!;
+        if (difference !== 0) return difference;
+      }
+      return 0;
+    })
+    .map((entry) => entry.exercise);
+}
+
+/**
  * What a list of exercises shows for a query: the library by body region when nothing is
  * typed, and the ranked results when something is. Grouping search results by region put an
  * "Assisted pull-up" above the Pull-up just because both are back exercises and "A" < "P".
+ *
+ * Choosing one to do instead of another (`like`: a swap, a fallback), the library opens on the
+ * same movement, closest first (`likeness`), the rest by region under it: a squat's swap began
+ * at the chest exercises. Each is listed once, so a choice is one row, never two.
  */
 export function exerciseSections<T extends SearchableExercise>(
   exercises: readonly T[],
   query: string,
+  like: LikeExercise | null = null,
 ): ExerciseSection<T>[] {
   const results = searchExercises(exercises, query);
   if (!results) {
-    return groupByRegion(exercises).map((group) => ({
-      key: group.region,
-      title: BODY_REGION_LABELS[group.region],
-      items: group.items,
-    }));
+    const same = (e: T) => like !== null && e.movementPattern === like.movementPattern;
+    const first = like === null ? [] : closestFirst(exercises.filter(same), like);
+    return [
+      ...(first.length > 0 ? [{ key: "like", title: "Same movement", items: first }] : []),
+      ...groupByRegion(exercises.filter((e) => !same(e))).map((group) => ({
+        key: group.region,
+        title: BODY_REGION_LABELS[group.region],
+        items: group.items,
+      })),
+    ];
   }
   return [
     { key: "name", title: "Best matches", items: results.byName },

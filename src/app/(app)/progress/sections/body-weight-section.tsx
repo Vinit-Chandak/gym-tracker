@@ -3,13 +3,18 @@
 import { Graph } from "@/components/graph/graph";
 import { bucketLabel, counted, dayLabel, decimal } from "@/components/graph/labels";
 import { thinRecords } from "@/components/graph/thin";
+import type { BodyLoadUnit } from "@/domain/types";
 
 import type { ProgressData } from "../progress-types";
 
-/** "+1.4", "−0.6", "0": a change in body weight, signed, to a tenth. */
-const change = (value: number) => {
-  const rounded = Math.round(value * 10) / 10;
-  return rounded > 0 ? `+${decimal(rounded)}` : rounded < 0 ? `−${decimal(-rounded)}` : "0";
+/**
+ * "+1.4 kg", "−0.6 lb", "0 kg": a change in body weight, signed, to a tenth, and in its unit, so
+ * it never reads as a bare number beside the figure's. The half rounds away from zero either way.
+ */
+const change = (value: number, unit: BodyLoadUnit) => {
+  const tenths = Math.round(Math.abs(value) * 10) / 10;
+  const sign = tenths === 0 ? "" : value > 0 ? "+" : "−";
+  return `${sign}${decimal(tenths)}\u00a0${unit}`;
 };
 
 /**
@@ -38,7 +43,7 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
           unit,
           context:
             first && last && points.length > 1
-              ? `${change(last.value - first.value)} since ${dayLabel(first.date, today)}`
+              ? `${change(last.value - first.value, unit)} since ${dayLabel(first.date, today)}`
               : last
                 ? dayLabel(last.date, today)
                 : null,
@@ -63,7 +68,7 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
             figure: decimal(point.value),
             unit,
             context: before
-              ? `${change(point.value - before.value)} since ${dayLabel(before.date, today)}`
+              ? `${change(point.value - before.value, unit)} since ${dayLabel(before.date, today)}`
               : "First reading in this range",
           };
         }}

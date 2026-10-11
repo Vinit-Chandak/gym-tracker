@@ -1,6 +1,10 @@
 import type { CalendarEntry } from "@/components/art/art";
 import type { PrintPart, Sport, StrengthColumn } from "@/components/art/geometry";
 import type { ActivitySport } from "@/domain/activity";
+import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
+
+/** The units an athlete reads each sport's distances in; kilometres and metres where unset. */
+export type DistanceUnits = Partial<Record<ActivitySport, SportUnits>>;
 
 /** What the calendar needs of an activity: its sport, its day and what it measured. */
 export type DayActivity = {
@@ -11,6 +15,8 @@ export type DayActivity = {
   distanceMetres: number | null;
   /** "treadmill", "indoor", "pool", "open_water"; null where the sport has none. */
   environment: string | null;
+  /** The workout still open: on its day, but not yet one of the month's sessions. */
+  inProgress?: boolean;
 };
 
 /** Each sport as the art draws it: lifting a block, a run a runner, a ride a wheel, a swim a wave. */
@@ -23,47 +29,62 @@ export const ART_SPORT: Record<ActivitySport, Sport> = {
 
 const km = (metres: number) => `${Math.round(metres / 100) / 10} km`;
 
+/** A distance in the athlete's unit for the sport, when one is known. */
+function distanceOf(metres: number, sport: ActivitySport, units?: DistanceUnits): string {
+  const own = units?.[sport];
+  if (own) return formatSportDistance(metres, sport, own);
+  return sport === "swimming" ? `${Math.round(metres).toLocaleString("en-GB")} m` : km(metres);
+}
+
 /**
  * An activity as a calendar's day is read out (DESIGN.md, The month: "every past day is a link
  * named with what it holds"): "lifting 42 min", "run 3 km indoors", "ride 25 km",
  * "swim 1,500 m".
  */
-export function saidOf(activity: DayActivity): string {
+export function saidOf(activity: DayActivity, units?: DistanceUnits): string {
   const minutes = activity.durationMs === null ? null : Math.round(activity.durationMs / 60_000);
   const indoors =
     activity.environment === "treadmill" || activity.environment === "indoor" ? " indoors" : "";
   switch (activity.sport) {
     case "strength":
+      if (activity.inProgress) return "lifting in progress";
       return `lifting${minutes ? ` ${minutes} min` : ""}`;
     case "running":
-      return `run${activity.distanceMetres ? ` ${km(activity.distanceMetres)}` : ""}${indoors}`;
+      return `run${activity.distanceMetres ? ` ${distanceOf(activity.distanceMetres, "running", units)}` : ""}${indoors}`;
     case "cycling":
       return `ride${
         activity.distanceMetres
-          ? ` ${km(activity.distanceMetres)}`
+          ? ` ${distanceOf(activity.distanceMetres, "cycling", units)}`
           : minutes
             ? ` ${minutes} min`
             : ""
       }${indoors}`;
     case "swimming":
       return `swim${
-        activity.distanceMetres
-          ? ` ${Math.round(activity.distanceMetres).toLocaleString("en-GB")} m`
-          : ""
+        activity.distanceMetres ? ` ${distanceOf(activity.distanceMetres, "swimming", units)}` : ""
       }`;
   }
 }
 
-/** A month's days, each with its activities as marks, in the order they were done. */
+/**
+ * A month's days, each with its activities as marks, in the order they were done. The workout
+ * still open is marked as one under way, not as one of the month's sessions, which its count
+ * leaves out until it is finished (`tally`).
+ */
 export function monthDays(
   activities: readonly DayActivity[],
   month: string,
+  units?: DistanceUnits,
 ): Record<number, CalendarEntry[]> {
   const days: Record<number, CalendarEntry[]> = {};
   for (const activity of activities) {
     if (activity.occurredOn.slice(0, 7) !== month) continue;
     const day = Number(activity.occurredOn.slice(8, 10));
-    (days[day] ??= []).push({ sport: ART_SPORT[activity.sport], said: saidOf(activity) });
+    (days[day] ??= []).push({
+      sport: ART_SPORT[activity.sport],
+      said: saidOf(activity, units),
+      ...(activity.inProgress && { open: true }),
+    });
   }
   return days;
 }
@@ -79,12 +100,13 @@ export type SportTally = {
 
 /**
  * How many of each sport, how far and for how long, in the order the calendar's legend names
- * them. A distance or a time adds up what was recorded, and is null where nothing was.
+ * them. A distance or a time adds up what was recorded, and is null where nothing was. A workout
+ * still open is not counted until it is finished, as History lists it then.
  */
 export function tally(activities: readonly DayActivity[]): SportTally[] {
   const order: ActivitySport[] = ["strength", "running", "cycling", "swimming"];
   return order.flatMap((sport) => {
-    const own = activities.filter((activity) => activity.sport === sport);
+    const own = activities.filter((activity) => activity.sport === sport && !activity.inProgress);
     if (own.length === 0) return [];
     const measured = own.filter((activity) => activity.distanceMetres !== null);
     const timed = own.filter((activity) => activity.durationMs !== null);
@@ -120,9 +142,14 @@ export function tallyName(sport: ActivitySport, count: number): string {
   }
 }
 
-/** "30.8 km": a month's distance, to a tenth. */
-export function tallyDistance(metres: number): string {
-  return km(metres);
+/** "30.8 km": a month's distance, to a tenth, or in the athlete's unit for the sport. */
+export function tallyDistance(
+  metres: number,
+  sport?: ActivitySport,
+  units?: DistanceUnits,
+): string {
+  const own = sport ? units?.[sport] : undefined;
+  return own && sport ? formatSportDistance(metres, sport, own) : km(metres);
 }
 
 /** The months from `first` to `last`, as "2026-08", oldest first. */

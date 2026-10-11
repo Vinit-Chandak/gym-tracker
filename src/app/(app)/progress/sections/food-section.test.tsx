@@ -9,6 +9,19 @@ import { foodGraph, type FoodDayInput } from "@/domain/progress-graphs";
 import type { ProgressData } from "../progress-types";
 import { FoodSection } from "./food-section";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 const route = vi.hoisted(() => ({ search: "" }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -90,4 +103,17 @@ it("says aloud which days reached the target, in the values a screen reader read
   const rows = screen.getAllByRole("link").map((row) => row.textContent ?? "");
   // Newest first: today, 6 Oct and 5 Oct reached it; 4 Oct did not.
   expect(rows.map((row) => row.includes(", reached"))).toEqual([true, true, true, false]);
+});
+
+it("counts the days with protein recorded, not every day logged", () => {
+  route.search = "food=protein";
+  const days: FoodDayInput[] = [...DAYS, { date: "2026-10-03", kcal: 1200, protein: 0 }];
+  render(
+    <FoodSection
+      today={TODAY}
+      food={{ range: MONTH, graph: foodGraph(days, MONTH, TODAY), targets: TARGETS }}
+    />,
+  );
+  // Four of the five logged days carry a protein figure.
+  expect(screen.getByText(whole(/4 of \d+ days with protein recorded/))).toBeTruthy();
 });

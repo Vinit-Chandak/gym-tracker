@@ -130,7 +130,7 @@ export default function SystemPreviewPage() {
             <p className="type-caption text-ink-2">
               {t.role} <span className="font-medium">· {t.spec}</span>
             </p>
-            <p className={`mt-1 [overflow-wrap:anywhere] ${t.className}`}>{t.sample}</p>
+            <p className={`mt-1 [overflow-wrap:break-word] ${t.className}`}>{t.sample}</p>
           </li>
         ))}
       </ul>

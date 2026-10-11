@@ -10,6 +10,7 @@ import { ACTIVITY_SPORT_LABELS, ACTIVITY_SPORTS, type ActivitySport } from "@/do
 import type { TrainingExperience } from "@/domain/types";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { liftsAmong, setupSteps, unitsForLocale, type MeasureUnits } from "@/lib/setup-path";
+import { deviceTimeZone } from "@/lib/time-zones";
 import { saveYouStepAction } from "@/server/actions/onboarding";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -33,14 +34,6 @@ const EXPERIENCE: { value: TrainingExperience; label: string; sub: string }[] = 
 /** A device's language and zone do not change while a form is open: nothing to subscribe to. */
 function noSubscription(): () => void {
   return () => {};
-}
-
-function readBrowserZone(): string | null {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -93,7 +86,9 @@ export function YouStep({
     () => navigator.language || null,
     () => language,
   );
-  const phoneZone = useSyncExternalStore(noSubscription, readBrowserZone, () => null);
+  // By its place's current name: a phone in India says Asia/Calcutta, and the account starts in
+  // Asia/Kolkata, which every Postgres the save is checked against knows.
+  const phoneZone = useSyncExternalStore(noSubscription, deviceTimeZone, () => null);
   const inferred = useMemo(() => unitsForLocale(phoneLanguage), [phoneLanguage]);
   const [editedUnits, setEditedUnits] = useState<MeasureUnits | null>(null);
   const [editedZone, setEditedZone] = useState<string | null>(null);

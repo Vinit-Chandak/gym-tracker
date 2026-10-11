@@ -1,3 +1,5 @@
+import { Figures } from "@/components/ui/figures";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
@@ -27,11 +29,17 @@ export function totalSets(exercises: readonly PlannedExercisePreview[]): number 
   return exercises.reduce((sets, exercise) => sets + exercise.sets, 0);
 }
 
-/** "6 exercises · 15 sets", the one line that says what a day costs. */
+/**
+ * "6 exercises · 15 sets", the one line that says what a day costs: each count held to its noun
+ * and the dot to the count after it, so a narrow line breaks only before the dot.
+ */
 export function planSummary(exercises: readonly PlannedExercisePreview[]): string {
   const count = exercises.length;
   const sets = totalSets(exercises);
-  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
+  return joinFacts([
+    `${count}\u00a0${count === 1 ? "exercise" : "exercises"}`,
+    `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
+  ]);
 }
 
 type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };
@@ -76,8 +84,11 @@ export function PlannedExerciseList({
         >
           {block.items.map((exercise) => (
             <div key={exercise.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{exercise.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
+              <p className="text-sm [overflow-wrap:break-word]">{exercise.name}</p>
+              {/* Its figures in Jost, each range held at its dash: "@ 1–" never ends a line. */}
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">
+                <Figures>{holdFigures(prescription(exercise))}</Figures>
+              </p>
             </div>
           ))}
         </li>
@@ -113,7 +124,8 @@ export function targetsLine(
   const all = <T,>(pick: (set: TargetLike) => T) => shown.every((set) => pick(set) === pick(first));
   const list = <T,>(pick: (set: TargetLike) => T, joiner: string) =>
     all(pick) ? `${pick(first) ?? "—"}` : shown.map((set) => pick(set) ?? "—").join(joiner);
-  const load = first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit} · `;
+  const load =
+    first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit}${FACT_SEPARATOR}`;
   const volume =
     first.reps === null && first.distanceMeters !== null
       ? `${list((set) => set.distanceMeters, "/")} m`
@@ -123,7 +135,7 @@ export function targetsLine(
   const effort =
     first.reps === null
       ? first.rpe != null
-        ? ` · RPE ${list((set) => set.rpe ?? null, ", ")}`
+        ? `${FACT_SEPARATOR}RPE ${list((set) => set.rpe ?? null, ", ")}`
         : ""
       : first.rir === null
         ? ""

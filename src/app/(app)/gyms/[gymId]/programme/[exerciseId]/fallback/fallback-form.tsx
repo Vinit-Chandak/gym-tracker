@@ -6,6 +6,7 @@ import { ExercisePicker } from "@/components/exercise-picker";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
+import type { LikeExercise } from "@/lib/exercise-search";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -15,6 +16,8 @@ type FallbackFormProps = {
   exercises: ExerciseListItem[];
   machines: { id: string; name: string }[];
   compatibleMachines: Record<string, string[]>;
+  /** The exercise it stands in for: the list opens on its movement. */
+  like?: LikeExercise | null;
 };
 
 export function FallbackForm({
@@ -22,6 +25,7 @@ export function FallbackForm({
   exercises,
   machines,
   compatibleMachines,
+  like = null,
 }: FallbackFormProps) {
   const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -44,6 +48,7 @@ export function FallbackForm({
           setMachineId("");
         }}
         error={state.fieldErrors?.fallbackExerciseId}
+        like={like}
         long
       />
       <PinnedActions stack>

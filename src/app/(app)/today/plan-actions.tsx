@@ -12,6 +12,7 @@ import type { SlotPart } from "@/domain/types";
 import { keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import {
   completeRestSlotAction,
+  pickUpFromTodayAction,
   skipSlotAction,
   type ActionResult,
 } from "@/server/actions/sessions";
@@ -25,7 +26,7 @@ function ActionError({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
       <Glyph name="warn" className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }
@@ -159,8 +160,11 @@ export function MoreOptions({
   coach = null,
 }: {
   gymId: string | null;
-  /** The session that can be skipped. Null on a rest day, which is completed instead. */
-  skip: { dayIndex: number; dayName: string } | null;
+  /**
+   * The session that can be skipped. Null on a rest day, which is completed instead. `runOwed`
+   * when the day also asks for a run still to do, which skipping the workout leaves on Today.
+   */
+  skip: { dayIndex: number; dayName: string; runOwed?: boolean } | null;
   /** The coach's options, when the athlete has switched the coach on for a lifting day. */
   coach?: CoachOptions | null;
 }) {
@@ -196,7 +200,7 @@ export function MoreOptions({
         <Glyph name={glyph} className="glyph-22" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[length:var(--ov-type-button)] font-semibold [overflow-wrap:anywhere]">
+        <span className="text-[length:var(--ov-type-button)] font-semibold [overflow-wrap:break-word]">
           {label}
         </span>
         {sub}
@@ -224,7 +228,9 @@ export function MoreOptions({
         onClose={close}
         title={
           asking === "skip" && skip
-            ? `Skip ${skip.dayName}?`
+            ? skip.runOwed
+              ? "Skip the workout?"
+              : `Skip ${skip.dayName}?`
             : asking === "coach"
               ? coachLabel
               : "More options"
@@ -240,13 +246,19 @@ export function MoreOptions({
           />
         ) : asking === "skip" && skip ? (
           <form action={formAction} className="mt-2 space-y-4">
+            {/* The workout alone: titled with the day's name, the sheet read as skipping all of it. */}
+            {skip.runOwed && (
+              <p className="type-body [overflow-wrap:break-word] text-ink-2">
+                The run stays on Today. Skip it from its own card if you are not running either.
+              </p>
+            )}
             <Field label="Reason" hint="Optional">
               <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
             </Field>
             {!state.ok && <ActionError>{state.error}</ActionError>}
             <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
               <Glyph name="skip" className="glyph-18" />
-              {skipping ? "Skipping…" : "Skip session"}
+              {skipping ? "Skipping…" : skip.runOwed ? "Skip workout" : "Skip session"}
             </Button>
             <Button variant="text" className="w-full" onClick={() => setAsking(null)}>
               Back
@@ -290,11 +302,16 @@ export function MoreOptions({
                 </button>
               </li>
             )}
-            {/* Skipping drops the day, so it stands apart from the rest, under a rule. */}
+            {/* Skipping drops the day's workout, so it stands apart from the rest, under a rule. */}
             {skip && (
               <li className="mt-3.5 border-t border-hair pt-1.5">
                 <button type="button" onClick={() => setAsking("skip")} className={ROW}>
-                  {row("skip", <span className="font-bold">Skip this session</span>)}
+                  {row(
+                    "skip",
+                    <span className="font-bold">
+                      {skip.runOwed ? "Skip the workout" : "Skip this session"}
+                    </span>,
+                  )}
                 </button>
               </li>
             )}
@@ -378,5 +395,73 @@ export function CompleteRestButton({
       </Button>
       {error && <ActionError>{error}</ActionError>}
     </div>
+  );
+}
+
+/**
+ * After a gap, the waiting sequence is a long way behind the calendar. Rather than a large
+ * "behind" number, Today offers to pick up from today (owner, 11 October 2026): the days missed
+ * are skipped in one go, and the programme carries on from the day it has for today. Said in
+ * full before anything is written, since every missed day becomes a skip.
+ */
+export function PickUpFromToday({
+  missed,
+  resumeDayName,
+}: {
+  missed: readonly { cycleIndex: number; dayIndex: number; name: string }[];
+  /** The day the programme has for today, which Today offers next. */
+  resumeDayName: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, saving] = useActionState(
+    keepsOutcomeOnDisconnect(pickUpFromTodayAction),
+    INITIAL,
+  );
+  const [handled, setHandled] = useState<ActionResult>(INITIAL);
+  if (state !== handled) {
+    setHandled(state);
+    if (state.ok) setOpen(false);
+  }
+  const count = missed.length;
+  const sessions = `${count} ${count === 1 ? "session" : "sessions"}`;
+  const listed = missed.slice(0, 6);
+  return (
+    <>
+      <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="min-w-0 flex-1 type-meta [overflow-wrap:break-word] text-ink-2">
+          <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
+        </p>
+        <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
+          Pick up from today
+        </Button>
+      </div>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Pick up from today">
+        <form action={formAction} className="space-y-4">
+          <p className="type-body [overflow-wrap:break-word]">
+            Skip the {sessions} you missed and carry on from{" "}
+            {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
+            stay in History as skipped.
+          </p>
+          <ul className="type-meta ruled-list">
+            {listed.map((day) => (
+              <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
+                <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{day.name}</span>
+                <span className="shrink-0 text-ink-2">Cycle {day.cycleIndex}</span>
+              </li>
+            ))}
+            {count > listed.length && (
+              <li className="py-2 text-ink-2">and {count - listed.length} more</li>
+            )}
+          </ul>
+          {!state.ok && <ActionError>{state.error}</ActionError>}
+          <Button type="submit" size="lg" className="w-full" disabled={saving}>
+            {saving ? "Skipping…" : `Skip ${sessions} and pick up`}
+          </Button>
+          <Button variant="text" className="w-full" onClick={() => setOpen(false)}>
+            Keep them waiting
+          </Button>
+        </form>
+      </Sheet>
+    </>
   );
 }

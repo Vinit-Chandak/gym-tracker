@@ -20,8 +20,11 @@ import {
 } from "./geometry";
 import { Shapes, svgId, type Surface } from "./shapes";
 
-/** One activity on a day of the calendar, and how a screen reader names it ("run 5 km"). */
-export type CalendarEntry = { sport: Sport; said: string };
+/**
+ * One activity on a day of the calendar, and how a screen reader names it ("run 5 km"); `open`
+ * for one still under way, drawn as a mark to do is ("lifting in progress").
+ */
+export type CalendarEntry = { sport: Sport; said: string; open?: boolean };
 
 export type ArtProps =
   | {
@@ -83,7 +86,10 @@ export type ArtProps =
       today?: number | null;
       /** The calendar page's dates, small, in each tile's corner. */
       dates?: boolean;
-      /** Each tile's height: a day is a link, so never under a target. */
+      /**
+       * Each tile's height: a day is a link, so never under a target. Without one, the tile is
+       * as tall as the screen gives it (progress.css).
+       */
       cellHeight?: number;
       /** Where each past day opens, when it can. */
       links?: Readonly<Record<number, Route>>;
@@ -253,7 +259,7 @@ function Month({
   days,
   today = null,
   dates = false,
-  cellHeight = 50,
+  cellHeight,
   links = {},
   label,
   className,
@@ -270,7 +276,11 @@ function Month({
       role="group"
       aria-label={label ?? `${MONTH_NAMES[monthNumber - 1]} ${year}`}
       className={cn("month", dates && "month-dated", className)}
-      style={{ "--month-day": `${cellHeight}px` } as CSSProperties}
+      style={
+        cellHeight === undefined
+          ? undefined
+          : ({ "--month-day": `${cellHeight}px` } as CSSProperties)
+      }
     >
       <div aria-hidden className="month-weekdays">
         {WEEKDAYS.map((letter, i) => (
@@ -317,6 +327,7 @@ function Month({
                         entries.map((e) => e.sport),
                         ICON_BOX / 2,
                         ICON_BOX / 2,
+                        entries.map((e) => e.open ?? false),
                       )}
                       surface="paper"
                       id={`${id}-${day}`}

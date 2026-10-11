@@ -8,7 +8,6 @@ import {
   exercises,
   programDays,
   programDrafts,
-  profiles,
   programExercises,
   programRuns,
   programSlotEvents,
@@ -22,12 +21,12 @@ import {
   blueprintExerciseSlugs,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
+import { cycleRepeatIssues } from "@/domain/cycle-repeat";
 import { enduranceCycleIssues } from "@/domain/program-blueprint-v2";
 import { assessProgramChange } from "@/domain/program-change";
 import { diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
-import { todayInTimeZone } from "@/domain/program-calendar";
 import { sharedEquipmentTypes, sharedWarmupProtocols } from "@/server/queries/reference";
 import { backupsAvailableAt } from "./availability";
 import {
@@ -39,7 +38,8 @@ import {
   storePlan,
   type LibraryEntry,
 } from "./coach-plans";
-import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
+import { carryGymFallbacks } from "./fallbacks";
+import { materialiseProgramme, withdrawFamilyOccurrences } from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
 import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
@@ -78,13 +78,32 @@ export async function archiveActiveProgram(db: DbOrTx, userId: string, programId
     .where(
       and(eq(programs.id, programId), eq(programs.userId, userId), eq(programs.status, "active")),
     )
-    .returning({ id: programs.id });
+    .returning({ id: programs.id, familyId: programs.familyId });
   if (!archived) throw new CoachingError("That programme is no longer active.");
+  await retireProgramme(db, userId, archived, "The programme was archived.");
+  return { id: archived.id };
+}
+
+/**
+ * Settles everything still waiting on a programme the athlete has stopped training.
+ *
+ * Archiving one and replacing it are the same ending for it. What the coach was about to do
+ * for it is not done, a change proposed against it can no longer be approved, a session
+ * prepared for it is not the next one, and the runs it still had ahead are withdrawn rather
+ * than counted as missed. Replacing it with a template used to skip all of this, so a waiting
+ * change sat in Changes refusing to start, and the old block's runs read as missed for weeks.
+ */
+async function retireProgramme(
+  db: DbOrTx,
+  userId: string,
+  programme: { id: string; familyId: string },
+  reason: string,
+) {
   await db
     .update(coachJobs)
     .set({
       status: "superseded",
-      error: "The programme was archived.",
+      error: reason,
       completedAt: new Date(),
       leaseUntil: null,
     })
@@ -95,7 +114,7 @@ export async function archiveActiveProgram(db: DbOrTx, userId: string, programId
     .where(
       and(
         eq(programDrafts.userId, userId),
-        eq(programDrafts.baseProgramId, programId),
+        eq(programDrafts.baseProgramId, programme.id),
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
     )
@@ -114,11 +133,42 @@ export async function archiveActiveProgram(db: DbOrTx, userId: string, programId
     .where(
       and(
         eq(sessionPlans.userId, userId),
-        eq(sessionPlans.programId, programId),
+        eq(sessionPlans.programId, programme.id),
         eq(sessionPlans.status, "active"),
       ),
     );
-  return archived;
+  await withdrawFamilyOccurrences(db, userId, programme.familyId, `programs:${programme.id}`);
+}
+
+/**
+ * Starts a programme the athlete chose for themselves — a built-in template, from Profile ›
+ * Programme or the last step of onboarding — as a new block.
+ *
+ * Nothing about it needs approving, but everything else a new block does still happens: the
+ * programme it replaces is retired, its runs become occurrences, and the weekly review moves
+ * off its training days. This used to write the programme rows and stop, so no run ever had
+ * an occurrence to answer it, and the sequence stopped for good on the first running day.
+ */
+export async function adoptProgramme(
+  db: DbOrTx,
+  userId: string,
+  blueprint: ProgramBlueprint,
+  options: { startDate: string },
+) {
+  const active = await getActiveProgram(db, userId);
+  if (active) await retireProgramme(db, userId, active, "The programme was replaced.");
+  const created = await createProgramFromBlueprint(db, userId, blueprint, {
+    startDate: options.startDate,
+  });
+  await materialiseProgramme(db, userId, {
+    programId: created.id,
+    familyId: created.familyId,
+    blueprint,
+    startDate: options.startDate,
+    transition: "new_block",
+  });
+  await moveReviewToARestDay(db, userId, blueprint);
+  return created;
 }
 
 export async function validateBlueprintForAthlete(
@@ -166,7 +216,7 @@ export async function validateBlueprintForAthlete(
   }
   // One definition of what makes a programme's runs placeable in its cycle, shared with the
   // write itself: the coach is told here, in its own terms, before anything is stored.
-  const cycleIssues = enduranceCycleIssues(blueprint);
+  const cycleIssues = [...enduranceCycleIssues(blueprint), ...cycleRepeatIssues(blueprint)];
   if (cycleIssues.length > 0) throw new CoachingError(cycleIssues.join(" "), 422);
   const runningDays = blueprint.days.filter((d) => d.includesRun);
   for (const day of runningDays)
@@ -639,6 +689,8 @@ export async function activateProgramDraft(
     familyId,
   });
   if (input.transition === "continue" && active) {
+    // What the athlete said each gym does instead of a lift is not part of the draft.
+    await carryGymFallbacks(db, userId, { fromProgramId: active.id, toProgramId: created.id });
     const events = await db
       .select()
       .from(programSlotEvents)
@@ -689,24 +741,17 @@ export async function activateProgramDraft(
       );
   if (draft.openingPlan && input.transition === "new_block")
     await storeOpeningPlan(db, userId, created.id, draft.openingPlan);
+  // A new block is a new family: the old one's runs are never offered again, so the ones it
+  // still had ahead are withdrawn rather than left to count as missed.
+  if (active && input.transition === "new_block")
+    await withdrawFamilyOccurrences(db, userId, active.familyId, `programs:${created.id}`);
   // The endurance half of the approved programme becomes real occurrences, each with its own
   // identity and its own immutable prescription (plan §8.2 item 2).
-  const [athlete] = await db
-    .select({ timeZone: profiles.timeZone })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1);
-  const zone = athlete?.timeZone ?? "UTC";
-  await materialiseOccurrences(db, userId, {
+  await materialiseProgramme(db, userId, {
     programId: created.id,
     familyId: created.familyId,
-    blueprint: occurrencesFromBlueprint(blueprint, {
-      familyId: created.familyId,
-      startDate,
-      schedulingTimeZone: zone,
-    }),
-    schedulingZone: zone,
-    today: todayInTimeZone(zone, new Date()),
+    blueprint,
+    startDate,
     transition: input.transition,
   });
   if (priorBlueprint && !input.automatic) {

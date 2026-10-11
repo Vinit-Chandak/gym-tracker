@@ -2,10 +2,12 @@
 
 import { useId, useState, useTransition } from "react";
 
+import { ConfirmSheet } from "@/components/confirm-sheet";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { addUp, eaten, NUTRITION_LIMITS, type LoggedFood, type Meal } from "@/domain/nutrition";
+import { joinFacts } from "@/lib/facts";
 import { formatKcal, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import {
@@ -23,7 +25,10 @@ type Place = { eatenOn: string; meal: Meal; mealLabel: string };
 /** "3 foods · 520 kcal": what a list of foods holds, in one line. */
 function contents(foods: readonly LoggedFood[]): string {
   const total = addUp(foods.map(eaten));
-  return `${foods.length} ${foods.length === 1 ? "food" : "foods"} · ${formatKcal(total.kcal)} kcal`;
+  return joinFacts([
+    `${foods.length}\u00a0${foods.length === 1 ? "food" : "foods"}`,
+    `${formatKcal(total.kcal)}\u00a0kcal`,
+  ]);
 }
 
 /**
@@ -123,6 +128,57 @@ export function SaveMealSheet({
         </Field>
       </form>
     </Sheet>
+  );
+}
+
+/**
+ * Unstarring a meal (ADR 0033): its saved meal is deleted from My foods, which cannot be taken
+ * back, so the lit star asks before it does. The meals it was added to keep their foods.
+ */
+export function UnstarMealSheet({
+  open,
+  onClose,
+  saved,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  saved: SavedMealRecord;
+  onDone: (said: string, added: boolean) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startUnstarring] = useTransition();
+
+  const unstar = () =>
+    startUnstarring(async () => {
+      setError(null);
+      const outcome = await attempted(
+        () => deleteSavedMealAction(saved.id),
+        `${saved.name} was not unstarred. Check your connection and try again.`,
+      );
+      if (!outcome.ok) setError(outcome.message);
+      else if (!outcome.value.ok) setError(outcome.value.error ?? null);
+      else {
+        onDone(`${saved.name} unstarred.`, false);
+        onClose();
+      }
+    });
+
+  return (
+    <ConfirmSheet
+      open={open}
+      onClose={() => {
+        if (!pending) onClose();
+      }}
+      // The name is said in the sentence, where a long one wraps as words do, not in the title.
+      title="Unstar this meal?"
+      description={`${saved.name} is deleted from My foods. The meals it was added to keep their foods.`}
+      confirmLabel="Unstar"
+      pendingLabel="Unstarring…"
+      pending={pending}
+      error={error}
+      onConfirm={unstar}
+    />
   );
 }
 

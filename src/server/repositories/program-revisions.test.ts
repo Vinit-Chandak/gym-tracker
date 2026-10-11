@@ -181,6 +181,43 @@ describe("proposing a change", () => {
     const rows = await withUser(t.db, other.id, (tx) => tx.select().from(programChangeProposals));
     expect(rows).toEqual([]);
   });
+
+  /**
+   * A run's effort has been out of five since 0034. A change asking out of ten was accepted,
+   * applied, and left a programme nothing could read back: no edit, no review, no change.
+   */
+  it("refuses a run's effort given out of ten, and never applies one stored before", async () => {
+    const program = await activeProgram();
+    const dayOfWeek = (await as((tx) => readProgramBlueprint(tx, user.id, program.id)))!.blueprint
+      .runs[0]!.dayOfWeek;
+    const harder = {
+      op: "run" as const,
+      weekIndex: 3,
+      dayOfWeek,
+      rpe: [6, 7] as [number, number],
+      reason: "Push the easy runs.",
+    };
+    await expect(propose([harder])).rejects.toThrow(/not valid.*out of five/);
+
+    const [stored] = await t.db
+      .insert(programChangeProposals)
+      .values({
+        userId: user.id,
+        programId: program.id,
+        source: "ai",
+        summary: "Harder runs.",
+        rationale: null,
+        patch: { operations: [harder] },
+      })
+      .returning();
+    expect(await as((tx) => listOpenProposals(tx, user.id))).toEqual([]);
+    await expect(as((tx) => applyProposal(tx, user.id, stored!.id))).rejects.toThrow(
+      /can no longer be read/,
+    );
+    expect((await activeProgram()).id).toBe(program.id);
+    expect(await as((tx) => readProgramBlueprint(tx, user.id, program.id))).not.toBeNull();
+    await as((tx) => rejectProposal(tx, user.id, stored!.id));
+  });
 });
 
 describe("approving a change", () => {

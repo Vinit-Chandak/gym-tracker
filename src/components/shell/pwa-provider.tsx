@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type InstallPromptEvent = Event & { prompt: () => Promise<unknown> };
+type RelatedAppsNavigator = Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> };
 const InstallContext = createContext({
   available: false,
   installed: false,
@@ -24,12 +25,24 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener("beforeinstallprompt", capture);
     window.addEventListener("appinstalled", complete);
+    // Installed earlier, the app is opened again in a tab: Chrome offers no prompt for an app
+    // it has installed, and appinstalled has long since fired. It can still say whether the
+    // app is installed, because the manifest names the app as related to itself. Other
+    // browsers cannot, and keep offering the instructions.
+    let live = true;
+    void (navigator as RelatedAppsNavigator)
+      .getInstalledRelatedApps?.()
+      .then((apps) => {
+        if (live && apps.length > 0) setInstalled(true);
+      })
+      .catch(() => {});
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {
         // Installation and online use remain available if storage is unavailable.
       });
     }
     return () => {
+      live = false;
       window.removeEventListener("beforeinstallprompt", capture);
       window.removeEventListener("appinstalled", complete);
     };

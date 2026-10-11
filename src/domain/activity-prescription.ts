@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LENGTH_UNITS, roundTo, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
+
 import { ENDURANCE_SPORTS, SWIM_STROKES } from "./activity";
 import type { EnduranceSport } from "./activity";
 import {
@@ -53,17 +55,23 @@ const range = (schema: z.ZodNumber, label: string) =>
 
 const durationRange = range(z.number().int().min(0).max(DURATION_MS.max), "A duration range");
 const distanceRange = range(z.number().min(0).max(DISTANCE_METRES.cycling.max), "A distance range");
-// A target may legitimately be written from zero — the old programme sheet did — and it is
-// still written in RPE out of ten, while the athlete's own report is now 1–5. These are
-// different questions, so they keep different bounds: see `PRESCRIBED_EFFORT`.
+// A target may legitimately be written from zero — the old programme sheet did — while the
+// athlete's own report starts at 1. Both are out of five since 0034; they differ only at the
+// bottom, so they keep different bounds: see `PRESCRIBED_EFFORT`.
 const effortRange = range(
   z.number().min(PRESCRIBED_EFFORT.min).max(PRESCRIBED_EFFORT.max),
   "An effort range",
 );
 
+/**
+ * The unit a distance was written in, so an editor can give it back as it was typed. Only that:
+ * every screen reads a target in the athlete's own unit, and the metres are what is compared.
+ */
+const writtenIn = z.enum(LENGTH_UNITS).optional();
+
 const stepTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("duration"), ms: durationRange }),
-  z.object({ kind: z.literal("distance"), metres: distanceRange }),
+  z.object({ kind: z.literal("distance"), metres: distanceRange, unit: writtenIn }),
 ]);
 
 export const prescriptionStepSchema = z.object({
@@ -113,6 +121,7 @@ export const endurancePrescriptionSchema = z
       .object({
         durationMs: durationRange.nullable().default(null),
         distanceMetres: distanceRange.nullable().default(null),
+        distanceUnit: writtenIn,
         effort: effortRange.nullable().default(null),
       })
       .default({ durationMs: null, distanceMetres: null, effort: null }),
@@ -330,26 +339,54 @@ export function prescriptionTotals(prescription: EndurancePrescription): Prescri
   };
 }
 
-/** A one-line description for a card: "8 × 50 m" or "30 minutes easy". */
-export function describePrescription(prescription: EndurancePrescription): string {
+/**
+ * A duration target as a figure and its unit: "20" s for a stride, "25–30" min for a session.
+ * Under a minute it is said in seconds, so twenty seconds never reads as "0 min".
+ */
+export function durationTargetParts(ms: number | readonly [number, number]): {
+  figure: string;
+  unit: string;
+} {
+  const [low, high] = typeof ms === "number" ? [ms, ms] : ms;
+  const [scale, unit] = high < 60_000 ? [1000, "s"] : [60_000, "min"];
+  const [from, to] = [low, high].map((value) => String(roundTo(value / scale, 1)));
+  return { figure: from === to ? to! : `${from}–${to}`, unit };
+}
+
+/**
+ * What a session asks for as one figure and its unit — "8 × 50" m, "5" km, "25–30" min — with
+ * any distance in the reader's own unit for the sport. Null when it asks for nothing measurable.
+ *
+ * One repeated block names the session; otherwise its overall targets do, distance first; and
+ * failing both, what its written steps add up to.
+ */
+export function prescriptionTarget(
+  prescription: EndurancePrescription,
+  units: SportUnits,
+): { figure: string; unit: string } | null {
+  const distance = (metres: number | readonly [number, number]) =>
+    sportDistanceParts(metres, prescription.sport, units);
   const block = prescription.nodes.find((node) => node.kind === "repeat");
-  if (block && block.kind === "repeat") {
-    const [first] = block.steps;
-    if (first) {
-      const target =
-        first.target.kind === "distance"
-          ? `${first.target.metres[1]} m`
-          : `${Math.round(first.target.ms[1] / 60_000)} min`;
-      return `${block.repetitions} × ${target}`;
-    }
+  if (block && block.kind === "repeat" && block.steps[0]) {
+    const target = block.steps[0].target;
+    const each =
+      target.kind === "distance" ? distance(target.metres) : durationTargetParts(target.ms);
+    return { figure: `${block.repetitions} × ${each.figure}`, unit: each.unit };
   }
   const { distanceMetres, durationMs } = prescription.sessionTargets;
-  if (distanceMetres) return `${distanceMetres[1] / 1000} km`;
-  if (durationMs) return `${Math.round(durationMs[1] / 60_000)} minutes`;
+  if (distanceMetres) return distance(distanceMetres);
+  if (durationMs) return durationTargetParts(durationMs);
   const totals = prescriptionTotals(prescription);
-  if (totals.distanceMetres !== null && totals.distanceMetres > 0)
-    return `${totals.distanceMetres} m`;
-  if (totals.durationMs !== null && totals.durationMs > 0)
-    return `${Math.round(totals.durationMs / 60_000)} minutes`;
-  return "Session";
+  if (totals.distanceMetres) return distance(totals.distanceMetres);
+  if (totals.durationMs) return durationTargetParts(totals.durationMs);
+  return null;
+}
+
+/** A one-line description for a card: "8 × 50 m", "25–30 min", "8.05 km". */
+export function describePrescription(
+  prescription: EndurancePrescription,
+  units: SportUnits,
+): string {
+  const target = prescriptionTarget(prescription, units);
+  return target ? `${target.figure} ${target.unit}` : "Session";
 }

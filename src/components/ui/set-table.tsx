@@ -26,7 +26,7 @@ export function SetTable({
     ? "Load"
     : `${unitLabel.startsWith("+") ? "+" : ""}${LOAD_UNIT_LABELS[sets[0]!.unit]}`;
   return (
-    <table className="w-full table-fixed text-sm [overflow-wrap:anywhere] tabular-nums">
+    <table className="w-full table-fixed text-sm [overflow-wrap:break-word] tabular-nums">
       <thead>
         <tr className="border-b border-line text-xs text-ink-muted">
           <th scope="col" className="w-11 py-1 text-center font-medium">

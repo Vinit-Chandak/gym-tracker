@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import { Art } from "@/components/art/art";
 import type { PrintPart } from "@/components/art/geometry";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { holdFigures } from "@/lib/facts";
+import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import type { CycleCell, PlanRowModel } from "./today-model";
@@ -13,8 +16,9 @@ import { groupRows } from "./today-model";
 /**
  * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
  * the days done in ink, today ringed, a skipped day dashed, the rest a hairline. They stay
- * wordless while the programme is on track. Behind is news, so it is said beside them in days
- * ("25 days behind"; the feature inventory's Today status); their name says it too.
+ * wordless while the programme is on track. Behind is news, so it is said beside them in the
+ * training sessions the calendar has passed unanswered ("3 sessions behind"; rest days that
+ * simply passed are never counted); their name says it too.
  */
 /** A length that grows by half of the reader's text size: half fixed, half in rem. */
 const grown = (px: number) => `calc(${px / 2}px + ${px / 32}rem)`;
@@ -27,7 +31,7 @@ export function CycleMark({
 }: {
   cells: readonly CycleCell[];
   label: string;
-  /** Days the programme is behind, said beside the squares when there are any. */
+  /** Training sessions the programme is behind, said beside the squares when there are any. */
   behind?: number;
   href?: Route;
 }) {
@@ -44,7 +48,7 @@ export function CycleMark({
     >
       {behind > 0 && (
         <span className="min-w-0 text-right type-meta-small text-ink-2">
-          <span className="figures">{behind}</span> {behind === 1 ? "day" : "days"} behind
+          <span className="figures">{behind}</span> {behind === 1 ? "session" : "sessions"} behind
         </span>
       )}
       <svg
@@ -53,9 +57,16 @@ export function CycleMark({
         height={sq + 2}
         viewBox={`0 0 ${width} ${sq + 2}`}
         // They grow with the reader's text by half, as glyphs and figures do: 9-pt squares at
-        // 100%, 13.5 at 200%, so the cycle is still read at arm's length.
-        style={{ width: grown(width), height: grown(sq + 2) }}
-        className="block shrink-0 text-ink"
+        // 100%, 13.5 at 200%, so the cycle is still read at arm's length. A cycle too long for
+        // the line (a programme may run to 31 days) is drawn smaller to fit it, every square
+        // still there, rather than pushing its first days off the screen.
+        style={{
+          width: grown(width),
+          maxWidth: "100%",
+          height: "auto",
+          aspectRatio: `${width} / ${sq + 2}`,
+        }}
+        className="block min-w-0 text-ink"
       >
         {cells.map((cell, index) => {
           const x = index * (sq + gap);
@@ -156,6 +167,35 @@ export function Fact({
 }
 
 /**
+ * A programme with nothing left but rest (ADR 0051), said the same wherever it is shown: Today,
+ * Choose a day and Training (its own card says Complete). Finished on the day its last day was
+ * answered, which the waiting sequence makes later than the end it was written with whenever a
+ * week went missing; named without its year inside `today`'s.
+ */
+export function ProgrammeComplete({
+  days,
+  finishedOn,
+  today,
+  className,
+}: {
+  /** Every day the programme had, rest days among them. */
+  days: number;
+  finishedOn: string | null;
+  today: string;
+  className?: string;
+}) {
+  return (
+    <MetaLine className={className}>
+      <Fact glyph="flag">Programme complete</Fact>
+      {finishedOn && (
+        <Fact glyph="calendar">Finished {formatIsoDate(finishedOn, today.slice(0, 4))}</Fact>
+      )}
+      <Fact>{days} programme days</Fact>
+    </MetaLine>
+  );
+}
+
+/**
  * One exercise row everywhere (DESIGN.md, Rows and marks): the name, and under it the
  * equipment's glyph and the prescription. No mark beside it: its sets are said once here and
  * drawn once in the print. Where it stands is said only when it is news.
@@ -182,7 +222,9 @@ export function PlanRow({
   return (
     <li className={cn("plan-row", last && "plan-row-last", small && "plan-row-small")}>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className={cn("plan-row-name [overflow-wrap:anywhere]", row.dropped && "text-ink-2")}>
+        <span
+          className={cn("plan-row-name [overflow-wrap:break-word]", row.dropped && "text-ink-2")}
+        >
           {row.name}
         </span>
         {row.line && (
@@ -191,7 +233,16 @@ export function PlanRow({
               glyph={row.glyph ?? undefined}
               label={row.glyph ? GLYPH_LABELS[row.glyph] : undefined}
             >
-              {row.line}
+              {/* Its figures in Jost, as every meta line's are, each range held at its dash and
+                  RIR to its figure: "@ 1–" never ends a line. */}
+              <Figures>{holdFigures(row.line)}</Figures>
+            </Fact>
+          </MetaLine>
+        )}
+        {row.at && (
+          <MetaLine className="plan-row-meta">
+            <Fact glyph="pin">
+              <span className="min-w-0 [overflow-wrap:break-word]">{row.at}</span>
             </Fact>
           </MetaLine>
         )}

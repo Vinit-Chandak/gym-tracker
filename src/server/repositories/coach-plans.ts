@@ -905,6 +905,9 @@ export async function planningContext(
       id: schedule.program.id,
       name: schedule.program.name,
       weeks: schedule.program.weeks,
+      /** How the cycle repeats and how many cycles the weeks hold (ADR 0051). */
+      repeats: schedule.program.repeats,
+      cycles: schedule.program.cycles,
       startDate: schedule.program.startDate,
       progress: state,
       adherence: liftingAdherence(schedule),
@@ -1698,6 +1701,7 @@ async function reviewStoredPlan(
       weightStep: weightStepFor({
         equipmentLoadIncrement: machine?.loadIncrement ?? null,
         exerciseDefaultIncrement: library?.defaultLoadIncrement ?? null,
+        unit: machine?.unit ?? input.unit,
       }),
       isStrengthCompound: STRENGTH_COMPOUND_SLUGS.has(entry.exerciseSlug),
       unit: machine?.unit ?? input.unit,
@@ -1955,7 +1959,7 @@ export async function withPreparedTargets<
   db: DbOrTx,
   userId: string,
   occurrences: readonly T[],
-): Promise<(T & { preparedByCoach: boolean })[]> {
+): Promise<(T & { preparedByCoach: boolean; preparedPlanId: string | null })[]> {
   const plans = await activePlansForOccurrences(
     db,
     userId,
@@ -1967,9 +1971,10 @@ export async function withPreparedTargets<
       plan && plan.occurrenceRevisionId === occurrence.revisionId
         ? (plan.endurance[0]?.prescription ?? null)
         : null;
-    return prepared
-      ? { ...occurrence, prescription: prepared, preparedByCoach: true }
-      : { ...occurrence, preparedByCoach: false };
+    // The plan's id travels with its target, so a log made against it can say which it was.
+    return prepared && plan
+      ? { ...occurrence, prescription: prepared, preparedByCoach: true, preparedPlanId: plan.id }
+      : { ...occurrence, preparedByCoach: false, preparedPlanId: null };
   });
 }
 

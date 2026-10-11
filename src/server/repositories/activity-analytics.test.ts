@@ -1,23 +1,39 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { activities, occurrenceVersions, plannedOccurrences } from "@/db/schema";
+import {
+  activities,
+  cyclingActivityDetails,
+  gyms,
+  occurrenceVersions,
+  plannedOccurrences,
+  workoutSessions,
+} from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, reportedEffort, UNKNOWN_EFFORT } from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
 import {
+  CALENDAR_LIMIT,
   decodeCursor,
   encodeCursor,
   InvalidCursorError,
   listActivityPage,
+  readActivityDays,
+  readActivityList,
   readActivityTotals,
   readSportTotals,
   readAdherence,
   readComparableBests,
+  readLoggedOn,
   readWeeklyActivityVolume,
 } from "./activity-analytics";
-import { createActivity, type SaveActivityInput } from "./activities";
+import {
+  closeStrengthParent,
+  createActivity,
+  openStrengthParent,
+  type SaveActivityInput,
+} from "./activities";
 
 /**
  * AT-STAT: totals that are computed rather than sampled.
@@ -359,6 +375,149 @@ describe("paging", () => {
       readOnly: true,
     });
     expect(page.items).toHaveLength(0);
+  });
+});
+
+/**
+ * `count` rides, two a day from 1 January 2025, written in one go: far quicker than saving each,
+ * for reads that have to be shown more rows than they hold.
+ */
+async function manyRides(userId: string, count: number) {
+  const rides = Array.from({ length: count }, (_, index) => {
+    const startedAt = new Date(Date.UTC(2025, 0, 1, 6) + index * 12 * 3_600_000);
+    return { id: crypto.randomUUID(), startedAt, occurredOn: startedAt.toISOString().slice(0, 10) };
+  });
+  await t.db.transaction(async (tx) => {
+    await tx.insert(activities).values(
+      rides.map((entry) => ({
+        ...entry,
+        userId,
+        sport: "cycling" as const,
+        recordedTimeZone: "UTC",
+        timeZoneSource: "profile_at_entry" as const,
+        durationMs: 1_800_000,
+      })),
+    );
+    await tx.insert(cyclingActivityDetails).values(
+      rides.map((entry) => ({
+        activityId: entry.id,
+        userId,
+        sport: "cycling" as const,
+        environment: "outdoor" as const,
+      })),
+    );
+  });
+  return rides;
+}
+
+describe("the calendar's days", () => {
+  it("hold the workout still open, said to be in progress", async () => {
+    const userId = await athlete("open-workout@example.test");
+    const [ridden] = await manyRides(userId, 1);
+    // Opened as the app opens a workout, and not finished.
+    const open = await withUser(t.db, userId, async (tx) => {
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId, name: "Test gym", slug: "test-gym" })
+        .returning({ id: gyms.id });
+      const startedAt = at(ridden!.occurredOn, 8);
+      const [session] = await tx
+        .insert(workoutSessions)
+        .values({ userId, gymId: gym!.id, startedAt })
+        .returning({ id: workoutSessions.id });
+      await openStrengthParent(tx, userId, { id: session!.id, startedAt }, "UTC");
+      return session!.id;
+    });
+    const read = await withUser(
+      t.db,
+      userId,
+      (tx) => readActivityDays(tx, userId, { from: ridden!.occurredOn, to: ridden!.occurredOn }),
+      { readOnly: true },
+    );
+    expect(read.items.map((item) => [item.id, item.inProgress])).toEqual([
+      [ridden!.id, false],
+      [open, true],
+    ]);
+  });
+});
+
+describe("what a day logged", () => {
+  it("is everything finished on it, a workout with its gym, and not the one still open", async () => {
+    const userId = await athlete("logged-today@example.test");
+    const [ridden] = await manyRides(userId, 1);
+    const day = ridden!.occurredOn;
+    const [finished, open] = await withUser(t.db, userId, async (tx) => {
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId, name: "PureGym", slug: "puregym" })
+        .returning({ id: gyms.id });
+      const workout = async (hour: number) => {
+        const startedAt = at(day, hour);
+        const [session] = await tx
+          .insert(workoutSessions)
+          .values({ userId, gymId: gym!.id, startedAt })
+          .returning({ id: workoutSessions.id });
+        await openStrengthParent(tx, userId, { id: session!.id, startedAt }, "UTC");
+        return session!.id;
+      };
+      const finished = await workout(7);
+      await closeStrengthParent(tx, userId, finished, at(day, 8));
+      return [finished, await workout(9)];
+    });
+    const logged = await withUser(t.db, userId, (tx) => readLoggedOn(tx, userId, day), {
+      readOnly: true,
+    });
+    expect(logged.map((item) => item.id)).toEqual([ridden!.id, finished]);
+    expect(logged.map((item) => item.id)).not.toContain(open);
+    expect(logged[1]).toMatchObject({
+      sport: "strength",
+      sessionId: finished,
+      programDayId: null,
+      dayName: null,
+      gymName: "PureGym",
+      durationMs: 3_600_000,
+    });
+    expect(logged[0]).toMatchObject({ sport: "cycling", sessionId: null, occurrenceId: null });
+  });
+});
+
+describe("reads deeper than a page", () => {
+  it("keeps the calendar's newest activities when there are more than it holds", async () => {
+    const userId = await athlete("busy-calendar@example.test");
+    const rides = await manyRides(userId, CALENDAR_LIMIT + 5);
+    const read = await withUser(
+      t.db,
+      userId,
+      (tx) => readActivityDays(tx, userId, { from: "2025-01-01", to: "2027-12-31" }),
+      { readOnly: true },
+    );
+    expect(read.truncated).toBe(true);
+    expect(read.items).toHaveLength(CALENDAR_LIMIT);
+    // Oldest first, as the calendar draws them, and the five dropped are the oldest five.
+    expect(read.items[0]?.id).toBe(rides[5]!.id);
+    expect(read.items.at(-1)?.id).toBe(rides.at(-1)!.id);
+  });
+
+  it("reads past the API's hundred for the app's own lists, and says where it stopped", async () => {
+    const userId = await athlete("deep-list@example.test");
+    const rides = await manyRides(userId, 130);
+    const [page, list, short] = await withUser(
+      t.db,
+      userId,
+      (tx) =>
+        Promise.all([
+          listActivityPage(tx, userId, { sports: ["cycling"], limit: 500 }),
+          readActivityList(tx, userId, { sports: ["cycling"], limit: 500 }),
+          readActivityList(tx, userId, { sports: ["cycling"], limit: 120 }),
+        ]),
+      { readOnly: true },
+    );
+    expect(page.items).toHaveLength(100);
+    expect(list.items).toHaveLength(130);
+    expect(list.nextCursor).toBeNull();
+    expect(list.items[0]?.id).toBe(rides.at(-1)!.id);
+    expect(short.items).toHaveLength(120);
+    expect(short.nextCursor).not.toBeNull();
   });
 });
 

@@ -10,6 +10,7 @@ import {
   type RunSummary,
   type SummaryLine,
 } from "@/domain/program-change-summary";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
 /**
@@ -215,7 +216,7 @@ function OperationRow({
 function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
   // The weeks it names are the weeks that change: "weeks 3–8", or "weeks 3, 5 and 7" when the
   // weeks between are left as they were.
-  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"} · ${weeksLabel(runs.weeks)}`;
+  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"}${FACT_SEPARATOR}${weeksLabel(runs.weeks)}`;
   return (
     <Operation mark={<Art kind="mark" sport="run" size={14} />} label={label} reason={reason}>
       {runs.lines.length > 0 ? (
@@ -225,7 +226,7 @@ function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
       )}
       {runs.notes.length > 0 && (
         <details className="group mt-1">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center type-meta-small font-bold">
+          <summary className="flex min-h-[var(--ov-target)] cursor-pointer list-none items-center type-meta-small font-bold">
             {runs.notes.length === 1
               ? `New ${runs.notes[0]!.label.toLowerCase()} note`
               : `New run notes (${runs.notes.map((note) => note.label.toLowerCase()).join(", ")})`}
@@ -260,9 +261,9 @@ function DayGroup({
   return (
     <section className="diff-section">
       <h3 className="diff-section-head">
-        <span className="min-w-0 [overflow-wrap:anywhere]">{day.name}</span>
+        <span className="min-w-0 [overflow-wrap:break-word]">{day.name}</span>
         <span className="diff-section-when">
-          {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
+          {[weekday, status].filter(Boolean).join(FACT_SEPARATOR) || "Changed"}
         </span>
       </h3>
       {dayReason && <div className="diff-reason mb-1.5">{dayReason}</div>}
@@ -310,7 +311,7 @@ export function ProgramDiffView({
             ? "Only the programme's description changes"
             : "No programme changes"}
         </h3>
-        {emptyReason && <div className="type-meta [overflow-wrap:anywhere]">{emptyReason}</div>}
+        {emptyReason && <div className="type-meta [overflow-wrap:break-word]">{emptyReason}</div>}
       </section>
     );
   // A longer block or a new name made for an ask: the ask's words, once, under the change.

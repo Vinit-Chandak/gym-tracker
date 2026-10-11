@@ -60,6 +60,10 @@ import { formValues, parseForm, type FormState } from "@/server/validation/form"
  * and what the log answers for are decided at the entry point and fixed from there.
  */
 
+/** The effort answer that keeps a correction's unconfirmed legacy effort untouched (LOG-03). */
+const KEEP_EFFORT = "keep";
+const EFFORT_REFUSED = `Rate the effort from ${EFFORT.min} to ${EFFORT.max}, or choose Not sure.`;
+
 const trimmed = (max: number) =>
   z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
@@ -146,19 +150,23 @@ const baseFields = {
       .max(840)
       .nullable(),
   ),
-  /** 1–5, or the explicit "not sure" that LOG-03 requires as its own answer. */
+  /**
+   * 1–5, or the explicit "not sure" that LOG-03 requires as its own answer. A correction may
+   * also say "keep": leave an unconfirmed legacy number as it is. Which number that is comes
+   * from the stored record, never from the form.
+   */
   effort: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
     z.string().refine(
       (value) => {
-        if (value === "unsure") return true;
+        if (value === "unsure" || value === KEEP_EFFORT) return true;
         // Five whole steps: a posted "2.5" is a client that has not been reloaded, not a
         // finer answer, and rounding it here would invent a report nobody made.
         if (!/^\d+$/.test(value)) return false;
         const number = Number(value);
         return number >= EFFORT.min && number <= EFFORT.max;
       },
-      { error: `Rate the effort from ${EFFORT.min} to ${EFFORT.max}, or choose Not sure.` },
+      { error: EFFORT_REFUSED },
     ),
   ),
   outcome: z.enum(["logged", "ended_early"]).default("logged"),
@@ -257,7 +265,13 @@ function durationMsOf(value: {
   );
 }
 
-function effortOf(value: string): Effort {
+/**
+ * The effort to store, or null when the answer cannot be given here. "Keep" is the stored
+ * unconfirmed number of the record being corrected, read from that record; on a new log, or
+ * on a record whose effort is already the athlete's own word, there is nothing for it to keep.
+ */
+function effortOf(value: string, existing: Effort | null): Effort | null {
+  if (value === KEEP_EFFORT) return existing?.status === "legacy_unconfirmed" ? existing : null;
   return value === "unsure" ? UNKNOWN_EFFORT : reportedEffort(Number(value));
 }
 
@@ -435,6 +449,12 @@ export async function saveActivityAction(
             values: formValues(formData),
           },
         };
+      const effort = effortOf(form.effort, existing?.effort ?? null);
+      if (!effort)
+        return {
+          ok: false as const,
+          state: { fieldErrors: { effort: EFFORT_REFUSED }, values: formValues(formData) },
+        };
       const input: SaveActivityInput = {
         submissionKey: form.submissionKey,
         origin: originOf(form),
@@ -443,7 +463,7 @@ export async function saveActivityAction(
         recordedTimeZone: timeZone,
         timeZoneSource: existing?.timeZoneSource ?? "profile_at_entry",
         occurredOn: unchangedTime ? existing.occurredOn : todayInTimeZone(timeZone, startedAt),
-        effort: effortOf(form.effort),
+        effort,
         outcome: form.outcome,
         title: form.title,
         notes: form.notes,

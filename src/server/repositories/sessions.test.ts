@@ -1,10 +1,12 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  activities,
   equipmentTypes,
   exercises,
   programExercises,
+  setLogs,
   sharedSessionStats,
   workoutExercises,
   workoutSessions,
@@ -26,6 +28,7 @@ import {
   reopenSkippedSession,
 } from "./schedule";
 import {
+  addExercisesToSession,
   addExerciseToSession,
   deleteSet,
   discardSession,
@@ -1098,6 +1101,11 @@ describe("the ramp on the day's first lift", () => {
     // Halfway through the ramp, the page is loaded again: the ramp is still there.
     await log(today.id, 1, "warmup", 25, 8);
     expect(shape(await bench(second))).toEqual(shape(today));
+    // Today counts the work, while the warm-up is still something logged that Discard keeps.
+    expect(await as((tx) => getInProgressSession(tx, athlete.id))).toMatchObject({
+      setCount: 1,
+      workingSetCount: 0,
+    });
     // Work logged where the ramp would go: the lift keeps its own rows.
     await log(today.id, 2, "working", 60, 5);
     expect((await bench(second)).suggestion?.sets[0]).toMatchObject({
@@ -1105,5 +1113,134 @@ describe("the ramp on the day's first lift", () => {
       setType: "working",
       weight: 60,
     });
+  });
+});
+
+describe("a workout's own rows", () => {
+  let athlete: { id: string; email: string };
+  let gymId: string;
+  const as = <T>(fn: Parameters<typeof withUser<T>>[2]) => withUser(t.db, athlete.id, fn);
+  const slugs = async (...wanted: string[]) => {
+    const rows = await t.db
+      .select({ id: exercises.id, slug: exercises.slug })
+      .from(exercises)
+      .where(inArray(exercises.slug, wanted));
+    return wanted.map((slug) => rows.find((row) => row.slug === slug)!.id);
+  };
+  const adHoc = async (...wanted: string[]) => {
+    const { sessionId } = await as((tx) => startAdHocSession(tx, athlete.id, { gymId }));
+    const ids = await slugs(...wanted);
+    const { workoutExerciseIds } = await as((tx) =>
+      addExercisesToSession(
+        tx,
+        athlete.id,
+        sessionId,
+        ids.map((exerciseId) => ({ exerciseId, equipmentInstanceId: null })),
+      ),
+    );
+    return { sessionId, rows: workoutExerciseIds };
+  };
+  const set = (workoutExerciseId: string, setIndex = 1) =>
+    as((tx) =>
+      logSet(tx, athlete.id, {
+        workoutExerciseId,
+        setIndex,
+        setType: "working",
+        weight: 20,
+        reps: 10,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+  const finish = (sessionId: string, asOfLastSet = false) =>
+    as((tx) =>
+      finishSession(tx, athlete.id, sessionId, { notes: null, bodyWeightKg: null, asOfLastSet }),
+    );
+
+  beforeAll(async () => {
+    athlete = await t.createAuthUser("rows@example.com");
+    await as((tx) => seedTestUserData(tx, athlete));
+    gymId = (await as((tx) => listGyms(tx, athlete.id))).find(
+      (g) => g.slug === "anytime-fitness",
+    )!.id;
+  });
+
+  it("brings a superset of exercises apart in the list together at its first", async () => {
+    const { sessionId, rows } = await adHoc("hammer-curl", "split-squat", "face-pull");
+    const [curl, squat, pull] = rows as [string, string, string];
+    await as((tx) =>
+      saveSupersetGroup(tx, athlete.id, {
+        sessionId,
+        group: null,
+        workoutExerciseIds: [curl, pull],
+      }),
+    );
+    const detail = (await as((tx) => getSessionDetail(tx, athlete.id, sessionId)))!;
+    // Listed, and done, together: the bracket joins them, and the squat follows.
+    expect(detail.exercises.map((e) => [e.id, e.supersetGroup])).toEqual([
+      [curl, "Superset A"],
+      [pull, "Superset A"],
+      [squat, null],
+    ]);
+    expect(detail.exercises.map((e) => e.orderIndex)).toEqual([1, 2, 3]);
+    await as((tx) => discardSession(tx, athlete.id, sessionId));
+  });
+
+  it("drops a skip's reason when the exercise is unskipped, so it is never read as a note", async () => {
+    const { sessionId, rows } = await adHoc("hammer-curl");
+    const [curl] = rows as [string];
+    const notes = async () =>
+      (await as((tx) => getSessionDetail(tx, athlete.id, sessionId)))!.exercises[0]!.notes;
+    await as((tx) => skipExercise(tx, athlete.id, curl, "Machine taken"));
+    expect(await notes()).toBe("Machine taken");
+    await as((tx) => setExerciseCompleted(tx, athlete.id, curl, false));
+    expect(await notes()).toBeNull();
+    // Skipped again and then done: done is no skip either.
+    await as((tx) => skipExercise(tx, athlete.id, curl, "Sore wrist"));
+    await set(curl);
+    await as((tx) => setExerciseCompleted(tx, athlete.id, curl, true));
+    expect(await notes()).toBeNull();
+    await finish(sessionId);
+  });
+
+  it("finishes a workout left open as of its last set, so its time is the training's", async () => {
+    const { sessionId, rows } = await adHoc("hammer-curl");
+    const [curl] = rows as [string];
+    await set(curl);
+    // Started at 18:30 yesterday, last set at 19:30, Finish pressed this morning.
+    const startedAt = new Date(Date.now() - 14 * 3_600_000);
+    const lastSetAt = new Date(startedAt.getTime() + 3_600_000);
+    await t.db.update(workoutSessions).set({ startedAt }).where(eq(workoutSessions.id, sessionId));
+    await t.db
+      .update(setLogs)
+      .set({ completedAt: lastSetAt })
+      .where(eq(setLogs.workoutExerciseId, curl));
+    const open = await as((tx) => getInProgressSession(tx, athlete.id));
+    expect(open?.lastSetAt?.toISOString()).toBe(lastSetAt.toISOString());
+
+    await finish(sessionId, true);
+    const [row] = await t.db
+      .select({ completedAt: workoutSessions.completedAt, activityId: workoutSessions.activityId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    expect(row?.completedAt?.toISOString()).toBe(lastSetAt.toISOString());
+    // The activity Progress and History read takes the same hour.
+    const [activity] = await t.db
+      .select({ durationMs: activities.durationMs })
+      .from(activities)
+      .where(eq(activities.id, row!.activityId!));
+    expect(activity?.durationMs).toBe(3_600_000);
+  });
+
+  it("finishes one still being trained now, whatever it was asked", async () => {
+    const { sessionId, rows } = await adHoc("hammer-curl");
+    await set(rows[0]!);
+    const before = Date.now();
+    await finish(sessionId, true);
+    const [row] = await t.db
+      .select({ completedAt: workoutSessions.completedAt })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    expect(row!.completedAt!.getTime()).toBeGreaterThanOrEqual(before);
   });
 });

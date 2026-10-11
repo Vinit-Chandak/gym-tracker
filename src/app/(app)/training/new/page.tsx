@@ -80,7 +80,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     ? {
         title: occurrence.preparedByCoach ? "Your coach asked for" : "The plan asked for",
         lines: [
-          describePrescription(occurrence.prescription),
+          describePrescription(occurrence.prescription, units),
           occurrence.prescription.running?.paceNote,
           occurrence.prescription.running?.symptomStopRule,
           occurrence.prescription.instructions,
@@ -104,9 +104,14 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   const shared = {
     action: saveActivityAction.bind(null, null),
     submissionKey: crypto.randomUUID(),
-    occurrence: occurrence ? { id: occurrence.id, revisionId: occurrence.revisionId } : null,
+    // The coach's preparation, when it is the target on screen, is named with the log: the
+    // record says which plan was performed, not only which revision it was written against.
+    occurrence: occurrence
+      ? { id: occurrence.id, revisionId: occurrence.revisionId, planId: occurrence.preparedPlanId }
+      : null,
     target,
     submitLabel: "Save activity",
+    units,
   };
 
   // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was

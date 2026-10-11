@@ -46,6 +46,14 @@ export function normaliseUsername(raw: string): string {
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
 
+/**
+ * Whether a search is an email address, something on both sides of one `@`, rather than a
+ * handle: "@alice" is how the app writes a handle, and a username never holds an `@`.
+ */
+export function isEmailQuery(query: string): boolean {
+  return /^[^\s@]+@[^\s@]+$/.test(query.trim());
+}
+
 export function isReservedUsername(candidate: string): boolean {
   return RESERVED_USERNAMES.includes(candidate);
 }

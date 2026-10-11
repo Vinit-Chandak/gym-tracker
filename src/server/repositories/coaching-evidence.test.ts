@@ -1791,3 +1791,62 @@ it("caps reps past the top at a coarse step, and lets the step start below the r
     await expect(assess(35, 4)).rejects.toThrow(/outside the program range/);
   });
 });
+
+it("reads unloaded bodyweight sets as the body alone, and steps pounds as the athlete's rule does", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@evidence.test`);
+  await withUser(t.db, user.id, async (db) => {
+    await ensureProfile(db, { id: user.id, email: user.email });
+    await db.update(profiles).set({ preferredUnit: "lb" }).where(eq(profiles.id, user.id));
+    const [gym] = await db
+      .insert(gyms)
+      .values({ userId: user.id, slug: "gym", name: "Gym", kind: "gym", isDefault: true })
+      .returning();
+    const library = await db
+      .select()
+      .from(exercises)
+      .where(inArray(exercises.slug, ["pull-up", "db-romanian-deadlift"]));
+    const pullUp = library.find((exercise) => exercise.slug === "pull-up")!;
+    const rdl = library.find((exercise) => exercise.slug === "db-romanian-deadlift")!;
+    for (const daysAgo of [2, 5, 9]) {
+      const startedAt = new Date(now.getTime() - daysAgo * 86_400_000);
+      const [session] = await db
+        .insert(workoutSessions)
+        .values({ userId: user.id, gymId: gym!.id, startedAt, completedAt: startedAt })
+        .returning();
+      for (const [orderIndex, exercise, weight, reps] of [
+        // The logger saves an untouched "lb added" on a pull-up as nothing.
+        [0, pullUp, null, 7],
+        [1, rdl, 50, 8],
+      ] as const) {
+        const [row] = await db
+          .insert(workoutExercises)
+          .values({
+            userId: user.id,
+            workoutSessionId: session!.id,
+            exerciseId: exercise.id,
+            orderIndex,
+          })
+          .returning();
+        await db.insert(setLogs).values(
+          [1, 2, 3].map((setIndex) => ({
+            userId: user.id,
+            workoutExerciseId: row!.id,
+            setIndex,
+            weight,
+            unit: "lb" as const,
+            reps,
+            rir: 3,
+            effortReported: true,
+          })),
+        );
+      }
+    }
+    const evidence = await readCoachingEvidence(db, user.id, null, now);
+    const trend = (id: string) => evidence.exerciseTrends.find((item) => item.exerciseId === id)!;
+    expect(trend(pullUp.id)).toMatchObject({ readiness: "building", matchingCount: 3 });
+    expect(trend(pullUp.id).comparison.load).toBe(0);
+    // The library's 2.5 kg step is the 5 lb plate jump, as it is on the athlete's own screen.
+    expect(trend(rdl.id).comparison.prescription.loadIncrement).toBe(5);
+    expect(trend(rdl.id).nextStep).toMatch(/^55 lb comes after/);
+  });
+});

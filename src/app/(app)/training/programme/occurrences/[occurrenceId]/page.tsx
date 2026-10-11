@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ActivityPlan } from "@/components/activities/activity-plan";
+import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
+import { enduranceNote } from "@/components/activities/endurance-line";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -13,13 +14,17 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { sessionStanding, standingByDate } from "@/domain/programme-sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
+import { getSchedule } from "@/server/repositories/schedule";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
+import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
@@ -35,18 +40,49 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan } = await withUser(
+  const { occurrence, plan, units, schedule } = await withUser(
     getDb(),
     user.id,
-    async (tx) => ({
-      occurrence: await getOccurrence(tx, user.id, occurrenceId),
-      plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
-    }),
+    async (tx) => {
+      const occurrence = await getOccurrence(tx, user.id, occurrenceId);
+      return {
+        occurrence,
+        plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
+        units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
+        // The sequence it waits in, when it is the running programme's.
+        schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
+      };
+    },
     { readOnly: true },
   );
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
-  const late = isOverdue(occurrence, occurrence.resolution, today);
+  // Put on the calendar by the athlete, not by a programme: it lives on Scheduled, it has no
+  // programme week to count against, and it can be taken off again.
+  const standalone = occurrence.familyId === null;
+  // The running programme's session stands where its sequence has got to, as the programme
+  // page reads it (ADR 0051): one whose date has gone by while the sequence waited for it is
+  // still to do, not missed. Anything else — standalone work, a block since replaced — goes by
+  // its date.
+  const running = schedule && schedule.program.familyId === occurrence.familyId ? schedule : null;
+  const standing = running
+    ? sessionStanding(running.state, occurrence, today)
+    : standingByDate(occurrence, today);
+  const day =
+    running && occurrence.cycleDayIndex !== null
+      ? (running.days.find((entry) => entry.dayIndex === occurrence.cycleDayIndex) ?? null)
+      : null;
+  const dayName = day?.name ?? null;
+  const badge =
+    standing === "next"
+      ? { label: "Next", tone: "accent" as const }
+      : standing === "not_done"
+        ? { label: "Not done", tone: "neutral" as const }
+        : // Skipped on the day itself, from Today, while the session was left as it was.
+          standing === "skipped" && occurrence.resolution.kind === "incomplete"
+          ? { label: "Skipped", tone: "neutral" as const }
+          : null;
+  const waited = (standing === "next" || standing === "to_come") && occurrence.scheduledOn < today;
   // The preparation is only this session's if it was written against the revision in force;
   // a plan pinned to an older one describes a target the programme has since changed (§8.4).
   const prepared =
@@ -56,48 +92,87 @@ export default async function OccurrencePage(
   // One target on the page: the coach's, when it prepared this session inside the approved
   // range, and the programme's otherwise. The two used to be printed one above the other.
   const target = prepared?.prescription ?? occurrence.prescription;
+  // Logged, the full plan gives way to what was done; a line of it stays, so what was asked for
+  // can still be held against it (year audit, October 2026: "4.2–5 km" and nothing else).
+  const logged = occurrence.resolution.kind === "logged";
+  const planned = logged && target ? sessionLine(target, units) : null;
+  const plannedNote = logged && target ? enduranceNote(target) : null;
+  // The card is headed by what the session is for, its day's focus ("Zone 2"), where it has
+  // one. Without one it is headed by the target until it is logged; logged, the line of the plan
+  // under it already says the target, and saying it twice was the audit's "2.6–3.1 km" over
+  // "2.6–3.1 km · 18–22 min" (October 2026).
+  const headline =
+    day?.focus ??
+    (!target ? "No targets set" : logged ? null : describePrescription(target, units));
+  // A date of this year is said without it, as the programme's list says it.
+  const year = today.slice(0, 4);
+  const sport = ACTIVITY_SPORT_LABELS[occurrence.sport];
 
   return (
     <>
       <PageHeader
-        title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
-        meta={formatIsoDate(occurrence.scheduledOn)}
-        backHref="/training/programme"
+        // Named for its day, as the programme's list and Today name it ("Tempo run"), with its
+        // sport beside the date; work no programme day owns is named for its sport.
+        title={dayName ?? sport}
+        meta={joinFacts([
+          dayName && sport,
+          occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
+          `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
+        ])}
+        backHref={standalone ? "/training/scheduled" : "/training/programme"}
       />
       <PageContent>
         <Card>
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">
-              {target ? describePrescription(target) : "No targets set"}
-            </h2>
-            {late && <Badge tone="neutral">Not done</Badge>}
-          </div>
+          {(headline || badge) && (
+            <div className="flex items-start justify-between gap-3">
+              {headline && (
+                <h2 className="min-w-0 text-lg font-medium [overflow-wrap:break-word]">
+                  {headline}
+                </h2>
+              )}
+              {badge && (
+                <span className="ml-auto">
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                </span>
+              )}
+            </div>
+          )}
+          {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
+          {plannedNote && (
+            <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
+          )}
+          {waited && (
+            <p className="text-sm text-ink-muted">
+              Its date has gone by, but the programme waits for you: it is still to do.
+            </p>
+          )}
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {formatIsoDate(occurrence.originalScheduledOn)}. Adherence still counts
-                against that week.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn, year)}.
+                {standalone ? "" : " Adherence still counts against that week."}
               </p>
             )}
         </Card>
 
-        {occurrence.resolution.kind !== "logged" && (
+        {!logged && (
           <ActivityPlan
             sport={occurrence.sport}
             prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
+            units={units}
           />
         )}
 
         {occurrence.resolution.kind === "logged" ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
+              Logged on {formatIsoDate(occurrence.resolution.occurredOn, year)}.
             </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="text-sm text-accent"
+              className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
             >
               See what you logged
             </Link>
@@ -112,7 +187,9 @@ export default async function OccurrencePage(
         ) : occurrence.resolution.kind === "cancelled" ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              This session was removed from the programme. It no longer needs to be logged.
+              {standalone
+                ? "This session was taken off the calendar. It no longer needs to be logged."
+                : "This session was removed from the programme. It no longer needs to be logged."}
             </p>
           </Card>
         ) : (
@@ -126,6 +203,8 @@ export default async function OccurrencePage(
               occurrenceId={occurrence.id}
               skipped={occurrence.disposition === "skipped"}
               scheduledOn={occurrence.scheduledOn}
+              today={today}
+              standalone={standalone}
             />
           </>
         )}

@@ -7,11 +7,13 @@ import { DateRangeFields } from "@/components/date-range-fields";
 import { dayLabel } from "@/components/graph/labels";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
 import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
+import { joinFacts } from "@/lib/facts";
 import { formatDateRange } from "@/lib/format";
 
 import { HistoryList, type HistoryItem } from "./history-list";
@@ -176,10 +178,15 @@ export function HistoryView({
                       <option value="all">All activity</option>
                       <option value="workout">Workouts</option>
                       <option value="run">Runs</option>
-                      {/* Shown only where they exist, so a lifter's filter list stays short. */}
+                      {/* Shown only where they exist, so a lifter's filter list stays short.
+                          Recovery readings of their own are an older account's daily ones: a
+                          check-in today is a workout's, and its sleep stands on that row. Kept
+                          while chosen, so the select never shows a filter other than the one on. */}
                       {kinds.has("cycling") && <option value="cycling">Rides</option>}
                       {kinds.has("swimming") && <option value="swimming">Swims</option>}
-                      <option value="recovery">Recovery</option>
+                      {(kinds.has("recovery") || filters.kind === "recovery") && (
+                        <option value="recovery">Recovery</option>
+                      )}
                     </Select>
                   </Field>
                   <Field label="Gym">
@@ -242,8 +249,12 @@ export function HistoryView({
           </p>
         )}
         <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-          {shown.length.toLocaleString("en-GB")} {shown.length === 1 ? "entry" : "entries"}
-          {pages > 1 && ` · page ${page} of ${pages}`}
+          <Figures>
+            {joinFacts([
+              `${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`,
+              pages > 1 && `page ${page} of ${pages}`,
+            ])}
+          </Figures>
         </p>
         {shown.length > 0 ? (
           // The page's entries under their days, newest first (board Progress-History).

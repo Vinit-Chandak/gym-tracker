@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { dailyRecovery, workoutSessions } from "@/db/schema";
+import { activities, dailyRecovery, workoutSessions } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -30,6 +30,11 @@ beforeAll(async () => {
       .set({ startedAt: day.start })
       .where(eq(workoutSessions.id, sessionId));
   });
+  // Backdated as the app would have opened it then: its parent dated on that day in this zone.
+  await t.db
+    .update(activities)
+    .set({ startedAt: day.start, occurredOn: day.from, recordedTimeZone: zone })
+    .where(eq(activities.id, sessionId));
 });
 afterAll(async () => {
   await t.close();

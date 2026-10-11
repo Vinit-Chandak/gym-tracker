@@ -10,31 +10,46 @@ import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
 import { startRoutineAction, saveWorkoutRoutineAction } from "@/server/actions/manual-training";
+/** What a routine is started beside: a programme under way, or none to change. */
+export type RoutineProgramme = "ongoing" | "none";
+
+/**
+ * The saved routines, each started at the gym chosen above them: the athlete's default gym
+ * from the start, as Today starts a workout there, or the only gym they have. "Choose a
+ * location" is asked only when there is no such gym. The line above them speaks of a
+ * programme only while one is under way.
+ */
 export function RoutineLibrary({
   routines,
   gyms,
   library,
+  programme = "ongoing",
 }: {
   routines: { id: string; name: string; day: SavedRoutineDay }[];
-  gyms: { id: string; name: string }[];
+  gyms: { id: string; name: string; isDefault?: boolean }[];
   library: { slug: string; name: string }[];
+  programme?: RoutineProgramme;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
-  const [gymId, setGymId] = useState(""),
+  const [gymId, setGymId] = useState(
+      () => gyms.find((gym) => gym.isDefault)?.id ?? (gyms.length === 1 ? gyms[0]!.id : ""),
+    ),
     [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
   const busy = saving || navigating;
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-medium">Saved routines</h1>
+      {/* The page's header titles it; each routine below is a heading under that. */}
       <p className="text-sm text-ink-muted">
-        Start a repeatable workout without changing your active programme. Completed workouts and
-        sets stay in history.
+        {programme === "ongoing"
+          ? "Start a repeatable workout without changing your active programme."
+          : "Start a repeatable workout."}{" "}
+        Completed workouts and sets stay in history.
       </p>
       <Field label="Where will you train?">
         <Select value={gymId} onChange={(e) => setGymId(e.target.value)}>
-          <option value="">Choose a location</option>
+          {gymId === "" && <option value="">Choose a location</option>}
           {gyms.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
@@ -44,8 +59,8 @@ export function RoutineLibrary({
       </Field>
       {routines.map((routine) => (
         <Card key={routine.id}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
-          <ol className="space-y-2 text-sm [overflow-wrap:anywhere]">
+          <h2 className="text-lg font-medium [overflow-wrap:break-word]">{routine.name}</h2>
+          <ol className="space-y-2 text-sm [overflow-wrap:break-word]">
             {routine.day.exercises.map((entry, i) => (
               <li key={i}>
                 {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}

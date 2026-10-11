@@ -173,7 +173,12 @@ export function outstanding<T extends { resolution: OccurrenceResolution }>(
   return occurrences.filter((occurrence) => occurrence.resolution.kind === "incomplete");
 }
 
-/** Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08). */
+/**
+ * Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08).
+ *
+ * Sorted by date only: within a day the sort is stable, so the order it was handed — the time
+ * of day, then the written order — is the order it keeps.
+ */
 export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   occurrences: readonly T[],
   today: string,
@@ -183,7 +188,9 @@ export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   for (const occurrence of occurrences) {
     (occurrence.scheduledOn >= today ? upcoming : earlier).push(occurrence);
   }
-  upcoming.sort((a, b) => (a.scheduledOn < b.scheduledOn ? -1 : 1));
-  earlier.sort((a, b) => (a.scheduledOn > b.scheduledOn ? -1 : 1));
+  const byDate = (a: T, b: T) =>
+    a.scheduledOn < b.scheduledOn ? -1 : a.scheduledOn > b.scheduledOn ? 1 : 0;
+  upcoming.sort(byDate);
+  earlier.sort((a, b) => byDate(b, a));
   return { upcoming, earlier };
 }

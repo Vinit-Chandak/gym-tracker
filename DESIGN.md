@@ -516,11 +516,19 @@ an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), 
 in between, so a narrow screen shows the same few sizes as a wide one. Jost 600's tabular digits
 are 0.614 em, its point and comma 0.32 em.
 
-**The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps
-(`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes
-grows and wraps. The one exception is a food row's name and the line under it, wherever food is
-listed, which keep one line each and end in an ellipsis so every row stands the same height; a
-food's or a saved meal's own sheet says them whole.
+**The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps between
+its words, breaking a word only where it cannot fit a line of its own (`overflow-wrap: break-word`;
+`anywhere` lets a box be squeezed to a letter a line, and is kept only for a meta line's fact, whose
+words have no box of their own); a row grows rather than clipping. A figure keeps its unit and a
+count its noun ("12 sets"); a dot between facts goes with the fact after it; a range is held at its
+dash ("60–75 min"), a date's weekday, day, month and year ("Wed 15 Oct 2025"), and a name breaks
+between its words, never at its hyphen ("push-up"), save a long compound's ("Front-foot-elevated"
+may break after "foot-"). What sits beside a name (a button, a value, a tag) goes under it before
+the name would have less than a few words' room, and a table of figures stacks before a figure would
+split. A button at large text sizes grows and wraps. A chosen option wraps in its field rather than
+being cut; a one-line field's hint ends in an ellipsis. The one exception is a food row's name and
+the line under it, wherever food is listed, which keep one line each and end in an ellipsis so every
+row stands the same height; a food's or a saved meal's own sheet says them whole.
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
 
@@ -530,6 +538,21 @@ Every screen is laid out from its device rather than scaled from one size: 402 �
 440 × 956 with a home indicator (62 pt top, 34 pt bottom), 375 × 667 and 320 × 568 without one
 (20 pt top), and Android at 360 × 800 dp (28 top, a 16-dp gesture handle). Gutters are 20 pt, 16
 under 360 pt wide.
+
+Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
+
+- **Size classes.**
+  - **Compact**, under 600 pt: every phone, exactly as drawn here.
+  - **Medium**, to 1024 pt: a tablet or a phone on its side, with the tab bar.
+  - **Expanded**, beyond: the tabs become a rail at the left.
+- **A fluid scale.** From 600 to 1440 pt, type, spacing, gutters (20 to 40), radii and targets
+  grow smoothly, by about an eighth, then stop. This comes on top of the reader's text size,
+  never instead of it.
+- **Two widths.** A reading or form screen is one column of 44rem on a tablet, 46 on a desktop.
+  A screen of cards and sections widens to 62rem and 78rem and lays them in columns, as many as
+  fit at a rem minimum, so larger text means fewer, wider columns.
+- **Today** holds two columns at most. A lone card takes the row.
+- **The workout** is the page's column, centred over the ground, never a stretched table.
 
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
@@ -596,7 +619,9 @@ under 360 pt wide.
   date in `control`, and is not a link; today is ringed in print ink, a 2-pt line just inside its
   edge. Each activity is its sport's icon, 16 pt, in the order it was done, the icons standing
   together in the middle of the tile: one, two side by side, three or four in two rows of two;
-  past four, three and `+N`. Every past day is a link named with what it holds. This month ends at
+  past four, three and `+N`. A workout still open is its icon drawn as a mark to do (its solid
+  parts thinned within an edge of the pigment), named "lifting in progress", and is not counted
+  until it is finished. Every past day is a link named with what it holds. This month ends at
   this week: the weeks to come get no empty rows. The overview shows the pattern alone, its tiles
   as tall as the phone gives them; the calendar page adds each date, in Jost 12, in the tile's top
   left corner and inside today's ring, its icons centred in the room under the date, on tiles of
@@ -627,6 +652,10 @@ has them, in one column.
 **The Fold, Never Drop Rule.** When room runs out, a layout folds (steppers stack, a note folds
 behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a
 target under 44 pt.
+
+**The Same Phone, Larger Rule.** A screen wider than a phone shows the phone's layout, larger
+and with more columns where it lists cards. It never shows a different layout, and never a
+phone's column floating in empty space. A phone never moves when the larger sizes change.
 
 ## Elevation & Depth
 
@@ -836,10 +865,13 @@ exercise's page and a friend's compare page. Top to bottom:
   its record at the end of the figure's line (Open workout, Open run, Open day, Open week; ink,
   700, a chevron, a 44-pt target). It keeps its height either way, so the plot never moves.
 - **The plot,** 152 pt over a 24-pt row of dates: the scale's round values as `hair` lines, their
-  labels (Print label, 600, ink 2) in the left margin, two or three of them. Bars stand on a
-  `hair` baseline and start at zero; a line floats on its readings' own range, and a fixed scale
+  labels (Print label, 600, ink 2) in the left margin, two or three of them, an equal step apart
+  and written exactly (a tenth under 100, whole from 100). Bars stand on a `hair` baseline and
+  start at zero; a line floats on its readings' own range, from a round value at or under the
+  lowest to one at or over the highest, so no reading stands outside the scale; a fixed scale
   (a 1–5 answer) is drawn whole. A value that matters (sleep's 6 h, today's food target) is a
-  1-pt rule in ink, its label in the margin in ink, 700.
+  1-pt rule in ink, its label in the margin in ink, 700; the readout or the graph's ⓘ says what
+  it is.
 - **Marks:** bars are totals, in `control`, the latest in ink, up to 14 pt wide, their tops
   rounded (3 pt) and their feet square on the baseline. Against food's target, a bar that reaches
   it (in the whole kcal or grams its figure is written in) is in `ink-2`, between the two, so a
@@ -911,8 +943,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
   with More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it
   asks for, so two runs never share a name), See what you logged. Under it, the quieter way out
   that belongs to this card alone: Discard empty session, led by its glyph at the card's left
-  edge, only while nothing is logged. The plan unfolds under them, so opening it never moves the
-  next step away.
+  edge, only while nothing is logged; or, for a workout left open (nothing logged in it for six
+  hours), Finish it as of 19:30, its last set's time, which the workout's own screen offers too
+  (owner, 11 October 2026). Nothing finishes a workout but that tap, and finished so, its time is
+  start to last set everywhere it is read. The plan unfolds under them, so opening it never
+  moves the next step away.
 - One unfinished workout at a time: while one is open, no card offers to start, skip or re-plan
   another, every card's gym is a fact rather than a choice, and an open session that is not the
   day's stands first, with its own Resume and Discard.
@@ -922,7 +957,14 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
 - **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
-  than its longest word, and the tray folds onto a second row before a word would break.
+  than its label on one line ("30 days", "Free weight"), and the tray folds before a label would
+  wrap, onto rows as even as fit: four as two and two, five as three and two, never three and
+  one alone. A tray of columns folds sooner, before a segment would keep less than 12 pt either
+  side of its words ("Prefer not to say" at 360 dp). Only a label wider than the whole tray
+  wraps, between its words. A scale's figures
+  (1–5, Effort) never fold: they keep one row of equal columns at their 44-pt target, and a word
+  beside them (Not sure) goes under them when it does not fit. Page tabs fold into columns of
+  one width, a gap as wide as a page.
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
   Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its
@@ -994,7 +1036,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   "Programme cue" in the workout. Text at body size with 1.45 leading; captions in ink 2.
 - No guide says "Guide not available yet." in ink 2 and keeps everything else written about the
   exercise; nothing is invented to fill the space. A custom exercise's notes stand as "Your
-  notes".
+  notes". The library says it only where drafts are reviewed: elsewhere a guide awaiting review
+  would be announced on nearly every exercise, so How to do it says only what there is, and is
+  left out when there is nothing. The Technique tab always says it, rather than stand blank.
 - A demonstration is a row that opens YouTube: "Watch demonstration", the channel under it. No
   thumbnail, no embedded player: a video's colour would be the only colour on the screen. An
   in-app player waits for testing on real phones and the owner's approval, and would mount only

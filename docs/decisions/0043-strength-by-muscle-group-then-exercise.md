@@ -74,3 +74,11 @@ converted, stack and bodyweight sets weighing nothing, each series' group);
 `progress/sections/strength-section.test.tsx`. Rendered against the audit account at 412 and
 320 pt, light and dark, in a month and a quarter: each group, an exercise chosen and let go, and
 core with nothing loaded.
+
+## Note, 11 October 2026
+
+The weekly figure divided the total by the calendar weeks trained, each counted whole, so a month
+trained every week (12 September to 11 October) was five weeks, not the 4.3 it spans, and read
+16,529 kg a week where the span lifted about 19,300. A trained week the range starts or ends
+partway through now counts for its days in the range (`weeksTrained`); a week off still does not
+count, as decision 7 of ADR 0042 has it. Checked in `domain/progress-graphs.test.ts`.

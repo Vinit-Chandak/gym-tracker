@@ -8,7 +8,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
-import { ORIGIN_PARAM, originPath, originQuery, parseOrigin } from "@/lib/nav";
+import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath } from "@/lib/nav";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -55,6 +55,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
           detail,
           profile.timeZone,
           profile.preferredUnit === "lb" ? "lb" : "kg",
+          todayInTimeZone(profile.timeZone),
         ),
         records,
       };
@@ -71,7 +72,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     data.completedAt && canEditWorkout(startedAt, requestProfile.timeZone)
       ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
       : null;
-  const backHref = (data.completedAt && origin ? originPath(origin) : "/today") as Route;
+  const backHref = workoutBackPath(origin, data.completedAt !== null) as Route;
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
     .map((e) => `${e.id}:${e.exercise.id}:${e.equipment?.id ?? ""}:${e.skippedAt ?? ""}`)

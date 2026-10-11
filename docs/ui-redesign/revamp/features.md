@@ -77,6 +77,10 @@ anything scheduled), where they will train, and one tap to start or resume it.
   a scheduled time if set, and Skipped or Coach. Logged ones stay on the day as cards inked
   done, after what is still owed, each with "See what you logged" (since 4 October 2026: one
   collapsible card per activity, each with its own next step; see `DESIGN.md`, Activity cards).
+  A day that only runs names its run card for the day ("Tempo run", its focus "Threshold").
+- **Anything else finished today**, which no card above stands for (a ride nobody scheduled, an
+  unplanned workout, a run logged late): a card each, inked done, with what it came to, when it
+  began and "See what you logged" (year audit, October 2026).
 - **Days with no lifting**, no programme, or a finished programme each have their own message
   and offer only real next steps.
 - **Once the day is done:** "Done. Nothing left to do here today." (or "Rest day done."), and
@@ -94,10 +98,14 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **Unplanned session**, when there is no programme day to offer.
 - **Choose a programme** or **plan the next block**, when there is none or it has ended.
 - **More options**, one control for everything that is not the offered day: train another
-  day (a list of the programme's days, each with Start, Start next cycle or Start skipped
-  workout), start an unplanned session, ask the coach to plan, re-plan or prepare this session
-  (with a gym choice, an optional note, and "3 requests a day"), and skip this session (with
-  an optional reason; skipping the workout never skips a run on the same day).
+  day (a list of the programme's days, the one Today offers marked Next and its run loggable
+  there, each with Start or Start skipped workout, or "Start cycle 5 with Push A" once this
+  cycle's training is answered, the words Today's rest day uses too; a day trained ahead of the
+  sequence, as its next cycle's, says Do again when it is done this cycle and Start early when
+  this cycle does not have it), start an unplanned session, ask the coach to plan, re-plan or
+  prepare this session (with a gym choice, an optional note, and "3 requests a day"), and skip
+  this session (with an optional reason; skipping the workout never skips a run on the same
+  day).
 
 ### States to design
 

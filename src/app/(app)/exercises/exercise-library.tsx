@@ -8,28 +8,34 @@ import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
-import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { holdHyphens, joinFacts } from "@/lib/facts";
+import { EXERCISE_MODALITY_LABELS, LOAD_PORTABILITY_TAGS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
+/** "Bodyweight · Chest, Triceps": a wrapped line breaks before the dot, never after it. */
 function subtitle(exercise: ExerciseListItem): string {
   const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ");
-  return `${EXERCISE_MODALITY_LABELS[exercise.modality]} · ${muscles}`;
+  return joinFacts([EXERCISE_MODALITY_LABELS[exercise.modality], muscles]);
 }
 
 function Rows({ items }: { items: ExerciseListItem[] }) {
   return (
     <List>
-      {items.map((exercise) => (
-        <li key={exercise.id}>
-          <LinkRow
-            prefetch="intent"
-            href={`/exercises/${exercise.id}`}
-            title={exercise.name}
-            subtitle={subtitle(exercise)}
-            badge={exercise.loadPortability === "global" ? undefined : <Badge>Per machine</Badge>}
-          />
-        </li>
-      ))}
+      {items.map((exercise) => {
+        const tag = LOAD_PORTABILITY_TAGS[exercise.loadPortability];
+        return (
+          <li key={exercise.id}>
+            <LinkRow
+              prefetch="intent"
+              href={`/exercises/${exercise.id}`}
+              // "Archer push-up" breaks between its words, never at its hyphen.
+              title={holdHyphens(exercise.name)}
+              subtitle={subtitle(exercise)}
+              badge={tag ? <Badge>{tag}</Badge> : undefined}
+            />
+          </li>
+        );
+      })}
     </List>
   );
 }
@@ -58,7 +64,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name, muscle or equipment"
+          placeholder="Name, muscle or equipment"
           aria-label="Search exercises"
           className="pl-9"
           autoCapitalize="none"

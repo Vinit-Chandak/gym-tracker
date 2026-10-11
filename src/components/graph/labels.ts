@@ -33,8 +33,8 @@ const parts = (date: string) => {
 export function dayLabel(date: string, today: string): string {
   const { y, m, d, weekday } = parts(date);
   return y === Number(today.slice(0, 4))
-    ? `${weekday} ${d} ${MONTHS[m - 1]}`
-    : `${d} ${MONTHS[m - 1]} ${y}`;
+    ? `${weekday}\u00a0${d}\u00a0${MONTHS[m - 1]}`
+    : `${d}\u00a0${MONTHS[m - 1]}\u00a0${y}`;
 }
 
 /** "14–20 Sept", "28 Sept – 4 Oct": a week's days, with its year when it is not this one. */
@@ -47,12 +47,16 @@ export function weekLabel(start: string, end: string, today: string): string {
     : `${a.d} ${MONTHS[a.m - 1]} – ${b.d} ${MONTHS[b.m - 1]}${year}`;
 }
 
-/** A bucket as its readout and its row name it; the one still running says so. */
+/**
+ * A bucket as its readout and its row name it; the one still running says so. Running means
+ * today is in it, to its last day: a Sunday is still this week, and the 31st this month, though
+ * the bucket is no longer cut short. Every graph names it so, whoever built its slots.
+ */
 export function bucketLabel(slot: Slot, bucket: Bucket, today: string): string {
   if (bucket === "day") return slot.start === today ? "Today" : dayLabel(slot.start, today);
-  if (bucket === "week")
-    return slot.partial && slot.end >= today ? "This week" : weekLabel(slot.start, slot.end, today);
-  if (slot.partial && slot.end >= today) return "This month";
+  const current = slot.start <= today && today <= slot.end;
+  if (bucket === "week") return current ? "This week" : weekLabel(slot.start, slot.end, today);
+  if (current) return "This month";
   const { y, m } = parts(slot.start);
   return `${MONTHS[m - 1]} ${y}`;
 }
@@ -95,5 +99,5 @@ export function decimal(value: number, places = 1): string {
 
 /** "1 run", "12 runs". */
 export function counted(count: number, one: string, many = `${one}s`): string {
-  return `${count.toLocaleString("en-GB")} ${count === 1 ? one : many}`;
+  return `${count.toLocaleString("en-GB")}\u00a0${count === 1 ? one : many}`;
 }

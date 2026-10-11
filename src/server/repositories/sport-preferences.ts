@@ -1,9 +1,9 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { userSportPreferences } from "@/db/schema";
+import { activities, userSportPreferences } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
-import type { DistanceUnit, PoolUnit } from "@/lib/distance-units";
+import type { DistanceUnit, PoolUnit, SportUnits } from "@/lib/distance-units";
 
 /**
  * Which sports an account trains, how it measures them, and what it shares (SPORT-01).
@@ -49,6 +49,43 @@ export async function listSportPreferences(tx: DbOrTx, userId: string): Promise<
   });
 }
 
+/** The sports shared under a switch of their own; lifting and running are the training switch's. */
+export const SEPARATELY_SHARED = ["cycling", "swimming"] as const;
+export type SeparatelySharedSport = (typeof SEPARATELY_SHARED)[number];
+
+/**
+ * The ride and swim sharing switches Privacy offers, each with its setting: one for a sport you
+ * do, one you still share, and one you have logged. Turning a sport off keeps its history
+ * (above), so the history keeps its switch: rides logged before Cycling went off can still be
+ * shared, or stop being. A sport off, unshared and never logged has nothing to share.
+ */
+export async function listSportSharingSwitches(
+  tx: DbOrTx,
+  userId: string,
+): Promise<Partial<Record<SeparatelySharedSport, boolean>>> {
+  const preferences = await listSportPreferences(tx, userId);
+  const logged = await tx
+    .selectDistinct({ sport: activities.sport })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        inArray(activities.sport, [...SEPARATELY_SHARED]),
+        eq(activities.status, "completed"),
+      ),
+    );
+  const done = new Set(logged.map((row) => row.sport));
+  return Object.fromEntries(
+    preferences
+      .filter(
+        (preference): preference is SportPreference & { sport: SeparatelySharedSport } =>
+          (SEPARATELY_SHARED as readonly string[]).includes(preference.sport) &&
+          (preference.enabled || preference.shareStats || done.has(preference.sport)),
+      )
+      .map((preference) => [preference.sport, preference.shareStats]),
+  );
+}
+
 /**
  * Whether the athlete has ever said which sports they train. Until they have, the defaults
  * above stand in for an older account; setup asks a new one with nothing ticked (audit B10).
@@ -91,12 +128,23 @@ export async function setSportPreference(
     });
 }
 
-/** The units a form should open in for this athlete and this sport. */
+/** Every sport's units at once, for a page that lists more than one sport's sessions. */
+export async function unitsBySport(
+  tx: DbOrTx,
+  userId: string,
+): Promise<Record<ActivitySport, SportUnits>> {
+  const preferences = await listSportPreferences(tx, userId);
+  return Object.fromEntries(
+    preferences.map(({ sport, distanceUnit, poolUnit }) => [sport, { distanceUnit, poolUnit }]),
+  ) as Record<ActivitySport, SportUnits>;
+}
+
+/** The units a form should open in, and a page should read in, for this athlete and sport. */
 export async function unitsFor(
   tx: DbOrTx,
   userId: string,
   sport: ActivitySport,
-): Promise<{ distanceUnit: DistanceUnit; poolUnit: PoolUnit }> {
+): Promise<SportUnits> {
   const [row] = await tx
     .select({
       distanceUnit: userSportPreferences.distanceUnit,

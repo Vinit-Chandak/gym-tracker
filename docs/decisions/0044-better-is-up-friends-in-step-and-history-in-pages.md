@@ -51,7 +51,8 @@ left behind.
    drawn as the span tray was: a surface tray, each page a 44-pt target, the page being read in
    ink. They show every page up to five, then the first and the last and the page being read
    with its neighbours, with a gap mark between (`pageSlots`), so they keep their targets at
-   320 pt. The page is kept in the URL, so Back from an entry returns to it. A filter starts
+   320 pt (since October 2026, at larger text the tray folds onto a second row rather than
+   shrink a tab). The page is kept in the URL, so Back from an entry returns to it. A filter starts
    again at page 1, and a new page is read from the top. Dates chosen by hand stay behind the
    funnel and narrow the list. Without them it reads back as far as its readers go: the newest
    500 workouts and 500 runs, as All did. Where a reader stops short, the list ends after the
@@ -71,3 +72,13 @@ exercise's group, as a follower reads it), `u/[username]/social-sports.test.tsx`
 place of the period), and `components/ui/page-tabs.test.tsx` with
 `progress/history/history-view.test.tsx` (ten a page, the tabs, the page in the URL). Rendered
 against the audit account.
+
+## Note, 11 October 2026
+
+An assisted machine (assisted pull-up, assisted dip) logs the help it gave, so less is stronger
+(ADR 0048), and its graph had been drawn upside down. Its exercise graph now keeps each
+workout's least assistance ("Least assistance") and draws it downward, as pace is, so better is
+still up; the exercise page's figure and its latest sessions read it the same way. Its help adds
+no volume to a muscle group's total, and no Volume measure is offered for it. Nor is one for a
+stack step or a plate count: volume is load × reps in kg or lb only, as ADR 0043 already counts a
+group's.

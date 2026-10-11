@@ -5,6 +5,7 @@ import {
   harderAllowance,
   knownLoads,
   ladderFor,
+  leastAssistance,
   stepDown,
   stepEasier,
   stepHarder,
@@ -101,6 +102,20 @@ describe("assisted machines count the other way", () => {
       loadIncrement: null,
     });
     expect(ladder.assisted).toBe(true);
+  });
+  it("knows the least help a machine gives, where the next step would leave none", () => {
+    const fives = stack([5, 10, 15, 20], true);
+    expect(stepHarder(fives, 5)).toBeNull();
+    expect(leastAssistance(fives, 5)).toBe(true);
+    // A stop above the lightest still has a step down, and one stop alone says nothing.
+    expect(leastAssistance(fives, 10)).toBe(false);
+    expect(leastAssistance(stack([5], true), 5)).toBe(false);
+    // Below 20 on this stack is 15, a guess but help all the same.
+    expect(leastAssistance(pullUp, 20)).toBe(false);
+    expect(leastAssistance(stack([5, 10, 15]), 5)).toBe(false);
+    expect(leastAssistance({ known: [], stack: false, assisted: true, increment: 5 }, 5)).toBe(
+      true,
+    );
   });
 });
 

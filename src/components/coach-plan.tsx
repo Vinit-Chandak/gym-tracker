@@ -66,7 +66,7 @@ export function CoachPlanList({
             <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
               <p
                 className={cn(
-                  "text-sm [overflow-wrap:anywhere]",
+                  "text-sm [overflow-wrap:break-word]",
                   dropped && "text-ink-subtle line-through",
                 )}
               >
@@ -82,7 +82,7 @@ export function CoachPlanList({
           .filter((slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId))
           .map((slot) => (
             <li key={slot.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{slot.name}</p>
+              <p className="text-sm [overflow-wrap:break-word]">{slot.name}</p>
               <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(slot)}</p>
             </li>
           ))}
@@ -92,7 +92,7 @@ export function CoachPlanList({
           {warningsForSport(warnings, "workout").map((warning, index) => (
             <li
               key={`${warning.code}-${index}`}
-              className="text-xs [overflow-wrap:anywhere] text-warning"
+              className="text-xs [overflow-wrap:break-word] text-warning"
             >
               {warning.message}
             </li>

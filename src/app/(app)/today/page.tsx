@@ -14,11 +14,12 @@ import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState, withPreparedTargets } from "@/server/repositories/coach-plans";
+import { readLoggedOn } from "@/server/repositories/activity-analytics";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
-import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
 
 import Loading from "./loading";
 import { TodayView } from "./today-view";
@@ -93,8 +94,12 @@ export default async function TodayPage(props: PageProps<"/today">) {
         // to one day on the card of another. Standalone work is asked for by date, because a
         // date is exactly what the athlete chose when they put it on the calendar. Neither
         // rolls forward.
-        const [standalone, programme] = await Promise.all([
-          standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
+        //
+        // Once today's programme day is finished the sequence offers the next one, so the
+        // endurance the finished day logged is asked for by its own slot, to stay on today.
+        const date = plan?.today ?? todayInTimeZone(profile.timeZone);
+        const [standalone, programme, finished, logged] = await Promise.all([
+          standaloneOccurrencesOnDate(tx, user.id, date),
           plan?.suggestion && plan.suggestedDay
             ? occurrencesForSlot(tx, user.id, {
                 familyId: plan.program.familyId,
@@ -102,6 +107,16 @@ export default async function TodayPage(props: PageProps<"/today">) {
                 cycleIndex: plan.suggestion.slot.cycleIndex,
               })
             : Promise.resolve([]),
+          plan?.suggestion && plan.finishedToday
+            ? occurrencesForSlot(tx, user.id, {
+                familyId: plan.program.familyId,
+                cycleDayIndex: plan.finishedToday.dayIndex,
+                cycleIndex: plan.finishedToday.cycleIndex,
+              })
+            : Promise.resolve([]),
+          // Everything already finished today, so what nothing above answers still has a card:
+          // a ride nobody scheduled, an unplanned workout.
+          readLoggedOn(tx, user.id, date),
         ]);
         // What the coach prepared for each, where it did: the target to follow today.
         const [preparedStandalone, preparedProgramme] = await Promise.all([
@@ -116,6 +131,14 @@ export default async function TodayPage(props: PageProps<"/today">) {
           coach,
           standalone: preparedStandalone,
           programme: preparedProgramme,
+          finished,
+          logged,
+          // The endurance cards say their targets, and what was logged, in the athlete's own units.
+          distanceUnits:
+            preparedStandalone.length + preparedProgramme.length + finished.length > 0 ||
+            logged.some((activity) => activity.sport !== "strength")
+              ? await unitsBySport(tx, user.id)
+              : {},
           sports,
           tracking: preference?.mode === "track",
         };
@@ -123,8 +146,9 @@ export default async function TodayPage(props: PageProps<"/today">) {
       { readOnly: true },
     ),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme, sports, tracking } =
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished, logged } =
     data;
+  const { distanceUnits, sports, tracking } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
   return (
@@ -132,6 +156,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
       <TodayView
         today={plan?.today ?? todayInTimeZone(profile.timeZone)}
         timeZone={profile.timeZone}
+        userId={user.id}
         // Only active gyms can be trained at, so only they can be chosen between.
         gyms={gyms
           .filter((gym) => gym.isActive)
@@ -143,6 +168,9 @@ export default async function TodayPage(props: PageProps<"/today">) {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        finishedOccurrences={finished}
+        distanceUnits={distanceUnits}
+        logged={logged}
         sports={sports}
         tracking={tracking}
         discarded={discarded === "1"}

@@ -1,4 +1,4 @@
-# ADR 0051: A setup that asks once
+# ADR 0053: A setup that asks once
 
 Date: 2026-10-11
 Status: accepted; amends decision 7 of

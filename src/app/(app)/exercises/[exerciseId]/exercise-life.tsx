@@ -3,13 +3,16 @@
 import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
-import { formatSet, formatSets } from "@/domain/sets";
+import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoWeekdayDay, formatSharedMetric } from "@/lib/format";
+import { FACT_SEPARATOR } from "@/lib/facts";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { originQuery } from "@/lib/nav";
 import { fromKilograms } from "@/lib/units";
 import type { ExerciseMonth } from "@/server/repositories/exercise-life";
 import type { ExerciseBest } from "@/server/repositories/shared-stats";
@@ -52,47 +55,73 @@ export type LatestPerformance = {
   sets: Set[];
 };
 
-/** The session's heaviest working set, the figure a row of Latest leads with: "72.5 kg × 6". */
-function topSet(sets: readonly Set[]): string | null {
-  const working = sets.filter((set) => set.setType !== "warmup" && set.weight !== null);
+/**
+ * The session's best working set, the figure a row of Latest leads with: "72.5 kg × 6". The
+ * heaviest, and of the heaviest the most reps; on an assisted machine, where the number is help
+ * given, the least help.
+ */
+function topSet(sets: readonly Set[], assisted: boolean, reading: LoadReading): string | null {
+  const working = sets.filter(
+    (set) => set.setType !== "warmup" && set.weight !== null && (!assisted || set.weight > 0),
+  );
   if (working.length === 0) return null;
-  const top = working.reduce((best, set) => (set.weight! > best.weight! ? set : best));
-  return formatSet(top, LOAD_UNIT_LABELS[top.unit]);
+  const top = working.reduce((best, set) =>
+    (assisted ? set.weight! < best.weight! : set.weight! > best.weight!) ||
+    (set.weight === best.weight && (set.reps ?? 0) > (best.reps ?? 0))
+      ? set
+      : best,
+  );
+  return formatSet(top, LOAD_UNIT_LABELS[top.unit], reading);
 }
+
+/** Two names for one thing, as a reader would take them: "Smith machine" and "smith machine". */
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /**
  * An exercise across its whole life (board Exercise): its equipment and where, its graph (the
  * one Progress draws, ADR 0042), then the count of sessions and its records, and the latest
- * sessions, each led by its heaviest set.
+ * sessions, each led by its best set. Everything under the graph is read on the series the graph
+ * draws: for a movement bound to its machine, the machine chosen over it, every other machine's
+ * sessions listed apart; the figures are all time, and say so, as the graph's are its span.
  */
 export function ExerciseLife({
   exercise,
   life,
   machineName,
+  loadUnit,
   bests,
   unit,
   timeZone,
+  today,
   graph,
   performances,
+  elsewhere = [],
 }: {
   exercise: MetricExercise & { modality: ExerciseModality; loadPortability: string };
-  life: { months: ExerciseMonth[]; sessions: number };
-  /** The machine the months are read on, for a movement bound to its machine. */
+  /** `assisted`: the machine's number is help given, so its best is the least of it. */
+  life: { months: ExerciseMonth[]; sessions: number; assisted: boolean };
+  /** The machine the graph, the figures and Latest are read on, for a movement bound to one. */
   machineName: string | null;
+  /** The unit of the series the graph draws: a machine's loads are in its own. */
+  loadUnit?: LoadUnit | null;
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
   timeZone: string;
+  /** Today in the account's zone: a session in another year is named with it. */
+  today: string;
   /** The exercise's graph, under its equipment and where. */
   graph: ReactNode;
+  /** The latest sessions on the series the graph draws (on any equipment, when it is global). */
   performances: readonly LatestPerformance[];
+  /** The latest on any other machine, listed apart: not this machine's history. */
+  elsewhere?: readonly LatestPerformance[];
 }) {
   const glyph = glyphFor(exercise.modality);
+  const machine = machineName && !sameName(machineName, GLYPH_LABELS[glyph]) ? machineName : null;
+  const global = exercise.loadPortability === "global";
   const where = performances[0]?.gymName ?? null;
   // A machine's loads are in its own unit; anything else in the account's.
-  const shownUnit: LoadUnit =
-    exercise.loadPortability === "global"
-      ? unit
-      : (performances.find((p) => p.machineName === machineName)?.sets[0]?.unit ?? unit);
+  const shownUnit: LoadUnit = global ? unit : (loadUnit ?? performances[0]?.sets[0]?.unit ?? unit);
   // Loads are read in kilograms; a machine's own scale (a stack's pins) is read as it is.
   const inUnit = (kg: number) =>
     Math.round(
@@ -100,12 +129,14 @@ export function ExerciseLife({
     ) / 10;
   const label = LOAD_UNIT_LABELS[shownUnit];
 
-  const top = life.months.length ? inUnit(Math.max(...life.months.map((m) => m.topKg))) : null;
+  const top = life.months.length
+    ? inUnit((life.assisted ? Math.min : Math.max)(...life.months.map((m) => m.topKg)))
+    : null;
 
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
     { key: "sessions", figure: String(life.sessions), label: "Sessions" },
     ...bests.slice(0, 2).map((best) => {
-      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit).split(" ");
+      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit).split(/\s/);
       return {
         key: best.metric,
         figure: figure!,
@@ -114,18 +145,79 @@ export function ExerciseLife({
       };
     }),
     ...(bests.length === 0 && top !== null
-      ? [{ key: "top", figure: String(top), unit: label, label: "Top weight" }]
+      ? [
+          {
+            key: "top",
+            figure: String(top),
+            unit: label,
+            label: life.assisted ? "Least assistance" : "Top weight",
+          },
+        ]
       : []),
   ];
+
+  // What the figures and Latest are read on, said over them: the machine is chosen far above.
+  const on = global ? null : (machineName ?? "an unrecorded machine");
+
+  // A bodyweight movement's sets say the body ("Bodyweight × 12"), an assisted one's the help.
+  const reading = loadReadingOf(exercise, life.assisted);
+  const rows = (list: readonly LatestPerformance[], named: boolean) => (
+    <ul>
+      {list.map((performance, index) => {
+        const best = topSet(performance.sets, life.assisted, reading);
+        return (
+          <li key={performance.id}>
+            <Link
+              // A past workout is History's, whichever page it is opened from.
+              href={`/workouts/${performance.sessionId}${originQuery("history")}`}
+              className={index === list.length - 1 ? "latest-row plan-row-last" : "latest-row"}
+            >
+              <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+                <span className="min-w-[min(100%,8rem)] flex-1 type-meta font-bold">
+                  {formatIsoDate(
+                    todayInTimeZone(timeZone, new Date(performance.performedAt)),
+                    today.slice(0, 4),
+                  )}
+                  {/* The machine goes to the next line whole, its dot with it, rather than
+                      break inside its name ("Cable / station"); a name longer than a line wraps
+                      within its own box. */}
+                  {named && (
+                    <>
+                      {" "}
+                      <span className="inline-block max-w-full">
+                        {`${FACT_SEPARATOR.trimStart()}${performance.machineName ?? "Unrecorded machine"}`}
+                      </span>
+                    </>
+                  )}
+                </span>
+                {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
+              </span>
+              <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
+                <Figures>
+                  {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                </Figures>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   return (
     <>
       <p className="meta-line mt-1">
+        {/* The glyph says the kind and the machine is said in words, as a workout's rows say
+            them: "Machine" and "Lat pulldown" side by side read as one name. A machine named
+            after its kind ("Smith machine") is said once either way. */}
         <span className="meta-fact">
-          <Glyph name={glyph} className="glyph-16" />
-          {GLYPH_LABELS[glyph]}
+          <Glyph
+            name={glyph}
+            label={machine ? GLYPH_LABELS[glyph] : undefined}
+            className="glyph-16"
+          />
+          {machine ?? GLYPH_LABELS[glyph]}
         </span>
-        {machineName && <span className="meta-fact">{machineName}</span>}
         {where && (
           <span className="meta-fact">
             <Glyph name="pin" label="Gym" className="glyph-16" />
@@ -138,6 +230,10 @@ export function ExerciseLife({
         {graph}
       </section>
 
+      {/* The graph's figures are its span's; these are every session's, and say so. */}
+      <h2 className="caption-head exercise-stats-head">
+        {on ? `All time on ${on}` : "All time, across gyms"}
+      </h2>
       <dl className="exercise-stats">
         {stats.map((stat) => (
           // The name first for a screen reader, the figure first for the eye.
@@ -146,47 +242,24 @@ export function ExerciseLife({
             <dd className="whitespace-nowrap">
               <span className="type-figure-l">{stat.figure}</span>
               {stat.unit && (
-                <span className="ml-0.5 type-caption font-semibold text-ink-2">{stat.unit}</span>
+                <span className="type-caption font-semibold text-ink-2"> {stat.unit}</span>
               )}
             </dd>
           </div>
         ))}
       </dl>
 
-      <h2 className="caption-head mt-4">Latest</h2>
+      <h2 className="caption-head mt-4">{on ? `Latest on ${on}` : "Latest"}</h2>
       {performances.length === 0 ? (
         <p className="type-meta text-ink-2">Not logged yet.</p>
       ) : (
-        <ul>
-          {performances.map((performance, index) => {
-            const best = topSet(performance.sets);
-            return (
-              <li key={performance.id}>
-                <Link
-                  href={`/workouts/${performance.sessionId}`}
-                  className={
-                    index === performances.length - 1 ? "latest-row plan-row-last" : "latest-row"
-                  }
-                >
-                  <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                    <span className="min-w-[min(100%,8rem)] flex-1 type-meta font-bold">
-                      {formatIsoWeekdayDay(
-                        todayInTimeZone(timeZone, new Date(performance.performedAt)),
-                      )}
-                      {exercise.loadPortability !== "global" && performance.machineName
-                        ? ` · ${performance.machineName}`
-                        : ""}
-                    </span>
-                    {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
-                  </span>
-                  <span className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2 tabular-nums">
-                    {formatSets(performance.sets, (loadUnit) => LOAD_UNIT_LABELS[loadUnit])}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        rows(performances, false)
+      )}
+      {elsewhere.length > 0 && (
+        <>
+          <h2 className="caption-head mt-4">Latest on other machines</h2>
+          {rows(elsewhere, true)}
+        </>
       )}
     </>
   );

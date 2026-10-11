@@ -472,7 +472,7 @@ export function SetupCoachForm({
                     key={file.id}
                     className="flex min-h-11 items-center gap-3 border-b border-hair"
                   >
-                    <span className="min-w-0 flex-1 type-meta font-semibold [overflow-wrap:anywhere]">
+                    <span className="min-w-0 flex-1 type-meta font-semibold [overflow-wrap:break-word]">
                       {file.name}
                     </span>
                     <button

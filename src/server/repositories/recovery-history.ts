@@ -1,9 +1,11 @@
-import { and, desc, eq, gte, isNotNull, lt, lte, or } from "drizzle-orm";
-import { dailyRecovery, workoutSessions } from "@/db/schema";
+import { and, desc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
+import { activities, dailyRecovery, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { RecoveryReading } from "@/domain/recovery";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { DateRange } from "@/server/validation/date-range";
+
+import { strengthOnDays, strengthParent } from "./strength-day";
 
 /** Recovery is a saved check-in, including an open workout, not a sample of exercise history. */
 export async function readRecoveryHistory(
@@ -29,16 +31,17 @@ export async function readRecoveryHistory(
       isNotNull(table.soreness),
     );
   const [workouts, daily] = await Promise.all([
+    // A workout's check-in is dated as the workout is: on the day its parent froze.
     db
-      .select({ ...columns(workoutSessions), startedAt: workoutSessions.startedAt })
+      .select({
+        ...columns(workoutSessions),
+        startedAt: workoutSessions.startedAt,
+        occurredOn: activities.occurredOn,
+      })
       .from(workoutSessions)
+      .leftJoin(activities, strengthParent)
       .where(
-        and(
-          eq(workoutSessions.userId, userId),
-          gte(workoutSessions.startedAt, range.start),
-          lt(workoutSessions.startedAt, range.end),
-          hasReading(workoutSessions),
-        ),
+        and(eq(workoutSessions.userId, userId), strengthOnDays(range), hasReading(workoutSessions)),
       ),
     db
       .select({
@@ -57,9 +60,9 @@ export async function readRecoveryHistory(
       ),
   ]);
   return [
-    ...workouts.map(({ startedAt, ...reading }) => ({
+    ...workouts.map(({ startedAt, occurredOn, ...reading }) => ({
       ...reading,
-      date: todayInTimeZone(timeZone, startedAt),
+      date: occurredOn ?? todayInTimeZone(timeZone, startedAt),
       recordedAt: startedAt.toISOString(),
       source: "workout" as const,
       sessionId: reading.id,

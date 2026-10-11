@@ -1,9 +1,10 @@
 // Real workout lifecycle, device-local draft recovery and small-screen controls.
 // Each run creates a disposable athlete through the actual sign-up/onboarding UI.
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import postgres from "postgres";
-import { chooseOnboardingUnits } from "./audit-controls.mjs";
+import { answerFirstStep, choosePlace, signUp } from "./audit-controls.mjs";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -19,7 +20,9 @@ if (
 const device = process.env.AUDIT_DEVICE ?? "android";
 const output = `${process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit"}/workout-${device}`;
 await mkdir(output, { recursive: true });
-const browser = await (device === "iphone" ? webkit : chromium).launch();
+const engine = device === "iphone" ? "webkit" : "chromium";
+await skipWholeRun(device, engine, `${output}/results.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -30,7 +33,7 @@ const sql = postgres(database, { max: 1 });
 const results = [];
 const pageErrors = [];
 page.on("pageerror", (error) => pageErrors.push(error.message));
-const username = `workout${Date.now().toString(36)}`;
+const email = `workout${Date.now().toString(36)}@local.test`;
 let userId, sessionId, exerciseId;
 const go = async (route) => {
   if (page.url() !== "about:blank") await page.waitForLoadState("networkidle");
@@ -93,39 +96,32 @@ async function check(name, work) {
   } finally {
     await writeFile(
       `${output}/results.json`,
-      JSON.stringify({ username, userId, sessionId, results, pageErrors }, null, 2),
+      JSON.stringify({ email, userId, sessionId, results, pageErrors }, null, 2),
     );
   }
 }
 try {
   await check(
-    "a new imperial athlete completes all five onboarding steps and adopts a programme",
+    "a new imperial athlete completes every setup step and follows a programme",
     async () => {
       await go("/signup");
-      await page.getByLabel("Name", { exact: true }).fill("Workout audit athlete");
-      await page.locator('[name="username"]').fill(username);
-      await page.getByLabel("Email", { exact: true }).fill(`${username}@local.test`);
-      await page.getByLabel("Password", { exact: true }).fill("password123");
-      await page.getByLabel("Confirm password", { exact: true }).fill("password123");
-      await page.getByRole("button", { name: "Create account", exact: true }).click();
-      await chooseOnboardingUnits(page, "lb");
-      await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
+      await signUp(page, { name: "Workout audit athlete", email, password: "password123" });
+      await answerFirstStep(page, {
+        sports: ["Strength", "Running"],
+        weight: "lb",
+        distance: "mi",
+        timeZone: "America/New_York",
+      });
+      await choosePlace(page, { name: `Workout audit ${device} gym with a long name` });
+      // Someone who already trains is only asked about anything unusual at a gym.
       await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page.getByRole("heading", { name: "What do you train?" }).waitFor();
-      for (const sport of ["Strength", "Running"]) {
-        const button = page.getByRole("checkbox", { name: sport, exact: true });
-        if ((await button.getAttribute("aria-checked")) !== "true") await button.click();
-      }
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page
-        .getByLabel("Name", { exact: true })
-        .fill(`Workout audit ${device} gym with a long name`);
-      await page.getByRole("button", { name: "Add gym", exact: true }).click();
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page.getByRole("button", { name: "Start training", exact: true }).click();
+      await page.waitForURL(/\/welcome\/programme$/);
+      await page.getByRole("link", { name: /^Follow a programme/ }).click();
+      await page.waitForURL(/\/welcome\/programme\/template$/);
+      await page.getByRole("button", { name: "Start programme", exact: true }).click();
       await page.getByRole("link", { name: /Start workout/ }).waitFor();
-      const [profile] =
-        await sql`select id, preferred_unit, time_zone, onboarded_at from profiles where username=${username}`;
+      const [profile] = await sql`select p.id, p.preferred_unit, p.time_zone, p.onboarded_at
+        from profiles p join auth.users u on u.id = p.id where u.email = ${email}`;
       expect(profile.preferred_unit).toBe("lb");
       expect(profile.time_zone).toBe("America/New_York");
       expect(profile.onboarded_at).not.toBeNull();
@@ -385,7 +381,9 @@ try {
       await page.waitForLoadState("networkidle");
       await context.setOffline(true);
       await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
-      await expect(page.getByRole("alert")).toBeVisible();
+      // Next's route announcer is an alert too, holding the page's title after a client
+      // navigation; the form's own alert says the start could not be sent.
+      await expect(page.getByRole("alert").filter({ hasText: /^Connection lost/ })).toBeVisible();
       await expect(page).toHaveURL(/\/workouts\/start\?/);
       await context.setOffline(false);
     },
@@ -598,8 +596,7 @@ try {
   try {
     // This run owns only its unique signup. Cascades remove its temporary workouts and
     // body-weight readings while the populated audit personas remain unchanged.
-    await sql`delete from auth.users where email=${`${username}@local.test`}
-      and raw_user_meta_data->>'username'=${username}`;
+    await sql`delete from auth.users where email=${email}`;
   } finally {
     await sql.end();
   }

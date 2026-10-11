@@ -5,6 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import { SPLIT_GROUPS } from "@/domain/muscle-split";
 
 import { RadarChart } from "./radar-chart";
+import { radarLayout } from "./radar-plot";
 
 afterEach(cleanup);
 
@@ -72,4 +73,87 @@ it("adds a legend and a second column once there are two shapes", () => {
     "Alice",
     "Bob",
   ]);
+});
+
+it("draws its labels at 12 px on a small phone, larger with larger text, with room kept", () => {
+  // A 288-px box (a 320-pt phone): 12 px on screen is 13.3 units of the 320-unit drawing.
+  const phone = radarLayout(288, 16, SPLIT_GROUPS);
+  expect(phone.fontSize * (288 / 320)).toBeCloseTo(12);
+  expect(phone).toMatchObject({ radius: 96, keyed: false });
+  // At 200% text the labels double. "Shoulders" sits under the shape, where its width costs
+  // nothing, so the shape keeps most of its size: it once shrank to a third, a dot.
+  const large = radarLayout(288, 32, SPLIT_GROUPS);
+  expect(large.fontSize * (288 / 320)).toBeCloseTo(24);
+  expect(large.keyed).toBe(false);
+  expect(large.radius).toBeGreaterThanOrEqual(80);
+  // A 320-pt phone at 200% leaves the card about 250 px: still labelled, still two thirds.
+  expect(radarLayout(250, 32, SPLIT_GROUPS)).toMatchObject({ keyed: false });
+  expect(radarLayout(250, 32, SPLIT_GROUPS).radius).toBeGreaterThanOrEqual(64);
+});
+
+it("numbers the spokes and lists the names under the drawing when even so they would crowd it", () => {
+  // 300% text in a 200-px box: the side labels alone would leave a shape a fraction its size.
+  const huge = radarLayout(200, 48, SPLIT_GROUPS);
+  expect(huge.keyed).toBe(true);
+  expect(huge.radius).toBe(96);
+});
+
+it("keeps every label of a drawing at large text inside the box and its overhang", () => {
+  for (const [width, root] of [
+    [288, 32],
+    [250, 32],
+    [320, 24],
+  ] as const) {
+    const { fontSize, radius, keyed } = radarLayout(width, root, SPLIT_GROUPS);
+    expect(keyed).toBe(false);
+    SPLIT_GROUPS.forEach((axis, i) => {
+      const angle = -Math.PI / 2 + (i / SPLIT_GROUPS.length) * 2 * Math.PI;
+      const x = 160 + (radius + 16) * Math.cos(angle);
+      const across = 0.55 * fontSize * axis.length;
+      const [left, right] =
+        Math.abs(Math.cos(angle)) < 0.01
+          ? [x - across / 2, x + across / 2]
+          : x > 160
+            ? [x, x + across]
+            : [x - across, x];
+      expect(left).toBeGreaterThanOrEqual(-20.01);
+      expect(right).toBeLessThanOrEqual(340.01);
+    });
+  }
+});
+
+it("lays two shapes on the theme's wash, thinner in dark, and one on its own", () => {
+  const { container } = render(
+    <RadarChart title="Muscle split" axes={SPLIT_GROUPS} series={[one, two]} />,
+  );
+  const shapes = [...container.querySelectorAll("polygon")].slice(4);
+  for (const shape of shapes) {
+    expect(shape.getAttribute("fill-opacity")).toBeNull();
+    expect(shape.getAttribute("style")).toContain("var(--ov-series-wash");
+  }
+  expect(shapes.map((shape) => shape.getAttribute("stroke"))).toEqual([
+    "var(--color-series-1)",
+    "var(--color-series-2)",
+  ]);
+});
+
+it("draws both shapes and both columns when two people share a name", () => {
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => errors.push(args);
+  try {
+    const { container } = render(
+      <RadarChart
+        title="Muscle split"
+        axes={SPLIT_GROUPS}
+        series={[one, { ...two, name: "Alice" }]}
+      />,
+    );
+    expect(container.querySelectorAll("polygon")).toHaveLength(6);
+    expect(screen.getAllByRole("cell")).toHaveLength(SPLIT_GROUPS.length * 2);
+    // No duplicate keys for React to warn about, and so nothing dropped on a re-render.
+    expect(errors).toEqual([]);
+  } finally {
+    console.error = original;
+  }
 });

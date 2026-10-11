@@ -47,10 +47,10 @@ export async function CoachingActivity() {
             it is written for them and not for the athlete. */}
         {failed.error && (
           <details>
-            <summary className="flex min-h-11 cursor-pointer items-center type-meta-small font-bold">
+            <summary className="flex min-h-[var(--ov-target)] cursor-pointer items-center type-meta-small font-bold">
               Details
             </summary>
-            <p className="type-meta-small [overflow-wrap:anywhere] text-ink-2">{failed.error}</p>
+            <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">{failed.error}</p>
           </details>
         )}
       </div>

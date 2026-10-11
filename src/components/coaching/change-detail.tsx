@@ -125,14 +125,14 @@ export function ChangeDetail(props: ChangeDetailProps) {
             Why
           </summary>
           {props.rationale && (
-            <p className="type-meta leading-[1.45] [overflow-wrap:anywhere] whitespace-pre-wrap">
+            <p className="type-meta leading-[1.45] [overflow-wrap:break-word] whitespace-pre-wrap">
               {props.rationale}
             </p>
           )}
           {props.uncertainties.length > 0 && (
             <ul className="mt-1.5 space-y-1 type-meta-small text-ink-2">
               {props.uncertainties.map((line, index) => (
-                <li key={index} className="[overflow-wrap:anywhere]">
+                <li key={index} className="[overflow-wrap:break-word]">
                   {line}
                 </li>
               ))}

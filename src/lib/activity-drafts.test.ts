@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   ageWarnings,
+  changedFields,
   clearAccountDrafts,
   clearDraft,
   draftKey,
+  expireDrafts,
   newDraft,
   readDrafts,
   readQuarantined,
+  restoreDraft,
   saveDraft,
   type ActivityDraft,
   type DraftStore,
@@ -139,6 +142,64 @@ describe("limits", () => {
     const warnings = ageWarnings([fresh, ageing, old], now);
 
     expect(warnings.map((warning) => warning.reason)).toEqual(["expiring", "expired"]);
+  });
+
+  /** The age bound frees the account's places; younger drafts and other accounts are kept. */
+  it("lets a draft go once it is past the age limit, and nothing younger", () => {
+    const store = memoryStore();
+    const now = new Date("2026-09-19T00:00:00.000Z");
+    const ageing = draft(ALICE, { updatedAt: "2026-06-26T00:00:00.000Z" });
+    const old = draft(ALICE, { updatedAt: "2026-05-01T00:00:00.000Z" });
+    const othersOld = draft(BOB, { updatedAt: "2026-05-01T00:00:00.000Z" });
+    for (const item of [ageing, old, othersOld]) saveDraft(store, item);
+
+    expect(expireDrafts(store, ALICE, now)).toBe(1);
+    expect(readDrafts(store, ALICE).drafts.map((item) => item.draftId)).toEqual([ageing.draftId]);
+    expect(readDrafts(store, BOB).drafts).toHaveLength(1);
+  });
+});
+
+describe("reopening a draft", () => {
+  const opening = {
+    startedAt: "2026-10-08T19:40",
+    recordedTimeZone: "Europe/London",
+    distanceValue: "",
+    distanceUnit: "km",
+    minutes: "",
+  };
+
+  it("counts only what differs from how the form opened", () => {
+    expect(changedFields({ ...opening, distanceValue: "5" }, opening)).toEqual(["distanceValue"]);
+    expect(changedFields({ ...opening, surface: "" }, opening)).toEqual([]);
+    expect(changedFields(opening, opening)).toEqual([]);
+  });
+
+  /** A draft begun on Monday and reopened on Thursday starts on Thursday unless it was told otherwise. */
+  it("opens an untouched start as now, and keeps what was typed", () => {
+    const monday = draft(ALICE, {
+      values: { ...opening, startedAt: "2026-10-05T07:10", distanceValue: "5" },
+      dirtyFields: ["distanceValue"],
+    });
+    const restored = restoreDraft(monday, opening);
+    expect(restored.values).toMatchObject({ startedAt: "2026-10-08T19:40", distanceValue: "5" });
+  });
+
+  it("keeps a start the athlete set, with the zone and hour it was set in", () => {
+    const backdated = draft(ALICE, {
+      values: {
+        ...opening,
+        startedAt: "2026-10-05T07:10",
+        recordedTimeZone: "Asia/Tokyo",
+        startedAtOffsetMinutes: "540",
+        distanceValue: "5",
+      },
+      dirtyFields: ["startedAt", "distanceValue"],
+    });
+    expect(restoreDraft(backdated, opening).values).toMatchObject({
+      startedAt: "2026-10-05T07:10",
+      recordedTimeZone: "Asia/Tokyo",
+      startedAtOffsetMinutes: "540",
+    });
   });
 });
 

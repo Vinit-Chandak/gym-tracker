@@ -1,11 +1,24 @@
+import { formatHold } from "./pace";
 import type { LoadUnit, SetType } from "./types";
+import { loadStepIn } from "@/lib/units";
 
-/** Smallest sensible load jump: the machine's setting, else the exercise default, else 2.5. */
+/**
+ * Smallest sensible load jump: the machine's setting, else the exercise default, else 2.5.
+ *
+ * The machine's setting is typed in the machine's own unit. The default is the library's, in
+ * kilograms, so where the load is read in pounds it is the plate jump nearest it: onboarding
+ * registers a pound lifter's barbell and dumbbells without an increment, and 2.5 read as pounds
+ * asked for a 137.5 lb bar.
+ */
 export function weightStepFor(input: {
   equipmentLoadIncrement: number | null;
   exerciseDefaultIncrement: number | null;
+  /** The unit the step is used in; a machine's own scale takes the default as it is. */
+  unit?: string;
 }): number {
-  return input.equipmentLoadIncrement ?? input.exerciseDefaultIncrement ?? 2.5;
+  if (input.equipmentLoadIncrement !== null) return input.equipmentLoadIncrement;
+  const step = input.exerciseDefaultIncrement ?? 2.5;
+  return input.unit === "lb" ? loadStepIn(step, "lb") : step;
 }
 
 /**
@@ -41,15 +54,47 @@ export function measureOf(set: Pick<SetLike, "reps" | "durationSeconds" | "dista
   return "reps" as const;
 }
 
-/** "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label. */
-export function formatSet(set: SetLike, unitLabel?: string): string {
-  const weight = set.weight === null ? "—" : `${set.weight}${unitLabel ? ` ${unitLabel}` : ""}`;
-  const times = unitLabel ? " × " : "×";
+/**
+ * What an exercise's logged load is: a weight lifted; on a bodyweight movement, what was added
+ * to the body (the logger's "kg added"); on an assisted machine, the help it gave (ADR 0048).
+ */
+export type LoadReading = "load" | "bodyweight" | "assisted";
+
+export function loadReadingOf(
+  exercise: { modality: string },
+  assisted: boolean | undefined,
+): LoadReading {
+  if (assisted) return "assisted";
+  return exercise.modality === "bodyweight" ? "bodyweight" : "load";
+}
+
+/** A set's load in words: "80 kg", "Bodyweight" for nothing added, "50 kg assistance". */
+function loadWords(set: SetLike, unitLabel: string | undefined, reading: LoadReading): string {
+  // Nothing added to the body, or a machine giving no help, is the body alone, never "0 kg".
+  if ((reading === "bodyweight" && !set.weight) || (reading === "assisted" && set.weight === 0))
+    return "Bodyweight";
+  if (set.weight === null) return "—";
+  const load = `${set.weight}${unitLabel ? `\u00a0${unitLabel}` : ""}`;
+  return reading === "assisted" ? `${load}\u00a0assistance` : load;
+}
+
+/**
+ * "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label; with a unit, "80 kg × 10", and read
+ * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6". A set is one fact, its spaces
+ * unbreakable: a list of them wraps between sets, never inside one.
+ */
+export function formatSet(set: SetLike, unitLabel?: string, reading: LoadReading = "load"): string {
+  const weight = loadWords(set, unitLabel, reading);
+  const times = unitLabel ? "\u00a0×\u00a0" : "×";
   if (set.reps === null && set.distanceMeters !== null) {
-    return set.weight ? `${weight}${times}${set.distanceMeters} m` : `${set.distanceMeters} m`;
+    return set.weight
+      ? `${weight}${times}${set.distanceMeters}\u00a0m`
+      : `${set.distanceMeters}\u00a0m`;
   }
   if (set.durationSeconds !== null && set.reps === null) {
-    return set.weight ? `${weight}${times}${set.durationSeconds} s` : `${set.durationSeconds} s`;
+    // A hold reads as its best does: "45 s" under a minute, "1:12" from one.
+    const hold = formatHold(set.durationSeconds);
+    return set.weight ? `${weight}${times}${hold}` : hold;
   }
   const reps = set.reps === null ? "—" : `${set.reps}`;
   return `${weight}${times}${reps}`;
@@ -59,10 +104,20 @@ export function formatSet(set: SetLike, unitLabel?: string): string {
 export function formatSets(
   sets: readonly SetLike[],
   unitLabel?: (unit: LoadUnit) => string,
+  reading: LoadReading = "load",
 ): string {
   const working = sets.filter((s) => s.setType !== "warmup");
   const shown = working.length > 0 ? working : sets;
-  return shown.map((set) => formatSet(set, unitLabel?.(set.unit))).join(", ");
+  return shown.map((set) => formatSet(set, unitLabel?.(set.unit), reading)).join(", ");
+}
+
+/**
+ * How many sets a workout counts: every set but a warm-up, as its sets are listed (`formatSets`),
+ * its volume is totalled and a friend reads it (ADR 0026). A warm-up is done, drawn grey in the
+ * print, and counted nowhere.
+ */
+export function workingSetCount(sets: readonly Pick<SetLike, "setType">[]): number {
+  return sets.filter((s) => s.setType !== "warmup").length;
 }
 
 /** Total load moved by working sets, ignoring bodyweight-only sets. */

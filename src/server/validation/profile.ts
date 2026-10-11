@@ -1,13 +1,22 @@
 import { z } from "zod";
 
 import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
+import { checkTimeZone } from "@/lib/time-zones";
 import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
 
 import { usernameSchema } from "./username";
 
 const asString = (value: unknown): string => (typeof value === "string" ? value : "");
 
-/** Any IANA zone the running platform knows about; the browser proposes one during onboarding. */
+export const UNKNOWN_TIME_ZONE = "That is not a time zone this app recognises.";
+export const NOT_A_PLACE =
+  "Choose a place, such as Europe/London: an abbreviation or an offset can mean another zone.";
+
+/**
+ * A place's IANA zone, or UTC, spelt as the platform spells it (`checkTimeZone`); the browser
+ * proposes one during onboarding, and Edit profile offers a list of them. Abbreviations and
+ * offsets are refused. Saving also asks Postgres, which dates the graphs, for its spelling.
+ */
 export const timeZoneSchema = z.preprocess(
   asString,
   z
@@ -15,14 +24,17 @@ export const timeZoneSchema = z.preprocess(
     .trim()
     .min(1, "Choose a time zone.")
     .max(64)
-    .refine((zone) => {
-      try {
-        new Intl.DateTimeFormat("en", { timeZone: zone });
-        return true;
-      } catch {
-        return false;
+    .transform((value, ctx) => {
+      const checked = checkTimeZone(value);
+      if (checked.problem) {
+        ctx.addIssue({
+          code: "custom",
+          message: checked.problem === "unknown" ? UNKNOWN_TIME_ZONE : NOT_A_PLACE,
+        });
+        return z.NEVER;
       }
-    }, "That is not a time zone this app recognises."),
+      return checked.zone;
+    }),
 );
 
 /** A typed number, or null when the field was left blank. Ranges are checked once, in kg and cm. */

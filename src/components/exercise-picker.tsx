@@ -3,7 +3,8 @@
 import { useId, useMemo, useRef, useState } from "react";
 
 import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
-import { exerciseSections } from "@/lib/exercise-search";
+import { exerciseSections, type LikeExercise } from "@/lib/exercise-search";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { holdEnter } from "@/lib/search-keys";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
@@ -38,12 +39,14 @@ type SeveralChoices = {
 type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
   exercises: ExerciseListItem[];
   error?: string;
+  /** The exercise being replaced (a swap, a fallback): the list opens on its movement. */
+  like?: LikeExercise | null;
 };
 
 /**
  * Search first, then grouped results (boards Add exercise, Add fallback): by body region when
- * nothing is typed, and by how well each exercise answers the search when something is, names
- * first. Each row is the name at the gutter and, under it, its equipment's glyph and the muscles
+ * nothing is typed (after the same movement, when one is being replaced), and by how well each
+ * exercise answers the search when something is, names first. Each row is the name at the gutter and, under it, its equipment's glyph and the muscles
  * it works; the chosen one carries a check. The whole view is one scroll region, so a long
  * catalogue never becomes a list scrolling inside a sheet scrolling inside a page.
  *
@@ -55,13 +58,13 @@ type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
  * action pinned at the foot are in sight again.
  */
 export function ExercisePicker(props: ExercisePickerProps) {
-  const { exercises, error } = props;
+  const { exercises, error, like = null } = props;
   const several = props.mode === "multiple";
   const long = !several && (props.long ?? false);
   const id = useId();
   const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => exerciseSections(exercises, query), [exercises, query]);
+  const groups = useMemo(() => exerciseSections(exercises, query, like), [exercises, query, like]);
   const selected = several ? undefined : exercises.find((e) => e.id === props.value);
 
   return (
@@ -73,7 +76,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search name, muscle or equipment…"
+          placeholder="Name, muscle or equipment"
           aria-label="Search exercises"
           className="search-box-input"
           autoCapitalize="none"
@@ -95,10 +98,14 @@ export function ExercisePicker(props: ExercisePickerProps) {
         )}
       </div>
 
+      {/* The choice is sent from here, not from its radio: a search that hides the chosen row
+          takes its radio with it, and the form would go without the exercise it still names. */}
+      {!several && <input type="hidden" name={props.name} value={props.value} />}
+
       {long && selected && (
         <p className="mt-2 type-meta-small text-ink-2">
           Selected:{" "}
-          <span className="font-bold [overflow-wrap:anywhere] text-ink">{selected.name}</span>
+          <span className="font-bold [overflow-wrap:break-word] text-ink">{selected.name}</span>
         </p>
       )}
 
@@ -125,7 +132,10 @@ export function ExercisePicker(props: ExercisePickerProps) {
             <h2 id={`${id}-${group.key}`} className="caption-head mt-3.5">
               {group.title}
               {long && group.key !== "name" && (
-                <span className="tabular-nums"> · {group.items.length}</span>
+                <span className="tabular-nums">
+                  {FACT_SEPARATOR}
+                  {group.items.length}
+                </span>
               )}
             </h2>
             <ul>
@@ -150,7 +160,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
                       ) : (
                         <input
                           type="radio"
-                          name={props.name}
+                          name={`${id}-choice`}
                           value={exercise.id}
                           checked={chosen}
                           onChange={() => props.onChange(exercise.id)}

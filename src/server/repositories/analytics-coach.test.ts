@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  activities,
   apiTokens,
   dailyRecovery,
   equipmentInstances,
@@ -15,6 +16,7 @@ import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, UNKNOWN_EFFORT } from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { estimated1RM, liftingAdherence, trainingAnalytics } from "@/domain/analytics";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { handleCoachRequest } from "@/server/coach-api";
 import { comparableHistory, sessionHistories } from "@/server/queries/comparable";
 import { parseDateRange } from "@/server/validation/date-range";
@@ -79,14 +81,16 @@ beforeAll(async () => {
     for (const [i, gym] of [gymA, gymB].entries()) {
       const session = await startAdHocSession(tx, alice.id, { gymId: gym.id });
       // Sunday UTC is already Monday in the user's time zone.
+      const startedAt = new Date(i === 0 ? "2026-09-06T19:00:00Z" : "2026-09-14T00:00:00Z");
       await tx
         .update(workoutSessions)
-        .set({
-          startedAt: new Date(i === 0 ? "2026-09-06T19:00:00Z" : "2026-09-14T00:00:00Z"),
-          sleepHours: i === 0 ? 7 : null,
-          energy: i === 0 ? 3 : 4,
-        })
+        .set({ startedAt, sleepHours: i === 0 ? 7 : null, energy: i === 0 ? 3 : 4 })
         .where(eq(workoutSessions.id, session.sessionId));
+      // Backdated as the app would have opened it then: its parent on that day in this zone.
+      await tx
+        .update(activities)
+        .set({ startedAt, occurredOn: todayInTimeZone("Asia/Kolkata", startedAt) })
+        .where(eq(activities.id, session.sessionId));
       for (const [exerciseId, equipmentInstanceId] of [
         [benchId, null],
         [latId, i === 0 ? machineA!.id : machineB!.id],

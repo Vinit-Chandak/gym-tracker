@@ -8,6 +8,19 @@ import type { GraphRange } from "@/domain/graph-range";
 import { Graph, type GraphProps } from "./graph";
 import { GraphRangeProvider } from "./graph-range-context";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 const route = vi.hoisted(() => ({ search: "" }));
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const action = vi.hoisted(() => ({ chooseGraphRangeAction: vi.fn(async () => {}) }));
@@ -67,7 +80,7 @@ it("opens on its summary, the figure and its unit and one line of context", () =
   draw();
   expect(readout().getByText("75.2")).toBeTruthy();
   expect(readout().getByText(/kg/)).toBeTruthy();
-  expect(readout().getByText("−0.8 since Thu 10 Sept")).toBeTruthy();
+  expect(readout().getByText(whole("−0.8 since Thu 10 Sept"))).toBeTruthy();
   expect(screen.queryByRole("link", { name: /Open workout/ })).toBeNull();
 });
 
@@ -189,10 +202,15 @@ it("names fewer dates once the reader's text grows, though the plot keeps its si
     .mockReturnValue({ width: 362, height: 188 } as DOMRect);
   try {
     const { container } = draw();
-    const dates = () =>
-      [...container.querySelectorAll(".graph-plot svg text")]
-        .filter((text) => text.getAttribute("y") === "182")
-        .map((text) => text.textContent);
+    const svg = () => container.querySelector(".graph-plot svg")!;
+    // The dates are the labels under the plot; the scale's stand beside it.
+    const dateTexts = () =>
+      [...svg().querySelectorAll("text")].filter(
+        (text) => Number(text.getAttribute("y")) > Number(svg().getAttribute("height")) - 20,
+      );
+    const dates = () => dateTexts().map((text) => text.textContent);
+    expect(svg().getAttribute("height")).toBe("188");
+    expect(dateTexts().map((text) => text.getAttribute("y"))).toEqual(["182", "182", "182", "182"]);
     expect(dates()).toEqual(["14 Sept", "21 Sept", "28 Sept", "5 Oct"]);
     act(() => {
       document.documentElement.style.fontSize = "32px";
@@ -201,6 +219,12 @@ it("names fewer dates once the reader's text grows, though the plot keeps its si
     });
     // Twice the size: every other Monday stands clear of the next, and none runs off the edge.
     expect(dates()).toEqual(["14 Sept", "28 Sept"]);
+    // The plot keeps its 152 pt; the rows over it (18) and under it (36) grow with the 24-pt
+    // labels, so a date's top, about three quarters of its size over its baseline at 198, stays
+    // under the plot's foot at 170, and its descenders inside the drawing.
+    expect(svg().getAttribute("height")).toBe("206");
+    expect((container.querySelector(".graph-plot") as HTMLElement).style.height).toBe("206px");
+    expect(dateTexts()[0]!.getAttribute("y")).toBe("198");
   } finally {
     document.documentElement.style.fontSize = "";
     box.mockRestore();

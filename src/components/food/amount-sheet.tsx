@@ -12,6 +12,7 @@ import {
   type Food,
   type FoodAmounts,
 } from "@/domain/nutrition";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 
 import { AmountField, Preview, typedAmount } from "./amount-field";
@@ -102,8 +103,11 @@ export function AmountSheet({
         }}
       >
         <p className="type-meta-small text-ink-2 tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-          {macros && ` · ${macros}`}
+          {joinFacts([
+            `Per ${holdFigures(formatPortion(food.portionAmount, food.unit))}`,
+            `${formatKcal(food.kcal)}\u00a0kcal`,
+            macros,
+          ])}
         </p>
         <AmountField
           label="Amount"

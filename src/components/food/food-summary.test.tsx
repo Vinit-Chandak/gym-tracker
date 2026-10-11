@@ -211,4 +211,21 @@ describe("a macronutrient's rail", () => {
       within(screen.getByRole("dialog", { name: "Fat" })).getByText("Nothing yet today."),
     ).toBeTruthy();
   });
+
+  it("says a day before today had none, not that there is none yet today", () => {
+    // A day with food on it, none of which held any protein.
+    const water: Food = { ...HOME, name: "Water", kcal: 0, carbsG: 0, fatG: 0, proteinG: 0 };
+    render(
+      <FoodSummary
+        eaten={eaten(0, { carbsG: 0, fatG: 0, proteinG: 0 })}
+        target={TARGET}
+        entries={[entry("lunch", water, 1)]}
+        isToday={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Protein:/ }));
+    const sheet = screen.getByRole("dialog", { name: "Protein" });
+    expect(within(sheet).getByText("None on this day.")).toBeTruthy();
+    expect(sheet.textContent).not.toContain("today");
+  });
 });

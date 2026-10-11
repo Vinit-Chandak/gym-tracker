@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { guidanceOf, NO_GUIDANCE, type ExerciseGuidance } from "@/lib/guidance";
 
-import { ExerciseGuide } from "./exercise-guide";
+import { ExerciseGuide, guideHasContent } from "./exercise-guide";
 
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
@@ -113,12 +113,36 @@ it("never leaves the tab blank: an exercise with nothing written still says so",
   expect(screen.queryByRole("term")).toBeNull();
 });
 
+it("says only what there is where a missing guide is not to be announced", () => {
+  // The bench press in production: its guide awaits review, and a form guide elsewhere remains.
+  const bench = guidance({ guide: null, demonstrations: [], formUrl: "https://example.test" });
+  render(<ExerciseGuide guidance={bench} sayMissing={false} />);
+  expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.getByRole("link", { name: /Read a form guide/ })).toBeTruthy();
+  expect(guideHasContent(bench)).toBe(true);
+  // With nothing at all, there is nothing to show, and the library leaves the section out.
+  expect(guideHasContent(NO_GUIDANCE)).toBe(false);
+  // A custom exercise is the athlete's own, and still says it has no notes.
+  const own = guidanceOf({ userId: "me", formNotes: "", formUrl: null, logNote: null }, null, []);
+  expect(guideHasContent(own)).toBe(true);
+});
+
 it("keeps a custom exercise's own notes as its guide", () => {
   render(
     <ExerciseGuide guidance={guidance({ guide: null, ownNotes: true, notes: "Elbows in." })} />,
   );
   expect(terms()).toEqual(["Your notes", "How to log"]);
   expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.queryByText("No notes yet.")).toBeNull();
+});
+
+it("says a custom exercise saved without notes has none, rather than showing nothing", () => {
+  // As the exercise page has it: a custom exercise's guidance, with nothing written.
+  const own = guidanceOf({ userId: "me", formNotes: "", formUrl: null, logNote: null }, null, []);
+  render(<ExerciseGuide guidance={own} />);
+  expect(screen.getByText("No notes yet.")).toBeTruthy();
+  expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.queryByRole("term")).toBeNull();
 });
 
 it("marks a draft guide or a candidate video as awaiting review", () => {

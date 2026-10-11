@@ -5,6 +5,8 @@ import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { boldEmWidth } from "./fit";
+
 type DisclosureProps = {
   summary: string;
   /** Trailing text on the summary row, so the state is readable without opening it. */
@@ -63,7 +65,7 @@ export function Disclosure({
         className={cn(
           "flex list-none flex-wrap items-center gap-2 font-medium",
           variant === "box" && "min-h-14 rounded-card px-4 py-3",
-          variant === "inline" && "min-h-11 py-2 text-sm",
+          variant === "inline" && "min-h-[var(--ov-target)] py-2 text-sm",
           variant === "footer" &&
             "min-h-12 rounded-b-card px-[var(--panel-padding)] py-3 text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
         )}
@@ -72,9 +74,21 @@ export function Disclosure({
           className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
-        <span className="min-w-0 flex-auto [overflow-wrap:anywhere]">{summary}</span>
+        {/* The summary wraps between its words to keep the count on its line, and lets the
+            count go under it only when the summary would have less than its own width or a few
+            words' room, whichever is less (large text): "The plan" keeps "5 exercises · 17 sets"
+            beside it at 320 pt. Under it, the count has the row's whole width, and the chevron
+            stays beside the summary. */}
+        <span
+          className="min-w-0 shrink grow [overflow-wrap:break-word]"
+          style={{
+            flexBasis: `min(8rem, ${(boldEmWidth(summary) * 1.01).toFixed(3)}em, 100% - var(--ov-icon-control) - var(--spacing) * 2)`,
+          }}
+        >
+          {summary}
+        </span>
         {meta && (
-          <span className="ml-auto max-w-full text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="ml-auto max-w-full text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}

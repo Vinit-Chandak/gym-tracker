@@ -7,18 +7,21 @@ html:has(.onboarding) {
 /* No tab bar: the pinned actions stand 8 pt above the safe area, in ground to the foot. */
 html:has(.onboarding) .pinned-actions {
   bottom: 0;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(calc(8 * var(--ov-u)) + env(safe-area-inset-bottom, 0px));
 }
 .onboarding {
-  padding-bottom: calc(var(--pinned-actions-height, calc(var(--ov-button) + 56px)) + 24px);
+  padding-bottom: calc(
+    var(--pinned-actions-height, calc(var(--ov-button) + calc(56 * var(--ov-u)))) +
+      calc(24 * var(--ov-u))
+  );
 }
 /* Back and the dots on one 48-pt bar. */
 .onboarding-head {
   display: flex;
-  min-height: 48px;
+  min-height: calc(48 * var(--ov-u));
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }
 .onboarding-head .back-link-label {
   font-size: var(--ov-type-button);
@@ -26,11 +29,11 @@ html:has(.onboarding) .pinned-actions {
 .steps {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
 }
 .steps-dot {
-  width: 8px;
-  height: 8px;
+  width: calc(8 * var(--ov-u));
+  height: calc(8 * var(--ov-u));
   flex-shrink: 0;
   border-radius: 9999px;
   background: var(--ov-control);
@@ -40,18 +43,18 @@ html:has(.onboarding) .pinned-actions {
   background: var(--ov-ink);
 }
 .steps-dot[data-state="current"] {
-  width: 22px;
+  width: calc(22 * var(--ov-u));
 }
 .onboarding-title {
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-display);
   font-weight: 700;
   line-height: 1.08;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .onboarding-sub {
-  margin-top: 6px;
+  margin-top: calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-body);
   font-weight: 500;
@@ -59,14 +62,14 @@ html:has(.onboarding) .pinned-actions {
 }
 @media (width < 360px) {
   .onboarding-title {
-    font-size: calc(7.5px + 1.40625rem); /* 30, k 0.75 */
+    font-size: calc(calc(7.5 * var(--ov-u)) + 1.40625rem); /* 30, k 0.75 */
   }
 }
 /* ---------- You ---------- */
 /* Each question a group: its name (14, 700), then its choices under it. */
 .you-group {
   min-width: 0;
-  margin-top: 24px;
+  margin-top: calc(24 * var(--ov-u));
 }
 .you-label {
   padding: 0;
@@ -77,21 +80,21 @@ html:has(.onboarding) .pinned-actions {
    chosen, ink with a check. One to a row when large text would break a word. */
 .you-choices {
   display: grid;
-  margin-top: 8px;
-  gap: 10px;
+  margin-top: calc(8 * var(--ov-u));
+  gap: calc(10 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
 }
 .you-choice {
   display: flex;
-  min-height: 116px;
+  min-height: calc(116 * var(--ov-u));
   flex-direction: column;
   justify-content: space-between;
-  padding: 14px;
+  padding: calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
   color: var(--ov-ink);
   cursor: pointer;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
   transition:
     background-color var(--ov-duration-press) var(--ov-ease-out),
     color var(--ov-duration-press) var(--ov-ease-out),
@@ -113,14 +116,14 @@ html:has(.onboarding) .pinned-actions {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .you-choice-title {
   min-width: 0;
   font-size: var(--ov-type-heading);
   font-weight: 700;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .you-choice-sub {
   color: var(--ov-ink-2);
@@ -134,20 +137,20 @@ html:has(.onboarding) .pinned-actions {
 /* "What do you train?": four tiles, two to a row, each its sport's mark and its name. */
 .sport-chips {
   display: grid;
-  margin-top: 8px;
-  gap: 10px;
+  margin-top: calc(8 * var(--ov-u));
+  gap: calc(10 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
 }
 .sport-chip {
   display: flex;
-  min-height: 56px;
+  min-height: calc(56 * var(--ov-u));
   align-items: center;
-  padding: 6px 12px;
+  padding: calc(6 * var(--ov-u)) calc(12 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   color: var(--ov-ink);
   cursor: pointer;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
   transition:
     background-color var(--ov-duration-press) var(--ov-ease-out),
     color var(--ov-duration-press) var(--ov-ease-out),
@@ -164,7 +167,7 @@ html:has(.onboarding) .pinned-actions {
 .sport-chip-mark {
   display: grid;
   flex-shrink: 0;
-  padding: 5px;
+  padding: calc(5 * var(--ov-u));
   border-radius: 8px;
 }
 .sport-chip:has(input:checked) .sport-chip-mark {
@@ -176,38 +179,38 @@ html:has(.onboarding) .pinned-actions {
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* What is wrong with a group, under it, in ink and led by its glyph. */
 .you-error {
   display: flex;
   align-items: flex-start;
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
   font-weight: 600;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
 }
 /* Units and the time zone: one ruled line, the facts in ink 2 and Change at its end. */
 .units-line-wrap {
-  margin-top: 20px;
+  margin-top: calc(20 * var(--ov-u));
 }
 .units-line {
   display: flex;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   align-items: center;
   border-top: 1px solid var(--ov-hair);
   border-bottom: 1px solid var(--ov-hair);
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 .units-line-text {
   min-width: 0;
   flex: 1 1 auto;
-  padding: 8px 0;
+  padding: calc(8 * var(--ov-u)) 0;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 600;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .units-line-change {
   display: flex;
@@ -218,7 +221,7 @@ html:has(.onboarding) .pinned-actions {
   font-size: var(--ov-type-meta);
   font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: calc(3 * var(--ov-u));
 }
 /* A unit in the sheet: its name (and what it is for) beside its segments, which fold under it
    when large text needs the room. */
@@ -227,7 +230,7 @@ html:has(.onboarding) .pinned-actions {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
+  gap: calc(8 * var(--ov-u)) calc(16 * var(--ov-u));
 }
 .units-row-label {
   display: flex;
@@ -247,17 +250,17 @@ html:has(.onboarding) .pinned-actions {
 /* ---------- Where you train ---------- */
 /* The kind of place as three tall tiles, its glyph over its word. */
 .setup-place {
-  margin-top: 22px;
+  margin-top: calc(22 * var(--ov-u));
 }
 .setup-place .where-choice-tile {
-  min-height: calc(92px + var(--ov-grow));
-  gap: 8px;
+  min-height: calc(calc(92 * var(--ov-u)) + var(--ov-grow));
+  gap: calc(8 * var(--ov-u));
   border-radius: var(--ov-radius-card);
   font-size: var(--ov-type-body);
 }
 /* A line about what comes next, under the step's fields, in ink 2. */
 .setup-note {
-  margin-top: 12px;
+  margin-top: calc(12 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 500;
@@ -266,21 +269,21 @@ html:has(.onboarding) .pinned-actions {
 /* ---------- Sports ---------- */
 .sport-tiles {
   display: grid;
-  margin-top: 18px;
-  gap: 10px;
+  margin-top: calc(18 * var(--ov-u));
+  gap: calc(10 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
 }
 .sport-tile {
   display: flex;
-  min-height: 120px;
+  min-height: calc(120 * var(--ov-u));
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 14px;
+  padding: calc(14 * var(--ov-u));
   border-radius: 16px;
   background: var(--ov-surface);
   color: var(--ov-ink);
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
   text-align: left;
 }
 .sport-tile[aria-checked="true"] {
@@ -289,7 +292,7 @@ html:has(.onboarding) .pinned-actions {
 }
 .sport-tile-mark {
   display: grid;
-  padding: 7px;
+  padding: calc(7 * var(--ov-u));
   border-radius: 10px;
 }
 .sport-tile[aria-checked="true"] .sport-tile-mark {
@@ -299,28 +302,28 @@ html:has(.onboarding) .pinned-actions {
   min-width: 0;
   font-size: var(--ov-type-heading);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* ---------- Machines ---------- */
 /* The catalogue as ticks, two to a row: the box, then the name; ticked, the tile is ink. */
 .tick-grid {
   display: grid;
-  margin-top: 4px;
-  gap: 6px;
+  margin-top: calc(4 * var(--ov-u));
+  gap: calc(6 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
 }
 .tick-tile {
   display: flex;
   height: 100%;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   align-items: center;
-  padding: 6px 10px 6px 12px;
+  padding: calc(6 * var(--ov-u)) calc(10 * var(--ov-u)) calc(6 * var(--ov-u)) calc(12 * var(--ov-u));
   border-radius: 12px;
   background: var(--ov-surface);
   cursor: pointer;
   font-size: var(--ov-type-meta);
   font-weight: 600;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
   line-height: 1.25;
 }
 .tick-tile:has(input:checked) {
@@ -333,8 +336,8 @@ html:has(.onboarding) .pinned-actions {
 }
 .tick-box {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: calc(22 * var(--ov-u));
+  height: calc(22 * var(--ov-u));
   flex-shrink: 0;
   place-items: center;
   border: 1.5px solid var(--ov-control);
@@ -349,7 +352,7 @@ html:has(.onboarding) .pinned-actions {
 /* ---------- Plan ---------- */
 /* A programme to start: its first day's print, its name, what it is; chosen, an ink outline. */
 .template-card {
-  padding: 12px;
+  padding: calc(12 * var(--ov-u));
   border: 2px solid var(--ov-hair);
   border-radius: 16px;
 }
@@ -362,7 +365,7 @@ html:has(.onboarding) .pinned-actions {
 }
 .template-card-print {
   display: block;
-  height: 76px;
+  height: calc(76 * var(--ov-u));
 }
 .template-card-name {
   min-width: 0;
@@ -370,24 +373,25 @@ html:has(.onboarding) .pinned-actions {
   font-size: var(--ov-type-heading);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* A date as a row: its glyph, its name, the date at the end; the platform's picker over it. */
 .date-row {
   position: relative;
   display: flex;
-  min-height: var(--ov-target);
+  /* The target is the row inside its rule: a whole target, the rule on top of it. */
+  min-height: calc(var(--ov-target) + 1px);
   align-items: center;
-  margin-top: 6px;
+  margin-top: calc(6 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);
   font-size: var(--ov-type-meta);
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .date-row-value {
   display: flex;
   align-items: center;
   font-weight: 700;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
 }
 .date-row:has(.select-row-native:focus-visible) {
   outline: 3px solid var(--ov-ink);
@@ -400,7 +404,7 @@ html:has(.onboarding) .pinned-actions {
 .auth-name {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-title);
   font-weight: 700;
@@ -412,11 +416,11 @@ html:has(.onboarding) .pinned-actions {
 .basics-line {
   display: flex;
   width: 100%;
-  min-height: 64px;
+  min-height: calc(64 * var(--ov-u));
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 10px 0;
+  gap: calc(12 * var(--ov-u));
+  margin-top: calc(12 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) 0;
   border-top: 1px solid var(--ov-hair);
   border-bottom: 1px solid var(--ov-hair);
   text-align: left;
@@ -457,8 +461,8 @@ html:has(.onboarding) .pinned-actions {
    in the tile's corner, beside the label rather than inside it. */
 .equipment-grid {
   display: grid;
-  margin-top: 8px;
-  gap: 8px;
+  margin-top: calc(8 * var(--ov-u));
+  gap: calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
 }
 .equipment-tile-cell {
@@ -467,10 +471,10 @@ html:has(.onboarding) .pinned-actions {
 .equipment-tile {
   display: flex;
   height: 100%;
-  min-height: 56px;
+  min-height: calc(56 * var(--ov-u));
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px 12px;
+  gap: calc(4 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u)) calc(12 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   color: var(--ov-ink);
@@ -504,17 +508,17 @@ button.equipment-tile:focus-visible {
 .equipment-tile-name {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta);
   font-weight: 700;
   line-height: 1.3;
 }
 /* Without a drawing the name is the tile's first line, and stays clear of ⓘ in the corner. */
 .equipment-tile:not(:has(.equipment-tile-art)) .equipment-tile-name {
-  padding-right: 30px;
+  padding-right: calc(30 * var(--ov-u));
 }
 .equipment-tile-name > .tick-box {
-  margin-top: calc((1lh - 22px) / 2);
+  margin-top: calc((1lh - calc(22 * var(--ov-u))) / 2);
 }
 .equipment-tile:has(input:checked) .tick-box {
   border: 0;
@@ -582,14 +586,14 @@ button.equipment-tile:focus-visible {
   font-size: var(--ov-type-meta);
   font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: calc(3 * var(--ov-u));
 }
 .equipment-row-info {
   display: grid;
   width: var(--ov-target);
   height: var(--ov-target);
   flex-shrink: 0;
-  margin-right: -10px;
+  margin-right: calc(-10 * var(--ov-u));
   place-items: center;
   border-radius: var(--ov-radius-full);
   color: var(--ov-ink-2);
@@ -601,24 +605,24 @@ button.equipment-tile:focus-visible {
 /* The identification sheet's drawing: large enough to read the pads and handles by. */
 .about-art {
   max-width: 18rem;
-  margin: 4px auto 0;
+  margin: calc(4 * var(--ov-u)) auto 0;
 }
 .about-art-small {
   max-width: 10rem;
-  margin: 8px 0 0;
+  margin: calc(8 * var(--ov-u)) 0 0;
 }
 
 /* ---------- The coach's questions in setup ---------- */
 .setup-coach-group {
   min-width: 0;
-  margin-top: 22px;
+  margin-top: calc(22 * var(--ov-u));
 }
 /* One of a few, as chips that wrap: the chosen one ink. */
 .choice-chips {
   display: flex;
   flex-wrap: wrap;
-  margin-top: 8px;
-  gap: 8px;
+  margin-top: calc(8 * var(--ov-u));
+  gap: calc(8 * var(--ov-u));
 }
 .choice-chip {
   display: inline-flex;
@@ -626,7 +630,7 @@ button.equipment-tile:focus-visible {
   min-height: var(--ov-target);
   align-items: center;
   justify-content: center;
-  padding: 4px 14px;
+  padding: calc(4 * var(--ov-u)) calc(14 * var(--ov-u));
   border-radius: 12px;
   background: var(--ov-surface);
   color: var(--ov-ink);
@@ -654,16 +658,16 @@ button.equipment-tile:focus-visible {
 /* The week as seven chips in a row, folding to four and three where a day would be narrower
    than a thumb (iPhone SE, large text). */
 .day-chips-wrap {
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
   container-type: inline-size;
 }
 .day-chips {
   display: grid;
-  gap: 4px;
+  gap: calc(4 * var(--ov-u));
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .day-chip {
-  min-height: 48px;
+  min-height: calc(48 * var(--ov-u));
   padding: 0;
 }
 @container (width < 21em) {
@@ -674,8 +678,8 @@ button.equipment-tile:focus-visible {
 /* Height, weight and age side by side, folding where a box would get too narrow. */
 .setup-coach-body {
   display: grid;
-  margin-top: 22px;
-  gap: 10px 8px;
+  margin-top: calc(22 * var(--ov-u));
+  gap: calc(10 * var(--ov-u)) calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr));
 }
 .figure-field {
@@ -683,12 +687,12 @@ button.equipment-tile:focus-visible {
   min-width: 0;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
 }
 .figure-field-label {
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .figure-field-box {
   position: relative;
@@ -696,19 +700,20 @@ button.equipment-tile:focus-visible {
 }
 .figure-field-input {
   width: 100%;
-  min-height: calc(52px + var(--ov-grow));
-  padding: 0 12px;
+  min-height: calc(calc(52 * var(--ov-u)) + var(--ov-grow));
+  padding: 0 calc(12 * var(--ov-u));
   border: 1.5px solid var(--ov-control);
   border-radius: var(--ov-radius-control);
   background: var(--ov-ground);
   color: var(--ov-ink);
   font-family: var(--ov-font-display);
-  font-size: 18px;
+  /* 18, k 0.5: grows with the reader's text, and never under the floor for anything typed. */
+  font-size: max(var(--ov-type-input), calc(calc(9 * var(--ov-u)) + 0.5625rem));
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 .figure-field-input[data-suffix] {
-  padding-right: 34px;
+  padding-right: calc(34 * var(--ov-u));
 }
 .figure-field-input:focus {
   border-color: var(--ov-ink);
@@ -721,7 +726,7 @@ button.equipment-tile:focus-visible {
 .figure-field-suffix {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: calc(12 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 600;
@@ -729,14 +734,14 @@ button.equipment-tile:focus-visible {
   translate: 0 -50%;
 }
 .setup-caption {
-  margin-top: 6px;
+  margin-top: calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;
 }
 /* Optional answers, each folded under its name and what it is for: ruled rows. */
 .setup-coach-more {
-  margin-top: 18px;
+  margin-top: calc(18 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);
 }
 .setup-fold {
@@ -744,11 +749,11 @@ button.equipment-tile:focus-visible {
 }
 .setup-fold-summary {
   display: flex;
-  min-height: 56px;
+  min-height: calc(56 * var(--ov-u));
   align-items: center;
-  padding: 8px 0;
+  padding: calc(8 * var(--ov-u)) 0;
   cursor: pointer;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
   list-style: none;
 }
 .setup-fold-summary::-webkit-details-marker {
@@ -769,19 +774,19 @@ button.equipment-tile:focus-visible {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .setup-file {
   display: flex;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   align-items: center;
-  padding: 8px 14px;
+  padding: calc(8 * var(--ov-u)) calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   cursor: pointer;
   font-size: var(--ov-type-meta);
   font-weight: 600;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 .setup-file:has(input:focus-visible) {
   outline: 3px solid var(--ov-ink);
@@ -794,8 +799,8 @@ button.equipment-tile:focus-visible {
 .writing-bar {
   position: relative;
   overflow: hidden;
-  height: 4px;
-  margin-top: 18px;
+  height: calc(4 * var(--ov-u));
+  margin-top: calc(18 * var(--ov-u));
   border-radius: 9999px;
   background: var(--ov-hair);
 }
@@ -828,12 +833,12 @@ button.equipment-tile:focus-visible {
 }
 .setup-facts-row {
   display: flex;
-  min-height: 44px;
+  min-height: calc(44 * var(--ov-u));
   flex-wrap: wrap;
   align-items: baseline;
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
-  gap: 2px 16px;
+  gap: 2px calc(16 * var(--ov-u));
 }
 .setup-facts-row > dt {
   width: 6.5rem;
@@ -847,14 +852,14 @@ button.equipment-tile:focus-visible {
   flex: 1 1 10rem;
   font-size: var(--ov-type-meta);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* The programme: its name, its shape in figures, then each training day as its print. */
 .ready-name {
-  margin-top: 10px;
+  margin-top: calc(10 * var(--ov-u));
   font-size: var(--ov-type-heading);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .ready-shape {
   margin-top: 2px;
@@ -865,21 +870,21 @@ button.equipment-tile:focus-visible {
   font-weight: 600;
 }
 .ready-days {
-  margin-top: 16px;
+  margin-top: calc(16 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);
 }
 .ready-day {
   display: flex;
-  min-height: 72px;
+  min-height: calc(72 * var(--ov-u));
   align-items: center;
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
-  gap: 14px;
+  gap: calc(14 * var(--ov-u));
 }
 .ready-day-print {
   display: grid;
-  width: 56px;
-  height: 44px;
+  width: calc(56 * var(--ov-u));
+  height: calc(44 * var(--ov-u));
   flex-shrink: 0;
   place-items: center;
 }
@@ -887,17 +892,17 @@ button.equipment-tile:focus-visible {
   display: block;
   font-size: var(--ov-type-body);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .ready-day-sub {
   display: block;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .ready-why {
-  margin-top: 14px;
+  margin-top: calc(14 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 500;
@@ -905,7 +910,8 @@ button.equipment-tile:focus-visible {
   white-space: pre-line;
 }
 .ready-start {
-  min-height: 52px;
+  /* Taller than a date row, and still a whole target above its rule at larger text. */
+  min-height: max(calc(52 * var(--ov-u)), calc(var(--ov-target) + 1px));
   margin-top: 0;
   border-top: 0;
   border-bottom: 1px solid var(--ov-hair);
@@ -915,7 +921,7 @@ button.equipment-tile:focus-visible {
 /* ---------- Your split, and a programme to follow ---------- */
 .split-day-label {
   display: block;
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
@@ -924,7 +930,7 @@ button.equipment-tile:focus-visible {
 .split-day-name {
   display: block;
   width: 100%;
-  min-height: 48px;
+  min-height: calc(48 * var(--ov-u));
   margin-top: 2px;
   padding: 0;
   border: 0;
@@ -948,14 +954,14 @@ button.equipment-tile:focus-visible {
 .split-row {
   display: flex;
   width: 100%;
-  min-height: 64px;
+  min-height: calc(64 * var(--ov-u));
   align-items: center;
-  padding: 10px 0;
-  gap: 14px;
+  padding: calc(10 * var(--ov-u)) 0;
+  gap: calc(14 * var(--ov-u));
   text-align: left;
 }
 .split-day-number {
-  width: 22px;
+  width: calc(22 * var(--ov-u));
   flex-shrink: 0;
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-figure);
@@ -966,14 +972,14 @@ button.equipment-tile:focus-visible {
   display: block;
   font-size: var(--ov-type-body);
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .split-row-sub {
   display: block;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .split-row-figures {
   display: block;
@@ -986,11 +992,11 @@ button.equipment-tile:focus-visible {
 .split-add-day {
   display: flex;
   width: 100%;
-  min-height: 56px;
+  min-height: calc(56 * var(--ov-u));
   align-items: center;
   font-size: var(--ov-type-body);
   font-weight: 700;
-  gap: 14px;
+  gap: calc(14 * var(--ov-u));
 }
 .split-remove {
   display: flex;
@@ -999,12 +1005,12 @@ button.equipment-tile:focus-visible {
   color: var(--ov-ink);
   font-size: var(--ov-type-meta);
   font-weight: 700;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .split-stepper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }
 .split-stepper-value {
   min-width: 2ch;
@@ -1019,28 +1025,28 @@ button.equipment-tile:focus-visible {
 }
 /* A programme to follow: its first day's print as a band, its name, the facts that decide it. */
 .template-print {
-  height: 92px;
-  margin: 18px 0 0;
+  height: calc(92 * var(--ov-u));
+  margin: calc(18 * var(--ov-u)) 0 0;
 }
 .template-name {
-  margin-top: 14px;
+  margin-top: calc(14 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-card-title);
   font-weight: 700;
   line-height: 1.1;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .template-facts {
-  margin-top: 14px;
+  margin-top: calc(14 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);
 }
 .template-fact {
   display: flex;
-  min-height: 48px;
+  min-height: calc(48 * var(--ov-u));
   align-items: center;
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
   font-size: var(--ov-type-meta);
   font-weight: 600;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }

@@ -27,6 +27,7 @@ import {
   readStrengthRows,
 } from "@/server/repositories/graphs";
 import { readLatestActivities } from "@/server/repositories/history";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readTargets } from "@/server/repositories/nutrition";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
@@ -71,25 +72,32 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     getDb(),
     user.id,
     async (tx) => {
-      const [strength, options, runs, food, targets, weights, recovery, latest, days, muscles] =
-        await Promise.all([
-          readStrengthRows(tx, user.id, timeZone, window),
-          readExerciseSeriesOptions(tx, user.id, window),
-          readRunActivities(tx, user.id, window, 0, GRAPH_RUN_LIMIT),
-          readFoodDayTotals(tx, user.id, window),
-          readTargets(tx, user.id),
-          listBodyWeights(tx, user.id, window),
-          readRecoveryHistory(tx, user.id, window, timeZone),
-          // Overview's latest: whatever the span, as far back as they go (ADR 0045).
-          readLatestActivities(
-            tx,
-            user.id,
-            dateWindow(EARLIEST_DAY, today, timeZone),
-            LATEST_COUNT,
-          ),
-          readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
-          readMuscleVolume(tx, user.id, week),
-        ]);
+      const [
+        strength,
+        options,
+        runs,
+        food,
+        targets,
+        weights,
+        recovery,
+        latest,
+        days,
+        muscles,
+        units,
+      ] = await Promise.all([
+        readStrengthRows(tx, user.id, timeZone, window),
+        readExerciseSeriesOptions(tx, user.id, window),
+        readRunActivities(tx, user.id, window, 0, GRAPH_RUN_LIMIT),
+        readFoodDayTotals(tx, user.id, window),
+        readTargets(tx, user.id),
+        listBodyWeights(tx, user.id, window),
+        readRecoveryHistory(tx, user.id, window, timeZone),
+        // Overview's latest: whatever the span, as far back as they go (ADR 0045).
+        readLatestActivities(tx, user.id, dateWindow(EARLIEST_DAY, today, timeZone), LATEST_COUNT),
+        readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
+        readMuscleVolume(tx, user.id, week),
+        unitsBySport(tx, user.id),
+      ]);
       // Strength opens on its muscle groups' volume (ADR 0043): an exercise is drawn only once
       // the URL names one, and only its sets are read, so one series crosses the wire.
       const selected =
@@ -112,6 +120,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         latest,
         days,
         muscles,
+        units,
       };
     },
     { readOnly: true },
@@ -122,7 +131,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     rangeOf(choice, today, choice.preset === "all" ? earliestOf(dates) : null);
 
   const sessions = data.selected
-    ? exerciseSessions(data.sets, data.selected.modality, data.selected.unit)
+    ? exerciseSessions(data.sets, data.selected.modality, data.selected.unit, {
+        assisted: data.selected.assisted,
+      })
     : [];
   // Oldest first, as every graph draws; the reader hands them back newest first.
   const runs = data.runs.runs
@@ -137,6 +148,13 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const strengthRange = rangeFor(data.strength.map((row) => row.date));
   const runningRange = rangeFor(runs.map((run) => run.date));
   const foodRange = rangeFor(data.food.map((day) => day.date));
+  // "24 of 30 days logged" counts from the first day there was to log: under All the first day
+  // logged, with dates chosen by hand the From chosen, not the Monday or the 1st either range
+  // reaches back to.
+  const foodFrom =
+    choice.custom?.from ??
+    (choice.preset === "all" ? earliestOf(data.food.map((day) => day.date)) : null) ??
+    foodRange.from;
   const bodyRange = rangeFor(data.weights.map((reading) => reading.measuredOn));
   const recoveryRange = rangeFor(data.recovery.map((reading) => reading.date));
 
@@ -152,15 +170,17 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             month: {
               month,
               today: Number(today.slice(8, 10)),
+              units: data.units,
               activities: data.days.items.map((item) => ({
                 sport: item.sport,
                 occurredOn: item.occurredOn,
                 durationMs: item.durationMs,
                 distanceMetres: item.distanceMetres,
                 environment: item.environment,
+                inProgress: item.inProgress,
               })),
             },
-            overview: { latest: latestItems(data.latest, historyClock(timeZone)) },
+            overview: { latest: latestItems(data.latest, historyClock(timeZone, data.units)) },
             strength: {
               range: strengthRange,
               graph: strengthGraph(data.strength, strengthRange, today),
@@ -182,6 +202,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                     machine: data.selected.machine,
                     unit: data.selected.unit,
                     modality: data.selected.modality,
+                    assisted: data.selected.assisted,
                     sessions,
                   }
                 : null,
@@ -190,10 +211,11 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
               range: runningRange,
               graph: runningGraph(runs, runningRange, today),
               truncated: data.runs.hasMore,
+              distanceUnit: data.units.running?.distanceUnit ?? "km",
             },
             food: {
               range: foodRange,
-              graph: foodGraph(data.food, foodRange, today),
+              graph: foodGraph(data.food, foodRange, today, foodFrom),
               targets: data.targets
                 ? {
                     kcal: data.targets.dailyKcal,

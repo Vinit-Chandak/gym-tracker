@@ -86,6 +86,30 @@ export async function listFollowing(tx: DbOrTx, viewerId: string): Promise<Direc
     .orderBy(...BY_NAME);
 }
 
+/**
+ * The people the viewer follows whose training they may see, by name: who a leaderboard
+ * ranks besides the viewer. Someone who turned sharing off is not on a friend's board at all
+ * (ADR 0026), rather than trailing as "—", which would say they had not trained. The same
+ * function the policies run decides it, in the one read of `follows`.
+ */
+export async function listFollowingWhoShare(
+  tx: DbOrTx,
+  viewerId: string,
+): Promise<DirectoryProfile[]> {
+  return tx
+    .select(DIRECTORY_COLUMNS)
+    .from(follows)
+    .innerJoin(profileDirectory, eq(profileDirectory.id, follows.followeeId))
+    .where(
+      and(
+        eq(follows.followerId, viewerId),
+        eq(follows.status, "accepted"),
+        sql`public.can_view_training(${follows.followeeId})`,
+      ),
+    )
+    .orderBy(...BY_NAME);
+}
+
 /** The people who follow the viewer, accepted only, by name. */
 export async function listFollowers(tx: DbOrTx, viewerId: string): Promise<DirectoryProfile[]> {
   return tx
@@ -105,6 +129,20 @@ export async function listRequests(tx: DbOrTx, viewerId: string): Promise<Follow
     .from(follows)
     .innerJoin(profileDirectory, eq(profileDirectory.id, follows.followerId))
     .where(and(eq(follows.followeeId, viewerId), eq(follows.status, "pending")))
+    .orderBy(desc(follows.createdAt));
+}
+
+/**
+ * The viewer's own requests still waiting for the other person's answer, newest first: the
+ * other side of `listRequests`, so a request sent is somewhere to see and withdraw, not only on
+ * that person's page.
+ */
+export async function listSentRequests(tx: DbOrTx, viewerId: string): Promise<FollowRequest[]> {
+  return tx
+    .select({ ...DIRECTORY_COLUMNS, requestedAt: follows.createdAt })
+    .from(follows)
+    .innerJoin(profileDirectory, eq(profileDirectory.id, follows.followeeId))
+    .where(and(eq(follows.followerId, viewerId), eq(follows.status, "pending")))
     .orderBy(desc(follows.createdAt));
 }
 

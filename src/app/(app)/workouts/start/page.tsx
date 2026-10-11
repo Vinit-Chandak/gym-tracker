@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { joinFacts } from "@/lib/facts";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { startSessionAction, type StartRequest } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
@@ -64,16 +65,18 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
     ),
   ]);
   if (open) redirect(`/workouts/${open.id}`);
+  // A day with no lifting has no workout to start: its run is logged from its own card. Shown
+  // the check-in first, the athlete was sent back to Today with nothing started and nothing said.
   const name =
     start.kind === "planned"
-      ? schedule?.days.find((day) => day.id === start.programDayId)?.name
+      ? schedule?.days.find((day) => day.id === start.programDayId && day.includesLifting)?.name
       : UNPLANNED_SESSION;
   if (!name) redirect("/today");
 
   return (
     <SessionPage
       title="How are you today?"
-      meta={`Before ${name} · Optional`}
+      meta={joinFacts([`Before ${name}`, "Optional"])}
       back={{ href: "/today", label: "Today" }}
     >
       <CheckInForm

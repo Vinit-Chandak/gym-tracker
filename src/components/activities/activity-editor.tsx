@@ -1,15 +1,22 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { EnduranceSport } from "@/domain/activity";
+import { DRAFT_LIMITS } from "@/domain/activity-limits";
 import {
+  ageWarnings,
+  changedFields,
   clearDraft,
+  expireDrafts,
   newDraft,
   readDrafts,
+  restoreDraft,
   saveDraft,
   type ActivityDraft,
 } from "@/lib/activity-drafts";
+import type { SportUnits } from "@/lib/distance-units";
+import { formatIsoDate } from "@/lib/format";
 import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
@@ -30,6 +37,13 @@ type Props = {
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
   target?: { title: string; lines: string[] } | null;
   submitLabel: string;
+  /** A corrected record's unconfirmed legacy effort, offered as "As recorded" (LOG-03). */
+  keptEffort?: { value: number | null } | null;
+  /**
+   * How the athlete reads the sport: a recorded distance opens in their unit (a run's or a
+   * ride's road unit, a swim's pool unit), and a run's or a ride's climb in feet beside miles.
+   */
+  units?: SportUnits;
 };
 
 const subscribe = () => () => {};
@@ -56,6 +70,50 @@ export function ActivityEditor(props: Props) {
   );
 }
 
+/** Identity comes from the draft, never from a field edited in the DOM. */
+const IDENTITY_FIELDS = [
+  "submissionKey",
+  "expectedRevision",
+  "occurrenceId",
+  "revisionId",
+  "planId",
+  "sport",
+];
+
+function withoutIdentity(values: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([key]) => !IDENTITY_FIELDS.includes(key)),
+  );
+}
+
+/**
+ * The start a restored new log kept from its draft, when that is not the moment the form would
+ * open on. It is kept only because the athlete set it (or because a draft from before changes
+ * were told apart says they did), and it is said aloud either way.
+ */
+function keptStart(draft: ActivityDraft, opening: Record<string, string>): string | null {
+  const startedAt = draft.values.startedAt ?? "";
+  return draft.activityId === null && startedAt && startedAt !== (opening.startedAt ?? "")
+    ? startedAt
+    : null;
+}
+
+/**
+ * What the form says about a draft it has just restored: that it did, when it says it started
+ * if that is not now, and whether it is close to the age at which this device lets it go.
+ */
+function restoredNotice(draft: ActivityDraft, opening: Record<string, string>): string {
+  const parts = ["Restored your unsaved activity from this device."];
+  const startedAt = keptStart(draft, opening);
+  if (startedAt)
+    parts.push(
+      `It still says it started ${formatIsoDate(startedAt.slice(0, 10))}, ${startedAt.slice(11, 16)}. If that is wrong, change When above.`,
+    );
+  if (ageWarnings([draft]).some((warning) => warning.reason === "expiring"))
+    parts.push(`Save it soon: unsaved activities are kept here for ${DRAFT_LIMITS.ageDays} days.`);
+  return parts.join(" ");
+}
+
 function StoredEditor(props: Props) {
   const router = useRouter();
   const fresh = () => ({
@@ -71,51 +129,69 @@ function StoredEditor(props: Props) {
   });
   const [initialDraft, setInitialDraft] = useState(() => {
     try {
-      return (
-        readDrafts(localStorage, props.userId).drafts.find(
-          (draft) =>
-            draft.userId === props.userId &&
-            draft.sport === props.sport &&
-            draft.activityId === (props.activityId ?? null) &&
-            (draft.occurrence?.id ?? null) === (props.occurrence?.id ?? null),
-        ) ?? fresh()
+      // Drafts past the age limit go before anything is read, so they neither reopen nor
+      // hold one of the account's places for good.
+      expireDrafts(localStorage, props.userId);
+      const stored = readDrafts(localStorage, props.userId).drafts.find(
+        (draft) =>
+          draft.userId === props.userId &&
+          draft.sport === props.sport &&
+          draft.activityId === (props.activityId ?? null) &&
+          (draft.occurrence?.id ?? null) === (props.occurrence?.id ?? null),
       );
+      return stored ? restoreDraft(stored, props.initial) : fresh();
     } catch {
       return fresh();
     }
   });
   const current = useRef(initialDraft);
-  const [notice, setNotice] = useState(
-    initialDraft.dirtyFields.length ? "Restored your unsaved activity from this device." : "",
+  const [notice, setNotice] = useState(() =>
+    initialDraft.dirtyFields.length ? restoredNotice(initialDraft, props.initial) : "",
   );
+  // A restored log whose start is not now opens the details, so When is in view.
+  const [startKept, setStartKept] = useState(
+    () => initialDraft.dirtyFields.length > 0 && keptStart(initialDraft, props.initial) !== null,
+  );
+  // What the form showed when it opened, read from the form itself, so a field counts as
+  // changed only when the athlete changed it — not because the form posts a default the
+  // opening values never named.
+  const wrapper = useRef<HTMLDivElement>(null);
+  const opened = useRef<Record<string, string> | null>(null);
+  useEffect(() => {
+    const form = wrapper.current?.querySelector("form");
+    opened.current = form ? withoutIdentity(formValues(new FormData(form))) : null;
+  }, [initialDraft.draftId]);
   function persist(values: Record<string, string>): ActivityDraft {
-    // Identity comes from the draft, never from a field edited in the DOM.
-    const raw = Object.fromEntries(
-      Object.entries(values).filter(
-        ([key]) =>
-          ![
-            "submissionKey",
-            "expectedRevision",
-            "occurrenceId",
-            "revisionId",
-            "planId",
-            "sport",
-          ].includes(key),
-      ),
-    );
+    const raw = withoutIdentity(values);
+    // What a restored draft had already changed, and what differs from how the form opened
+    // now; a change typed and then undone is no change.
+    const dirtyFields = [
+      ...new Set([
+        ...initialDraft.dirtyFields,
+        ...changedFields(raw, opened.current ?? props.initial),
+      ]),
+    ];
     const draft = {
       ...current.current,
       values: raw,
-      dirtyFields: Object.keys(raw),
+      dirtyFields,
       updatedAt: new Date().toISOString(),
     };
     current.current = draft;
     try {
+      // Nothing changed from how the form opened is nothing to keep, and it takes no place.
+      if (dirtyFields.length === 0) {
+        clearDraft(localStorage, props.userId, draft.draftId);
+        setNotice("");
+        return draft;
+      }
       const result = saveDraft(localStorage, draft);
       setNotice(
         result.ok
           ? "Unsaved activity kept on this device."
-          : "Could not keep a draft on this device. Keep this page open until you save.",
+          : result.reason === "too_many"
+            ? `This device already keeps ${DRAFT_LIMITS.perAccount} unsaved activities, so this one is not kept. Keep this page open until you save.`
+            : "Could not keep a draft on this device. Keep this page open until you save.",
       );
     } catch {
       setNotice("Could not keep a draft on this device. Keep this page open until you save.");
@@ -156,6 +232,8 @@ function StoredEditor(props: Props) {
     expectedRevision: initialDraft.expectedRevision,
     target: props.target,
     submitLabel: props.submitLabel,
+    keptEffort: props.keptEffort ?? null,
+    openDetails: startKept,
   };
   // Said after the last field, so nothing moves down when the first thing typed keeps a draft.
   const draftNotice = notice ? (
@@ -175,6 +253,7 @@ function StoredEditor(props: Props) {
           const next = fresh();
           current.current = next;
           setInitialDraft(next);
+          setStartKept(false);
           setNotice("");
         }}
       >
@@ -183,15 +262,30 @@ function StoredEditor(props: Props) {
     </div>
   ) : null;
   return (
-    <div onChange={changed}>
+    <div ref={wrapper} onChange={changed}>
       {props.sport === "running" && (
-        <RunningForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+        <RunningForm
+          key={initialDraft.draftId}
+          {...shared}
+          notice={draftNotice}
+          readIn={props.units?.distanceUnit}
+        />
       )}
       {props.sport === "cycling" && (
-        <CyclingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+        <CyclingForm
+          key={initialDraft.draftId}
+          {...shared}
+          notice={draftNotice}
+          readIn={props.units?.distanceUnit}
+        />
       )}
       {props.sport === "swimming" && (
-        <SwimmingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+        <SwimmingForm
+          key={initialDraft.draftId}
+          {...shared}
+          notice={draftNotice}
+          readIn={props.units?.poolUnit}
+        />
       )}
     </div>
   );

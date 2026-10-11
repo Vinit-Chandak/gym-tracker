@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { profileInputSchema } from "./profile";
+import { NOT_A_PLACE, profileInputSchema, timeZoneSchema, UNKNOWN_TIME_ZONE } from "./profile";
 
 const metric = {
   displayName: "Sam",
@@ -111,6 +111,35 @@ describe("profile input", () => {
   it("rejects a time zone the platform does not know", () => {
     expect(parse({ timeZone: "Mars/Olympus" }).success).toBe(false);
     expect(parse({ timeZone: "" }).success).toBe(false);
+  });
+
+  it("takes a place for a time zone, never an abbreviation or an offset", () => {
+    // Each reads as one zone to the browser and another, or none, to Postgres or in summer.
+    for (const zone of ["EST", "IST", "BST", "CET", "+05:30", "-04:00", "Etc/GMT+5", "PST8PDT"]) {
+      expect(errorFor(parse({ timeZone: zone }), "timeZone"), zone).toBe(NOT_A_PLACE);
+    }
+    expect(errorFor(parse({ timeZone: "Mars/Olympus" }), "timeZone")).toBe(UNKNOWN_TIME_ZONE);
+  });
+
+  it("keeps a zone in the platform's own spelling", () => {
+    const zoneOf = (timeZone: string) => {
+      const result = parse({ timeZone });
+      return result.success ? result.data.timeZone : null;
+    };
+    expect(zoneOf("america/new_york")).toBe("America/New_York");
+    expect(zoneOf(" Europe/London ")).toBe("Europe/London");
+    // Every name UTC goes by is UTC.
+    for (const zone of ["utc", "Etc/UTC", "GMT"]) expect(zoneOf(zone), zone).toBe("UTC");
+    // The name a browser reports for India is kept, whichever of its two names that is.
+    expect(zoneOf("Asia/Kolkata")).toBe("Asia/Kolkata");
+    expect(zoneOf("Asia/Calcutta")).toBe("Asia/Calcutta");
+  });
+
+  it("asks the same of setup's time zone", () => {
+    // Setup's first step parses its zone with the same schema.
+    expect(timeZoneSchema.safeParse("IST").success).toBe(false);
+    const result = timeZoneSchema.safeParse("asia/tokyo");
+    expect(result.success && result.data).toBe("Asia/Tokyo");
   });
 
   it("only takes the units a person weighs a barbell in", () => {

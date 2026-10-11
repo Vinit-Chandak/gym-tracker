@@ -45,6 +45,11 @@ change before anything was built.
    - After that, "Use 55 / 25 / 20" (the goal's own numbers) appears only while the targets
      differ from it, and refills protein and fat.
 
+   Amended after the year audit: a bare "55 / 25 / 20" was read as carbs, protein, fat, so
+   "Use 45 / 25 / 30" looked like the split already set. The split is written with each share
+   named, in the order the grams are ("Carbs 55% · Fat 25% · Protein 20%"), under the goal, and
+   the button beside it reads "Use this split".
+
 3. **Protein per kilogram, fat as a share, carbohydrate the rest.** The split switch is gone.
    - **Protein** stays per kilogram of the newest body weight, as before, so it follows every
      weigh-in. A split's protein share becomes grams per kilogram at the target and weight it is
