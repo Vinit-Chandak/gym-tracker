@@ -160,6 +160,15 @@ describe("planned-exercise availability", () => {
       "Horizontal leg press",
     ]);
     expect(samsung.summary.unavailable).toBe(0);
+    // The exercise's own page names the basics it takes for granted there, as Programme fit does.
+    const bench = row(samsung.rows, "barbell-bench-press");
+    expect(bench.assumedTypes.length).toBeGreaterThan(0);
+    const entries = await withUser(t.db, user.id, (tx) =>
+      exerciseAvailability(tx, user.id, bench.exercise.id),
+    );
+    expect(entries.find((entry) => entry.gym.id === samsungId)?.assumedTypes).toEqual(
+      bench.assumedTypes,
+    );
 
     // Outdoors assumes nothing, and nothing unanswered is unavailable (ADR 0004, amended).
     const outdoor = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, outdoorId));

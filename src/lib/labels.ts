@@ -169,6 +169,32 @@ export const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
   unavailable: "Unavailable",
 };
 
+/**
+ * Whether an exercise's name already says what it is done on ("High-bar barbell squat" with a
+ * barbell, "Smith machine calf raise" on the Smith machine, "45° leg press" on the 45° leg press),
+ * so a line naming both would say it twice.
+ */
+export function nameSaysEquipment(exerciseName: string, equipmentName: string): boolean {
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}°]+/u)
+      .filter(Boolean)
+      .map((word) => word.replace(/s$/, ""));
+  const named = new Set(words(exerciseName));
+  return words(equipmentName).every((word) => named.has(word));
+}
+
+/**
+ * An exercise and the machine it is done on, "Lat pulldown on Cable station"; the exercise alone
+ * where there is no machine or its name already says it ("Shoulder press machine").
+ */
+export function exerciseOnMachine(exerciseName: string, machineName: string | null | undefined) {
+  return machineName && !nameSaysEquipment(exerciseName, machineName)
+    ? `${exerciseName} on ${machineName}`
+    : exerciseName;
+}
+
 /** "6–10" or "20–45 s"; single values collapse to one number. */
 export function rangeLabel(min: number | null, max: number | null, suffix = ""): string {
   if (min === null && max === null) return "—";

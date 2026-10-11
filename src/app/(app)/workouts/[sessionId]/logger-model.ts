@@ -2,7 +2,7 @@ import { GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
-import { MEASURE_UNIT_SUFFIX, rangeLabel, restLabel } from "@/lib/labels";
+import { MEASURE_UNIT_SUFFIX, nameSaysEquipment, rangeLabel, restLabel } from "@/lib/labels";
 
 import type { RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
@@ -234,15 +234,7 @@ export function restSecondsOf(exercise: ExerciseVM): number | null {
  */
 export function equipmentFact(exercise: ExerciseVM): string | null {
   const equipment = exercise.equipment?.name;
-  if (!equipment) return null;
-  const words = (text: string) =>
-    text
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}°]+/u)
-      .filter(Boolean)
-      .map((word) => word.replace(/s$/, ""));
-  const named = new Set(words(exercise.exercise.name));
-  if (words(equipment).every((word) => named.has(word))) return null;
+  if (!equipment || nameSaysEquipment(exercise.exercise.name, equipment)) return null;
   const free = ["barbell", "dumbbell"].includes(exercise.exercise.modality);
   return `${free ? "with" : "on"} ${equipment}`;
 }

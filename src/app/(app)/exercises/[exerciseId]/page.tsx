@@ -31,6 +31,7 @@ import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
+  exerciseOnMachine,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
   MEASURE_COLUMN_LABELS,
@@ -99,13 +100,14 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
   const r: Resolution = entry.resolution;
   switch (r.status) {
     case "direct":
+      // As Programme fit says it: a basic taken for granted is asked about when first used.
       return r.equipmentInstance
         ? `On ${r.equipmentInstance.name}`
         : r.basis === "free"
           ? "No equipment needed"
-          : "Usually here, as a gym's basics are: it is asked about the first time it is used.";
+          : `Usually here (${entry.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
     case "fallback":
-      return `Do ${entry.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
+      return `Do ${exerciseOnMachine(entry.resolvedExerciseName, r.equipmentInstance?.name)} instead`;
     case "unknown":
       // A custom exercise names no kind of machine, only its own, which is at another gym.
       return entry.missingTypes.length === 0
@@ -333,6 +335,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </p>
           </div>
 
+          {/* The library's own prescription, said to be one: a programme's days ask for theirs
+              (In your programme, below), and the two can differ. */}
+          <div className="flex items-center gap-0.5">
+            <h2 className="text-xs font-medium text-ink-muted">Defaults</h2>
+            <InfoTip label="About the defaults" className="-my-2">
+              {exercise.programUsage.length > 0
+                ? "What it starts on when it is added to a workout or a programme on its own. Your programme's days ask for their own, under In your programme."
+                : "What it starts on when it is added to a workout or a programme."}
+            </InfoTip>
+          </div>
           <StatTileRow>
             {/* Whatever this movement is actually counted in. A carry has no reps to show. */}
             <StatTile
