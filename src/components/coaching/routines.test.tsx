@@ -39,3 +39,47 @@ it("leaves the page's title to its header and heads each routine under it", () =
   expect(screen.queryAllByRole("heading", { level: 1 })).toHaveLength(0);
   expect(screen.getByRole("heading", { level: 2, name: "Upper A" })).toBeTruthy();
 });
+
+it("starts at the default gym, and speaks of a programme only while one is under way", () => {
+  const routine = {
+    id: "r1",
+    name: "Upper A",
+    day: { exercises: [] } as unknown as SavedRoutineDay,
+  };
+  // It read "Choose a location" to athletes with a default gym.
+  render(
+    <RoutineLibrary
+      routines={[routine]}
+      gyms={[
+        { id: "g1", name: "Garage gym", isDefault: false },
+        { id: "g2", name: "Planet Fitness Brooklyn", isDefault: true },
+      ]}
+      library={[]}
+    />,
+  );
+  expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("g2");
+  expect(screen.queryByRole("option", { name: "Choose a location" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Start this routine" })).toHaveProperty(
+    "disabled",
+    false,
+  );
+  expect(screen.getByText(/without changing your active programme/)).toBeTruthy();
+  cleanup();
+
+  // No default to start at: the choice is asked. A finished programme has nothing to change.
+  render(
+    <RoutineLibrary
+      routines={[routine]}
+      gyms={[
+        { id: "g1", name: "Home" },
+        { id: "g2", name: "Cult Fit Koramangala" },
+      ]}
+      library={[]}
+      programme="none"
+    />,
+  );
+  expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("");
+  expect(screen.getByRole("option", { name: "Choose a location" })).toBeTruthy();
+  expect(screen.queryByText(/programme\./)).toBeNull();
+  expect(screen.getByText(/^Start a repeatable workout\. Completed workouts/)).toBeTruthy();
+});
