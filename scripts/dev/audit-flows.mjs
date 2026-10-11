@@ -467,7 +467,10 @@ try {
     await page.getByRole("button", { name: /^Install / }).click();
     expect(await page.evaluate(() => window.__auditPrompted)).toBe(true);
     await page.getByRole("button", { name: /^Install / }).click();
-    await expect(page.getByText("iPhone and iPad", { exact: true })).toBeVisible();
+    // Only this phone's steps: Safari's on an iPhone, Chrome's on Android.
+    await expect(
+      page.getByText(device === "iphone" ? "iPhone and iPad" : "Android", { exact: true }),
+    ).toBeVisible();
   });
   await check(
     "PWA manifest, icon assets, private cache boundary and offline navigation",
