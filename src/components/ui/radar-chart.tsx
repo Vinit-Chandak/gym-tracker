@@ -45,8 +45,9 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         {/* A legend only once there is more than one shape; a single one is the caption. */}
         {multi && (
           <ul className="flex flex-wrap gap-3">
-            {series.map((s) => (
-              <li key={s.name} className="flex items-center gap-1.5 text-xs text-ink-muted">
+            {/* Keyed by position: two people can share a name, and each still needs its own. */}
+            {series.map((s, i) => (
+              <li key={i} className="flex items-center gap-1.5 text-xs text-ink-muted">
                 <span
                   className="size-2.5 shrink-0 rounded-full"
                   style={{ background: s.color }}
@@ -81,8 +82,8 @@ export function RadarChart({ title, axes, series, format = percent, className }:
               <th scope="col" className="py-1.5 font-medium">
                 Group
               </th>
-              {series.map((s) => (
-                <th scope="col" key={s.name} className="py-1.5 text-right font-medium">
+              {series.map((s, i) => (
+                <th scope="col" key={i} className="py-1.5 text-right font-medium">
                   {s.name}
                 </th>
               ))}
@@ -94,8 +95,8 @@ export function RadarChart({ title, axes, series, format = percent, className }:
                 <th scope="row" className="py-1.5 font-normal">
                   {axis}
                 </th>
-                {series.map((s) => (
-                  <td key={s.name} className="py-1.5 text-right">
+                {series.map((s, j) => (
+                  <td key={j} className="py-1.5 text-right">
                     {format(s.values[i] ?? 0)}
                   </td>
                 ))}

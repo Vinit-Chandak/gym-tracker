@@ -132,9 +132,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       // Records exist only for movements whose load means the same everywhere (plan §3.13);
       // a machine's numbers stay with its machine, in the trend below. The same movements are
       // the ones friends are ranked on, so one read of the circle's bests serves both.
-      const circle = isComparable(exercise)
-        ? await loadCircle(tx, { id: user.id, username: requestProfile.username })
-        : [];
+      const circle = isComparable(exercise) ? await loadCircle(tx, user.id) : [];
       // A movement whose load means the same everywhere is read across gyms and machines; one
       // bound to its machine is read on the machine it was last done on.
       const latest = await recentPerformances(tx, user.id, exerciseId);

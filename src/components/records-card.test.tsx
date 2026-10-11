@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { ActivityRow } from "@/app/(app)/profile/friends/activity-row";
+import { DEFAULT_DISTANCE_UNITS } from "@/lib/format";
 import type { ActivityRow as Activity } from "@/server/repositories/shared-stats";
 
 import { ExerciseBestsTiles, PeriodRecordsList, SessionRecordsCard } from "./records-card";
@@ -98,7 +99,14 @@ const row = (over: Partial<Activity>): Activity => ({
 });
 
 it("reads a workout row and a run row the way the plan writes them", () => {
-  render(<ActivityRow row={row({})} unit="kg" today="2026-09-15" />);
+  render(
+    <ActivityRow
+      row={row({})}
+      unit="kg"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
+      today="2026-09-15"
+    />,
+  );
   // The shared row's own id: a raw activity id would name a private record (AT-PRIV-04).
   expect(screen.getByRole("link").getAttribute("href")).toBe("/u/phani03/activities/1");
   expect(screen.getByText("Upper A · 18 sets · 6,240 kg · 2 records")).toBeTruthy();
@@ -116,6 +124,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
         occurredOn: "2026-09-15",
       })}
       unit="kg"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
       today="2026-09-15"
     />,
   );
@@ -143,6 +152,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
         occurredOn: "2026-09-15",
       })}
       unit="kg"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
       today="2026-09-15"
     />,
   );
@@ -163,8 +173,50 @@ it("reads a workout row and a run row the way the plan writes them", () => {
         occurredOn: "2026-09-15",
       })}
       unit="kg"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
       today="2026-09-15"
     />,
   );
   expect(screen.getByText("Swim · 25:00")).toBeTruthy();
+});
+
+it("reads distances in the reader's own units, and a friend's tomorrow as today", () => {
+  const units = { run: "mi", cycle: "km", swim: "yd" } as const;
+  render(
+    <ActivityRow
+      row={row({
+        sport: "run",
+        title: "Run",
+        durationSeconds: 1690,
+        distanceMeters: 5200,
+        paceSecondsPerKm: 325,
+        records: 0,
+        // A friend ahead of the reader's time zone is already on the 16th.
+        occurredOn: "2026-09-16",
+      })}
+      unit="kg"
+      distanceUnits={units}
+      today="2026-09-15"
+    />,
+  );
+  expect(screen.getByText("Run · 3.23 mi · 28:10 · 8:43 /mi")).toBeTruthy();
+  expect(screen.getByText("Today")).toBeTruthy();
+  cleanup();
+  render(
+    <ActivityRow
+      row={row({
+        sport: "swim",
+        title: "Swim",
+        durationSeconds: 1500,
+        distanceMeters: 1371.6,
+        workingSets: 0,
+        volumeKg: 0,
+        records: 0,
+      })}
+      unit="kg"
+      distanceUnits={units}
+      today="2026-09-15"
+    />,
+  );
+  expect(screen.getByText("Swim · 1,500 yd · 25:00")).toBeTruthy();
 });

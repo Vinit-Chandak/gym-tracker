@@ -2,8 +2,8 @@ import type { DbOrTx } from "@/db/types";
 import { bodyWeightRatio } from "@/domain/compare";
 import { perKgBase, rank, type BoardMetric, type Ranked } from "@/domain/leaderboard";
 import { formatTopWeightWork } from "@/lib/format";
-import { listFollowing } from "@/server/repositories/follows";
-import { getDirectoryProfile, type DirectoryProfile } from "@/server/repositories/people";
+import { listFollowingWhoShare } from "@/server/repositories/follows";
+import { getDirectoryProfileById, type DirectoryProfile } from "@/server/repositories/people";
 import type { ExerciseBest, SharedReading } from "@/server/repositories/shared-stats";
 
 /** One row of a board before ranking: who, and their number, with the day a best was set. */
@@ -18,20 +18,21 @@ export type BoardRow = {
 };
 
 /**
- * Who a leaderboard ranks (decision 3): the viewer and the people they follow, by name, so
- * ties and the no-data tail read like a contact list. Followers not followed back are not
- * here; a friend who stopped sharing is here but the policies hand over nothing for them,
- * which is how they drop off the board.
+ * Who a leaderboard ranks (decision 3): the viewer and the people they follow who share their
+ * training, by name, so ties and the no-data tail read like a contact list. Followers not
+ * followed back are not here, and nor is a friend who stopped sharing: they are not on the
+ * board at all, rather than trailing as "—" as though they had not trained. The viewer is
+ * found by id, never by a username a cached profile may hold from before a rename.
  */
 export async function loadCircle(
   tx: DbOrTx,
-  viewer: { id: string; username: string },
+  viewerId: string,
   /** The viewer's directory row already read inside this transaction, when available. */
   knownViewer?: DirectoryProfile,
 ): Promise<DirectoryProfile[]> {
   const [me, following] = await Promise.all([
-    knownViewer ?? getDirectoryProfile(tx, viewer.username),
-    listFollowing(tx, viewer.id),
+    knownViewer ?? getDirectoryProfileById(tx, viewerId),
+    listFollowingWhoShare(tx, viewerId),
   ]);
   const circle = me ? [me, ...following] : following;
   const name = (p: DirectoryProfile) => (p.displayName || p.username).toLowerCase();

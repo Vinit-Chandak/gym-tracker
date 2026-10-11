@@ -13,7 +13,7 @@ import { requireUser } from "@/server/auth";
 import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { countRequests } from "@/server/repositories/follows";
-import { getDirectoryProfile } from "@/server/repositories/people";
+import { getDirectoryProfileById } from "@/server/repositories/people";
 
 import { RestTimerSetting } from "./rest-timer-setting";
 import { SignOutRow } from "./sign-out-row";
@@ -37,7 +37,8 @@ export default async function ProfilePage() {
     user.id,
     async (tx) => {
       const [directory, requests] = await Promise.all([
-        getDirectoryProfile(tx, profile.username),
+        // By id: the cached profile's username can be one a rename on another device gave up.
+        getDirectoryProfileById(tx, user.id),
         countRequests(tx, user.id),
       ]);
       return { counts: directory ?? { followers: 0, following: 0 }, requests };

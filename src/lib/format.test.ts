@@ -10,6 +10,7 @@ import {
   formatMacros,
   formatPortion,
   formatRunKm,
+  formatSharedDistance,
   formatTime,
   formatWholeKcal,
 } from "./format";
@@ -59,6 +60,21 @@ it("writes a period's total by what it counts, in the reader's unit", () => {
   expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25 /km");
   // One run keeps its logged distance; a total rounds to a tenth.
   expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25 km");
+  // Distances and paces in the reader's own unit for the sport.
+  expect(formatActivityMetric("distance", 21450, "kg", "mi")).toBe("13.3 mi");
+  expect(formatActivityMetric("best_pace", 325, "kg", "mi")).toBe("8:43 /mi");
+  expect(formatActivityMetric("longest_run", 8046.72, "kg", "mi")).toBe("5 mi");
+  expect(formatActivityMetric("distance", 12400, "kg", "m")).toBe("12,400 m");
+  expect(formatActivityMetric("distance", 1500, "kg", "yd")).toBe("1,640 yd");
+});
+
+it("writes a shared distance in the reader's unit, to the precision it is read at", () => {
+  expect(formatSharedDistance(5200, "km")).toBe("5.2 km");
+  expect(formatSharedDistance(3450, "km")).toBe("3.45 km");
+  expect(formatSharedDistance(1234567, "km", 1)).toBe("1,234.6 km");
+  expect(formatSharedDistance(5200, "mi")).toBe("3.23 mi");
+  expect(formatSharedDistance(1500, "m")).toBe("1,500 m");
+  expect(formatSharedDistance(457.2, "yd")).toBe("500 yd");
 });
 
 it("writes an amount of a food in its own unit, plural where the unit is a word", () => {

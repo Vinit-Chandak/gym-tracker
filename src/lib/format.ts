@@ -1,11 +1,20 @@
 import type { ActivityMetric } from "@/domain/leaderboard";
 import type { FoodUnit } from "@/domain/nutrition";
 import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
+import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { dateTimeFormatter } from "./date-time-format";
+import {
+  fromMetres,
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  roundTo,
+  UNIT_LABELS,
+  type LengthUnit,
+} from "./distance-units";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms } from "./units";
 
@@ -221,14 +230,39 @@ export function formatTotalKm(distanceMeters: number): string {
   return `${Math.round(distanceMeters / 100) / 10} km`;
 }
 
+/** The unit a reader sees each shared sport's distances in; lifting has none to show. */
+export type SharedDistanceUnits = Record<Exclude<TrainingSport, "workout">, LengthUnit>;
+
+/** What a reader who has never chosen sees: road distances in kilometres, swims in metres. */
+export const DEFAULT_DISTANCE_UNITS: SharedDistanceUnits = { run: "km", cycle: "km", swim: "m" };
+
+/**
+ * A shared distance in the reader's own unit: kilometres or miles to `places` decimals — two
+ * for one session, as it was logged, one for a period's total — and metres or yards whole.
+ */
+export function formatSharedDistance(metres: number, unit: LengthUnit, places = 2): string {
+  const whole = unit === "m" || unit === "yd";
+  const value = roundTo(fromMetres(metres, unit), whole ? 0 : places);
+  return `${value.toLocaleString("en-GB", { maximumFractionDigits: whole ? 0 : places })} ${UNIT_LABELS[unit]}`;
+}
+
+/** "5:25 /km" or "8:43 /mi": a pace stored per kilometre, per the reader's road unit. */
+export function formatSharedPace(secondsPerKm: number | null, unit: LengthUnit): string {
+  if (unit !== "mi") return `${formatPace(secondsPerKm)} /km`;
+  const perMile = secondsPerKm === null ? null : (secondsPerKm * METRES_PER_MILE) / METRES_PER_KM;
+  return `${formatPace(perMile)} /mi`;
+}
+
 /**
  * A period's total on the leaderboard or a compare row: a count, a time as the other period
- * totals read it, a load in the reader's unit, a distance in kilometres, or a pace.
+ * totals read it, a load in the reader's unit, or a distance or pace in the reader's unit for
+ * the sport.
  */
 export function formatActivityMetric(
   metric: ActivityMetric,
   value: number,
   unit: BodyLoadUnit,
+  distanceUnit: LengthUnit = "km",
 ): string {
   switch (metric) {
     case "workout_time":
@@ -244,12 +278,12 @@ export function formatActivityMetric(
     case "sessions":
       return value.toLocaleString("en-GB");
     case "distance":
-      return formatTotalKm(value);
+      return formatSharedDistance(value, distanceUnit, 1);
     case "best_pace":
-      return `${formatPace(value)} /km`;
+      return formatSharedPace(value, distanceUnit);
     // One run, so the distance as it was logged, not rounded to a tenth.
     case "longest_run":
-      return `${formatRunKm(value)} km`;
+      return formatSharedDistance(value, distanceUnit, 2);
   }
 }
 

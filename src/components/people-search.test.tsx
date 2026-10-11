@@ -57,3 +57,14 @@ it("ignores an old search failure after the query has changed", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByText(/Nobody called that/)).toBeTruthy();
 });
+
+it("says an email has to match exactly for an email, not for a handle typed with its @", async () => {
+  search.mockResolvedValue([]);
+  render(<PeopleSearch />);
+  type("@alice");
+  await settle();
+  expect(screen.getByText("Nobody called that.")).toBeTruthy();
+  type("alice@example.com");
+  await settle();
+  expect(screen.getByText("Nobody called that. An email has to match exactly.")).toBeTruthy();
+});

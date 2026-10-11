@@ -25,18 +25,20 @@ import { formatActivityMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
 import { hiddenTrainingLine } from "@/server/queries/head-to-head";
+import { readProfile } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { followState } from "@/server/repositories/follows";
 import { getDirectoryProfile } from "@/server/repositories/people";
 import {
   canViewTraining,
   EMPTY_TOTALS,
+  readDistanceUnits,
   readGroupSets,
   readPeriodTotals,
   readRecords,
 } from "@/server/repositories/shared-stats";
-import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername } from "@/server/validation/params";
+import { socialWindow } from "@/server/validation/period";
 import { parseSport } from "@/server/validation/sport";
 
 export const metadata: Metadata = { title: "Person" };
@@ -55,8 +57,9 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
  * A person as others see them (plan §3.14): the header card with the follow button in place
  * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
  * span's totals for the chosen sport and, for lifting, the shape of their split and their
- * records — or one line saying why not. Your own page shows exactly what a follower would
- * see, and says so: the privacy screen's promise, demonstrated.
+ * records — or one line saying why not. Your own page shows what a follower sees while you
+ * share, and says so: the privacy screen's promise, demonstrated. With sharing off it says
+ * that a follower sees the card alone.
  */
 export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const user = await requireUser();
@@ -65,11 +68,12 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const sport = parseSport(params.sport);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
-  // The span every graph shares (ADR 0044). It ends on the viewer's today: it is the viewer
-  // asking "what did they do lately".
+  // The span every graph shares (ADR 0044), from the viewer's calendar: it is the viewer asking
+  // "what did they do lately". It runs to now, so a friend's session dated ahead of the viewer
+  // still counts.
   const preset = await rememberedRange();
   const read = readWindowOf({ preset }, todayInTimeZone(viewer.timeZone));
-  const range = dateWindow(read.from, read.to, viewer.timeZone);
+  const range = socialWindow(read.from, read.to, viewer.timeZone);
   const found = await withUser(
     getDb(),
     user.id,
@@ -77,33 +81,39 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
       const person = await getDirectoryProfile(tx, handle);
       if (!person) return null;
       const self = person.id === user.id;
-      const [relation, visible] = await Promise.all([
+      const [relation, visible, sharing] = await Promise.all([
         self ? null : followState(tx, user.id, person),
         // The same function the policies run: what it says is what the rows will say.
         self ? true : canViewTraining(tx, person.id),
+        // Your own switch, read here rather than from a profile cached on another device.
+        self ? readProfile(tx, user.id).then((profile) => profile?.shareTraining ?? true) : true,
       ]);
-      if (!visible) return { person, relation, training: null };
+      if (!visible) return { person, relation, sharing, training: null };
       const lifting = sport === "workout";
-      const [totals, groupSets, records] = await Promise.all([
+      const [totals, groupSets, records, distanceUnits] = await Promise.all([
         readPeriodTotals(tx, [person.id], sport, range),
         lifting ? readGroupSets(tx, person.id, range) : {},
         lifting ? readRecords(tx, person.id, range) : null,
+        lifting ? null : readDistanceUnits(tx, user.id),
       ]);
       return {
         person,
         relation,
+        sharing,
         training: {
           totals: totals.get(person.id) ?? EMPTY_TOTALS,
           split: muscleSplit(groupSets),
           trained: Object.keys(groupSets).length > 0,
           records,
+          // Distances read in the viewer's own unit for the sport, as their own do.
+          distanceUnit: sport !== "workout" && distanceUnits ? distanceUnits[sport] : undefined,
         },
       };
     },
     { readOnly: true },
   );
   if (!found) notFound();
-  const { person, relation, training } = found;
+  const { person, relation, sharing, training } = found;
   const name = person.displayName || person.username;
 
   return (
@@ -134,7 +144,9 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
           <>
             {!relation && (
               <p className="px-1 text-sm text-ink-muted">
-                This is what a follower sees of your training. Change it under Profile › Privacy.
+                {sharing
+                  ? "This is what a follower sees of your training. Change it under Profile › Privacy."
+                  : "Sharing is off: followers see only your profile card. Change it under Profile › Privacy."}
               </p>
             )}
             <GraphRangeProvider preset={preset}>
@@ -149,7 +161,11 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                     <StatTile
                       key={metric}
                       label={ACTIVITY_METRIC_LABELS[metric]}
-                      value={value === null ? "—" : formatActivityMetric(metric, value, unit)}
+                      value={
+                        value === null
+                          ? "—"
+                          : formatActivityMetric(metric, value, unit, training.distanceUnit)
+                      }
                       info={
                         metric === "best_pace"
                           ? "The fastest average pace over a run of at least 1 km in the span."

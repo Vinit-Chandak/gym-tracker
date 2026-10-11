@@ -204,8 +204,9 @@ function weightKg(set: StatsSet): number | null {
 
 /**
  * One finished workout's shared numbers: the session row and one exercise row per library
- * exercise, a movement done in two slots of one session counting once. Sets that are not
- * warm-ups are working sets, as on Progress; only kg and lb sets weigh anything.
+ * exercise with a working set, a movement done in two slots of one session counting once.
+ * Sets that are not warm-ups are working sets, as on Progress; only kg and lb sets weigh
+ * anything.
  */
 export function sessionStats(
   workout: StatsWorkout,
@@ -231,6 +232,9 @@ export function sessionStats(
     for (const set of loaded) if (set.reps !== null) volumeKg += set.kg * set.reps;
     // A movement someone added themselves has no counterpart in anyone else's account.
     if (slot.exercise.userId !== null) continue;
+    // A slot with no working set was not trained: skipped, left undone, or warm-ups only. A
+    // row for it would list the movement as one you both logged, with nothing to compare.
+    if (working.length === 0) continue;
     const reps = working.flatMap((set) => (set.reps === null ? [] : [set.reps]));
     const current = byExercise.get(slot.exerciseId) ?? {
       exerciseId: slot.exerciseId,
@@ -320,6 +324,12 @@ export type StatsRun = {
   startedAt: Date;
   durationSeconds: number;
   distanceMeters: number;
+  /**
+   * The local date frozen on the run when it was saved, in the zone it was recorded in. Given,
+   * it is the shared row's date, so a rebuild cannot move a run logged while travelling to
+   * another day; without it the date is resolved in the zone passed alongside.
+   */
+  occurredOn?: string;
 };
 
 /**
@@ -367,7 +377,7 @@ export function runStats(run: StatsRun, timeZone: string): SessionStats {
     sport: "run",
     sourceId: run.id,
     title: "Run",
-    occurredOn: todayInTimeZone(timeZone, run.startedAt),
+    occurredOn: run.occurredOn ?? todayInTimeZone(timeZone, run.startedAt),
     startedAt: run.startedAt,
     durationSeconds: run.durationSeconds,
     workingSets: 0,

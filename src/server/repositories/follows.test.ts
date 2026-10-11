@@ -14,6 +14,7 @@ import {
   followState,
   listFollowers,
   listFollowing,
+  listFollowingWhoShare,
   listRequests,
   removeFollower,
   requestFollow,
@@ -215,6 +216,9 @@ describe("can_view_training", () => {
     if (asked) await as(alice)((tx) => requestFollow(tx, alice, bob));
     if (accepted) await as(bob)((tx) => acceptFollow(tx, bob, alice));
     expect(await canView(alice, bob)).toBe(expected);
+    // Who a leaderboard ranks besides you gets the same answer, in its one read of follows.
+    const ranked = await as(alice)((tx) => listFollowingWhoShare(tx, alice));
+    expect(ranked.map((person) => person.id)).toEqual(expected ? [bob] : []);
     // Your own training, always; a follower's, never on the strength of their following you.
     expect(await canView(bob, bob)).toBe(true);
     expect(await canView(bob, alice)).toBe(false);
@@ -243,6 +247,10 @@ describe("the directory and the circle", () => {
         rows.map((row) => row.username),
       );
     expect(await names("bo")).toEqual(["bob"]);
+    // A handle as the app writes it: the `@` is not an email.
+    expect(await names("@bob")).toEqual(["bob"]);
+    expect(await names(" @Bo")).toEqual(["bob"]);
+    expect(await names("@")).toEqual([]);
     expect(await names("Build")).toEqual(["bob"]);
     expect(await names("obert")).toEqual([]);
     expect(await names("al")).toEqual([]);

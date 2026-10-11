@@ -241,6 +241,33 @@ describe("sessionStats", () => {
     expect(session.durationSeconds).toBe(MAX_SESSION_SECONDS);
     expect(exercises[0]).toMatchObject({ longestDurationSeconds: 60, topWeightKg: 10 });
   });
+  it("leaves out a movement with no working set: skipped, left undone or warm-ups only", () => {
+    const { session, exercises } = sessionStats(
+      workout([
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+        { exerciseId: "pull-up", exercise: pullUp, sets: [] },
+        {
+          exerciseId: "leg-press",
+          exercise: legPress,
+          sets: [set({ setType: "warmup", weight: 40, reps: 10 })],
+        },
+      ]),
+      "UTC",
+    );
+    expect(exercises.map((e) => e.exerciseId)).toEqual(["bench"]);
+    expect(session.workingSets).toBe(1);
+    expect(session.muscleSets).not.toHaveProperty("lats");
+    // The same movement worked in another slot of the session still has its row.
+    const again = sessionStats(
+      workout([
+        { exerciseId: "bench", exercise: bench, sets: [] },
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+      ]),
+      "UTC",
+    );
+    expect(again.exercises).toHaveLength(1);
+    expect(again.exercises[0]).toMatchObject({ workingSets: 1, topWeightKg: 60 });
+  });
   it("refuses an unfinished workout", () => {
     expect(() => sessionStats(workout([], { completedAt: null }), "UTC")).toThrow();
   });
@@ -271,6 +298,19 @@ describe("runStats", () => {
       paceSecondsPerKm: 325,
       muscleSets: {},
     });
+  });
+  it("keeps the date frozen on the run over the zone passed alongside", () => {
+    // Recorded in London at 23:30; the profile has since moved to Kolkata, where it was the 9th.
+    const run = {
+      id: "run-1",
+      startedAt: new Date("2026-09-08T22:30:00Z"),
+      durationSeconds: 1690,
+      distanceMeters: 5200,
+    };
+    expect(runStats(run, "Asia/Kolkata").occurredOn).toBe("2026-09-09");
+    expect(runStats({ ...run, occurredOn: "2026-09-08" }, "Asia/Kolkata").occurredOn).toBe(
+      "2026-09-08",
+    );
   });
 });
 

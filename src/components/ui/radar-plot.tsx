@@ -119,8 +119,9 @@ export function RadarPlot({
             </g>
           );
         })}
-        {series.map((s) => (
-          <g key={s.name}>
+        {/* Keyed by position: two people can share a name. */}
+        {series.map((s, i) => (
+          <g key={i}>
             <polygon
               points={polygon(
                 radius,

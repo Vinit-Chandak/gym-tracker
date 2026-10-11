@@ -43,8 +43,8 @@ import {
   type SharedReading,
   type TrendPoint,
 } from "@/server/repositories/shared-stats";
-import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername, requireUuid } from "@/server/validation/params";
+import { socialWindow } from "@/server/validation/period";
 
 export const metadata: Metadata = { title: "Compare exercise" };
 
@@ -96,7 +96,7 @@ export default async function CompareExercisePage(
     async (tx) => {
       const [exercise, head] = await Promise.all([
         getComparableExercise(tx, exerciseId),
-        loadHeadToHead(tx, { id: user.id, username: viewer.username }, handle),
+        loadHeadToHead(tx, user.id, handle),
       ]);
       if (!exercise || head === null) return null;
       if (head === "self") return "self";
@@ -105,7 +105,7 @@ export default async function CompareExercisePage(
       const metric = primaryMetric(exercise);
       // The friend is in the circle whenever their training is visible (you follow them), so
       // one read of the circle's bests serves the bar pairs and the board beneath.
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username }, head.me);
+      const circle = await loadCircle(tx, user.id, head.me);
       const [bests, readings, trends] = await Promise.all([
         readExerciseBests(
           tx,
@@ -119,7 +119,7 @@ export default async function CompareExercisePage(
           ids,
           exerciseId,
           metricsForExercise(exercise),
-          dateWindow(trendDays.from, trendDays.to, viewer.timeZone),
+          socialWindow(trendDays.from, trendDays.to, viewer.timeZone),
         ),
       ]);
       const board = topWithYou(rankExercise(circle, bests, new Map(), metric), head.me.id, 5);
@@ -192,7 +192,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? " An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads 0." : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
         >
           <Card>
             <CompareTable

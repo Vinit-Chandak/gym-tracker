@@ -26,6 +26,7 @@ import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { BodyLoadUnit } from "@/domain/types";
 import { formatActivityMetric } from "@/lib/format";
+import type { LengthUnit } from "@/lib/distance-units";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -33,21 +34,30 @@ import { hiddenTrainingLine, loadHeadToHead } from "@/server/queries/head-to-hea
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   EMPTY_TOTALS,
+  readDistanceUnits,
   readExercisesInCommon,
   readGroupSets,
   readPeriodTotals,
   type PeriodTotals,
 } from "@/server/repositories/shared-stats";
-import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername } from "@/server/validation/params";
+import { socialWindow } from "@/server/validation/period";
 import { parseSport } from "@/server/validation/sport";
 
 export const metadata: Metadata = { title: "Compare" };
 
 /** One side of a stats row: the span's number, or "—" where the span cannot give one. */
-function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit): CompareSide {
+function side(
+  totals: PeriodTotals,
+  metric: ActivityMetric,
+  unit: BodyLoadUnit,
+  distanceUnit: LengthUnit | undefined,
+): CompareSide {
   const value = activityValue(totals, metric);
-  return { value, text: value === null ? "—" : formatActivityMetric(metric, value, unit) };
+  return {
+    value,
+    text: value === null ? "—" : formatActivityMetric(metric, value, unit, distanceUnit),
+  };
 }
 
 /**
@@ -55,7 +65,7 @@ function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit):
  * each split, the span's numbers side by side with the difference under each, and the
  * comparable movements you both did, each leading to its own comparison; endurance sports
  * show their own numbers, since a split and exercises in common do not apply. Everything is in
- * the viewer's unit.
+ * the viewer's unit, distances in the one they use for the sport.
  */
 export default async function ComparePage(props: PageProps<"/u/[username]/compare">) {
   const user = await requireUser();
@@ -65,15 +75,15 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
   const selection = `sport=${sport}`;
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
-  // The span every graph shares (ADR 0044), ending on the viewer's today.
+  // The span every graph shares (ADR 0044), from the viewer's calendar and on to now.
   const preset = await rememberedRange();
   const read = readWindowOf({ preset }, todayInTimeZone(viewer.timeZone));
-  const range = dateWindow(read.from, read.to, viewer.timeZone);
+  const range = socialWindow(read.from, read.to, viewer.timeZone);
   const found = await withUser(
     getDb(),
     user.id,
     async (tx) => {
-      const head = await loadHeadToHead(tx, { id: user.id, username: viewer.username }, handle);
+      const head = await loadHeadToHead(tx, user.id, handle);
       if (head === null || head === "self" || !head.visible) return head;
       const ids = [head.me.id, head.them.id];
       const totals = await readPeriodTotals(tx, ids, sport, range);
@@ -81,7 +91,10 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
         totals.get(head.me.id) ?? EMPTY_TOTALS,
         totals.get(head.them.id) ?? EMPTY_TOTALS,
       ] as const;
-      if (sport !== "workout") return { ...head, totals: pair, lifting: null };
+      if (sport !== "workout") {
+        const units = await readDistanceUnits(tx, user.id);
+        return { ...head, totals: pair, lifting: null, distanceUnit: units[sport] };
+      }
       const [mine, theirs, common] = await Promise.all([
         readGroupSets(tx, head.me.id, range),
         readGroupSets(tx, head.them.id, range),
@@ -90,6 +103,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
       return {
         ...head,
         totals: pair,
+        distanceUnit: undefined,
         lifting: {
           splits: [muscleSplit(mine), muscleSplit(theirs)] as const,
           trained: Object.keys(mine).length > 0 || Object.keys(theirs).length > 0,
@@ -127,7 +141,9 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                   axes={SPLIT_GROUPS}
                   series={[
                     {
-                      name: names[0],
+                      // "You", as the table beneath heads your column: two people can share
+                      // a display name, and the legend has to say which shape is yours.
+                      name: "You",
                       color: "var(--color-series-1)",
                       values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
                     },
@@ -157,8 +173,8 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                     key: metric,
                     label: ACTIVITY_METRIC_LABELS[metric],
                     lowerIsBetter: lowerIsBetter(metric),
-                    a: side(found.totals[0], metric, unit),
-                    b: side(found.totals[1], metric, unit),
+                    a: side(found.totals[0], metric, unit, found.distanceUnit),
+                    b: side(found.totals[1], metric, unit, found.distanceUnit),
                   }))}
                 />
               </Card>
