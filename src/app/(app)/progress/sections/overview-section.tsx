@@ -13,6 +13,7 @@ import {
   type SportTally,
 } from "@/components/progress/calendar";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { formatIsoMonth, formatMinutes } from "@/lib/format";
 
@@ -97,7 +98,7 @@ export function OverviewSection({
                       {tallyName(entry.sport, entry.count)}
                       {measures(entry, month.units).map((line) => (
                         <span key={line} className="block">
-                          {line}
+                          <Figures>{line}</Figures>
                         </span>
                       ))}
                     </span>

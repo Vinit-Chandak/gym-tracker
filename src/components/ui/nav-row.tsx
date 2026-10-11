@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 import Link from "./app-link";
+import { Figures } from "./figures";
 import { Glyph, type GlyphName } from "./glyphs";
 
 /**
@@ -56,7 +57,11 @@ export function NavRow<T extends string>({
         {sub ? (
           <span className="nav-row-text">
             <span className="nav-row-label nav-row-label-bold">{label}</span>
-            <span className="nav-row-sub">{sub}</span>
+            {/* "101 machines": its figures in Jost, whose zero is plain (DESIGN.md, The Two
+                Voices Rule); a sentence has none, and is left as it is. */}
+            <span className="nav-row-sub">
+              {typeof sub === "string" ? <Figures>{sub}</Figures> : sub}
+            </span>
           </span>
         ) : (
           <span className="nav-row-label">{label}</span>

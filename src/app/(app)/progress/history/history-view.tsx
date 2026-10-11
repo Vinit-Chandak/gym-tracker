@@ -7,12 +7,13 @@ import { DateRangeFields } from "@/components/date-range-fields";
 import { dayLabel } from "@/components/graph/labels";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
 import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { joinFacts } from "@/lib/facts";
 import { formatDateRange } from "@/lib/format";
 
 import { HistoryList, type HistoryItem } from "./history-list";
@@ -248,8 +249,12 @@ export function HistoryView({
           </p>
         )}
         <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-          {shown.length.toLocaleString("en-GB")} {shown.length === 1 ? "entry" : "entries"}
-          {pages > 1 && `${FACT_SEPARATOR}page ${page} of ${pages}`}
+          <Figures>
+            {joinFacts([
+              `${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`,
+              pages > 1 && `page ${page} of ${pages}`,
+            ])}
+          </Figures>
         </p>
         {shown.length > 0 ? (
           // The page's entries under their days, newest first (board Progress-History).

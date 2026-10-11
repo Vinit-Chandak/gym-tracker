@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
@@ -190,7 +191,9 @@ export function ExerciseLife({
                 {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
               </span>
               <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
-                {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                <Figures>
+                  {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                </Figures>
               </span>
             </Link>
           </li>

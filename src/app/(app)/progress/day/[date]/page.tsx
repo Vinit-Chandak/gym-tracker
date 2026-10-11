@@ -7,6 +7,7 @@ import { ART_SPORT, dayParts, type DayPiece } from "@/components/progress/calend
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
@@ -173,12 +174,13 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
                     <span className="plan-row-name tabular-nums">{entry.title}</span>
                     {entry.meta && (
                       <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
-                        {entry.meta}
+                        <Figures>{entry.meta}</Figures>
                       </span>
                     )}
                   </span>
                   <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
-                    {formatTime(entry.at, profile.timeZone)}
+                    {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
+                    <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
                   </span>
                 </Link>
               </li>

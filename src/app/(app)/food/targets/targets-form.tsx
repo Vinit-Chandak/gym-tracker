@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -20,7 +21,7 @@ import {
 import { sanitizeNumberEntry } from "@/domain/sets";
 import type { BodyLoadUnit, TrainingGoal } from "@/domain/types";
 import { joinFacts } from "@/lib/facts";
-import { formatFoodAmount, formatSplit } from "@/lib/format";
+import { formatFoodAmount, formatMacros, formatSplit } from "@/lib/format";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -154,7 +155,7 @@ export function TargetsForm({
                 {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
               </p>
               <p id="goal-split" className="type-meta-small text-ink-2 tabular-nums">
-                {formatSplit(split)}
+                <Figures>{formatSplit(split)}</Figures>
               </p>
             </div>
             {offerSplit && fromSplit && (
@@ -239,8 +240,7 @@ export function TargetsForm({
         )}
         {preview && (
           <p className="type-meta-small font-semibold tabular-nums">
-            Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
-            Protein {formatFoodAmount(preview.proteinG)} g
+            <Figures>{formatMacros(preview)}</Figures>
           </p>
         )}
         {preview?.overBudget && (

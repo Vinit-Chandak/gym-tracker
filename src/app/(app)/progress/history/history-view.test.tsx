@@ -6,6 +6,19 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { HistoryItem } from "./history-list";
 import { HISTORY_PAGE_SIZE, HistoryView } from "./history-view";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 const navigation = vi.hoisted(() => ({ query: "kind=run" }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(navigation.query),
@@ -105,7 +118,7 @@ it("lists each entry under its day, its mark naming the sport", () => {
   expect(lift.textContent).toContain("19:00 · Anytime Fitness");
   expect(screen.getByRole("img", { name: "Workout" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Recovery" })).toBeTruthy();
-  expect(screen.getByText("2 entries")).toBeTruthy();
+  expect(screen.getByText(whole("2 entries"))).toBeTruthy();
 });
 
 it("lists ten entries a page, newest first, and turns the page with its tabs", () => {
@@ -134,7 +147,7 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "";
   const { rerender } = render(<HistoryView {...props} />);
   expect(HISTORY_PAGE_SIZE).toBe(10);
-  expect(screen.getByText("23 entries · page 1 of 3")).toBeTruthy();
+  expect(screen.getByText(whole("23 entries · page 1 of 3"))).toBeTruthy();
   expect(screen.getByText("Workout 1")).toBeTruthy();
   expect(screen.getByText("Workout 10")).toBeTruthy();
   expect(screen.queryByText("Workout 11")).toBeNull();

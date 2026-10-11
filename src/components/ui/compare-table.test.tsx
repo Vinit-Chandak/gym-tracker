@@ -4,6 +4,19 @@ import { afterEach, expect, it } from "vitest";
 
 import { CompareTable, percentLabel } from "./compare-table";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 afterEach(cleanup);
 
 const names: [string, string] = ["Vinit", "Phani"];
@@ -24,10 +37,12 @@ it("puts the two people across the top and says the difference from the viewer's
   );
   const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
   expect(headers).toEqual(["Metric", "You", "Phani"]);
-  expect(screen.getByText("+20%").className).toContain("text-success");
+  expect(screen.getByText(whole("+20%")).parentElement!.className).toContain("text-success");
   // The leading value is the heavier one.
-  expect(screen.getByText("6,240 kg").className).toContain("font-semibold");
-  expect(screen.getByText("5,200 kg").className).not.toContain("font-semibold");
+  expect(screen.getByText(whole("6,240 kg")).parentElement!.className).toContain("font-semibold");
+  expect(screen.getByText(whole("5,200 kg")).parentElement!.className).not.toContain(
+    "font-semibold",
+  );
 });
 
 it("says who leads in words where there is no percentage, and mutes the side that has nothing", () => {
@@ -62,8 +77,8 @@ it("says who leads in words where there is no percentage, and mutes the side tha
   expect(runs!.textContent).toBe("Runs↓ They lead");
   // Nothing on either side: no leader, so the dash.
   expect(days!.textContent).toBe("Active days—");
-  expect(screen.getByText("3").className).toContain("font-semibold");
-  expect(screen.getAllByText("0")[0]!.className).toContain("text-ink-muted");
+  expect(screen.getByText(whole("3")).parentElement!.className).toContain("font-semibold");
+  expect(screen.getAllByText(whole("0"))[0]!.parentElement!.className).toContain("text-ink-muted");
 });
 
 it("keeps the leader for a screen reader beside a percentage", () => {
@@ -92,9 +107,9 @@ it("puts the day, the work and the body-weight ratio under a value", () => {
       ]}
     />,
   );
-  expect(screen.getByText("12 reps · 4 sets")).toBeTruthy();
-  expect(screen.getByText("1.18× BW")).toBeTruthy();
-  expect(screen.getByText("+3.5%")).toBeTruthy();
+  expect(screen.getByText(whole("12 reps · 4 sets"))).toBeTruthy();
+  expect(screen.getByText(whole("1.18× BW"))).toBeTruthy();
+  expect(screen.getByText(whole("+3.5%"))).toBeTruthy();
 });
 
 it("says whose each figure is beside it too, for when the metrics stack", () => {
@@ -123,7 +138,7 @@ it("says whose each figure is beside it too, for when the metrics stack", () => 
   for (const cell of cells)
     expect(cell.querySelector(".compare-who")!.getAttribute("aria-hidden")).toBe("true");
   // A difference never splits from its sign or its percent.
-  expect(screen.getByText("+3.3%").className).toContain("whitespace-nowrap");
+  expect(screen.getByText(whole("+3.3%")).parentElement!.className).toContain("whitespace-nowrap");
 });
 
 it("labels equal and behind without colour, and lets a faster pace lead", () => {
@@ -149,7 +164,7 @@ it("labels equal and behind without colour, and lets a faster pace lead", () => 
       ]}
     />,
   );
-  expect(screen.getByText("−16.7%").className).toContain("text-ink-muted");
-  expect(screen.getByText("−8.3%").className).toContain("text-success");
-  expect(screen.getByText("5:30 /km").className).toContain("font-semibold");
+  expect(screen.getByText(whole("−16.7%")).parentElement!.className).toContain("text-ink-muted");
+  expect(screen.getByText(whole("−8.3%")).parentElement!.className).toContain("text-success");
+  expect(screen.getByText(whole("5:30 /km")).parentElement!.className).toContain("font-semibold");
 });

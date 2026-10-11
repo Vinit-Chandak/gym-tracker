@@ -8,6 +8,19 @@ import type { ActivityRow as Activity } from "@/server/repositories/shared-stats
 
 import { ExerciseBestsTiles, PeriodRecordsList, SessionRecordsCard } from "./records-card";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 // Rows in long lists prefetch on touch, through the router (app-link.tsx).
 vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
 
@@ -124,7 +137,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
   );
   // The shared row's own id: a raw activity id would name a private record (AT-PRIV-04).
   expect(screen.getByRole("link").getAttribute("href")).toBe("/u/phani03/activities/1");
-  expect(screen.getByText("Upper A · 18 sets · 6,240 kg · 2 records")).toBeTruthy();
+  expect(screen.getByText(whole("Upper A · 18 sets · 6,240 kg · 2 records"))).toBeTruthy();
   expect(screen.getByText("Yesterday")).toBeTruthy();
   cleanup();
   // Bodyweight sets and holds moved no load, and say so by saying none: never "· 0 kg".
@@ -136,7 +149,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Workout · 3 sets")).toBeTruthy();
+  expect(screen.getByText(whole("Workout · 3 sets"))).toBeTruthy();
   cleanup();
   render(
     <ActivityRow
@@ -154,7 +167,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Run · 5.2 km · 28:10 · 5:25 /km")).toBeTruthy();
+  expect(screen.getByText(whole("Run · 5.2 km · 28:10 · 5:25 /km"))).toBeTruthy();
   expect(screen.getByText("Today")).toBeTruthy();
   cleanup();
 
@@ -182,7 +195,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Ride · 18.2 km · 30:00")).toBeTruthy();
+  expect(screen.getByText(whole("Ride · 18.2 km · 30:00"))).toBeTruthy();
   cleanup();
 
   render(
@@ -203,7 +216,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Swim · 25:00")).toBeTruthy();
+  expect(screen.getByText(whole("Swim · 25:00"))).toBeTruthy();
 });
 
 it("reads distances in the reader's own units, and a friend's tomorrow as today", () => {
@@ -225,7 +238,7 @@ it("reads distances in the reader's own units, and a friend's tomorrow as today"
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Run · 3.23 mi · 28:10 · 8:43 /mi")).toBeTruthy();
+  expect(screen.getByText(whole("Run · 3.23 mi · 28:10 · 8:43 /mi"))).toBeTruthy();
   expect(screen.getByText("Today")).toBeTruthy();
   cleanup();
   render(
@@ -244,5 +257,5 @@ it("reads distances in the reader's own units, and a friend's tomorrow as today"
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Swim · 1,500 yd · 25:00")).toBeTruthy();
+  expect(screen.getByText(whole("Swim · 1,500 yd · 25:00"))).toBeTruthy();
 });

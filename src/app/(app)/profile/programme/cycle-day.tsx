@@ -4,6 +4,7 @@ import { PlannedExerciseList, planSummary } from "@/components/planned-exercises
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
+import { Figures } from "@/components/ui/figures";
 import type { SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
@@ -50,6 +51,7 @@ export function CycleDay({
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
   const expandable = plan.exercises.length > 0 || guidance || extras;
+  const about = subtitle(day);
 
   const head = (
     <>
@@ -76,10 +78,15 @@ export function CycleDay({
           aria-hidden
         />
       )}
-      {subtitle(day) && (
-        <p className="col-span-full mt-0.5 text-sm text-ink-muted">{subtitle(day)}</p>
+      {about && (
+        <p className="col-span-full mt-0.5 text-sm text-ink-muted">
+          <Figures>{about}</Figures>
+        </p>
       )}
-      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">{cost(plan, units)}</p>
+      {/* Its time and its counts in Jost, whose zero is plain: "60–75 min", "13 sets". */}
+      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
+        <Figures>{cost(plan, units)}</Figures>
+      </p>
     </>
   );
 
