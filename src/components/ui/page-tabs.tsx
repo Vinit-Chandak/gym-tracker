@@ -38,7 +38,8 @@ export function pageSlots(current: number, total: number): PageSlot[] {
  * A tab never shrinks under its target, which grows with the reader's text. When the tabs cannot
  * all share a row, at 150% text and more on a narrow phone, the tray folds onto even rows (Fold,
  * Never Drop; fold.ts) rather than laying one tab over the next or leaving the last page alone
- * under the rest: "1 2 3 / 4 … 28". A gap is only as wide as its ellipsis.
+ * under the rest: "1 2 3 / 4 … 28". On one row a gap is only as wide as its ellipsis; folded,
+ * every slot is a column of one width, so the rows line up.
  */
 export function PageTabs({
   page,
@@ -62,6 +63,7 @@ export function PageTabs({
         ? `calc(${boldEmWidth("…").toFixed(3)}em + 2px)`
         : `max(var(--ov-target), ${boldEmWidth(String(slot)).toFixed(3)}em + 0.75rem)`,
     ),
+    { columns: true },
   );
   return (
     <nav aria-label={label} className={className}>
@@ -76,11 +78,12 @@ export function PageTabs({
               <li
                 aria-hidden
                 className="flex shrink-0 items-center justify-center px-px text-[length:var(--ov-type-meta)] font-bold text-ink-2"
+                style={fold.items[index]}
               >
                 …
               </li>
             ) : (
-              <li className="flex-[1_0_var(--ov-target)]">
+              <li className="shrink-0 grow" style={fold.items[index]}>
                 <button
                   type="button"
                   aria-current={slot === page ? "page" : undefined}
