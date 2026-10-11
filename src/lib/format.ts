@@ -228,11 +228,14 @@ export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
 
 /**
  * "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. A load as it
- * was lifted (`asLifted`) keeps the hundredths a kilogram is logged to, "38.75 kg", which a
- * tenth read as "38.8 kg"; an estimate, and any load read in pounds, reads to the tenth.
+ * was lifted (`asLifted`) keeps the quarter kilogram a plate makes, "38.75 kg", which a tenth
+ * read as "38.8 kg"; a load lifted in pounds is stored converted (45 lb is 20.41 kg), and those
+ * hundredths are the conversion, so it reads to the tenth, as an estimate and a pound reader do.
  */
 export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit, asLifted = false): string {
-  const value = asLifted && unit === "kg" ? roundTo(kilograms, 2) : fromKilograms(kilograms, unit);
+  const plates = Math.abs(roundTo(kilograms * 4, 6) - Math.round(kilograms * 4)) < 1e-6;
+  const value =
+    asLifted && unit === "kg" && plates ? roundTo(kilograms, 2) : fromKilograms(kilograms, unit);
   return `${value.toLocaleString("en-GB")}\u00a0${unit}`;
 }
 
