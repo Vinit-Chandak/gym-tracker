@@ -109,6 +109,9 @@ desktop contexts. It records screenshots, page errors and overflow; Android scan
 `npm run audit:flows` exercises mutations, navigation, drafts, scheduling and PWA behavior in
 Chromium and WebKit. These commands require the audit stack and fixture manifest above. Where the
 installed browsers cannot be updated, both take `AUDIT_CHROMIUM_PATH`, as the food audit does.
+Where WebKit is not installed at all, `AUDIT_WEBKIT=0` leaves out every WebKit (iPhone) device:
+each audit and the suite report those devices as SKIPPED, never as passed. With WebKit asked for
+(the default) and missing, an audit stops at once and names the executable it looked for.
 
 `npm run audit:recovery` exercises the real check-in form and all five recovery charts:
 complete/partial answers, edits, workout completion, date filters, reload and Back, plus
@@ -147,7 +150,7 @@ new foods made from a meal's page through a search that finds nothing, amounts t
 food, starring a meal under a name and adding it to another, changed portions and foods corrected
 in My foods, foods and meals kept in My foods without logging, a macronutrient's breakdown, swipe
 removal, a retried save after a lost reply, the Food tab's totals, a day before today opened from
-the strip and added to, History inside Progress and the old paths' redirects, account isolation,
+the strip and added to, History behind Progress and the old paths' redirects, account isolation,
 responsive sheets, the Food, Targets, My foods, New meal and History screens and the calendar with
 Axe, and PWA behavior (ADRs 0033 to 0037). Results and screenshots go to
 `output/food-audit/`. Where the installed browsers are older than this Playwright, point
