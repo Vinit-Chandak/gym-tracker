@@ -105,3 +105,47 @@ export function formatDistance(metres: number, unit: LengthUnit, places?: number
   const value = roundTo(fromMetres(metres, unit), places ?? DISPLAY_DECIMALS[unit]);
   return `${value} ${UNIT_LABELS[unit]}`;
 }
+
+/** How one athlete reads one sport's distances: a road in km or mi, a pool in m or yd. */
+export type SportUnits = { distanceUnit: DistanceUnit; poolUnit: PoolUnit };
+
+/** What an athlete who has never chosen reads: kilometres on the road, metres in the pool. */
+export const DEFAULT_SPORT_UNITS: SportUnits = { distanceUnit: "km", poolUnit: "m" };
+
+/** The unit a sport's distances are read in. A swim is never described in kilometres. */
+export function readingUnit(sport: string, units: SportUnits): DistanceUnit | PoolUnit {
+  return sport === "swimming" ? units.poolUnit : units.distanceUnit;
+}
+
+/**
+ * A distance, or a range of them, as a figure and its unit in the reader's own unit for that
+ * sport: "1500" m, "1000" yd, "8.05" km, "5" mi, "5–6" km.
+ *
+ * Whatever it was written in, it is read the one way: a swim set written in yards reads in
+ * metres for an athlete who swims in metres, and a five-mile run reads 8.05 km. A road distance
+ * short of a kilometre reads in metres, which is how a 400 m repeat is said; miles stay miles.
+ * Display rounding only — the metres underneath are never rewritten from it.
+ */
+export function sportDistanceParts(
+  metres: number | readonly [number, number],
+  sport: string,
+  units: SportUnits,
+): { figure: string; unit: string } {
+  const [low, high] = typeof metres === "number" ? [metres, metres] : metres;
+  const reading = readingUnit(sport, units);
+  const unit: LengthUnit = reading === "km" && high < METRES_PER_KM ? "m" : reading;
+  const figure = (value: number) =>
+    String(roundTo(fromMetres(value, unit), DISPLAY_DECIMALS[unit]));
+  const [from, to] = [figure(low), figure(high)];
+  return { figure: from === to ? to : `${from}–${to}`, unit: UNIT_LABELS[unit] };
+}
+
+/** The same, as one phrase: "8 × 50 m" is built from it, and so is "5–6 km". */
+export function formatSportDistance(
+  metres: number | readonly [number, number],
+  sport: string,
+  units: SportUnits,
+): string {
+  const { figure, unit } = sportDistanceParts(metres, sport, units);
+  return `${figure} ${unit}`;
+}

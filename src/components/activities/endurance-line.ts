@@ -1,5 +1,6 @@
 import type { ActivitySport } from "@/domain/activity";
-import { prescriptionTotals, type EndurancePrescription } from "@/domain/activity-prescription";
+import { prescriptionTarget, type EndurancePrescription } from "@/domain/activity-prescription";
+import type { SportUnits } from "@/lib/distance-units";
 
 /**
  * An endurance session in a few words, as a list row says it (DESIGN.md, Today): its name as a
@@ -17,36 +18,17 @@ export function enduranceName(sport: ActivitySport): string {
   return sport === "strength" ? "Strength" : ENDURANCE_NAMES[sport];
 }
 
-const minutes = (ms: number) => Math.round(ms / 60_000);
-
 /**
- * What a session asks for as one figure and its unit: "25–30" min, "5" km, "8 × 400" m. Null
- * when it asks for nothing measurable, and the row says only its name.
+ * What a session asks for as one figure and its unit: "25–30" min, "5" km, "8 × 400" m, with
+ * distances in the athlete's own unit. Null when it asks for nothing measurable, and the row
+ * says only its name. The same reading as `describePrescription`, so a card's figure and its
+ * words never disagree.
  */
 export function enduranceTarget(
   prescription: EndurancePrescription | null,
+  units: SportUnits,
 ): { figure: string; unit: string } | null {
-  if (!prescription) return null;
-  const block = prescription.nodes.find((node) => node.kind === "repeat");
-  if (block && block.kind === "repeat" && block.steps[0]) {
-    const target = block.steps[0].target;
-    return target.kind === "distance"
-      ? { figure: `${block.repetitions} × ${target.metres[1]}`, unit: "m" }
-      : { figure: `${block.repetitions} × ${minutes(target.ms[1])}`, unit: "min" };
-  }
-  const { durationMs, distanceMetres } = prescription.sessionTargets;
-  if (distanceMetres) {
-    const [low, high] = distanceMetres.map((m) => m / 1000);
-    return { figure: low === high ? `${high}` : `${low}–${high}`, unit: "km" };
-  }
-  if (durationMs) {
-    const [low, high] = durationMs.map(minutes) as [number, number];
-    return { figure: low === high ? `${high}` : `${low}–${high}`, unit: "min" };
-  }
-  const totals = prescriptionTotals(prescription);
-  if (totals.distanceMetres) return { figure: `${totals.distanceMetres}`, unit: "m" };
-  if (totals.durationMs) return { figure: `${minutes(totals.durationMs)}`, unit: "min" };
-  return null;
+  return prescription ? prescriptionTarget(prescription, units) : null;
 }
 
 /** The session's own word on how to do it: the pace note, else its notes or instruction. */

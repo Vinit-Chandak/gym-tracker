@@ -2,6 +2,8 @@ import { expect, it } from "vitest";
 
 import { endurancePrescriptionSchema, expandSteps } from "@/domain/activity-prescription";
 import { runSummary } from "@/components/run-plan";
+import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
+
 import { sessionLine, stepLine } from "./activity-plan";
 
 /**
@@ -18,7 +20,7 @@ it("gives a session's effort out of five", () => {
     sport: "running",
     sessionTargets: { durationMs: [25 * MINUTE, 30 * MINUTE], effort: [1, 2] },
   });
-  expect(sessionLine(prescription)).toBe("25 min–30 min · Effort 1–2 of 5");
+  expect(sessionLine(prescription, DEFAULT_SPORT_UNITS)).toBe("25 min–30 min · Effort 1–2 of 5");
 });
 
 it("gives a step's effort out of five", () => {
@@ -38,7 +40,7 @@ it("gives a step's effort out of five", () => {
       ],
     }),
   );
-  expect(stepLine(step!)).toBe("Run · 10 min · Effort 3 of 5");
+  expect(stepLine(step!, "running", DEFAULT_SPORT_UNITS)).toBe("Run · 10 min · Effort 3 of 5");
 });
 
 it("gives a programme run's effort out of five, and none when it asks for none", () => {

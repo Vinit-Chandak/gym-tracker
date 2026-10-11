@@ -6,7 +6,7 @@ import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
-import { formatPaceSeconds, paceSecondsPerKm } from "@/domain/activity-metrics";
+import { formatPaceSeconds, paceSecondsPerKm, pacePerUnit } from "@/domain/activity-metrics";
 import { toMetres } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -59,6 +59,10 @@ type Props = {
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
   notice?: ReactNode;
+  /** A correction's unconfirmed legacy effort, which stays unless another answer is chosen. */
+  keptEffort?: { value: number | null } | null;
+  /** Opens the folded details from the start, when something in them needs reading. */
+  openDetails?: boolean;
 };
 
 export function RunningForm({
@@ -70,6 +74,8 @@ export function RunningForm({
   expectedRevision = null,
   submitLabel,
   notice,
+  keptEffort = null,
+  openDetails = false,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -82,7 +88,10 @@ export function RunningForm({
   const durationMs = (parseDuration(duration) ?? 0) * 1000;
   const metres =
     distance.trim() === "" ? 0 : toMetres(Number(distance.replace(",", ".")), unit as "km" | "mi");
-  const pace = Number.isFinite(metres) ? paceSecondsPerKm(metres, durationMs) : null;
+  // Pace per the unit the distance is being typed in: miles make a pace per mile.
+  const pace = Number.isFinite(metres)
+    ? pacePerUnit(paceSecondsPerKm(metres, durationMs), unit as "km" | "mi")
+    : null;
   const errors = state.fieldErrors;
 
   // Board Log a run: what the plan asked for, where, the distance and the time with the pace
@@ -123,15 +132,18 @@ export function RunningForm({
           onChange={setDuration}
           hint={
             pace !== null ? (
-              <span role="status">Pace {formatPaceSeconds(pace)} /km</span>
+              <span role="status">
+                Pace {formatPaceSeconds(pace)} /{unit === "mi" ? "mi" : "km"}
+              </span>
             ) : undefined
           }
           error={errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
         />
-        <EffortField value={values("effort")} error={errors?.effort} />
+        <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
       <MoreDetails
+        defaultOpen={openDetails}
         hasErrors={[
           "startedAt",
           "startedAtOffsetMinutes",

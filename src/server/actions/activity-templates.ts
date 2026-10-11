@@ -13,7 +13,12 @@ import {
   TemplateNotFoundError,
 } from "@/server/repositories/activity-templates";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
-import { prescriptionFromForm, templateSchema } from "@/server/validation/template-form";
+import {
+  prescriptionFromForm,
+  templateProblems,
+  templateSchema,
+  type TemplateForm,
+} from "@/server/validation/template-form";
 
 /**
  * Writing a reusable session (plan §5.1).
@@ -25,19 +30,13 @@ import { prescriptionFromForm, templateSchema } from "@/server/validation/templa
 
 function problemsToState(
   problems: readonly { path: string; message: string }[],
+  form: TemplateForm,
   formData: FormData,
 ): FormState {
-  const fieldErrors: Record<string, string> = {};
-  for (const problem of problems) {
-    const key = problem.path.split(".")[0] ?? "";
-    if (key) fieldErrors[key] ??= problem.message;
-  }
+  const { fieldErrors, formError } = templateProblems(problems, form);
   return {
     fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
-    formError:
-      Object.keys(fieldErrors).length > 0
-        ? undefined
-        : (problems[0]?.message ?? "That session is not valid."),
+    formError,
     values: formValues(formData),
   };
 }
@@ -53,7 +52,7 @@ export async function saveTemplateAction(
   const form = parsed.data;
 
   const prescription = prescriptionFromForm(form);
-  if (!prescription.ok) return problemsToState(prescription.problems, formData);
+  if (!prescription.ok) return problemsToState(prescription.problems, form, formData);
 
   try {
     await withUser(getDb(), user.id, async (tx) => {

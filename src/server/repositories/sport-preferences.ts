@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { userSportPreferences } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
-import type { DistanceUnit, PoolUnit } from "@/lib/distance-units";
+import type { DistanceUnit, PoolUnit, SportUnits } from "@/lib/distance-units";
 
 /**
  * Which sports an account trains, how it measures them, and what it shares (SPORT-01).
@@ -78,12 +78,23 @@ export async function setSportPreference(
     });
 }
 
-/** The units a form should open in for this athlete and this sport. */
+/** Every sport's units at once, for a page that lists more than one sport's sessions. */
+export async function unitsBySport(
+  tx: DbOrTx,
+  userId: string,
+): Promise<Record<ActivitySport, SportUnits>> {
+  const preferences = await listSportPreferences(tx, userId);
+  return Object.fromEntries(
+    preferences.map(({ sport, distanceUnit, poolUnit }) => [sport, { distanceUnit, poolUnit }]),
+  ) as Record<ActivitySport, SportUnits>;
+}
+
+/** The units a form should open in, and a page should read in, for this athlete and sport. */
 export async function unitsFor(
   tx: DbOrTx,
   userId: string,
   sport: ActivitySport,
-): Promise<{ distanceUnit: DistanceUnit; poolUnit: PoolUnit }> {
+): Promise<SportUnits> {
   const [row] = await tx
     .select({
       distanceUnit: userSportPreferences.distanceUnit,

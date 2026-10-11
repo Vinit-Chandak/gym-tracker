@@ -119,7 +119,7 @@ export default async function ProfilePage() {
         <InstallSection />
 
         <ul className="mt-3">
-          <SignOutRow />
+          <SignOutRow userId={user.id} />
           <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
         </ul>
       </div>

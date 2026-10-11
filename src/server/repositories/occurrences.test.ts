@@ -19,6 +19,7 @@ import {
   occurrencesForSlot,
   OccurrenceNotFoundError,
   programmeOccurrences,
+  removeStandaloneOccurrence,
   reopenOccurrence,
   rescheduleOccurrence,
   skipOccurrence,
@@ -105,7 +106,11 @@ describe("what is on a day", () => {
   }
 
   /** One session the athlete put on the calendar themselves, on the date given. */
-  async function scheduleStandalone(userId: string, scheduledOn: string) {
+  async function scheduleStandalone(
+    userId: string,
+    scheduledOn: string,
+    scheduledLocalTime: string | null = null,
+  ) {
     return withUser(t.db, userId, async (tx) => {
       const [occurrence] = await tx
         .insert(plannedOccurrences)
@@ -119,6 +124,7 @@ describe("what is on a day", () => {
           sport: "swimming",
           scheduledOn,
           schedulingZone: "Asia/Kolkata",
+          scheduledLocalTime,
         })
         .returning({ id: occurrenceVersions.id });
       await tx
@@ -157,6 +163,39 @@ describe("what is on a day", () => {
       { readOnly: true },
     );
     expect(later).toEqual([]);
+  });
+
+  /**
+   * The schedule form says a time orders the day's cards, so it does: timed sessions by their
+   * time, then any without one, the same way every time the day is opened.
+   */
+  it("orders a day's sessions by the time they were given", async () => {
+    const account = await seeded("timed@example.test");
+    const evening = await scheduleStandalone(account.userId, "2026-11-02", "18:00");
+    const untimed = await scheduleStandalone(account.userId, "2026-11-02");
+    const morning = await scheduleStandalone(account.userId, "2026-11-02", "06:30");
+    const tomorrow = await scheduleStandalone(account.userId, "2026-11-03", "05:00");
+
+    const dated = await withUser(
+      t.db,
+      account.userId,
+      (tx) => standaloneOccurrencesOnDate(tx, account.userId, "2026-11-02"),
+      { readOnly: true },
+    );
+    expect(dated.map((occurrence) => occurrence.id)).toEqual([morning, evening, untimed]);
+
+    const { upcoming } = await withUser(
+      t.db,
+      account.userId,
+      (tx) => standaloneSchedule(tx, account.userId, "2026-11-01"),
+      { readOnly: true },
+    );
+    expect(upcoming.map((occurrence) => occurrence.id)).toEqual([
+      morning,
+      evening,
+      untimed,
+      tomorrow,
+    ]);
   });
 
   /** The programme's endurance is found by the slot and cycle it belongs to, not by its date. */
@@ -280,6 +319,21 @@ describe("skipping and putting back", () => {
       getOccurrence(tx, account.userId, second!.id),
     );
     expect(neighbour!.resolution.kind).toBe("incomplete");
+  });
+
+  /** Only what the athlete scheduled is theirs to remove; a programme changes as a programme. */
+  it("will not take a programme's session off the calendar", async () => {
+    const account = await seeded("remove-programme@example.test");
+    const [first] = await occurrences(account.userId);
+    await expect(
+      withUser(t.db, account.userId, (tx) =>
+        removeStandaloneOccurrence(tx, account.userId, first!.id),
+      ),
+    ).rejects.toThrow(OccurrenceNotFoundError);
+    const kept = await withUser(t.db, account.userId, (tx) =>
+      getOccurrence(tx, account.userId, first!.id),
+    );
+    expect(kept!.resolution.kind).toBe("incomplete");
   });
 
   it("restores the same session rather than making a second one", async () => {

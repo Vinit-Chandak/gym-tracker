@@ -17,6 +17,7 @@ import { scheduleActivityAction } from "@/server/actions/occurrences";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listTemplates } from "@/server/repositories/activity-templates";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Schedule an activity" };
 
@@ -34,9 +35,15 @@ export default async function SchedulePage(props: PageProps<"/training/schedule"
 
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const templates = await withUser(getDb(), user.id, (tx) => listTemplates(tx, user.id), {
-    readOnly: true,
-  });
+  const { templates, units } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => ({
+      templates: await listTemplates(tx, user.id),
+      units: await unitsBySport(tx, user.id),
+    }),
+    { readOnly: true },
+  );
 
   return (
     <>
@@ -52,7 +59,7 @@ export default async function SchedulePage(props: PageProps<"/training/schedule"
             id: template.id,
             revisionId: template.revisionId,
             name: template.name,
-            summary: describePrescription(template.prescription),
+            summary: describePrescription(template.prescription, units[template.sport]),
           }))}
         />
       </PageContent>

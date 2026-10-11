@@ -19,7 +19,9 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
+import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
 import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
@@ -35,18 +37,25 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan } = await withUser(
+  const { occurrence, plan, units } = await withUser(
     getDb(),
     user.id,
-    async (tx) => ({
-      occurrence: await getOccurrence(tx, user.id, occurrenceId),
-      plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
-    }),
+    async (tx) => {
+      const occurrence = await getOccurrence(tx, user.id, occurrenceId);
+      return {
+        occurrence,
+        plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
+        units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
+      };
+    },
     { readOnly: true },
   );
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
   const late = isOverdue(occurrence, occurrence.resolution, today);
+  // Put on the calendar by the athlete, not by a programme: it lives on Scheduled, it has no
+  // programme week to count against, and it can be taken off again.
+  const standalone = occurrence.familyId === null;
   // The preparation is only this session's if it was written against the revision in force;
   // a plan pinned to an older one describes a target the programme has since changed (§8.4).
   const prepared =
@@ -62,21 +71,21 @@ export default async function OccurrencePage(
       <PageHeader
         title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
         meta={formatIsoDate(occurrence.scheduledOn)}
-        backHref="/training/programme"
+        backHref={standalone ? "/training/scheduled" : "/training/programme"}
       />
       <PageContent>
         <Card>
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-lg font-medium">
-              {target ? describePrescription(target) : "No targets set"}
+              {target ? describePrescription(target, units) : "No targets set"}
             </h2>
             {late && <Badge tone="neutral">Not done</Badge>}
           </div>
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {formatIsoDate(occurrence.originalScheduledOn)}. Adherence still counts
-                against that week.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn)}.
+                {standalone ? "" : " Adherence still counts against that week."}
               </p>
             )}
         </Card>
@@ -87,6 +96,7 @@ export default async function OccurrencePage(
             prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
+            units={units}
           />
         )}
 
@@ -112,7 +122,9 @@ export default async function OccurrencePage(
         ) : occurrence.resolution.kind === "cancelled" ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              This session was removed from the programme. It no longer needs to be logged.
+              {standalone
+                ? "This session was taken off the calendar. It no longer needs to be logged."
+                : "This session was removed from the programme. It no longer needs to be logged."}
             </p>
           </Card>
         ) : (
@@ -126,6 +138,8 @@ export default async function OccurrencePage(
               occurrenceId={occurrence.id}
               skipped={occurrence.disposition === "skipped"}
               scheduledOn={occurrence.scheduledOn}
+              today={today}
+              standalone={standalone}
             />
           </>
         )}

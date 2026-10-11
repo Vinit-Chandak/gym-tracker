@@ -8,6 +8,7 @@ import {
   occurrenceEvents,
   occurrenceVersions,
   plannedOccurrences,
+  sessionPlans,
   sharedSessionStats,
   workoutSessions,
 } from "@/db/schema";
@@ -191,6 +192,53 @@ describe("logging a planned session", () => {
       .from(plannedOccurrences)
       .where(eq(plannedOccurrences.userId, account.userId));
     expect(others.filter((row) => row.disposition !== "pending")).toEqual([]);
+  });
+
+  /** The coach's preparation on screen is named with the log, and only a real one is. */
+  it("records which coach preparation it was logged against", async () => {
+    const account = await seeded("prepared@example.test");
+    const occurrence = await freeOccurrence(account.userId);
+    const [plan] = await t.db
+      .insert(sessionPlans)
+      .values({
+        userId: account.userId,
+        sport: "running",
+        planVersion: 2,
+        occurrenceId: occurrence.id,
+        occurrenceRevisionId: occurrence.revisionId!,
+        trigger: "nightly",
+        summary: "Easy 30",
+        exercises: [],
+      })
+      .returning({ id: sessionPlans.id });
+
+    const saved = await withUser(t.db, account.userId, (tx) =>
+      createActivity(
+        tx,
+        account.userId,
+        run({ origin: plannedOrigin(occurrence.id, occurrence.revisionId!, plan!.id) }),
+      ),
+    );
+    const record = await withUser(t.db, account.userId, (tx) =>
+      getActivity(tx, account.userId, saved.id),
+    );
+    expect(record!.origin.performedPlanId).toBe(plan!.id);
+  });
+
+  it("drops a named preparation that was not written for this occurrence", async () => {
+    const account = await seeded("unprepared@example.test");
+    const occurrence = await freeOccurrence(account.userId);
+    const saved = await withUser(t.db, account.userId, (tx) =>
+      createActivity(
+        tx,
+        account.userId,
+        run({ origin: plannedOrigin(occurrence.id, occurrence.revisionId!, crypto.randomUUID()) }),
+      ),
+    );
+    const record = await withUser(t.db, account.userId, (tx) =>
+      getActivity(tx, account.userId, saved.id),
+    );
+    expect(record!.origin.performedPlanId).toBeNull();
   });
 
   /** AT-SCHED-08: one occurrence, one actual, and a readable conflict for the second. */

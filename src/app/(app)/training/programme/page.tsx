@@ -14,13 +14,14 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type ActivitySport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { adherenceBySport } from "@/domain/occurrences";
+import { adherenceBySport, isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { programmeOccurrences } from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Programme" };
 
@@ -60,6 +61,7 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
         occurrences: await programmeOccurrences(tx, user.id, schedule.program.familyId, {
           sport: sportFilter ?? undefined,
         }),
+        units: await unitsBySport(tx, user.id),
       };
     },
     { readOnly: true },
@@ -85,12 +87,21 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
     );
   }
 
+  const units = data.units;
   const adherence = adherenceBySport(
     data.occurrences.map((occurrence) => ({
       sport: occurrence.sport,
       resolution: occurrence.resolution,
     })),
   );
+  // Unanswered is not the same as missed: a session whose day has not come is still to come,
+  // and only one whose day has gone by is not done (SCHED-04). Lateness is about today's date,
+  // so it is worked out here rather than counted as a state.
+  const late = (occurrence: (typeof data.occurrences)[number]) =>
+    isOverdue(occurrence, occurrence.resolution, today);
+  const notDone = new Map<ActivitySport, number>();
+  for (const occurrence of data.occurrences.filter(late))
+    notDone.set(occurrence.sport, (notDone.get(occurrence.sport) ?? 0) + 1);
   const byDate = new Map<string, typeof data.occurrences>();
   for (const occurrence of data.occurrences) {
     byDate.set(occurrence.scheduledOn, [...(byDate.get(occurrence.scheduledOn) ?? []), occurrence]);
@@ -102,14 +113,19 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
       <PageContent>
         <Section title="Adherence">
           <Card>
-            {Object.entries(adherence).map(([sport, counts]) => (
-              <p key={sport} className="text-sm tabular-nums">
-                <span className="font-medium">{ACTIVITY_SPORT_LABELS[sport as ActivitySport]}</span>{" "}
-                · {counts.logged} logged · {counts.incomplete} outstanding · {counts.skipped}{" "}
-                skipped
-                {counts.cancelled > 0 ? ` · ${counts.cancelled} cancelled` : ""}
-              </p>
-            ))}
+            {Object.entries(adherence).map(([sport, counts]) => {
+              const missed = notDone.get(sport as ActivitySport) ?? 0;
+              return (
+                <p key={sport} className="text-sm tabular-nums">
+                  <span className="font-medium">
+                    {ACTIVITY_SPORT_LABELS[sport as ActivitySport]}
+                  </span>{" "}
+                  · {counts.logged} logged · {missed} not done · {counts.incomplete - missed} to
+                  come · {counts.skipped} skipped
+                  {counts.cancelled > 0 ? ` · ${counts.cancelled} cancelled` : ""}
+                </p>
+              );
+            })}
             {/* Each sport's record is its own: an unfinished run cannot fail a finished lift. */}
             <p className="text-sm text-ink-muted">
               Counted per sport, against the week each session was first placed in.
@@ -127,7 +143,11 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
                 {date < today ? " · earlier" : ""}
               </p>
               {occurrences.map((occurrence) => {
-                const status = STATUS[occurrence.resolution.kind]!;
+                // A session still to come has had no answer yet, and is not one to badge.
+                const status =
+                  occurrence.resolution.kind === "incomplete" && !late(occurrence)
+                    ? null
+                    : STATUS[occurrence.resolution.kind]!;
                 return (
                   <div key={occurrence.id} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -138,11 +158,11 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
                       >
                         {ACTIVITY_SPORT_LABELS[occurrence.sport]}
                         {occurrence.prescription
-                          ? ` · ${describePrescription(occurrence.prescription)}`
+                          ? ` · ${describePrescription(occurrence.prescription, units[occurrence.sport])}`
                           : ""}
                       </Link>
                     </div>
-                    <Badge tone={status.tone}>{status.label}</Badge>
+                    {status && <Badge tone={status.tone}>{status.label}</Badge>}
                   </div>
                 );
               })}

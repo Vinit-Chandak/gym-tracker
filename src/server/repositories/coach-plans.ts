@@ -1959,7 +1959,7 @@ export async function withPreparedTargets<
   db: DbOrTx,
   userId: string,
   occurrences: readonly T[],
-): Promise<(T & { preparedByCoach: boolean })[]> {
+): Promise<(T & { preparedByCoach: boolean; preparedPlanId: string | null })[]> {
   const plans = await activePlansForOccurrences(
     db,
     userId,
@@ -1971,9 +1971,10 @@ export async function withPreparedTargets<
       plan && plan.occurrenceRevisionId === occurrence.revisionId
         ? (plan.endurance[0]?.prescription ?? null)
         : null;
-    return prepared
-      ? { ...occurrence, prescription: prepared, preparedByCoach: true }
-      : { ...occurrence, preparedByCoach: false };
+    // The plan's id travels with its target, so a log made against it can say which it was.
+    return prepared && plan
+      ? { ...occurrence, prescription: prepared, preparedByCoach: true, preparedPlanId: plan.id }
+      : { ...occurrence, preparedByCoach: false, preparedPlanId: null };
   });
 }
 

@@ -50,6 +50,24 @@ it("names the field for a screen reader by the word it prints, once", () => {
   expect(screen.getByRole("radiogroup", { name: "Effort" })).toBeTruthy();
 });
 
+/**
+ * LOG-03: correcting a record whose effort is an unconfirmed legacy number keeps that number
+ * unless another answer is chosen. Offering only 1–5 and Not sure pre-selected Not sure, and
+ * the number went with the next save.
+ */
+it("offers to keep an unconfirmed legacy effort, chosen from the start", () => {
+  render(<EffortField value="keep" kept={{ value: 3 }} />);
+  const kept = screen.getByRole("radio", { name: "As recorded" }) as HTMLInputElement;
+  expect(kept.value).toBe("keep");
+  expect(kept.defaultChecked).toBe(true);
+  expect(screen.getByText(/keeps the earlier 3\/5, still unconfirmed/)).toBeTruthy();
+});
+
+it("offers nothing to keep on a new log", () => {
+  render(<EffortField value="" />);
+  expect(screen.queryByRole("radio", { name: "As recorded" })).toBeNull();
+});
+
 it("asks the run form's effort question exactly once", () => {
   render(
     <RunningForm

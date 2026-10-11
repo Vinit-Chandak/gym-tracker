@@ -52,6 +52,11 @@ export default async function EditActivityPage(
             : null
         }
         expectedRevision={activity.revision}
+        // An unconfirmed legacy effort is kept unless another answer is chosen; offering only
+        // 1–5 and Not sure would erase it with a correction to anything else (LOG-03).
+        keptEffort={
+          activity.effort.status === "legacy_unconfirmed" ? { value: activity.effort.value } : null
+        }
         initial={{
           ...activityFormValues(actual),
           recordedTimeZone: activity.recordedTimeZone,
@@ -59,7 +64,12 @@ export default async function EditActivityPage(
             timeZoneOffsetMinutes(activity.recordedTimeZone, activity.startedAt),
           ),
           startedAt: toDateTimeLocal(activity.startedAt, activity.recordedTimeZone),
-          effort: activity.effort.status === "reported" ? String(activity.effort.value) : "unsure",
+          effort:
+            activity.effort.status === "reported"
+              ? String(activity.effort.value)
+              : activity.effort.status === "legacy_unconfirmed"
+                ? "keep"
+                : "unsure",
           title: activity.title ?? "",
           notes: activity.notes ?? "",
           outcome: activity.outcome,

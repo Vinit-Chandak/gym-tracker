@@ -15,6 +15,7 @@ import { describePrescription } from "@/domain/activity-prescription";
 import { requireUser } from "@/server/auth";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -27,12 +28,13 @@ export const metadata: Metadata = { title: "Templates" };
  */
 export default async function TemplatesPage() {
   const user = await requireUser();
-  const { templates, routines } = await withUser(
+  const { templates, routines, units } = await withUser(
     getDb(),
     user.id,
     async (tx) => ({
       templates: await listTemplates(tx, user.id),
       routines: await listSavedRoutines(tx, user.id),
+      units: await unitsBySport(tx, user.id),
     }),
     { readOnly: true },
   );
@@ -62,7 +64,8 @@ export default async function TemplatesPage() {
                   {template.name}
                 </h2>
                 <p className="text-sm text-ink-muted">
-                  {describePrescription(template.prescription)} · version {template.version}
+                  {describePrescription(template.prescription, units[template.sport])} · version{" "}
+                  {template.version}
                 </p>
                 <Link
                   href={`/training/templates/${template.id}/edit`}

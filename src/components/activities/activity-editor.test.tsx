@@ -132,3 +132,53 @@ it("changes scheduled identity while retaining a draft through same-session refr
   expect(action.mock.calls[0]![1].get("occurrenceId")).toBe("evening");
   expect(action.mock.calls[0]![1].get("revisionId")).toBe("evening-revision");
 });
+
+/**
+ * A draft abandoned on one day and reopened on another: the time it was begun at is not what
+ * the athlete is logging, so an untouched start opens on now. It used to come back silently,
+ * folded away, and file Thursday's run under Monday.
+ */
+it("reopens an abandoned log on now rather than on the day it was begun", async () => {
+  saveDraft(localStorage, {
+    ...newDraft({
+      userId: props.userId,
+      sport: "cycling",
+      values: { ...props.initial, startedAt: "2026-09-19T07:10", minutes: "22" },
+    }),
+    dirtyFields: ["minutes"],
+  });
+  const action = vi.fn().mockResolvedValue({ formError: "Try again" });
+  render(<ActivityEditor {...props} action={action} />);
+  expect(await screen.findByText("Restored your unsaved activity from this device.")).toBeTruthy();
+  expect((screen.getByLabelText("When") as HTMLInputElement).value).toBe("2026-09-22T06:00");
+  fireEvent.click(screen.getByRole("radio", { name: "3" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
+  await screen.findByText("Try again");
+  expect(action.mock.calls[0]![1].get("startedAt")).toBe("2026-09-22T06:00");
+  expect(action.mock.calls[0]![1].get("minutes")).toBe("22");
+});
+
+it("keeps a start the athlete set, says so, and opens the details it is in", async () => {
+  saveDraft(localStorage, {
+    ...newDraft({
+      userId: props.userId,
+      sport: "cycling",
+      values: { ...props.initial, startedAt: "2026-09-19T07:10", minutes: "22" },
+    }),
+    dirtyFields: ["startedAt", "minutes"],
+  });
+  const { container } = render(<ActivityEditor {...props} action={vi.fn()} />);
+  expect(await screen.findByText(/It still says it started Sat 19 Sept 2026, 07:10/)).toBeTruthy();
+  expect((screen.getByLabelText("When") as HTMLInputElement).value).toBe("2026-09-19T07:10");
+  expect(container.querySelector("details")?.open).toBe(true);
+});
+
+it("keeps nothing once a change has been undone", async () => {
+  render(<ActivityEditor {...props} action={vi.fn()} />);
+  const duration = await screen.findByLabelText("Duration");
+  fireEvent.change(duration, { target: { value: "42" } });
+  await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(1));
+  fireEvent.change(duration, { target: { value: "" } });
+  await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0));
+  expect(screen.queryByText(/kept on this device/)).toBeNull();
+});

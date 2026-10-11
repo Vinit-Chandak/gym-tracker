@@ -11,6 +11,7 @@ import {
   plannedOccurrences,
   profiles,
   runningActivityDetails,
+  sessionPlans,
   swimmingActivityDetails,
   workoutSessions,
 } from "@/db/schema";
@@ -194,13 +195,23 @@ async function writeReceipt(
     .onConflictDoNothing();
 }
 
-type OccurrenceTarget = { occurrenceId: string; revisionId: string; sport: ActivitySport };
+type OccurrenceTarget = {
+  occurrenceId: string;
+  revisionId: string;
+  sport: ActivitySport;
+  /** The coach preparation that was on screen, or null for the base prescription. */
+  planId: string | null;
+};
 
 /**
  * The occurrence a planned log names — checked, not assumed.
  *
  * Foreign, missing, already logged, cancelled or a different sport: each is its own refusal.
  * Nothing here falls back to another occurrence, and nothing matches by date (LINK-01).
+ *
+ * A named preparation is kept only when it is this athlete's plan for this occurrence at this
+ * revision. One that has since been superseded is still the one that was shown, so it stands;
+ * one written for anything else is not evidence of what was performed, and is dropped.
  */
 async function resolveTarget(
   tx: DbOrTx,
@@ -236,7 +247,26 @@ async function resolveTarget(
     .limit(1);
   if (taken) throw new OccurrenceTakenError(taken.id);
   if (!canLog({ disposition: row.disposition }, null)) throw new OccurrenceNotFoundError();
-  return { occurrenceId: row.occurrenceId, revisionId: row.revisionId, sport: row.sport };
+  const [plan] = origin.performedPlanId
+    ? await tx
+        .select({ id: sessionPlans.id })
+        .from(sessionPlans)
+        .where(
+          and(
+            eq(sessionPlans.userId, userId),
+            eq(sessionPlans.id, origin.performedPlanId),
+            eq(sessionPlans.occurrenceId, row.occurrenceId),
+            eq(sessionPlans.occurrenceRevisionId, row.revisionId),
+          ),
+        )
+        .limit(1)
+    : [];
+  return {
+    occurrenceId: row.occurrenceId,
+    revisionId: row.revisionId,
+    sport: row.sport,
+    planId: plan?.id ?? null,
+  };
 }
 
 async function writeDetail(
@@ -433,7 +463,7 @@ export async function createActivity(
       notes: input.notes,
       occurrenceId: target?.occurrenceId ?? null,
       performedRevisionId: target?.revisionId ?? null,
-      performedPlanId: input.origin.kind === "planned" ? input.origin.performedPlanId : null,
+      performedPlanId: target?.planId ?? null,
       sourceKind: "manual",
     })
     .returning({ id: activities.id });
