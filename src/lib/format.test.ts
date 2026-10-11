@@ -7,6 +7,7 @@ import {
   formatIsoDate,
   formatIsoDay,
   formatIsoWeekdayDay,
+  formatLoadStep,
   formatMacros,
   formatMinutes,
   formatPortion,
@@ -53,6 +54,14 @@ it("writes a run's distance as it was logged", () => {
   expect(formatRunKm(5000)).toBe("5");
   expect(formatRunKm(0)).toBe("0");
   expect(formatRunKm(12345)).toBe("12.35");
+});
+
+it("writes the library's load jump as the step a reader in their unit can load", () => {
+  expect(formatLoadStep(2.5, "kg")).toBe("2.5 kg");
+  // 2.5 kg is 5.51 lb, which no plate makes: the jump in pounds is the nearest one that is.
+  expect(formatLoadStep(2.5, "lb")).toBe("5 lb");
+  expect(formatLoadStep(1.25, "lb")).toBe("2.5 lb");
+  expect(formatLoadStep(5, "lb")).toBe("10 lb");
 });
 
 it("writes a period's total by what it counts, in the reader's unit", () => {

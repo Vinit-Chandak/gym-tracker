@@ -16,7 +16,7 @@ import {
   type LengthUnit,
 } from "./distance-units";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
-import { fromKilograms } from "./units";
+import { fromKilograms, loadStepIn } from "./units";
 
 /**
  * The pieces of a formatted date, so a caller can join them itself.
@@ -188,16 +188,13 @@ export function formatMinutes(totalMinutes: number): string {
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 }
 
-/** Kilograms per pound, for turning the library's kg defaults into the reader's unit. */
-const LB_PER_KG = 2.2046226218;
-
 /**
- * A load stored in kilograms, written in the unit the reader prefers: "2.5 kg" or "5.5 lb".
- * Only for the shared library's own defaults — logged sets keep the unit they were logged in.
+ * A load step the library gives in kilograms, as the jump a reader in `unit` makes: "2.5 kg",
+ * or in pounds the plate jump nearest it, "5 lb". The same step progression moves by
+ * (`loadStepIn`), so the page never names a 5.5 lb jump that nobody can load.
  */
-export function formatKilograms(kilograms: number, unit: "kg" | "lb"): string {
-  if (unit === "kg") return `${kilograms} kg`;
-  return `${Math.round(kilograms * LB_PER_KG * 10) / 10} lb`;
+export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
+  return `${loadStepIn(kilograms, unit)} ${unit}`;
 }
 
 /** "6,240 kg" / "13,757 lb": a shared load in the reader's unit, thousands separated. */
