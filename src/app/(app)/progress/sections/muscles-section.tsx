@@ -46,7 +46,7 @@ export function MusclesSection({ muscles, today }: Pick<ProgressData, "muscles" 
           aria-label="Previous week"
           disabled={pending}
           onClick={() => stepWeek(-7)}
-          className="session-icon-button -ml-[10px] disabled:text-ink-2"
+          className="session-icon-button -ml-[10px] disabled:text-control"
         >
           <Glyph name="chevronLeft" className="glyph-22" />
         </button>
@@ -58,7 +58,7 @@ export function MusclesSection({ muscles, today }: Pick<ProgressData, "muscles" 
           aria-label="Next week"
           disabled={pending || muscles.to >= today}
           onClick={() => stepWeek(7)}
-          className="session-icon-button -mr-[10px] disabled:text-ink-2"
+          className="session-icon-button -mr-[10px] disabled:text-control"
         >
           <Glyph name="chevronRight" className="glyph-22" />
         </button>
