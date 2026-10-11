@@ -195,9 +195,10 @@ it("names each number under a top weight, and calls a set's volume what it is", 
       searchParams: Promise.resolve({}),
     } as never),
   );
-  // Two sets at the top weight, the better of them eleven reps: never "2 × 11".
-  expect(html).toContain("11\u00a0reps ·\u00a02\u00a0sets");
-  expect(html).toContain("2\u00a0reps ·\u00a01\u00a0set");
+  // Two sets at the top weight, the better of them eleven reps: never "2 × 11", nor
+  // "11 reps · 2 sets", which read as two sets of eleven too.
+  expect(html).toContain("2\u00a0sets ·\u00a0best\u00a011\u00a0reps");
+  expect(html).toContain("1\u00a0set ·\u00a02\u00a0reps");
   expect(html).not.toMatch(/\d × \d/);
   expect(html).toContain("Best set volume");
 });
