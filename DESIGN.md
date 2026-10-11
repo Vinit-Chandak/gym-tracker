@@ -523,8 +523,8 @@ only for a meta line's fact, whose words have no box of their own); a row grows 
 clipping. A figure keeps its unit and a count its noun ("12 sets"); a
 dot between facts goes with the fact after it; a range is held at its dash ("60–75 min"), a
 date's day to its month and year ("5 Oct 2025"), and a name breaks between its words, never at
-its hyphen ("push-up"). What sits beside a name (a button, a value, a
-tag) goes under it before the name would have less than a few words' room, and a table of
+its hyphen ("push-up"), save a long compound's ("Front-foot-elevated" may break after
+"foot-"). What sits beside a name (a button, a value, a tag) goes under it before the name would have less than a few words' room, and a table of
 figures stacks before a figure would split. A button at large text sizes grows and wraps. A
 chosen option wraps in its field rather than being cut; a one-line field's hint ends in an
 ellipsis. The one exception is a food row's name and the line under it, wherever food is

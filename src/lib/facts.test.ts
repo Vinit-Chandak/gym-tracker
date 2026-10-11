@@ -24,8 +24,17 @@ it("holds a written range at its dash and a figure to its unit", () => {
 it("holds a name together at its hyphens, and breaks it only between its words", () => {
   expect(holdHyphens("Archer push-up")).toBe("Archer push-\u2060up");
   expect(holdHyphens("Off-season Hypertrophy")).toBe("Off-\u2060season Hypertrophy");
+  expect(holdHyphens("T-bar row")).toBe("T-\u2060bar row");
   // A hyphen that is not inside a word is left alone.
   expect(holdHyphens("Week 2 - deload")).toBe("Week 2 - deload");
+});
+
+it("lets a long compound break at a hyphen, so it never runs wider than a narrow line", () => {
+  // Held whole it would be nineteen letters with no break; it keeps its short tail ("foot").
+  expect(holdHyphens("Front-foot-elevated split squat")).toBe(
+    "Front-\u2060foot-elevated split squat",
+  );
+  expect(holdHyphens("Half-kneeling cable chop")).toBe("Half-kneeling cable chop");
 });
 
 it("leaves out facts that say nothing", () => {

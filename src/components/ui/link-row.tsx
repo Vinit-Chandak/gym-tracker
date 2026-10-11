@@ -63,7 +63,14 @@ export function LinkRow<T extends string>({
           {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
           <div className="min-w-0 flex-[1_1_8rem]">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <p className={cn("font-medium [overflow-wrap:break-word]", danger && "text-danger")}>
+              {/* min-w-0: a flex item is otherwise as wide as its longest word, and a word too
+                  long for the line runs past the row rather than breaking (overflow-wrap). */}
+              <p
+                className={cn(
+                  "max-w-full min-w-0 font-medium [overflow-wrap:break-word]",
+                  danger && "text-danger",
+                )}
+              >
                 {title}
               </p>
               {badge}
