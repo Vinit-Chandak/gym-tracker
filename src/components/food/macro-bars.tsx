@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { FoodRowText, RowFigure, RowGlyph } from "@/components/food/food-row";
+import { Figures } from "@/components/ui/figures";
 import { Sheet } from "@/components/ui/sheet";
 import {
   contributions,
@@ -107,7 +108,9 @@ export function MacroBars({
                 <span className="food-macro-name">{label}</span>{" "}
                 <span className="food-macro-figure">
                   <span className="type-figure-l">{grams(eaten[key])}</span>{" "}
-                  <span className="food-macro-of">/ {formatFoodAmount(target[key])} g</span>
+                  <span className="food-macro-of">
+                    <Figures>{`/ ${formatFoodAmount(target[key])} g`}</Figures>
+                  </span>
                 </span>
                 <MacroRail state={state} eaten={eaten[key]} target={target[key]} />
               </button>

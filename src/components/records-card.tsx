@@ -1,5 +1,6 @@
 import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { Figures } from "@/components/ui/figures";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -86,7 +87,7 @@ export function ExerciseBestsTiles({
             label={metricLabel(best.metric, exercise)}
             value={
               <>
-                {formatSharedMetric(best.metric, best.value, unit)}
+                <Figures>{formatSharedMetric(best.metric, best.value, unit)}</Figures>
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
                   {joinFacts([
                     best.work && topWeightWorkLabel(best.work),
