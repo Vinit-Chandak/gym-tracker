@@ -92,3 +92,41 @@ export function usernameFromEmail(email: string): string {
   while (base.length < USERNAME_MIN_LENGTH) base += "0";
   return base;
 }
+
+/**
+ * The username sign-up asks Auth for, made from the name given there: "Bea Newcomer" is
+ * `bea.newcomer`. Accents are dropped rather than the letters under them, and the words are
+ * joined by dots. Empty when the name leaves nothing that meets the rules (too short, or
+ * reserved), and then the auth trigger makes one from the email, as it does when it finds
+ * this one taken.
+ */
+export function usernameFromName(name: string): string {
+  const candidate = name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\-–—]+/g, ".")
+    .replace(/[^a-z0-9._]/g, "")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^[._]+|[._]+$/g, "")
+    .slice(0, USERNAME_MAX_LENGTH)
+    .replace(/[._]+$/, "");
+  return isValidUsername(candidate) ? candidate : "";
+}
+
+/**
+ * The names sign-up tries, in order, for a username made from a name: `kit`, then `kit2` to
+ * `kit9`, each kept to the length limit and the rules. The first one free is asked for; when none
+ * is, the auth trigger falls back to the email.
+ */
+export function numberedUsernames(base: string): string[] {
+  if (!isValidUsername(base)) return [];
+  const candidates = [base];
+  for (let n = 2; n <= 9; n++) {
+    const stem = base.slice(0, USERNAME_MAX_LENGTH - 1).replace(/[._]+$/, "");
+    const candidate = `${stem}${n}`;
+    if (isValidUsername(candidate)) candidates.push(candidate);
+  }
+  return candidates;
+}

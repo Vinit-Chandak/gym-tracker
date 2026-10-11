@@ -61,7 +61,7 @@ export function LoginForm({ next }: { next?: string }) {
             // The word on screen leads the name, so a voice command saying it still finds it.
             aria-label={shown ? "Hide password" : "Show password"}
             onClick={() => setShown((value) => !value)}
-            className="-my-3 inline-flex min-h-11 items-center px-1 font-bold text-ink underline underline-offset-4"
+            className="-my-3 inline-flex min-h-11 min-w-11 items-center justify-end px-1 font-bold text-ink underline underline-offset-4"
           >
             {shown ? "Hide" : "Show"}
           </button>

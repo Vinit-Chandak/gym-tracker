@@ -10,6 +10,7 @@ import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { coachRollout } from "@/lib/coach-rollout";
+import { MAX_CLARIFICATIONS } from "@/domain/coaching-workflow";
 import { PLAN_LIMITS } from "@/domain/session-plan";
 import { requireProfiledUser } from "@/server/auth";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
@@ -137,6 +138,56 @@ export async function answerCoachQuestionsAction(
   const saved = await mutate((tx, userId) =>
     answerCoachQuestions(tx, userId, z.uuid().parse(jobId), answers).then((intake) => intake.id),
   );
+  if (!saved.ok) return saved;
+  return requestProgramme(requestKey, async (tx, userId) => {
+    await confirmIntake(tx, userId, saved.value);
+    return saved.value;
+  });
+}
+
+/** How a change asked of a first programme reaches the coach: as one of its own questions. */
+const FIRST_PROGRAMME_CHANGE_QUESTION = "What would you change about the programme you were shown?";
+
+/**
+ * "Ask for changes" on a first programme (board Your programme is ready).
+ *
+ * There is no running programme to review, so the change is a new request for the programme:
+ * the athlete's words are filed with their answers, as the answer to the question the screen
+ * asked, the draft they were shown is closed, and the coach writes it again. It is the same
+ * request the setup form makes and spends the same one of the day's three.
+ */
+export async function askForFirstProgrammeChangesAction(
+  draftId: string,
+  notes: string,
+  requestKey: string,
+) {
+  const saved = await mutate(async (tx, userId) => {
+    const parsed = z
+      .object({
+        draftId: z.uuid(),
+        notes: z.string().trim().min(1, "Say what you would like changed.").max(2000),
+      })
+      .parse({ draftId, notes });
+    const draft = await getProgramDraft(tx, userId, parsed.draftId);
+    if (!draft || draft.baseProgramId !== null || !["editing", "ready"].includes(draft.status))
+      throw new CoachingError("That programme is no longer waiting for an answer.");
+    const intake = await latestIntake(tx, userId);
+    if (!intake) throw new CoachingError("Answer the coach's questions first.");
+    const clarifications = [
+      ...intake.answers.clarifications.filter(
+        (entry) => entry.question !== FIRST_PROGRAMME_CHANGE_QUESTION,
+      ),
+      { question: FIRST_PROGRAMME_CHANGE_QUESTION, answer: parsed.notes },
+    ].slice(-MAX_CLARIFICATIONS);
+    const next = await saveIntake(
+      tx,
+      userId,
+      { ...intake.answers, clarifications },
+      intake.revision,
+    );
+    await closeProgramDraft(tx, userId, draft.id, "discarded");
+    return next.id;
+  });
   if (!saved.ok) return saved;
   return requestProgramme(requestKey, async (tx, userId) => {
     await confirmIntake(tx, userId, saved.value);

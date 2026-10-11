@@ -62,24 +62,206 @@ html:has(.onboarding) .pinned-actions {
     font-size: calc(7.5px + 1.40625rem); /* 30, k 0.75 */
   }
 }
-/* ---------- Welcome ---------- */
-.welcome-print {
-  height: 128px;
-  margin: 6px 0 0;
+/* ---------- You ---------- */
+/* Each question a group: its name (14, 700), then its choices under it. */
+.you-group {
+  min-width: 0;
+  margin-top: 24px;
 }
-@media (height < 800px) {
-  .welcome-print {
-    height: 96px;
-  }
+.you-label {
+  padding: 0;
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
 }
-.welcome-key {
+/* "Which sounds like you?": two tiles side by side, each its answer and what it leads to;
+   chosen, ink with a check. One to a row when large text would break a word. */
+.you-choices {
+  display: grid;
+  margin-top: 8px;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+.you-choice {
+  display: flex;
+  min-height: 116px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+  color: var(--ov-ink);
+  cursor: pointer;
+  gap: 10px;
+  transition:
+    background-color var(--ov-duration-press) var(--ov-ease-out),
+    color var(--ov-duration-press) var(--ov-ease-out),
+    scale var(--ov-duration-press) var(--ov-ease-out);
+}
+.you-choice:active {
+  scale: var(--ov-press-scale);
+}
+.you-choice:has(input:checked) {
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+.you-choice:has(input:focus-visible),
+.sport-chip:has(input:focus-visible) {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+.you-choice-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.you-choice-title {
+  min-width: 0;
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.you-choice-sub {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.you-choice:has(input:checked) .you-choice-sub {
+  color: var(--ov-on-ink-2);
+}
+/* "What do you train?": four tiles, two to a row, each its sport's mark and its name. */
+.sport-chips {
+  display: grid;
+  margin-top: 8px;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+.sport-chip {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  color: var(--ov-ink);
+  cursor: pointer;
+  gap: 10px;
+  transition:
+    background-color var(--ov-duration-press) var(--ov-ease-out),
+    color var(--ov-duration-press) var(--ov-ease-out),
+    scale var(--ov-duration-press) var(--ov-ease-out);
+}
+.sport-chip:active {
+  scale: var(--ov-press-scale);
+}
+.sport-chip:has(input:checked) {
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+/* Chosen, the mark stands on a square of ground, so its pigment is never read on ink. */
+.sport-chip-mark {
+  display: grid;
+  flex-shrink: 0;
+  padding: 5px;
+  border-radius: 8px;
+}
+.sport-chip:has(input:checked) .sport-chip-mark {
+  background: var(--ov-ground);
+}
+.sport-chip-word {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+/* What is wrong with a group, under it, in ink and led by its glyph. */
+.you-error {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 8px;
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+  gap: 6px;
+}
+/* Units and the time zone: one ruled line, the facts in ink 2 and Change at its end. */
+.units-line-wrap {
+  margin-top: 20px;
+}
+.units-line {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  border-top: 1px solid var(--ov-hair);
+  border-bottom: 1px solid var(--ov-hair);
+  gap: 10px;
+}
+.units-line-text {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 8px 0;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.units-line-change {
+  display: flex;
+  min-height: var(--ov-target);
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 2px;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* A unit in the sheet: its name (and what it is for) beside its segments, which fold under it
+   when large text needs the room. */
+.units-row {
   display: flex;
   flex-wrap: wrap;
-  margin: 6px 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.units-row-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+}
+.units-row-hint {
   color: var(--ov-ink-2);
-  font-size: var(--ov-type-caption);
-  font-weight: 600;
-  gap: 4px 14px;
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+}
+.units-row-control {
+  width: min(100%, 11rem);
+}
+/* ---------- Where you train ---------- */
+/* The kind of place as three tall tiles, its glyph over its word. */
+.setup-place {
+  margin-top: 22px;
+}
+.setup-place .where-choice-tile {
+  min-height: calc(92px + var(--ov-grow));
+  gap: 8px;
+  border-radius: var(--ov-radius-card);
+  font-size: var(--ov-type-body);
+}
+/* A line about what comes next, under the step's fields, in ink 2. */
+.setup-note {
+  margin-top: 12px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.45;
 }
 /* ---------- Sports ---------- */
 .sport-tiles {
@@ -390,6 +572,18 @@ button.equipment-tile:focus-visible {
 .picker-row[data-disabled] {
   cursor: default;
 }
+/* A basic found by the search: counted already, so its row offers only Not here (or It's here). */
+.equipment-row-toggle {
+  display: flex;
+  min-height: var(--ov-target);
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 2px;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .equipment-row-info {
   display: grid;
   width: var(--ov-target);
@@ -412,4 +606,441 @@ button.equipment-tile:focus-visible {
 .about-art-small {
   max-width: 10rem;
   margin: 8px 0 0;
+}
+
+/* ---------- The coach's questions in setup ---------- */
+.setup-coach-group {
+  min-width: 0;
+  margin-top: 22px;
+}
+/* One of a few, as chips that wrap: the chosen one ink. */
+.choice-chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  gap: 8px;
+}
+.choice-chip {
+  display: inline-flex;
+  min-width: var(--ov-target);
+  min-height: var(--ov-target);
+  align-items: center;
+  justify-content: center;
+  padding: 4px 14px;
+  border-radius: 12px;
+  background: var(--ov-surface);
+  color: var(--ov-ink);
+  cursor: pointer;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  transition:
+    background-color var(--ov-duration-press) var(--ov-ease-out),
+    color var(--ov-duration-press) var(--ov-ease-out),
+    scale var(--ov-duration-press) var(--ov-ease-out);
+}
+.choice-chip:active {
+  scale: var(--ov-press-scale);
+}
+.choice-chip:has(input:checked) {
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+.choice-chip:has(input:focus-visible) {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+/* The week as seven chips in a row, folding to four and three where a day would be narrower
+   than a thumb (iPhone SE, large text). */
+.day-chips-wrap {
+  margin-top: 8px;
+  container-type: inline-size;
+}
+.day-chips {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.day-chip {
+  min-height: 48px;
+  padding: 0;
+}
+@container (width < 21em) {
+  .day-chips {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Height, weight and age side by side, folding where a box would get too narrow. */
+.setup-coach-body {
+  display: grid;
+  margin-top: 22px;
+  gap: 10px 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr));
+}
+.figure-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.figure-field-label {
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.figure-field-box {
+  position: relative;
+  display: block;
+}
+.figure-field-input {
+  width: 100%;
+  min-height: calc(52px + var(--ov-grow));
+  padding: 0 12px;
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-ground);
+  color: var(--ov-ink);
+  font-family: var(--ov-font-display);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.figure-field-input[data-suffix] {
+  padding-right: 34px;
+}
+.figure-field-input:focus {
+  border-color: var(--ov-ink);
+  outline: none;
+}
+.figure-field-input[aria-invalid="true"] {
+  border-width: 2px;
+  border-color: var(--ov-ink);
+}
+.figure-field-suffix {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+  pointer-events: none;
+  translate: 0 -50%;
+}
+.setup-caption {
+  margin-top: 6px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 500;
+}
+/* Optional answers, each folded under its name and what it is for: ruled rows. */
+.setup-coach-more {
+  margin-top: 18px;
+  border-top: 1px solid var(--ov-hair);
+}
+.setup-fold {
+  border-bottom: 1px solid var(--ov-hair);
+}
+.setup-fold-summary {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  padding: 8px 0;
+  cursor: pointer;
+  gap: 12px;
+  list-style: none;
+}
+.setup-fold-summary::-webkit-details-marker {
+  display: none;
+}
+.setup-fold-summary:focus-visible {
+  border-radius: 6px;
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+.setup-fold-title {
+  display: block;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+}
+.setup-fold-sub {
+  display: block;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.setup-file {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  cursor: pointer;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  gap: 10px;
+}
+.setup-file:has(input:focus-visible) {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+
+/* ---------- The coach writing, and the programme it wrote ---------- */
+/* A bar that says work is under way without saying how far: ink sliding across a hairline
+   track. With reduced motion it stands still, half full. */
+.writing-bar {
+  position: relative;
+  overflow: hidden;
+  height: 4px;
+  margin-top: 18px;
+  border-radius: 9999px;
+  background: var(--ov-hair);
+}
+.writing-bar::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  animation: writing-bar 1.6s var(--ov-ease-standard) infinite;
+  background: var(--ov-ink);
+  content: "";
+}
+@keyframes writing-bar {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 250% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .writing-bar::after {
+    width: 50%;
+    animation: none;
+  }
+}
+/* What the coach is working from: ruled rows, the fact's name in ink 2 and its value in ink. */
+.setup-facts {
+  margin-top: 2px;
+}
+.setup-facts-row {
+  display: flex;
+  min-height: 44px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ov-hair);
+  gap: 2px 16px;
+}
+.setup-facts-row > dt {
+  width: 6.5rem;
+  flex-shrink: 0;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+}
+.setup-facts-row > dd {
+  min-width: 0;
+  flex: 1 1 10rem;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* The programme: its name, its shape in figures, then each training day as its print. */
+.ready-name {
+  margin-top: 10px;
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.ready-shape {
+  margin-top: 2px;
+  color: var(--ov-ink-2);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-heading);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.ready-days {
+  margin-top: 16px;
+  border-top: 1px solid var(--ov-hair);
+}
+.ready-day {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ov-hair);
+  gap: 14px;
+}
+.ready-day-print {
+  display: grid;
+  width: 56px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+}
+.ready-day-name {
+  display: block;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.ready-day-sub {
+  display: block;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.ready-why {
+  margin-top: 14px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.ready-start {
+  min-height: 52px;
+  margin-top: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-body);
+}
+
+/* ---------- Your split, and a programme to follow ---------- */
+.split-day-label {
+  display: block;
+  margin-top: 8px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+}
+/* The day's name, typed where the title stands: Display, over a hairline. */
+.split-day-name {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1.5px solid var(--ov-hair);
+  background: transparent;
+  color: var(--ov-ink);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-display);
+  font-weight: 700;
+  letter-spacing: var(--ov-title-tracking);
+}
+.split-day-name:focus {
+  border-bottom-color: var(--ov-ink);
+  outline: none;
+}
+.split-day-name::placeholder {
+  color: var(--ov-ink-2);
+}
+/* A day in the list: its number in Jost, its name and what is on it, a chevron. */
+.split-day,
+.split-row {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  padding: 10px 0;
+  gap: 14px;
+  text-align: left;
+}
+.split-day-number {
+  width: 22px;
+  flex-shrink: 0;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.split-row-name {
+  display: block;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.split-row-sub {
+  display: block;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.split-row-figures {
+  display: block;
+  color: var(--ov-ink-2);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.split-add-day {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  gap: 14px;
+}
+.split-remove {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  gap: 8px;
+}
+.split-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.split-stepper-value {
+  min-width: 2ch;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-l);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+}
+.round-button:disabled {
+  color: var(--ov-control);
+}
+/* A programme to follow: its first day's print as a band, its name, the facts that decide it. */
+.template-print {
+  height: 92px;
+  margin: 18px 0 0;
+}
+.template-name {
+  margin-top: 14px;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-card-title);
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.template-facts {
+  margin-top: 14px;
+  border-top: 1px solid var(--ov-hair);
+}
+.template-fact {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  gap: 12px;
 }
