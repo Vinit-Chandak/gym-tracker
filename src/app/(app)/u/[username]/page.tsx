@@ -139,9 +139,16 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               className="[&>button]:w-full"
             />
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-ink-muted">This is you.</p>
-              <LinkButton href="/profile/edit" variant="secondary" size="sm">
+            // Edit stands beside the words while they keep a few words' room, and under them,
+            // the card's width, at large text: never "This is / you." beside "Edit / profile".
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <p className="min-w-0 flex-[999_1_8rem] text-sm text-ink-muted">This is you.</p>
+              <LinkButton
+                href="/profile/edit"
+                variant="secondary"
+                size="sm"
+                className="flex-[1_0_auto]"
+              >
                 Edit profile
               </LinkButton>
             </div>
