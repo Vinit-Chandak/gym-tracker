@@ -123,12 +123,19 @@ function EnduranceDetails({
  */
 export function EnduranceCard({
   occurrence,
+  day,
   partOf,
   coachSummary,
   units = DEFAULT_SPORT_UNITS,
 }: {
   /** `preparedByCoach` when the prescription is the coach's preparation for today. */
   occurrence: ScheduledOccurrence & { preparedByCoach?: boolean };
+  /**
+   * The programme day it is the whole of, on a day that only runs: the card takes the day's name
+   * and its focus ("Tempo run", "Threshold"), as a lifting day's card does, rather than the
+   * sport's bare "Run" that Training and the programme never call it.
+   */
+  day?: { name: string; focus: string | null } | null;
   /** The programme day it belongs to, when that is not obvious ("Part of Easy Run + Arms"). */
   partOf?: string | null;
   /** The coach's own words for this sport, on the day it planned. */
@@ -142,7 +149,8 @@ export function EnduranceCard({
   const skipped = occurrence.disposition === "skipped";
   const target = enduranceTarget(occurrence.prescription, units);
   const note = enduranceNote(occurrence.prescription);
-  const name = enduranceName(sport);
+  const name = day?.name ?? enduranceName(sport);
+  const focus = day?.focus ?? null;
   const time = occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null;
   // What the Log button adds to its words, so two runs on one day are told apart.
   const said = [
@@ -183,8 +191,9 @@ export function EnduranceCard({
       }
       muted={logged || skipped}
       facts={
-        (note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
+        (focus || note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
           <>
+            {focus && <Fact glyph="target">{focus}</Fact>}
             {note && <Fact glyph="pace">{note}</Fact>}
             {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
             {time && (

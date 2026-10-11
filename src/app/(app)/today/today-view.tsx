@@ -589,13 +589,36 @@ export function TodayView({
     </li>
   );
 
+  // A day that only runs is its run: its one card takes the day's name and focus ("Tempo run",
+  // "Threshold"), as a lifting day's card does, where it said only "Run" (year audit, October
+  // 2026). Two sessions on such a day keep their sports' names, so neither is called the day.
+  const runDays = new Map<string, { name: string; focus: string | null }>();
+  const nameRunDay = (
+    of: TodayPlan["suggestedDay"] | null,
+    occurrences: readonly ScheduledOccurrence[],
+  ) => {
+    if (!of || of.includesLifting || !of.includesRun) return;
+    const own = occurrences.filter(
+      (occurrence) => occurrence.sport !== "strength" && occurrence.resolution.kind !== "cancelled",
+    );
+    if (own.length === 1) runDays.set(own[0]!.id, { name: of.name, focus: of.focus });
+  };
+  nameRunDay(day, programmeOnOffer);
+  nameRunDay(finishedToday, finishedOccurrences);
+
   /** `partOf` names the programme day the cards belong to where it is not the day on offer. */
   const enduranceCards = (occurrences: readonly ScheduledOccurrence[], partOf?: string) =>
     occurrences.map((occurrence) => (
       <li key={occurrence.id}>
         <EnduranceCard
           occurrence={occurrence}
-          partOf={partOf ?? (isProgramme(occurrence) && finishedToday && day ? day.name : null)}
+          day={runDays.get(occurrence.id)}
+          // A card named for its day needs no "Part of" it.
+          partOf={
+            runDays.has(occurrence.id)
+              ? null
+              : (partOf ?? (isProgramme(occurrence) && finishedToday && day ? day.name : null))
+          }
           coachSummary={isProgramme(occurrence) && occurrence.sport === "running" ? coachRun : null}
           units={distanceUnits[occurrence.sport]}
         />

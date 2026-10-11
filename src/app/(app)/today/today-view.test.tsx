@@ -403,11 +403,38 @@ it("keeps the run of a day finished today on today, and the next day up next", (
   const today = within(screen.getByRole("region", { name: "Today" }));
   const [ran, ...others] = today.getAllByRole("article");
   expect(others).toHaveLength(0);
-  // A day that only runs is its run: its card says so, and no second card says the same.
+  // A day that only runs is its run: its card is named for the day and says it is done, and no
+  // second card says the same.
+  expect(within(ran!).getByRole("heading").textContent).toContain("Easy run");
   expect(ran!.textContent).toContain("Logged");
-  expect(ran!.textContent).toContain("Part of Easy run");
+  expect(ran!.textContent).not.toContain("Part of");
   expect(within(ran!).getByRole("link", { name: /See what you logged/ })).toBeTruthy();
   expect(screen.getByRole("list", { name: "Up next: Easy Run + Arms" })).toBeTruthy();
+});
+
+it("names a day that only runs for the day, with its focus, as a lifting day's card is", () => {
+  // Liam's Today in the year audit: "Run 4.6–5.9 mi", where Training says "Tempo run · Threshold".
+  const tempo = {
+    ...DAY,
+    id: "tempo",
+    dayIndex: 4,
+    name: "Tempo run",
+    focus: "Threshold",
+    includesLifting: false,
+  };
+  const threshold: ScheduledOccurrence = { ...run("run-tempo", [37, 47]), familyId: "family" };
+  show({
+    plan: { ...plan(), suggestedDay: tempo, suggestedExercises: [] },
+    programmeOccurrences: [threshold],
+  });
+  const tempoCard = card("Tempo run");
+  expect(within(tempoCard).getByText("Threshold")).toBeTruthy();
+  // The pace note keeps its place beside the focus, and in the plan under the fold.
+  expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(2);
+  expect(within(tempoCard).getByRole("link", { name: "Log run: 37–47 min" })).toBeTruthy();
+  // Unfolded, the time is one range with its unit said once, as everywhere else.
+  expect(tempoCard.textContent).toContain("37–47\u00a0min");
+  expect(tempoCard.textContent).not.toContain("37 min–47 min");
 });
 
 it("draws no run in the print for one a revision withdrew", () => {
