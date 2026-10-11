@@ -61,6 +61,8 @@ export type SlotOccurrence = {
   cycleIndex: number;
   dayIndex: number;
   outcome: EnduranceOutcome;
+  /** The athlete's date the activity that answered it happened on; only a logged one has it. */
+  occurredOn?: string;
 };
 
 /**
@@ -78,25 +80,37 @@ export type SlotOccurrence = {
  * programme itself withdrew asks for nothing, so a slot left holding only cancellations
  * counts as answered rather than as the athlete's failure — and a skip only outranks a
  * cancellation, never a log.
+ *
+ * A run answered by a log is dated by the last of its logs, as a finished workout is by its
+ * session: that is the day the run half was done, and what tells Today a day that only runs
+ * was finished this morning rather than still to do.
  */
 export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[]): SlotEvent[] {
-  const bySlot = new Map<string, EnduranceOutcome[]>();
+  const bySlot = new Map<string, SlotOccurrence[]>();
   for (const occurrence of occurrences) {
     const slot = `${occurrence.cycleIndex}:${occurrence.dayIndex}`;
-    const outcomes = bySlot.get(slot);
-    if (outcomes) outcomes.push(occurrence.outcome);
-    else bySlot.set(slot, [occurrence.outcome]);
+    const answers = bySlot.get(slot);
+    if (answers) answers.push(occurrence);
+    else bySlot.set(slot, [occurrence]);
   }
   const events: SlotEvent[] = [];
-  for (const [slot, outcomes] of bySlot) {
+  for (const [slot, answers] of bySlot) {
+    const outcomes = answers.map((answer) => answer.outcome);
     if (outcomes.includes("incomplete")) continue;
     const [cycleIndex, dayIndex] = slot.split(":").map(Number) as [number, number];
     const done = outcomes.some((outcome) => outcome === "logged" || outcome === "legacy_completed");
+    const loggedOn = answers
+      .flatMap((answer) =>
+        answer.outcome === "logged" && answer.occurredOn ? [answer.occurredOn] : [],
+      )
+      .sort()
+      .at(-1);
     events.push({
       cycleIndex,
       dayIndex,
       part: "run",
       status: done || !outcomes.includes("skipped") ? "completed" : "skipped",
+      ...(loggedOn ? { occurredOn: loggedOn } : {}),
     });
   }
   return events;
@@ -222,24 +236,30 @@ export function nextPendingSlot(state: ScheduleState): SlotRef | null {
 }
 
 /**
- * The last day of the sequence finished on `date`: its workout (or its rest) done that day, and
- * nothing else it asks for still owed. When there is one, the day Today offers is the one
- * after it, which is up next rather than today's: the sequence moves on as soon as a day is
- * done, but the calendar does not. A skip finishes nothing, so a day skipped this morning
- * leaves the next one as today's.
+ * The last day of the sequence finished on `date`: nothing it asks for still owed, and the last
+ * of what it asked for done that day — its workout, its run, or its rest. When there is one,
+ * the day Today offers is the one after it, which is up next rather than today's: the sequence
+ * moves on as soon as a day is done, but the calendar does not. A day that only runs is
+ * finished by its run, and one that lifts and runs by whichever half came last, so a run logged
+ * this morning against yesterday's workout finishes the day this morning. A skip finishes
+ * nothing, so a day skipped this morning leaves the next one as today's.
  */
 export function slotFinishedOn(state: ScheduleState, date: string): SlotRef | null {
   let last: SlotRef | null = null;
   for (const ref of allSlots(state)) {
-    const doneThatDay = state.events.some(
-      (event) =>
+    if (pendingParts(state, ref).length > 0) continue;
+    const doneOn = state.events
+      .flatMap((event) =>
         event.cycleIndex === ref.cycleIndex &&
         event.dayIndex === ref.dayIndex &&
-        event.part === "session" &&
         event.status === "completed" &&
-        event.occurredOn === date,
-    );
-    if (doneThatDay && pendingParts(state, ref).length === 0) last = ref;
+        event.occurredOn
+          ? [event.occurredOn]
+          : [],
+      )
+      .sort()
+      .at(-1);
+    if (doneOn === date) last = ref;
   }
   return last;
 }

@@ -231,7 +231,9 @@ describe("behind the calendar", () => {
     // Answered as it says, nothing is behind and the next day is today's.
     const answered = state([
       ...events,
-      ...pickUp.skip.map(({ ref, part: which }) => part(ref.cycleIndex, ref.dayIndex, which, "skipped")),
+      ...pickUp.skip.map(({ ref, part: which }) =>
+        part(ref.cycleIndex, ref.dayIndex, which, "skipped"),
+      ),
       ...pickUp.rest.map((ref) => part(ref.cycleIndex, ref.dayIndex, "session")),
     ]);
     expect(sessionsBehind(answered, "2026-09-08", "2026-09-14")).toBe(0);
@@ -298,6 +300,46 @@ describe("the day finished today", () => {
     const rested = state([...events, on(part(1, 7, "session"), "2026-09-25")]);
     expect(slotFinishedOn(rested, "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 7 });
   });
+
+  /**
+   * A day that only runs has no workout to finish: its run is the whole day. Read only through
+   * the workout, a run logged this morning left the day unfinished, so Today offered the next day
+   * as today's and the run that had just been logged vanished from it.
+   */
+  it("is a day that only runs, once its run was logged today", () => {
+    const slots = [
+      lift(1, "Lower"),
+      { dayIndex: 2, name: "Easy run", includesLifting: false, includesRun: true },
+      lift(3, "Upper"),
+    ];
+    const ran = (occurredOn: string): ScheduleState => ({
+      slots,
+      cycles: 4,
+      startDayIndex: 1,
+      events: withDerivedRunEvents(
+        [on(part(1, 1, "session"), "2026-09-24")],
+        runEventsFromOccurrences([{ cycleIndex: 1, dayIndex: 2, outcome: "logged", occurredOn }]),
+      ),
+    });
+    expect(slotFinishedOn(ran("2026-09-25"), "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 2 });
+    expect(nextPendingSlot(ran("2026-09-25"))).toEqual({ cycleIndex: 1, dayIndex: 3 });
+    // Logged yesterday, it was yesterday's: today the next day is today's.
+    expect(slotFinishedOn(ran("2026-09-24"), "2026-09-25")).toBeNull();
+  });
+
+  it("is a day that lifts and runs by whichever half was done last", () => {
+    const lifted = on(part(1, 3, "session"), "2026-09-24");
+    const ranToday = state([...done(1, 2), lifted, on(part(1, 3, "run"), "2026-09-25")]);
+    expect(slotFinishedOn(ranToday, "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 3 });
+    expect(slotFinishedOn(ranToday, "2026-09-24")).toBeNull();
+    // Skipping the run this morning finishes nothing today: the workout was yesterday's.
+    const skippedToday = state([
+      ...done(1, 2),
+      lifted,
+      on(part(1, 3, "run", "skipped"), "2026-09-25"),
+    ]);
+    expect(slotFinishedOn(skippedToday, "2026-09-25")).toBeNull();
+  });
 });
 
 describe("endurance answers the day it belongs to", () => {
@@ -311,6 +353,26 @@ describe("endurance answers the day it belongs to", () => {
     expect(runEventsFromOccurrences([occurrence(2, 3, "logged")])).toEqual([
       { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
     ]);
+  });
+
+  it("dates the run half by the last log that answered it", () => {
+    const logged = (occurredOn: string): SlotOccurrence => ({
+      ...occurrence(2, 3, "logged"),
+      occurredOn,
+    });
+    expect(
+      runEventsFromOccurrences([
+        logged("2026-09-25"),
+        logged("2026-09-24"),
+        occurrence(2, 3, "skipped"),
+      ]),
+    ).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed", occurredOn: "2026-09-25" },
+    ]);
+    // Nothing logged, nothing to date it by.
+    expect(runEventsFromOccurrences([occurrence(2, 3, "skipped")])[0]).not.toHaveProperty(
+      "occurredOn",
+    );
   });
 
   it("a run nobody has answered yet leaves the day owing it", () => {
