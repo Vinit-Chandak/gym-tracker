@@ -32,23 +32,34 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-/* Two to a row, 10 apart, 14 between rows; the day on offer the full width. */
+/* Two to a row, 10 apart, 14 between rows; the day on offer the full width. The days keep the
+   order they are trained in, so a day that would stand alone in its row before the next one
+   takes the row rather than leave a hole beside it. */
 .cycle-days {
   display: grid;
   margin-top: calc(10 * var(--ov-u));
   gap: calc(14 * var(--ov-u)) calc(10 * var(--ov-u));
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.cycle-day-next {
+.cycle-day-next,
+.cycle-days > li:nth-child(odd):has(+ .cycle-day-next) {
   grid-column: 1 / -1;
 }
-/* Beyond a phone the days take as many columns as fit, the next one two of them (ADR 0052). */
+/* Beyond a phone the days take as many columns as fit, the next one two of them (ADR 0052), or
+   one where it falls in a row's last column (cycle-days.tsx). Its print is as tall as the
+   others', so the names in a row stand on one line. */
 @media (width >= 600px) {
   .cycle-days {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
   }
+  .cycle-days > li:nth-child(odd):has(+ .cycle-day-next) {
+    grid-column: auto;
+  }
   .cycle-day-next {
     grid-column: span 2;
+  }
+  .cycle-day-next-narrow {
+    grid-column: auto;
   }
 }
 .cycle-day {
@@ -57,8 +68,10 @@
 .cycle-day-print {
   height: calc(64 * var(--ov-u));
 }
-.cycle-day-next .cycle-day-print {
-  height: calc(92 * var(--ov-u));
+@media (width < 600px) {
+  .cycle-day-next .cycle-day-print {
+    height: calc(92 * var(--ov-u));
+  }
 }
 .cycle-day-name {
   display: flex;
