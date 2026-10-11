@@ -42,7 +42,8 @@ it("links nothing on the person's own page, which is where it would lead", () =>
 it("leaves the name to the title on the person's own page, starting at the handle", () => {
   const { container } = render(<PersonCard person={person} counts={counts} named={false} />);
   expect(screen.queryByText("Vinit")).toBeNull();
+  // Each count kept with its word, and each dot with the fact after it.
   expect(container.querySelector(".person-card-text")?.textContent).toBe(
-    "@vinit · 3 followers · 5 following",
+    "@vinit ·\u00a03\u00a0followers ·\u00a05\u00a0following",
   );
 });
