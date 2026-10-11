@@ -3,7 +3,7 @@ import { scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
-import { chooseOnboardingUnits, addStarterChestPress } from "./audit-controls.mjs";
+import { addStarterChestPress, answerFirstStep, choosePlace, signUp } from "./audit-controls.mjs";
 import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
@@ -60,33 +60,35 @@ const checkWidth = async (page) => {
   }));
   assert.ok(width.document <= width.viewport + 1, `Page overflows: ${JSON.stringify(width)}`);
 };
-async function signup(page, account, gym = true) {
+/**
+ * A new account through sign-up and setup (ADR 0053): a lifter at a gym who logs their own
+ * workouts, or an athlete who only runs and is finished after the first step. The username is
+ * made from the name, so it is read back by the email.
+ */
+async function signup(page, account, lifts = true) {
   await go(page, "/signup");
-  await page.getByLabel("Name", { exact: true }).fill(account.name);
-  await page.getByLabel("Username", { exact: true }).fill(account.username);
-  await page.getByLabel("Email", { exact: true }).fill(account.email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByLabel("Confirm password", { exact: true }).fill(password);
-  await button(page, "Create account").click();
-  await page.waitForURL(/\/welcome$/);
-  await expect(page.getByLabel("What should we call you?")).toHaveValue(account.name);
-  await chooseOnboardingUnits(page, "lb");
-  await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
-  await button(page, "Continue").click();
-  await page.waitForURL(/\/welcome\/sports$/);
-  if (!gym) await page.getByRole("checkbox", { name: "Strength", exact: true }).click();
-  await button(page, "Continue").click();
-  if (gym) {
-    await page.waitForURL(/\/welcome\/gym$/);
-    await page.getByLabel("Name", { exact: true }).fill(`${account.username} first gym`);
-    await button(page, "Add gym").click();
-    await page.waitForURL(/\/welcome\/equipment\?gym=/);
+  await signUp(page, { name: account.name, email: account.email, password });
+  // The name given at sign-up is not asked for again: it greets.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Welcome, ${account.name.split(" ")[0]}`,
+  );
+  await answerFirstStep(page, {
+    sports: lifts ? ["Strength", "Running"] : ["Running"],
+    weight: "lb",
+    timeZone: "America/New_York",
+  });
+  if (lifts) {
+    await choosePlace(page, { name: `${account.key} first gym` });
     await addStarterChestPress(page);
+    await page.waitForURL(/\/welcome\/programme$/);
+    await button(page, "Log my own workouts").click();
+    await page.waitForURL(/\/today$/);
   }
-  await page.waitForURL(/\/welcome\/programme$/);
-  await button(page, "Just track my workouts").click();
-  await page.waitForURL(/\/today$/);
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  const [profile] = await sql`select p.id, p.username from profiles p
+    join auth.users u on u.id = p.id where u.email = ${account.email}`;
+  account.id = profile.id;
+  account.username = profile.username;
 }
 async function deleteInUi(page) {
   await go(page, "/profile/delete-account");
@@ -128,10 +130,10 @@ async function runDevice(device) {
     return page;
   };
   const makeAccount = (suffix) => {
-    const username = `auditac${device[0]}${Date.now().toString(36)}${suffix}`;
+    const key = `auditac${device[0]}${Date.now().toString(36)}${suffix}`;
     const account = {
-      username,
-      email: `${username}@local.test`,
+      key,
+      email: `${key}@local.test`,
       name: `Alexandra ${suffix} — strength, swimming and everyday wellbeing`,
     };
     accounts.push(account);
@@ -171,11 +173,10 @@ async function runDevice(device) {
     await step("signup-onboarding-imperial", async () => {
       await signup(page, account);
       const [profile] =
-        await sql`select id, preferred_unit, time_zone, onboarded_at from profiles where username = ${account.username}`;
+        await sql`select preferred_unit, time_zone, onboarded_at from profiles where id = ${account.id}`;
       assert.equal(profile.preferred_unit, "lb");
       assert.equal(profile.time_zone, "America/New_York");
       assert.ok(profile.onboarded_at);
-      account.id = profile.id;
       const [machine] =
         await sql`select unit from equipment_instances where user_id = ${account.id}`;
       assert.equal(machine.unit, "lb");

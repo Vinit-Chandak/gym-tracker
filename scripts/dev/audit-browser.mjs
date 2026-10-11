@@ -217,6 +217,10 @@ for (const config of configurations.filter((c) =>
       return;
     const screenshotName = `${persona}-${String(index).padStart(2, "0")}`;
     const screenshots = {};
+    // Setup resumes at the first step not answered (ADR 0053): for Taylor, the first.
+    const beforeFirstStep =
+      persona === "taylor" &&
+      /^\/welcome\/(?:sports|gym|equipment|programme(?:\/create)?)$/.test(route);
     const expectedRoute =
       route === "/"
         ? "/today"
@@ -226,16 +230,22 @@ for (const config of configurations.filter((c) =>
             ? "/training/new?sport=running"
             : route.startsWith("/runs/")
               ? route.replace("/runs/", "/training/activities/")
-              : persona === "taylor" && route === "/welcome/equipment"
-                ? "/welcome/gym"
+              : beforeFirstStep
+                ? "/welcome"
                 : route;
+    // Setup's draft page reads only a first programme: a revision of a running one, and the job
+    // that wrote it, open on Profile.
+    const arrived = (url) =>
+      url.href === new URL(expectedRoute, baseURL).href ||
+      (/^\/welcome\/programme\/(?:drafts|jobs)\//.test(route) &&
+        /^\/profile\/programme\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
     try {
       await freshPage();
       const started = performance.now();
       const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
       // A streamed redirect can briefly reach network-idle while only its shell is visible.
       // Wait for the promised destination and real page content before judging that screen.
-      await page.waitForURL(new URL(expectedRoute, baseURL).href, { timeout: 15_000 });
+      await page.waitForURL(arrived, { timeout: 15_000 });
       // /warm is what a keep-warm scheduler asks for (ADR 0050): a page with one line, no title.
       await (
         route === "/warm"
@@ -305,7 +315,7 @@ for (const config of configurations.filter((c) =>
             nodes: v.nodes.map((n) => ({ target: n.target, summary: n.failureSummary })),
           }))
         : [];
-      const unexpectedDestination = page.url() !== new URL(expectedRoute, baseURL).href;
+      const unexpectedDestination = !arrived(new URL(page.url()));
       results.push({
         device: config.name,
         persona,

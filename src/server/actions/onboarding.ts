@@ -1,35 +1,145 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
+import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
+import { ACTIVITY_SPORTS } from "@/domain/activity";
+import { BODY_LOAD_UNITS, GYM_KINDS, TRAINING_EXPERIENCES } from "@/domain/types";
+import { DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
+import { SETUP_PLACE_NAMES } from "@/lib/setup-place";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
+import { profileChanged } from "@/server/queries/request-profile";
+import { readSetupState } from "@/server/queries/setup-state";
+import { knownTimeZone } from "@/server/queries/time-zone";
 import { GymNotFoundError } from "@/server/repositories/equipment";
-import { createGym } from "@/server/repositories/gyms";
+import { createGym, getGym, updateGym } from "@/server/repositories/gyms";
+import { setSportPreference } from "@/server/repositories/sport-preferences";
 import {
   confirmStarterEquipment,
   StarterChoiceError,
 } from "@/server/repositories/starter-equipment";
-import { parseForm, type FormState } from "@/server/validation/form";
-import { gymInputSchema } from "@/server/validation/gyms";
+import { formValues, parseForm, type FormState } from "@/server/validation/form";
+import { timeZoneSchema, UNKNOWN_TIME_ZONE } from "@/server/validation/profile";
 
-/** Onboarding step 2: the user's first gym, then straight on to its machines. */
-export async function createFirstGymAction(
+const youStepSchema = z.object({
+  trainingExperience: z.enum(TRAINING_EXPERIENCES, {
+    error: "Choose the one that sounds like you.",
+  }),
+  sports: z.preprocess(
+    (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : []),
+    z.array(z.enum(ACTIVITY_SPORTS)).min(1, "Choose at least one.").max(ACTIVITY_SPORTS.length),
+  ),
+  preferredUnit: z.enum(BODY_LOAD_UNITS),
+  distanceUnit: z.enum(DISTANCE_UNITS),
+  poolUnit: z.enum(POOL_UNITS),
+  timeZone: timeZoneSchema,
+});
+
+/**
+ * Setup's first step (board You): which sounds like you, what you train, and the units and time
+ * zone the phone proposed. Nothing asked at sign-up is asked again. Lifting goes on to where you
+ * train; an athlete who only runs, rides or swims is finished here and goes to Today, since
+ * nothing else in setup is about them.
+ */
+export async function saveYouStepAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseForm(gymInputSchema, formData);
+  const parsed = parseForm(youStepSchema, formData);
   if (!parsed.success) return parsed.state;
+  const { trainingExperience, sports, preferredUnit, distanceUnit, poolUnit, timeZone } =
+    parsed.data;
+  const lifts = sports.includes("strength");
 
-  const gym = await withUser(getDb(), user.id, (tx) => createGym(tx, user.id, parsed.data));
+  const saved = await withUser(getDb(), user.id, async (tx) => {
+    // Stored as Postgres spells it, so every screen and the graphs read one zone.
+    const zone = await knownTimeZone(tx, timeZone);
+    if (!zone) return false;
+    await ensureProfile(tx, user);
+    await tx
+      .update(profiles)
+      .set({
+        trainingExperience,
+        preferredUnit,
+        timeZone: zone,
+        ...(lifts ? {} : { onboardedAt: new Date() }),
+      })
+      .where(eq(profiles.id, user.id));
+    for (const sport of ACTIVITY_SPORTS) {
+      await setSportPreference(tx, user.id, sport, {
+        enabled: sports.includes(sport),
+        // Runs and rides share the road's unit; a pool is measured on its own.
+        ...(sport === "running" || sport === "cycling" ? { distanceUnit } : {}),
+        ...(sport === "swimming" ? { poolUnit } : {}),
+      });
+    }
+    return true;
+  });
+  // A zone the browser reads but Postgres, which dates the graphs, does not: said under the line
+  // that names it.
+  if (!saved) return { fieldErrors: { timeZone: UNKNOWN_TIME_ZONE }, values: formValues(formData) };
+  await profileChanged(user.id);
+  revalidatePath("/training");
+  revalidatePath("/profile/sports");
+  revalidatePath("/today");
+  redirect(lifts ? "/welcome/gym" : "/today");
+}
+
+const placeSchema = z.object({
+  kind: z.enum(GYM_KINDS, { error: "Choose where you train." }),
+  name: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : ""),
+    z.string().max(80, "Keep this under 80 characters."),
+  ),
+});
+
+/**
+ * Setup's second step (board Where you train): the kind of place first, then its name, which is
+ * optional. There is no way past it for a lifter: a programme cannot start without somewhere to
+ * train (audit B8). Coming back to the step changes the place it made rather than adding a
+ * second one.
+ *
+ * Then: at a gym, a beginner goes straight to the coach's questions (the basics are taken as
+ * there, and a workout asks about anything else); someone who already trains is offered the
+ * optional search for anything unusual. At home or outdoors nothing is taken as there, so both
+ * are asked what they have.
+ */
+export async function saveSetupPlaceAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = parseForm(placeSchema, formData);
+  if (!parsed.success) return parsed.state;
+  const { kind } = parsed.data;
+  const name = parsed.data.name || SETUP_PLACE_NAMES[kind];
+
+  const experience = await withUser(getDb(), user.id, async (tx) => {
+    const profile = await ensureProfile(tx, user);
+    const state = await readSetupState(tx, user.id, profile.trainingExperience);
+    const existing = state.place ? await getGym(tx, user.id, state.place.id) : null;
+    if (existing)
+      await updateGym(tx, user.id, existing.id, {
+        name,
+        kind,
+        address: existing.address,
+        notes: existing.notes,
+      });
+    else await createGym(tx, user.id, { name, kind, address: null, notes: null });
+    return profile.trainingExperience;
+  });
   revalidatePath("/gyms");
   revalidatePath("/today");
-  redirect(`/welcome/equipment?gym=${gym.id}`);
+  redirect(
+    kind === "gym" && experience !== "experienced" ? "/welcome/programme" : "/welcome/equipment",
+  );
 }
 
 const equipmentStepSchema = z.object({
@@ -40,11 +150,11 @@ const equipmentStepSchema = z.object({
 });
 
 /**
- * Onboarding step 3, the machines step (plan: onboarding flow): what was confirmed, recorded in
- * one transaction. Each confirmed type or combination becomes one machine named after it, unless
- * the place already has it (an archived one is restored); the gym basics marked not here are
- * recorded as absent. Submitting again creates nothing more. Anything missed is confirmed as it
- * becomes relevant, in a workout, or added from the gym's page.
+ * The optional equipment step (boards Anything unusual, What you have): what was confirmed,
+ * recorded in one transaction. Each confirmed type or combination becomes one machine named after
+ * it, unless the place already has it (an archived one is restored); the gym basics marked not
+ * here are recorded as absent. Submitting again creates nothing more. Anything missed is
+ * confirmed as it becomes relevant, in a workout, or added from the place's page.
  */
 export async function addStarterEquipmentAction(
   _previous: FormState,

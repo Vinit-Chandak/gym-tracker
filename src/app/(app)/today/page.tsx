@@ -1,7 +1,9 @@
+import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
+import { coachPreferences } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
@@ -17,7 +19,7 @@ import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
-import { unitsBySport } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
 
 import Loading from "./loading";
 import { TodayView } from "./today-view";
@@ -49,9 +51,14 @@ export default async function TodayPage(props: PageProps<"/today">) {
         const profile = requestProfile;
         // Read once here and handed on: the coach's job target is worked out from the same
         // schedule and gym list rather than reading each a second time.
-        const [gyms, schedule] = await Promise.all([
+        const [gyms, schedule, sports, [preference]] = await Promise.all([
           listGyms(tx, user.id),
           getSchedule(tx, user.id),
+          enabledSportsFor(tx, user.id),
+          tx
+            .select({ mode: coachPreferences.mode })
+            .from(coachPreferences)
+            .where(eq(coachPreferences.userId, user.id)),
         ]);
         const plan = await getTodayPlan(tx, user.id, profile.timeZone, schedule);
         const restProtocol =
@@ -132,6 +139,8 @@ export default async function TodayPage(props: PageProps<"/today">) {
             logged.some((activity) => activity.sport !== "strength")
               ? await unitsBySport(tx, user.id)
               : {},
+          sports,
+          tracking: preference?.mode === "track",
         };
       },
       { readOnly: true },
@@ -139,7 +148,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
   ]);
   const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished, logged } =
     data;
-  const { distanceUnits } = data;
+  const { distanceUnits, sports, tracking } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
   return (
@@ -162,6 +171,8 @@ export default async function TodayPage(props: PageProps<"/today">) {
         finishedOccurrences={finished}
         distanceUnits={distanceUnits}
         logged={logged}
+        sports={sports}
+        tracking={tracking}
         discarded={discarded === "1"}
       />
     </FreshAfterSets>

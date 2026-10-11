@@ -113,7 +113,7 @@ export function CoachJobStatus({
  * filed with the athlete's own answers and the request goes again, which is the same request
  * the form makes and spends the same one of the day's three.
  */
-function CoachQuestions({
+export function CoachQuestions({
   jobId,
   questions,
   base,

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  basicProfileInputSchema,
-  NOT_A_PLACE,
-  profileInputSchema,
-  UNKNOWN_TIME_ZONE,
-} from "./profile";
+import { NOT_A_PLACE, profileInputSchema, timeZoneSchema, UNKNOWN_TIME_ZONE } from "./profile";
 
 const metric = {
   displayName: "Sam",
@@ -140,18 +135,11 @@ describe("profile input", () => {
     expect(zoneOf("Asia/Calcutta")).toBe("Asia/Calcutta");
   });
 
-  it("asks the same of the first step's time zone", () => {
-    const basic = (timeZone: string) =>
-      basicProfileInputSchema.safeParse({
-        displayName: "",
-        username: "sam_94",
-        timeZone,
-        preferredUnit: "kg",
-        trainingExperience: "new",
-      });
-    expect(basic("IST").success).toBe(false);
-    const result = basic("asia/tokyo");
-    expect(result.success && result.data.timeZone).toBe("Asia/Tokyo");
+  it("asks the same of setup's time zone", () => {
+    // Setup's first step parses its zone with the same schema.
+    expect(timeZoneSchema.safeParse("IST").success).toBe(false);
+    const result = timeZoneSchema.safeParse("asia/tokyo");
+    expect(result.success && result.data).toBe("Asia/Tokyo");
   });
 
   it("only takes the units a person weighs a barbell in", () => {

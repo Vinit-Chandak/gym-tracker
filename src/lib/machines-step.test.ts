@@ -43,10 +43,21 @@ describe("the machines step", () => {
     expect(grown.catalogue).toHaveLength(500);
   });
 
-  it("suggests to beginners and outdoors only, and never offers the floor", () => {
-    expect(previewMachinesStep("gym", "experienced").suggestions).toEqual([]);
+  it("shows each kind of place its own short set, and never offers the floor", () => {
+    // Someone who already trains is shown what a gym's basics leave out.
+    expect(previewMachinesStep("gym", "experienced").suggestions.map((i) => i.slug)).toEqual([
+      "belt_squat",
+      "glute_ham_raise",
+      "trap_bar",
+      "reverse_hyper",
+      "safety_squat_bar",
+    ]);
     expect(previewMachinesStep("gym", null).suggestions).toEqual([]);
-    expect(previewMachinesStep("home", "experienced").suggestions).toEqual([]);
+    // Nothing is taken as there at home, whoever is asking.
+    expect(previewMachinesStep("home", "experienced").suggestions.map((i) => i.slug)).toEqual(
+      previewMachinesStep("home", "new").suggestions.map((i) => i.slug),
+    );
+    expect(previewMachinesStep("home", "experienced").suggestions[0]?.slug).toBe("dumbbells");
     expect(previewMachinesStep("outdoor", "experienced").suggestions.map((i) => i.slug)).toEqual([
       "pull_up_bar",
       "dip_station",

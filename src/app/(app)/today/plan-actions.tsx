@@ -124,16 +124,25 @@ export function StartPlannedButton({
 }
 
 /** An unplanned session at the chosen gym: on to its check-in. */
-export function StartAdHocButton({ gymId }: { gymId: string | null }) {
-  const label = "Start an unplanned session";
+export function StartAdHocButton({
+  gymId,
+  primary = false,
+}: {
+  gymId: string | null;
+  /** The screen's one action, for an athlete who logs their own workouts. */
+  primary?: boolean;
+}) {
+  const label = primary ? "Start a workout" : "Start an unplanned session";
+  const variant = primary ? "primary" : "secondary";
+  const size = primary ? "lg" : undefined;
   if (gymId === null)
     return (
-      <Button variant="secondary" className="w-full" disabled>
+      <Button variant={variant} size={size} className="w-full" disabled>
         {label}
       </Button>
     );
   return (
-    <LinkButton href={startHref({ gymId })} variant="secondary" className="w-full">
+    <LinkButton href={startHref({ gymId })} variant={variant} size={size} className="w-full">
       {label}
     </LinkButton>
   );

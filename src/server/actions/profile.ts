@@ -19,7 +19,6 @@ import { knownTimeZone } from "@/server/queries/time-zone";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
-  basicProfileInputSchema,
   profileInputSchema,
   type ProfileInput,
   UNKNOWN_TIME_ZONE,
@@ -112,36 +111,6 @@ export async function saveProfileAction(
   revalidatePath("/progress");
   revalidatePath("/today");
   return {};
-}
-
-/** Onboarding step 1: optional name, username, units and time zone, then the next step. */
-export async function saveOnboardingProfileAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const user = await requireUser();
-  const parsed = parseForm(basicProfileInputSchema, formData);
-  if (!parsed.success) return parsed.state;
-
-  try {
-    const saved = await withUser(getDb(), user.id, async (tx) => {
-      const timeZone = await knownTimeZone(tx, parsed.data.timeZone);
-      if (!timeZone) return false;
-      await ensureProfile(tx, user);
-      await tx
-        .update(profiles)
-        .set({ ...parsed.data, timeZone })
-        .where(eq(profiles.id, user.id));
-      return true;
-    });
-    if (!saved) return unknownTimeZone(formData);
-  } catch (error) {
-    if (isUniqueViolation(error)) return usernameTaken(formData);
-    throw error;
-  }
-  await profileChanged(user.id);
-  // Which sports come next; the gym step follows only if lifting is one of them.
-  redirect("/welcome/sports");
 }
 
 /**

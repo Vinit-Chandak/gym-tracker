@@ -86,6 +86,19 @@ export async function listSportSharingSwitches(
   );
 }
 
+/**
+ * Whether the athlete has ever said which sports they train. Until they have, the defaults
+ * above stand in for an older account; setup asks a new one with nothing ticked (audit B10).
+ */
+export async function hasChosenSports(tx: DbOrTx, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ sport: userSportPreferences.sport })
+    .from(userSportPreferences)
+    .where(eq(userSportPreferences.userId, userId))
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function enabledSportsFor(tx: DbOrTx, userId: string): Promise<ActivitySport[]> {
   const preferences = await listSportPreferences(tx, userId);
   return preferences

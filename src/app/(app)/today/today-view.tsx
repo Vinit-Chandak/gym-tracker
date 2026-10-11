@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
@@ -83,7 +84,18 @@ export type TodayViewProps = {
   logged?: readonly LoggedActivity[];
   /** An empty session was just discarded, which Today says once. */
   discarded?: boolean;
+  /** The sports the athlete trains; lifting unless told otherwise. */
+  sports?: readonly ActivitySport[];
+  /** The athlete chose to log their own workouts rather than follow a programme. */
+  tracking?: boolean;
 };
+
+/** Each endurance sport's way to log one, as Training's new activity page asks for it. */
+const LOG_SPORT: { sport: ActivitySport; label: string; query: string }[] = [
+  { sport: "running", label: "Log a run", query: "running" },
+  { sport: "cycling", label: "Log a ride", query: "cycling" },
+  { sport: "swimming", label: "Log a swim", query: "swimming" },
+];
 
 /**
  * What the coach is doing about the day, only when there is something to say: that it is
@@ -320,7 +332,13 @@ export function TodayView({
   distanceUnits = {},
   logged = [],
   discarded = false,
+  sports = ["strength"],
+  tracking = false,
 }: TodayViewProps) {
+  // A gym is a lifter's to add: someone who only runs, rides or swims is never asked for one
+  // (audit B1), and logs their own sport from here instead.
+  const lifts = sports.includes("strength");
+  const logSports = LOG_SPORT.filter((entry) => sports.includes(entry.sport));
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
     null;
@@ -362,11 +380,13 @@ export function TodayView({
         )}
       />
     ) : null;
-  // A gym is what a workout is planned for, so without one Today asks for it — but only when
-  // there is lifting to plan. A day of endurance alone or of rest, and a programme already
-  // finished, go on without one.
+  // A gym is what a workout is planned for, so without one Today asks for it — but only of a
+  // lifter, and only when there is lifting to plan. A day of endurance alone or of rest, and a
+  // programme already finished, go on without one.
   const needsGym =
-    gyms.length === 0 && (!plan || (plan.suggestion !== null && day?.includesLifting === true));
+    lifts &&
+    gyms.length === 0 &&
+    (!plan || (plan.suggestion !== null && day?.includesLifting === true));
 
   // Everything due today, whatever scheduled it: the day's workout, the programme's own
   // endurance for that same day, and whatever the athlete put on the calendar. What is still
@@ -760,9 +780,11 @@ export function TodayView({
   // Without a programme day to stand under, what is due today still has its cards: an athlete
   // who trains no lifting, has no programme or has finished one still schedules runs, rides
   // and swims, and Today is where they are logged.
+  const showsDueToday = (occurrences: readonly ScheduledOccurrence[]) =>
+    loggedCards.length > 0 ||
+    occurrences.some((occurrence) => isOutstanding(occurrence) || isAnswered(occurrence));
   const dueToday = (occurrences: readonly ScheduledOccurrence[]) =>
-    (loggedCards.length > 0 ||
-      occurrences.some((occurrence) => isOutstanding(occurrence) || isAnswered(occurrence))) && (
+    showsDueToday(occurrences) && (
       <section aria-labelledby="today-due">
         <Caption id="today-due">Today</Caption>
         <ul className="today-cards">
@@ -837,6 +859,47 @@ export function TodayView({
               <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
                 Add your first gym
               </LinkButton>
+            </Empty>
+          </>
+        ) : !plan && !lifts ? (
+          <>
+            {dueToday(standaloneOccurrences)}
+            <Empty
+              title={showsDueToday(standaloneOccurrences) ? "Anything else?" : "Nothing planned"}
+            >
+              <p className="mt-2 type-body text-ink-2">Log what you do as you do it.</p>
+              <div className="mt-4 flex flex-col gap-2">
+                {logSports.map((entry, i) => (
+                  <LinkButton
+                    key={entry.sport}
+                    href={`/training/new?sport=${entry.query}` as Route}
+                    size="lg"
+                    variant={i === 0 ? "primary" : "secondary"}
+                    className="w-full"
+                  >
+                    {entry.label}
+                  </LinkButton>
+                ))}
+              </div>
+            </Empty>
+          </>
+        ) : !plan && tracking ? (
+          // The athlete chose to log their own workouts (audit B7): starting one leads, and a
+          // programme is there for whenever they want one.
+          <>
+            {dueToday(standaloneOccurrences)}
+            <Empty title="Ready when you are">
+              <p className="mt-2 type-body text-ink-2">
+                Start a workout and log it as you go. Suggestions learn from every set you save.
+              </p>
+              <div className="mt-4 flex flex-col gap-2">
+                {!sessionOpen && (
+                  <StartAdHocButton gymId={defaultGym?.id ?? gyms[0]?.id ?? null} primary />
+                )}
+                <LinkButton href="/profile/programme" variant="ghost" className="w-full">
+                  Choose a programme
+                </LinkButton>
+              </div>
             </Empty>
           </>
         ) : !plan ? (

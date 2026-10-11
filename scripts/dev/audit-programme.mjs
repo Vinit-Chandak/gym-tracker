@@ -6,9 +6,11 @@ import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { assertReadableText } from "./audit-text-readability.mjs";
 import {
-  chooseOnboardingUnits,
   addStarterChestPress,
+  answerFirstStep,
+  choosePlace,
   clickWithSlowNavigation,
+  signUp,
 } from "./audit-controls.mjs";
 import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
@@ -73,8 +75,8 @@ async function runDevice(device) {
     await page.waitForLoadState("networkidle");
     await page.goto(route, { waitUntil: "networkidle" });
   };
-  const username = `auditpr${device[0]}${Date.now().toString(36)}`;
-  const email = `${username}@local.test`;
+  const key = `auditpr${device[0]}${Date.now().toString(36)}`;
+  const email = `${key}@local.test`;
   let userId, gymId, custom, draftId, activeProgram;
   const programmeName = "Audit controlled strength — practical training across busy weeks";
   const routineName = "Upper strength — controlled tempo and core stability";
@@ -128,27 +130,19 @@ async function runDevice(device) {
   try {
     await step("signup-and-custom-exercise-validation", async () => {
       await go("/signup");
-      await field(page, "Name").fill("Programme Audit");
-      await field(page, "Username").fill(username);
-      await field(page, "Email").fill(email);
-      await field(page, "Password").fill(password);
-      await field(page, "Confirm password").fill(password);
-      await button(page, "Create account").click();
-      await page.waitForURL(/\/welcome$/);
-      await chooseOnboardingUnits(page, "lb");
-      await field(page, "Time zone").fill("America/New_York");
-      await button(page, "Continue").click();
-      await page.waitForURL(/\/welcome\/sports$/);
-      await button(page, "Continue").click();
-      await page.waitForURL(/\/welcome\/gym$/);
-      await field(page, "Name").fill(`${username} training gym`);
-      await button(page, "Add gym").click();
-      await page.waitForURL(/\/welcome\/equipment\?gym=/);
+      await signUp(page, { name: "Programme Audit", email, password });
+      await answerFirstStep(page, {
+        sports: ["Strength", "Running"],
+        weight: "lb",
+        timeZone: "America/New_York",
+      });
+      await choosePlace(page, { name: `${key} training gym` });
       await addStarterChestPress(page);
       await page.waitForURL(/\/welcome\/programme$/);
-      await button(page, "Just track my workouts").click();
+      await button(page, "Log my own workouts").click();
       await page.waitForURL(/\/today$/);
-      [{ id: userId }] = await sql`select id from profiles where username=${username}`;
+      [{ id: userId }] =
+        await sql`select p.id from profiles p join auth.users u on u.id = p.id where u.email = ${email}`;
       [{ id: gymId }] = await sql`select id from gyms where user_id=${userId} and is_default`;
       await go("/exercises/new");
       await field(page, "Exercise name").fill(customName);
