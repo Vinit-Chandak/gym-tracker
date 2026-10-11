@@ -660,6 +660,41 @@ html:has(.pinned-actions) {
 }
 
 /*
+ * The offline notice (connectivity.tsx), the first thing in the page, held at the top of the
+ * screen as it scrolls. Where the page runs under the status bar it pads for the bar itself,
+ * so its words are never under the clock or the Dynamic Island, and it gives that padding back
+ * underneath: the header that follows pads for the bar too, and starts where the words end
+ * rather than a status bar lower.
+ *
+ * A workout is a layer over the page, under notices, so the notice would cover its header:
+ * Back, the rest and More could not be reached offline, which is when a basement gym needs
+ * them. While the notice shows, the layer starts its header under the notice's measured
+ * height (--connectivity-height) instead of under the status bar.
+ */
+.connectivity {
+  position: sticky;
+  top: 0;
+  z-index: var(--ov-z-notice);
+  margin-bottom: calc(-1 * env(safe-area-inset-top));
+  padding: calc(env(safe-area-inset-top) + 0.5rem) max(1rem, env(safe-area-inset-right)) 0.5rem
+    max(1rem, env(safe-area-inset-left));
+}
+html:has(.connectivity) {
+  scroll-padding-top: calc(
+    var(--header-height) + max(env(safe-area-inset-top), var(--connectivity-height, 0px)) + 1rem
+  );
+}
+html:has(.connectivity) .session-layer {
+  padding-top: max(env(safe-area-inset-top), var(--connectivity-height, 0px));
+}
+html:has(.connectivity) .session-layer[data-spill="true"] {
+  padding-top: 0;
+}
+html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
+  padding-top: max(env(safe-area-inset-top), var(--connectivity-height, 0px));
+}
+
+/*
  * An island, not a bar: the navigation floats clear of all four edges and the page runs
  * underneath it. Translucency plus a blur is what makes that readable — you can see there
  * is more page below without being able to read it through the labels — so the fallback

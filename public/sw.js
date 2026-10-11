@@ -10,9 +10,19 @@
  * router, prefetches, saving a set) go straight to the network without starting it at all,
  * where the browser supports declaring that (Chrome's static routing).
  */
-const OFFLINE = "overload-offline-v5";
-const ASSETS = "overload-assets-v3";
+const OFFLINE = "overload-offline-v6";
+// v4 drops the v3 cache once: it kept every release's chunks, with nothing ever removed.
+const ASSETS = "overload-assets-v4";
 const KEEP = [OFFLINE, ASSETS];
+
+/**
+ * Each release names its chunks afresh and nothing asks for the old names again, so an asset
+ * cache that only ever adds would grow by a release on every deploy, in storage that the set
+ * and activity drafts share. It keeps the newest entries instead, about two releases' worth
+ * (a build has some 120 files), and lets the oldest go first: a chunk let go and needed again
+ * is simply fetched again. Icons are refreshed in place, so they are not counted.
+ */
+const MAX_ASSETS = 250;
 
 /**
  * What the worker answers itself — pages, for the offline screen, and the cached assets and
@@ -58,7 +68,8 @@ self.addEventListener("activate", (event) => {
               .filter((key) => key.startsWith("overload-") && !KEEP.includes(key))
               .map((key) => caches.delete(key)),
           ),
-        ),
+        )
+        .then(trimAssets),
     ]).then(() => self.clients.claim()),
   );
 });
@@ -66,6 +77,33 @@ self.addEventListener("activate", (event) => {
 /** Build output is content-hashed, so a hit is always the right file and never stale. */
 function isImmutableAsset(url) {
   return url.pathname.startsWith("/_next/static/");
+}
+
+/**
+ * Lets the oldest assets go beyond MAX_ASSETS. A cache lists its entries in the order they
+ * were stored. A failure here only leaves the cache as it was: it must never stop the worker
+ * activating or a response reaching the page.
+ */
+function trimAssets() {
+  return caches
+    .open(ASSETS)
+    .then(async (cache) => {
+      const assets = (await cache.keys()).filter((request) =>
+        isImmutableAsset(new URL(request.url)),
+      );
+      const excess = assets.slice(0, Math.max(0, assets.length - MAX_ASSETS));
+      await Promise.all(excess.map((request) => cache.delete(request)));
+    })
+    .catch(() => {});
+}
+
+let trimming = null;
+/** One pass for a burst of new assets, as a cold start brings, rather than one each. */
+function trimAssetsSoon() {
+  trimming ??= trimAssets().finally(() => {
+    trimming = null;
+  });
+  return trimming;
 }
 
 /** The page the browser has already been asked for, or a new request where preload is off. */
@@ -114,7 +152,12 @@ self.addEventListener("fetch", (event) => {
         fetch(request).then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            event.waitUntil(caches.open(ASSETS).then((cache) => cache.put(request, copy)));
+            event.waitUntil(
+              caches
+                .open(ASSETS)
+                .then((cache) => cache.put(request, copy))
+                .then(trimAssetsSoon),
+            );
           }
           return response;
         }),
