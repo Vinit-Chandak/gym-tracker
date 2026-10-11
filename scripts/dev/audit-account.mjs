@@ -310,6 +310,14 @@ async function runDevice(device) {
       await expect(page.getByRole("link", { name: "Add machine", exact: true })).toBeVisible();
     });
     await step("privacy-switches-persist", async () => {
+      // A ride or swim switch is offered only for a sport the athlete has on: turn both on.
+      await go(page, "/profile/sports");
+      for (const sport of ["Cycling", "Swimming"]) {
+        const box = page.getByRole("checkbox", { name: sport, exact: true });
+        if (!(await box.isChecked())) await box.click();
+      }
+      await button(page, "Save").click();
+      await settle(page);
       await go(page, "/profile/privacy");
       for (const label of [
         "Share training with followers",
