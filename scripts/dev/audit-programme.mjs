@@ -597,7 +597,9 @@ async function runDevice(device) {
     await step("saved-routine-starts-without-copying-sets", async () => {
       await go("/profile/routines");
       await expect(page.getByRole("heading", { name: routineName, exact: true })).toBeVisible();
-      await expect(button(page, "Start this routine")).toBeDisabled();
+      // The location starts on the athlete's default gym, so the routine can start at once.
+      await expect(field(page, "Where will you train?")).toHaveValue(gymId);
+      await expect(button(page, "Start this routine")).toBeEnabled();
       await field(page, "Where will you train?").selectOption(gymId);
       await clickWithSlowNavigation(
         page,

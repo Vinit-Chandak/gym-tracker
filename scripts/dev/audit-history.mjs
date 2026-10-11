@@ -288,10 +288,12 @@ async function checkFilters(page, window, kind = "all") {
   assert.equal(address.searchParams.get("from"), window.from);
   assert.equal(address.searchParams.get("to"), window.to);
   assert.equal(address.searchParams.get("kind") ?? "all", kind);
-  await expect(filterButton(page)).toHaveAttribute(
-    "aria-label",
-    `Filters: ${rangeLabel(window)}${kind === "all" ? "" : ", 1 set"}`,
-  );
+  // Dates keep their day with their month by no-break spaces; the words are the same.
+  await expect
+    .poll(async () =>
+      (await filterButton(page).getAttribute("aria-label"))?.replaceAll("\u00a0", " "),
+    )
+    .toBe(`Filters: ${rangeLabel(window)}${kind === "all" ? "" : ", 1 set"}`);
   await filterButton(page).click();
   const dialog = filterDialog(page);
   const values = {};
