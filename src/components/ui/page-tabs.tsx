@@ -29,6 +29,11 @@ export function pageSlots(current: number, total: number): PageSlot[] {
  * A list's pages as tabs (History, ADR 0044), drawn as the span tray is: a surface tray, each
  * page a 44-pt target, the page being read in ink. A navigation, not a choice: each tab is a
  * button, and the page being read says so aloud.
+ *
+ * A tab never shrinks under its target, which grows with the reader's text. When the tabs cannot
+ * all share a row, at 150% text and more on a narrow phone, the tray folds onto a second row
+ * (Fold, Never Drop) rather than laying one tab over the next. A gap is only as wide as its
+ * ellipsis.
  */
 export function PageTabs({
   page,
@@ -47,18 +52,18 @@ export function PageTabs({
   if (total <= 1) return null;
   return (
     <nav aria-label={label} className={className}>
-      <ul className="flex min-w-0 gap-[2px] rounded-control bg-surface p-[3px]">
+      <ul className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-surface p-[3px]">
         {pageSlots(page, total).map((slot, index) =>
           slot === "gap" ? (
             <li
               key={`gap-${index}`}
               aria-hidden
-              className="flex w-5 shrink-0 items-center justify-center font-bold text-ink-2"
+              className="flex shrink-0 items-center justify-center px-px text-[length:var(--ov-type-meta)] font-bold text-ink-2"
             >
               …
             </li>
           ) : (
-            <li key={slot} className="min-w-0 flex-1">
+            <li key={slot} className="flex-[1_0_var(--ov-target)]">
               <button
                 type="button"
                 aria-current={slot === page ? "page" : undefined}
