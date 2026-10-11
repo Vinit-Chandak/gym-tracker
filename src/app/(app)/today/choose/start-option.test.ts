@@ -35,12 +35,15 @@ const midCycleStart: ScheduleState = {
 };
 it("offers the next cycle's lift early when the programme started after that day", () => {
   expect(liftingStartOption(midCycleStart, 1, 1)).toEqual({ cycleIndex: 2, label: "Start early" });
-  // Once the first cycle's own day is trained, it is simply what comes next.
+  // Once the first cycle's own day is trained, it is what comes next: the next cycle starting.
   const trained: ScheduleState = {
     ...midCycleStart,
     events: [{ cycleIndex: 1, dayIndex: 2, part: "session", status: "completed" }],
   };
-  expect(liftingStartOption(trained, 1, 1)).toEqual({ cycleIndex: 2, label: "Start" });
+  expect(liftingStartOption(trained, 1, 1)).toEqual({
+    cycleIndex: 2,
+    label: "Start next cycle",
+  });
 });
 it("does not invent a pre-start lift when no later cycle exists", () => {
   expect(liftingStartOption({ ...midCycleStart, cycles: 1 }, 1, 1)).toBeNull();
@@ -73,9 +76,10 @@ describe("a day done while its cycle still has days to train", () => {
     expect(liftingStartOption(state, 3, 3)).toEqual({ cycleIndex: 3, label: "Start" });
   });
 
-  it("is what comes next once the cycle's training is answered, its rest day aside", () => {
+  it("starts the next cycle once this one's training is answered, its rest day aside", () => {
+    // Sofia's Choose a day in the year audit: every lift of cycle 3 done, its rest day to come.
     const state = week([...trained, done(3, 1), done(3, 2), done(3, 3)]);
-    expect(liftingStartOption(state, 3, 1)).toEqual({ cycleIndex: 4, label: "Start" });
+    expect(liftingStartOption(state, 3, 1)).toEqual({ cycleIndex: 4, label: "Start next cycle" });
     // The next cycle's second day is still ahead of its first.
     expect(liftingStartOption(state, 3, 2)).toEqual({ cycleIndex: 4, label: "Do again" });
   });

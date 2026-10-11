@@ -27,9 +27,9 @@ function inTurn(state: ScheduleState, ref: SlotRef): boolean {
  * A day already done this cycle starts its next cycle's (ADR 0005): the day repeated on purpose,
  * ahead of a sequence that still waits for the days this cycle has left. "Start next cycle" read
  * as moving on and leaving those behind (year audit, 11 October 2026), so it is said for what it
- * is: "Do again" for a day done this cycle, "Start early" for one this cycle does not have. Where
- * nothing is owed before it — the cycle's training all answered — it is simply what comes next,
- * as Today offers it, and plain Start.
+ * is: "Do again" for a day done this cycle, "Start early" for one this cycle does not have. Only
+ * where nothing is owed before it — this cycle's training all answered — does it start the next
+ * cycle, as Today offers it, and say so.
  */
 export function liftingStartOption(state: ScheduleState, cycleIndex: number, dayIndex: number) {
   if (!state.slots.find((slot) => slot.dayIndex === dayIndex)?.includesLifting) return null;
@@ -42,7 +42,7 @@ export function liftingStartOption(state: ScheduleState, cycleIndex: number, day
   }
   const next = refs.find((ref) => partStatus(state, ref, "session") === "pending");
   if (!next) return null;
-  if (next.cycleIndex === cycleIndex || inTurn(state, next))
-    return { cycleIndex: next.cycleIndex, label: "Start" };
+  if (next.cycleIndex === cycleIndex) return { cycleIndex, label: "Start" };
+  if (inTurn(state, next)) return { cycleIndex: next.cycleIndex, label: "Start next cycle" };
   return { cycleIndex: next.cycleIndex, label: current ? "Do again" : "Start early" };
 }
