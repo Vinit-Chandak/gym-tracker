@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { HeadToHeadData } from "@/components/graph/head-to-head-graph";
 import { presetRange, readWindowOf } from "@/domain/graph-range";
@@ -12,6 +12,8 @@ const EXERCISE = "8f0c1a52-3b7e-4c1d-9a64-2f5e8d7b6c01";
 
 const mocks = vi.hoisted(() => ({
   trend: vi.fn(),
+  bests: vi.fn(async () => new Map()),
+  weights: vi.fn(async () => new Map()),
   graph: vi.fn((_props: { data: HeadToHeadData }) => null),
 }));
 
@@ -46,8 +48,8 @@ vi.mock("@/server/repositories/shared-stats", () => ({
     modality: "barbell",
     defaultPrescriptionType: "reps",
   }),
-  readExerciseBests: async () => new Map(),
-  readBodyWeights: async () => new Map(),
+  readExerciseBests: mocks.bests,
+  readBodyWeights: mocks.weights,
   readExerciseTrends: mocks.trend,
 }));
 vi.mock("@/components/graph/head-to-head-graph", () => ({ HeadToHeadGraph: mocks.graph }));
@@ -62,6 +64,10 @@ vi.mock("@/components/shell/page-header", () => ({
 vi.mock("@/components/ui/info-tip", () => ({
   InfoTip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -91,6 +97,10 @@ beforeEach(() => {
 });
 
 it("draws the head to head over the span every graph shares, each point opening its record", async () => {
+  // A morning in UTC: from 10:00 the latest date on Earth is already tomorrow, and a social
+  // span runs on to it (`socialWindow`), which is not what this test is about.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-07T08:00:00Z"));
   const html = renderToStaticMarkup(
     await CompareExercisePage({
       params: Promise.resolve({ username: "friend", exerciseId: EXERCISE }),
@@ -126,4 +136,29 @@ it("draws the head to head over the span every graph shares, each point opening 
   expect(e1rm!.lines[1].map((point) => point.href)).toEqual(["/u/friend/activities/s2", null]);
   // Reps are counted, not converted.
   expect(reps!.lines[0][0]!.value).toBe(8);
+});
+
+it("reads a best against each person's latest body weight, and says it is the latest", async () => {
+  mocks.bests.mockResolvedValue(
+    new Map([
+      ["me", [{ metric: "e1rm", value: 145.7, occurredOn: "2025-12-15", work: null }]],
+      ["friend", [{ metric: "e1rm", value: 46.3, occurredOn: "2026-09-19", work: null }]],
+    ]),
+  );
+  mocks.weights.mockResolvedValue(
+    new Map([
+      ["me", { weightKg: 82.8, measuredOn: "2026-10-10" }],
+      ["friend", { weightKg: 71.2, measuredOn: "2026-10-01" }],
+    ]),
+  );
+  const html = renderToStaticMarkup(
+    await CompareExercisePage({
+      params: Promise.resolve({ username: "friend", exerciseId: EXERCISE }),
+      searchParams: Promise.resolve({}),
+    } as never),
+  );
+  // A lift from last December over this October's weight: the line says which weight it is.
+  expect(html).toContain("1.76× latest BW");
+  expect(html).toContain("0.65× latest BW");
+  expect(html).not.toMatch(/\d× BW/);
 });
