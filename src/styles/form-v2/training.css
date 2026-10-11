@@ -73,12 +73,15 @@
     height: calc(92 * var(--ov-u));
   }
 }
+/* The day's word (Next, In progress) stands at the name's end while both fit a line, and goes
+   under the name rather than squeeze it to a word a line (a half tile at large text). */
 .cycle-day-name {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   margin-top: calc(6 * var(--ov-u));
-  gap: calc(8 * var(--ov-u));
+  gap: 0 calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
   line-height: 1.25;

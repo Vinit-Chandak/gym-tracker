@@ -5,15 +5,14 @@ import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-pla
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
 import type { SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
-/** What the day is, on one line under its name. */
+/** What the day is, on one line under its name, its time held whole ("60–75 min"). */
 function subtitle(day: ScheduleDay): string | null {
-  const parts = [day.focus, day.timeNote].filter(Boolean);
-  return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
+  return joinFacts([day.focus, day.timeNote && holdFigures(day.timeNote)]) || null;
 }
 
 /** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
@@ -26,7 +25,9 @@ function cost(plan: ProgramDayPlan, units: SportUnits): string {
   return "Rest day";
 }
 
-const HEAD = "flex min-h-14 items-start gap-3 px-4 py-3";
+/* The chevron stands beside the name only, so what the day is and asks for take the box's whole
+   width under it. */
+const HEAD = "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-3";
 
 /**
  * One day of the cycle: its own box, opening on to everything the day prescribes.
@@ -52,21 +53,22 @@ export function CycleDay({
 
   const head = (
     <>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
-          {open ? (
-            <Badge tone="accent">In progress</Badge>
-          ) : plan.isNext ? (
-            <Badge tone="accent">Next</Badge>
-          ) : plan.status === "completed" || plan.status === "skipped" ? (
-            <Badge tone={plan.status === "completed" ? "success" : "warning"}>
-              {SLOT_STATUS_LABELS[plan.status]}
-            </Badge>
-          ) : null}
-        </div>
-        {subtitle(day) && <p className="mt-0.5 text-sm text-ink-muted">{subtitle(day)}</p>}
-        <p className="mt-1 text-xs text-ink-muted tabular-nums">{cost(plan, units)}</p>
+      <div
+        className={cn(
+          "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1",
+          !expandable && "col-span-full",
+        )}
+      >
+        <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
+        {open ? (
+          <Badge tone="accent">In progress</Badge>
+        ) : plan.isNext ? (
+          <Badge tone="accent">Next</Badge>
+        ) : plan.status === "completed" || plan.status === "skipped" ? (
+          <Badge tone={plan.status === "completed" ? "success" : "warning"}>
+            {SLOT_STATUS_LABELS[plan.status]}
+          </Badge>
+        ) : null}
       </div>
       {expandable && (
         <ChevronDown
@@ -74,6 +76,10 @@ export function CycleDay({
           aria-hidden
         />
       )}
+      {subtitle(day) && (
+        <p className="col-span-full mt-0.5 text-sm text-ink-muted">{subtitle(day)}</p>
+      )}
+      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">{cost(plan, units)}</p>
     </>
   );
 
