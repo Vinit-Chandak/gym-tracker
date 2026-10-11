@@ -94,10 +94,12 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **Unplanned session**, when there is no programme day to offer.
 - **Choose a programme** or **plan the next block**, when there is none or it has ended.
 - **More options**, one control for everything that is not the offered day: train another
-  day (a list of the programme's days, each with Start, Start next cycle or Start skipped
-  workout), start an unplanned session, ask the coach to plan, re-plan or prepare this session
-  (with a gym choice, an optional note, and "3 requests a day"), and skip this session (with
-  an optional reason; skipping the workout never skips a run on the same day).
+  day (a list of the programme's days, each with Start or Start skipped workout; a day trained
+  ahead of the sequence, as its next cycle's, says Do again when it is done this cycle and Start
+  early when this cycle does not have it), start an unplanned session, ask the coach to plan,
+  re-plan or prepare this session (with a gym choice, an optional note, and "3 requests a day"),
+  and skip this session (with an optional reason; skipping the workout never skips a run on the
+  same day).
 
 ### States to design
 
