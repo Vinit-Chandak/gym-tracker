@@ -1636,16 +1636,10 @@ li:last-child > .picker-row {
   gap: calc(8 * var(--ov-u));
   margin-top: calc(8 * var(--ov-u));
 }
+/* The app's select (select.tsx), taking the row beside Add. */
 .also-select {
   min-width: 0;
-  min-height: var(--ov-target);
   flex: 1 1 12rem;
-  padding: 0 calc(12 * var(--ov-u));
-  border: 1.5px solid var(--ov-control);
-  border-radius: var(--ov-radius-control);
-  background: var(--ov-ground);
-  color: var(--ov-ink);
-  font-size: var(--ov-type-input);
 }
 .also-submit {
   min-height: var(--ov-target);
