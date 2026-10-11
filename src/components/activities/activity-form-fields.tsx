@@ -462,7 +462,8 @@ export function NotesFields({
 /**
  * Everything optional, folded away behind one row (board Log a run: "Notes, heart rate, more"):
  * when it happened (now, until it is changed), the sport's own details, heart rate, a title and
- * notes. A beginner never has to open it; a refused field opens it.
+ * notes. A beginner never has to open it; a refused field opens it. Its name starts with the
+ * date, which is in it: "Notes, heart rate, more" left a run logged late nowhere to be dated.
  */
 export function MoreDetails({
   children,
@@ -489,7 +490,7 @@ export function MoreDetails({
     >
       <summary className="more-details-summary">
         <Glyph name={open ? "minus" : "plus"} className="glyph-20" />
-        Notes, heart rate, more
+        Date, notes, heart rate, more
       </summary>
       <div className="space-y-4 pt-1 pb-2">{children}</div>
     </details>

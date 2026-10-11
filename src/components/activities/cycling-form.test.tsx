@@ -71,3 +71,11 @@ it("opens a ride with no distance in the rider's own unit", () => {
   expect(new FormData(container.querySelector("form")!).get("distanceUnit")).toBe("mi");
   expect(screen.getByLabelText("Elevation gain ft")).toBeTruthy();
 });
+
+it("names the date among what it folds away, so a ride logged late can be dated", () => {
+  const { container } = render(
+    <CyclingForm {...props} initial={{ startedAt: "2026-10-11T09:48", environment: "indoor" }} />,
+  );
+  expect(container.querySelector("summary")?.textContent).toBe("Date, notes, heart rate, more");
+  expect(screen.getByLabelText("When")).toBeTruthy();
+});

@@ -21,7 +21,6 @@ import {
 import { formatDuration } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
-import { formatDateTime } from "@/lib/format";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -33,6 +32,7 @@ import { requireUuid } from "@/server/validation/params";
 import { ActivityMore } from "./activity-more";
 import { AnsweredSession } from "./answered-session";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
+import { startedAtLine } from "./started-at";
 
 export const metadata: Metadata = { title: "Activity" };
 
@@ -128,14 +128,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
     });
   }
   // The day and time it happened where it was recorded, as History dates it and the
-  // correction form shows it. A record from another zone says which, rather than being
-  // quietly moved into the zone the profile is in now.
-  const elsewhere = activity.recordedTimeZone !== profile.timeZone;
-  const startedAt = `${formatDateTime(
-    activity.startedAt,
-    activity.recordedTimeZone,
-    todayInTimeZone(profile.timeZone).slice(0, 4),
-  )}${elsewhere ? ` (${activity.recordedTimeZone.replaceAll("_", " ")})` : ""}`;
+  // correction says it over its form.
+  const startedAt = startedAtLine(activity.startedAt, activity.recordedTimeZone, profile.timeZone);
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
   if (actual) stats.push(...recordedExtras(actual, units));
 
