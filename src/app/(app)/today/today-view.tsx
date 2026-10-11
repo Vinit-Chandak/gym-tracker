@@ -287,7 +287,9 @@ function Progress({
     <>
       {/* The figures in Jost, whose zero is plain (DESIGN.md, Typography): "0 sets", not "Ø". */}
       <span className="whitespace-nowrap">In progress</span> ·{" "}
-      <span className="whitespace-nowrap">
+      {/* Whole while it fits a line; at large text a start on another day ("Started Sun 11 Oct,
+          10:30") is longer than the line, and wraps inside its own box rather than run off. */}
+      <span className="inline-block max-w-full">
         Started <Figures>{startedAt(session, today, timeZone)}</Figures>
       </span>{" "}
       ·{" "}
