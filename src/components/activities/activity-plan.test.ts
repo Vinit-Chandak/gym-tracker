@@ -45,8 +45,23 @@ it("gives a step's effort out of five", () => {
 
 it("gives a programme run's effort out of five, and none when it asks for none", () => {
   const run = { distanceMinKm: null, distanceMaxKm: null, durationMinMinutes: 20 };
-  expect(runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 1, rpeMax: 2 })).toBe(
-    "20–25 min · Effort 1–2 of 5",
+  expect(
+    runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 1, rpeMax: 2 }, DEFAULT_SPORT_UNITS),
+  ).toBe("20–25 min · Effort 1–2 of 5");
+  expect(
+    runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 0, rpeMax: 0 }, DEFAULT_SPORT_UNITS),
+  ).toBe("20–25 min");
+});
+
+it("gives a programme run's distance in the athlete's road unit, as Today does", () => {
+  const run = { distanceMinKm: 7.3, distanceMaxKm: 8.3, durationMinMinutes: 40 };
+  const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
+  expect(runSummary({ ...run, durationMaxMinutes: 50 }, DEFAULT_SPORT_UNITS)).toBe(
+    "7.3–8.3 km · 40–50 min",
   );
-  expect(runSummary({ ...run, durationMaxMinutes: 25, rpeMin: 0, rpeMax: 0 })).toBe("20–25 min");
+  // The programme writes kilometres; a runner who reads miles is never shown them.
+  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles)).toBe("4.54–5.16 mi · 40–50 min");
+  expect(runSummary({ ...run, distanceMaxKm: null, durationMaxMinutes: 50 }, miles)).toBe(
+    "4.54 mi · 40–50 min",
+  );
 });
