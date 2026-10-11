@@ -12,6 +12,8 @@
    whether it holds the summary or a mark being read, so the plot under it never moves. */
 .graph-readout {
   min-width: 0;
+  /* Head to head reads its width to decide whether two figures stand side by side. */
+  container: graph-readout / inline-size;
 }
 .graph-readout-head {
   display: flex;
@@ -155,6 +157,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: calc(12 * var(--ov-u));
 }
+/* Too narrow for two figures side by side (a 320-pt phone, or large text): one over the other,
+   each whole, rather than a five-digit figure run past its half (ADR 0052). */
+@container graph-readout (width < 20rem) {
+  .graph-readout-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .graph-side {
   min-width: 0;
 }
@@ -207,6 +216,9 @@
 }
 
 /* Head to head's values: a column for each line, each value opening its own record. */
+.graph-values-list {
+  container: graph-values / inline-size;
+}
 .graph-value-pair {
   display: flex;
   flex-shrink: 0;
@@ -254,4 +266,25 @@
   display: inline-block;
   margin-right: calc(6 * var(--ov-u));
   vertical-align: middle;
+}
+/* Where the date and two columns cannot share a row (large text, a narrow phone), the columns
+   fold under their date, each half the row, and nothing runs off the screen (ADR 0052). */
+@container graph-values (width < 18rem) {
+  .graph-value-row:has(> .graph-value-pair) {
+    flex-wrap: wrap;
+    row-gap: calc(2 * var(--ov-u));
+  }
+  .graph-value-row > .graph-value-pair {
+    flex: 1 1 100%;
+    margin-block: 0;
+  }
+  .graph-value-pair > .graph-value-cell,
+  .graph-value-head .graph-value-cell {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  .graph-value-head > span:first-child {
+    display: none;
+  }
 }
