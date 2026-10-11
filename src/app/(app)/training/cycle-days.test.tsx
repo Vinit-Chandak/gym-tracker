@@ -56,6 +56,18 @@ it("takes one column for the next day where it falls in a row's last, leaving no
   expect(tile("Tempo run").className).toContain("cycle-day-next-narrow");
 });
 
+it("lets the last day take its row on a phone where it would stand alone", () => {
+  columns = "200px 200px";
+  // Liam's week: three days after Tempo run, so Rest would leave half its row empty.
+  render(<CycleDays days={tiles(3)} label="The cycle’s days" />);
+  expect(tile("Rest").className).toContain("cycle-day-alone");
+  expect(tile("Long run").className).not.toContain("cycle-day-alone");
+  cleanup();
+  // Two after the next day pair up: nobody is alone.
+  render(<CycleDays days={tiles(4)} label="The cycle’s days" />);
+  expect(tile("Rest").className).not.toContain("cycle-day-alone");
+});
+
 it("names a day in progress beside it, instead of Next", () => {
   columns = "200px 200px";
   render(<CycleDays days={tiles(0, 0)} label="The cycle’s days" />);
