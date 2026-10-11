@@ -226,13 +226,13 @@ it("puts the last seven days under the header, ending on today, and the month ab
       .getAllByRole("link")
       .map((link) => [link.getAttribute("aria-label"), link.getAttribute("href")]),
   ).toEqual([
-    ["Saturday 19 September", "/food?day=2026-09-19"],
-    ["Sunday 20 September", "/food?day=2026-09-20"],
-    ["Monday 21 September", "/food?day=2026-09-21"],
-    ["Tuesday 22 September, over the goal", "/food?day=2026-09-22"],
-    ["Wednesday 23 September, food logged", "/food?day=2026-09-23"],
-    ["Thursday 24 September, goal met", "/food?day=2026-09-24"],
-    ["Friday 25 September, today", "/food"],
+    ["Saturday 19\u00a0September", "/food?day=2026-09-19"],
+    ["Sunday 20\u00a0September", "/food?day=2026-09-20"],
+    ["Monday 21\u00a0September", "/food?day=2026-09-21"],
+    ["Tuesday 22\u00a0September, over the goal", "/food?day=2026-09-22"],
+    ["Wednesday 23\u00a0September, food logged", "/food?day=2026-09-23"],
+    ["Thursday 24\u00a0September, goal met", "/food?day=2026-09-24"],
+    ["Friday 25\u00a0September, today", "/food"],
   ]);
   expect(days.getByRole("link", { current: "page" }).getAttribute("href")).toBe("/food");
 });
@@ -244,9 +244,9 @@ it("opens a day before today with its meals on that day, and today still marked"
   );
   const days = within(screen.getByRole("navigation", { name: "Days" }));
   expect(days.getByRole("link", { current: "page" }).getAttribute("aria-label")).toBe(
-    "Thursday 24 September",
+    "Thursday 24\u00a0September",
   );
-  expect(days.getByRole("link", { name: "Friday 25 September, today" })).toBeTruthy();
+  expect(days.getByRole("link", { name: "Friday 25\u00a0September, today" })).toBeTruthy();
   // My foods and the targets are the account's, not the day's, and open as ever.
   expect(screen.getByRole("link", { name: /^My foods/ }).getAttribute("href")).toBe(
     "/food/my-foods",

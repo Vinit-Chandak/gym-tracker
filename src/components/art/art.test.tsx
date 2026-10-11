@@ -94,14 +94,14 @@ it("draws a month: past days named and opened, today ringed, days to come blank"
   );
   const month = screen.getByRole("group", { name: "September 2026" });
   const day = within(month).getByRole("link", {
-    name: "Fri 25 Sept: run 5 km, swim 1,500 m, lifting 60 min",
+    name: "Fri 25\u00a0Sept: run 5 km, swim 1,500 m, lifting 60 min",
   });
   expect(day.getAttribute("href")).toBe("/progress");
   expect(
-    within(month).getByRole("img", { name: "Tue 29 Sept, today: nothing logged" }),
+    within(month).getByRole("img", { name: "Tue 29\u00a0Sept, today: nothing logged" }),
   ).toBeTruthy();
   // 1 to 29 September are named; the 30th is still to come
-  expect(within(month).queryByRole("img", { name: /30 Sept/ })).toBeNull();
+  expect(within(month).queryByRole("img", { name: /30\u00a0Sept/ })).toBeNull();
   expect(within(month).getAllByRole("img")).toHaveLength(28);
 });
 
@@ -115,8 +115,8 @@ it("gives each day a tile: paler with nothing in it, an outline still to come", 
     />,
   );
   const tile = (name: RegExp) => screen.getByRole("img", { name });
-  expect(tile(/^Fri 25 Sept/).className).not.toContain("month-day-rest");
-  expect(tile(/^Thu 24 Sept/).className).toContain("month-day-rest");
+  expect(tile(/^Fri 25\u00a0Sept/).className).not.toContain("month-day-rest");
+  expect(tile(/^Thu 24\u00a0Sept/).className).toContain("month-day-rest");
   expect(tile(/today/).className).toContain("month-day-today");
   expect(container.querySelectorAll(".month-day-future")).toHaveLength(1);
 });
