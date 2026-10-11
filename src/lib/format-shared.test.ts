@@ -15,6 +15,12 @@ describe("a shared load and best", () => {
     expect(formatSharedLoad(38.75, "lb", true)).toBe("85.4 lb");
   });
 
+  it("reads a set's volume whole, as every volume reads", () => {
+    // 35 lb × 14 is 490 lb; kept as 222.32 kg, it came back "490.1 lb".
+    expect(formatSharedMetric("best_set_volume", 222.32, "lb")).toBe("490 lb");
+    expect(formatSharedMetric("best_set_volume", 1012.5, "kg")).toBe("1,013 kg");
+  });
+
   it("says a hold in seconds under a minute and as a clock from one", () => {
     expect(formatSharedMetric("longest_hold", 51, "kg")).toBe("51 s");
     expect(formatSharedMetric("longest_hold", 102, "kg")).toBe("1:42");

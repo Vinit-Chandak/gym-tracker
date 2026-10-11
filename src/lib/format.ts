@@ -259,7 +259,10 @@ export function formatSharedMetric(
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
-      // A top weight was lifted; an estimated 1RM and a set's volume are worked out.
+      // A set's volume is load × reps, read whole as every volume is: 35 lb × 14 is 490 lb,
+      // never the 490.1 lb its kilograms come back as.
+      if (metric === "best_set_volume") return formatVolume(value, unit);
+      // A top weight was lifted; an estimated 1RM is worked out.
       return formatSharedLoad(value, unit, metric === "top_weight");
     case "reps":
       return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
