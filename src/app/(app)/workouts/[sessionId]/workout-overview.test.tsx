@@ -240,6 +240,22 @@ it("names every exercise holding drafts, and none it cannot find", () => {
   );
 });
 
+it("says a row whose planned sets are all in is done, not Resume", () => {
+  // Kenji's squat in the year audit: 4 of 4 sets, not yet marked complete.
+  const sets = [set(1, 60, 4), set(2, 60, 4), set(3, 60, 4), set(4, 60, 4)];
+  show({
+    session: {
+      ...SESSION,
+      exercises: [exercise("Barbell bench press", { sets }), ...SESSION.exercises.slice(1)],
+    },
+  });
+  const bench = screen.getByRole("button", { name: /Barbell bench press/ });
+  expect(within(bench).getByRole("img", { name: "4 of 4 sets done" })).toBeTruthy();
+  expect(bench.textContent).not.toContain("Resume");
+  // Its sets are still what the row says under the name.
+  expect(bench.textContent).toContain("60 kg × 4, 60 kg × 4, 60 kg × 4, 60 kg × 4");
+});
+
 it("says where a row stands only when that is news", () => {
   const { open } = show();
   const bench = screen.getByRole("button", { name: /Barbell bench press/ });
