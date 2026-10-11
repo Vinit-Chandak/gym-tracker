@@ -40,6 +40,13 @@ export default async function PrivacyPage() {
   const sports = await withUser(getDb(), user.id, (tx) => listSportPreferences(tx, user.id), {
     readOnly: true,
   });
+  // A ride or swim switch for a sport you do, or still share: a sport turned off, and not
+  // shared, has nothing to share. Lifting and running are the training switch's.
+  const additional = sports.filter(
+    (sport): sport is typeof sport & { sport: "cycling" | "swimming" } =>
+      (sport.sport === "cycling" || sport.sport === "swimming") &&
+      (sport.enabled || sport.shareStats),
+  );
 
   // Board Privacy: the switches that keep the promise first, each saying what Off (or On)
   // means; then the promise itself, in full, behind two rows.
@@ -57,14 +64,15 @@ export default async function PrivacyPage() {
             }}
           />
         </div>
-        <div className="mt-3.5">
-          <SportSharingSwitches
-            values={{
-              cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
-              swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
-            }}
-          />
-        </div>
+        {additional.length > 0 && (
+          <div className="mt-3.5">
+            <SportSharingSwitches
+              values={Object.fromEntries(
+                additional.map((sport) => [sport.sport, sport.shareStats]),
+              )}
+            />
+          </div>
+        )}
         <ul className="mt-1.5">
           <PrivacyListRow glyph="people" title="What a follower can see" lines={VISIBLE} />
           <PrivacyListRow glyph="lock" title="What nobody can see" lines={NEVER} />

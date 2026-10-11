@@ -20,8 +20,9 @@ const SWITCHES: readonly { setting: PrivacyKey; label: string; effect: string }[
   {
     setting: "shareTraining",
     label: "Share training with followers",
+    // Running has no switch of its own (SOCIAL-02 kept it with lifting), so this one says so.
     effect:
-      "Off means followers see your profile card only: no stats, no records, not on their leaderboards.",
+      "Your lifting and running; rides and swims also need their own switch. Off means followers see your profile card only: no stats, no records, not on their leaderboards.",
   },
   {
     setting: "shareBodyWeight",
@@ -51,30 +52,37 @@ export function PrivacySwitches({ values }: { values: PrivacyValues }) {
   );
 }
 
+/** What one shared session of each additional sport is called. */
+const SESSION_NOUN = { cycling: "ride", swimming: "swim" } as const;
+
 /**
  * Additional sports require explicit consent as well as the global training switch (board
- * Privacy): a switch each, and what both share said once under them.
+ * Privacy): a switch each, and what they share said once under them. Only the sports given
+ * have one: the page gives those you do, and any you still share, so a switch to stop sharing
+ * is never hidden with the sport. With none, nothing is drawn.
  */
 export function SportSharingSwitches({
   values,
 }: {
-  values: Record<"cycling" | "swimming", boolean>;
+  values: Partial<Record<"cycling" | "swimming", boolean>>;
 }) {
+  const sports = (["cycling", "swimming"] as const).filter((sport) => values[sport] !== undefined);
+  if (sports.length === 0) return null;
   return (
     <>
       <ul>
-        {(["cycling", "swimming"] as const).map((sport) => (
+        {sports.map((sport) => (
           <SavedSwitch
             key={sport}
             label={`Share ${sport} with followers`}
-            enabled={values[sport]}
+            enabled={values[sport]!}
             save={(next) => setSportSharingAction(sport, next)}
           />
         ))}
       </ul>
       <p className="mt-0.5 type-meta-small leading-[1.35] text-ink-2">
-        Both share the date, duration and known distance. Share training with followers must also be
-        on.
+        A shared {sports.map((sport) => SESSION_NOUN[sport]).join(" or ")} says its date, duration
+        and known distance. Share training with followers must also be on.
       </p>
     </>
   );
