@@ -43,6 +43,9 @@ export function DateRangeFields({
         const params = new URLSearchParams(window.location.search);
         params.set("from", String(data.get("from")));
         params.set("to", String(data.get("to")));
+        // A page counts into the range it was read in: new dates start again at the first
+        // (ADR 0044), as History's other filters do.
+        params.delete("page");
         applying.current = true;
         startTransition(() => router.push(`${pathname}?${params}` as Route));
       }}
