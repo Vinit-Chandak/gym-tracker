@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import type { GraphRange } from "@/domain/graph-range";
 import { formatDuration } from "@/domain/pace";
 import {
+  bestSession,
   EXERCISE_MEASURES,
   measuresWithData,
   type ExerciseMeasure,
@@ -143,16 +144,7 @@ export function ExerciseGraph({
   const points = sessions.map((session) => ({ date: session.date, value: session[measure] }));
   // Past about sixty workouts, a point per week or month: that span's best workout.
   const line = thinRecords(points, range, { reduce: lowerIsBetter ? "min" : "max" });
-  const bestIndex = points.reduce(
-    (best, point, index) =>
-      point.value !== null &&
-      (best < 0 ||
-        (lowerIsBetter ? point.value < points[best]!.value! : point.value > points[best]!.value!))
-        ? index
-        : best,
-    -1,
-  );
-  const best = bestIndex >= 0 ? sessions[bestIndex]! : null;
+  const best = bestSession(sessions, measure, { assisted });
 
   return (
     <div className="space-y-3">

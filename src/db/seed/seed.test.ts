@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { searchWords } from "@/domain/exercise-search";
 import { programBlueprintSchema } from "@/domain/program-blueprint";
 import { MUSCLE_GROUPS } from "@/domain/types";
+import { nameSaysEquipment } from "@/lib/labels";
 
 import { EQUIPMENT_ART } from "@/components/equipment-art/catalogue";
 
@@ -194,6 +195,19 @@ describe("requirement groups", () => {
     // Essentials a gym assumed.
     expect(groups("barbell-bench-press")).toEqual([["barbell", "flat_bench", "power_rack"]]);
     expect(groups("high-bar-squat")).toEqual([["barbell", "power_rack"]]);
+  });
+
+  it("leads a machine exercise named for its machine with that machine", () => {
+    // At a gym with both, the first way wins, and a machine keeps its own history: the
+    // chest-supported row went on the seated row machine while the gym had its own (year audit).
+    const typeName = new Map(EQUIPMENT_TYPES.map((type) => [type.slug, type.name]));
+    for (const exercise of EXERCISES.filter((e) => e.modality === "machine")) {
+      const primaries = requirementGroups(exercise).map((group) => group[0]!);
+      const named = primaries.filter((slug) =>
+        nameSaysEquipment(exercise.name, typeName.get(slug)!),
+      );
+      if (named.length > 0) expect(named, exercise.slug).toContain(primaries[0]);
+    }
   });
 });
 

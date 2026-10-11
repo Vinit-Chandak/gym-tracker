@@ -31,6 +31,17 @@ export const RESISTANCE_MODE_LABELS: Record<ResistanceMode, string> = {
   cardio: "Cardio",
 };
 
+/**
+ * How a piece of equipment is loaded, as a gym's list says it. A bench, a rack or a foam roller
+ * carries no load of its own (its type is filed as bodyweight, the one mode for that): it is an
+ * accessory, never "Bodyweight", which reads as the athlete's body being the load.
+ */
+export function equipmentLoadLabel(category: EquipmentCategory, mode: ResistanceMode): string {
+  return category === "accessory" && mode === "bodyweight"
+    ? "Accessory"
+    : RESISTANCE_MODE_LABELS[mode];
+}
+
 export const LOAD_UNIT_LABELS: Record<LoadUnit, string> = {
   kg: "kg",
   lb: "lb",
@@ -154,6 +165,16 @@ export const LOAD_PORTABILITY_LABELS: Record<LoadPortability, string> = {
   context_dependent: "Compared per setup",
 };
 
+/**
+ * The library row's tag: where history is kept, when it is not kept across gyms. A push-up off a
+ * bench is kept per setup (its height is the load), never "per machine".
+ */
+export const LOAD_PORTABILITY_TAGS: Record<LoadPortability, string | null> = {
+  global: null,
+  equipment_specific: "Per machine",
+  context_dependent: "Per setup",
+};
+
 export const LOAD_PORTABILITY_HELP: Record<LoadPortability, string> = {
   global: "The load means the same everywhere, so history from any gym counts.",
   equipment_specific:
@@ -168,6 +189,32 @@ export const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
   unknown: "Unknown",
   unavailable: "Unavailable",
 };
+
+/**
+ * Whether an exercise's name already says what it is done on ("High-bar barbell squat" with a
+ * barbell, "Smith machine calf raise" on the Smith machine, "45° leg press" on the 45° leg press),
+ * so a line naming both would say it twice.
+ */
+export function nameSaysEquipment(exerciseName: string, equipmentName: string): boolean {
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}°]+/u)
+      .filter(Boolean)
+      .map((word) => word.replace(/s$/, ""));
+  const named = new Set(words(exerciseName));
+  return words(equipmentName).every((word) => named.has(word));
+}
+
+/**
+ * An exercise and the machine it is done on, "Lat pulldown on Cable station"; the exercise alone
+ * where there is no machine or its name already says it ("Shoulder press machine").
+ */
+export function exerciseOnMachine(exerciseName: string, machineName: string | null | undefined) {
+  return machineName && !nameSaysEquipment(exerciseName, machineName)
+    ? `${exerciseName} on ${machineName}`
+    : exerciseName;
+}
 
 /** "6–10" or "20–45 s"; single values collapse to one number. */
 export function rangeLabel(min: number | null, max: number | null, suffix = ""): string {

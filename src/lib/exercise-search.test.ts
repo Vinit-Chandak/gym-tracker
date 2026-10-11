@@ -114,4 +114,24 @@ describe("exercise search", () => {
     expect(exerciseSections(library, "pullup").map((s) => s.title)).toEqual(["Best matches"]);
     expect(exerciseSections([latPulldown], "biceps").map((s) => s.key)).toEqual(["other"]);
   });
+
+  it("opens a swap on the same movement, each exercise listed once", () => {
+    const squat = library.find((e) => e.slug === "low-bar-squat")!;
+    expect(squat.movementPattern).toBe("squat");
+    const sections = exerciseSections(library, "", squat);
+    // A squat's swap began at the chest exercises; it begins at the squats and leg presses.
+    expect(sections[0]).toMatchObject({ key: "like", title: "Same movement" });
+    expect(names(sections[0]!.items)).toEqual(
+      expect.arrayContaining(["Front squat", "Hack squat", "45° leg press"]),
+    );
+    expect(sections[0]!.items.every((e) => e.movementPattern === "squat")).toBe(true);
+    const listed = sections.flatMap((section) => section.items);
+    expect(listed).toHaveLength(library.length);
+    expect(new Set(listed).size).toBe(library.length);
+    // A search ranks as ever, and nothing alike leaves the library as it was.
+    expect(exerciseSections(library, "curl", squat).map((s) => s.key)).not.toContain("like");
+    expect(exerciseSections(library, "", { movementPattern: "none such" })).toEqual(
+      exerciseSections(library, ""),
+    );
+  });
 });

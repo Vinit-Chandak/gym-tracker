@@ -58,6 +58,8 @@ type PerformanceFilter = {
   /** Any equipment but this machine, or none: what another machine did, as a starting guess. */
   excludeEquipmentInstanceId?: string;
   before?: Date;
+  /** This one performance only: a machine nobody recorded is a series of its own session. */
+  workoutExerciseId?: string;
   excludeWorkoutExerciseId?: string;
   limit: number;
 };
@@ -93,6 +95,9 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
       lt(workoutSessions.startedAt, filter.before),
       lte(workoutSessions.completedAt, filter.before),
     );
+  if (filter.workoutExerciseId) {
+    conditions.push(eq(workoutExercises.id, filter.workoutExerciseId));
+  }
   if (filter.excludeWorkoutExerciseId) {
     conditions.push(ne(workoutExercises.id, filter.excludeWorkoutExerciseId));
   }
@@ -271,14 +276,35 @@ export async function latestPerformanceAnywhere(
   return row ?? null;
 }
 
-/** Recent completed performances on every machine, newest first, for the exercise page. */
+/**
+ * The performances an exercise's page reads together: one machine's, or the one workout's on a
+ * machine nobody recorded. Null for a movement whose load means the same everywhere, read on any
+ * equipment.
+ */
+export type PerformanceScope =
+  { equipmentInstanceId: string } | { workoutExerciseId: string } | null;
+
+/**
+ * Recent completed performances for the exercise page, newest first: those in the scope its
+ * figures are read in, and apart from them the newest on every other machine (ADR 0006, decision
+ * 8), so another machine's sets are in view without being read as this one's.
+ */
 export async function recentPerformances(
   db: DbOrTx,
   userId: string,
   exerciseId: string,
-  limit = 10,
-): Promise<ComparablePerformance[]> {
-  return performances(db, { userId, exerciseId, limit });
+  scope: PerformanceScope = null,
+  { limit = 10, elsewhere = 5 }: { limit?: number; elsewhere?: number } = {},
+): Promise<{ scoped: ComparablePerformance[]; elsewhere: ComparablePerformance[] }> {
+  const base = { userId, exerciseId };
+  if (scope === null) return { scoped: await performances(db, { ...base, limit }), elsewhere: [] };
+  const [scoped = [], others = []] = await batchPerformances(db, [
+    { ...base, ...scope, limit },
+    "equipmentInstanceId" in scope
+      ? { ...base, excludeEquipmentInstanceId: scope.equipmentInstanceId, limit: elsewhere }
+      : { ...base, excludeWorkoutExerciseId: scope.workoutExerciseId, limit: elsewhere },
+  ]);
+  return { scoped, elsewhere: others };
 }
 
 /**

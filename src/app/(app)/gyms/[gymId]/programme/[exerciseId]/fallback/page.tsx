@@ -71,6 +71,7 @@ export default async function GymFallbackPage(
         exercises={data.exercises}
         machines={data.machines}
         compatibleMachines={data.compatibleMachines}
+        like={{ movementPattern: data.exercise.movementPattern }}
       />
     </SessionPage>
   );

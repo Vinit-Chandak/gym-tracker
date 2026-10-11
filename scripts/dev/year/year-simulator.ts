@@ -1078,12 +1078,22 @@ export class YearSimulation {
         0,
         Math.floor(30 * (maxU / Math.max(load, step) - 1) - fatigue + (a.random() - 0.5) * 2),
       );
+      // A set taken to failure goes as far as the capacity says, but not past what a body does:
+      // Epley's reading of a light load runs on without end (35 kg × 83 on a 145 kg bench, a
+      // drop set of 318), so reps to failure stop ten past the top of the range.
       const reps =
         setType === "amrap" || setType === "drop"
-          ? Math.max(1, capacity)
+          ? clamp(capacity, 1, high + 10)
           : clamp(capacity - rirTarget, 1, high + (a.random() < 0.1 ? 2 : 0));
       const rir =
-        setType === "amrap" ? 0 : clamp(capacity - reps + Math.round((a.random() - 0.5) * 2), 0, 5);
+        setType === "amrap"
+          ? 0
+          : clamp(
+              capacity - reps + Math.round((a.random() - 0.5) * 2),
+              0,
+              // A drop set stopped at that ceiling was still near failure.
+              setType === "drop" ? 1 : 5,
+            );
       await save({
         setType,
         weight: load,

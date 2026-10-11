@@ -65,7 +65,9 @@ function side(
   if (best.work) sub.unshift(formatTopWeightWork(best.work));
   const bodyWeight = ratio && RATIO_METRICS.has(metric) ? (reading?.weightKg ?? null) : null;
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
-  if (times !== null) sub.push(`${times}× BW`);
+  // Of the latest weight, not the weight on the day of a lift long ago: only the latest reading
+  // is shared (plan §3.8), so neither side can be read against an older one, and says so.
+  if (times !== null) sub.push(`${times}× latest BW`);
   return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
 }
 
@@ -192,7 +194,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× latest BW), since you both share it: today's weight, not the weight on the day of the lift." : ""}`}
         >
           <Card>
             <CompareTable

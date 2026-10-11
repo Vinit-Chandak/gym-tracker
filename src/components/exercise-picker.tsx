@@ -38,12 +38,14 @@ type SeveralChoices = {
 type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
   exercises: ExerciseListItem[];
   error?: string;
+  /** The exercise being replaced (a swap, a fallback): the list opens on its movement. */
+  like?: Pick<ExerciseListItem, "movementPattern"> | null;
 };
 
 /**
  * Search first, then grouped results (boards Add exercise, Add fallback): by body region when
- * nothing is typed, and by how well each exercise answers the search when something is, names
- * first. Each row is the name at the gutter and, under it, its equipment's glyph and the muscles
+ * nothing is typed (after the same movement, when one is being replaced), and by how well each
+ * exercise answers the search when something is, names first. Each row is the name at the gutter and, under it, its equipment's glyph and the muscles
  * it works; the chosen one carries a check. The whole view is one scroll region, so a long
  * catalogue never becomes a list scrolling inside a sheet scrolling inside a page.
  *
@@ -55,13 +57,13 @@ type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
  * action pinned at the foot are in sight again.
  */
 export function ExercisePicker(props: ExercisePickerProps) {
-  const { exercises, error } = props;
+  const { exercises, error, like = null } = props;
   const several = props.mode === "multiple";
   const long = !several && (props.long ?? false);
   const id = useId();
   const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => exerciseSections(exercises, query), [exercises, query]);
+  const groups = useMemo(() => exerciseSections(exercises, query, like), [exercises, query, like]);
   const selected = several ? undefined : exercises.find((e) => e.id === props.value);
 
   return (

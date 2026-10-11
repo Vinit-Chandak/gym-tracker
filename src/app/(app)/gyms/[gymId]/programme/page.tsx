@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { AVAILABILITY_LABELS } from "@/lib/labels";
+import { AVAILABILITY_LABELS, exerciseOnMachine } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
 import { requireUuid } from "@/server/validation/params";
@@ -31,7 +31,7 @@ function detail(row: PlannedExerciseAvailability): string {
         ? "No equipment needed"
         : `Usually here (${row.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
     case "fallback":
-      return `Do ${row.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
+      return `Do ${exerciseOnMachine(row.resolvedExerciseName, r.equipmentInstance?.name)} instead`;
     case "unknown":
       // A custom exercise names no kind of machine, only its own, which is at another gym.
       return row.missingTypes.length === 0
@@ -121,8 +121,8 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
               >
                 {/* Wraps rather than cutting the name off: Remove moves under it when it must. */}
                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                  Fallback here: {fallback.fallbackExerciseName}
-                  {fallback.fallbackInstanceName ? ` on ${fallback.fallbackInstanceName}` : ""}
+                  Fallback here:{" "}
+                  {exerciseOnMachine(fallback.fallbackExerciseName, fallback.fallbackInstanceName)}
                 </span>
                 <form action={removeGymFallbackAction.bind(null, gym.id, fallback.id)}>
                   <SubmitButton variant="ghost" size="sm">
@@ -139,7 +139,10 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                 size="sm"
                 className="w-full"
               >
-                Add a fallback
+                {/* A row already done as a fallback, or holding one for this gym, gets another. */}
+                {row.resolution.status === "fallback" || row.gymFallbacks.length > 0
+                  ? "Add another fallback"
+                  : "Add a fallback"}
               </LinkButton>
             )}
           </Card>

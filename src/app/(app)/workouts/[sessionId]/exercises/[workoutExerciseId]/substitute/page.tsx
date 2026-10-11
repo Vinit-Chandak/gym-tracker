@@ -57,6 +57,8 @@ export default async function SubstitutePage(
         exercises: exercises.filter(
           (e) => e.isActive && (e.id !== slot.exercise.id || otherMachine),
         ),
+        // The list opens on the same movement: a squat's swap began at the chest exercises.
+        movementPattern: exercises.find((e) => e.id === slot.exercise.id)?.movementPattern ?? null,
         machines: machines.filter((m) => m.isActive),
         machinesByExercise,
       };
@@ -100,6 +102,7 @@ export default async function SubstitutePage(
         remember={data.plannedExerciseId !== null}
         rememberByDefault={rememberParam !== "0"}
         plannedExerciseId={data.plannedExerciseId}
+        like={data.movementPattern ? { movementPattern: data.movementPattern } : null}
         long
       />
     </SessionPage>

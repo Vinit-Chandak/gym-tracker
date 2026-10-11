@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { rangeLabel, restLabel } from "./labels";
+import {
+  equipmentLoadLabel,
+  exerciseOnMachine,
+  nameSaysEquipment,
+  rangeLabel,
+  restLabel,
+} from "./labels";
 
 describe("labels", () => {
   it("formats rep and time ranges", () => {
@@ -21,5 +27,31 @@ describe("labels", () => {
     expect(restLabel(200, 200)).toBe("3 min 20 s");
     expect(restLabel(200, 240)).toBe("200–240 s");
     expect(restLabel(null, null)).toBe("—");
+  });
+
+  it("names the machine with an exercise only where the exercise's name does not already", () => {
+    // Programme fit's fallbacks once read "Do Shoulder press machine on Shoulder press machine".
+    expect(exerciseOnMachine("Shoulder press machine", "Shoulder press machine")).toBe(
+      "Shoulder press machine",
+    );
+    expect(exerciseOnMachine("Smith machine bench press", "Smith machine")).toBe(
+      "Smith machine bench press",
+    );
+    expect(exerciseOnMachine("Chest-supported row (machine)", "Chest-supported row machine")).toBe(
+      "Chest-supported row (machine)",
+    );
+    expect(exerciseOnMachine("Lat pulldown", "Cable station")).toBe(
+      "Lat pulldown on Cable station",
+    );
+    expect(exerciseOnMachine("Lat pulldown", null)).toBe("Lat pulldown");
+    expect(nameSaysEquipment("Dumbbell curl", "Dumbbells")).toBe(true);
+    expect(nameSaysEquipment("Hammer curl", "Dumbbells")).toBe(false);
+  });
+
+  it("calls a bench an accessory, not bodyweight, and a pull-up bar bodyweight", () => {
+    expect(equipmentLoadLabel("accessory", "bodyweight")).toBe("Accessory");
+    expect(equipmentLoadLabel("accessory", "free_weight")).toBe("Free weight");
+    expect(equipmentLoadLabel("bodyweight", "bodyweight")).toBe("Bodyweight");
+    expect(equipmentLoadLabel("machine", "plate_loaded")).toBe("Plate-loaded");
   });
 });
