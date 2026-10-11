@@ -144,3 +144,17 @@ it("says each check-in reading on its own scale, as the check-in asked it", () =
   // Energy is no longer asked, and a check-in without it says nothing of it.
   expect(screen.queryByText("Energy")).toBeNull();
 });
+
+it("names the year of a workout from another, as a friend's copy of it does", () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-11T08:00:00.000Z"));
+  try {
+    show({ startedAt: "2025-10-13T17:30:00.000Z", completedAt: "2025-10-13T18:41:00.000Z" });
+    expect(screen.getByText("Mon 13 Oct 2025")).toBeTruthy();
+    cleanup();
+    show();
+    expect(screen.getByText("Tue 8 Sept")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
