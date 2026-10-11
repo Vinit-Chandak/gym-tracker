@@ -531,6 +531,21 @@ Every screen is laid out from its device rather than scaled from one size: 402 Ã
 (20 pt top), and Android at 360 Ã— 800 dp (28 top, a 16-dp gesture handle). Gutters are 20 pt, 16
 under 360 pt wide.
 
+Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
+
+- **Size classes.**
+  - **Compact**, under 600 pt: every phone, exactly as drawn here.
+  - **Medium**, to 1024 pt: a tablet or a phone on its side, with the tab bar.
+  - **Expanded**, beyond: the tabs become a rail at the left.
+- **A fluid scale.** From 600 to 1440 pt, type, spacing, gutters (20 to 40), radii and targets
+  grow smoothly, by about an eighth, then stop. This comes on top of the reader's text size,
+  never instead of it.
+- **Two widths.** A reading or form screen is one column of 44rem on a tablet, 46 on a desktop.
+  A screen of cards and sections widens to 62rem and 78rem and lays them in columns, as many as
+  fit at a rem minimum, so larger text means fewer, wider columns.
+- **Today** holds two columns at most. A lone card takes the row.
+- **The workout** is the page's column, centred over the ground, never a stretched table.
+
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
@@ -627,6 +642,10 @@ has them, in one column.
 **The Fold, Never Drop Rule.** When room runs out, a layout folds (steppers stack, a note folds
 behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a
 target under 44 pt.
+
+**The Same Phone, Larger Rule.** A screen wider than a phone shows the phone's layout, larger
+and with more columns where it lists cards. It never shows a different layout, and never a
+phone's column floating in empty space. A phone never moves when the larger sizes change.
 
 ## Elevation & Depth
 
