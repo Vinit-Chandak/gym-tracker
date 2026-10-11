@@ -103,3 +103,32 @@ it("opens on the type a workout asked about, prefilled as choosing it would", ()
   // The catalogue's kilograms become the account's unit, as choosing the type does.
   expect(data.get("unit")).toBe("lb");
 });
+
+it("gives its examples in the unit above: a pounds machine's loads and jump are pounds", () => {
+  const { container } = render(
+    <EquipmentForm
+      action={vi.fn(async () => ({}))}
+      types={[
+        {
+          id: "hack",
+          slug: "hack_squat",
+          name: "Hack squat",
+          category: "machine",
+          defaultResistanceMode: "plate_loaded",
+          defaultUnit: "kg",
+        },
+      ]}
+      startTypeId="hack"
+      preferredUnit="lb"
+      submitLabel="Add machine"
+    />,
+  );
+  const placeholder = (name: string) =>
+    container.querySelector<HTMLInputElement>(`input[name="${name}"]`)!.placeholder;
+  // 4, 6, 8 kg dumbbells and a 2.5 kg jump would read as pounds nobody racks or loads.
+  expect(placeholder("availableLoads")).toBe("5, 10, 15, 20, 25");
+  expect(placeholder("loadIncrement")).toBe("5");
+  fireEvent.click(screen.getByRole("radio", { name: "kg" }));
+  expect(placeholder("availableLoads")).toBe("4, 6, 8, 10, 12");
+  expect(placeholder("loadIncrement")).toBe("2.5");
+});

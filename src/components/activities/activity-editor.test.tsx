@@ -182,3 +182,25 @@ it("keeps nothing once a change has been undone", async () => {
   await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0));
   expect(screen.queryByText(/kept on this device/)).toBeNull();
 });
+
+it("shows a time held to the tenth as its page does, and keeps the tenth unless it is changed", async () => {
+  const action = vi.fn().mockResolvedValue({ formError: "Try again" });
+  const { container } = render(
+    <ActivityEditor
+      {...props}
+      sport="running"
+      activityId="run-1"
+      expectedRevision={1}
+      initial={{ ...props.initial, hours: "0", minutes: "32", seconds: "16.6", distanceUnit: "mi" }}
+      action={action}
+    />,
+  );
+  const duration = (await screen.findByLabelText("Duration")) as HTMLInputElement;
+  // The run's page says 32:17; so does the form, rather than "32:16.6".
+  expect(duration.value).toBe("32:17");
+  const posted = () => new FormData(container.querySelector("form")!);
+  // Correcting anything else leaves the time as it was stored.
+  expect([posted().get("minutes"), posted().get("seconds")]).toEqual(["32", "16.6"]);
+  fireEvent.change(duration, { target: { value: "32:20" } });
+  expect([posted().get("minutes"), posted().get("seconds")]).toEqual(["32", "20"]);
+});

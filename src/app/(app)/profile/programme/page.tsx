@@ -26,6 +26,7 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview } from "@/server/repositories/schedule";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
@@ -79,14 +80,14 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;
   const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
   const profile = await getRequestProfile(user.id, user.email);
-  const [inProgress, { overview, changes, archived }] = await Promise.all([
+  const [inProgress, { overview, changes, archived, runUnits }] = await Promise.all([
     // The per-request read the session strip also makes.
     getActiveSession(user.id),
     withUser(
       getDb(),
       user.id,
       async (tx) => {
-        const [overview, changes, archived] = await Promise.all([
+        const [overview, changes, archived, runUnits] = await Promise.all([
           getProgramOverview(tx, user.id, profile.timeZone),
           loadProgrammeChanges(tx, user.id, profile.timeZone),
           tx
@@ -95,8 +96,9 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
             .orderBy(desc(programs.updatedAt))
             .limit(20),
+          unitsFor(tx, user.id, "running"),
         ]);
-        return { overview, changes, archived };
+        return { overview, changes, archived, runUnits };
       },
       { readOnly: true },
     ),
@@ -235,6 +237,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                         <li key={plan.day.id}>
                           <CycleDay
                             plan={plan}
+                            units={runUnits}
                             open={inProgress !== null && inProgress.programDayId === plan.day.id}
                           />
                         </li>

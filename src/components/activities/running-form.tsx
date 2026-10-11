@@ -130,6 +130,11 @@ export function RunningForm({
         <DurationField
           value={duration}
           onChange={setDuration}
+          recorded={{
+            hours: values("hours"),
+            minutes: values("minutes"),
+            seconds: values("seconds"),
+          }}
           hint={
             pace !== null ? (
               <span role="status">

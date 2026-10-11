@@ -16,7 +16,7 @@ import {
   type LengthUnit,
 } from "./distance-units";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
-import { fromKilograms } from "./units";
+import { fromKilograms, loadStepIn } from "./units";
 
 /**
  * The pieces of a formatted date, so a caller can join them itself.
@@ -192,33 +192,46 @@ export function formatRunKm(distanceMeters: number): string {
   return String(Math.round(distanceMeters / 10) / 100);
 }
 
+/*
+ * A figure and its unit, or a count and its noun, are held together by a space that does not
+ * break ("42.5 kg", "12 sets", "× 10"), here and in every formatter like these: a line may wrap
+ * between two facts, never inside one.
+ */
+
 /**
  * "1 h 12 min" / "48 min". Rounded to the minute before it is split, so 1:59:40 is "2 h", never
- * "1 h 60 min".
+ * "1 h 60 min". A narrow column breaks between the hours and the minutes, never inside "12 min"
+ * (ADR 0045).
  */
 export function formatMinutes(totalMinutes: number): string {
   const total = Math.round(totalMinutes);
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+  if (hours === 0) return `${minutes}\u00a0min`;
+  return minutes === 0 ? `${hours}\u00a0h` : `${hours}\u00a0h ${minutes}\u00a0min`;
 }
-
-/** Kilograms per pound, for turning the library's kg defaults into the reader's unit. */
-const LB_PER_KG = 2.2046226218;
 
 /**
- * A load stored in kilograms, written in the unit the reader prefers: "2.5 kg" or "5.5 lb".
- * Only for the shared library's own defaults — logged sets keep the unit they were logged in.
+ * A load step the library gives in kilograms, as the jump a reader in `unit` makes: "2.5 kg",
+ * or in pounds the plate jump nearest it, "5 lb". The same step progression moves by
+ * (`loadStepIn`), so the page never names a 5.5 lb jump that nobody can load.
  */
-export function formatKilograms(kilograms: number, unit: "kg" | "lb"): string {
-  if (unit === "kg") return `${kilograms} kg`;
-  return `${Math.round(kilograms * LB_PER_KG * 10) / 10} lb`;
+export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
+  return `${loadStepIn(kilograms, unit)}\u00a0${unit}`;
 }
 
-/** "6,240 kg" / "13,757 lb": a shared load in the reader's unit, thousands separated. */
+/** "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. */
 export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
-  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")} ${unit}`;
+  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")}\u00a0${unit}`;
+}
+
+/**
+ * "6,240 kg" / "13,757 lb": a volume (load × reps, summed) in the reader's unit, whole and
+ * thousands separated, as Progress and a finished workout total it. A tenth of a pound in a
+ * six-figure total is the conversion talking, not the training.
+ */
+export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
+  return `${Math.round(fromKilograms(kilograms, unit)).toLocaleString("en-GB")}\u00a0${unit}`;
 }
 
 /**
@@ -234,11 +247,11 @@ export function formatSharedMetric(
     case "kg":
       return formatSharedLoad(value, unit);
     case "reps":
-      return `${value} ${value === 1 ? "rep" : "reps"}`;
+      return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
     case "seconds":
       return formatDuration(value);
     case "metres":
-      return `${value.toLocaleString("en-GB")} m`;
+      return `${value.toLocaleString("en-GB")}\u00a0m`;
   }
 }
 
@@ -247,13 +260,13 @@ export function formatSharedMetric(
  * twelve reps, "4 sets" for a hold or carry that has no reps to count.
  */
 export function formatTopWeightWork(work: { sets: number; reps: number | null }): string {
-  if (work.reps === null) return `${work.sets} ${work.sets === 1 ? "set" : "sets"}`;
-  return `${work.sets} × ${work.reps}`;
+  if (work.reps === null) return `${work.sets}\u00a0${work.sets === 1 ? "set" : "sets"}`;
+  return `${work.sets}\u00a0×\u00a0${work.reps}`;
 }
 
 /** "42.3 km": a period's distance, to a tenth, as the weekly totals on Runs read. */
 export function formatTotalKm(distanceMeters: number): string {
-  return `${Math.round(distanceMeters / 100) / 10} km`;
+  return `${Math.round(distanceMeters / 100) / 10}\u00a0km`;
 }
 
 /** The unit a reader sees each shared sport's distances in; lifting has none to show. */
@@ -269,14 +282,14 @@ export const DEFAULT_DISTANCE_UNITS: SharedDistanceUnits = { run: "km", cycle: "
 export function formatSharedDistance(metres: number, unit: LengthUnit, places = 2): string {
   const whole = unit === "m" || unit === "yd";
   const value = roundTo(fromMetres(metres, unit), whole ? 0 : places);
-  return `${value.toLocaleString("en-GB", { maximumFractionDigits: whole ? 0 : places })} ${UNIT_LABELS[unit]}`;
+  return `${value.toLocaleString("en-GB", { maximumFractionDigits: whole ? 0 : places })}\u00a0${UNIT_LABELS[unit]}`;
 }
 
 /** "5:25 /km" or "8:43 /mi": a pace stored per kilometre, per the reader's road unit. */
 export function formatSharedPace(secondsPerKm: number | null, unit: LengthUnit): string {
-  if (unit !== "mi") return `${formatPace(secondsPerKm)} /km`;
+  if (unit !== "mi") return `${formatPace(secondsPerKm)}\u00a0/km`;
   const perMile = secondsPerKm === null ? null : (secondsPerKm * METRES_PER_MILE) / METRES_PER_KM;
-  return `${formatPace(perMile)} /mi`;
+  return `${formatPace(perMile)}\u00a0/mi`;
 }
 
 /**
@@ -295,7 +308,7 @@ export function formatActivityMetric(
     case "time":
       return formatMinutes(value / 60);
     case "volume":
-      return formatSharedLoad(value, unit);
+      return formatVolume(value, unit);
     case "workouts":
     case "working_sets":
     case "active_days":

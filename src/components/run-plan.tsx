@@ -1,5 +1,6 @@
 import { DetailList } from "@/components/ui/detail-list";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
+import { formatSportDistance, toMetres, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import type { RunTarget } from "@/server/repositories/schedule";
@@ -18,16 +19,24 @@ export type RunTargets = {
 };
 
 /**
- * "5 km · 25–30 min · Effort 2 of 5": how far, how long, and how hard. Effort is out of five
- * since 0034, the scale the athlete answers on; a stored zero means none was asked for, so it
- * says nothing rather than "Effort 0".
+ * "5 km · 25–30 min · Effort 2 of 5": how far, how long, and how hard. The programme writes the
+ * distance in kilometres; it is read in the athlete's own road unit, as Today reads the same
+ * run ("3.11 mi"). Effort is out of five since 0034, the scale the athlete answers on; a stored
+ * zero means none was asked for, so it says nothing rather than "Effort 0".
  */
-export function runSummary(run: RunTargets): string {
+export function runSummary(run: RunTargets, units: SportUnits): string {
   const rpeMax = run.rpeMax ?? run.rpeMin;
   const parts = [
     run.distanceMinKm === null
       ? null
-      : rangeLabel(run.distanceMinKm, run.distanceMaxKm ?? run.distanceMinKm, " km"),
+      : formatSportDistance(
+          [
+            toMetres(run.distanceMinKm, "km"),
+            toMetres(run.distanceMaxKm ?? run.distanceMinKm, "km"),
+          ],
+          "running",
+          units,
+        ),
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
     run.rpeMin === null || run.rpeMin === undefined || !rpeMax
       ? null

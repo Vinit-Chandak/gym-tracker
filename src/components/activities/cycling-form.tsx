@@ -129,6 +129,11 @@ export function CyclingForm({
         <DurationField
           value={duration}
           onChange={setDuration}
+          recorded={{
+            hours: values("hours"),
+            minutes: values("minutes"),
+            seconds: values("seconds"),
+          }}
           error={errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
         />
         <DistanceField

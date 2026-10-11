@@ -5,6 +5,7 @@ import {
   formatSharedLoad,
   formatSharedMetric,
   formatSharedPace,
+  formatVolume,
   type SharedDistanceUnits,
 } from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -113,7 +114,7 @@ type Stat = { label: string; figure: string; unit?: string };
 
 /** "5.2 km" as its figure and its unit. */
 function split(text: string): { figure: string; unit?: string } {
-  const at = text.indexOf(" ");
+  const at = text.search(/\s/);
   return at < 0 ? { figure: text } : { figure: text.slice(0, at), unit: text.slice(at + 1) };
 }
 
@@ -130,7 +131,7 @@ function workout(activity: SharedActivityDetail, unit: BodyLoadUnit): Stat[] {
     });
   stats.push({ label: "Sets", figure: String(activity.workingSets) });
   if (activity.volumeKg > 0)
-    stats.push({ label: "Volume", ...split(formatSharedLoad(activity.volumeKg, unit)) });
+    stats.push({ label: "Volume", ...split(formatVolume(activity.volumeKg, unit)) });
   return stats;
 }
 

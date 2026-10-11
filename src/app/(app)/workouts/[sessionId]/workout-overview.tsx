@@ -28,7 +28,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSet } from "@/domain/sets";
+import { formatSet, loadReadingOf } from "@/domain/sets";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
@@ -107,8 +107,10 @@ const underWay = (exercise: ExerciseVM) =>
  */
 function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): string {
   const done = workDone(exercise);
-  if ((readOnly || underWay(exercise)) && done.length > 0)
-    return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
+  if ((readOnly || underWay(exercise)) && done.length > 0) {
+    const reading = loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted);
+    return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit], reading)).join(", ");
+  }
   const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
   const line = prescriptionLabel(exercise, unitLabel);
   const machine = equipmentLine(exercise);

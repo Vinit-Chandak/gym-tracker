@@ -54,6 +54,10 @@ const MODE_OPTIONS = RESISTANCE_MODES.map((mode) => ({
 }));
 const UNIT_OPTIONS = LOAD_UNITS.map((unit) => ({ value: unit, label: LOAD_UNIT_LABELS[unit] }));
 
+/** What the loads and the smallest jump look like, as examples, in a unit. */
+const KILOGRAM_EXAMPLE = { loads: "4, 6, 8, 10, 12", jump: "2.5", plates: "1.25 kg" };
+const POUND_EXAMPLE = { loads: "5, 10, 15, 20, 25", jump: "5", plates: "2.5 lb" };
+
 function asMode(value: string | undefined): ResistanceMode | undefined {
   return (RESISTANCE_MODES as readonly string[]).includes(value ?? "")
     ? (value as ResistanceMode)
@@ -91,6 +95,9 @@ export function EquipmentForm({
       (start && start.defaultUnit !== "kg" ? start.defaultUnit : preferredUnit),
   );
   const stack = mode === "selectorized";
+  // The examples are in the unit above: a pounds rack runs 5, 10, 15, and its smallest jump is
+  // a pair of 2.5 lb plates, never the kilogram one's numbers read as pounds.
+  const example = unit === "lb" ? POUND_EXAMPLE : KILOGRAM_EXAMPLE;
   const touched = useRef({
     name: Boolean(initial),
     mode: Boolean(initial),
@@ -189,7 +196,7 @@ export function EquipmentForm({
             info={
               stack
                 ? "Weights on this stack you know exist. Anything you log here counts already, and the Next up box under an exercise adds to this list. Optional."
-                : "List the weights you can actually select, in the unit above. For example: 4, 6, 8, 10, 12. Leave blank if unconfirmed."
+                : `List the weights you can actually select, in the unit above. For example: ${example.loads}. Leave blank if unconfirmed.`
             }
             error={state.fieldErrors?.availableLoads}
           >
@@ -197,7 +204,7 @@ export function EquipmentForm({
               name="availableLoads"
               defaultValue={value("availableLoads")}
               maxLength={2000}
-              placeholder="4, 6, 8, 10, 12"
+              placeholder={example.loads}
             />
           </Field>
           {/* A stack learns its steps from what is logged on it (ADR 0028); a typed jump
@@ -208,7 +215,7 @@ export function EquipmentForm({
           ) : (
             <Field
               label="Smallest load jump"
-              info="In the unit above: 2.5 for a pair of 1.25 kg plates. Progression suggestions move by this amount."
+              info={`In the unit above: ${example.jump} for a pair of ${example.plates} plates. Progression suggestions move by this amount.`}
               htmlFor="load-increment"
               error={state.fieldErrors?.loadIncrement}
             >
@@ -217,7 +224,7 @@ export function EquipmentForm({
                 name="loadIncrement"
                 inputMode="decimal"
                 defaultValue={value("loadIncrement")}
-                placeholder="2.5"
+                placeholder={example.jump}
               />
             </Field>
           )}

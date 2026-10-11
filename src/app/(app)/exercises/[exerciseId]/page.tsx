@@ -26,7 +26,7 @@ import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
 import { showsDrafts } from "@/lib/drafts";
 import { FACT_SEPARATOR } from "@/lib/facts";
-import { formatKilograms } from "@/lib/format";
+import { formatLoadStep } from "@/lib/format";
 import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
 import {
@@ -369,7 +369,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   ? exercise.loadPortability === "global"
                     ? "—"
                     : "Machine"
-                  : formatKilograms(exercise.defaultLoadIncrement, unit)
+                  : formatLoadStep(exercise.defaultLoadIncrement, unit)
               }
             />
           </StatTileRow>

@@ -12,7 +12,7 @@ import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets, workingSetCount } from "@/domain/sets";
+import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import { formatIsoDate } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
@@ -111,9 +111,16 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
   );
 }
 
-/** An exercise's sets as the app lists a past session's: its working sets, each with its unit. */
+/**
+ * An exercise's sets as the app lists a past session's: its working sets, each with its unit,
+ * a bodyweight movement's and an assisted machine's read as the logger reads them.
+ */
 function setsLine(exercise: ExerciseVM): string {
-  return formatSets(exercise.sets, (unit) => LOAD_UNIT_LABELS[unit]);
+  return formatSets(
+    exercise.sets,
+    (unit) => LOAD_UNIT_LABELS[unit],
+    loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+  );
 }
 
 /**

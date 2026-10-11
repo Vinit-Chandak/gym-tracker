@@ -4,6 +4,7 @@ import { PlannedExerciseList, planSummary } from "@/components/planned-exercises
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
+import type { SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -15,13 +16,13 @@ function subtitle(day: ScheduleDay): string | null {
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
-/** What it asks for: the sets, or the run, or neither. */
-function cost(plan: ProgramDayPlan): string {
+/** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
+function cost(plan: ProgramDayPlan, units: SportUnits): string {
   if (plan.exercises.length > 0)
-    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run)}` : null]
+    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run, units)}` : null]
       .filter(Boolean)
       .join(FACT_SEPARATOR);
-  if (plan.run) return runSummary(plan.run);
+  if (plan.run) return runSummary(plan.run, units);
   return "Rest day";
 }
 
@@ -35,7 +36,15 @@ const HEAD = "flex min-h-14 items-start gap-3 px-4 py-3";
  * same box without the fold, rather than a control that does nothing. `open` is a day whose
  * workout is under way, which is in progress rather than next.
  */
-export function CycleDay({ plan, open = false }: { plan: ProgramDayPlan; open?: boolean }) {
+export function CycleDay({
+  plan,
+  units,
+  open = false,
+}: {
+  plan: ProgramDayPlan;
+  units: SportUnits;
+  open?: boolean;
+}) {
   const { day } = plan;
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
@@ -57,7 +66,7 @@ export function CycleDay({ plan, open = false }: { plan: ProgramDayPlan; open?: 
           ) : null}
         </div>
         {subtitle(day) && <p className="mt-0.5 text-sm text-ink-muted">{subtitle(day)}</p>}
-        <p className="mt-1 text-xs text-ink-muted tabular-nums">{cost(plan)}</p>
+        <p className="mt-1 text-xs text-ink-muted tabular-nums">{cost(plan, units)}</p>
       </div>
       {expandable && (
         <ChevronDown

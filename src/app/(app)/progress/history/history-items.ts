@@ -100,7 +100,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.
     href: `/workouts/${w.id}${originQuery("history")}` as const,
-    meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
+    meta: `${w.setCount}\u00a0${w.setCount === 1 ? "set" : "sets"}`,
     gymId: w.gymId,
     exercises: w.exercises.map((e) => ({
       id: e.exerciseId,

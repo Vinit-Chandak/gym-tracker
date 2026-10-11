@@ -19,6 +19,7 @@ import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getProgramOverview, getSchedule } from "@/server/repositories/schedule";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { programmeDayParts, runLeads } from "../../programme-day";
@@ -45,10 +46,11 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
       getDb(),
       user.id,
       async (tx) => {
-        const [overview, schedule, gyms] = await Promise.all([
+        const [overview, schedule, gyms, runUnits] = await Promise.all([
           getProgramOverview(tx, user.id, profile.timeZone),
           getSchedule(tx, user.id),
           listGyms(tx, user.id),
+          unitsFor(tx, user.id, "running"),
         ]);
         const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
         const warmup = plan?.day.warmupProtocolId
@@ -58,6 +60,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           overview,
           plan,
           warmup,
+          runUnits,
           start:
             plan && overview && schedule
               ? liftingStartOption(schedule.state, overview.currentCycle, plan.day.dayIndex)
@@ -88,7 +91,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
         <span className="plan-row-name">Run</span>
         {plan.run && (
           <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
-            {runSummary(plan.run)}
+            {runSummary(plan.run, data.runUnits)}
           </span>
         )}
       </span>

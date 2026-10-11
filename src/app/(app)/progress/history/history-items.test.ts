@@ -85,7 +85,7 @@ describe("a run in History", () => {
 
   it("reads in kilometres by default", () => {
     const item = runItem(run, historyClock("UTC"));
-    expect(item.title).toBe("Outdoor · 5 km");
+    expect(item.title).toBe("Outdoor · 5\u00a0km");
     expect(item.meta).toBe("30:00 · 6:00/km");
   });
 
@@ -94,7 +94,7 @@ describe("a run in History", () => {
       run,
       historyClock("UTC", { running: { distanceUnit: "mi", poolUnit: "yd" } }),
     );
-    expect(item.title).toBe("Outdoor · 3.11 mi");
+    expect(item.title).toBe("Outdoor · 3.11\u00a0mi");
     expect(item.meta).toBe("30:00 · 9:39/mi");
   });
 });

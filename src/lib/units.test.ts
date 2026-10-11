@@ -49,10 +49,10 @@ describe("body measurement units", () => {
   });
 
   it("writes a measurement the way its owner would say it", () => {
-    expect(formatBodyWeight(74.5, "kg")).toBe("74.5 kg");
-    expect(formatBodyWeight(74.48, "lb")).toBe("164.2 lb");
-    expect(formatHeight(178, "kg")).toBe("178 cm");
-    expect(formatHeight(177.8, "lb")).toBe("5′ 10″");
+    expect(formatBodyWeight(74.5, "kg")).toBe("74.5\u00a0kg");
+    expect(formatBodyWeight(74.48, "lb")).toBe("164.2\u00a0lb");
+    expect(formatHeight(178, "kg")).toBe("178\u00a0cm");
+    expect(formatHeight(177.8, "lb")).toBe("5′\u00a010″");
   });
 });
 

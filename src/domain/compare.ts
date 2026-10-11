@@ -4,6 +4,8 @@
  * the friend's value — "+20%" is "you did a fifth more than they did".
  */
 
+import { roundTo } from "@/lib/distance-units";
+
 export type Side = "a" | "b";
 
 export type Comparison = {
@@ -13,7 +15,11 @@ export type Comparison = {
   percent: number | null;
 };
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/**
+ * To a tenth, a half away from zero whichever side it falls: Math.round takes −18.75 up to
+ * −18.7, so being behind read a shade less than being ahead by the same margin.
+ */
+const round1 = (n: number) => roundTo(n, 1);
 
 /**
  * Nothing (null) and zero are the same absence: the percentage is "—", because there is no

@@ -148,7 +148,7 @@ it("words a workout as its owner's record does, and lists what it was made of", 
   // "60 min", "Sets", "Volume": the finished workout's words, not "59:32" and "Working sets".
   expect(stat("Time")).toBe("60 min");
   expect(stat("Sets")).toBe("16");
-  expect(stat("Volume")).toBe("10,290.1 lb");
+  expect(stat("Volume")).toBe("10,290 lb");
   // Each figure on one line with its unit and reps: "110 kg × 3" never breaks.
   const lines = screen
     .getAllByRole("listitem")
@@ -177,4 +177,26 @@ it("says so when none of a workout's movements is shared", () => {
   );
   expect(screen.queryByRole("list")).toBeNull();
   expect(screen.getByText("1 set in exercises Kenji created, which are not shared.")).toBeTruthy();
+});
+
+it("says a friend's workout volume whole, in the reader's unit", () => {
+  const workout = activity({
+    sport: "workout",
+    title: "Bench volume",
+    workingSets: 14,
+    volumeKg: 7742.4,
+    distanceMeters: null,
+    paceSecondsPerKm: null,
+  });
+  render(
+    <ActivitySummary
+      activity={workout}
+      name="Kenji"
+      unit="lb"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
+    />,
+  );
+  // 17,069.3 lb is the conversion's tenth, not the training's: Progress says 17,069 lb.
+  expect(stat("Volume")).toBe("17,069 lb");
+  expect(stat("Sets")).toBe("14");
 });

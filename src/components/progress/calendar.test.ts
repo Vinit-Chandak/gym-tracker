@@ -118,7 +118,7 @@ it("says a month's distances in the athlete's units where they are known", () =>
     running: { distanceUnit: "mi", poolUnit: "yd" },
     swimming: { distanceUnit: "mi", poolUnit: "yd" },
   } as const;
-  expect(tallyDistance(8046.72, "running", units)).toBe("5 mi");
+  expect(tallyDistance(8046.72, "running", units)).toBe("5\u00a0mi");
   expect(tallyDistance(8046.72)).toBe("8 km");
   expect(
     saidOf(
@@ -131,5 +131,5 @@ it("says a month's distances in the athlete's units where they are known", () =>
       },
       units,
     ),
-  ).toBe("swim 1000 yd");
+  ).toBe("swim 1,000\u00a0yd");
 });

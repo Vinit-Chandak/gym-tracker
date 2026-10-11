@@ -45,9 +45,9 @@ const swim = (yards: number): ScheduledOccurrence => ({
 
 it("says a yard swim in yards to a swimmer who swims in yards", () => {
   render(<EnduranceCard occurrence={swim(1000)} units={{ distanceUnit: "mi", poolUnit: "yd" }} />);
-  expect(screen.getByText("1000")).toBeTruthy();
+  expect(screen.getByText("1,000")).toBeTruthy();
   expect(screen.getByText("yd")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Log swim: 1000 yd" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log swim: 1,000 yd" })).toBeTruthy();
 });
 
 it("says the same swim in metres, rounded, to a swimmer who swims in metres", () => {

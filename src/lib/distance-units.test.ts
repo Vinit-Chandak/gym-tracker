@@ -55,9 +55,9 @@ describe("distance units", () => {
   });
 
   it("rounds only for display and leaves the stored value alone", () => {
-    expect(formatDistance(8046.72, "km")).toBe("8.05 km");
-    expect(formatDistance(8046.72, "mi")).toBe("5 mi");
-    expect(formatDistance(365.76, "yd")).toBe("400 yd");
+    expect(formatDistance(8046.72, "km")).toBe("8.05\u00a0km");
+    expect(formatDistance(8046.72, "mi")).toBe("5\u00a0mi");
+    expect(formatDistance(365.76, "yd")).toBe("400\u00a0yd");
     expect(roundTo(1.005, 2)).toBe(1.01);
     expect(roundTo(-1.005, 2)).toBe(-1.01);
   });
@@ -77,15 +77,25 @@ describe("a distance in the reader's unit", () => {
   const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
 
   it("reads a swim in the pool's unit and a run or ride on the road's", () => {
-    expect(formatSportDistance(1500, "swimming", km)).toBe("1500 m");
-    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1000 yd");
-    expect(formatSportDistance(toMetres(5, "mi"), "running", km)).toBe("8.05 km");
-    expect(formatSportDistance(toMetres(5, "mi"), "cycling", miles)).toBe("5 mi");
+    expect(formatSportDistance(1500, "swimming", km)).toBe("1,500\u00a0m");
+    expect(formatSportDistance(toMetres(1000, "yd"), "swimming", miles)).toBe("1,000\u00a0yd");
+    expect(formatSportDistance(toMetres(5, "mi"), "running", km)).toBe("8.05\u00a0km");
+    expect(formatSportDistance(toMetres(5, "mi"), "cycling", miles)).toBe("5\u00a0mi");
+  });
+
+  it("separates a figure's thousands, as the swim's form and a friend's distances do", () => {
+    // A swim's page said "2100" yd under a form that said "2,100 yd".
+    expect(sportDistanceParts(toMetres(2100, "yd"), "swimming", miles)).toEqual({
+      figure: "2,100",
+      unit: "yd",
+    });
+    expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000\u00a0m");
+    expect(formatSportDistance(1234567, "running", km)).toBe("1,234.57\u00a0km");
   });
 
   it("says a road distance under a kilometre in metres, and leaves miles as miles", () => {
-    expect(formatSportDistance(400, "running", km)).toBe("400 m");
-    expect(formatSportDistance(toMetres(0.25, "mi"), "running", miles)).toBe("0.25 mi");
+    expect(formatSportDistance(400, "running", km)).toBe("400\u00a0m");
+    expect(formatSportDistance(toMetres(0.25, "mi"), "running", miles)).toBe("0.25\u00a0mi");
   });
 
   it("gives a range as one figure with its unit", () => {

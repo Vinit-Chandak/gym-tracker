@@ -16,6 +16,7 @@ import { requireUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { getSchedule, type ProgramDayPlan } from "@/server/repositories/schedule";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 
 import { CycleDay } from "../../../cycle-day";
 
@@ -106,19 +107,20 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
     async (tx) => {
       const draft = await getProgramDraft(tx, user.id, id);
       if (!draft) return null;
-      const [library, warmups, schedule] = await Promise.all([
+      const [library, warmups, schedule, runUnits] = await Promise.all([
         tx
           .select({ slug: exercises.slug, name: exercises.name, modality: exercises.modality })
           .from(exercises)
           .where(or(isNull(exercises.userId), eq(exercises.userId, user.id))),
         sharedWarmupProtocols(tx),
         getSchedule(tx, user.id),
+        unitsFor(tx, user.id, "running"),
       ]);
       const week =
         schedule && schedule.program.id === draft.baseProgramId
           ? Math.min(progress(schedule.state).currentCycle, draft.blueprint.weeks)
           : 1;
-      return { draft, library, warmups, week };
+      return { draft, library, warmups, week, runUnits };
     },
     { readOnly: true },
   );
@@ -141,7 +143,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
           <ul className="space-y-3">
             {days.map((plan) => (
               <li key={plan.day.id}>
-                <CycleDay plan={plan} />
+                <CycleDay plan={plan} units={data.runUnits} />
               </li>
             ))}
           </ul>

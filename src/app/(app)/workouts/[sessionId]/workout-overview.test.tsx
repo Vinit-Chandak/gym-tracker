@@ -254,13 +254,15 @@ it("says a row whose planned sets are all in is done, not Resume", () => {
   expect(within(bench).getByRole("img", { name: "4 of 4 sets done" })).toBeTruthy();
   expect(bench.textContent).not.toContain("Resume");
   // Its sets are still what the row says under the name.
-  expect(bench.textContent).toContain("60 kg × 4, 60 kg × 4, 60 kg × 4, 60 kg × 4");
+  expect(bench.textContent).toContain(
+    "60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04",
+  );
 });
 
 it("says where a row stands only when that is news", () => {
   const { open } = show();
   const bench = screen.getByRole("button", { name: /Barbell bench press/ });
-  expect(bench.textContent).toContain("60 kg × 4, 60 kg × 4");
+  expect(bench.textContent).toContain("60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04");
   expect(bench.textContent).toContain("in progress, 2 of 4 sets done. Resume");
   expect(
     within(screen.getByRole("button", { name: /Barbell curl/ })).getByRole("img", { name: "Done" }),
