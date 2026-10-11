@@ -68,8 +68,9 @@ The owner chose **adaptive + fluid**:
    - A screen of cards and sections takes `page-wide` and lays them out with `adaptive-grid`:
      one column on a phone, two on a tablet, three on a wide desktop. The column minimum is in
      rem, so larger text means fewer, wider columns rather than squeezed ones.
-   - Today holds at most two columns (62rem). A day with one card gives it the whole row, and a
-     Today with no card keeps its buttons at a phone's width.
+   - Today holds at most two columns (62rem). A day with one card gives it the whole row. A
+     Today with no card stands in the reading column, as every other screen does, and keeps its
+     buttons at a phone's width.
    - Training is a screen of tiles. It is wide, with the cycle's days in as many columns as fit
      and the next day across two, and its header widens with it.
    - The Progress overview and Food keep the reading width. Where that column holds two
