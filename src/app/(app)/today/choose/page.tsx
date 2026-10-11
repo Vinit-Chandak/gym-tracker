@@ -88,7 +88,8 @@ export default async function ChooseDayPage() {
             description="Adopt a programme and its days appear here, each with its own prescription."
           />
         ) : complete ? (
-          <section aria-labelledby="choose-complete">
+          // As Today says it, at a phone's width in the reading column (ADR 0052).
+          <section aria-labelledby="choose-complete" className="today-empty">
             <h2 id="choose-complete" className="text-lg font-medium [overflow-wrap:break-word]">
               {plan.program.name}
             </h2>
