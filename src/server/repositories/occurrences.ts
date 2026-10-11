@@ -58,6 +58,16 @@ export type ScheduledOccurrence = {
   loggable: boolean;
 };
 
+/**
+ * An occurrence with the slot of the cycle it belongs to, for the views that read it the way
+ * the programme runs: by where the sequence has got to, not by its date. Both are null for
+ * standalone work and for programme work no slot owns.
+ */
+export type ProgrammeOccurrence = ScheduledOccurrence & {
+  cycleIndex: number | null;
+  cycleDayIndex: number | null;
+};
+
 const columns = {
   id: plannedOccurrences.id,
   sport: plannedOccurrences.sport,
@@ -65,6 +75,8 @@ const columns = {
   familyId: plannedOccurrences.familyId,
   originalWeekIndex: plannedOccurrences.originalWeekIndex,
   originalScheduledOn: plannedOccurrences.originalScheduledOn,
+  cycleIndex: plannedOccurrences.cycleIndex,
+  cycleDayIndex: plannedOccurrences.cycleDayIndex,
   revisionId: occurrenceVersions.id,
   scheduledOn: occurrenceVersions.scheduledOn,
   scheduledLocalTime: occurrenceVersions.scheduledLocalTime,
@@ -79,7 +91,7 @@ type Row = {
   [K in keyof typeof columns]: (typeof columns)[K] extends { _: { data: infer T } } ? T : never;
 };
 
-function hydrate(row: Row): ScheduledOccurrence {
+function hydrate(row: Row): ProgrammeOccurrence {
   const activity = row.activityId
     ? { id: row.activityId, outcome: row.activityOutcome!, occurredOn: row.activityOccurredOn! }
     : null;
@@ -96,6 +108,8 @@ function hydrate(row: Row): ScheduledOccurrence {
     familyId: row.familyId,
     originalWeekIndex: row.originalWeekIndex,
     originalScheduledOn: row.originalScheduledOn,
+    cycleIndex: row.cycleIndex,
+    cycleDayIndex: row.cycleDayIndex,
     resolution,
     loggable: canLog({ disposition: row.disposition }, activity),
   };
@@ -139,7 +153,7 @@ export async function getOccurrence(
   tx: DbOrTx,
   userId: string,
   occurrenceId: string,
-): Promise<ScheduledOccurrence | null> {
+): Promise<ProgrammeOccurrence | null> {
   const rows = await occurrenceQuery(tx, userId).where(
     and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)),
   );
@@ -252,13 +266,13 @@ export async function countUpcomingStandalone(
   return row?.value ?? 0;
 }
 
-/** A programme's occurrences, for the Cycle view that owns the full programme. */
+/** A programme's occurrences, for the Programme view that owns the full programme. */
 export async function programmeOccurrences(
   tx: DbOrTx,
   userId: string,
   familyId: string,
   options: { sport?: ActivitySport; from?: string; to?: string } = {},
-): Promise<ScheduledOccurrence[]> {
+): Promise<ProgrammeOccurrence[]> {
   const where = [eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.familyId, familyId)];
   if (options.sport) where.push(eq(plannedOccurrences.sport, options.sport));
   if (options.from) where.push(gte(occurrenceVersions.scheduledOn, options.from));
@@ -527,4 +541,55 @@ export async function occurrencesById(
     and(eq(plannedOccurrences.userId, userId), inArray(plannedOccurrences.id, [...ids])),
   )) as Row[];
   return new Map(rows.map((row) => [row.id, hydrate(row)]));
+}
+
+export type NamedOccurrence = {
+  id: string;
+  sport: ActivitySport;
+  scheduledOn: string;
+  /** Null for work the athlete put on the calendar themselves. */
+  familyId: string | null;
+  cycleIndex: number | null;
+  /** The programme day it belongs to, as the version that wrote it names that day. */
+  dayName: string | null;
+};
+
+/**
+ * One occurrence, named the way its programme names it: "Tempo run" of cycle 6, planned for
+ * Thursday. An activity that answered it says which session it was by this, rather than that
+ * it answered "a scheduled session". The day is read from the programme version the revision
+ * in force was written by, so a session of a block since replaced keeps its own day's name.
+ */
+export async function namedOccurrence(
+  tx: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+): Promise<NamedOccurrence | null> {
+  const [row] = await tx
+    .select({
+      id: plannedOccurrences.id,
+      sport: plannedOccurrences.sport,
+      scheduledOn: occurrenceVersions.scheduledOn,
+      familyId: plannedOccurrences.familyId,
+      cycleIndex: plannedOccurrences.cycleIndex,
+      // Plain SQL, qualified by hand: inside a select list Drizzle drops table qualifiers.
+      dayName: sql<string | null>`(
+        select d.name from program_days d
+        where d.program_id = occurrence_versions.program_version_id
+          and d.user_id = planned_occurrences.user_id
+          and d.day_index = planned_occurrences.cycle_day_index
+        limit 1
+      )`,
+    })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
+    .limit(1);
+  return row ?? null;
 }

@@ -19,15 +19,18 @@ import {
 } from "@/domain/activity-metrics";
 import { formatDuration } from "@/domain/pace";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatDateTime } from "@/lib/format";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
+import { namedOccurrence } from "@/server/repositories/occurrences";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
+import { AnsweredSession } from "./answered-session";
 
 export const metadata: Metadata = { title: "Activity" };
 
@@ -67,7 +70,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { activity, units } = await withUser(
+  const { activity, units, answered } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -75,6 +78,9 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       return {
         activity,
         units: activity ? await unitsFor(tx, user.id, activity.sport) : DEFAULT_SPORT_UNITS,
+        answered: activity?.origin.occurrenceId
+          ? await namedOccurrence(tx, user.id, activity.origin.occurrenceId)
+          : null,
       };
     },
     { readOnly: true },
@@ -192,9 +198,15 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           ))}
         </dl>
 
-        {activity.origin.kind === "planned" && (
-          <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
-        )}
+        {activity.origin.kind === "planned" &&
+          (answered ? (
+            <AnsweredSession
+              session={answered}
+              year={todayInTimeZone(profile.timeZone).slice(0, 4)}
+            />
+          ) : (
+            <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
+          ))}
         {actual?.sport === "swimming" && actual.activeMs === null && (
           <p className="mt-3 type-meta text-ink-2">
             Elapsed time only, so there is no swimming pace for this one.
