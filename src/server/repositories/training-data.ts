@@ -4,6 +4,7 @@ import {
   activities,
   dailyRecovery,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   gyms,
   programDays,
@@ -113,6 +114,8 @@ export async function readWorkouts(
               id: equipmentInstances.id,
               name: equipmentInstances.name,
               gymId: equipmentInstances.gymId,
+              /** The machine's type, which says whether its number is load or help. */
+              typeSlug: equipmentTypes.slug,
             },
           })
           .from(workoutExercises)
@@ -121,6 +124,7 @@ export async function readWorkouts(
             equipmentInstances,
             eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
           )
+          .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
           .where(
             and(
               eq(workoutExercises.userId, userId),

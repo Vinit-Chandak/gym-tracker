@@ -1,6 +1,7 @@
 import { convertLoad } from "@/lib/units";
 
 import { estimated1RM } from "./analytics";
+import { ASSISTED_EQUIPMENT_TYPES } from "./load-steps";
 import { addExerciseVolume, emptyMuscleVolume } from "./muscle-volume";
 import type { MuscleSets } from "./muscle-split";
 import { paceSecondsPerKm } from "./pace";
@@ -120,6 +121,8 @@ export type StatsSlot = {
       secondaryMuscles: readonly MuscleGroup[] | null;
     };
   sets: readonly StatsSet[];
+  /** The machine the slot was done on; its type says whether its number is load or help. */
+  equipment?: { typeSlug: string | null } | null;
 };
 
 export type StatsWorkout = {
@@ -229,7 +232,12 @@ export function sessionStats(
       const kg = weightKg(set);
       return kg === null ? [] : [{ kg, reps: set.reps }];
     });
-    for (const set of loaded) if (set.reps !== null) volumeKg += set.kg * set.reps;
+    // An assisted machine's number is help, and more help is not more work: no volume, as
+    // Progress counts it (graphs.ts).
+    const assisted =
+      slot.exercise.loadPortability !== "global" &&
+      ASSISTED_EQUIPMENT_TYPES.has(slot.equipment?.typeSlug ?? "");
+    if (!assisted) for (const set of loaded) if (set.reps !== null) volumeKg += set.kg * set.reps;
     // A movement someone added themselves has no counterpart in anyone else's account.
     if (slot.exercise.userId !== null) continue;
     // A slot with no working set was not trained: skipped, left undone, or warm-ups only. A

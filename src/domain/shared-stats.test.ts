@@ -172,6 +172,27 @@ describe("sessionStats", () => {
       totalReps: 12,
     });
   });
+  it("counts an assisted machine's help as no volume, and any other machine's load", () => {
+    const { session } = sessionStats(
+      workout([
+        {
+          exerciseId: "assisted",
+          exercise: { ...legPress, primaryMuscles: ["lats"] },
+          equipment: { typeSlug: "assisted_pullup" },
+          sets: [set({ weight: 30, reps: 8 })],
+        },
+        {
+          exerciseId: "leg-press",
+          exercise: legPress,
+          equipment: { typeSlug: "leg_press_45" },
+          sets: [set({ weight: 100, reps: 10 })],
+        },
+      ]),
+      "UTC",
+    );
+    expect(session.volumeKg).toBe(1000);
+    expect(session.workingSets).toBe(2);
+  });
   it("converts pounds, merges two slots of one movement and leaves a custom exercise out", () => {
     const { session, exercises } = sessionStats(
       workout(

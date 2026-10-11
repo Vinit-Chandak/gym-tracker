@@ -84,12 +84,15 @@ export function finishedParts(session: SessionVM): PrintPart[] {
 /** Load moved, the app's rule (working sets, load × reps), in the reader's unit. */
 function volumeOf(session: SessionVM): number {
   let total = 0;
-  for (const exercise of session.exercises)
+  for (const exercise of session.exercises) {
+    // An assisted machine's number is help, and more help is not more work: it lifts no volume.
+    if (exercise.equipment?.ladder?.assisted) continue;
     for (const set of exercise.sets) {
       if (isWarmup(set.setType) || set.weight === null || set.reps === null) continue;
       if (!canConvertLoad(set.unit, session.preferredUnit)) continue;
       total += convertLoad(set.weight, set.unit, session.preferredUnit) * set.reps;
     }
+  }
   return Math.round(total);
 }
 
