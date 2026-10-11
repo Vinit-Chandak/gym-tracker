@@ -6,6 +6,9 @@ import LeaderboardPage from "@/app/(app)/profile/friends/leaderboard/page";
 import ComparePage from "./compare/page";
 import PersonPage from "./page";
 
+/** The page's words with its tags left out: a figure's digits stand in a span of their own. */
+const words = (html: string) => html.replace(/<[^>]*>/g, "");
+
 const mocks = vi.hoisted(() => ({
   head: vi.fn(),
   directory: vi.fn(),
@@ -230,11 +233,11 @@ it.each([
 it("reads a running comparison's distances and paces in the viewer's own unit", async () => {
   const html = renderToStaticMarkup(await ComparePage(props("run")));
   // 5 km and 5:00 /km, for a viewer who runs in miles.
-  expect(html).toContain("3.1\u00a0mi");
-  expect(html).toContain("8:03\u00a0/mi");
+  expect(words(html)).toContain("3.1\u00a0mi");
+  expect(words(html)).toContain("8:03\u00a0/mi");
   // Only the rule in the help still says "1 km"; no figure does.
-  expect(html).not.toMatch(/\d\s*km</);
-  expect(html).toContain("3.11\u00a0mi");
+  expect(html).not.toMatch(/\d(<\/span>)?\s*km</);
+  expect(words(html)).toContain("3.11\u00a0mi");
 });
 
 it.each([
