@@ -71,7 +71,10 @@ The owner chose **adaptive + fluid**:
    - Today holds at most two columns (62rem). A day with one card gives it the whole row, and a
      Today with no card keeps its buttons at a phone's width.
    - Training is a screen of tiles. It is wide, with the cycle's days in as many columns as fit
-     and the next day across two, and its header widens with it.
+     and the next day across two, and its header widens with it. _Note, 11 October 2026:_ the
+     days keep their order and leave no hole before the next one: beyond a phone the next day
+     takes one column where it falls at a row's end, and its print is as tall as the others', so
+     a row's names line up; on a phone the day alone in its row before it takes the row.
    - The Progress overview and Food keep the reading width. Where that column holds two
      phone-wide panes (40rem and up: a tablet or a desktop at 100% text), they split in two:
      the month and its totals beside History, and the day's bowl and macronutrients beside its

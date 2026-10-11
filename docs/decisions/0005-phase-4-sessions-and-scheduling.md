@@ -56,6 +56,9 @@ pick; Finish takes optional notes and body weight; the check-in is documented fo
 
 6. **Starting a day that is already done serves its next pending cycle** ("Choose a day"), so
    a day can be repeated deliberately without breaking the sequence.
+   _Note, 11 October 2026:_ "Start next cycle" on such a day read as leaving the rest of the
+   cycle behind. It now says Do again (Start early for a day the cycle does not have), and Start
+   next cycle only where nothing training is owed before it.
 
 7. **Check-in is optional and comes after Start.** It writes the pre-session fields on the
    session row (sleep hours, sleep quality, energy, fatigue, soreness, lower back, left and

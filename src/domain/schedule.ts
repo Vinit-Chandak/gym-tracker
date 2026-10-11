@@ -204,18 +204,36 @@ export function pendingParts(state: ScheduleState, ref: SlotRef): readonly SlotP
   return slotParts(slot).filter((part) => !events.has(key(ref, part)));
 }
 
-/**
- * The day as a whole: done once every part it asks for has been answered, and counted as
- * skipped when any of those answers was a skip. Anything less is still pending, which is what
- * keeps a day with an unlogged run from being left behind by the sequence.
- */
-export function slotStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pending" {
+/** What the day's own answers say, before anything is read into an unanswered rest day. */
+function answeredStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pending" {
   const slot = slotFor(state, ref);
   if (!slot) return "pending";
   const events = eventMap(state);
   const statuses = slotParts(slot).map((part) => events.get(key(ref, part)));
   if (statuses.some((status) => status === undefined)) return "pending";
   return statuses.some((status) => status === "skipped") ? "skipped" : "completed";
+}
+
+/**
+ * A rest day left unanswered once the programme is over is its end, not a day owed (ADR 0051),
+ * so it reads done, like the rest days a session passed earlier in the same cycle. `over` is
+ * `onlyRestLeft`, worked out once by a caller that asks it of every slot.
+ */
+function statusOf(state: ScheduleState, ref: SlotRef, over: boolean): SlotStatus | "pending" {
+  const status = answeredStatus(state, ref);
+  if (status !== "pending" || !over) return status;
+  const slot = slotFor(state, ref);
+  return slot && isRestSlot(slot) ? "completed" : status;
+}
+
+/**
+ * The day as a whole: done once every part it asks for has been answered, and counted as
+ * skipped when any of those answers was a skip. Anything less is still pending, which is what
+ * keeps a day with an unlogged run from being left behind by the sequence — until the programme
+ * is over, when a rest day nobody tapped reads done, as `progress` counts it.
+ */
+export function slotStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pending" {
+  return statusOf(state, ref, answeredStatus(state, ref) === "pending" && onlyRestLeft(state));
 }
 
 /**
@@ -322,9 +340,9 @@ export function progress(state: ScheduleState): Progress {
   let completed = 0;
   let skipped = 0;
   for (const ref of refs) {
-    const status = slotStatus(state, ref);
     // Once nothing but rest is left, the rest days left are the programme's end, not owed.
-    if (status === "completed" || (over && status === "pending")) completed += 1;
+    const status = statusOf(state, ref, over);
+    if (status === "completed") completed += 1;
     else if (status === "skipped") skipped += 1;
   }
   const next = nextPendingSlot(state);
@@ -420,6 +438,30 @@ export function pickUpFromToday(
   const after = allSlots(state).slice(dated.length);
   const resumeAt = after.find((ref) => pendingParts(state, ref).length > 0) ?? null;
   return { skip, rest, resumeAt };
+}
+
+/**
+ * The day the programme was finished on: once nothing but rest is left, the last date any of its
+ * days was answered — its last workout, run or skip. Null while it is still going, and for a
+ * finished programme whose answers carry no dates.
+ *
+ * The sequence waits for the athlete (owner, 11 October 2026), so this is rarely the end date the
+ * programme was written with: a block of ten weeks trained with a week off ends a week late, and
+ * saying the planned date then puts its last sessions after its end.
+ */
+export function finishedOn(state: ScheduleState): string | null {
+  if (!onlyRestLeft(state)) return null;
+  const inProgramme = new Set(allSlots(state).map((ref) => `${ref.cycleIndex}:${ref.dayIndex}`));
+  return (
+    state.events
+      .flatMap((event) =>
+        event.occurredOn && inProgramme.has(`${event.cycleIndex}:${event.dayIndex}`)
+          ? [event.occurredOn]
+          : [],
+      )
+      .sort()
+      .at(-1) ?? null
+  );
 }
 
 /**

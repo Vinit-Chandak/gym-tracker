@@ -388,7 +388,8 @@ export function addedLine(names: readonly string[]): string {
  * The workout (DESIGN.md, The session; boards Workout, Workout-Superset, Workout-Coach): the
  * day's name and where, its plan as a print with the sets inked as they are done, the app's
  * advice, then the warm-up and the exercises in the programme's order. A row says where it
- * stands only when that is news: a check when done, Resume on one under way, Skipped.
+ * stands only when that is news: a check when done or when every set it plans is in, Resume on
+ * one still under way, Skipped.
  */
 export function WorkoutOverview({
   session,
@@ -503,6 +504,8 @@ export function WorkoutOverview({
         : null;
     const working = workDone(exercise).length;
     const of = plannedSets(exercise);
+    // Every set the plan asked for is in: done, as the logger says it, though not yet marked so.
+    const planDone = open && of !== null && of > 0 && working >= of;
     const glyph = equipmentGlyph(exercise);
     const coachAdded = exercise.suggestion?.kind === "coach" && exercise.planned === null;
     return (
@@ -547,7 +550,13 @@ export function WorkoutOverview({
               className="glyph-18 shrink-0 text-ink-2"
             />
           )}
-          {open ? (
+          {planDone ? (
+            <Glyph
+              name="check"
+              label={`${working} of ${of} sets done`}
+              className="glyph-20 shrink-0"
+            />
+          ) : open ? (
             <>
               <span className="sr-only">
                 , in progress, {working}
