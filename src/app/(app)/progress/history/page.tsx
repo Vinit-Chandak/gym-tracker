@@ -7,6 +7,7 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { readHistory } from "@/server/repositories/history";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { dateWindow } from "@/server/validation/date-range";
 import {
   enduranceItem,
@@ -54,15 +55,16 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     getDb(),
     user.id,
     async (tx) => {
-      const [training, gyms] = await Promise.all([
+      const [training, gyms, units] = await Promise.all([
         readHistory(tx, user.id, range),
         listGyms(tx, user.id),
+        unitsBySport(tx, user.id),
       ]);
-      return { training, gyms };
+      return { training, gyms, units };
     },
     { readOnly: true },
   );
-  const clock = historyClock(profile.timeZone);
+  const clock = historyClock(profile.timeZone, data.units);
   const workouts = data.training.workouts.map((w) => workoutItem(w, clock));
   const runs = data.training.runs.map((r) => runItem(r, clock));
   const endurance = data.training.endurance.map((activity) => enduranceItem(activity, clock));

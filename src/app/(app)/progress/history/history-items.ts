@@ -1,7 +1,13 @@
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatRunKm, formatTime } from "@/lib/format";
+import {
+  DEFAULT_SPORT_UNITS,
+  formatSportDistance,
+  METRES_PER_MILE,
+  type SportUnits,
+} from "@/lib/distance-units";
+import { formatTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
@@ -25,13 +31,39 @@ type RecoveryReading = Awaited<ReturnType<typeof readRecovery>>[number];
  * Each entry at its local time, as the list is read. Its day is the one it was recorded on, as
  * the calendar marks it; `dayOf` dates only a workout older than its parent activity.
  */
-export type HistoryClock = { dayOf: (at: Date) => string; timeOf: (at: Date) => string };
+/** How an account reads its history: its days and times, and each sport's distances. */
+export type HistoryClock = {
+  dayOf: (at: Date) => string;
+  timeOf: (at: Date) => string;
+  units?: Partial<Record<string, SportUnits>>;
+};
 
-export function historyClock(timeZone: string): HistoryClock {
+export function historyClock(
+  timeZone: string,
+  units: Partial<Record<string, SportUnits>> = {},
+): HistoryClock {
   return {
     dayOf: (at) => todayInTimeZone(timeZone, at),
     timeOf: (at) => formatTime(at, timeZone),
+    units,
   };
+}
+
+/** A distance in the unit the athlete reads the sport in, as the activity's own page says it. */
+function distanceIn(metres: number, sport: string, clock: HistoryClock): string {
+  return formatSportDistance(metres, sport, clock.units?.[sport] ?? DEFAULT_SPORT_UNITS);
+}
+
+/** "5:25/km" or "8:43/mi": a pace stored per kilometre, in the athlete's road unit. */
+function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
+  const unit = clock.units?.running?.distanceUnit ?? "km";
+  const seconds =
+    secondsPerKm === null
+      ? null
+      : unit === "mi"
+        ? (secondsPerKm * METRES_PER_MILE) / 1000
+        : secondsPerKm;
+  return `${formatPace(seconds)}/${unit}`;
 }
 
 function readings(values: [string, number | null, string?][]) {
@@ -83,10 +115,10 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
     kind: "run",
     date: r.startedAt.toISOString(),
     day: r.occurredOn,
-    title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
+    title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${distanceIn(r.distanceMeters, "running", clock)}`,
     subtitle: clock.timeOf(r.startedAt),
     href: `/training/activities/${r.id}${originQuery("history")}` as const,
-    meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
+    meta: `${formatDuration(r.durationSeconds)} · ${paceIn(r.averagePaceSecondsPerKm, clock)}`,
     gymId: r.gymId,
     exercises: [],
     recovery: runEffort(r.effort),
@@ -104,7 +136,7 @@ export function enduranceItem(activity: ActivityListItem, clock: HistoryClock): 
     title:
       activity.distanceMetres === null
         ? name
-        : `${name} · ${formatRunKm(activity.distanceMetres)} km`,
+        : `${name} · ${distanceIn(activity.distanceMetres, activity.sport, clock)}`,
     subtitle: clock.timeOf(activity.startedAt),
     href: `/training/activities/${activity.id}${originQuery("history")}` as const,
     // An unrecorded duration says so rather than reading as zero minutes.

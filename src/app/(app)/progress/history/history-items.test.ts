@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { historyClock, newestFirst, recoveryItem, workoutItem } from "./history-items";
+import { historyClock, newestFirst, recoveryItem, runItem, workoutItem } from "./history-items";
 
 type Workout = Parameters<typeof workoutItem>[0];
 type Reading = Parameters<typeof recoveryItem>[0];
@@ -62,5 +62,39 @@ describe("History's order", () => {
     expect(
       workoutItem(lift("legacy", "2026-09-30T21:30:00Z"), historyClock("Asia/Kolkata")).day,
     ).toBe("2026-10-01");
+  });
+});
+
+describe("a run in History", () => {
+  const run = {
+    id: "run-1",
+    startedAt: new Date("2026-09-12T07:00:00Z"),
+    occurredOn: "2026-09-12",
+    environment: "outdoor",
+    durationSeconds: 1800,
+    distanceMeters: 5000,
+    averagePaceSecondsPerKm: 360,
+    effort: { value: 3, confirmed: true },
+    surface: null,
+    title: null,
+    notes: null,
+    gymId: null,
+    occurrenceId: null,
+    programRunId: null,
+  } as unknown as Parameters<typeof runItem>[0];
+
+  it("reads in kilometres by default", () => {
+    const item = runItem(run, historyClock("UTC"));
+    expect(item.title).toBe("Outdoor · 5 km");
+    expect(item.meta).toBe("30:00 · 6:00/km");
+  });
+
+  it("reads in the athlete's own unit for the sport", () => {
+    const item = runItem(
+      run,
+      historyClock("UTC", { running: { distanceUnit: "mi", poolUnit: "yd" } }),
+    );
+    expect(item.title).toBe("Outdoor · 3.11 mi");
+    expect(item.meta).toBe("30:00 · 9:39/mi");
   });
 });

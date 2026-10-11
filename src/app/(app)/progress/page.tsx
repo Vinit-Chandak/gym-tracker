@@ -27,6 +27,7 @@ import {
   readStrengthRows,
 } from "@/server/repositories/graphs";
 import { readLatestActivities } from "@/server/repositories/history";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readTargets } from "@/server/repositories/nutrition";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
@@ -71,25 +72,32 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     getDb(),
     user.id,
     async (tx) => {
-      const [strength, options, runs, food, targets, weights, recovery, latest, days, muscles] =
-        await Promise.all([
-          readStrengthRows(tx, user.id, timeZone, window),
-          readExerciseSeriesOptions(tx, user.id, window),
-          readRunActivities(tx, user.id, window, 0, GRAPH_RUN_LIMIT),
-          readFoodDayTotals(tx, user.id, window),
-          readTargets(tx, user.id),
-          listBodyWeights(tx, user.id, window),
-          readRecoveryHistory(tx, user.id, window, timeZone),
-          // Overview's latest: whatever the span, as far back as they go (ADR 0045).
-          readLatestActivities(
-            tx,
-            user.id,
-            dateWindow(EARLIEST_DAY, today, timeZone),
-            LATEST_COUNT,
-          ),
-          readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
-          readMuscleVolume(tx, user.id, week),
-        ]);
+      const [
+        strength,
+        options,
+        runs,
+        food,
+        targets,
+        weights,
+        recovery,
+        latest,
+        days,
+        muscles,
+        units,
+      ] = await Promise.all([
+        readStrengthRows(tx, user.id, timeZone, window),
+        readExerciseSeriesOptions(tx, user.id, window),
+        readRunActivities(tx, user.id, window, 0, GRAPH_RUN_LIMIT),
+        readFoodDayTotals(tx, user.id, window),
+        readTargets(tx, user.id),
+        listBodyWeights(tx, user.id, window),
+        readRecoveryHistory(tx, user.id, window, timeZone),
+        // Overview's latest: whatever the span, as far back as they go (ADR 0045).
+        readLatestActivities(tx, user.id, dateWindow(EARLIEST_DAY, today, timeZone), LATEST_COUNT),
+        readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
+        readMuscleVolume(tx, user.id, week),
+        unitsBySport(tx, user.id),
+      ]);
       // Strength opens on its muscle groups' volume (ADR 0043): an exercise is drawn only once
       // the URL names one, and only its sets are read, so one series crosses the wire.
       const selected =
@@ -112,6 +120,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         latest,
         days,
         muscles,
+        units,
       };
     },
     { readOnly: true },
@@ -169,7 +178,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 environment: item.environment,
               })),
             },
-            overview: { latest: latestItems(data.latest, historyClock(timeZone)) },
+            overview: { latest: latestItems(data.latest, historyClock(timeZone, data.units)) },
             strength: {
               range: strengthRange,
               graph: strengthGraph(data.strength, strengthRange, today),

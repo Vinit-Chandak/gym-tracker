@@ -11,11 +11,13 @@ import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoDate, formatRunKm, formatTime } from "@/lib/format";
+import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
+import { formatIsoDate, formatTime } from "@/lib/format";
 import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
+import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { readWorkouts } from "@/server/repositories/training-data";
 import { civilDate, parseDateRange } from "@/server/validation/date-range";
 
@@ -48,19 +50,21 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   if (date > today) notFound();
   const range = parseDateRange({ from: date, to: date }, profile.timeZone);
 
-  const { endurance, workouts } = await withUser(
+  const { endurance, workouts, units } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
       // Every sport on the day it was recorded on, as the calendar marks it: a lift too, not
       // on the day its start falls on in the profile's zone today.
-      const [days, lifted] = await Promise.all([
+      const [days, lifted, units] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
         readWorkouts(tx, user.id, range, 0, 20, { completedOnly: true, onDays: true }),
+        unitsBySport(tx, user.id),
       ]);
       return {
         endurance: days.items.filter((item) => item.sport !== "strength"),
         workouts: lifted.workouts,
+        units,
       };
     },
     { readOnly: true },
@@ -75,16 +79,22 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           : item.sport === "cycling"
             ? (RIDE_PLACE[item.environment ?? ""] ?? "Ride")
             : (SWIM_PLACE[item.environment ?? ""] ?? "Swim");
+      // In the unit the athlete reads the sport in, as the activity's own page says it.
+      const sportUnits = units[item.sport as keyof typeof units] ?? DEFAULT_SPORT_UNITS;
       const distance =
         item.distanceMetres === null
           ? null
-          : item.sport === "swimming"
-            ? `${Math.round(item.distanceMetres).toLocaleString("en-GB")} m`
-            : `${formatRunKm(item.distanceMetres)} km`;
-      const pace =
+          : formatSportDistance(item.distanceMetres, item.sport, sportUnits);
+      const perKm =
         item.sport === "running" && seconds && item.distanceMetres
-          ? `${formatPace(seconds / (item.distanceMetres / 1000))}/km`
+          ? seconds / (item.distanceMetres / 1000)
           : null;
+      const pace =
+        perKm === null
+          ? null
+          : sportUnits.distanceUnit === "mi"
+            ? `${formatPace((perKm * METRES_PER_MILE) / 1000)}/mi`
+            : `${formatPace(perKm)}/km`;
       const stroke =
         item.sport === "swimming" && item.stroke && item.stroke !== "unspecified"
           ? SWIM_STROKE_LABELS[item.stroke]
