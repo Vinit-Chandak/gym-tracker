@@ -108,7 +108,7 @@ it("says what its figures and its latest sessions are read on, and lists other m
   // The machine is kept whole, its dot with it, if the line wraps.
   expect(screen.getByText("· Unrecorded machine").previousSibling?.textContent).toBe(" ");
   expect(screen.getByText("· Unrecorded machine").parentElement?.textContent).toBe(
-    "Wed 7\u00a0Oct ·\u00a0Unrecorded machine",
+    "Wed\u00a07\u00a0Oct ·\u00a0Unrecorded machine",
   );
 });
 

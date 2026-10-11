@@ -28,7 +28,7 @@ const session = (overrides: Partial<NamedOccurrence> = {}): NamedOccurrence => (
 it("names the programme session it answered, and leads to it", () => {
   const { container } = render(<AnsweredSession session={session()} year="2026" />);
   expect(container.textContent).toBe(
-    "This answered Tempo run, cycle 10, planned for Thu 20\u00a0Aug.",
+    "This answered Tempo run, cycle 10, planned for Thu\u00a020\u00a0Aug.",
   );
   expect(screen.getByRole("link", { name: "Tempo run" }).getAttribute("href")).toBe(
     `/training/programme/occurrences/${ID}`,
@@ -40,7 +40,7 @@ it("says the year of a session planned in another one", () => {
     <AnsweredSession session={session({ scheduledOn: "2025-12-18" })} year="2026" />,
   );
   expect(container.textContent).toBe(
-    "This answered Tempo run, cycle 10, planned for Thu 18\u00a0Dec\u00a02025.",
+    "This answered Tempo run, cycle 10, planned for Thu\u00a018\u00a0Dec\u00a02025.",
   );
 });
 
@@ -51,7 +51,9 @@ it("names a session the athlete scheduled themselves as theirs", () => {
       year="2026"
     />,
   );
-  expect(container.textContent).toBe("This answered the swim you scheduled for Thu 20\u00a0Aug.");
+  expect(container.textContent).toBe(
+    "This answered the swim you scheduled for Thu\u00a020\u00a0Aug.",
+  );
   expect(screen.getByRole("link", { name: "the swim you scheduled" })).toBeTruthy();
 });
 
@@ -60,6 +62,6 @@ it("falls back to the sport when the programme's day cannot be named", () => {
     <AnsweredSession session={session({ dayName: null })} year="2026" />,
   );
   expect(container.textContent).toBe(
-    "This answered the programme's run planned for Thu 20\u00a0Aug.",
+    "This answered the programme's run planned for Thu\u00a020\u00a0Aug.",
   );
 });

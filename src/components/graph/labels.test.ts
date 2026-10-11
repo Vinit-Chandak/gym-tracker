@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { customRange, presetRange, rangeSlots } from "@/domain/graph-range";
 
-import { bucketLabel } from "./labels";
+import { bucketLabel, dayLabel } from "./labels";
+
+it("holds a day's weekday, day, month and year together, so no line ends on a part of it", () => {
+  expect(dayLabel("2026-10-07", "2026-10-11")).toBe("Wed\u00a07\u00a0Oct");
+  expect(dayLabel("2025-10-15", "2026-10-11")).toBe("15\u00a0Oct\u00a02025");
+});
 
 describe("a bucket's name", () => {
   it("calls the week still running this week, to its Sunday", () => {

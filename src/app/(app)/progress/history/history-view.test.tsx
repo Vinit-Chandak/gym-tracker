@@ -111,8 +111,8 @@ it("lists each entry under its day, its mark naming the sport", () => {
       ]}
     />,
   );
-  expect(screen.getByRole("heading", { name: "Mon 28 Sept" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Sun 27 Sept" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Mon\u00a028\u00a0Sept" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Sun\u00a027\u00a0Sept" })).toBeTruthy();
   const lift = screen.getByRole("link", { name: /Unplanned session/ });
   expect(lift.textContent).toContain("13 sets");
   expect(lift.textContent).toContain("19:00 · Anytime Fitness");

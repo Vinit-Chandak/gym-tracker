@@ -40,7 +40,7 @@ it("says how far body weight has moved in its unit, never as a bare number", () 
   const readout = within(screen.getByText("Latest").closest(".graph-readout") as HTMLElement);
   // The unit is held to its figure by a space that does not break.
   expect(readout.getByText("−0.4 lb since Mon 14 Sept").textContent).toBe(
-    "−0.4\u00a0lb since Mon 14 Sept",
+    "−0.4\u00a0lb since Mon\u00a014\u00a0Sept",
   );
 });
 

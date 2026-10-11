@@ -32,27 +32,27 @@ import {
 describe("dates that have to read the same on the server and in the page", () => {
   it("writes a weekday date and time without a comma of the formatter's choosing", () => {
     const at = formatDateTime("2026-09-12T10:47:00Z", "Europe/London");
-    expect(at).toBe("Sat 12\u00a0Sept, 11:47");
+    expect(at).toBe("Sat\u00a012\u00a0Sept, 11:47");
     expect(at.split(",")).toHaveLength(2);
   });
 
   it("writes weekday calendar dates the same way", () => {
-    expect(formatIsoDate("2026-09-08")).toBe("Tue 8\u00a0Sept\u00a02026");
-    expect(formatIsoWeekdayDay("2026-09-11")).toBe("Fri 11\u00a0Sept");
+    expect(formatIsoDate("2026-09-08")).toBe("Tue\u00a08\u00a0Sept\u00a02026");
+    expect(formatIsoWeekdayDay("2026-09-11")).toBe("Fri\u00a011\u00a0Sept");
     expect(formatIsoDay("2026-09-08")).toBe("8\u00a0Sept\u00a02026");
   });
 
   it("leaves this year's year off a weekday date, and keeps another year's", () => {
-    expect(formatIsoDate("2026-10-11", "2026")).toBe("Sun 11\u00a0Oct");
-    expect(formatIsoDate("2025-10-11", "2026")).toBe("Sat 11\u00a0Oct\u00a02025");
+    expect(formatIsoDate("2026-10-11", "2026")).toBe("Sun\u00a011\u00a0Oct");
+    expect(formatIsoDate("2025-10-11", "2026")).toBe("Sat\u00a011\u00a0Oct\u00a02025");
   });
 
-  it("holds a day to its month and year, so a line never ends on the day alone", () => {
+  it("holds a weekday to its day, and a day to its month and year, so no line ends on either", () => {
     expect(formatDay("2025-11-17T09:00:00Z", "Europe/London", "2026")).toBe(
       "17\u00a0Nov\u00a02025",
     );
     expect(formatIsoShortDay("2026-09-28")).toBe("28\u00a0Sept");
-    expect(formatIsoLongDay("2026-09-26")).toBe("Saturday 26\u00a0September");
+    expect(formatIsoLongDay("2026-09-26")).toBe("Saturday\u00a026\u00a0September");
     expect(formatIsoMonth("2025-09", "2026")).toBe("September\u00a02025");
     expect(formatIsoShortMonth("2022-02")).toBe("Feb\u00a02022");
     // A range breaks only around its dash.

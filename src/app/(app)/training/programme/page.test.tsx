@@ -105,10 +105,10 @@ it("titles its lists by what they hold, and says a run's date is where it was pl
   expect(html).toContain(">Earlier runs<");
   expect(html).not.toContain(">To come<");
   // Every row says its cycle and its planned date the same way, on a line of their own.
-  expect(html).toContain("Cycle 2 ·\u00a0planned for Thu 1\u00a0Oct");
-  expect(html).toContain("Cycle 3 ·\u00a0planned for Thu 8\u00a0Oct");
-  expect(html).toContain("Cycle 1 ·\u00a0planned for Thu 24\u00a0Sept");
-  expect(html).toContain("logged Sat 26\u00a0Sept");
+  expect(html).toContain("Cycle 2 ·\u00a0planned for Thu\u00a01\u00a0Oct");
+  expect(html).toContain("Cycle 3 ·\u00a0planned for Thu\u00a08\u00a0Oct");
+  expect(html).toContain("Cycle 1 ·\u00a0planned for Thu\u00a024\u00a0Sept");
+  expect(html).toContain("logged Sat\u00a026\u00a0Sept");
 });
 
 it("leads a lifter to the lifting days its page does not list", async () => {

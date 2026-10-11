@@ -33,8 +33,8 @@ const parts = (date: string) => {
 export function dayLabel(date: string, today: string): string {
   const { y, m, d, weekday } = parts(date);
   return y === Number(today.slice(0, 4))
-    ? `${weekday} ${d} ${MONTHS[m - 1]}`
-    : `${d} ${MONTHS[m - 1]} ${y}`;
+    ? `${weekday}\u00a0${d}\u00a0${MONTHS[m - 1]}`
+    : `${d}\u00a0${MONTHS[m - 1]}\u00a0${y}`;
 }
 
 /** "14–20 Sept", "28 Sept – 4 Oct": a week's days, with its year when it is not this one. */

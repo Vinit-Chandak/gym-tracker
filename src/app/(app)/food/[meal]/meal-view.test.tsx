@@ -66,5 +66,5 @@ it("names the year of a day from another year", () => {
       screen={EMPTY}
     />,
   );
-  expect(document.querySelector(".meta-line")?.textContent).toBe("Wed 31\u00a0Dec\u00a02025");
+  expect(document.querySelector(".meta-line")?.textContent).toBe("Wed\u00a031\u00a0Dec\u00a02025");
 });
