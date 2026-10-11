@@ -90,13 +90,15 @@ export function GymDetails({ data }: { data: GymDetailData }) {
   const { gym, equipment, absent, types, availability } = data;
   const activeEquipment = equipment.filter((item) => item.isActive);
   const archivedEquipment = equipment.filter((item) => !item.isActive);
+  // Availability always comes with a summary, empty without a programme: the programme decides.
   const summary = availability?.summary;
-  const fitLabel = summary
-    ? (["direct", "fallback", "unknown", "unavailable"] as const)
-        .filter((status) => summary[status] > 0)
-        .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
-        .join(" · ")
-    : "No active programme";
+  const fitLabel =
+    availability?.program && summary
+      ? (["direct", "fallback", "unknown", "unavailable"] as const)
+          .filter((status) => summary[status] > 0)
+          .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
+          .join(" · ") || "Nothing to lift in it"
+      : "No active programme";
   // A combination machine is each of its types, so none of them is offered as missing.
   const registeredTypeIds = new Set(activeEquipment.flatMap((item) => item.typeIds));
   const absentTypeIds = new Set(absent.map((item) => item.equipmentTypeId));

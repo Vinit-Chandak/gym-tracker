@@ -226,7 +226,9 @@ export function EquipmentForm({
 
       <Disclosure summary="Additional details" defaultOpen={detailError || hasDetail}>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          {/* Two to a row while both labels fit whole; one above the other on a narrow phone
+              or at large text, rather than breaking "Manufacturer" in the middle. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
             <Field label="Manufacturer" hint="Optional" error={state.fieldErrors?.manufacturer}>
               <Input name="manufacturer" defaultValue={value("manufacturer")} maxLength={80} />
             </Field>
@@ -235,7 +237,7 @@ export function EquipmentForm({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
             <Field label="Angle (°)" hint="Optional" error={state.fieldErrors?.angleDegrees}>
               <Input name="angleDegrees" inputMode="decimal" defaultValue={value("angleDegrees")} />
             </Field>
