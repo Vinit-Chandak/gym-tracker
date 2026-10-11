@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { warningsForSport, summaryForSport, writtenSummaryForSport } from "./sport-scope";
+import {
+  sportsOnOffer,
+  warningsForSport,
+  summaryForSport,
+  writtenSummaryForSport,
+} from "./sport-scope";
 import { reviewPlan } from "./coach-review";
 import { planRunSchema } from "./session-plan";
 
@@ -33,4 +38,16 @@ it("tells a written summary from the stock fallback", () => {
   // Nothing written is nothing to show: the screen decides what, if anything, stands in.
   expect(writtenSummaryForSport({}, "workout")).toBeNull();
   expect(writtenSummaryForSport({ sportSummaries: { run: "Easy." } }, "workout")).toBeNull();
+});
+
+it("offers the sports done, in the switch's order, and the one a link asked for", () => {
+  // Rides and lifting, in whatever order they were found: never a swimming tab nobody swims.
+  expect(sportsOnOffer(["cycle", "workout"])).toEqual(["workout", "cycle"]);
+  expect(sportsOnOffer(new Set(["run", "workout", "run"] as const))).toEqual(["workout", "run"]);
+  // A link to swimming still lands on swimming, beside what was done.
+  expect(sportsOnOffer(["workout"], "swim")).toEqual(["workout", "swim"]);
+  expect(sportsOnOffer(["workout"], "workout")).toEqual(["workout"]);
+  // Somebody who has done nothing yet opens on lifting, as the screens always did.
+  expect(sportsOnOffer([])).toEqual(["workout"]);
+  expect(sportsOnOffer([], "run")).toEqual(["run"]);
 });

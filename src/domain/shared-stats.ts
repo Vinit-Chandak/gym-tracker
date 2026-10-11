@@ -83,8 +83,9 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
           : exercise.modality === "barbell" || exercise.modality === "dumbbell"
             ? "Top weight"
             : "Added load";
+    // Its volume, load × reps, named so: "Best set 180 kg" read as a 180 kg lift.
     case "best_set_volume":
-      return "Best set";
+      return "Best set volume";
     case "most_reps":
       return "Most reps";
     case "longest_hold":
@@ -92,6 +93,18 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
     case "longest_carry":
       return "Longest carry";
   }
+}
+
+/**
+ * How a top weight was worked, said under it: the most reps a set at it reached, then how many
+ * working sets were at it ("11 reps · 2 sets"), or the sets alone for a hold or a carry, which
+ * have no reps. Each number names what it counts, as the exercise graph's "Heaviest set" says
+ * "11 reps" under its load: "2 × 11" read as two sets of eleven, which it need not have been.
+ */
+export function topWeightWorkLabel(work: { sets: number; reps: number | null }): string {
+  const sets = `${work.sets} ${work.sets === 1 ? "set" : "sets"}`;
+  if (work.reps === null) return sets;
+  return `${work.reps} ${work.reps === 1 ? "rep" : "reps"} · ${sets}`;
 }
 
 export type ComparableExercise = { userId: string | null; loadPortability: LoadPortability };

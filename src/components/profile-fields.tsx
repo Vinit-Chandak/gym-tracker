@@ -16,7 +16,7 @@ import {
   type TrainingGoal,
 } from "@/domain/types";
 import { LOAD_UNIT_LABELS, SEX_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
-import { checkTimeZone } from "@/lib/time-zones";
+import { checkTimeZone, deviceTimeZone, sameTimeZone } from "@/lib/time-zones";
 import {
   fromKilograms,
   heightUnitFor,
@@ -54,20 +54,13 @@ function noSubscription(): () => void {
   return () => {};
 }
 
-function readBrowserTimeZone(): string | null {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * The zone the browser is in, or null on the server, where it is unknowable. Read through
- * `useSyncExternalStore` so the server and the first client render agree and hydration is clean.
+ * The zone the browser is in, by its place's current name, or null on the server, where it is
+ * unknowable. Read through `useSyncExternalStore` so the server and the first client render agree
+ * and hydration is clean.
  */
 function useBrowserTimeZone(): string | null {
-  return useSyncExternalStore(noSubscription, readBrowserTimeZone, () => null);
+  return useSyncExternalStore(noSubscription, deviceTimeZone, () => null);
 }
 
 /** What the user typed, as a number, or null when it is blank or not one. */
@@ -115,7 +108,7 @@ export function ProfileFields({
             ? "is not a zone this app recognises."
             : "is an abbreviation or an offset, which can mean another zone."
         }`
-      : detected && detected !== timeZone
+      : detected && !sameTimeZone(detected, timeZone)
         ? `This device says ${detected}`
         : undefined;
 

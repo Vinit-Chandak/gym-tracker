@@ -8,6 +8,7 @@ import { programs } from "@/db/schema";
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -21,6 +22,7 @@ import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
+import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
@@ -68,7 +70,8 @@ function Archived({
  * Cycle is the whole programme and the only place it is printed in full. Changes is what the
  * coach has altered, proposed or answered, as differences rather than as a second copy of the
  * programme. The card above them belongs to neither: it is what programme this is and how far
- * through it you are, which is true on both tabs.
+ * through it you are, which is true on both tabs. Once it is complete, the next block is planned
+ * under the card, which is where Today's "Plan the next block" leads.
  */
 export default async function ProgrammeSettingsPage(props: PageProps<"/profile/programme">) {
   const user = await requireUser();
@@ -76,25 +79,29 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;
   const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
   const profile = await getRequestProfile(user.id, user.email);
-  const { overview, changes, archived, runUnits } = await withUser(
-    getDb(),
-    user.id,
-    async (tx) => {
-      const [overview, changes, archived, runUnits] = await Promise.all([
-        getProgramOverview(tx, user.id, profile.timeZone),
-        loadProgrammeChanges(tx, user.id, profile.timeZone),
-        tx
-          .select({ id: programs.id, name: programs.name, version: programs.version })
-          .from(programs)
-          .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
-          .orderBy(desc(programs.updatedAt))
-          .limit(20),
-        unitsFor(tx, user.id, "running"),
-      ]);
-      return { overview, changes, archived, runUnits };
-    },
-    { readOnly: true },
-  );
+  const [inProgress, { overview, changes, archived, runUnits }] = await Promise.all([
+    // The per-request read the session strip also makes.
+    getActiveSession(user.id),
+    withUser(
+      getDb(),
+      user.id,
+      async (tx) => {
+        const [overview, changes, archived, runUnits] = await Promise.all([
+          getProgramOverview(tx, user.id, profile.timeZone),
+          loadProgrammeChanges(tx, user.id, profile.timeZone),
+          tx
+            .select({ id: programs.id, name: programs.name, version: programs.version })
+            .from(programs)
+            .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
+            .orderBy(desc(programs.updatedAt))
+            .limit(20),
+          unitsFor(tx, user.id, "running"),
+        ]);
+        return { overview, changes, archived, runUnits };
+      },
+      { readOnly: true },
+    ),
+  ]);
   const templates = PROGRAM_TEMPLATES.map((template) => ({
     slug: template.slug,
     name: template.name,
@@ -103,6 +110,28 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
     weeks: template.blueprint.weeks,
   }));
   const today = todayInTimeZone(profile.timeZone);
+  const complete = overview?.complete ?? false;
+  // The sequence waits (owner, 11 October 2026), so the end it was written with is rarely when it
+  // ends: a finished programme ends when its last day was answered, one under way when its days
+  // left would be done at a day each from today. The written end stays under How it is meant to go.
+  const end = overview
+    ? ((complete ? overview.finishedOn : overview.projectedEnd) ?? overview.program.endDate)
+    : null;
+  // Starting over: rarely why anyone comes here, so folded at the foot of the cycle — until the
+  // programme is finished, when it is the next thing to do and opens under the card.
+  const nextBlock = (
+    <div className="space-y-4">
+      <ProgrammeOptions nested />
+      <div className="space-y-2 border-t border-line pt-4">
+        <h3 className="font-medium">Or use the suggested template</h3>
+        <ProgramTemplatePicker
+          templates={templates}
+          today={today}
+          submitLabel="Replace my programme"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -114,12 +143,16 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             {/* What the programme is and how far through it you are. */}
             <Card>
               <div>
-                <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
-                  {overview.program.name}
-                </h2>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+                    {overview.program.name}
+                  </h2>
+                  {/* Today's word for it, "Programme complete", as the card's badge. */}
+                  {complete && <Badge tone="success">Complete</Badge>}
+                </div>
                 <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
                   {overview.program.startDate ? formatIsoDate(overview.program.startDate) : "—"} →{" "}
-                  {overview.program.endDate ? formatIsoDate(overview.program.endDate) : "—"}
+                  {end ? formatIsoDate(end) : "—"}
                 </p>
               </div>
               <ProgressBar
@@ -128,9 +161,9 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
               <p className="text-xs text-ink-muted tabular-nums">
-                Cycle {overview.currentCycle} of {overview.program.cycles} ·{" "}
-                {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
-                {overview.progress.remaining} to go
+                {!complete && `Cycle ${overview.currentCycle} of ${overview.program.cycles} · `}
+                {overview.progress.completed} of {overview.progress.total} programme days
+                {!complete && ` · ${overview.progress.remaining} to go`}
                 {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
               </p>
               <StatTileRow>
@@ -139,8 +172,8 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 <StatTile label="Lifting days" value={overview.liftingDays} />
                 <StatTile label="Sets a cycle" value={overview.setsPerCycle} />
               </StatTileRow>
-              <ProgrammeTools id={overview.program.id} />
-              {(overview.program.notes || overview.projectedEnd) && (
+              <ProgrammeTools id={overview.program.id} finished={complete} />
+              {(overview.program.notes || overview.program.endDate) && (
                 <Disclosure summary="How it is meant to go" variant="footer">
                   <div className="space-y-3">
                     {overview.program.notes && (
@@ -149,8 +182,8 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                     <DetailList
                       entries={[
                         [
-                          "Projected end",
-                          overview.projectedEnd ? formatIsoDate(overview.projectedEnd) : null,
+                          "Planned end",
+                          overview.program.endDate ? formatIsoDate(overview.program.endDate) : null,
                         ],
                         [
                           "Repeats",
@@ -166,6 +199,16 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 </Disclosure>
               )}
             </Card>
+
+            {/* Where Today's "Plan the next block" leads: the next thing to do, so not folded. */}
+            {complete && (
+              <Section
+                title="Plan the next block"
+                info="Starting another archives this one; logged sessions keep what they were prescribed. Duplicate it above to train it again."
+              >
+                <Card>{nextBlock}</Card>
+              </Section>
+            )}
 
             <ProgrammeTabs view={view} waiting={changes.waiting} />
             <div
@@ -186,7 +229,11 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                     <ul className="space-y-3">
                       {overview.days.map((plan) => (
                         <li key={plan.day.id}>
-                          <CycleDay plan={plan} units={runUnits} />
+                          <CycleDay
+                            plan={plan}
+                            units={runUnits}
+                            open={inProgress !== null && inProgress.programDayId === plan.day.id}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -194,24 +241,14 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
 
                   {/* Folded away, because starting over is the rarest thing anyone comes here
                       to do — and open, it is three choices that each need a sentence. */}
-                  <Section
-                    title="Change programme"
-                    info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
-                  >
-                    <Disclosure summary="Start a new programme">
-                      <div className="space-y-4">
-                        <ProgrammeOptions nested />
-                        <div className="space-y-2 border-t border-line pt-4">
-                          <h3 className="font-medium">Or use the suggested template</h3>
-                          <ProgramTemplatePicker
-                            templates={templates}
-                            today={today}
-                            submitLabel="Replace my programme"
-                          />
-                        </div>
-                      </div>
-                    </Disclosure>
-                  </Section>
+                  {!complete && (
+                    <Section
+                      title="Change programme"
+                      info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
+                    >
+                      <Disclosure summary="Start a new programme">{nextBlock}</Disclosure>
+                    </Section>
+                  )}
 
                   {archived.length > 0 && <Archived programmes={archived} />}
                 </>

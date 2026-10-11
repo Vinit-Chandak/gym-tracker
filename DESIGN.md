@@ -855,10 +855,13 @@ exercise's page and a friend's compare page. Top to bottom:
   its record at the end of the figure's line (Open workout, Open run, Open day, Open week; ink,
   700, a chevron, a 44-pt target). It keeps its height either way, so the plot never moves.
 - **The plot,** 152 pt over a 24-pt row of dates: the scale's round values as `hair` lines, their
-  labels (Print label, 600, ink 2) in the left margin, two or three of them. Bars stand on a
-  `hair` baseline and start at zero; a line floats on its readings' own range, and a fixed scale
+  labels (Print label, 600, ink 2) in the left margin, two or three of them, an equal step apart
+  and written exactly (a tenth under 100, whole from 100). Bars stand on a `hair` baseline and
+  start at zero; a line floats on its readings' own range, from a round value at or under the
+  lowest to one at or over the highest, so no reading stands outside the scale; a fixed scale
   (a 1–5 answer) is drawn whole. A value that matters (sleep's 6 h, today's food target) is a
-  1-pt rule in ink, its label in the margin in ink, 700.
+  1-pt rule in ink, its label in the margin in ink, 700; the readout or the graph's ⓘ says what
+  it is.
 - **Marks:** bars are totals, in `control`, the latest in ink, up to 14 pt wide, their tops
   rounded (3 pt) and their feet square on the baseline. Against food's target, a bar that reaches
   it (in the whole kcal or grams its figure is written in) is in `ink-2`, between the two, so a

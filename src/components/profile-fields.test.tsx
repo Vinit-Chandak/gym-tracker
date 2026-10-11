@@ -101,6 +101,29 @@ describe("profile fields", () => {
     expect(zone.value).toBe("Asia/Tokyo");
   });
 
+  it("knows a device in Asia/Calcutta is in the saved Asia/Kolkata, and lists Kolkata once", () => {
+    const before = process.env.TZ;
+    // ICU, as Chrome, says Asia/Calcutta for a device in India.
+    process.env.TZ = "Asia/Kolkata";
+    try {
+      render(<ProfileFields values={{ ...saved, timeZone: "Asia/Kolkata" }} />);
+      const zone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLSelectElement;
+      expect(zone.value).toBe("Asia/Kolkata");
+      expect(zone.selectedOptions[0]?.textContent).toBe("Kolkata (this device)");
+      // The same place is not a mismatch with the device, nor a second choice.
+      expect(screen.queryByText(/This device says/)).toBeNull();
+      const options = Array.from(zone.options, (option) => option.value);
+      expect(options.filter((value) => /Kolkata|Calcutta/.test(value))).toEqual(["Asia/Kolkata"]);
+      // Nor is any other place listed by a name the zone database has retired.
+      expect(options).not.toContain("Africa/Asmera");
+      expect(options).not.toContain("America/Godthab");
+      expect(options).toContain("Africa/Asmara");
+    } finally {
+      if (before === undefined) delete process.env.TZ;
+      else process.env.TZ = before;
+    }
+  });
+
   it("asks for a place where the saved zone was an abbreviation or an offset", () => {
     render(<ProfileFields values={{ ...saved, timeZone: "EST" }} />);
     const zone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLSelectElement;

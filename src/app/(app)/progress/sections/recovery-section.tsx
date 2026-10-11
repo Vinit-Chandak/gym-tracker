@@ -26,7 +26,13 @@ export const RECOVERY_LABELS: Record<
   RecoveryMeasure,
   { short: string; long: string; unit: string; hint: string; lowIsBetter?: boolean }
 > = {
-  sleepHours: { short: "Sleep", long: "Sleep", unit: "h", hint: "Hours slept before training." },
+  sleepHours: {
+    short: "Sleep",
+    long: "Sleep",
+    unit: "h",
+    // The rule in ink is the check-in's own threshold, said where the graph is explained.
+    hint: `Hours slept before training. The line at ${SHORT_SLEEP_HOURS} h is where the check-in warns: under it, hold loads rather than add to them.`,
+  },
   sleepQuality: {
     short: "Quality",
     long: "Sleep quality",
@@ -48,6 +54,13 @@ export const RECOVERY_LABELS: Record<
     lowIsBetter: true,
   },
 };
+
+/**
+ * Hours a sleep scale may step by. Most divide the 6 h rule, so the rule stands on a line of the
+ * scale and takes its label, rather than over an unlabelled line an hour off it (0, 5, 10); at 4
+ * and 12 it stands clear between two labelled lines.
+ */
+const SLEEP_STEPS = [1, 2, 3, 4, 6, 12];
 
 /**
  * Recovery (ADR 0042): hours slept as bars against the 6 h the check-in warns under, and the
@@ -90,10 +103,11 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
           date: bucket.start,
           value: bucket.values[measure],
         }))}
-        format={(value) => decimal(value, 1)}
+        // Hours carry their unit on the scale as the 6 h rule does, so no line reads as a count.
+        format={(value) => (sleep ? `${decimal(value, 1)} h` : decimal(value, 1))}
         scale={
           sleep
-            ? { integral: true }
+            ? { integral: true, steps: SLEEP_STEPS }
             : { min: 1, max: 5, ticks: [1, 3, 5], invert: label.lowIsBetter ?? false }
         }
         rule={sleep ? { value: SHORT_SLEEP_HOURS, label: `${SHORT_SLEEP_HOURS} h` } : undefined}

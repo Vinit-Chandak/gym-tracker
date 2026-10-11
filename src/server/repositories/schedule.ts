@@ -7,6 +7,7 @@ import type { OccurrenceDisposition } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
+  finishedOn,
   isRestSlot,
   missedSlots,
   nextPendingSlot,
@@ -588,6 +589,8 @@ export type TodayPlan = {
   progress: Progress;
   behind: number;
   projectedEnd: string | null;
+  /** The day the programme was finished on, once it is; null while it is still going. */
+  finishedOn: string | null;
   /** null once the programme is complete. */
   suggestion: Suggestion | null;
   suggestedDay: ScheduleDay | null;
@@ -660,6 +663,7 @@ export async function getTodayPlan(
     progress: progress(state),
     behind: sessionsBehind(state, startDate, today),
     projectedEnd: projectedEndDate(state, today, finishedRef !== null),
+    finishedOn: finishedOn(state),
     missed: missedSlots(state, startDate, today).map((ref) => ({
       ...ref,
       name: dayOf(ref)?.name ?? `Day ${ref.dayIndex}`,
@@ -694,6 +698,10 @@ export type ProgramOverview = {
   program: ActiveProgram;
   progress: Progress;
   projectedEnd: string | null;
+  /** Nothing but rest is left (ADR 0051): what Today says as "Programme complete". */
+  complete: boolean;
+  /** The day it was finished on, once it is; null while it is still going. */
+  finishedOn: string | null;
   currentCycle: number;
   days: ProgramDayPlan[];
   /** What one cycle actually asks for, which is the shape of the programme. */
@@ -754,6 +762,8 @@ export async function getProgramOverview(
       todayInTimeZone(timeZone),
       slotFinishedOn(state, todayInTimeZone(timeZone)) !== null,
     ),
+    complete: next === null,
+    finishedOn: finishedOn(state),
     currentCycle,
     days,
     liftingDays: schedule.days.filter((day) => day.includesLifting).length,

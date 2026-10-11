@@ -7,12 +7,20 @@ import { SportSwitch } from "./sport-switch";
  * The two choices a friend's screens ask: the sport, and the span every graph shares (ADR
  * 0044), so their split and numbers cover the same 1M to All as every graph in the app and are
  * remembered with it. Each in its own row, the sport above: side by side, four sports had a
- * third of the row and broke their names across lines. Needs the page's `GraphRangeProvider`.
+ * third of the row and broke their names across lines. The sport offers only `sports`, those
+ * the people on the screen do; with one, only the span is asked. Needs the page's
+ * `GraphRangeProvider`.
  */
-export function SportSpanControls({ sport }: { sport: TrainingSport }) {
+export function SportSpanControls({
+  sport,
+  sports,
+}: {
+  sport: TrainingSport;
+  sports: readonly TrainingSport[];
+}) {
   return (
     <div className="grid gap-2">
-      <SportSwitch value={sport} />
+      <SportSwitch value={sport} sports={sports} />
       <RangeSpans name="social" className="!mt-0" />
     </div>
   );

@@ -651,7 +651,7 @@ export function ExerciseLogger({
                   suggestion.basis === "other_equipment"
                     ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
                     : "this exercise"
-                }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
+                }, ${formatDay(exercise.basis.performedAt, session.timeZone, session.today.slice(0, 4))}${
                   // The sets it read, so the reason can be checked against what was done.
                   exercise.basis.sets.length > 0
                     ? `: ${formatSets(

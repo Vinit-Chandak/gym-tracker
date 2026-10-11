@@ -7,7 +7,7 @@ import type { StrengthColumn } from "@/components/art/geometry";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
-import { formatIsoWeekdayDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import { adoptProgramTemplateAction, type AdoptProgramState } from "@/server/actions/programs";
 
@@ -118,7 +118,7 @@ export function ProgramTemplatePicker({
                       Start date
                     </label>
                     <span aria-hidden className="date-row-value">
-                      {startDate === today ? "Today" : formatIsoWeekdayDay(startDate)}
+                      {startDate === today ? "Today" : formatIsoDate(startDate, today.slice(0, 4))}
                       <Glyph name="chevronDown" className="glyph-16" />
                     </span>
                     {/* The platform's own date picker, over the whole row and unseen. */}

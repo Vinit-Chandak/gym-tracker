@@ -16,3 +16,11 @@ export function parseSport(value: string | string[] | undefined): TrainingSport 
   const canonical = sportFromParam(one);
   return canonical ? legacySportOf(canonical) : "workout";
 }
+
+/**
+ * The sport a social screen's link asked for, or null when it named none: the screen then opens
+ * on the first sport it offers (`sportsOnOffer`), which for someone who only rides is riding.
+ */
+export function askedSport(value: string | string[] | undefined): TrainingSport | null {
+  return value === undefined ? null : parseSport(value);
+}

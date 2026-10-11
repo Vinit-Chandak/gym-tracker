@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { copyProgramAction, archiveProgramAction } from "@/server/actions/coaching-workflow";
 
 /**
@@ -12,9 +13,19 @@ import { copyProgramAction, archiveProgramAction } from "@/server/actions/coachi
  * The two edits are the same weight, so they share a row and split it evenly; on a phone the
  * row becomes two full-width buttons rather than two ragged ones. Archiving is the only one
  * that takes something away, so it sits under them and is replaced — not joined — by the
- * question it asks, which keeps one decision on screen at a time.
+ * question it asks, which keeps one decision on screen at a time. A finished programme has no
+ * future to edit, so it keeps only its copy, to train again, and the archive.
  */
-export function ProgrammeTools({ id, active = true }: { id: string; active?: boolean }) {
+export function ProgrammeTools({
+  id,
+  active = true,
+  finished = false,
+}: {
+  id: string;
+  active?: boolean;
+  /** Nothing but rest is left (ADR 0051): "Edit future programme" would edit nothing. */
+  finished?: boolean;
+}) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
   const [busy, setBusy] = useState(false),
@@ -34,8 +45,8 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
   }
   return (
     <div className="space-y-2">
-      <div className="grid gap-2 min-[420px]:grid-cols-2">
-        {active && (
+      <div className={cn("grid gap-2", !finished && "min-[420px]:grid-cols-2")}>
+        {active && !finished && (
           <Button variant="secondary" disabled={pending} onClick={() => copy(false)}>
             Edit future programme
           </Button>

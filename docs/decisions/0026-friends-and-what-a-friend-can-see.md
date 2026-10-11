@@ -112,3 +112,20 @@ Never visible to anyone:
   their branch adds.
 - **Shared rows for history that predates the tables come from a backfill script**, run once
   after the deploy that adds them. Until then profiles show only sessions finished since.
+
+## Note, 11 October 2026
+
+From the year audit of the friends' screens:
+
+- **A profile's list is "Best lifts", not "Records".** It always held each movement's best in
+  the span (plan §3.13, as built), so a best below an older one read as a record that Compare's
+  "Records set" rightly did not count. A record is still what this record defines it as.
+- **A sport has a tab only where someone on the screen does it.** A person's page offers the
+  sports they have shared sessions in (a ride or swim only while its own sharing is on), Compare
+  a sport either of you shares or one you have on, the leaderboard your own sports, and Privacy a
+  ride or swim switch for a sport you do or still share. A sport a link names is still offered.
+- **Running shares with lifting**, under "Share training with followers", which now says so.
+- **A request you sent is listed on People** under "Requested", with Cancel, until it is
+  answered: Following counts accepted follows only.
+- **Recent activity is in the order of the days it shows**, then by time, rather than by start
+  time alone, which put a New Yorker's late Thursday between an Indian friend's two Fridays.

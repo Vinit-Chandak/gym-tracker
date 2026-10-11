@@ -63,7 +63,10 @@ export function SessionDetails({
     <Sheet open={open} onClose={onClose} title="Session details">
       <dl className="type-meta">
         <Row label="Gym" value={session.gym.name} />
-        <Row label="Started" value={formatDateTime(session.startedAt, session.timeZone)} />
+        <Row
+          label="Started"
+          value={formatDateTime(session.startedAt, session.timeZone, session.today.slice(0, 4))}
+        />
         {durationMinutes !== null && <Row label="Duration" value={`${durationMinutes} min`} />}
         {session.day && <Row label="Programme day" value={session.day.name} />}
         {/* "Cycle 1 of 8", as everywhere else the cycle is said. */}

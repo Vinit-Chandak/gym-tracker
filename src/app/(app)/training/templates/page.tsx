@@ -47,15 +47,16 @@ export default async function TemplatesPage() {
           New template
         </LinkButton>
 
-        <Section title="Endurance">
-          {templates.length === 0 ? (
-            <EmptyState
-              icon={CalendarDays}
-              title="No templates yet"
-              description="Write a session once and schedule it whenever you want it."
-            />
-          ) : (
-            templates.map((template) => (
+        {/* A heading names a list; over nothing, the empty state says what a template is. */}
+        {templates.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="No templates yet"
+            description="Write a run, ride or swim once and schedule it whenever you want it."
+          />
+        ) : (
+          <Section title="Endurance">
+            {templates.map((template) => (
               <Card key={template.id}>
                 <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
                   {ACTIVITY_SPORT_LABELS[template.sport]}
@@ -74,9 +75,9 @@ export default async function TemplatesPage() {
                   Edit
                 </Link>
               </Card>
-            ))
-          )}
-        </Section>
+            ))}
+          </Section>
+        )}
 
         {routines.length > 0 && (
           <Section title="Strength routines">

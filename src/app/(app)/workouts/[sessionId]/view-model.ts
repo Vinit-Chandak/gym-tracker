@@ -55,17 +55,21 @@ export type SessionVM = Omit<SessionDetail, "exercises" | "startedAt" | "complet
   timeZone: string;
   /** Unit for loads no machine decides — free weights and added bodyweight load. */
   preferredUnit: BodyLoadUnit;
+  /** The account's day as the page was drawn ("2026-10-11"): a day in another year names it. */
+  today: string;
 };
 
 export function toSessionVM(
   detail: SessionDetail,
   timeZone: string,
   preferredUnit: BodyLoadUnit,
+  today: string,
 ): SessionVM {
   return {
     ...detail,
     timeZone,
     preferredUnit,
+    today,
     startedAt: detail.startedAt.toISOString(),
     completedAt: detail.completedAt?.toISOString() ?? null,
     exercises: detail.exercises.map((exercise) => ({

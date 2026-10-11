@@ -32,9 +32,18 @@ const HEAD = "flex min-h-14 items-start gap-3 px-4 py-3";
  *
  * A native <details>, so a seven-day cycle sends no JavaScript to the browser and costs
  * nothing until a day is opened. A day with nothing to open — a plain rest day — is the
- * same box without the fold, rather than a control that does nothing.
+ * same box without the fold, rather than a control that does nothing. `open` is a day whose
+ * workout is under way, which is in progress rather than next.
  */
-export function CycleDay({ plan, units }: { plan: ProgramDayPlan; units: SportUnits }) {
+export function CycleDay({
+  plan,
+  units,
+  open = false,
+}: {
+  plan: ProgramDayPlan;
+  units: SportUnits;
+  open?: boolean;
+}) {
   const { day } = plan;
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
@@ -45,7 +54,9 @@ export function CycleDay({ plan, units }: { plan: ProgramDayPlan; units: SportUn
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
-          {plan.isNext ? (
+          {open ? (
+            <Badge tone="accent">In progress</Badge>
+          ) : plan.isNext ? (
             <Badge tone="accent">Next</Badge>
           ) : plan.status === "completed" || plan.status === "skipped" ? (
             <Badge tone={plan.status === "completed" ? "success" : "warning"}>

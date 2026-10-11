@@ -1,6 +1,36 @@
-import { allSlots, partStatus, type ScheduleState } from "@/domain/schedule";
+import {
+  allSlots,
+  isRestSlot,
+  partStatus,
+  pendingParts,
+  slotFor,
+  type ScheduleState,
+  type SlotRef,
+} from "@/domain/schedule";
 
-/** The button must describe the workout it will actually start, independent of a run. */
+/**
+ * Nothing a training day asks for is still owed before `ref` in the sequence, so starting it is
+ * the sequence's own next step. Rest days are passed by the start, so they never stand in the way.
+ */
+function inTurn(state: ScheduleState, ref: SlotRef): boolean {
+  for (const earlier of allSlots(state)) {
+    if (earlier.cycleIndex === ref.cycleIndex && earlier.dayIndex === ref.dayIndex) return true;
+    const slot = slotFor(state, earlier);
+    if (slot && !isRestSlot(slot) && pendingParts(state, earlier).length > 0) return false;
+  }
+  return true;
+}
+
+/**
+ * The button must describe the workout it will actually start, independent of a run.
+ *
+ * A day already done this cycle starts its next cycle's (ADR 0005): the day repeated on purpose,
+ * ahead of a sequence that still waits for the days this cycle has left. "Start next cycle" read
+ * as moving on and leaving those behind (year audit, 11 October 2026), so it is said for what it
+ * is: "Do again" for a day done this cycle, "Start early" for one this cycle does not have. Only
+ * where nothing is owed before it — this cycle's training all answered — does it start the next
+ * cycle, as Today offers it, and say so.
+ */
 export function liftingStartOption(state: ScheduleState, cycleIndex: number, dayIndex: number) {
   if (!state.slots.find((slot) => slot.dayIndex === dayIndex)?.includesLifting) return null;
   const refs = allSlots(state).filter(
@@ -11,10 +41,8 @@ export function liftingStartOption(state: ScheduleState, cycleIndex: number, day
     return { cycleIndex, label: "Start skipped workout" };
   }
   const next = refs.find((ref) => partStatus(state, ref, "session") === "pending");
-  return next
-    ? {
-        cycleIndex: next.cycleIndex,
-        label: next.cycleIndex === cycleIndex ? "Start" : "Start next cycle",
-      }
-    : null;
+  if (!next) return null;
+  if (next.cycleIndex === cycleIndex) return { cycleIndex, label: "Start" };
+  if (inTurn(state, next)) return { cycleIndex: next.cycleIndex, label: "Start next cycle" };
+  return { cycleIndex: next.cycleIndex, label: current ? "Do again" : "Start early" };
 }

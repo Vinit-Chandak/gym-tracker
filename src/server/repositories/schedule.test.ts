@@ -16,6 +16,7 @@ import { occurrencesForSlot } from "./occurrences";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
 import {
   completeRestSlotsBefore,
+  getProgramOverview,
   getSchedule,
   getTodayPlan,
   recordSlotEvent,
@@ -317,5 +318,41 @@ describe("a day that runs, finished today", () => {
     const plan = await a.as((tx) => getTodayPlan(tx, a.userId, ZONE));
     expect(plan?.finishedToday).toBeNull();
     expect(plan?.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 4 });
+  });
+});
+
+describe("a programme finished a week late", () => {
+  it("is complete, ends on its rest day done, and finished when its last day was", async () => {
+    const a = await account("finished@example.test");
+    // One week, so one cycle: six days to train and the rest day the block ends on.
+    await t.db.update(programs).set({ weeks: 1 }).where(eq(programs.id, a.programId));
+    const { days } = await a.schedule();
+    await a.as(async (tx) => {
+      for (const d of days.filter((d) => d.includesLifting || d.includesRun))
+        for (const part of d.includesRun ? (["session", "run"] as const) : (["session"] as const))
+          await recordSlotEvent(
+            tx,
+            a.userId,
+            a.programId,
+            { cycleIndex: 1, dayIndex: d.dayIndex },
+            part,
+            "completed",
+            // The last day trained a week after the rest, which the sequence waited for.
+            { occurredOn: addDays(FIXTURE_START_DATE, d.dayIndex + (d.dayIndex === 6 ? 7 : 0)) },
+          );
+    });
+
+    const overview = await a.as((tx) => getProgramOverview(tx, a.userId, ZONE));
+    expect(overview).toMatchObject({
+      complete: true,
+      finishedOn: addDays(FIXTURE_START_DATE, 13),
+      projectedEnd: null,
+      progress: { total: 7, completed: 7, remaining: 0 },
+    });
+    // The rest day nobody tapped is the block's end, done like the rest.
+    expect(overview!.days.map((plan) => plan.status)).toEqual(Array(7).fill("completed"));
+    expect(overview!.days.some((plan) => plan.isNext)).toBe(false);
+    const plan = await a.as((tx) => getTodayPlan(tx, a.userId, ZONE));
+    expect(plan).toMatchObject({ suggestion: null, finishedOn: addDays(FIXTURE_START_DATE, 13) });
   });
 });

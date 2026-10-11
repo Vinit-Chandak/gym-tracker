@@ -142,6 +142,7 @@ const SESSION: SessionVM = {
   coachPlan: null,
   timeZone: "UTC",
   preferredUnit: "kg",
+  today: "2026-09-29",
   exercises: [
     exercise("Barbell bench press", { sets: [set(1, 60, 4), set(2, 60, 4)] }),
     exercise("Barbell curl", { completedAt: "2026-09-29T07:58:00.000Z" }),
@@ -237,6 +238,24 @@ it("names every exercise holding drafts, and none it cannot find", () => {
   );
   expect(draftsWarning({ count: 2, names: [] })).toBe(
     "Sets on this device are not saved yet. Save or remove them before finishing.",
+  );
+});
+
+it("says a row whose planned sets are all in is done, not Resume", () => {
+  // Kenji's squat in the year audit: 4 of 4 sets, not yet marked complete.
+  const sets = [set(1, 60, 4), set(2, 60, 4), set(3, 60, 4), set(4, 60, 4)];
+  show({
+    session: {
+      ...SESSION,
+      exercises: [exercise("Barbell bench press", { sets }), ...SESSION.exercises.slice(1)],
+    },
+  });
+  const bench = screen.getByRole("button", { name: /Barbell bench press/ });
+  expect(within(bench).getByRole("img", { name: "4 of 4 sets done" })).toBeTruthy();
+  expect(bench.textContent).not.toContain("Resume");
+  // Its sets are still what the row says under the name.
+  expect(bench.textContent).toContain(
+    "60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04",
   );
 });
 

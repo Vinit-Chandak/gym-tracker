@@ -116,6 +116,7 @@ const session: SessionVM = {
   warnings: [],
   timeZone: "Asia/Kolkata",
   preferredUnit: "kg" as const,
+  today: "2026-09-08",
   exercises: [exercise],
 };
 

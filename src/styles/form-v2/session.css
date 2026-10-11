@@ -979,6 +979,32 @@ html:has(.session-page) .pinned-actions {
 .session-page-body {
   padding-bottom: calc(24 * var(--ov-u));
 }
+/* Where the navigation would be the side rail (ADR 0052), the rail goes with the tab bar, and so
+   does the room the screen keeps for it: the page and its actions stand in the middle of the
+   screen, not a rail's width to the right of it. With no thumb to keep them by, the actions
+   follow the page rather than the screen's foot, half a tall screen below the fields: they ride
+   the foot while the page scrolls and come to rest after its last field, on the first screen
+   either way (The Docked Entry Rule). */
+@media (min-width: 64rem) {
+  html:has(.session-page) .app-content {
+    margin-left: 0;
+    padding-bottom: calc(var(--session-chrome-height, 0px) + 1rem);
+  }
+  html:has(.session-page) .navigation-progress {
+    left: 0;
+  }
+  html:has(.session-page) .pinned-actions {
+    position: sticky;
+    bottom: 0;
+    margin-top: calc(24 * var(--ov-u));
+  }
+  /* In the page's flow, inside its gutters, they reach back out to them, as on a phone on its
+     side: the ground runs the column's width and the actions keep the page's one left edge. */
+  html:has(.session-page) .page-width .pinned-actions {
+    margin-right: calc(-1 * max(var(--page-gutter), env(safe-area-inset-right)));
+    margin-left: calc(-1 * max(var(--page-gutter), env(safe-area-inset-left)));
+  }
+}
 /* What a session recorded (boards Finish, Summary, Past workout): the exercise, its sets under
    it in ink; what it did not do, named once in ink 2. */
 .record-row {

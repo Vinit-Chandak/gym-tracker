@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { UsernameField } from "@/components/username-field";
 import type { TrainingExperience } from "@/domain/types";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { deviceTimeZone } from "@/lib/time-zones";
 import { saveOnboardingProfileAction } from "@/server/actions/profile";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -37,9 +38,7 @@ export function ProfileStepForm({
     INITIAL_FORM_STATE,
   );
   const [zone] = useState(() =>
-    typeof window === "undefined"
-      ? values.timeZone
-      : Intl.DateTimeFormat().resolvedOptions().timeZone,
+    typeof window === "undefined" ? values.timeZone : (deviceTimeZone() ?? values.timeZone),
   );
 
   return (

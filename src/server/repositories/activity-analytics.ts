@@ -336,19 +336,27 @@ async function activityPage(
 export const CALENDAR_LIMIT = 1500;
 
 /**
- * Every completed activity between two local dates, oldest first, for the calendar: what each
- * day holds (Progress's month, the calendar page, a day). Unpaged, because a month or a year is
- * read whole to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit.
- * What it keeps is the newest: the calendar opens on this month, so the months it cannot hold
- * are the earliest, and those are the ones it says are missing.
+ * Every activity between two local dates, oldest first, for the calendar: what each day holds
+ * (Progress's month, the calendar page, a day). Unpaged, because a month or a year is read whole
+ * to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit. What it keeps
+ * is the newest: the calendar opens on this month, so the months it cannot hold are the
+ * earliest, and those are the ones it says are missing.
+ *
+ * The workout still open is on its day too, `inProgress`: a day with a session under way was a
+ * blank tile that said "nothing logged" (year audit). Only a workout is ever open; every other
+ * activity is saved finished.
  */
 export async function readActivityDays(
   tx: DbOrTx,
   userId: string,
   range: { from: string; to: string },
-): Promise<{ items: (ActivityListItem & { stroke: SwimStroke | null })[]; truncated: boolean }> {
+): Promise<{
+  items: (ActivityListItem & { stroke: SwimStroke | null; inProgress: boolean })[];
+  truncated: boolean;
+}> {
   const rows = await tx
     .select({
+      status: activities.status,
       stroke: swimmingActivityDetails.stroke,
       id: activities.id,
       sport: activities.sport,
@@ -374,7 +382,6 @@ export async function readActivityDays(
     .where(
       and(
         eq(activities.userId, userId),
-        eq(activities.status, "completed"),
         gte(activities.occurredOn, range.from),
         lte(activities.occurredOn, range.to),
       ),
@@ -387,9 +394,10 @@ export async function readActivityDays(
     items: rows
       .slice(0, CALENDAR_LIMIT)
       .reverse()
-      .map((row) => ({
+      .map(({ status, ...row }) => ({
         ...row,
         distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+        inProgress: status === "in_progress",
       })),
     truncated: rows.length > CALENDAR_LIMIT,
   };

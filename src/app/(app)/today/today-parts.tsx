@@ -5,6 +5,7 @@ import { Art } from "@/components/art/art";
 import type { PrintPart } from "@/components/art/geometry";
 import Link from "@/components/ui/app-link";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import type { CycleCell, PlanRowModel } from "./today-model";
@@ -160,6 +161,35 @@ export function Fact({
       {glyph && <Glyph name={glyph} label={label} className="glyph-16" />}
       {children}
     </span>
+  );
+}
+
+/**
+ * A programme with nothing left but rest (ADR 0051), said the same wherever it is shown: Today,
+ * Choose a day and Training (its own card says Complete). Finished on the day its last day was
+ * answered, which the waiting sequence makes later than the end it was written with whenever a
+ * week went missing; named without its year inside `today`'s.
+ */
+export function ProgrammeComplete({
+  days,
+  finishedOn,
+  today,
+  className,
+}: {
+  /** Every day the programme had, rest days among them. */
+  days: number;
+  finishedOn: string | null;
+  today: string;
+  className?: string;
+}) {
+  return (
+    <MetaLine className={className}>
+      <Fact glyph="flag">Programme complete</Fact>
+      {finishedOn && (
+        <Fact glyph="calendar">Finished {formatIsoDate(finishedOn, today.slice(0, 4))}</Fact>
+      )}
+      <Fact>{days} programme days</Fact>
+    </MetaLine>
   );
 }
 

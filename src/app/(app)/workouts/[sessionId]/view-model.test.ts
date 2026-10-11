@@ -96,7 +96,7 @@ async function rendered(): Promise<SessionVM> {
       timeZone: "UTC",
     }),
   );
-  return toSessionVM(detail!, "UTC", "lb");
+  return toSessionVM(detail!, "UTC", "lb", "2026-10-11");
 }
 
 /** Saves a set as the logger does, and keeps the change as the browser would. */

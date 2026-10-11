@@ -132,6 +132,20 @@ export async function listRequests(tx: DbOrTx, viewerId: string): Promise<Follow
     .orderBy(desc(follows.createdAt));
 }
 
+/**
+ * The viewer's own requests still waiting for the other person's answer, newest first: the
+ * other side of `listRequests`, so a request sent is somewhere to see and withdraw, not only on
+ * that person's page.
+ */
+export async function listSentRequests(tx: DbOrTx, viewerId: string): Promise<FollowRequest[]> {
+  return tx
+    .select({ ...DIRECTORY_COLUMNS, requestedAt: follows.createdAt })
+    .from(follows)
+    .innerJoin(profileDirectory, eq(profileDirectory.id, follows.followeeId))
+    .where(and(eq(follows.followerId, viewerId), eq(follows.status, "pending")))
+    .orderBy(desc(follows.createdAt));
+}
+
 /** How many requests are waiting: the one number the Profile tab shows about friends. */
 export async function countRequests(tx: DbOrTx, viewerId: string): Promise<number> {
   const [row] = await tx
