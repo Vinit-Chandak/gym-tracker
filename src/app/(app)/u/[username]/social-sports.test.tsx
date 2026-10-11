@@ -372,3 +372,10 @@ describe("a board with nobody on it", () => {
     expect(html).not.toContain("No runs from you");
   });
 });
+
+it("names the person once, in the title, not again on the card under it", async () => {
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain("<h1>Friend</h1>");
+  expect(html).not.toContain("person-card-name");
+  expect(html).toContain("@friend");
+});

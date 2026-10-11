@@ -128,7 +128,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
       {/* Your own page is opened from your Profile card; anyone else's from Friends. */}
       <PageHeader title={name} backHref={relation ? "/profile/friends" : "/profile"} />
       <PageContent>
-        <PersonCard person={person} counts={person}>
+        {/* The title names them; the card goes on from the handle. */}
+        <PersonCard person={person} counts={person} named={false}>
           {relation ? (
             <FollowButton
               personId={person.id}
