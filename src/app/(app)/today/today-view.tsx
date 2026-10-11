@@ -1,22 +1,27 @@
 import type { ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
+import { enduranceName } from "@/components/activities/endurance-line";
 import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activities/today-activities";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { ActivityCard } from "@/components/ui/activity-card";
+import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
+import { FigureText } from "@/components/ui/figure-text";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
+import { formatDuration } from "@/domain/pace";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
-import type { SportUnits } from "@/lib/distance-units";
+import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
+import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
@@ -35,6 +40,7 @@ import {
 import {
   cycleCells,
   cycleLabel,
+  loggedBesides,
   planRows,
   printLabel,
   todayParts,
@@ -71,6 +77,8 @@ export type TodayViewProps = {
   finishedOccurrences?: readonly ScheduledOccurrence[];
   /** How the athlete reads each sport's distances, which the endurance cards say targets in. */
   distanceUnits?: Partial<Record<ActivitySport, SportUnits>>;
+  /** Everything finished today, scheduled or not: what no other card shows gets one of its own. */
+  logged?: readonly LoggedActivity[];
   /** An empty session was just discarded, which Today says once. */
   discarded?: boolean;
 };
@@ -164,7 +172,98 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
   );
 }
 
-/** "Started 17:23", or with its day when the session was left open from another one. */
+const LOGGED_MARK = { running: "run", cycling: "ride", swimming: "swim" } as const;
+
+/**
+ * Something finished today that no other card stands for (`loggedBesides`): a ride nobody
+ * scheduled, an unplanned workout. A card inked done like the others that stay on the day, with
+ * what it came to, when it began, and the way to what was logged.
+ */
+function LoggedCard({
+  logged,
+  timeZone,
+  units,
+}: {
+  logged: LoggedActivity;
+  timeZone: string;
+  units?: SportUnits;
+}) {
+  const strength = logged.sport === "strength";
+  const seconds = logged.durationMs === null ? null : logged.durationMs / 1000;
+  // A run, ride or swim says how far, else how long; a workout, where and how long.
+  const distance =
+    !strength && logged.distanceMetres !== null
+      ? sportDistanceParts(logged.distanceMetres, logged.sport, units ?? DEFAULT_SPORT_UNITS)
+      : null;
+  const time = strength
+    ? seconds === null
+      ? null
+      : `${Math.round(seconds / 60)}\u00a0min`
+    : seconds === null
+      ? null
+      : formatDuration(seconds);
+  const name = strength ? (logged.dayName ?? UNPLANNED_SESSION) : enduranceName(logged.sport);
+  return (
+    <ActivityCard
+      mark={
+        <Art
+          kind="mark"
+          sport={logged.sport === "strength" ? "strength" : LOGGED_MARK[logged.sport]}
+          size={22}
+          state="done"
+        />
+      }
+      title={name}
+      aside={
+        distance ? (
+          <span className="whitespace-nowrap">
+            <span className="type-figure">
+              <FigureText>{distance.figure}</FigureText>
+            </span>{" "}
+            <span className="type-meta-small font-semibold text-ink-2">{distance.unit}</span>
+          </span>
+        ) : !strength && time ? (
+          <span className="type-figure">
+            <FigureText>{time}</FigureText>
+          </span>
+        ) : null
+      }
+      muted
+      facts={
+        <>
+          {strength && logged.gymName && (
+            <Fact glyph="pin" label="Gym">
+              {logged.gymName}
+            </Fact>
+          )}
+          {(strength || distance) && time && (
+            <Fact glyph="rest">
+              <Figures>{time}</Figures>
+            </Fact>
+          )}
+          <Fact glyph="calendar">
+            <Figures>{formatTime(logged.startedAt, timeZone)}</Figures>
+          </Fact>
+        </>
+      }
+      status={<State glyph="check">{strength ? "Workout logged." : "Logged"}</State>}
+      actions={
+        <Link
+          href={
+            strength && logged.sessionId
+              ? `/workouts/${logged.sessionId}`
+              : `/training/activities/${logged.id}`
+          }
+          className="activity-card-link"
+        >
+          See what you logged
+          <Glyph name="chevronRight" className="glyph-18" />
+        </Link>
+      }
+    />
+  );
+}
+
 /** "17:23", or with its day when the session was left open from another one. */
 function startedAt(session: SessionSummary, today: string, timeZone: string): string {
   return formatTimeOrDateTime(session.startedAt, timeZone, today);
@@ -214,6 +313,7 @@ export function TodayView({
   standaloneOccurrences = [],
   finishedOccurrences = [],
   distanceUnits = {},
+  logged = [],
   discarded = false,
 }: TodayViewProps) {
   const defaultGym =
@@ -633,14 +733,32 @@ export function TodayView({
     ),
   ];
 
+  // Whatever else was finished today stays on the day too, after the rest: a ride nobody
+  // scheduled, an unplanned workout. A day's workout whose card says it is done is that card.
+  const loggedCards = loggedBesides(logged, {
+    occurrences: [...programmeOccurrences, ...standaloneOccurrences, ...finishedOccurrences],
+    doneDayIds: [
+      ...(finishedToday ? [finishedToday.id] : []),
+      ...(day && !openHere && sessionStatus === "completed" ? [day.id] : []),
+    ],
+  }).map((activity) => (
+    <li key={activity.id}>
+      <LoggedCard logged={activity} timeZone={timeZone} units={distanceUnits[activity.sport]} />
+    </li>
+  ));
+
   // Without a programme day to stand under, what is due today still has its cards: an athlete
   // who trains no lifting, has no programme or has finished one still schedules runs, rides
   // and swims, and Today is where they are logged.
   const dueToday = (occurrences: readonly ScheduledOccurrence[]) =>
-    occurrences.some((occurrence) => isOutstanding(occurrence) || isAnswered(occurrence)) && (
+    (loggedCards.length > 0 ||
+      occurrences.some((occurrence) => isOutstanding(occurrence) || isAnswered(occurrence))) && (
       <section aria-labelledby="today-due">
         <Caption id="today-due">Today</Caption>
-        <ul className="today-cards">{dueCards(occurrences)}</ul>
+        <ul className="today-cards">
+          {dueCards(occurrences)}
+          {loggedCards}
+        </ul>
       </section>
     );
 
@@ -656,6 +774,8 @@ export function TodayView({
             (occurrence) => isAnswered(occurrence) && !isOutstanding(occurrence),
           ),
         )}
+        {/* Once today's day is done, what else was logged is under Today, not Up next. */}
+        {!finishedToday && loggedCards}
       </ul>
       {!day.includesLifting && !restDay && programmeOnOffer.length === 0 && (
         <p className="mt-3 type-meta text-ink-2">No workout planned for this day.</p>
@@ -785,6 +905,7 @@ export function TodayView({
                   {/* What the day logged stays on the day it was logged. */}
                   {dueCards(finishedOccurrences, finishedToday.name)}
                   {dueCards(standaloneOccurrences)}
+                  {loggedCards}
                 </ul>
                 <Caption>Up next</Caption>
                 {print}

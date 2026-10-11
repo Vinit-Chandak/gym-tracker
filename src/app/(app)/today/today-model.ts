@@ -3,6 +3,7 @@ import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
 
@@ -139,6 +140,38 @@ export function groupRows<T extends { supersetGroup: string | null }>(rows: read
     else groups.push([row]);
   }
   return groups;
+}
+
+// ---------- what was logged today besides ----------
+
+/**
+ * What was finished today that no card of Today's already stands for (year audit, October
+ * 2026): a ride nobody scheduled, an unplanned workout, a run logged late against a day long
+ * gone. History, the calendar and the day's page all had them while Today said only "Rest".
+ *
+ * A run, ride or swim that answered a session on the page is that session's card, inked done;
+ * a workout of a programme day the page shows done is that day's card. Everything else logged
+ * today gets a card of its own, in the order it was done.
+ */
+export function loggedBesides(
+  logged: readonly LoggedActivity[],
+  shown: {
+    /** The scheduled sessions Today has cards for. */
+    occurrences: readonly ScheduledOccurrence[];
+    /** The programme days whose cards say their workout is done. */
+    doneDayIds: readonly string[];
+  },
+): LoggedActivity[] {
+  const answered = new Set(
+    shown.occurrences.flatMap((occurrence) =>
+      occurrence.resolution.kind === "logged" ? [occurrence.resolution.activityId] : [],
+    ),
+  );
+  return logged.filter((activity) =>
+    activity.sport === "strength"
+      ? activity.programDayId === null || !shown.doneDayIds.includes(activity.programDayId)
+      : !answered.has(activity.id),
+  );
 }
 
 // ---------- the day's print ----------

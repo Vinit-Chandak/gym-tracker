@@ -77,6 +77,10 @@ anything scheduled), where they will train, and one tap to start or resume it.
   a scheduled time if set, and Skipped or Coach. Logged ones stay on the day as cards inked
   done, after what is still owed, each with "See what you logged" (since 4 October 2026: one
   collapsible card per activity, each with its own next step; see `DESIGN.md`, Activity cards).
+  A day that only runs names its run card for the day ("Tempo run", its focus "Threshold").
+- **Anything else finished today**, which no card above stands for (a ride nobody scheduled, an
+  unplanned workout, a run logged late): a card each, inked done, with what it came to, when it
+  began and "See what you logged" (year audit, October 2026).
 - **Days with no lifting**, no programme, or a finished programme each have their own message
   and offer only real next steps.
 - **Once the day is done:** "Done. Nothing left to do here today." (or "Rest day done."), and

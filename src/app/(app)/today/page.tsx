@@ -12,6 +12,7 @@ import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState, withPreparedTargets } from "@/server/repositories/coach-plans";
+import { readLoggedOn } from "@/server/repositories/activity-analytics";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
@@ -89,8 +90,9 @@ export default async function TodayPage(props: PageProps<"/today">) {
         //
         // Once today's programme day is finished the sequence offers the next one, so the
         // endurance the finished day logged is asked for by its own slot, to stay on today.
-        const [standalone, programme, finished] = await Promise.all([
-          standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
+        const date = plan?.today ?? todayInTimeZone(profile.timeZone);
+        const [standalone, programme, finished, logged] = await Promise.all([
+          standaloneOccurrencesOnDate(tx, user.id, date),
           plan?.suggestion && plan.suggestedDay
             ? occurrencesForSlot(tx, user.id, {
                 familyId: plan.program.familyId,
@@ -105,6 +107,9 @@ export default async function TodayPage(props: PageProps<"/today">) {
                 cycleIndex: plan.finishedToday.cycleIndex,
               })
             : Promise.resolve([]),
+          // Everything already finished today, so what nothing above answers still has a card:
+          // a ride nobody scheduled, an unplanned workout.
+          readLoggedOn(tx, user.id, date),
         ]);
         // What the coach prepared for each, where it did: the target to follow today.
         const [preparedStandalone, preparedProgramme] = await Promise.all([
@@ -120,9 +125,11 @@ export default async function TodayPage(props: PageProps<"/today">) {
           standalone: preparedStandalone,
           programme: preparedProgramme,
           finished,
-          // The endurance cards say their targets in the athlete's own units.
+          logged,
+          // The endurance cards say their targets, and what was logged, in the athlete's own units.
           distanceUnits:
-            preparedStandalone.length + preparedProgramme.length > 0
+            preparedStandalone.length + preparedProgramme.length + finished.length > 0 ||
+            logged.some((activity) => activity.sport !== "strength")
               ? await unitsBySport(tx, user.id)
               : {},
         };
@@ -130,7 +137,8 @@ export default async function TodayPage(props: PageProps<"/today">) {
       { readOnly: true },
     ),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished, logged } =
+    data;
   const { distanceUnits } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
@@ -153,6 +161,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
         standaloneOccurrences={standalone}
         finishedOccurrences={finished}
         distanceUnits={distanceUnits}
+        logged={logged}
         discarded={discarded === "1"}
       />
     </FreshAfterSets>

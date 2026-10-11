@@ -437,6 +437,45 @@ it("names a day that only runs for the day, with its focus, as a lifting day's c
   expect(tempoCard.textContent).not.toContain("37 min–47 min");
 });
 
+it("keeps what was logged today with no card of its own on the day, inked done", () => {
+  // Sofia's rest day in the year audit: an indoor ride nobody scheduled, which Today left out.
+  const rest = { ...DAY, id: "rest", dayIndex: 7, name: "Rest", includesLifting: false };
+  show({
+    plan: {
+      ...plan(),
+      suggestedDay: { ...rest, includesRun: false },
+      suggestedExercises: [],
+    },
+    programmeOccurrences: [],
+    logged: [
+      {
+        id: "ride-1",
+        sport: "cycling",
+        startedAt: new Date("2026-09-11T04:18:00.000Z"),
+        durationMs: 3_092_000,
+        distanceMetres: null,
+        environment: "indoor",
+        occurrenceId: null,
+        sessionId: null,
+        programDayId: null,
+        dayName: null,
+        gymName: null,
+      },
+    ],
+  });
+  const ride = card("Ride");
+  expect(ride.textContent).toContain("51:32");
+  expect(ride.textContent).toContain("09:48");
+  expect(ride.textContent).toContain("Logged");
+  expect(
+    within(ride)
+      .getByRole("link", { name: /See what you logged/ })
+      .getAttribute("href"),
+  ).toBe("/training/activities/ride-1");
+  // The rest day is still the day's, with its own way to be marked done.
+  expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
+});
+
 it("draws no run in the print for one a revision withdrew", () => {
   const withdrawn: ScheduledOccurrence = {
     ...run("run-cancelled", [25, 30]),

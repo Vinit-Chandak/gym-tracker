@@ -25,9 +25,15 @@ import {
   readSportTotals,
   readAdherence,
   readComparableBests,
+  readLoggedOn,
   readWeeklyActivityVolume,
 } from "./activity-analytics";
-import { createActivity, openStrengthParent, type SaveActivityInput } from "./activities";
+import {
+  closeStrengthParent,
+  createActivity,
+  openStrengthParent,
+  type SaveActivityInput,
+} from "./activities";
 
 /**
  * AT-STAT: totals that are computed rather than sampled.
@@ -432,6 +438,46 @@ describe("the calendar's days", () => {
       [ridden!.id, false],
       [open, true],
     ]);
+  });
+});
+
+describe("what a day logged", () => {
+  it("is everything finished on it, a workout with its gym, and not the one still open", async () => {
+    const userId = await athlete("logged-today@example.test");
+    const [ridden] = await manyRides(userId, 1);
+    const day = ridden!.occurredOn;
+    const [finished, open] = await withUser(t.db, userId, async (tx) => {
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId, name: "PureGym", slug: "puregym" })
+        .returning({ id: gyms.id });
+      const workout = async (hour: number) => {
+        const startedAt = at(day, hour);
+        const [session] = await tx
+          .insert(workoutSessions)
+          .values({ userId, gymId: gym!.id, startedAt })
+          .returning({ id: workoutSessions.id });
+        await openStrengthParent(tx, userId, { id: session!.id, startedAt }, "UTC");
+        return session!.id;
+      };
+      const finished = await workout(7);
+      await closeStrengthParent(tx, userId, finished, at(day, 8));
+      return [finished, await workout(9)];
+    });
+    const logged = await withUser(t.db, userId, (tx) => readLoggedOn(tx, userId, day), {
+      readOnly: true,
+    });
+    expect(logged.map((item) => item.id)).toEqual([ridden!.id, finished]);
+    expect(logged.map((item) => item.id)).not.toContain(open);
+    expect(logged[1]).toMatchObject({
+      sport: "strength",
+      sessionId: finished,
+      programDayId: null,
+      dayName: null,
+      gymName: "PureGym",
+      durationMs: 3_600_000,
+    });
+    expect(logged[0]).toMatchObject({ sport: "cycling", sessionId: null, occurrenceId: null });
   });
 });
 
