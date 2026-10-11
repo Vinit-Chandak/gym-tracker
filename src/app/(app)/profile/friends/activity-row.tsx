@@ -23,10 +23,11 @@ function summary(row: Activity, unit: BodyLoadUnit, distanceUnits: SharedDistanc
   const sport: TrainingSport = row.sport;
   switch (sport) {
     case "workout": {
+      // A session of bodyweight sets and holds moved no load: "3 sets", never "3 sets \u00b7 0 kg".
       const parts = [
         row.title,
         `${row.workingSets}\u00a0${row.workingSets === 1 ? "set" : "sets"}`,
-        formatVolume(row.volumeKg, unit),
+        ...(row.volumeKg > 0 ? [formatVolume(row.volumeKg, unit)] : []),
       ];
       if (row.records > 0)
         parts.push(`${row.records}\u00a0${row.records === 1 ? "record" : "records"}`);

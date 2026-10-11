@@ -118,6 +118,17 @@ it("reads a workout row and a run row the way the plan writes them", () => {
   expect(screen.getByText("Upper A · 18 sets · 6,240 kg · 2 records")).toBeTruthy();
   expect(screen.getByText("Yesterday")).toBeTruthy();
   cleanup();
+  // Bodyweight sets and holds moved no load, and say so by saying none: never "· 0 kg".
+  render(
+    <ActivityRow
+      row={row({ title: "Workout", workingSets: 3, volumeKg: 0, records: 0 })}
+      unit="kg"
+      distanceUnits={DEFAULT_DISTANCE_UNITS}
+      today="2026-09-15"
+    />,
+  );
+  expect(screen.getByText("Workout · 3 sets")).toBeTruthy();
+  cleanup();
   render(
     <ActivityRow
       row={row({
