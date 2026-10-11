@@ -30,6 +30,7 @@ import {
   barLayout,
   barPath,
   barScale,
+  clearOfRule,
   dayX,
   linePath,
   lineScale,
@@ -469,7 +470,7 @@ export function Graph({
                 strokeWidth={1}
               />
               {/* The rule's own label takes its place where the two would touch. */}
-              {!(hasData && rule && Math.abs(y(tick) - y(rule.value)) < 1.6 * px) && (
+              {!(hasData && rule && !clearOfRule(y(tick), y(rule.value), px)) && (
                 <text x={0} y={y(tick) + drop} style={LABEL}>
                   {format(tick)}
                 </text>

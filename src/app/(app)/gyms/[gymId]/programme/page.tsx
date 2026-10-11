@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { AVAILABILITY_LABELS, exerciseOnMachine } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
@@ -58,10 +58,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
       <PageHeader title="Programme fit" backHref={`/gyms/${gym.id}`} />
       <PageContent>
         <Card>
-          <p className="text-sm text-ink-muted">
-            {gym.name}
-            {program ? ` · ${program.name}` : ""}
-          </p>
+          <p className="text-sm text-ink-muted">{joinFacts([gym.name, program?.name])}</p>
           {program ? (
             <StatTileRow>
               {(["direct", "fallback", "unknown", "unavailable"] as const).map((status) => (
@@ -79,10 +76,11 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
 
         {rows.map((row) => (
           <Card key={row.exercise.id} className="space-y-3">
-            {/* The badge wraps under a name too long to share the line with it, as on the
-                exercise page; a long word breaks rather than running under the badge. */}
+            {/* The badge stands at the row's top right, the name wrapping beside it, and goes
+                under the name only when the name would have less than a few words' room (large
+                text): a long name no longer drops it under the days. */}
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-[1_1_8rem]">
                 <Link
                   href={`/exercises/${row.exercise.id}`}
                   className="flex min-h-[var(--ov-target)] flex-col justify-center"

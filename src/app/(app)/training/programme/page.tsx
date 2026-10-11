@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Figures } from "@/components/ui/figures";
 import { CalendarDays } from "@/components/ui/icons";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -51,16 +52,15 @@ const PLURAL: Record<ActivitySport, string> = {
 /** "Running · 25 done · 5 skipped · 0 to come", with the rarer counts only when there are any. */
 function adherenceLine(counts: SportAdherence): string {
   const label = counts.sport === "strength" ? "Lifting" : ACTIVITY_SPORT_LABELS[counts.sport];
-  return [
+  // Each count kept with its words, and each dot with the count after it, when it wraps.
+  return joinFacts([
     label,
-    `${counts.done} done`,
-    `${counts.skipped} skipped`,
-    `${counts.toCome} to come`,
-    counts.notDone > 0 && `${counts.notDone} not done`,
-    counts.cancelled > 0 && `${counts.cancelled} cancelled`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    `${counts.done}\u00a0done`,
+    `${counts.skipped}\u00a0skipped`,
+    `${counts.toCome}\u00a0to\u00a0come`,
+    counts.notDone > 0 && `${counts.notDone}\u00a0not\u00a0done`,
+    counts.cancelled > 0 && `${counts.cancelled}\u00a0cancelled`,
+  ]);
 }
 
 /**
@@ -196,7 +196,8 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
             <Card>
               {view.adherence.map((counts) => (
                 <p key={counts.sport} className="text-sm tabular-nums">
-                  {adherenceLine(counts)}
+                  {/* Its counts in Jost, whose zero is plain: "0 skipped", not a slashed one. */}
+                  <Figures>{adherenceLine(counts)}</Figures>
                 </p>
               ))}
               {/* Each sport's record is its own: an unfinished run cannot fail a finished lift. */}

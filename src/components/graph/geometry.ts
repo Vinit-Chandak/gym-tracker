@@ -262,6 +262,17 @@ export function axisTicks(
   return [];
 }
 
+/**
+ * Whether a value's label on the scale stands clear of the rule's label (the rule's takes the
+ * place of one it would touch): their lines a label's height and a little apart, `px` being the
+ * labels' size. The plot keeps its height at any text size while its labels grow, so at 200%
+ * text 4 h and 8 h stand 37 pt either side of a 6 h rule in 24-pt labels and keep theirs; a
+ * label half a step from the rule gives way.
+ */
+export function clearOfRule(tickY: number, ruleY: number, px: number): boolean {
+  return Math.abs(tickY - ruleY) >= 1.2 * px;
+}
+
 /** The mark nearest a point along the axis, among those that have one. */
 export function nearestIndex(xs: readonly (number | null)[], at: number): number | null {
   let best: number | null = null;

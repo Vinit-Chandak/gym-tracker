@@ -521,7 +521,9 @@ between its words, breaking a word only where it cannot fit a line of its own
 (`overflow-wrap: break-word`; `anywhere` lets a box be squeezed to a letter a line, and is kept
 only for a meta line's fact, whose words have no box of their own); a row grows rather than
 clipping. A figure keeps its unit and a count its noun ("12 sets"); a
-dot between facts goes with the fact after it. What sits beside a name (a button, a value, a
+dot between facts goes with the fact after it; a range is held at its dash ("60–75 min"), a
+date's day to its month and year ("5 Oct 2025"), and a name breaks between its words, never at
+its hyphen ("push-up"). What sits beside a name (a button, a value, a
 tag) goes under it before the name would have less than a few words' room, and a table of
 figures stacks before a figure would split. A button at large text sizes grows and wraps. A
 chosen option wraps in its field rather than being cut; a one-line field's hint ends in an
@@ -958,7 +960,10 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
   than its label on one line ("30 days", "Free weight"), and the tray folds before a label would
   wrap, onto rows as even as fit: four as two and two, five as three and two, never three and
-  one alone. Only a label wider than the whole tray wraps, between its words.
+  one alone. Only a label wider than the whole tray wraps, between its words. A scale's figures
+  (1–5, Effort) never fold: they keep one row of equal columns at their 44-pt target, and a word
+  beside them (Not sure) goes under them when it does not fit. Page tabs fold into columns of
+  one width, a gap as wide as a page.
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
   Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its

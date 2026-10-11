@@ -1100,16 +1100,18 @@ html:has(.session-page) .pinned-actions {
 .finished-print[data-past="true"] {
   height: calc(calc(90 * var(--ov-u)) + 1.875rem);
 }
-/* Three across, and four check-in readings; fewer, never squeezed, as the text grows. */
+/* Three across, and four check-in readings; fewer, never squeezed, as the text grows. Each row
+   spreads across the column (auto-fit), so a tablet's leaves no empty tracks after its last
+   cell, nor "Sleep quality" an 80-pt column to wrap in. */
 .finished-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
   gap: calc(10 * var(--ov-u));
   margin-top: calc(14 * var(--ov-u));
 }
 .finished-check-in {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.25rem), 1fr));
   gap: calc(8 * var(--ov-u));
 }
 /* A name that wraps ("Sleep quality" in a narrow column) stands on its figure like the others:

@@ -9,6 +9,7 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
+import { holdHyphens } from "@/lib/facts";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { loadProgrammeHistory } from "./history-loader";
@@ -48,8 +49,9 @@ export default async function ProgrammeHistoryPage() {
                 <li key={change.id}>
                   <LinkRow
                     href={`/profile/programme/drafts/${change.id}` as Route}
-                    title={change.title}
-                    subtitle={change.subtitle}
+                    // A programme's name breaks between its words, never at a hyphen.
+                    title={holdHyphens(change.title)}
+                    subtitle={holdHyphens(change.subtitle)}
                     meta={change.on}
                   />
                 </li>

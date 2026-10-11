@@ -1,3 +1,4 @@
+import { joinFacts } from "@/lib/facts";
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,17 @@ export function totalSets(exercises: readonly PlannedExercisePreview[]): number 
   return exercises.reduce((sets, exercise) => sets + exercise.sets, 0);
 }
 
-/** "6 exercises · 15 sets", the one line that says what a day costs. */
+/**
+ * "6 exercises · 15 sets", the one line that says what a day costs: each count held to its noun
+ * and the dot to the count after it, so a narrow line breaks only before the dot.
+ */
 export function planSummary(exercises: readonly PlannedExercisePreview[]): string {
   const count = exercises.length;
   const sets = totalSets(exercises);
-  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
+  return joinFacts([
+    `${count}\u00a0${count === 1 ? "exercise" : "exercises"}`,
+    `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
+  ]);
 }
 
 type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { formatWholeKcal } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,12 @@ export function FoodRowText({
       {meta !== undefined && (
         <>
           {" "}
-          <span className={cn("food-row-meta", wraps && "food-row-hint")}>{meta}</span>
+          {/* A portion's figures in Jost, whose zero is plain ("100 g"), its words in Atkinson. */}
+          <span className={cn("food-row-meta", wraps && "food-row-hint")}>
+            {/* Only a line with figures gets their spans: a long list of foods stays one run
+                of text inside the line it is cut to. */}
+            {typeof meta === "string" && /\d/.test(meta) ? <Figures>{meta}</Figures> : meta}
+          </span>
         </>
       )}
     </span>

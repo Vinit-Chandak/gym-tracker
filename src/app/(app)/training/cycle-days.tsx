@@ -48,9 +48,11 @@ function useColumns() {
  * them needs, so the week compares at a glance: a long day is wider, never drawn smaller.
  *
  * The days stay in the order they are trained, and the grid leaves no hole before the next one
- * (year audit). On a phone the day alone in its row before it takes the row (training.css).
- * Beyond one, where the next day stands across two of as many columns as fit, it takes one when
- * it falls in a row's last column, which only the laid-out grid knows.
+ * (year audit). On a phone the day alone in its row before it takes the row (training.css), and
+ * so does the last day when the days after the next one (or all of them, with none next) are odd
+ * in number, so no half row is left empty under them. Beyond one, where the next day stands
+ * across two of as many columns as fit, it takes one when it falls in a row's last column, which
+ * only the laid-out grid knows.
  */
 export function CycleDays({ days, label }: { days: readonly CycleDayTile[]; label: string }) {
   const [fits, setFits] = useState<Readonly<Record<string, number>>>({});
@@ -64,11 +66,20 @@ export function CycleDays({ days, label }: { days: readonly CycleDayTile[]; labe
   const { ref, columns } = useColumns();
   const nextAt = days.findIndex((day) => day.next);
   const narrow = columns !== null && nextAt >= 0 && nextAt % columns === columns - 1;
+  // Two to a row after the next day: an odd number leaves the last alone in its row.
+  const lastAlone = (days.length - nextAt - 1) % 2 === 1;
 
   return (
     <ol ref={ref} aria-label={label} className="cycle-days">
-      {days.map((day) => (
-        <DayTile key={day.id} day={day} narrow={narrow} shared={shared} report={report} />
+      {days.map((day, index) => (
+        <DayTile
+          key={day.id}
+          day={day}
+          narrow={narrow}
+          alone={lastAlone && index === days.length - 1}
+          shared={shared}
+          report={report}
+        />
       ))}
     </ol>
   );
@@ -77,12 +88,15 @@ export function CycleDays({ days, label }: { days: readonly CycleDayTile[]; labe
 function DayTile({
   day,
   narrow,
+  alone,
   shared,
   report,
 }: {
   day: CycleDayTile;
   /** The next day takes one column, where two would leave the row a hole. */
   narrow: boolean;
+  /** The last day, alone in its row on a phone: it takes the row rather than leave half empty. */
+  alone: boolean;
   /** The module every day is drawn at, once all have said what they fit. */
   shared: number | undefined;
   report: (id: string, fit: number) => void;
@@ -94,6 +108,7 @@ function DayTile({
         "min-w-0",
         day.next && "cycle-day-next",
         day.next && narrow && "cycle-day-next-narrow",
+        alone && "cycle-day-alone",
       )}
     >
       <Link href={day.href} aria-label={day.said} className="cycle-day">

@@ -1,4 +1,5 @@
 import { Art } from "@/components/art/art";
+import { Figures } from "@/components/ui/figures";
 import {
   addUp,
   eaten as eatenFrom,
@@ -63,7 +64,7 @@ export function FoodSummary({
         <span className="food-eaten-unit">
           {target && (
             <span aria-hidden className="food-eaten-of">
-              / {formatKcal(target.kcal)}{" "}
+              <Figures>{`/ ${formatKcal(target.kcal)}`}</Figures>{" "}
             </span>
           )}
           kcal

@@ -7,6 +7,7 @@ import { changeSummaryLine, summariseProgramDiff } from "@/domain/program-change
 import { diffPrograms } from "@/domain/program-diff";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { OPEN_REQUEST_STATES } from "@/domain/program-request";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 
@@ -144,7 +145,7 @@ export async function loadProgrammeHistory(
       changes.push({
         id: draft.id,
         title: draft.headline || (again ? `New block of ${to}` : `Started ${to}`),
-        subtitle: again || !from ? outcome : `In place of ${from} · ${outcome}`,
+        subtitle: again || !from ? outcome : joinFacts([`In place of ${from}`, outcome]),
         on,
       });
       continue;
@@ -158,7 +159,7 @@ export async function loadProgrammeHistory(
         : "Programme change";
     }
     const programme = !from || from === to ? to : `${from} → ${to}`;
-    changes.push({ id: draft.id, title: what, subtitle: `${programme} · ${outcome}`, on });
+    changes.push({ id: draft.id, title: what, subtitle: joinFacts([programme, outcome]), on });
   }
 
   return {

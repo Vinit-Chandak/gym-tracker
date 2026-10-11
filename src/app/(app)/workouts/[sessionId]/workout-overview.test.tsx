@@ -445,7 +445,9 @@ describe("a workout left open", () => {
   it("says when it was last trained once six hours have passed, and nothing before", () => {
     expect(leftOpenSince(left, Date.parse("2026-09-29T09:00:00.000Z"))).toBeNull();
     expect(leftOpenSince(left, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:10");
-    expect(leftOpenSince(left, Date.parse("2026-09-30T03:00:00.000Z"))).toBe("Tue 29 Sept, 13:10");
+    expect(leftOpenSince(left, Date.parse("2026-09-30T03:00:00.000Z"))).toBe(
+      "Tue 29\u00a0Sept, 13:10",
+    );
     // Nothing logged: counted from its start.
     const empty = { ...left, exercises: [exercise("Barbell bench press")] };
     expect(leftOpenSince(empty, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:00");
@@ -457,7 +459,7 @@ describe("a workout left open", () => {
     try {
       show({ session: left, userId: "user" });
       expect(
-        screen.getByRole("button", { name: "Finish it as of Tue 29 Sept, 13:10" }),
+        screen.getByRole("button", { name: "Finish it as of Tue 29\u00a0Sept, 13:10" }),
       ).toBeTruthy();
       // The Finish pill stays: the offer is a way out, not the only one.
       expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();

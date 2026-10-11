@@ -103,7 +103,8 @@ export default async function ChooseDayPage() {
             description="Adopt a programme and its days appear here, each with its own prescription."
           />
         ) : complete ? (
-          <section aria-labelledby="choose-complete">
+          // As Today says it, at a phone's width in the reading column (ADR 0052).
+          <section aria-labelledby="choose-complete" className="today-empty">
             <h2 id="choose-complete" className="text-lg font-medium [overflow-wrap:break-word]">
               {plan.program.name}
             </h2>
@@ -136,21 +137,23 @@ export default async function ChooseDayPage() {
                 const owed = next ? runs.filter(isOutstanding) : [];
                 return (
                   <li key={day.id} className="space-y-2 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium [overflow-wrap:break-word]">{day.name}</p>
-                        {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
+                    <div className="min-w-0">
+                      {/* The badge stands at the name's end while both fit a line, and goes
+                          under the name rather than squeeze it (large text). */}
+                      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                        <p className="min-w-0 font-medium [overflow-wrap:break-word]">{day.name}</p>
+                        {/* Every day starts out pending, so only a changed status earns a badge. */}
+                        {open ? (
+                          <Badge tone="accent">In progress</Badge>
+                        ) : status !== "pending" ? (
+                          <Badge tone={status === "completed" ? "success" : "warning"}>
+                            {SLOT_STATUS_LABELS[status]}
+                          </Badge>
+                        ) : (
+                          next && <Badge tone="accent">Next</Badge>
+                        )}
                       </div>
-                      {/* Every day starts out pending, so only a changed status earns a badge. */}
-                      {open ? (
-                        <Badge tone="accent">In progress</Badge>
-                      ) : status !== "pending" ? (
-                        <Badge tone={status === "completed" ? "success" : "warning"}>
-                          {SLOT_STATUS_LABELS[status]}
-                        </Badge>
-                      ) : (
-                        next && <Badge tone="accent">Next</Badge>
-                      )}
+                      {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
                     </div>
 
                     {day.includesLifting ? (

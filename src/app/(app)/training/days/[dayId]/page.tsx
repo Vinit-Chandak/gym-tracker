@@ -8,11 +8,13 @@ import { liftingStartOption } from "@/app/(app)/today/choose/start-option";
 import { Art } from "@/components/art/art";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { BackLink } from "@/components/shell/back-link";
+import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { holdFigures } from "@/lib/facts";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
@@ -148,7 +150,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
             {open && <Fact glyph="play">In progress</Fact>}
             {day.timeNote && (
               <Fact glyph="rest" label="Time">
-                {day.timeNote}
+                <Figures>{holdFigures(day.timeNote)}</Figures>
               </Fact>
             )}
             {day.effortNote && <Fact>{day.effortNote}</Fact>}

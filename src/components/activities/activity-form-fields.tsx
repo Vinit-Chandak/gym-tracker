@@ -287,8 +287,9 @@ export function DurationField({
 
 /**
  * How hard it felt (boards Log a run, a ride, a swim): its name and what the ends mean on one
- * line, then 1 to 5 and Not sure in a tray, the chosen one in ink. Not sure is an answer, and
- * the hint keeps saying so (LOG-03).
+ * line, then 1 to 5 and Not sure in a tray, the chosen one in ink: 1 to 5 always in one row of
+ * equal columns, Not sure beside them or, where it does not fit, under them. Not sure is an
+ * answer, and the hint keeps saying so (LOG-03).
  *
  * Correcting a record that carries an unconfirmed legacy number adds a seventh choice, chosen
  * from the start: As recorded, which leaves that number as it is. Without it the form could
@@ -325,6 +326,7 @@ export function EffortField({
           options={options}
           defaultValue={value}
           columns={options.length}
+          scale
         />
       </div>
       <p id={`${id}-hint`} className="type-caption font-medium text-ink-2">

@@ -87,10 +87,10 @@ describe("metricsForExercise", () => {
     expect(metricLabel("best_set_volume", bench)).toBe("Best set volume");
   });
   it("says how a top weight was worked with each number named", () => {
-    expect(topWeightWorkLabel({ sets: 2, reps: 11 })).toBe("11 reps · 2 sets");
-    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1 rep · 1 set");
+    expect(topWeightWorkLabel({ sets: 2, reps: 11 })).toBe("11\u00a0reps ·\u00a02\u00a0sets");
+    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1\u00a0rep ·\u00a01\u00a0set");
     // A hold or a carry has no reps to count: its sets alone.
-    expect(topWeightWorkLabel({ sets: 3, reps: null })).toBe("3 sets");
+    expect(topWeightWorkLabel({ sets: 3, reps: null })).toBe("3\u00a0sets");
   });
   it("compares only global library movements", () => {
     expect(isComparable(bench)).toBe(true);

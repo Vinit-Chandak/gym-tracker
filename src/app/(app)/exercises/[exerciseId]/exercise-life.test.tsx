@@ -105,7 +105,11 @@ it("says what its figures and its latest sessions are read on, and lists other m
   expect(screen.getByText("42.5 kg × 11")).toBeTruthy();
   // Another machine's session is in view, never as this machine's.
   expect(screen.getByRole("heading", { name: "Latest on other machines" })).toBeTruthy();
-  expect(screen.getByText("Wed 7 Oct · Unrecorded machine")).toBeTruthy();
+  // The machine is kept whole, its dot with it, if the line wraps.
+  expect(screen.getByText("· Unrecorded machine").previousSibling?.textContent).toBe(" ");
+  expect(screen.getByText("· Unrecorded machine").parentElement?.textContent).toBe(
+    "Wed 7\u00a0Oct ·\u00a0Unrecorded machine",
+  );
 });
 
 it("names a machine called after its kind once", () => {

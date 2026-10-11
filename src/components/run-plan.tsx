@@ -1,7 +1,7 @@
 import { DetailList } from "@/components/ui/detail-list";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import { formatSportDistance, toMetres, type SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import type { RunTarget } from "@/server/repositories/schedule";
 
@@ -26,6 +26,8 @@ export type RunTargets = {
  */
 export function runSummary(run: RunTargets, units: SportUnits): string {
   const rpeMax = run.rpeMax ?? run.rpeMin;
+  // Each held whole where the line wraps: a range at its dash, a figure to its unit, and the
+  // scale to its top ("of 5").
   const parts = [
     run.distanceMinKm === null
       ? null
@@ -40,9 +42,9 @@ export function runSummary(run: RunTargets, units: SportUnits): string {
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
     run.rpeMin === null || run.rpeMin === undefined || !rpeMax
       ? null
-      : `Effort ${rangeLabel(run.rpeMin, rpeMax)} of ${PRESCRIBED_EFFORT.max}`,
+      : `Effort ${rangeLabel(run.rpeMin, rpeMax)} of\u00a0${PRESCRIBED_EFFORT.max}`,
   ];
-  return parts.filter(Boolean).join(FACT_SEPARATOR);
+  return joinFacts(parts.map((part) => part && holdFigures(part)));
 }
 
 /** Whether the run says anything beyond how long and how hard. */

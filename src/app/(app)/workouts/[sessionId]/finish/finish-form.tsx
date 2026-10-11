@@ -66,7 +66,7 @@ export function FinishForm({
         label={`Body weight (${unit})`}
         hint={
           lastBodyWeight
-            ? `Optional. Last reading ${lastBodyWeight} ${unit}; what you type is today's.`
+            ? `Optional. Last reading ${lastBodyWeight}\u00a0${unit}; what you type is today's.`
             : "Optional. What you type is today's reading."
         }
         error={state.fieldErrors?.bodyWeight}

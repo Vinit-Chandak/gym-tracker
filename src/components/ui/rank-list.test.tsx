@@ -28,7 +28,7 @@ it("lists rank, name and value, calls your own row You and highlights it", () =>
   expect(links[0]!.textContent).toContain("1");
   expect(links[0]!.textContent).toContain("Phani");
   expect(links[0]!.textContent).toContain("92.5 kg");
-  expect(links[0]!.textContent).toContain("1 Sept 2026");
+  expect(links[0]!.textContent).toContain("1\u00a0Sept\u00a02026");
   expect(links[1]!.textContent).toContain("You");
   expect(links[1]!.textContent).not.toContain("Vinit");
   expect(links[1]!.className).toContain("bg-accent-soft");

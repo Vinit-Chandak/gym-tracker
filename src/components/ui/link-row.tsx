@@ -78,9 +78,11 @@ export function LinkRow<T extends string>({
             )}
           </div>
         </div>
-        {/* Move secondary content below the label before it squeezes words into letter stacks. */}
+        {/* Move secondary content below the label before it squeezes words into letter stacks.
+            Beside the label it stands at the row's end, the label taking the room between; under
+            it, it starts at the label's edge rather than floating mid-row (large text). */}
         {meta && (
-          <span className="ml-auto max-w-full min-w-0 text-right text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
+          <span className="max-w-full min-w-0 text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}

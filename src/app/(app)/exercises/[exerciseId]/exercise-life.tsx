@@ -174,9 +174,17 @@ export function ExerciseLife({
                     todayInTimeZone(timeZone, new Date(performance.performedAt)),
                     today.slice(0, 4),
                   )}
-                  {named
-                    ? `${FACT_SEPARATOR}${performance.machineName ?? "Unrecorded machine"}`
-                    : ""}
+                  {/* The machine goes to the next line whole, its dot with it, rather than
+                      break inside its name ("Cable / station"); a name longer than a line wraps
+                      within its own box. */}
+                  {named && (
+                    <>
+                      {" "}
+                      <span className="inline-block max-w-full">
+                        {`${FACT_SEPARATOR.trimStart()}${performance.machineName ?? "Unrecorded machine"}`}
+                      </span>
+                    </>
+                  )}
                 </span>
                 {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
               </span>

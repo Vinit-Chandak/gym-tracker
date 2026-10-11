@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Figures } from "@/components/ui/figures";
 import { InfoTip } from "@/components/ui/info-tip";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,15 @@ export function StatTile({
           </InfoTip>
         )}
       </dt>
-      <dd className="mt-1 text-lg font-medium tabular-nums">{value}</dd>
+      {/* A stat is a figure (DESIGN.md, The Two Voices Rule): its digits in Jost, whose zero is
+          plain, and any word with it ("Machine", "kg") in Atkinson. */}
+      <dd className="mt-1 text-lg font-medium tabular-nums">
+        {typeof value === "string" || typeof value === "number" ? (
+          <Figures>{String(value)}</Figures>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }

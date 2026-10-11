@@ -60,8 +60,8 @@ export function formatDateTime(
     minute: "2-digit",
     hour12: false,
   });
-  const year = currentYear === undefined || at.year === currentYear ? "" : ` ${at.year}`;
-  return `${at.weekday} ${at.day} ${at.month}${year}, ${at.hour}:${at.minute}`;
+  const year = currentYear === undefined || at.year === currentYear ? "" : `\u00a0${at.year}`;
+  return `${at.weekday} ${at.day}\u00a0${at.month}${year}, ${at.hour}:${at.minute}`;
 }
 
 /** "09:15" in the given time zone. */
@@ -95,8 +95,8 @@ export function formatDay(value: string | Date, timeZone: string, currentYear?: 
   const date = typeof value === "string" ? new Date(value) : value;
   const on = dateParts(date, { timeZone, day: "numeric", month: "short", year: "numeric" });
   return currentYear === undefined || on.year === currentYear
-    ? `${on.day} ${on.month}`
-    : `${on.day} ${on.month} ${on.year}`;
+    ? `${on.day}\u00a0${on.month}`
+    : `${on.day}\u00a0${on.month}\u00a0${on.year}`;
 }
 
 /** A calendar date, read as itself: no time zone shifts it off the day it names. */
@@ -119,33 +119,33 @@ export function formatIsoDate(isoDate: string, currentYear?: string): string {
   const on = isoParts(isoDate, { weekday: "short", ...ISO_DAY });
   if (!on) return isoDate;
   return isoDate.slice(0, 4) === currentYear
-    ? `${on.weekday} ${on.day} ${on.month}`
-    : `${on.weekday} ${on.day} ${on.month} ${on.year}`;
+    ? `${on.weekday} ${on.day}\u00a0${on.month}`
+    : `${on.weekday} ${on.day}\u00a0${on.month}\u00a0${on.year}`;
 }
 
 /** "8 Sept 2026" for an ISO date string: the same date without its weekday. */
 export function formatIsoDay(isoDate: string): string {
   const on = isoParts(isoDate, ISO_DAY);
-  return on ? `${on.day} ${on.month} ${on.year}` : isoDate;
+  return on ? `${on.day}\u00a0${on.month}\u00a0${on.year}` : isoDate;
 }
 
 /** "Fri 11 Sept" — today's date beside the wordmark, where the year is never in question. */
 export function formatIsoWeekdayDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "short", day: "numeric", month: "short" });
-  return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
+  return on ? `${on.weekday} ${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "September", or "September 2025" outside `currentYear`: the month a calendar is turned to. */
 export function formatIsoMonth(month: string, currentYear?: string): string {
   const on = isoParts(`${month}-01`, { month: "long", year: "numeric" });
   if (!on) return month;
-  return month.slice(0, 4) === currentYear ? on.month : `${on.month} ${on.year}`;
+  return month.slice(0, 4) === currentYear ? on.month : `${on.month}\u00a0${on.year}`;
 }
 
 /** "8 Jul", "28 Sept": a day on a chart's axis, where the year is the range's. */
 export function formatIsoShortDay(isoDate: string): string {
   const on = isoParts(isoDate, { day: "numeric", month: "short" });
-  return on ? `${on.day} ${on.month}` : isoDate;
+  return on ? `${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "Feb 2022": a month on a chart's axis that spans years. */
@@ -154,13 +154,13 @@ export function formatIsoShortMonth(isoDate: string): string {
     month: "short",
     year: "numeric",
   });
-  return on ? `${on.month} ${on.year}` : isoDate;
+  return on ? `${on.month}\u00a0${on.year}` : isoDate;
 }
 
 /** "Saturday 26 September": a day named in full, as a calendar's day is read out. */
 export function formatIsoLongDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "long", day: "numeric", month: "long" });
-  return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
+  return on ? `${on.weekday} ${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "M" for a Monday: the letter over a column of days. */
@@ -168,7 +168,10 @@ export function formatIsoWeekdayLetter(isoDate: string): string {
   return isoParts(isoDate, { weekday: "narrow" })?.weekday ?? "";
 }
 
-/** Compact date range, retaining both years when it crosses a year boundary. */
+/**
+ * Compact date range, retaining both years when it crosses a year boundary. Each date is held
+ * whole, so a line breaks only around the dash: "13 Oct 2025 – / 11 Oct 2026".
+ */
 export function formatDateRange(from: string, to: string): string {
   const format = (date: string, year: boolean) =>
     dateTimeFormatter("en-GB", {
@@ -176,7 +179,9 @@ export function formatDateRange(from: string, to: string): string {
       day: "numeric",
       month: "short",
       ...(year ? { year: "numeric" as const } : {}),
-    }).format(new Date(`${date}T00:00:00Z`));
+    })
+      .format(new Date(`${date}T00:00:00Z`))
+      .replace(/\s/g, "\u00a0");
   return from === to
     ? format(to, true)
     : `${format(from, from.slice(0, 4) !== to.slice(0, 4))} – ${format(to, true)}`;

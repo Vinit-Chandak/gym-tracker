@@ -52,9 +52,9 @@ it("names last year's months with their year, and this year's without", () => {
   render(view);
   const names = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
   expect(names).toEqual([
-    "October 2025",
-    "November 2025",
-    "December 2025",
+    "October\u00a02025",
+    "November\u00a02025",
+    "December\u00a02025",
     "January",
     "September",
     "October",

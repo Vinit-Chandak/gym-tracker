@@ -4,6 +4,7 @@ import { Art } from "@/components/art/art";
 import type { Sport } from "@/components/art/geometry";
 import { dayLabel } from "@/components/graph/labels";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoMonth } from "@/lib/format";
@@ -72,12 +73,15 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
             {item.title}
           </span>
           {item.meta && (
-            <span className="shrink-0 type-meta font-semibold tabular-nums">{item.meta}</span>
+            <span className="shrink-0 type-meta font-semibold tabular-nums">
+              <Figures>{item.meta}</Figures>
+            </span>
           )}
         </span>
+        {/* Its time and its readings are facts: their digits in Jost, whose zero is plain. */}
         {line && (
           <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
-            {line}
+            <Figures>{line}</Figures>
           </span>
         )}
       </span>

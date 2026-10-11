@@ -10,7 +10,7 @@ import {
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 
 /**
  * What today's endurance session asks for (plan §8.2 item 5).
@@ -66,7 +66,8 @@ function durationLine(ms: readonly [number, number]): string {
  * the scale changed, which made an easy 2 read as almost nothing.
  */
 function effortLine([low, high]: readonly [number, number]): string {
-  return `Effort ${range(low, high, String)} of ${PRESCRIBED_EFFORT.max}`;
+  // Held whole where a line wraps: never "Effort 2–3 of / 5".
+  return holdFigures(`Effort ${range(low, high, String)} of\u00a0${PRESCRIBED_EFFORT.max}`);
 }
 
 /** "8 × 50 m · freestyle": one written step, its distance in the athlete's own unit. */

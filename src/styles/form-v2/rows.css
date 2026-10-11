@@ -707,7 +707,7 @@ li:last-child > .sheet-row {
   margin-block: var(--ov-space-4) var(--ov-space-10);
 }
 /* A Today with no card to show keeps its way on at a phone's width, not stretched across a
-   desktop's. */
+   desktop's; so does Choose a day with a programme complete, which says the same (ADR 0052). */
 .today-empty {
   max-width: calc(32rem - 2 * var(--ov-gutter));
 }
@@ -1636,16 +1636,10 @@ li:last-child > .picker-row {
   gap: calc(8 * var(--ov-u));
   margin-top: calc(8 * var(--ov-u));
 }
+/* The app's select (select.tsx), taking the row beside Add. */
 .also-select {
   min-width: 0;
-  min-height: var(--ov-target);
   flex: 1 1 12rem;
-  padding: 0 calc(12 * var(--ov-u));
-  border: 1.5px solid var(--ov-control);
-  border-radius: var(--ov-radius-control);
-  background: var(--ov-ground);
-  color: var(--ov-ink);
-  font-size: var(--ov-type-input);
 }
 .also-submit {
   min-height: var(--ov-target);

@@ -858,7 +858,12 @@ describe("top weight, worked", () => {
     });
     const circle = await as(alice)((tx) => loadCircle(tx, alice));
     const board = rankExercise(circle, new Map([[alice, bests]]), new Map(), "top_weight");
-    expect(board[0]).toMatchObject({ key: alice, rank: 1, value: 65, detail: "6 reps · 3 sets" });
+    expect(board[0]).toMatchObject({
+      key: alice,
+      rank: 1,
+      value: 65,
+      detail: "6\u00a0reps ·\u00a03\u00a0sets",
+    });
     expect(rankExercise(circle, new Map([[alice, bests]]), new Map(), "e1rm")[0]).toMatchObject({
       value: 78,
       detail: null,

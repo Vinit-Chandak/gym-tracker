@@ -1,8 +1,10 @@
 import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { Figures } from "@/components/ui/figures";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import type {
   ExerciseBest,
@@ -89,10 +91,12 @@ export function ExerciseBestsTiles({
             label={metricLabel(best.metric, exercise)}
             value={
               <>
-                {formatSharedMetric(best.metric, best.value, unit)}
+                <Figures>{formatSharedMetric(best.metric, best.value, unit)}</Figures>
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-                  {best.work ? `${topWeightWorkLabel(best.work)} · ` : ""}
-                  {formatIsoDate(best.occurredOn, currentYear)}
+                  {joinFacts([
+                    best.work && topWeightWorkLabel(best.work),
+                    formatIsoDate(best.occurredOn, currentYear),
+                  ])}
                 </span>
               </>
             }
@@ -123,21 +127,26 @@ export function PeriodRecordsList({
   return (
     <ul className="divide-y divide-line text-sm">
       {records.map((record) => (
+        // The value keeps the row's right edge and a long name wraps beside it; only where the
+        // name would have less than a few words' room (large text) does the value go under it,
+        // still at the right.
         <li
           key={record.exercise.id}
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
         >
-          <span className="min-w-0">
+          <span className="min-w-0 flex-[1_1_8rem]">
             <span className="block font-medium [overflow-wrap:break-word]">
               {record.exercise.name}
             </span>
             <span className="block text-xs text-ink-muted">
-              {metricLabel(record.metric, record.exercise)} ·{" "}
-              {formatIsoDate(record.occurredOn, currentYear)}
+              {joinFacts([
+                metricLabel(record.metric, record.exercise),
+                formatIsoDate(record.occurredOn, currentYear),
+              ])}
             </span>
           </span>
-          <span className="font-medium tabular-nums">
-            {formatSharedMetric(record.metric, record.value, unit)}
+          <span className="ml-auto text-right font-medium whitespace-nowrap tabular-nums">
+            <Figures>{formatSharedMetric(record.metric, record.value, unit)}</Figures>
           </span>
         </li>
       ))}

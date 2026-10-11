@@ -9,3 +9,29 @@ export const FACT_SEPARATOR = " · ";
 export function joinFacts(facts: readonly (string | null | undefined | false)[]): string {
   return facts.filter((fact): fact is string => Boolean(fact)).join(FACT_SEPARATOR);
 }
+
+/** Units and nouns a figure is held to when it is written as text ("60–75 min", "2 sets"). */
+const UNIT =
+  /(\d) (?=(?:min|mins|minutes?|h|hrs?|hours?|s|secs?|seconds?|km|mi|m|yd|kg|lb|lbs|kcal|g|reps?|sets?|days?|weeks?)\b)/g;
+
+/**
+ * Figures written as text held whole where a line wraps: a range never breaks at its dash (a
+ * word joiner either side of it, U+2060, keeps the en dash itself), and a figure keeps its unit
+ * by a no-break space: "60–75 min", "2.6–3.1 km". For what the coach or the athlete wrote, such
+ * as a day's time note, and for ranges whose text is kept as it is where it is compared
+ * (rangeLabel); a figure from a shared formatter already keeps its unit.
+ */
+export function holdFigures(text: string): string {
+  return text.replace(/(\d)–(?=\d)/g, "$1\u2060–\u2060").replace(UNIT, "$1\u00a0");
+}
+
+/**
+ * A name held together at its hyphens ("Archer push-up", "Off-season Hypertrophy"): a word
+ * joiner after each hyphen between two letters, so a line breaks between the name's words but
+ * never leaves "push-" at a line's end. The hyphen stays the one the name was written with
+ * (Atkinson Hyperlegible Next has no non-breaking hyphen, U+2011, of its own), and a word too
+ * long for a line of its own still breaks (overflow-wrap).
+ */
+export function holdHyphens(name: string): string {
+  return name.replace(/(\p{L})-(?=\p{L})/gu, "$1-\u2060");
+}

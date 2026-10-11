@@ -4,8 +4,8 @@ import { Fragment, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { boldEmWidth } from "./fit";
-import { foldStyles } from "./fold";
+import { boldEmWidth, emWidth } from "./fit";
+import { foldStyles, scaleLayouts } from "./fold";
 
 export type SegmentOption<V extends string> = {
   value: V;
@@ -30,6 +30,13 @@ type SegmentedControlProps<V extends string> = {
   clearable?: boolean;
   /** Preferred number of columns; wraps when the touch targets no longer fit. */
   columns?: number;
+  /**
+   * An ordinal scale (the 1–5 scales, Effort): its figures, then any words (Not sure). The
+   * figures keep one row of equal columns, each at a figure's 44-pt target, which does not grow
+   * with the text (ADR 0052); where the words do not fit beside them they take a row of their
+   * own. Drawn by `.scale` (rows.css).
+   */
+  scale?: boolean;
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
@@ -50,6 +57,13 @@ function segmentWidth(label: string, columns: boolean): string {
   return `max(${least}, ${(boldEmWidth(label) * 1.01).toFixed(3)}em + 0.75rem)`;
 }
 
+/** A scale's figure: Jost at the figure size, and never narrower than its 44-pt target. */
+function figureWidth(label: string): string {
+  return `max(calc(44 * var(--ov-u)), ${emWidth(label).toFixed(3)} * var(--ov-type-figure) + 0.75rem)`;
+}
+
+const FIGURE = /^\d+$/;
+
 /**
  * A segmented choice (DESIGN.md, Components): two to four words on a surface, the chosen one in
  * ink. A radio group, so it works without JavaScript; the label is the tap target.
@@ -59,7 +73,8 @@ function segmentWidth(label: string, columns: boolean): string {
  * their words split evenly; unspecified columns start each from a label-sized minimum instead.
  * Where they cannot all fit (a 320-pt phone, 200% text) the tray folds onto even rows (Fold,
  * Never Drop; fold.ts): four as two and two, five as three and two, never one alone under three.
- * Only a label wider than the whole tray wraps, between its words.
+ * Only a label wider than the whole tray wraps, between its words. A scale never folds its
+ * figures: only its words go under them.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -69,13 +84,20 @@ export function SegmentedControl<V extends string>({
   onChange,
   clearable = false,
   columns,
+  scale = false,
   "aria-label": ariaLabel,
   ...accessibility
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
   // A clearable group holds its own choice, so that tapping the chosen pill can let it go.
   const [chosen, setChosen] = useState<V | "">(defaultValue ?? "");
-  const fold = foldStyles(options.map((option) => segmentWidth(option.label, Boolean(columns))));
+  const figures = scale ? options.filter((option) => FIGURE.test(option.label)).length : 0;
+  const fold = foldStyles(
+    options.map((option, index) =>
+      index < figures ? figureWidth(option.label) : segmentWidth(option.label, Boolean(columns)),
+    ),
+    scale ? { layouts: scaleLayouts(figures, options.length - figures) } : {},
+  );
   return (
     <div
       role="radiogroup"

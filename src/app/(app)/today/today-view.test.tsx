@@ -246,7 +246,9 @@ it("offers to finish a workout left open as of its last set, and nothing closes 
   // The next morning: nothing logged in it since 13:40 yesterday.
   show({ today: "2026-09-12", now: new Date("2026-09-12T03:00:00.000Z"), inProgress: open });
   const workout = within(screen.getAllByRole("article")[0]!);
-  expect(workout.getByRole("button", { name: "Finish it as of Fri 11 Sept, 13:40" })).toBeTruthy();
+  expect(
+    workout.getByRole("button", { name: "Finish it as of Fri 11\u00a0Sept, 13:40" }),
+  ).toBeTruthy();
   // Resume is still the card's next step; the finish is its quiet way out.
   expect(workout.getByRole("link", { name: /^Resume session/ })).toBeTruthy();
   cleanup();
