@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ActivityPlan } from "@/components/activities/activity-plan";
+import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
+import { enduranceNote } from "@/components/activities/endurance-line";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -23,6 +24,7 @@ import { getSchedule } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
@@ -89,17 +91,26 @@ export default async function OccurrencePage(
   // One target on the page: the coach's, when it prepared this session inside the approved
   // range, and the programme's otherwise. The two used to be printed one above the other.
   const target = prepared?.prescription ?? occurrence.prescription;
+  // Logged, the full plan gives way to what was done; a line of it stays, so what was asked for
+  // can still be held against it (year audit, October 2026: "4.2–5 km" and nothing else).
+  const logged = occurrence.resolution.kind === "logged";
+  const planned = logged && target ? sessionLine(target, units) : null;
+  const plannedNote = logged && target ? enduranceNote(target) : null;
+  // A date of this year is said without it, as the programme's list says it.
+  const year = today.slice(0, 4);
+  const sport = ACTIVITY_SPORT_LABELS[occurrence.sport];
 
   return (
     <>
       <PageHeader
-        title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
-        meta={[
-          dayName && occurrence.cycleIndex !== null && `${dayName}, cycle ${occurrence.cycleIndex}`,
-          formatIsoDate(occurrence.scheduledOn),
-        ]
-          .filter(Boolean)
-          .join(" · ")}
+        // Named for its day, as the programme's list and Today name it ("Tempo run"), with its
+        // sport beside the date; work no programme day owns is named for its sport.
+        title={dayName ?? sport}
+        meta={joinFacts([
+          dayName && sport,
+          occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
+          `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
+        ])}
         backHref={standalone ? "/training/scheduled" : "/training/programme"}
       />
       <PageContent>
@@ -110,6 +121,10 @@ export default async function OccurrencePage(
             </h2>
             {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
           </div>
+          {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
+          {plannedNote && (
+            <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
+          )}
           {waited && (
             <p className="text-sm text-ink-muted">
               Its date has gone by, but the programme waits for you: it is still to do.
@@ -118,13 +133,13 @@ export default async function OccurrencePage(
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {formatIsoDate(occurrence.originalScheduledOn)}.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn, year)}.
                 {standalone ? "" : " Adherence still counts against that week."}
               </p>
             )}
         </Card>
 
-        {occurrence.resolution.kind !== "logged" && (
+        {!logged && (
           <ActivityPlan
             sport={occurrence.sport}
             prescription={target}
@@ -137,7 +152,7 @@ export default async function OccurrencePage(
         {occurrence.resolution.kind === "logged" ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
+              Logged on {formatIsoDate(occurrence.resolution.occurredOn, year)}.
             </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
