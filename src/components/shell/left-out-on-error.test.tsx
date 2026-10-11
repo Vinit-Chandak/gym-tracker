@@ -21,11 +21,11 @@ function SignedOut(): ReactNode {
 
 /** Stands in for the boundaries above the shell, which handle what it lets through. */
 class Above extends Component<{ children: ReactNode }, { caught: string | null }> {
-  state = { caught: null as string | null };
+  override state = { caught: null as string | null };
   static getDerivedStateFromError(error: Error) {
     return { caught: (error as { digest?: string }).digest ?? error.message };
   }
-  render() {
+  override render() {
     return this.state.caught ? <p>Caught {this.state.caught}</p> : this.props.children;
   }
 }
