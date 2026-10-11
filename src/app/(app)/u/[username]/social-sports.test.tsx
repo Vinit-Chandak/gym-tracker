@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   profile: vi.fn(),
   sharedSports: vi.fn(),
   enabledSports: vi.fn(),
+  rankCircle: vi.fn(),
 }));
 
 vi.mock("@/server/auth", () => ({
@@ -60,7 +61,7 @@ vi.mock("@/server/repositories/sport-preferences", () => ({
 }));
 vi.mock("@/server/queries/leaderboard", () => ({
   loadCircle: async () => [{ id: "me" }, { id: "friend" }],
-  rankCircle: () => [],
+  rankCircle: mocks.rankCircle,
   rankExercise: () => [],
   perKgAvailable: () => false,
 }));
@@ -149,6 +150,7 @@ beforeEach(() => {
   mocks.leaderboard.mockResolvedValue(new Map());
   mocks.sharedSports.mockResolvedValue(new Set(["workout"]));
   mocks.enabledSports.mockResolvedValue(["strength", "running"]);
+  mocks.rankCircle.mockReturnValue([]);
 });
 
 const props = (sport: string) => ({
@@ -332,5 +334,41 @@ describe("the sports on offer", () => {
     expect(await board({ sport: "running" })).toContain("run:activity|tabs:workout,run,cycle");
     mocks.enabledSports.mockResolvedValue(["swimming"]);
     expect(await board({})).toContain("swim:activity|tabs:swim");
+  });
+});
+
+describe("a board with nobody on it", () => {
+  const row = (key: string, value: number | null, rank: number | null) => ({
+    key,
+    username: key,
+    displayName: null,
+    value,
+    occurredOn: null,
+    rank,
+  });
+  const board = async (searchParams: Record<string, string>) =>
+    renderToStaticMarkup(
+      await LeaderboardPage({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve(searchParams),
+      }),
+    );
+
+  it("says nobody ran in the period, rather than ranking everyone as a dash", async () => {
+    mocks.rankCircle.mockReturnValue([row("me", null, null), row("friend", null, null)]);
+    const html = await board({ sport: "running" });
+    expect(html).toContain("No runs from you or the people you follow in the last 30 days.");
+    expect(html).not.toContain("@friend");
+    const pace = await board({ sport: "running", metric: "best_pace", period: "7d" });
+    expect(pace).toContain(
+      "No run of 1 km or more from you or the people you follow in the last 7 days.",
+    );
+  });
+
+  it("ranks as before once anybody has a number, the rest trailing as a dash", async () => {
+    mocks.rankCircle.mockReturnValue([row("friend", 3, 1), row("me", null, null)]);
+    const html = await board({ sport: "running" });
+    expect(html).toContain("@friend");
+    expect(html).not.toContain("No runs from you");
   });
 });

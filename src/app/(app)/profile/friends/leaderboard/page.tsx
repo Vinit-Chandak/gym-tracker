@@ -89,8 +89,8 @@ function formatBoardMetric(metric: BoardMetric, value: number, unit: BodyLoadUni
  * a period's totals — six lifting numbers, or five running ones — and, for lifting only,
  * Exercise ranks all-time bests of one comparable movement on the metrics it is measured by,
  * with "÷ body weight" variants of the loads once two of you share yours. Equal values share
- * a rank; whoever has nothing for the metric trails as "—"; a friend who turned sharing off
- * is simply not there.
+ * a rank; whoever has nothing for the metric trails as "—", and a period in which nobody has
+ * anything says so in a line instead; a friend who turned sharing off is simply not there.
  */
 export default async function LeaderboardPage(props: PageProps<"/profile/friends/leaderboard">) {
   const user = await requireUser();
@@ -202,13 +202,24 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                 title={ACTIVITY_METRIC_LABELS[activityMetric]}
                 info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no ${ACTIVITY_NAMES[sport]} in the period reads "—".${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher." : ""}`}
               >
-                <RankList
-                  rows={board.rows}
-                  you={user.id}
-                  format={(value) =>
-                    formatActivityMetric(activityMetric, value, unit, board.distanceUnit)
-                  }
-                />
+                {board.rows.some((row) => row.value !== null) ? (
+                  <RankList
+                    rows={board.rows}
+                    you={user.id}
+                    format={(value) =>
+                      formatActivityMetric(activityMetric, value, unit, board.distanceUnit)
+                    }
+                  />
+                ) : (
+                  // Nobody to rank: a column of "—" for everyone says less than a sentence.
+                  <Card>
+                    <p className="text-sm text-ink-muted">
+                      {activityMetric === "best_pace"
+                        ? `No run of 1 km or more from you or the people you follow in the last ${PERIOD_LABELS[period]}.`
+                        : `No ${ACTIVITY_NAMES[sport]}s from you or the people you follow in the last ${PERIOD_LABELS[period]}.`}
+                    </p>
+                  </Card>
+                )}
               </Section>
             ) : board.kind === "exercise" ? (
               <Section
