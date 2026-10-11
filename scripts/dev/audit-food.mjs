@@ -797,7 +797,7 @@ try {
         page.getByRole("link", { name: /^Targets 500 kcal Nothing left for carbs/ }),
       ).toBeVisible();
       await navigate("/food/targets");
-      await page.getByRole("button", { name: /^Use 55\s\/\s25\s\/\s20$/ }).click();
+      await page.getByRole("button", { name: "Use this split", exact: true }).click();
       // 20% of 500 kcal at 80 kg is 0.3 g/kg, kept to the bound of 0.5.
       await expect(page.getByLabel("Protein, g per kg of body weight")).toHaveValue("0.5");
     },

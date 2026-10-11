@@ -22,8 +22,7 @@ const field = (name: string) => screen.getByRole<HTMLInputElement>("textbox", { 
 const KCAL = "Daily target, kcal";
 const PROTEIN = "Protein, g per kg of body weight";
 const FAT = "Fat, % of daily target";
-/** The split's numbers are held together by non-breaking spaces. */
-const USE_SPLIT = /^Use 55\s\/\s25\s\/\s20$/;
+const USE_SPLIT = "Use this split";
 
 it("starts a first set of targets from the goal's split, following the target as it is typed", () => {
   render(<TargetsForm targets={null} bodyWeightKg={63.5} unit="kg" goal="build_muscle" />);
@@ -31,7 +30,9 @@ it("starts a first set of targets from the goal's split, following the target as
   expect(field(PROTEIN).value).toBe("");
   expect(field(FAT).value).toBe("25");
   expect(screen.getByText("Build muscle")).toBeTruthy();
-  expect(screen.queryByText(/^Carbs /)).toBeNull();
+  // The goal's split, each share named: "55 / 25 / 20" was read as protein second.
+  expect(screen.getByText(/^Carbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/)).toBeTruthy();
+  expect(screen.queryByText(/^Carbs \d+ g/)).toBeNull();
 
   // 20% of 2,700 kcal is 135 g, 2.1 g/kg at 63.5 kg.
   fireEvent.change(field(KCAL), { target: { value: "2700" } });
@@ -82,7 +83,11 @@ it("shows saved targets as they are, offering the goal's split while they differ
   expect(field(PROTEIN).value).toBe("1.8");
   expect(screen.getByText("114 g at 63.5 kg")).toBeTruthy();
   expect(screen.getByText("Carbs 392 g · Fat 75 g · Protein 114 g")).toBeTruthy();
-  expect(screen.getByRole("button", { name: USE_SPLIT })).toBeTruthy();
+  const use = screen.getByRole("button", { name: USE_SPLIT });
+  // What it puts back is the split said beside the goal.
+  expect(document.getElementById(use.getAttribute("aria-describedby")!)!.textContent).toMatch(
+    /^Carbs\s55%/,
+  );
   fireEvent.change(field(FAT), { target: { value: "30" } });
   expect(screen.getByText("Carbs 358 g · Fat 90 g · Protein 114 g")).toBeTruthy();
   expect(Object.fromEntries(new FormData(container.querySelector("form")!))).toEqual({
@@ -139,6 +144,7 @@ it("reads protein per pound for an account in pounds, without changing what is s
 it("says a goal that is not set, and starts from 55 / 25 / 20", () => {
   render(<TargetsForm targets={null} bodyWeightKg={80} unit="kg" goal={null} />);
   expect(screen.getByText("Not set")).toBeTruthy();
+  expect(screen.getByText(/^Carbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/)).toBeTruthy();
   fireEvent.change(field(KCAL), { target: { value: "2400" } });
   // 20% of 2,400 kcal is 120 g, 1.5 g/kg at 80 kg.
   expect(field(PROTEIN).value).toBe("1.5");
@@ -176,4 +182,21 @@ it("stays, with what was typed, when the save is refused", async () => {
   expect(await screen.findByText("Enter between 5 and 80%.")).toBeTruthy();
   expect(router.replace).not.toHaveBeenCalled();
   expect(router.back).not.toHaveBeenCalled();
+});
+
+it("offers no split that is already the one set, whatever order it is read in", () => {
+  // 1,650 kcal, 1.6 g/kg at 64.3 kg and 30% fat is carbs 45%, fat 30%, protein 25%: not the
+  // 45 / 25 / 30 (carbs, fat, protein) losing fat starts from, so it is offered, named.
+  render(
+    <TargetsForm
+      targets={{ dailyKcal: 1650, proteinPerKg: 1.6, fatPercent: 30 }}
+      bodyWeightKg={64.3}
+      unit="kg"
+      goal="lose_fat"
+    />,
+  );
+  expect(screen.getByText(/^Carbs\s45%\s·\sFat\s25%\s·\sProtein\s30%$/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: USE_SPLIT }));
+  expect(field(FAT).value).toBe("25");
+  expect(screen.queryByRole("button", { name: USE_SPLIT })).toBeNull();
 });

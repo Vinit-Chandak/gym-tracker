@@ -15,6 +15,7 @@ import {
   UNIT_LABELS,
   type LengthUnit,
 } from "./distance-units";
+import { joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms, loadStepIn } from "./units";
 
@@ -375,13 +376,17 @@ export function formatAmount(value: number): string {
 }
 
 /**
- * "55 / 25 / 20": a split as shares of carbohydrate, fat and protein, in whole percent (ADR
- * 0035). The spaces do not break, so the three numbers never part company at the end of a line.
+ * "Carbs 55% \u00b7 Fat 25% \u00b7 Protein 20%": a split as shares of the day's energy, in whole percent
+ * (ADR 0035), each named, in the order a target's grams are given ("Carbs 373 g \u00b7 Fat 75 g \u00b7
+ * Protein 133 g"). "55 / 25 / 20" said none of which was which, and was read as protein second.
  */
 export function formatSplit(split: { carbs: number; fat: number; protein: number }): string {
-  return [split.carbs, split.fat, split.protein]
-    .map((share) => String(Math.round(share * 100)))
-    .join("\u00a0/\u00a0");
+  const share = (value: number) => `${Math.round(value * 100)}%`;
+  return joinFacts([
+    `Carbs\u00a0${share(split.carbs)}`,
+    `Fat\u00a0${share(split.fat)}`,
+    `Protein\u00a0${share(split.protein)}`,
+  ]);
 }
 
 /** "100 g", "1 scoop", "1.5 scoops": an amount of a food in its own unit (ADR 0033). */
