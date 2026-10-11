@@ -56,8 +56,8 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
 /**
  * A person as others see them (plan §3.14): the header card with the follow button in place
  * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
- * span's totals for the chosen sport and, for lifting, the shape of their split and their
- * records — or one line saying why not. Your own page shows what a follower sees while you
+ * span's totals for the chosen sport and, for lifting, the shape of their split and their best
+ * lifts in the span — or one line saying why not. Your own page shows what a follower sees while you
  * share, and says so: the privacy screen's promise, demonstrated. With sharing off it says
  * that a follower sees the card alone.
  */
@@ -194,9 +194,12 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               </Card>
             )}
             {training.records && (
+              // The span's bests, as the plan built them (§3.13, as built), not records: a record
+              // beats every earlier session, and Compare's "Records set" counts those. Called
+              // "Records", a best below an older one read as a record Compare said was not set.
               <Section
-                title="Records"
-                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts, most reps, longest hold or longest carry for the rest. Machine exercises are not listed, since a machine's numbers are its own."
+                title="Best lifts"
+                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts, most reps, longest hold or longest carry for the rest. A best in the span is a record only if it beat every earlier session; Records set on Compare counts those. Machine exercises are not listed, since a machine's numbers are its own."
               >
                 <Card>
                   {training.records.length > 0 ? (

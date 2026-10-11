@@ -223,3 +223,23 @@ it.each([
   expect(html).toContain(line);
   expect(mocks.profile).toHaveBeenCalledWith(expect.anything(), "me");
 });
+
+it("heads a person's span bests as best lifts, not as records Compare would not count", async () => {
+  mocks.records.mockResolvedValue([
+    {
+      exercise: {
+        id: "press",
+        name: "Incline dumbbell press",
+        modality: "dumbbell",
+        defaultPrescriptionType: "reps",
+      },
+      metric: "e1rm",
+      value: 25.2,
+      occurredOn: "2026-10-01",
+    },
+  ]);
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain("Best lifts");
+  expect(html).toContain("Incline dumbbell press");
+  expect(html).not.toMatch(/>Records</);
+});
