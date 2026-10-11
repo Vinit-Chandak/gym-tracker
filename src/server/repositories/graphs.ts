@@ -26,6 +26,7 @@ import {
   type LoadUnit,
   type PrescriptionType,
 } from "@/domain/types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { LB_PER_KG } from "@/lib/units";
 import type { DateRange } from "@/server/validation/date-range";
 
@@ -203,7 +204,7 @@ export async function readExerciseSeriesOptions(
               row.machineKey.startsWith("unknown:")
                 ? "Unrecorded machine (this session only)"
                 : (row.machineName ?? "Machine")
-            }${row.gymName ? ` · ${row.gymName}` : ""}`,
+            }${row.gymName ? `${FACT_SEPARATOR}${row.gymName}` : ""}`,
       unit: row.unit,
       modality: row.modality,
       group: strengthGroupOf(row.primaryMuscles),

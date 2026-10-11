@@ -332,10 +332,12 @@
 .compare-who {
   display: none;
 }
-/* Too narrow for that (320 pt, large text): each metric stacks, its name and difference on a
-   line, then each person's figure on a line of its own after their name, the figure going under
-   the name where both cannot share the line. */
-@container compare (width < 18rem) {
+/* Too narrow for that (any phone, up to a 430-pt one, and large text): each metric stacks, its
+   name and difference on a line, then each person's figure on a line of its own after their
+   name, the figure going under the name where both cannot share the line. Three columns on a
+   phone left a best's day and work four lines tall ("Fri / 28 Nov 2025 / 1.82× / latest BW") and
+   "Workout / time" a word a line; a tablet's column keeps the table. */
+@container compare (width < 26rem) {
   .compare-table table,
   .compare-table tbody {
     display: block;
@@ -452,6 +454,7 @@
 }
 .activity-row-name {
   min-width: 0;
+  flex: 1 1 8rem;
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;

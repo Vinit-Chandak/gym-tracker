@@ -70,7 +70,7 @@ function side(
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
   // Of the latest weight, not the weight on the day of a lift long ago: only the latest reading
   // is shared (plan §3.8), so neither side can be read against an older one, and says so.
-  if (times !== null) sub.push(`${times}× latest\u00a0BW`);
+  if (times !== null) sub.push(`${times}×\u00a0latest\u00a0BW`);
   return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
 }
 
@@ -197,7 +197,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how many working sets were at it and the most reps the best of them reached. Best set volume is the biggest single set, its load × reps. Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× latest BW), since you both share it: today's weight, not the weight on the day of the lift." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how many working sets were at it and the most reps the best of them reached. Best set volume is the biggest single set, its load × reps. Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (×\u00a0latest\u00a0BW), since you both share it: today's weight, not the weight on the day of the lift." : ""}`}
         >
           <Card>
             <CompareTable

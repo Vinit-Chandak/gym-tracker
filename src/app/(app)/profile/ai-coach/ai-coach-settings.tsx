@@ -184,7 +184,7 @@ export function AiCoachSettings({
                 <p className="flex items-baseline justify-between gap-3">
                   <span className="coach-note-text">
                     {attempt.trigger}
-                    {attempt.status === "failed" && " · Failed"}
+                    {attempt.status === "failed" && `${FACT_SEPARATOR}Failed`}
                   </span>
                   <span className="shrink-0 type-caption text-ink-2 tabular-nums">
                     {attempt.when.split(",")[0]}

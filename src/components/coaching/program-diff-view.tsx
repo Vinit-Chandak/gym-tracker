@@ -216,7 +216,7 @@ function OperationRow({
 function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
   // The weeks it names are the weeks that change: "weeks 3–8", or "weeks 3, 5 and 7" when the
   // weeks between are left as they were.
-  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"} · ${weeksLabel(runs.weeks)}`;
+  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"}${FACT_SEPARATOR}${weeksLabel(runs.weeks)}`;
   return (
     <Operation mark={<Art kind="mark" sport="run" size={14} />} label={label} reason={reason}>
       {runs.lines.length > 0 ? (

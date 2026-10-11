@@ -8,6 +8,19 @@ import type { GraphRange } from "@/domain/graph-range";
 import { Graph, type GraphProps } from "./graph";
 import { GraphRangeProvider } from "./graph-range-context";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 const route = vi.hoisted(() => ({ search: "" }));
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const action = vi.hoisted(() => ({ chooseGraphRangeAction: vi.fn(async () => {}) }));
@@ -67,7 +80,7 @@ it("opens on its summary, the figure and its unit and one line of context", () =
   draw();
   expect(readout().getByText("75.2")).toBeTruthy();
   expect(readout().getByText(/kg/)).toBeTruthy();
-  expect(readout().getByText("−0.8 since Thu 10 Sept")).toBeTruthy();
+  expect(readout().getByText(whole("−0.8 since Thu 10 Sept"))).toBeTruthy();
   expect(screen.queryByRole("link", { name: /Open workout/ })).toBeNull();
 });
 

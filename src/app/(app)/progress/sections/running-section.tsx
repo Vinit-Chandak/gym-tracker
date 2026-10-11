@@ -16,6 +16,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { averagePace, type RunBucket } from "@/domain/progress-graphs";
 import { METRES_PER_MILE } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatMinutes } from "@/lib/format";
 
 import type { ProgressData } from "../progress-types";
@@ -136,7 +137,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
               bucket,
               distance(bucket.metres),
               unit,
-              `${counted(bucket.runs, "run")} · ${formatMinutes(bucket.seconds / 60)}`,
+              joinFacts([counted(bucket.runs, "run"), formatMinutes(bucket.seconds / 60)]),
             );
           }}
           empty="No runs in this range."
@@ -165,7 +166,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
               bucket,
               formatMinutes(bucket.seconds / 60),
               undefined,
-              `${counted(bucket.runs, "run")} · ${distance(bucket.metres)} ${unit}`,
+              joinFacts([counted(bucket.runs, "run"), `${distance(bucket.metres)}\u00a0${unit}`]),
             );
           }}
           empty="No runs in this range."
@@ -213,9 +214,10 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
                   ),
                   figure: formatPace(paceLine.points[index]!.value),
                   unit: `/${unit}`,
-                  context: `Average of ${counted(runs.length, "run")} · ${distance(
-                    runs.reduce((sum, run) => sum + run.metres, 0),
-                  )} ${unit}`,
+                  context: joinFacts([
+                    `Average of ${counted(runs.length, "run")}`,
+                    `${distance(runs.reduce((sum, run) => sum + run.metres, 0))}\u00a0${unit}`,
+                  ]),
                   href: historyHref(group.start, group.end, "run"),
                   action: paceLine.bucket === "week" ? "Open week" : "Open month",
                 };
@@ -225,7 +227,10 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
                 label: dayLabel(point.date, today),
                 figure: formatPace(paceIn(point.pace)),
                 unit: `/${unit}`,
-                context: `${distance(point.metres)} ${unit} · ${formatDuration(point.seconds)}`,
+                context: joinFacts([
+                  `${distance(point.metres)}\u00a0${unit}`,
+                  formatDuration(point.seconds),
+                ]),
                 href: activityHref(point.id, "history"),
                 action: "Open run",
               };

@@ -64,13 +64,15 @@ it("opens on the month of the day on screen, marked from the strip without askin
   expect(calendar.getByText("September 2026")).toBeTruthy();
   expect(readFoodMonthAction).not.toHaveBeenCalled();
   expect(
-    calendar.getByRole("link", { name: "Friday 25\u00a0September, over the goal" }),
+    calendar.getByRole("link", { name: "Friday\u00a025\u00a0September, over the goal" }),
   ).toBeTruthy();
   expect(calendar.getByRole("link", { current: "page" }).getAttribute("aria-label")).toBe(
-    "Saturday 26\u00a0September, food logged",
+    "Saturday\u00a026\u00a0September, food logged",
   );
   expect(
-    calendar.getByRole("link", { name: "Sunday 27\u00a0September, today" }).getAttribute("href"),
+    calendar
+      .getByRole("link", { name: "Sunday\u00a027\u00a0September, today" })
+      .getAttribute("href"),
   ).toBe("/food");
   // A day still to come is on the calendar but cannot be opened.
   expect(calendar.queryByRole("link", { name: /28\u00a0September/ })).toBeNull();
@@ -83,11 +85,11 @@ it("reads a month the strip does not hold when it is turned to, and only once", 
   fireEvent.click(calendar.getByRole("button", { name: "Previous month" }));
   expect(calendar.getByText("August 2026")).toBeTruthy();
   expect(
-    await calendar.findByRole("link", { name: "Friday 14\u00a0August, goal met" }),
+    await calendar.findByRole("link", { name: "Friday\u00a014\u00a0August, goal met" }),
   ).toBeTruthy();
   // The strip reaches back into August, but not to its start, so August is read whole.
   expect(readFoodMonthAction).toHaveBeenCalledWith("2026-08");
-  expect(calendar.getByRole("link", { name: "Thursday 20\u00a0August" })).toBeTruthy();
+  expect(calendar.getByRole("link", { name: "Thursday\u00a020\u00a0August" })).toBeTruthy();
 
   fireEvent.click(calendar.getByRole("button", { name: "Next month" }));
   fireEvent.click(calendar.getByRole("button", { name: "Previous month" }));
@@ -96,7 +98,7 @@ it("reads a month the strip does not hold when it is turned to, and only once", 
 
 it("opens a day and closes, with Today there while another day is on screen", () => {
   const calendar = opened();
-  const thursday = calendar.getByRole("link", { name: "Thursday 24\u00a0September" });
+  const thursday = calendar.getByRole("link", { name: "Thursday\u00a024\u00a0September" });
   expect(thursday.getAttribute("href")).toBe("/food?day=2026-09-24");
   expect(calendar.getByRole("link", { name: "Today" }).getAttribute("href")).toBe("/food");
   fireEvent.click(thursday);
@@ -120,15 +122,15 @@ it("strips back through whole weeks that end on today, in the order they are rea
       .getAllByRole("link")
       .map((link) => link.getAttribute("aria-label")),
   ).toEqual([
-    "Monday 21\u00a0September",
-    "Tuesday 22\u00a0September",
-    "Wednesday 23\u00a0September",
-    "Thursday 24\u00a0September",
-    "Friday 25\u00a0September, over the goal",
-    "Saturday 26\u00a0September, food logged",
-    "Sunday 27\u00a0September, today",
+    "Monday\u00a021\u00a0September",
+    "Tuesday\u00a022\u00a0September",
+    "Wednesday\u00a023\u00a0September",
+    "Thursday\u00a024\u00a0September",
+    "Friday\u00a025\u00a0September, over the goal",
+    "Saturday\u00a026\u00a0September, food logged",
+    "Sunday\u00a027\u00a0September, today",
   ]);
   expect(
-    within(weeks[2]!).getByRole("link", { name: "Thursday 20\u00a0August, goal met" }),
+    within(weeks[2]!).getByRole("link", { name: "Thursday\u00a020\u00a0August, goal met" }),
   ).toBeTruthy();
 });

@@ -8,6 +8,7 @@ import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
 import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
 import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -323,7 +324,9 @@ export function FinishedWorkout({
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="record-row-name">{exercise.exercise.name}</span>
                           {exercise.sets.length > 0 ? (
-                            <span className="record-row-sets">{setsLine(exercise)}</span>
+                            <span className="record-row-sets">
+                              <Figures>{setsLine(exercise)}</Figures>
+                            </span>
                           ) : (
                             <span className="record-row-sets text-ink-2">
                               {exercise.skippedAt ? "Skipped" : "No sets"}
@@ -362,7 +365,9 @@ export function FinishedWorkout({
                     className="record-row w-full text-left"
                   >
                     <span className="record-row-name">{exercise.exercise.name}</span>{" "}
-                    <span className="record-row-sets">{setsLine(exercise)}</span>
+                    <span className="record-row-sets">
+                      <Figures>{setsLine(exercise)}</Figures>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -402,7 +407,7 @@ export function FinishedWorkout({
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in">
+          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>

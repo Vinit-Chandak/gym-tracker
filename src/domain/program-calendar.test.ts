@@ -17,7 +17,7 @@ describe("programme calendar anchored on the start date", () => {
     expect(programEndDate("0001-01-01", 8)).toBe("0001-02-25");
     expect(addDays("0099-12-31", 1)).toBe("0100-01-01");
     // The weekday's separator is the app's own, not ICU's, so the server and the browser agree.
-    expect(formatIsoDate("0001-01-01")).toBe("Mon 1\u00a0Jan\u00a01");
+    expect(formatIsoDate("0001-01-01")).toBe("Mon\u00a01\u00a0Jan\u00a01");
   });
   it("runs 8 weeks from 8 Sep 2026 to 2 Nov 2026", () => {
     expect(programEndDate(START, 8)).toBe("2026-11-02");

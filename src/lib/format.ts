@@ -15,7 +15,7 @@ import {
   UNIT_LABELS,
   type LengthUnit,
 } from "./distance-units";
-import { joinFacts } from "./facts";
+import { FACT_SEPARATOR, joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms, loadStepIn } from "./units";
 
@@ -61,7 +61,7 @@ export function formatDateTime(
     hour12: false,
   });
   const year = currentYear === undefined || at.year === currentYear ? "" : `\u00a0${at.year}`;
-  return `${at.weekday} ${at.day}\u00a0${at.month}${year}, ${at.hour}:${at.minute}`;
+  return `${at.weekday}\u00a0${at.day}\u00a0${at.month}${year}, ${at.hour}:${at.minute}`;
 }
 
 /** "09:15" in the given time zone. */
@@ -119,8 +119,8 @@ export function formatIsoDate(isoDate: string, currentYear?: string): string {
   const on = isoParts(isoDate, { weekday: "short", ...ISO_DAY });
   if (!on) return isoDate;
   return isoDate.slice(0, 4) === currentYear
-    ? `${on.weekday} ${on.day}\u00a0${on.month}`
-    : `${on.weekday} ${on.day}\u00a0${on.month}\u00a0${on.year}`;
+    ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}`
+    : `${on.weekday}\u00a0${on.day}\u00a0${on.month}\u00a0${on.year}`;
 }
 
 /** "8 Sept 2026" for an ISO date string: the same date without its weekday. */
@@ -132,7 +132,7 @@ export function formatIsoDay(isoDate: string): string {
 /** "Fri 11 Sept" — today's date beside the wordmark, where the year is never in question. */
 export function formatIsoWeekdayDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "short", day: "numeric", month: "short" });
-  return on ? `${on.weekday} ${on.day}\u00a0${on.month}` : isoDate;
+  return on ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "September", or "September 2025" outside `currentYear`: the month a calendar is turned to. */
@@ -160,7 +160,7 @@ export function formatIsoShortMonth(isoDate: string): string {
 /** "Saturday 26 September": a day named in full, as a calendar's day is read out. */
 export function formatIsoLongDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "long", day: "numeric", month: "long" });
-  return on ? `${on.weekday} ${on.day}\u00a0${on.month}` : isoDate;
+  return on ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "M" for a Monday: the letter over a column of days. */
@@ -414,7 +414,11 @@ export function formatPortion(amount: number, unit: FoodUnit): string {
   return `${formatAmount(amount)} ${plural ?? FOOD_UNIT_LABELS[unit]}`;
 }
 
-/** "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known. */
+/**
+ * "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known: each
+ * figure held to its unit and each dot to the macro after it, so a wrapped line breaks before a
+ * dot.
+ */
 export function formatMacros(amounts: {
   carbsG: number | null;
   fatG: number | null;
@@ -427,6 +431,8 @@ export function formatMacros(amounts: {
       ["Protein", amounts.proteinG],
     ] as const
   )
-    .flatMap(([label, grams]) => (grams === null ? [] : [`${label} ${formatFoodAmount(grams)} g`]))
-    .join(" · ");
+    .flatMap(([label, grams]) =>
+      grams === null ? [] : [`${label} ${formatFoodAmount(grams)}\u00a0g`],
+    )
+    .join(FACT_SEPARATOR);
 }

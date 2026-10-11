@@ -36,7 +36,7 @@ const SWITCHES: readonly { setting: PrivacyKey; label: string; effect: string }[
     label: "Share body weight for relative strength",
     // A ratio, so the same for a reader in pounds: "per kg" read as a kilogram-only figure.
     effect:
-      "On means followers who also share theirs see rows and rankings relative to body weight (× BW).",
+      "On means followers who also share theirs see rows and rankings relative to body weight (×\u00a0BW).",
   },
   {
     setting: "discoverableByEmail",

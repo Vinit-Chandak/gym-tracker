@@ -86,12 +86,17 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
               {done.map((exercise) => (
                 <li key={exercise.id} className="record-row">
                   <span className="record-row-name">{exercise.exercise.name}</span>{" "}
+                  {/* The sets' figures in Jost, whose zero is plain; "kg" and "×" in Atkinson. */}
                   <span className="record-row-sets">
-                    {formatSets(
-                      exercise.sets.map((set) => setInUnit(set, exercise.equipment?.unit ?? unit)),
-                      (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
-                      loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
-                    )}
+                    <Figures>
+                      {formatSets(
+                        exercise.sets.map((set) =>
+                          setInUnit(set, exercise.equipment?.unit ?? unit),
+                        ),
+                        (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
+                        loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                      )}
+                    </Figures>
                   </span>
                 </li>
               ))}

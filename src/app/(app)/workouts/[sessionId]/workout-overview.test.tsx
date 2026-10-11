@@ -271,7 +271,7 @@ it("says where a row stands only when that is news", () => {
   expect(crunch.textContent).toContain("Skipped");
   expect(crunch.textContent).toContain("Back is sore today.");
   expect(screen.getByRole("button", { name: /Face pull/ }).textContent).toContain(
-    "15 kg · 1 × 15 @ 2 RIR",
+    "15\u00a0kg ·\u00a01 × 15 @\u00a02\u00a0RIR",
   );
   // The coach's note for an exercise is its own screen's to say whole (DESIGN.md, The session):
   // the row says there is one, and that the coach added it, without cutting it short.
@@ -407,13 +407,13 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
     },
   });
   expect(screen.getByRole("button", { name: /Leg press/ }).textContent).toContain(
-    "100 lb · 3 × 5 @ 2 RIR",
+    "100\u00a0lb ·\u00a03 × 5 @\u00a02\u00a0RIR",
   );
   expect(screen.getByRole("button", { name: /Seated leg curl/ }).textContent).toContain(
-    "4 × 3–5 @ 2 RIR",
+    "4 × 3\u2060–\u20605 @\u00a02\u00a0RIR",
   );
   expect(screen.getByRole("button", { name: /Cable lateral raise/ }).textContent).toContain(
-    "12–20 reps @ 2 RIR",
+    "12\u2060–\u206020\u00a0reps @\u00a02\u00a0RIR",
   );
 });
 
@@ -429,7 +429,7 @@ it("says on the row when an exercise's machine is still to settle", () => {
     },
   });
   expect(screen.getByRole("button", { name: /Hack squat/ }).textContent).toContain(
-    "4 × 3–5 @ 2 RIR · Machine not chosen",
+    "4 × 3\u2060–\u20605 @\u00a02\u00a0RIR ·\u00a0Machine not chosen",
   );
 });
 
@@ -446,7 +446,7 @@ describe("a workout left open", () => {
     expect(leftOpenSince(left, Date.parse("2026-09-29T09:00:00.000Z"))).toBeNull();
     expect(leftOpenSince(left, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:10");
     expect(leftOpenSince(left, Date.parse("2026-09-30T03:00:00.000Z"))).toBe(
-      "Tue 29\u00a0Sept, 13:10",
+      "Tue\u00a029\u00a0Sept, 13:10",
     );
     // Nothing logged: counted from its start.
     const empty = { ...left, exercises: [exercise("Barbell bench press")] };
@@ -459,7 +459,7 @@ describe("a workout left open", () => {
     try {
       show({ session: left, userId: "user" });
       expect(
-        screen.getByRole("button", { name: "Finish it as of Tue 29\u00a0Sept, 13:10" }),
+        screen.getByRole("button", { name: "Finish it as of Tue\u00a029\u00a0Sept, 13:10" }),
       ).toBeTruthy();
       // The Finish pill stays: the offer is a way out, not the only one.
       expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();

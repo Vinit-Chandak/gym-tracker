@@ -9,6 +9,7 @@ import { FoodSummary, mealTotals } from "@/components/food/food-summary";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
@@ -139,7 +140,9 @@ function FoodTile({
             line && (
               <Fragment key={line}>
                 {" "}
-                <span className="food-tile-line">{line}</span>
+                <span className="food-tile-line">
+                  <Figures>{line}</Figures>
+                </span>
               </Fragment>
             ),
         )}
@@ -206,7 +209,9 @@ export function FoodView({
                 <div className="min-w-0">
                   <h2 className="type-heading">No daily target yet</h2>
                   <p className="type-meta-small text-ink-2 tabular-nums">
-                    {joinFacts([goal && TRAINING_GOAL_LABELS[goal], formatSplit(splitFor(goal))])}
+                    <Figures>
+                      {joinFacts([goal && TRAINING_GOAL_LABELS[goal], formatSplit(splitFor(goal))])}
+                    </Figures>
                   </p>
                 </div>
                 <Link
@@ -242,7 +247,7 @@ export function FoodView({
                 href={links.targets}
                 glyph="target"
                 title="Targets"
-                lines={[target ? `${formatKcal(target.kcal)} kcal` : "Not set", attention]}
+                lines={[target ? `${formatKcal(target.kcal)}\u00a0kcal` : "Not set", attention]}
               />
               <FoodTile
                 href={links.myFoods}

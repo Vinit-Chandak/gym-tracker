@@ -8,6 +8,19 @@ import type { GraphRange } from "@/domain/graph-range";
 
 import { HeadToHeadGraph, type HeadToHeadData, type HeadToHeadMeasure } from "./head-to-head-graph";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/u/phani/compare/bench",
@@ -56,10 +69,10 @@ it("sums up each person's best in the span, and the day it was set, under their 
   );
   expect(readout().getByText("Vinit")).toBeTruthy();
   expect(readout().getByText("102.5")).toBeTruthy();
-  expect(readout().getByText("Thu 1 Oct")).toBeTruthy();
+  expect(readout().getByText(whole("Thu 1 Oct"))).toBeTruthy();
   expect(readout().getByText("Phani")).toBeTruthy();
   expect(readout().getByText("110")).toBeTruthy();
-  expect(readout().getByText("Sat 12 Sept")).toBeTruthy();
+  expect(readout().getByText(whole("Sat 12 Sept"))).toBeTruthy();
 });
 
 it("reads a day by both people, opening your workout; one who did not train has no session", () => {

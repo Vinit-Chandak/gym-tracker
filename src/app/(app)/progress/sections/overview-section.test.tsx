@@ -122,11 +122,11 @@ it("lists History's latest ten under the month, naming the month it runs back in
   // Each entry under its day; the days the calendar above holds stand under no month of their own,
   // and September is named once, over its first day.
   expect(latest.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
-    "Wed 7 Oct",
-    "Fri 2 Oct",
+    "Wed\u00a07\u00a0Oct",
+    "Fri\u00a02\u00a0Oct",
     "September",
-    "Wed 30 Sept",
-    "Tue 29 Sept",
+    "Wed\u00a030\u00a0Sept",
+    "Tue\u00a029\u00a0Sept",
   ]);
   const lift = latest.getByRole("link", { name: /Lower B/ });
   expect(lift.getAttribute("href")).toBe("/workouts/w2");

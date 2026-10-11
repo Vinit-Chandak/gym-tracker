@@ -90,7 +90,7 @@ it("says a pool's distance once to a swimmer who swims in its unit, and in their
       readIn="yd"
     />,
   );
-  expect(screen.getByRole("status").textContent).toBe("2,100\u00a0m · 2,296.59\u00a0yd");
+  expect(screen.getByRole("status").textContent).toBe("2,100\u00a0m ·\u00a02,296.59\u00a0yd");
 });
 
 it("offers no lengths at all in open water", () => {

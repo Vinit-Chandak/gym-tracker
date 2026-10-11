@@ -1,5 +1,6 @@
 import type { TrainingData, TrainingWorkout } from "@/server/repositories/training-data";
 import type { Schedule } from "@/server/repositories/schedule";
+import { joinFacts } from "@/lib/facts";
 import { addDays, todayInTimeZone } from "./program-calendar";
 import { weekStart } from "./running";
 import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "./muscle-volume";
@@ -108,7 +109,10 @@ export function performanceSeries(
           machine:
             machineKey === "global"
               ? "Across gyms"
-              : `${slot.equipment?.name ?? "Unrecorded machine (this session only)"} · ${workout.gym.name}`,
+              : joinFacts([
+                  slot.equipment?.name ?? "Unrecorded machine (this session only)",
+                  workout.gym.name,
+                ]),
           unit,
           load: [],
           reps: [],

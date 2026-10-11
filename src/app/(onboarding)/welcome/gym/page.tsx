@@ -4,6 +4,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Glyph, gymKindGlyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { requireProfiledUser } from "@/server/auth";
 import { listGyms } from "@/server/repositories/gyms";
 
@@ -38,7 +39,9 @@ export default async function WelcomeGymPage() {
                 </span>
                 <span className="min-w-0 type-meta font-semibold [overflow-wrap:break-word]">
                   {gym.name}
-                  {gym.equipmentCount > 0 ? ` · ${gym.equipmentCount} machines` : ""}
+                  {gym.equipmentCount > 0
+                    ? `${FACT_SEPARATOR}${gym.equipmentCount}\u00a0machines`
+                    : ""}
                 </span>
               </li>
             ))}

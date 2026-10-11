@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
@@ -116,6 +117,7 @@ export function ExerciseLife({
   elsewhere?: readonly LatestPerformance[];
 }) {
   const glyph = glyphFor(exercise.modality);
+  const machine = machineName && !sameName(machineName, GLYPH_LABELS[glyph]) ? machineName : null;
   const global = exercise.loadPortability === "global";
   const where = performances[0]?.gymName ?? null;
   // A machine's loads are in its own unit; anything else in the account's.
@@ -191,7 +193,9 @@ export function ExerciseLife({
                 {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
               </span>
               <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
-                {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                <Figures>
+                  {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                </Figures>
               </span>
             </Link>
           </li>
@@ -203,14 +207,17 @@ export function ExerciseLife({
   return (
     <>
       <p className="meta-line mt-1">
+        {/* The glyph says the kind and the machine is said in words, as a workout's rows say
+            them: "Machine" and "Lat pulldown" side by side read as one name. A machine named
+            after its kind ("Smith machine") is said once either way. */}
         <span className="meta-fact">
-          <Glyph name={glyph} className="glyph-16" />
-          {GLYPH_LABELS[glyph]}
+          <Glyph
+            name={glyph}
+            label={machine ? GLYPH_LABELS[glyph] : undefined}
+            className="glyph-16"
+          />
+          {machine ?? GLYPH_LABELS[glyph]}
         </span>
-        {/* A machine named after its kind ("Smith machine") is said once. */}
-        {machineName && !sameName(machineName, GLYPH_LABELS[glyph]) && (
-          <span className="meta-fact">{machineName}</span>
-        )}
         {where && (
           <span className="meta-fact">
             <Glyph name="pin" label="Gym" className="glyph-16" />

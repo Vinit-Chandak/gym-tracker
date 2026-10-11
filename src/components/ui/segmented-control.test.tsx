@@ -49,6 +49,8 @@ it("never lets a label wrap inside itself, and folds the tray evenly instead", (
   ).toEqual(["7 days", "30 days", "90 days", "1 year"]);
   // What each needs on a row, its label on one line, decides where the tray folds.
   expect(tray.style.getPropertyValue("--fold-w1")).toMatch(/^max\(var\(--ov-target\), 3\.\d+em/);
+  // With 0.75rem either side of its words: a column tray folds before its pills lose that.
+  expect(tray.style.getPropertyValue("--fold-w1")).toMatch(/em \+ 1\.5rem\)$/);
   expect(tray.style.getPropertyValue("--fold-r2")).toContain("var(--fold-w0)");
   // A break stands between each two segments, unseen and unheard.
   const breaks = container.querySelectorAll(".fold-break");

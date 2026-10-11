@@ -35,6 +35,19 @@ it("lists rank, name and value, calls your own row You and highlights it", () =>
   expect(links[1]!.getAttribute("aria-current")).toBe("true");
 });
 
+it("gives every row's value the same width, so each row folds as the others do", () => {
+  // A date with its year is wider than one without: the width is the column's, not the date's.
+  const dated = rank([
+    { key: "a", username: "aarav", displayName: "Aarav", value: 26.7, occurredOn: "2025-12-12" },
+    { key: "m", username: "meera", displayName: "Meera", value: 20, occurredOn: "2026-03-16" },
+  ]);
+  render(<RankList rows={dated} you="m" format={String} currentYear="2026" />);
+  const values = screen.getAllByRole("link").map((link) => link.lastElementChild!.className);
+  expect(values.every((value) => value.includes("flex-[0_0_6.25rem]"))).toBe(true);
+  // Its figures in Jost, whose zero is plain.
+  expect(screen.getAllByRole("link")[0]!.querySelector(".figures")?.textContent).toBe("26.7");
+});
+
 it("trails a person with nothing to rank, greyed, with a dash", () => {
   render(<RankList rows={rows} you="v" format={String} />);
   const last = screen.getAllByRole("link").at(-1)!;

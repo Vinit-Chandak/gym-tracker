@@ -1136,13 +1136,15 @@ it("says the coach's numbers under the name when the coach planned the session",
   // The programme says 3–5 reps and 3–4 min; the coach wrote 5 reps and 150 s. The figures sit
   // in spans of their own (Figures), so the line is read whole.
   const meta = document.querySelector(".session-meta")?.textContent ?? "";
-  expect(meta).toContain("5 reps");
+  expect(meta).toContain("5\u00a0reps");
   expect(meta).toContain("2.5 min");
-  expect(meta).not.toContain("3–5 reps");
+  expect(meta).not.toContain("3\u2060–\u20605\u00a0reps");
   expect(meta).not.toContain("3–4 min");
   // Off the Log tab, the line under the name gives the whole prescription.
   fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
-  expect(document.querySelector(".session-meta")?.textContent).toContain("60 kg · 3 × 5 @ 2 RIR");
+  expect(document.querySelector(".session-meta")?.textContent).toContain(
+    "60\u00a0kg ·\u00a03 × 5 @\u00a02\u00a0RIR",
+  );
 });
 
 it("shows the guide and the programme's cue in Technique, and none of the programme's notes", () => {

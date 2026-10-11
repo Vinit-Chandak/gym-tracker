@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -19,7 +20,8 @@ import {
 } from "@/domain/nutrition";
 import { sanitizeNumberEntry } from "@/domain/sets";
 import type { BodyLoadUnit, TrainingGoal } from "@/domain/types";
-import { formatFoodAmount, formatSplit } from "@/lib/format";
+import { joinFacts } from "@/lib/facts";
+import { formatFoodAmount, formatMacros, formatSplit } from "@/lib/format";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -153,7 +155,7 @@ export function TargetsForm({
                 {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
               </p>
               <p id="goal-split" className="type-meta-small text-ink-2 tabular-nums">
-                {formatSplit(split)}
+                <Figures>{formatSplit(split)}</Figures>
               </p>
             </div>
             {offerSplit && fromSplit && (
@@ -184,14 +186,12 @@ export function TargetsForm({
           error={state.fieldErrors?.proteinPerKg}
           hint={
             perKg !== null && (weighed || unit === "lb")
-              ? [
+              ? joinFacts([
                   unit === "lb" ? `${perPound(perKg)} g per lb` : null,
                   weighed
                     ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
                     : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
+                ])
               : unit === "lb"
                 ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg`
                 : undefined
@@ -241,8 +241,7 @@ export function TargetsForm({
         )}
         {preview && (
           <p className="type-meta-small font-semibold tabular-nums">
-            Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
-            Protein {formatFoodAmount(preview.proteinG)} g
+            <Figures>{formatMacros(preview)}</Figures>
           </p>
         )}
         {preview?.overBudget && (

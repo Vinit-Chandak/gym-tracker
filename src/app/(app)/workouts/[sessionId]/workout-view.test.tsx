@@ -317,10 +317,10 @@ it("names the year of a finished workout from another year, not of one from this
     />
   );
   const page = render(view(record("2026-09-08T11:00:00.000Z", "2026-10-11")));
-  expect(screen.getByText(whole("Tue 8\u00a0Sept"))).toBeTruthy();
+  expect(screen.getByText(whole("Tue\u00a08\u00a0Sept"))).toBeTruthy();
   // 13 October is a Tuesday this year: a year-old Monday says which year it was.
   page.rerender(view(record("2025-10-13T11:00:00.000Z", "2026-10-11")));
-  expect(screen.getByText(whole("Mon 13\u00a0Oct\u00a02025"))).toBeTruthy();
+  expect(screen.getByText(whole("Mon\u00a013\u00a0Oct\u00a02025"))).toBeTruthy();
 });
 
 it("lets Finish go once a set left saving lands after its exercise was closed", async () => {

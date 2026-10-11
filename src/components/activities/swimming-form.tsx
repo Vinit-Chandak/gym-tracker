@@ -14,6 +14,7 @@ import { formatPaceSeconds } from "@/domain/activity-metrics";
 import { formatDistance, toMetres, type PoolUnit } from "@/lib/distance-units";
 import { SWIM_STROKE_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
@@ -240,7 +241,7 @@ export function SwimmingForm({
                     {/* A yard pool is not a metre pool, and the athlete's own unit says so
                         exactly; a pool in their own unit needs saying once. */}
                     {poolUnit !== readIn
-                      ? ` · ${grouped(formatDistance(derivedMetres, readIn, 2))}`
+                      ? `${FACT_SEPARATOR}${grouped(formatDistance(derivedMetres, readIn, 2))}`
                       : ""}
                   </span>
                 ) : (

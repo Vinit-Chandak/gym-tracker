@@ -161,7 +161,7 @@ describe("the day's rows", () => {
       "kg",
     );
     expect(rows[0]).toMatchObject({
-      line: "30 kg · 3 × 10 @ 2, 2, 1 RIR",
+      line: "30 kg ·\u00a03 × 10 @ 2, 2, 1 RIR",
       note: "Add 2.5 kg after clean sets.",
       dropped: false,
       sets: 3,

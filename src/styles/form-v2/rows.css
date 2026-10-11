@@ -368,10 +368,11 @@ li:last-child > .sheet-row {
 .nav-row-label-bold {
   font-weight: 700;
 }
+/* Its figures are set in Jost by the row (Figures): Atkinson's own tabular digits, slashed
+   zero and all, read as a typewriter's. */
 .nav-row-sub {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: 1.35;
   overflow-wrap: break-word;

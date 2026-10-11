@@ -19,6 +19,7 @@ import { formatDuration } from "@/domain/pace";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
@@ -271,8 +272,9 @@ function startedAt(session: SessionSummary, today: string, timeZone: string): st
 }
 
 /**
- * "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. The sets are
- * the work, warm-ups aside, as the workout will list and count them.
+ * "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps, and each dot
+ * inside the box of the fact after it, so a wrapped line starts "· Started" and none ends on a
+ * dot. The sets are the work, warm-ups aside, as the workout will list and count them.
  */
 function Progress({
   session,
@@ -286,14 +288,14 @@ function Progress({
   return (
     <>
       {/* The figures in Jost, whose zero is plain (DESIGN.md, Typography): "0 sets", not "Ø". */}
-      <span className="whitespace-nowrap">In progress</span> ·{" "}
+      <span className="whitespace-nowrap">In progress</span>{" "}
       {/* Whole while it fits a line; at large text a start on another day ("Started Sun 11 Oct,
           10:30") is longer than the line, and wraps inside its own box rather than run off. */}
       <span className="inline-block max-w-full">
-        Started <Figures>{startedAt(session, today, timeZone)}</Figures>
+        {FACT_SEPARATOR.trimStart()}Started <Figures>{startedAt(session, today, timeZone)}</Figures>
       </span>{" "}
-      ·{" "}
       <span className="whitespace-nowrap">
+        {FACT_SEPARATOR.trimStart()}
         <span className="figures">{session.workingSetCount}</span>{" "}
         {session.workingSetCount === 1 ? "set" : "sets"}
       </span>
@@ -643,7 +645,7 @@ export function TodayView({
             <div className="activity-card-plan">
               <div className="activity-card-passage">
                 <p className="type-meta font-semibold">
-                  {restProtocol.name} · {restProtocol.drills.length} drills
+                  {joinFacts([restProtocol.name, `${restProtocol.drills.length}\u00a0drills`])}
                 </p>
                 <ul className="mt-1">
                   {restProtocol.drills.map((drill, index) => (

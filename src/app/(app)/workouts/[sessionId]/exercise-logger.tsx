@@ -28,6 +28,7 @@ import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
 import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
 import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
@@ -576,8 +577,9 @@ export function ExerciseLogger({
     <>
       {/* The glyph says the kind; the machine itself is said once, in words. */}
       <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-      {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
-      <Figures>{range ?? equipment}</Figures>
+      {/* Its figures in Jost, whose zero is plain, as every meta line's are, and each range
+          held at its dash: "@ 1–" never ends a line. */}
+      <Figures>{range === null ? equipment : holdFigures(range)}</Figures>
     </>,
   ];
   if (rest)
@@ -971,7 +973,9 @@ export function ExerciseLogger({
       <Glyph name="link" className="glyph-18 text-ink-2" />
       <span className="font-bold">Then {partner.exercise.name}</span>
       {partnerLine && (
-        <span className="type-meta-small text-ink-2 tabular-nums">{partnerLine}</span>
+        <span className="type-meta-small text-ink-2 tabular-nums">
+          <Figures>{holdFigures(partnerLine)}</Figures>
+        </span>
       )}
     </p>
   ) : null;
@@ -1249,13 +1253,18 @@ export function ExerciseLogger({
                   .map((row) => (
                     <div key={row.setIndex} className="type-meta-small">
                       <p className="tabular-nums">
-                        Set {row.setIndex}: {row.weight || "—"} {unitLabel} ·{" "}
-                        {measure === "duration"
-                          ? `${row.duration || "—"} s`
-                          : measure === "distance"
-                            ? `${row.distance || "—"} m`
-                            : `${row.reps || "—"} reps`}{" "}
-                        · {effort === "rir" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
+                        Set {row.setIndex}:{" "}
+                        {joinFacts([
+                          `${row.weight || "—"}\u00a0${unitLabel}`,
+                          measure === "duration"
+                            ? `${row.duration || "—"}\u00a0s`
+                            : measure === "distance"
+                              ? `${row.distance || "—"}\u00a0m`
+                              : `${row.reps || "—"}\u00a0reps`,
+                          effort === "rir"
+                            ? `RIR\u00a0${row.rir || "—"}`
+                            : `RPE\u00a0${row.rpe || "—"}`,
+                        ])}
                       </p>
                       <Button
                         variant="text"

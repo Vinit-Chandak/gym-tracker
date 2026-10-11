@@ -1,5 +1,6 @@
 import { formatDuration, formatHold } from "@/domain/pace";
 import { metricLabel, type SharedMetric } from "@/domain/shared-stats";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import {
   formatSharedDistance,
   formatSharedLoad,
@@ -190,5 +191,5 @@ function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): stri
   })();
   if (best === null) return count;
   const [metric, figure] = best;
-  return `${count} · ${metricLabel(metric, exercise)} ${figure.replaceAll(" ", "\u00a0")}`;
+  return `${count}${FACT_SEPARATOR}${metricLabel(metric, exercise)} ${figure.replaceAll(" ", "\u00a0")}`;
 }

@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -421,8 +422,11 @@ export function Graph({
               ) : (
                 <Figure text={readout.figure} unit={readout.unit} />
               )}
-              {/* Held even when empty, so a mark without a second line keeps the figure in place. */}
-              <span className="graph-readout-context">{readout.context || "\u00a0"}</span>
+              {/* Held even when empty, so a mark without a second line keeps the figure in place.
+                  Its figures in Jost, whose zero is plain: "36,390 lb a week · 13 workouts". */}
+              <span className="graph-readout-context">
+                {readout.context ? <Figures>{readout.context}</Figures> : "\u00a0"}
+              </span>
             </p>
             {selected && readout.href && (
               <Link href={readout.href} className="graph-readout-open">
@@ -688,7 +692,9 @@ function ReadoutSide({
           <Glyph name="chevronRight" className="glyph-16" />
         </span>
       ) : (
-        <span className="graph-readout-context">{side.context || "\u00a0"}</span>
+        <span className="graph-readout-context">
+          {side.context ? <Figures>{side.context}</Figures> : "\u00a0"}
+        </span>
       )}
     </>
   );
@@ -844,7 +850,9 @@ function GraphValues({
                 <span className="flex min-w-0 flex-col">
                   <span className="text-ink-2">{row.label}</span>
                   {row.context && (
-                    <span className="type-caption font-medium text-ink-2">{row.context}</span>
+                    <span className="type-caption font-medium text-ink-2">
+                      <Figures>{row.context}</Figures>
+                    </span>
                   )}
                 </span>
                 <span className="graph-value-figure">

@@ -121,7 +121,12 @@ function RequestRow({
       {settled ? (
         <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">
           {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
-          {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
+          {request.settledOn && (
+            <span className="tabular-nums">
+              {FACT_SEPARATOR}
+              {request.settledOn}
+            </span>
+          )}
         </p>
       ) : request.state === "needs_answer" ? (
         request.detail && <p className="type-body [overflow-wrap:break-word]">{request.detail}</p>

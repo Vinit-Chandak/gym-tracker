@@ -95,7 +95,7 @@ describe("a run in History", () => {
     // Named as its page names it, where it was run beside the time, as a workout's gym is.
     expect(item.title).toBe("Run ·\u00a05\u00a0km");
     expect(item.subtitle).toBe("07:00 ·\u00a0Outdoor");
-    expect(item.meta).toBe("30:00 · 6:00/km");
+    expect(item.meta).toBe("30:00 ·\u00a06:00/km");
   });
 
   it("reads in the athlete's own unit for the sport", () => {
@@ -104,7 +104,7 @@ describe("a run in History", () => {
       historyClock("UTC", { running: { distanceUnit: "mi", poolUnit: "yd" } }),
     );
     expect(item.title).toBe("Run ·\u00a03.11\u00a0mi");
-    expect(item.meta).toBe("30:00 · 9:39/mi");
+    expect(item.meta).toBe("30:00 ·\u00a09:39/mi");
   });
 });
 

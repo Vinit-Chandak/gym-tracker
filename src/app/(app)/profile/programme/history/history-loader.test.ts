@@ -154,30 +154,35 @@ it("says what each change did, to which programme, and when", async () => {
       id: ids.declined,
       title: summary,
       subtitle: `${name}${FACT_SEPARATOR}Declined`,
-      on: "Mon 21\u00a0Sept",
+      on: "Mon\u00a021\u00a0Sept",
     },
     // Applied by the coach on its own, as its weekly review recorded.
     {
       id: ids.applied,
       title: "One more set of the first lift.",
       subtitle: `${name}${FACT_SEPARATOR}Applied by the coach`,
-      on: "Mon 14\u00a0Sept",
+      on: "Mon\u00a014\u00a0Sept",
     },
     // A new block of another programme says which, and what it took the place of.
     {
       id: ids.switch,
       title: "Started Push Pull Legs",
       subtitle: `In place of ${name}${FACT_SEPARATOR}Approved`,
-      on: "Mon 1\u00a0Jun",
+      on: "Mon\u00a01\u00a0Jun",
     },
     // The same programme again, as a block of its own.
-    { id: ids.again, title: `New block of ${name}`, subtitle: "Your edit", on: "Mon 9\u00a0Mar" },
+    {
+      id: ids.again,
+      title: `New block of ${name}`,
+      subtitle: "Your edit",
+      on: "Mon\u00a09\u00a0Mar",
+    },
     // A change to the running programme, last year: what its difference comes to, and the year.
     {
       id: ids.revision,
       title: summary,
       subtitle: `${name}${FACT_SEPARATOR}Your edit`,
-      on: "Mon 17\u00a0Nov\u00a02025",
+      on: "Mon\u00a017\u00a0Nov\u00a02025",
     },
   ]);
 });

@@ -6,6 +6,19 @@ import { afterEach, expect, it, vi } from "vitest";
 import { FinishedWorkout } from "./finished-workout";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 vi.mock("next/navigation", () => ({ useRouter: () => ({ back: vi.fn() }) }));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ prefetch: _, ...props }: ComponentProps<"a"> & { prefetch?: unknown }) => (
@@ -131,7 +144,7 @@ it("counts the sets it lists, warm-ups aside, as its volume does", () => {
   show();
   // Two of the bench press's four, and both of the row's: the back-off is work.
   expect(stat("Sets")).toBe("4");
-  expect(screen.getByText("60 kg × 5, 62.5 kg × 4")).toBeTruthy();
+  expect(screen.getByText(whole("60 kg × 5, 62.5 kg × 4"))).toBeTruthy();
   expect(stat("Volume")).toBe("1,350 kg");
   expect(stat("Time")).toBe("69 min");
 });

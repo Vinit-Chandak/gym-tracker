@@ -46,7 +46,7 @@ const open = (day: string, index: number) =>
   } as unknown as Parameters<typeof StartPage>[0]);
 
 it("asks how you are before a day's workout", async () => {
-  expect(renderToStaticMarkup(await open(LOWER, 1))).toContain("Before Lower · Optional");
+  expect(renderToStaticMarkup(await open(LOWER, 1))).toContain("Before Lower ·\u00a0Optional");
 });
 
 /**

@@ -5,6 +5,7 @@ import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
 import { BackLink } from "@/components/shell/back-link";
 import { FitTitle } from "@/components/ui/fit-title";
+import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -171,7 +172,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         <p className="meta-line mt-1">
           <span className="meta-fact">
             <Glyph name="calendar" label="Date" className="glyph-16" />
-            {startedAt}
+            {/* Its time in Jost, whose zero is plain, as History's is. */}
+            <Figures>{startedAt}</Figures>
           </span>
           {where && (
             <span className="meta-fact">

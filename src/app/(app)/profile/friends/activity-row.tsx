@@ -1,6 +1,7 @@
 import { Art } from "@/components/art/art";
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
+import { Figures } from "@/components/ui/figures";
 import { formatDuration } from "@/domain/pace";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -97,7 +98,9 @@ export function ActivityRow({
         className="activity-row-avatar"
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline justify-between gap-2">
+        {/* The day stands at the row's end beside the name and goes under it, at the name's
+            edge, before the name would have less than a few words' room (large text). */}
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
           <span className="activity-row-name">{person.displayName || person.username}</span>
           <span className="activity-row-day">{formatRelativeDay(day, today)}</span>
         </span>
@@ -105,7 +108,10 @@ export function ActivityRow({
           <span className="grid w-4 shrink-0 justify-items-center">
             <Art kind="mark" sport={MARK[row.sport]} size={16} />
           </span>
-          <span className="activity-row-text">{joinFacts(summary(row, unit, distanceUnits))}</span>
+          {/* Its figures in Jost, whose zero is plain: "12,021 lb", not a slashed one. */}
+          <span className="activity-row-text">
+            <Figures>{joinFacts(summary(row, unit, distanceUnits))}</Figures>
+          </span>
         </span>
       </span>
     </Link>

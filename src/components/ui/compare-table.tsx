@@ -1,6 +1,8 @@
 import { compareValues, type Comparison } from "@/domain/compare";
 import { cn } from "@/lib/utils";
 
+import { Figures } from "./figures";
+
 /** One side of a comparison: the number, how it reads, and anything said under it. */
 export type CompareSide = {
   value: number | null;
@@ -105,7 +107,7 @@ export function CompareTable({
                     ) : (
                       <>
                         {lead && <span className="sr-only">{lead} </span>}
-                        {percentLabel(comparison)}
+                        <Figures>{percentLabel(comparison)}</Figures>
                       </>
                     )}
                   </span>
@@ -161,11 +163,11 @@ function Value({ side, leads, who }: { side: CompareSide; leads: boolean; who: W
             leads ? "font-semibold" : side.value ? "font-medium" : "text-ink-muted",
           )}
         >
-          {side.text}
+          <Figures>{side.text}</Figures>
         </span>
         {side.sub?.map((line) => (
           <span key={line} className="block text-xs text-ink-muted">
-            {line}
+            <Figures>{line}</Figures>
           </span>
         ))}
       </span>

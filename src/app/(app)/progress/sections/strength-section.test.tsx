@@ -9,6 +9,19 @@ import { exerciseSessions, strengthGraph, type StrengthRow } from "@/domain/prog
 import type { ProgressData } from "../progress-types";
 import { StrengthSection } from "./strength-section";
 
+/**
+ * The innermost element whose whole text, its spaces read as the default matcher reads them, is
+ * `text`: a figure's digits stand in a span of their own (Figures).
+ */
+const whole = (text: string | RegExp) => (_: string, element: Element | null) => {
+  const reads = (node: Element) => {
+    if (node.classList.contains("figures")) return false;
+    const value = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? value === text : text.test(value);
+  };
+  return element !== null && reads(element) && ![...element.children].some(reads);
+};
+
 const route = vi.hoisted(() => ({ search: "" }));
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -101,7 +114,7 @@ it("opens on every group's volume, with every exercise to choose from", () => {
   const readout = within(screen.getByText("Total volume").closest(".graph-readout") as HTMLElement);
   expect(readout.getByText("2,900")).toBeTruthy();
   // Over the two weeks trained, not the month's five.
-  expect(readout.getByText("1,450 kg a week · 2 workouts")).toBeTruthy();
+  expect(readout.getByText(whole("1,450 kg a week · 2 workouts"))).toBeTruthy();
 });
 
 it("lists a group's own exercises and draws its volume; choosing one costs no request", () => {

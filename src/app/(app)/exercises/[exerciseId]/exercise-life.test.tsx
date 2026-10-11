@@ -108,8 +108,16 @@ it("says what its figures and its latest sessions are read on, and lists other m
   // The machine is kept whole, its dot with it, if the line wraps.
   expect(screen.getByText("· Unrecorded machine").previousSibling?.textContent).toBe(" ");
   expect(screen.getByText("· Unrecorded machine").parentElement?.textContent).toBe(
-    "Wed 7\u00a0Oct ·\u00a0Unrecorded machine",
+    "Wed\u00a07\u00a0Oct ·\u00a0Unrecorded machine",
   );
+});
+
+it("leads the machine's name with its kind's glyph, never beside the kind's name", () => {
+  render(<ExerciseLife {...props(false)} machineName="Lat pulldown" />);
+  // "Machine Lat pulldown" read as one name; the glyph says the kind, as a workout's rows do.
+  const fact = screen.getByRole("img", { name: "Machine" }).parentElement!;
+  expect(fact.textContent).toBe("Lat pulldown");
+  expect(screen.queryByText("Machine")).toBeNull();
 });
 
 it("names a machine called after its kind once", () => {

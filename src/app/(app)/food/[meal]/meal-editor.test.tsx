@@ -155,7 +155,7 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
   expect(inSheet().getByRole("heading", { name: "Oats" })).toBeTruthy();
   expect(sheet().textContent).toContain(
-    "Per 100 g · 389 kcal · Carbs 66 g · Fat 7 g · Protein 17 g",
+    "Per 100\u00a0g ·\u00a0389\u00a0kcal ·\u00a0Carbs 66\u00a0g ·\u00a0Fat 7\u00a0g ·\u00a0Protein 17\u00a0g",
   );
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "100");
 
@@ -168,7 +168,9 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "150");
   type("Amount eaten", "60");
   expect(sheet().textContent).toContain("233.4 kcal");
-  expect(sheet().textContent).toContain("Carbs 40 g · Fat 4 g · Protein 10 g");
+  expect(sheet().textContent).toContain(
+    "Carbs 40\u00a0g ·\u00a0Fat 4\u00a0g ·\u00a0Protein 10\u00a0g",
+  );
 
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
@@ -389,7 +391,7 @@ it("stars a meal under the name it is given, saying when that replaces one", asy
   expect(star.getAttribute("aria-pressed")).toBe("false");
   fireEvent.click(star);
   expect(inSheet().getByRole("heading", { name: "Star meal" })).toBeTruthy();
-  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  expect(sheet().textContent).toContain("Breakfast: 1\u00a0food ·\u00a0156\u00a0kcal");
   type("Name", "usual BREAKFAST");
   expect(inSheet().getByText("Replaces your saved meal Usual breakfast.")).toBeTruthy();
   type("Name", "Milk breakfast");
@@ -573,7 +575,7 @@ it("adds to the day a sheet was opened on, though the page moves on to the next 
   fireEvent.click(screen.getByRole("button", { name: "Star" }));
   midnight(view.rerender);
   // What is starred is the meal as it was, not the next day's empty one.
-  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  expect(sheet().textContent).toContain("Breakfast: 1\u00a0food ·\u00a0156\u00a0kcal");
   type("Name", "Milk breakfast");
   fireEvent.click(inSheet().getByRole("button", { name: "Save meal" }));
   await waitFor(() => expect(sheet().open).toBe(false));

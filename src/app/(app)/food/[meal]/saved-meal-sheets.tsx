@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { addUp, eaten, NUTRITION_LIMITS, type LoggedFood, type Meal } from "@/domain/nutrition";
+import { joinFacts } from "@/lib/facts";
 import { formatKcal, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import {
@@ -24,7 +25,10 @@ type Place = { eatenOn: string; meal: Meal; mealLabel: string };
 /** "3 foods · 520 kcal": what a list of foods holds, in one line. */
 function contents(foods: readonly LoggedFood[]): string {
   const total = addUp(foods.map(eaten));
-  return `${foods.length} ${foods.length === 1 ? "food" : "foods"} · ${formatKcal(total.kcal)} kcal`;
+  return joinFacts([
+    `${foods.length}\u00a0${foods.length === 1 ? "food" : "foods"}`,
+    `${formatKcal(total.kcal)}\u00a0kcal`,
+  ]);
 }
 
 /**

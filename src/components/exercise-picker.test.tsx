@@ -122,7 +122,7 @@ it("opens a swap on the movement being replaced, the rest by region under it", (
     />,
   );
   const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-  expect(headings[0]).toBe("Same movement · 2");
+  expect(headings[0]).toBe("Same movement ·\u00a02");
   const first = within(screen.getByRole("heading", { name: /Same movement/ }).closest("section")!);
   expect(first.getAllByRole("radio").map((radio) => radio.closest("label")!.textContent)).toEqual([
     expect.stringContaining("Cable curl"),

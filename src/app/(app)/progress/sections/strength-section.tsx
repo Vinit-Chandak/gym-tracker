@@ -16,7 +16,7 @@ import {
 } from "@/components/graph/labels";
 import { Select } from "@/components/ui/select";
 import { STRENGTH_GROUP_CHOICES, type StrengthGroupChoice } from "@/domain/progress-graphs";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { fromKilograms } from "@/lib/units";
 
 import type { ProgressData } from "../progress-types";
@@ -173,7 +173,10 @@ function GroupVolume({
         unit,
         context:
           total > 0 && graph.weeksTrained > 0
-            ? `${amount(total / graph.weeksTrained)} ${unit} a week · ${counted(workouts, "workout")}`
+            ? joinFacts([
+                `${amount(total / graph.weeksTrained)}\u00a0${unit} a week`,
+                counted(workouts, "workout"),
+              ])
             : null,
       }}
       describe={(index) => {

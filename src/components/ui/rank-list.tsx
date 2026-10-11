@@ -2,6 +2,7 @@ import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
+import { Figures } from "@/components/ui/figures";
 import { List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import type { Ranked } from "@/domain/leaderboard";
 import { formatIsoDate } from "@/lib/format";
@@ -78,19 +79,26 @@ export function RankList({
                   </span>
                 </span>
               </span>
-              {/* Values get their own line when the name and rank need the available width. */}
-              <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums">
+              {/* Values get their own line when the name and rank need the available width. The
+                  value is as wide in every row (6.25rem holds "Fri 12 Dec 2025" and "12 reps · 4
+                  sets"), so whether it goes under the name never depends on what it says: at
+                  320 pt every row puts it under, rather than the one with a year in its date. */}
+              <span className="ml-auto max-w-full min-w-0 flex-[0_0_6.25rem] text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums">
                 {row.value === null ? (
                   <span aria-label="No data">—</span>
                 ) : (
                   <>
-                    <span className="block font-medium">{format(row.value)}</span>
+                    <span className="block font-medium">
+                      <Figures>{format(row.value)}</Figures>
+                    </span>
                     {row.detail && (
-                      <span className="block text-xs text-ink-muted">{row.detail}</span>
+                      <span className="block text-xs text-ink-muted">
+                        <Figures>{row.detail}</Figures>
+                      </span>
                     )}
                     {row.occurredOn && (
                       <span className="block text-xs text-ink-muted">
-                        {formatIsoDate(row.occurredOn, currentYear)}
+                        <Figures>{formatIsoDate(row.occurredOn, currentYear)}</Figures>
                       </span>
                     )}
                   </>

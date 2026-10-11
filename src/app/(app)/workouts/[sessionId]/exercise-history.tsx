@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { measureOf as measureOfSet } from "@/domain/sets";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDay } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
 import type { ExerciseHistoryEntry } from "@/server/actions/sessions";
@@ -109,7 +110,8 @@ export function ExerciseHistory({
   return (
     <div>
       <h2 className="mt-3 type-caption text-ink-2 tabular-nums">
-        All sessions · {state.entries.length}
+        All sessions{FACT_SEPARATOR}
+        {state.entries.length}
         {state.more ? "+" : ""}
       </h2>
       {state.entries.map((entry, index) => {
@@ -132,7 +134,7 @@ export function ExerciseHistory({
               </span>
               <span className="min-w-0 type-meta-small [overflow-wrap:break-word] text-ink-2">
                 {entry.gymName}
-                {entry.equipmentName ? ` · ${entry.equipmentName}` : ""}
+                {entry.equipmentName ? `${FACT_SEPARATOR}${entry.equipmentName}` : ""}
               </span>
             </h3>
             <ol className="log py-0" style={logStyle(size)}>

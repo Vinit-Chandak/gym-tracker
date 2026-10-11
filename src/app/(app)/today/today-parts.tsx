@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { Art } from "@/components/art/art";
 import type { PrintPart } from "@/components/art/geometry";
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { holdFigures } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -231,7 +233,9 @@ export function PlanRow({
               glyph={row.glyph ?? undefined}
               label={row.glyph ? GLYPH_LABELS[row.glyph] : undefined}
             >
-              {row.line}
+              {/* Its figures in Jost, as every meta line's are, each range held at its dash and
+                  RIR to its figure: "@ 1–" never ends a line. */}
+              <Figures>{holdFigures(row.line)}</Figures>
             </Fact>
           </MetaLine>
         )}

@@ -9,6 +9,9 @@ import { socialWindow } from "@/server/validation/period";
 
 import CompareExercisePage from "./page";
 
+/** The page's words with its tags left out: a figure's digits stand in a span of their own. */
+const words = (html: string) => html.replace(/<[^>]*>/g, "");
+
 const EXERCISE = "8f0c1a52-3b7e-4c1d-9a64-2f5e8d7b6c01";
 
 const mocks = vi.hoisted(() => ({
@@ -163,9 +166,9 @@ it("reads a best against each person's latest body weight, and says it is the la
     } as never),
   );
   // A lift from last December over this October's weight: the line says which weight it is.
-  expect(html).toContain("1.76× latest\u00a0BW");
-  expect(html).toContain("0.65× latest\u00a0BW");
-  expect(html).not.toMatch(/\d× BW/);
+  expect(words(html)).toContain("1.76×\u00a0latest\u00a0BW");
+  expect(words(html)).toContain("0.65×\u00a0latest\u00a0BW");
+  expect(words(html)).not.toMatch(/\d×\s?BW/);
 });
 
 it("names each number under a top weight, and calls a set's volume what it is", async () => {
@@ -197,8 +200,8 @@ it("names each number under a top weight, and calls a set's volume what it is", 
   );
   // Two sets at the top weight, the better of them eleven reps: never "2 × 11", nor
   // "11 reps · 2 sets", which read as two sets of eleven too.
-  expect(html).toContain("2\u00a0sets ·\u00a0best\u00a011\u00a0reps");
-  expect(html).toContain("1\u00a0set ·\u00a02\u00a0reps");
-  expect(html).not.toMatch(/\d × \d/);
+  expect(words(html)).toContain("2\u00a0sets ·\u00a0best\u00a011\u00a0reps");
+  expect(words(html)).toContain("1\u00a0set ·\u00a02\u00a0reps");
+  expect(words(html)).not.toMatch(/\d × \d/);
   expect(html).toContain("Best set volume");
 });

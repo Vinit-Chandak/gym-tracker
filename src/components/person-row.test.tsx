@@ -37,3 +37,14 @@ it("keeps a chevron beside the name, never folded under it", () => {
   expect(name.parentElement!.className).not.toContain("flex-wrap");
   expect(name.className).toContain("flex-1");
 });
+
+it("puts the name under the avatar beside a chevron before a word of it would break", () => {
+  render(<PersonRow person={{ username: "liam", displayName: "Liam O'Connor" }} />);
+  const name = screen.getByRole("link", { name: /Liam O'Connor/ });
+  // The link folds: its words are as wide as the longest of them, then the rest of the line.
+  expect(name.className).toContain("flex-wrap");
+  const words = screen.getByText("Liam O'Connor").parentElement!;
+  expect(words.className).toContain("w-min");
+  expect(words.className).toContain("flex-auto");
+  expect(words.className).toContain("max-w-full");
+});

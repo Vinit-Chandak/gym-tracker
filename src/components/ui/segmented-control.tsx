@@ -50,11 +50,14 @@ const MIN_PILL = "4.75rem";
 /**
  * What a segment needs on a row: its label on one line in bold at the tray's size (em), with a
  * hundredth to spare, and its padding; never under a target, nor under `MIN_PILL` where the
- * segments start from it.
+ * segments start from it. Columns share a row only while each keeps 0.75rem either side of its
+ * words: at the pill's own 0.375rem, four on a 360-dp row ("Female", "Prefer not to say") left
+ * the chosen ink a hair from its words and the last against the tray's edge, so they fold.
  */
 function segmentWidth(label: string, columns: boolean): string {
   const least = columns ? "var(--ov-target)" : `max(var(--ov-target), ${MIN_PILL})`;
-  return `max(${least}, ${(boldEmWidth(label) * 1.01).toFixed(3)}em + 0.75rem)`;
+  const padding = columns ? "1.5rem" : "0.75rem";
+  return `max(${least}, ${(boldEmWidth(label) * 1.01).toFixed(3)}em + ${padding})`;
 }
 
 /** A scale's figure: Jost at the figure size, and never narrower than its 44-pt target. */

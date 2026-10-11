@@ -3,6 +3,7 @@ import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
@@ -117,7 +118,7 @@ export function planRows(
           ? prescription(slot)
           : ""
         : `${line ?? (slot ? prescription(slot) : "By the rule")}${
-            entry.equipmentInstanceName ? ` · ${entry.equipmentInstanceName}` : ""
+            entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
           }`,
       note: entry.note || null,
       dropped,

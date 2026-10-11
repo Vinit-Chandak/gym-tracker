@@ -9,6 +9,7 @@ import {
   type MuscleVolume,
   type VolumeStep,
 } from "@/domain/muscle-volume";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
@@ -104,8 +105,10 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
           <span className="font-medium">{MUSCLE_LABELS[active]}</span>
           {/* The week is named above the map, whichever week it is. */}
           <span className="text-ink-muted">
-            {" "}
-            · {fmt(volume[active] ?? 0)} {volume[active] === 1 ? "set" : "sets"}
+            {FACT_SEPARATOR}
+            {fmt(volume[active] ?? 0)}
+            {"\u00a0"}
+            {volume[active] === 1 ? "set" : "sets"}
           </span>
         </p>
       )}

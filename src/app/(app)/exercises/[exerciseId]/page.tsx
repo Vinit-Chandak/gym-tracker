@@ -10,8 +10,10 @@ import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
+import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { Figures } from "@/components/ui/figures";
+import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -25,7 +27,7 @@ import { earliestOf, exerciseSessions } from "@/domain/progress-graphs";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
 import { showsDrafts } from "@/lib/drafts";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { formatLoadStep } from "@/lib/format";
 import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
@@ -86,6 +88,10 @@ function equipmentWayLabel(way: ExerciseEquipmentWay): string {
   return `${primary.typeName} with ${joined}`;
 }
 
+/**
+ * "3 × 10–12 per side @ 1–2 RIR · rest 90 s", as the page shows it: each range held at its dash,
+ * RIR and the rest to their figures, and the dot to the rest after it.
+ */
 function prescription(usage: ExerciseProgramUsage): string {
   const range =
     usage.prescriptionType === "duration"
@@ -95,7 +101,12 @@ function prescription(usage: ExerciseProgramUsage): string {
         : rangeLabel(usage.repMin, usage.repMax);
   const volume = `${usage.sets} × ${range}`;
   const side = usage.perSide ? " per side" : "";
-  return `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR · rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`;
+  return holdFigures(
+    joinFacts([
+      `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR`,
+      `rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`,
+    ]),
+  );
 }
 
 function availabilityDetail(entry: ExerciseGymAvailability): string {
@@ -424,7 +435,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
                   <p className="text-sm font-medium [overflow-wrap:break-word]">{usage.dayName}</p>
-                  <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
+                  <p className="text-sm text-ink-muted tabular-nums">
+                    <Figures>{prescription(usage)}</Figures>
+                  </p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
                     <p className="text-xs [overflow-wrap:break-word] text-ink-subtle">
                       {[usage.targetLoadNote, usage.progressionNotes]
@@ -472,12 +485,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   >
                     Preferred machine here
                   </label>
-                  {/* The select carries the long machine names, so it takes the row. */}
-                  <div className="flex items-center gap-2">
+                  {/* The select carries the long machine names, so it takes the row (its wrapper
+                      is what the row lays out), and Save goes under it before the choice would
+                      have less than a few words' room (large text). */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select
                       id={`preferred-machine-${entry.gym.id}`}
                       name="equipmentInstanceId"
-                      className="min-w-0 flex-1"
+                      wrapperClassName="min-w-0 flex-[1_1_12rem]"
                       defaultValue={entry.preferredInstanceId ?? ""}
                     >
                       <option value="">Automatic</option>
@@ -493,9 +508,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   </div>
                 </form>
               )}
-              <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
+              {/* A link inside a card, at the card's text edge and led on by its chevron, as
+                  Today's cards say theirs; a button's padding set it in from the lines above. */}
+              <Link href={`/gyms/${entry.gym.id}/programme`} className="activity-card-link">
                 Programme fit
-              </LinkButton>
+                <Glyph name="chevronRight" className="glyph-18" />
+              </Link>
             </Card>
           ))}
         </Section>
