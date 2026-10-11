@@ -477,6 +477,17 @@ describe("a superset", () => {
     expect(supersetNext(session, curl)?.id).toBe("carry");
     expect(supersetNext(session, alone)).toBeNull();
   });
+
+  it("passes over a partner skipped or done, and has no next once none is left", () => {
+    const bench = exercise({ id: "bench", orderIndex: 1, supersetGroup: "A" });
+    const row = exercise({ id: "row", orderIndex: 2, supersetGroup: "A" });
+    const fly = exercise({ id: "fly", orderIndex: 3, supersetGroup: "A" });
+    const at = "2026-09-08T12:00:00.000Z";
+    const skipped = { exercises: [bench, { ...row, skippedAt: at }, fly] } as SessionVM;
+    expect(supersetNext(skipped, bench)?.id).toBe("fly");
+    const done = { exercises: [bench, { ...row, skippedAt: at }, { ...fly, completedAt: at }] };
+    expect(supersetNext(done as SessionVM, bench)).toBeNull();
+  });
 });
 
 describe("figures fit their columns", () => {

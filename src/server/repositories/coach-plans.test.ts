@@ -36,6 +36,7 @@ import {
   todayCoachState,
   voidPlanForSlot,
 } from "./coach-plans";
+import { readCoachMemory } from "./coach-memory";
 import { listGyms } from "./gyms";
 import { logTestRun } from "@/db/test/fixtures";
 import { createProgramFromBlueprint } from "./programs";
@@ -336,6 +337,11 @@ describe("a session that starts from a plan", () => {
     const crunch = detail.exercises.find((e) => e.exercise.slug === "cable-crunch")!;
     expect(crunch.skippedAt).not.toBeNull();
     expect(crunch.notes).toBe("Back is sore today.");
+    // The coach's own reason is not handed back to it as a note the athlete wrote while training.
+    const memory = await withUser(t.db, alice.id, (tx) => readCoachMemory(tx, alice.id));
+    expect(memory.notes.training.pending.map((note) => note.sourceId)).not.toContain(
+      `exercise:${crunch.id}`,
+    );
 
     const added = detail.exercises[6]!;
     expect(added.exercise.slug).toBe("face-pull");

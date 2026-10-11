@@ -6,7 +6,12 @@ import { draftKey, writeDraft } from "@/lib/workout-drafts";
 import { ExerciseLogger } from "./exercise-logger";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
-const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn(), complete: vi.fn() }));
+const actions = vi.hoisted(() => ({
+  log: vi.fn(),
+  remove: vi.fn(),
+  complete: vi.fn(),
+  history: vi.fn(),
+}));
 // `unstable_rethrow` is how a failed save tells a redirect from a dropped connection; the
 // mock has to carry it, or every failure here looks like the framework's own.
 vi.mock("next/navigation", () => ({
@@ -22,6 +27,7 @@ vi.mock("@/server/actions/sessions", () => ({
   setExerciseCompletedAction: actions.complete,
   skipExerciseAction: vi.fn(),
   applyFallbackAction: vi.fn(),
+  readExerciseHistoryAction: actions.history,
 }));
 
 const context = {
@@ -507,9 +513,21 @@ it("recognizes an acknowledged-on-the-server draft and does not duplicate non-co
   });
   renderLogger({ exercise: { sets: [{ ...saved, setIndex: 3 }] } });
   await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
-  expect(screen.getAllByRole("button", { name: /^Set 3: / })).toHaveLength(1);
-  // The first set not yet done is entered first.
-  expect(entry("Set 1")).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /^Set 1: / })).toHaveLength(1);
+  // The places before it were deleted or never done: the next set goes after it, so the sets
+  // stay in the order they were done, and it is the second.
+  expect(entry("Set 2")).toBeTruthy();
+});
+
+it("never reopens a set deleted from among those done, through a reload", async () => {
+  // Sets 1 and 3 of 3 done, set 2 deleted: coming back, the next set goes after the last done.
+  const done = [1, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, id: "set-4", setIndex: 4 } });
+  renderLogger({ exercise: { planned: benchSlot, sets: done } });
+  expect(entry("Set 3 of 3")).toBeTruthy();
+  saveFirstSet();
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setIndex: 4 });
 });
 
 it("keeps each set's values to itself when the next one is edited", async () => {
@@ -604,6 +622,75 @@ it("uses mandatory RPE for a carry and persists that reported effort", async () 
       expect.objectContaining({ rir: null, rpe: 7, distanceMeters: 25 }),
     ),
   );
+});
+
+it("writes History's free-weight loads in the Log tab's unit, so a lift reads the same on both", async () => {
+  actions.history.mockResolvedValue({
+    more: false,
+    entries: [
+      {
+        workoutExerciseId: "earlier",
+        workoutSessionId: "s1",
+        performedAt: "2026-09-01T09:00:00.000Z",
+        gymName: "Home gym",
+        equipmentName: "Barbell",
+        sets: [{ ...saved, weight: 100 }],
+      },
+    ],
+  });
+  // A barbell registered in kilograms, on an account that has since switched to pounds.
+  renderLogger({
+    preferredUnit: "lb",
+    exercise: { equipment: { id: "bar", name: "Barbell", unit: "kg", ladder: null } },
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "History" }));
+  await screen.findByText("Home gym · Barbell");
+  const panel = document.getElementById("exercise-panel")!;
+  expect(panel.textContent).toContain("100");
+  expect(panel.textContent).not.toContain("220.46");
+});
+
+it("refuses an RPE of 0 in the app's own words, before anything is sent", async () => {
+  renderLogger({
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "duration" } },
+  });
+  fill({ Seconds: "45", RPE: "0" });
+  press("Save");
+  expect(await screen.findByText("Enter effort from 1 (very easy) to 10 (maximal).")).toBeTruthy();
+  expect(actions.log).not.toHaveBeenCalled();
+});
+
+it("takes in a set typed before the exercise's machine changed, to save or discard", async () => {
+  const typed = {
+    setIndex: 1,
+    setType: "working" as const,
+    weight: "60",
+    reps: "5",
+    rir: "2",
+    effortVersion: 2 as const,
+    duration: "",
+    distance: "",
+    touched: ["weight" as const, "reps" as const, "rir" as const],
+    baseCompletedAt: null,
+  };
+  // Typed while the machine question was open; Register with details then put Rack 1 on it.
+  // The answer moved it, so it is the set being typed, here, as it was.
+  writeDraft(localStorage, context, typed);
+  const onRack = { ...context, equipmentId: "rack-1" };
+  const rack = { equipment: { id: "rack-1", name: "Rack 1", unit: "kg" as const, ladder: null } };
+  renderLogger({ exercise: rack });
+  expect(await screen.findByRole("button", { name: "60 kilograms. Type a load" })).toBeTruthy();
+  expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(localStorage.getItem(draftKey(onRack))).not.toBeNull();
+  cleanup();
+  localStorage.clear();
+
+  // Typed on another machine the exercise was then swapped from: back as a draft to review.
+  writeDraft(localStorage, { ...context, equipmentId: "rack-2" }, typed);
+  renderLogger({ exercise: rack });
+  expect(await screen.findByText("Unsaved draft restored. Review and retry saving.")).toBeTruthy();
+  expect(localStorage.getItem(draftKey({ ...context, equipmentId: "rack-2" }))).toBeNull();
 });
 
 it("preserves an older draft but requires its possibly copied effort to be re-entered", async () => {
@@ -836,16 +923,49 @@ it("saves a light set with no RIR before the work as a warm-up, says so, and tak
   );
   expect(screen.getByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeTruthy();
 
-  // It was a working set after all: back it goes, and it is saved again with its RIR.
+  // It was a working set after all: its sheet opens on a working set, to be saved again with
+  // its RIR. Nothing changes until Update, so no draft is left behind meanwhile.
   press("Set 1 was a working set");
-  expect(screen.queryByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeNull();
   const sheet = screen.getByRole("dialog", { name: "Set 1" });
   expect(within(sheet).getByRole("combobox", { name: "Type" })).toHaveProperty("value", "working");
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
   fireEvent.change(within(sheet).getByRole("textbox", { name: "RIR" }), { target: { value: "3" } });
   actions.log.mockResolvedValueOnce({ ok: true, set: { ...saved, weight: 60, rir: 3 } });
   fireEvent.click(within(sheet).getByRole("button", { name: "Update" }));
   await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(2));
   expect(actions.log.mock.calls[1]?.[0]).toMatchObject({ setType: "working", weight: 60, rir: 3 });
+  await waitFor(() =>
+    expect(screen.queryByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeNull(),
+  );
+});
+
+it("leaves the warm-up as it was saved when Undo's sheet is closed without Update", async () => {
+  actions.log.mockResolvedValueOnce({
+    ok: true,
+    set: { ...saved, setType: "warmup", weight: 60, rir: null },
+  });
+  const dirty = vi.fn();
+  render(
+    <ExerciseLogger
+      exercise={{ ...exercise, ...holding() }}
+      session={{ ...session, exercises: [{ ...exercise, ...holding() }] }}
+      userId="user"
+      readOnly={false}
+      onBack={() => {}}
+      onDirtyChange={dirty}
+      onLogged={() => {}}
+    />,
+  );
+  fill({ "Load in kilograms": "60" });
+  press("Save");
+  await screen.findByText(/Saved as a warm-up/, { selector: ".entry-slot span" });
+  press("Set 1 was a working set");
+  const sheet = screen.getByRole("dialog", { name: "Set 1" });
+  fireEvent.click(within(sheet).getByRole("button", { name: "Close sheet" }));
+  // No draft holds Finish back, and the way back to a working set is still where it was.
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(dirty).toHaveBeenLastCalledWith(false);
+  expect(screen.getByRole("button", { name: "Set 1 was a working set" })).toBeTruthy();
 });
 
 it("keeps a light set with its RIR, or one after the work has started, as a working set", async () => {
@@ -894,6 +1014,20 @@ it("makes Complete the dock's button once the planned sets are in, another set a
   expect(entry("Set 4")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
+});
+
+it("lets the slot's Complete drop a set typed past the plan, so no draft is left to hold Finish", async () => {
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  renderLogger({ exercise: { planned: benchSlot, sets } });
+  fireEvent.click(screen.getByRole("button", { name: "Log another set" }));
+  fill({ "Load in kilograms": "62.5" });
+  expect(localStorage.getItem(draftKey(context))).not.toBeNull();
+  // Complete stays in the slot while the set past the plan is under way; pressed, the set goes.
+  press("Complete Bench press");
+  await waitFor(() => expect(actions.complete).toHaveBeenCalledWith("slot", true));
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(await screen.findByText("Done")).toBeTruthy();
 });
 
 it("offers Complete once the planned sets are in, and keeps focus with the exercise as it completes", async () => {
@@ -947,7 +1081,8 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   await act(async () =>
     save.answer({ ok: false, error: "Something went wrong. Please try again." }),
   );
-  await screen.findByRole("button", { name: "Retry saving set 1" });
+  // The set after set 2 (index 2): the second set done, not one put back before it.
+  await screen.findByRole("button", { name: "Retry saving set 2" });
   expect(actions.complete).not.toHaveBeenCalled();
   expect(screen.queryByText("Done")).toBeNull();
   // The failed set holds changes nobody has saved, so it has to be dealt with first, and

@@ -4,6 +4,7 @@ import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
 
 import { formatDuration, formatPace } from "@/domain/pace";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { dateTimeFormatter } from "./date-time-format";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms } from "./units";
@@ -52,6 +53,18 @@ export function formatTime(value: string | Date, timeZone: string): string {
     minute: "2-digit",
     hour12: false,
   }).format(date);
+}
+
+/** "19:30" when it was `today`, else with its day, "Sat 10 Oct, 19:30". */
+export function formatTimeOrDateTime(
+  value: string | Date,
+  timeZone: string,
+  today: string,
+): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return todayInTimeZone(timeZone, date) === today
+    ? formatTime(date, timeZone)
+    : formatDateTime(date, timeZone);
 }
 
 /** "8 Sep" in the given time zone. */

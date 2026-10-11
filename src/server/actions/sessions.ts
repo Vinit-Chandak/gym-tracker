@@ -1,6 +1,11 @@
 "use server";
 
-import { EFFORT_INPUT_VERSION, EFFORT_REFRESH_MESSAGE, effortError } from "@/domain/effort";
+import {
+  EFFORT_INPUT_VERSION,
+  EFFORT_REFRESH_MESSAGE,
+  effortError,
+  RPE_SCALE,
+} from "@/domain/effort";
 
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -58,6 +63,7 @@ import {
   startAdHocSession,
   startPlannedSession,
   substituteExercise,
+  type FinishInput,
   type SessionSet,
 } from "@/server/repositories/sessions";
 import {
@@ -348,6 +354,18 @@ export async function setWarmupCompletedAction(
   return { ok: true };
 }
 
+/** A figure within its bounds, refused in the app's own words rather than the validator's. */
+function bounded(message: string, min: number, max: number, integer = false) {
+  const number = z.number({ error: message });
+  return (integer ? number.int({ error: message }) : number)
+    .min(min, { error: message })
+    .max(max, { error: message });
+}
+
+/** A set's figure, from 0: "Enter reps from 0 to 1000." */
+const setFigure = (what: string, max: number, integer = false) =>
+  bounded(`Enter ${what} from 0 to ${max}.`, 0, max, integer);
+
 const logSetSchema = z
   .object({
     effortInputVersion: z.literal(EFFORT_INPUT_VERSION, { error: EFFORT_REFRESH_MESSAGE }),
@@ -358,12 +376,12 @@ const logSetSchema = z
     workoutExerciseId: z.uuid(),
     setIndex: z.number().int().min(1).max(50),
     setType: z.enum(SET_TYPES),
-    weight: z.number().min(0).max(SET_LIMITS.weight).nullable(),
-    reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable(),
-    rir: z.number().min(0).max(SET_LIMITS.rir).nullable(),
-    rpe: z.number().min(1).max(SET_LIMITS.rpe).nullable().default(null),
-    durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable(),
-    distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
+    weight: setFigure("a load", SET_LIMITS.weight).nullable(),
+    reps: setFigure("reps", SET_LIMITS.reps, true).nullable(),
+    rir: setFigure("RIR", SET_LIMITS.rir).nullable(),
+    rpe: bounded(RPE_SCALE, 1, SET_LIMITS.rpe).nullable().default(null),
+    durationSeconds: setFigure("seconds", SET_LIMITS.durationSeconds, true).nullable(),
+    distanceMeters: setFigure("metres", SET_LIMITS.distanceMeters).nullable().default(null),
   })
   .refine(
     (value) =>
@@ -731,6 +749,8 @@ const finishSchema = z
     ),
     unit: z.enum(BODY_LOAD_UNITS).catch("kg"),
     bodyWeight: optionalNumber(0, 2000, false),
+    // Sent by a Finish that says "as of" a workout's last set, for one left open.
+    asOf: z.literal("last-set").optional().catch(undefined),
   })
   .transform((values, ctx) => {
     const bodyWeightKg =
@@ -743,8 +763,55 @@ const finishSchema = z
       });
       return z.NEVER;
     }
-    return { notes: values.notes, bodyWeightKg };
+    return { notes: values.notes, bodyWeightKg, asOfLastSet: values.asOf === "last-set" };
   });
+
+/**
+ * Finishes the session and records what that means beyond it: the day's body weight, and the
+ * programme's day done.
+ */
+async function finishAndRecord(
+  user: SessionUser,
+  sessionId: string,
+  input: FinishInput,
+): Promise<void> {
+  await withUser(getDb(), user.id, async (tx) => {
+    const [profile, finished] = await Promise.all([
+      ensureProfile(tx, user),
+      finishSession(tx, user.id, sessionId, input),
+    ]);
+    const today = todayInTimeZone(profile.timeZone);
+    // Weighing yourself is part of finishing, so the reading is dated now rather than when
+    // the session started: a session that ran past midnight was still weighed today.
+    if (input.bodyWeightKg !== null) {
+      await recordBodyWeight(tx, user.id, {
+        measuredOn: today,
+        weightKg: input.bodyWeightKg,
+      });
+    }
+    // Only the lifting half of the day. A day that also runs still owes its run, and the
+    // sequence stays on it until that is logged or skipped in its own right.
+    //
+    // Dated by when the session started, not when it finished, as the session's own
+    // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
+    // that evening's; dating it by the finish made the next morning's Today say the day
+    // had been done that morning, and hold back the day that was actually up next.
+    if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
+      await recordSlotEvent(
+        tx,
+        user.id,
+        finished.programId,
+        { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
+        "session",
+        "completed",
+        {
+          occurredOn: todayInTimeZone(profile.timeZone, finished.startedAt),
+          workoutSessionId: sessionId,
+        },
+      );
+    }
+  });
+}
 
 export async function finishSessionAction(
   sessionId: string,
@@ -755,44 +822,12 @@ export async function finishSessionAction(
   const parsed = parseForm(finishSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
-    await withUser(getDb(), user.id, async (tx) => {
-      const [profile, finished] = await Promise.all([
-        ensureProfile(tx, user),
-        finishSession(tx, user.id, sessionId, parsed.data),
-      ]);
-      const today = todayInTimeZone(profile.timeZone);
-      // Weighing yourself is part of finishing, so the reading is dated now rather than when
-      // the session started: a session that ran past midnight was still weighed today.
-      if (parsed.data.bodyWeightKg !== null) {
-        await recordBodyWeight(tx, user.id, {
-          measuredOn: today,
-          weightKg: parsed.data.bodyWeightKg,
-        });
-      }
-      // Only the lifting half of the day. A day that also runs still owes its run, and the
-      // sequence stays on it until that is logged or skipped in its own right.
-      //
-      // Dated by when the session started, not when it finished, as the session's own
-      // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
-      // that evening's; dating it by the finish made the next morning's Today say the day
-      // had been done that morning, and hold back the day that was actually up next.
-      if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
-        await recordSlotEvent(
-          tx,
-          user.id,
-          finished.programId,
-          { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
-          "session",
-          "completed",
-          {
-            occurredOn: todayInTimeZone(profile.timeZone, finished.startedAt),
-            workoutSessionId: sessionId,
-          },
-        );
-      }
-    });
+    await finishAndRecord(user, sessionId, parsed.data);
   } catch (error) {
-    return { formError: describe(error), values: formValues(formData) };
+    // Finish pressed again after its first reply was lost: the workout is finished, which is
+    // what was asked, so it goes on to the summary rather than stopping at a refusal.
+    if (!(error instanceof SessionFinishedError))
+      return { formError: describe(error), values: formValues(formData) };
   }
   // The reading may have moved the profile's own body weight.
   if (parsed.data.bodyWeightKg !== null) {
@@ -801,6 +836,22 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
+  redirect(`/workouts/${sessionId}?finished=1`);
+}
+
+/**
+ * "Finish it as of 19:30", from Today or the workout (owner, 11 October 2026): a workout left
+ * open finishes as of its last set, with nothing more asked, and lands on its summary.
+ */
+export async function finishLeftOpenAction(sessionId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await finishAndRecord(user, sessionId, { notes: null, bodyWeightKg: null, asOfLastSet: true });
+  } catch (error) {
+    // As for Finish: pressed again after a lost reply, it was done the first time.
+    if (!(error instanceof SessionFinishedError)) return { ok: false, error: describe(error) };
+  }
+  revalidateSession(sessionId);
   redirect(`/workouts/${sessionId}?finished=1`);
 }
 
@@ -852,7 +903,8 @@ export async function discardSessionAction(sessionId: string): Promise<ActionRes
   try {
     await withUser(getDb(), user.id, (tx) => discardSession(tx, user.id, sessionId));
   } catch (error) {
-    return { ok: false, error: describe(error) };
+    // Discard pressed again after its first reply was lost: the session is gone, as asked.
+    if (!(error instanceof SessionNotFoundError)) return { ok: false, error: describe(error) };
   }
   revalidateSession(sessionId);
   // Today says once that it is gone (DiscardedNote).

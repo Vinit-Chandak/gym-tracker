@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
-import { draftsWarning, WorkoutOverview } from "./workout-overview";
+import { draftsWarning, leftOpenSince, WorkoutOverview } from "./workout-overview";
 
 /** The innermost element whose whole text is `text`: a fact's figures stand in spans of their own. */
 const whole = (text: string) => (_: string, element: Element | null) =>
@@ -15,7 +15,11 @@ const actions = vi.hoisted(() => ({ warmup: vi.fn() }));
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));
-vi.mock("@/server/actions/sessions", () => ({ setWarmupCompletedAction: actions.warmup }));
+vi.mock("@/server/actions/sessions", () => ({
+  setWarmupCompletedAction: actions.warmup,
+  discardSessionAction: vi.fn(),
+  finishLeftOpenAction: vi.fn(),
+}));
 
 const set = (setIndex: number, weight: number, reps: number): SetVM => ({
   id: `set-${setIndex}`,
@@ -408,4 +412,50 @@ it("says on the row when an exercise's machine is still to settle", () => {
   expect(screen.getByRole("button", { name: /Hack squat/ }).textContent).toContain(
     "4 × 3–5 @ 2 RIR · Machine not chosen",
   );
+});
+
+describe("a workout left open", () => {
+  // Started 13:00 in Kolkata, its last set at 13:10.
+  const left: SessionVM = {
+    ...SESSION,
+    startedAt: "2026-09-29T07:30:00.000Z",
+    timeZone: "Asia/Kolkata",
+    exercises: [exercise("Barbell bench press", { sets: [set(1, 60, 4)] })],
+  };
+
+  it("says when it was last trained once six hours have passed, and nothing before", () => {
+    expect(leftOpenSince(left, Date.parse("2026-09-29T09:00:00.000Z"))).toBeNull();
+    expect(leftOpenSince(left, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:10");
+    expect(leftOpenSince(left, Date.parse("2026-09-30T03:00:00.000Z"))).toBe("Tue 29 Sept, 13:10");
+    // Nothing logged: counted from its start.
+    const empty = { ...left, exercises: [exercise("Barbell bench press")] };
+    expect(leftOpenSince(empty, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:00");
+  });
+
+  it("offers to finish it as of its last set, or to discard it while it holds none", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-30T03:00:00.000Z"));
+    try {
+      show({ session: left, userId: "user" });
+      expect(
+        screen.getByRole("button", { name: "Finish it as of Tue 29 Sept, 13:10" }),
+      ).toBeTruthy();
+      // The Finish pill stays: the offer is a way out, not the only one.
+      expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
+      cleanup();
+
+      show({ session: { ...left, exercises: [exercise("Barbell bench press")] }, userId: "user" });
+      expect(screen.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
+      cleanup();
+
+      // A set typed and not saved holds the way out, as it holds Finish.
+      show({ session: left, userId: "user", drafts: { count: 1, names: ["Barbell bench press"] } });
+      expect(
+        (screen.getByRole("button", { name: /^Finish it as of/ }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

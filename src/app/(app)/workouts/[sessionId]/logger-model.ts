@@ -365,12 +365,18 @@ export function headingText(heading: EntryHeading): string {
 
 /**
  * The exercise a superset goes to after each set: the next member of its group in the
- * workout's order, round to the first.
+ * workout's order, round to the first. A member skipped or done is passed over, so nothing sends
+ * the athlete to it; with none left, there is no next. The group itself stays, so Unskip or
+ * Reopen pairs it again.
  */
 export function supersetNext(session: SessionVM, exercise: ExerciseVM): ExerciseVM | null {
   if (!exercise.supersetGroup) return null;
   const group = session.exercises
-    .filter((other) => other.supersetGroup === exercise.supersetGroup)
+    .filter(
+      (other) =>
+        other.supersetGroup === exercise.supersetGroup &&
+        (other.id === exercise.id || (other.skippedAt === null && other.completedAt === null)),
+    )
     .sort((a, b) => a.orderIndex - b.orderIndex);
   if (group.length < 2) return null;
   const at = group.findIndex((other) => other.id === exercise.id);

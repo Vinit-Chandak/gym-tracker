@@ -40,3 +40,26 @@ it("requires actual RIR even from a current screen", async () => {
   expect(result).toEqual({ ok: false, error: expect.stringMatching(/Enter RIR/) });
   expect(mocks.getDb).not.toHaveBeenCalled();
 });
+
+it("refuses an effort off its scale in the app's own words, never the validator's", async () => {
+  const set = {
+    effortInputVersion: 2,
+    workoutExerciseId: "00000000-0000-4000-8000-000000000002",
+    setIndex: 1,
+    weight: null,
+    reps: null,
+    rir: null,
+    durationSeconds: 45,
+  };
+  // A plank's RPE of 0, typed: as a working set, and as a warm-up, where effort is optional.
+  for (const setType of ["working", "warmup"] as const)
+    expect(await logSetAction({ ...set, setType, rpe: 0 })).toEqual({
+      ok: false,
+      error: "Enter effort from 1 (very easy) to 10 (maximal).",
+    });
+  expect(await logSetAction({ ...set, setType: "working", rpe: 7, durationSeconds: -5 })).toEqual({
+    ok: false,
+    error: "Enter seconds from 0 to 36000.",
+  });
+  expect(mocks.getDb).not.toHaveBeenCalled();
+});

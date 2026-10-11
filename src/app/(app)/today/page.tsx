@@ -121,6 +121,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
       <TodayView
         today={plan?.today ?? todayInTimeZone(profile.timeZone)}
         timeZone={profile.timeZone}
+        userId={user.id}
         // Only active gyms can be trained at, so only they can be chosen between.
         gyms={gyms
           .filter((gym) => gym.isActive)

@@ -28,7 +28,7 @@ export function ExerciseHistory({
   exerciseId,
   workoutExerciseId,
   loadPortability,
-  preferredUnit,
+  unit,
   timeZone,
   measure,
   width = 402,
@@ -37,8 +37,11 @@ export function ExerciseHistory({
   exerciseId: string;
   workoutExerciseId: string;
   loadPortability: LoadPortability;
-  /** Free-weight loads are shown in this unit; a machine's stay in the machine's own. */
-  preferredUnit: LoadUnit;
+  /**
+   * The unit the Log tab beside it writes loads in: free-weight loads are shown in it, so the
+   * same lifts read the same on both tabs; a machine's stay in the machine's own.
+   */
+  unit: LoadUnit;
   timeZone: string;
   /** What this exercise counts, for a set that says nothing itself. */
   measure?: PrescriptionType;
@@ -94,7 +97,7 @@ export function ExerciseHistory({
   }
 
   const shown = (sets: ExerciseHistoryEntry["sets"]): ShownSet[] =>
-    sets.map((set) => (loadPortability === "global" ? setInUnit(set, preferredUnit) : set));
+    sets.map((set) => (loadPortability === "global" ? setInUnit(set, unit) : set));
   // One size for every session's lines, so a load reads the same in each: 26 at most.
   const loads = state.entries.flatMap((entry) =>
     shown(entry.sets)

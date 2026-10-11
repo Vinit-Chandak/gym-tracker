@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import {
   activities,
   coachAttachments,
@@ -11,6 +11,7 @@ import {
   dailyRecovery,
   exercises,
   runs,
+  sessionPlans,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
@@ -24,6 +25,7 @@ import {
   type AthleteSource,
   type MemoryItem,
 } from "@/domain/coach-memory";
+import { COACH_DROP_NOTE } from "@/domain/session-plan";
 import { activityNoteSources } from "./activity-evidence";
 import { CoachingError } from "./coaching-state";
 
@@ -69,6 +71,21 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
   ]);
   return new Set(records.flat());
 }
+
+/**
+ * A workout exercise's note is the athlete's reason for skipping it, except on one the coach's
+ * own plan left out: that row starts skipped with the coach's reason (startPlannedSession), which
+ * is neither the athlete speaking nor news to the coach. Matched on the very words written, so a
+ * reason the athlete gives after skipping it again is theirs.
+ */
+const athleteWrote = sql`not exists (
+  select 1 from ${sessionPlans} stored
+  cross join lateral jsonb_array_elements(stored.exercises) entry
+  where stored.workout_session_id = ${workoutExercises.workoutSessionId}
+    and entry->>'action' = 'drop'
+    and entry->>'slotId' = ${workoutExercises.plannedProgramExerciseId}::text
+    and ${workoutExercises.notes} = coalesce(nullif(entry->>'note', ''), ${COACH_DROP_NOTE})
+)`;
 
 /** Only direct athlete text can support a reported preference or correction. */
 export async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly string[]) {
@@ -118,7 +135,13 @@ export async function athleteMemorySources(db: DbOrTx, userId: string, ids: read
         completedAt: workoutExercises.completedAt,
       })
       .from(workoutExercises)
-      .where(and(eq(workoutExercises.userId, userId), inArray(workoutExercises.id, slotIds)));
+      .where(
+        and(
+          eq(workoutExercises.userId, userId),
+          inArray(workoutExercises.id, slotIds),
+          athleteWrote,
+        ),
+      );
     for (const slot of slots)
       if (slot.notes?.trim())
         sources.set(`exercise:${slot.id}`, {
@@ -189,6 +212,7 @@ async function pendingTrainingNotes(db: DbOrTx, userId: string, now: Date) {
           eq(workoutExercises.userId, userId),
           isNotNull(workoutExercises.notes),
           ne(workoutExercises.notes, ""),
+          athleteWrote,
         ),
       ),
   ]);

@@ -193,6 +193,7 @@ const OPEN_SESSION = {
   completedAt: null,
   exerciseCount: 4,
   setCount: 5,
+  lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
 };
 
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
@@ -206,6 +207,9 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
       <TodayView
         today="2026-09-11"
         timeZone="Asia/Kolkata"
+        userId="preview"
+        // Mid-workout, so the open session reads as being trained rather than left open.
+        now={new Date("2026-09-11T07:45:00.000Z")}
         gyms={[
           { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true },
           { id: "g2", name: "Home", kind: "home", isDefault: false },
