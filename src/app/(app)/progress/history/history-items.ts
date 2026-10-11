@@ -144,10 +144,12 @@ export function enduranceItem(activity: ActivityListItem, clock: HistoryClock): 
     kind: activity.sport as "cycling" | "swimming",
     date: activity.startedAt.toISOString(),
     day: activity.occurredOn,
-    title:
+    title: joinFacts([
+      name,
       activity.distanceMetres === null
-        ? name
-        : `${name} · ${distanceIn(activity.distanceMetres, activity.sport, clock)}`,
+        ? null
+        : distanceIn(activity.distanceMetres, activity.sport, clock),
+    ]),
     subtitle: joinFacts([
       clock.timeOf(activity.startedAt),
       activity.environment ? ENDURANCE_PLACE_LABELS[activity.environment] : null,
