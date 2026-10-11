@@ -77,6 +77,10 @@ type Props = {
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
   notice?: ReactNode;
+  /** A correction's unconfirmed legacy effort, which stays unless another answer is chosen. */
+  keptEffort?: { value: number | null } | null;
+  /** Opens the folded details from the start, when something in them needs reading. */
+  openDetails?: boolean;
 };
 
 export function SwimmingForm({
@@ -88,6 +92,8 @@ export function SwimmingForm({
   expectedRevision = null,
   submitLabel,
   notice,
+  keptEffort = null,
+  openDetails = false,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -257,10 +263,11 @@ export function SwimmingForm({
           />
         )}
 
-        <EffortField value={values("effort")} error={errors?.effort} />
+        <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
       <MoreDetails
+        defaultOpen={openDetails}
         hasErrors={[
           "startedAt",
           "startedAtOffsetMinutes",

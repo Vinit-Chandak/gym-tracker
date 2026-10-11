@@ -66,6 +66,10 @@ type Props = {
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
   notice?: ReactNode;
+  /** A correction's unconfirmed legacy effort, which stays unless another answer is chosen. */
+  keptEffort?: { value: number | null } | null;
+  /** Opens the folded details from the start, when something in them needs reading. */
+  openDetails?: boolean;
 };
 
 export function CyclingForm({
@@ -77,6 +81,8 @@ export function CyclingForm({
   expectedRevision = null,
   submitLabel,
   notice,
+  keptEffort = null,
+  openDetails = false,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -142,7 +148,7 @@ export function CyclingForm({
           }
           error={errors?.distance ?? errors?.distanceValue}
         />
-        <EffortField value={values("effort")} error={errors?.effort} />
+        <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
         <div className="space-y-1.5 pt-3 pb-1">
           <p id="ride-assistance" className="type-meta-small font-bold">
             Assistance
@@ -163,6 +169,7 @@ export function CyclingForm({
       </div>
 
       <MoreDetails
+        defaultOpen={openDetails}
         hasErrors={[
           "startedAt",
           "startedAtOffsetMinutes",

@@ -272,9 +272,25 @@ export function DurationField({
  * How hard it felt (boards Log a run, a ride, a swim): its name and what the ends mean on one
  * line, then 1 to 5 and Not sure in a tray, the chosen one in ink. Not sure is an answer, and
  * the hint keeps saying so (LOG-03).
+ *
+ * Correcting a record that carries an unconfirmed legacy number adds a seventh choice, chosen
+ * from the start: As recorded, which leaves that number as it is. Without it the form could
+ * only offer Not sure, and correcting a typo in the notes quietly erased the number.
  */
-export function EffortField({ value, error }: { value: string; error?: string }) {
+export function EffortField({
+  value,
+  error,
+  kept,
+}: {
+  value: string;
+  error?: string;
+  /** The unconfirmed number a correction keeps unless another answer is chosen. */
+  kept?: { value: number | null } | null;
+}) {
   const id = useId();
+  const options = kept
+    ? [...EFFORT_OPTIONS, { value: "keep", label: "As recorded" }]
+    : EFFORT_OPTIONS;
   return (
     <div className="effort-field" data-field-error={error ? "true" : undefined}>
       <p className="effort-field-head">
@@ -289,13 +305,17 @@ export function EffortField({ value, error }: { value: string; error?: string })
           aria-labelledby={id}
           aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
           aria-invalid={error ? true : undefined}
-          options={EFFORT_OPTIONS}
+          options={options}
           defaultValue={value}
-          columns={EFFORT_OPTIONS.length}
+          columns={options.length}
         />
       </div>
       <p id={`${id}-hint`} className="type-caption font-medium text-ink-2">
         How hard it actually felt. Not sure is an answer.
+        {kept &&
+          (kept.value === null
+            ? " As recorded leaves it unrecorded."
+            : ` As recorded keeps the earlier ${kept.value}/5, still unconfirmed.`)}
       </p>
       {error && (
         <p id={`${id}-error`} role="alert" className="type-meta-small font-semibold">
@@ -343,11 +363,14 @@ export function NotesFields({
 export function MoreDetails({
   children,
   hasErrors = false,
+  defaultOpen = false,
 }: {
   children: ReactNode;
   hasErrors?: boolean;
+  /** Opened from the start when something in it needs reading, such as a restored date. */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(hasErrors);
+  const [open, setOpen] = useState(hasErrors || defaultOpen);
   const [wasRequested, setWasRequested] = useState(hasErrors);
   // The section must already be open on the render that first reports the error.
   if (hasErrors !== wasRequested) {
