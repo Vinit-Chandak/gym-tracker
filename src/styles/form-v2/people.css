@@ -6,19 +6,19 @@
 .change-headline {
   margin-top: 2px;
   font-family: var(--ov-font-display);
-  font-size: calc(6.5px + 1.21875rem); /* 26, k 0.75 */
+  font-size: calc(calc(6.5 * var(--ov-u)) + 1.21875rem); /* 26, k 0.75 */
   font-weight: 700;
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
 .change-why {
-  margin-top: 10px;
+  margin-top: calc(10 * var(--ov-u));
 }
 .change-why-summary {
   display: flex;
   min-height: var(--ov-target);
   align-items: center;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
   cursor: pointer;
   font-size: var(--ov-type-meta);
   font-weight: 700;
@@ -28,21 +28,21 @@
   display: none;
 }
 .change-why > p {
-  margin-bottom: 10px;
+  margin-bottom: calc(10 * var(--ov-u));
 }
 /* Each part of the change a section under an ink rule, at the gutter, not a card. */
 .diff-section {
-  margin-top: 14px;
-  padding-top: 6px;
+  margin-top: calc(14 * var(--ov-u));
+  padding-top: calc(6 * var(--ov-u));
   border-top: 1.5px solid var(--ov-ink);
 }
 .diff-section-head {
   display: flex;
-  min-height: 40px;
+  min-height: calc(40 * var(--ov-u));
   align-items: baseline;
   justify-content: space-between;
-  padding-top: 8px;
-  gap: 10px;
+  padding-top: calc(8 * var(--ov-u));
+  gap: calc(10 * var(--ov-u));
   font-size: var(--ov-type-heading);
   font-weight: 700;
 }
@@ -58,7 +58,7 @@
 .diff-op {
   display: flex;
   flex-direction: column;
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
   gap: 2px;
 }
@@ -68,7 +68,7 @@
 .diff-op-kind {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: 0.75rem;
   font-weight: 700;
@@ -102,17 +102,17 @@
 }
 .diff-arrow {
   display: inline-block;
-  margin: 0 4px;
+  margin: 0 calc(4 * var(--ov-u));
   color: var(--ov-ink-2);
-  vertical-align: -3px;
+  vertical-align: calc(-3 * var(--ov-u));
 }
 .diff-reason {
-  margin-top: 4px;
+  margin-top: calc(4 * var(--ov-u));
 }
 /* The athlete's own words on the line they produced. */
 .ask-tag {
   display: inline-block;
-  padding: 3px 9px;
+  padding: calc(3 * var(--ov-u)) calc(9 * var(--ov-u));
   border-radius: 8px;
   background: var(--ov-surface);
   font-size: var(--ov-type-caption);
@@ -127,21 +127,21 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 2px;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }
 /* An ask of the athlete's, and what it needs now: on surface, its question and its answer. */
 .request-card {
   display: flex;
   flex-direction: column;
-  padding: 14px;
+  padding: calc(14 * var(--ov-u));
   border-radius: 14px;
   background: var(--ov-surface);
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 .request-card-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6 * var(--ov-u));
   font-size: var(--ov-type-caption);
   font-weight: 700;
 }
@@ -152,14 +152,14 @@
   overflow-wrap: anywhere;
 }
 .request-card-answer textarea {
-  min-height: 70px;
+  min-height: calc(70 * var(--ov-u));
   background: var(--ov-ground);
 }
 .request-card-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 18px;
+  gap: calc(6 * var(--ov-u)) calc(18 * var(--ov-u));
 }
 .request-card-actions > .bg-ground {
   background: var(--ov-ground);
@@ -167,10 +167,10 @@
 /* A change waiting on the athlete: its glyph, what it does and why, a chevron. */
 .waiting-row {
   display: flex;
-  min-height: 62px;
+  min-height: calc(62 * var(--ov-u));
   align-items: center;
-  padding: 8px 0;
-  gap: 12px;
+  padding: calc(8 * var(--ov-u)) 0;
+  gap: calc(12 * var(--ov-u));
 }
 .waiting-row-title {
   font-size: var(--ov-type-body);
@@ -187,7 +187,7 @@
 }
 /* What the athlete told the coach, and what became of it. */
 .coach-note {
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .coach-note:last-child {
@@ -204,11 +204,11 @@
 .coach-compose {
   display: flex;
   align-items: flex-end;
-  padding: 6px 6px 6px 16px;
+  padding: calc(6 * var(--ov-u)) calc(6 * var(--ov-u)) calc(6 * var(--ov-u)) calc(16 * var(--ov-u));
   border: 1.5px solid var(--ov-control);
   border-radius: 16px;
   background: var(--ov-ground);
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .coach-compose:focus-within {
   border-color: var(--ov-ink);
@@ -218,7 +218,7 @@
   max-height: 8rem;
   flex: 1 1 auto;
   align-self: center;
-  padding: 8px 0;
+  padding: calc(8 * var(--ov-u)) 0;
   background: transparent;
   color: var(--ov-ink);
   field-sizing: content;
@@ -248,7 +248,7 @@
 }
 /* What the coach knows: a list of facts, set as the one paragraph they make. */
 .coach-knows {
-  margin-top: 4px;
+  margin-top: calc(4 * var(--ov-u));
   font-size: var(--ov-type-body);
   font-weight: 500;
   line-height: 1.45;
@@ -266,9 +266,9 @@
 .add-row {
   display: flex;
   width: 100%;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   align-items: center;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
   font-size: var(--ov-type-body);
   font-weight: 700;
 }
@@ -278,8 +278,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
-  column-gap: 12px;
+  margin-top: calc(18 * var(--ov-u));
+  column-gap: calc(12 * var(--ov-u));
 }
 /* Each keeps its words together; when both cannot share the line, the action goes under. */
 .list-head > h2 {
@@ -291,32 +291,32 @@
   display: flex;
   min-height: var(--ov-target);
   align-items: center;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
   font-size: var(--ov-type-button);
   font-weight: 700;
 }
 .machine-row {
-  min-height: 60px;
-  padding: 8px 0;
+  min-height: calc(60 * var(--ov-u));
+  padding: calc(8 * var(--ov-u)) 0;
 }
 
 /* ---------- friends (board Friends) ---------- */
 .shortcut-grid {
   display: grid;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8.5rem, 45%)), 1fr));
 }
 .shortcut-tile {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 84px;
+  min-height: calc(84 * var(--ov-u));
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 12px 10px;
+  padding: calc(12 * var(--ov-u)) calc(12 * var(--ov-u)) calc(10 * var(--ov-u));
   border-radius: 14px;
   background: var(--ov-surface);
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .shortcut-tile-word {
   font-size: var(--ov-type-meta);
@@ -326,9 +326,9 @@
 }
 .shortcut-tile-badge {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 3px 9px;
+  top: calc(10 * var(--ov-u));
+  right: calc(10 * var(--ov-u));
+  padding: calc(3 * var(--ov-u)) calc(9 * var(--ov-u));
   border-radius: 10px;
   background: var(--ov-ink);
   color: var(--ov-on-ink);
@@ -339,18 +339,18 @@
 /* Who, when, and what they did, led by its mark: 64 pt, a hairline between. */
 .activity-row {
   display: flex;
-  min-height: 64px;
+  min-height: calc(64 * var(--ov-u));
   align-items: center;
-  padding: 8px 0;
+  padding: calc(8 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }
 .activity-row-item:last-child > .activity-row {
   border-bottom: 0;
 }
 .activity-row-avatar {
-  width: 40px;
-  height: 40px;
+  width: calc(40 * var(--ov-u));
+  height: calc(40 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: 1.125rem;
   font-weight: 700;

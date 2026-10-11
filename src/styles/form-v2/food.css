@@ -5,7 +5,7 @@
  */
 
 .food {
-  padding-bottom: 24px;
+  padding-bottom: calc(24 * var(--ov-u));
   container-type: inline-size;
 }
 
@@ -13,7 +13,7 @@
 /* Seven days fill the width while each keeps 44 pt; narrower, the days scroll (board Food-320). */
 .food-strip {
   position: relative;
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
   container-type: inline-size;
 }
 /* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. */
@@ -31,7 +31,7 @@
   display: flex;
   width: max-content;
   flex-direction: row-reverse;
-  gap: 4px;
+  gap: calc(4 * var(--ov-u));
   direction: ltr;
 }
 .food-strip-week {
@@ -39,7 +39,7 @@
   width: 100cqw;
   flex-shrink: 0;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  gap: calc(4 * var(--ov-u));
   scroll-snap-align: start;
 }
 .food-strip-fade {
@@ -54,13 +54,13 @@
     scroll-snap-type: none;
   }
   .food-strip-weeks {
-    gap: 3px;
+    gap: calc(3 * var(--ov-u));
     padding: 0 var(--ov-gutter);
   }
   .food-strip-week {
     width: auto;
     grid-template-columns: repeat(7, var(--food-day, 2.75rem));
-    gap: 3px;
+    gap: calc(3 * var(--ov-u));
   }
   .food-strip-fade {
     position: absolute;
@@ -77,11 +77,11 @@
 /* A day: its weekday, its date in Jost and its bowl; the day on screen in ink, today ringed. */
 .food-day {
   display: flex;
-  min-width: 44px;
+  min-width: calc(44 * var(--ov-u));
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 6px 0 8px;
+  gap: calc(3 * var(--ov-u));
+  padding: calc(6 * var(--ov-u)) 0 calc(8 * var(--ov-u));
   border-radius: 14px;
   color: var(--ov-ink);
 }
@@ -107,8 +107,8 @@
 /* 22 × 17.5 at 100% text, growing by half with it, as glyphs do. */
 .food-day-mark {
   display: block;
-  width: calc(11px + 0.6875rem);
-  height: calc(8.75px + 0.546875rem);
+  width: calc(calc(11 * var(--ov-u)) + 0.6875rem);
+  height: calc(calc(8.75 * var(--ov-u)) + 0.546875rem);
   overflow: visible;
 }
 
@@ -117,8 +117,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin: 0 -10px;
+  gap: calc(8 * var(--ov-u));
+  margin: 0 calc(-10 * var(--ov-u));
 }
 .food-calendar-letters,
 .food-calendar-days {
@@ -127,7 +127,7 @@
   column-gap: 2px;
 }
 .food-calendar-letters {
-  margin-top: 4px;
+  margin-top: calc(4 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-print-label);
   font-weight: 600;
@@ -135,8 +135,8 @@
   text-align: center;
 }
 .food-calendar-days {
-  row-gap: 4px;
-  margin-top: 4px;
+  row-gap: calc(4 * var(--ov-u));
+  margin-top: calc(4 * var(--ov-u));
 }
 .food-calendar-days .food-day {
   min-width: 0;
@@ -147,8 +147,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 10px;
-  margin-top: 16px;
+  gap: 0 calc(10 * var(--ov-u));
+  margin-top: calc(16 * var(--ov-u));
 }
 /* Figure XL, never cut: at large text on a narrow phone it steps down to fit the line. */
 .food-eaten > .type-figure-xl {
@@ -169,12 +169,12 @@
 .food-macros {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 14px;
+  gap: calc(18 * var(--ov-u));
+  margin-top: calc(14 * var(--ov-u));
 }
 @media (width < 360px) {
   .food-macros {
-    gap: 12px;
+    gap: calc(12 * var(--ov-u));
   }
 }
 /* At large text three columns no longer hold a name each: the macronutrients stand one under
@@ -182,7 +182,7 @@
 @container (width < 15rem) {
   .food-macros {
     grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
+    gap: calc(10 * var(--ov-u));
   }
 }
 .food-macro {
@@ -203,7 +203,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 4px;
+  gap: 0 calc(4 * var(--ov-u));
 }
 .food-macro-of {
   color: var(--ov-ink-2);
@@ -216,8 +216,8 @@
 .macro-rail {
   position: relative;
   display: block;
-  height: 4px;
-  margin-top: 4px;
+  height: calc(4 * var(--ov-u));
+  margin-top: calc(4 * var(--ov-u));
 }
 .macro-rail::before {
   position: absolute;
@@ -237,8 +237,8 @@
 }
 .macro-rail-tick {
   position: absolute;
-  top: -3px;
-  bottom: -3px;
+  top: calc(-3 * var(--ov-u));
+  bottom: calc(-3 * var(--ov-u));
   width: 2px;
   margin-left: -1px;
   background: var(--ov-ink);
@@ -250,8 +250,8 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px 12px;
-  margin-bottom: 10px;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
+  margin-bottom: calc(10 * var(--ov-u));
 }
 .macro-sheet-of {
   color: var(--ov-ink-2);
@@ -264,20 +264,20 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
+  gap: calc(12 * var(--ov-u));
+  margin-top: calc(12 * var(--ov-u));
 }
 
 /* ---------- the meals ---------- */
 /* Food rows (below), each led by its layer of the bowl as a small bowl in its tile. */
 .food-meals {
-  margin-top: 8px;
+  margin-top: calc(8 * var(--ov-u));
 }
 /* The meal's layer as a small bowl, edged in ink so the palest layers hold on white. */
 .meal-swatch {
   display: block;
-  width: calc(10px + 0.625rem);
-  height: calc(6.5px + 0.40625rem);
+  width: calc(calc(10 * var(--ov-u)) + 0.625rem);
+  height: calc(calc(6.5 * var(--ov-u)) + 0.40625rem);
   border: 1px solid var(--ov-ink);
   border-top: 0;
   border-radius: 0 0 50% 50% / 0 0 78% 78%;
@@ -296,17 +296,17 @@
 .food-tiles {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  gap: calc(10 * var(--ov-u));
+  margin-top: calc(12 * var(--ov-u));
 }
 .food-tile {
   display: flex;
   min-width: 0;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   flex: 1 1 8rem;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
+  gap: calc(10 * var(--ov-u));
+  padding: calc(6 * var(--ov-u)) calc(12 * var(--ov-u));
   border-radius: 14px;
   background: var(--ov-surface);
   font-size: var(--ov-type-meta-small);
@@ -325,7 +325,7 @@
 
 /* ---------- a meal's page (board Dinner) and a portion (board Portion) ---------- */
 .meal-page {
-  padding-bottom: 24px;
+  padding-bottom: calc(24 * var(--ov-u));
 }
 /* What the meal comes to, the star that saves it beside it. */
 /* Margins round these are set where they stand (the page's utilities), since they open a
@@ -335,15 +335,15 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px 12px;
+  gap: calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
 }
 .star-button {
   display: inline-flex;
   min-height: var(--ov-target);
   flex-shrink: 0;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px 0 12px;
+  gap: calc(6 * var(--ov-u));
+  padding: 0 calc(14 * var(--ov-u)) 0 calc(12 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   font-size: var(--ov-type-meta);
@@ -353,7 +353,7 @@
   background: var(--ov-surface-2);
 }
 .meal-entries {
-  margin-top: 6px;
+  margin-top: calc(6 * var(--ov-u));
 }
 
 /* Search your foods: a 50-pt field, its glyph inside it at the left. */
@@ -363,15 +363,16 @@
 .food-search > svg {
   position: absolute;
   top: 50%;
-  left: 14px;
+  left: calc(14 * var(--ov-u));
   color: var(--ov-ink-2);
   pointer-events: none;
   translate: 0 -50%;
 }
 .food-search-input {
   width: 100%;
-  height: calc(50px + var(--ov-grow));
-  padding: 0 14px 0 calc(24px + 0.625rem + 10px);
+  height: calc(calc(50 * var(--ov-u)) + var(--ov-grow));
+  padding: 0 calc(14 * var(--ov-u)) 0
+    calc(calc(24 * var(--ov-u)) + 0.625rem + calc(10 * var(--ov-u)));
   border: 1.5px solid var(--ov-control);
   border-radius: 14px;
   background: transparent;
@@ -396,10 +397,10 @@
 .food-row {
   display: flex;
   width: 100%;
-  min-height: 58px;
+  min-height: calc(58 * var(--ov-u));
   align-items: center;
-  gap: 12px;
-  padding: 7px 0;
+  gap: calc(12 * var(--ov-u));
+  padding: calc(7 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
   text-align: left;
 }
@@ -439,12 +440,12 @@
     "tile name"
     "tile meta";
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 12px;
+  column-gap: calc(12 * var(--ov-u));
 }
 .food-row-glyph {
   grid-area: tile;
-  width: calc(36px + var(--ov-grow));
-  height: calc(36px + var(--ov-grow));
+  width: calc(calc(36 * var(--ov-u)) + var(--ov-grow));
+  height: calc(calc(36 * var(--ov-u)) + var(--ov-grow));
   align-self: center;
   /* The glyph inside is glyph-16's, 8 px + 0.5 rem. */
   padding: calc((28px + var(--ov-grow) - 0.5rem) / 2);
@@ -522,14 +523,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
+  gap: calc(12 * var(--ov-u));
+  padding: calc(6 * var(--ov-u)) 0;
 }
 .amount-figure {
   display: flex;
   min-width: 0;
   align-items: baseline;
-  gap: 4px;
+  gap: calc(4 * var(--ov-u));
 }
 /* Entry type (Jost 600, 42 pt), as the logging page writes a load: `.figure-input` inherits
    its font from where it stands, and here it stands beside a unit in words. */
@@ -551,14 +552,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: calc(8 * var(--ov-u)) calc(14 * var(--ov-u));
 }
 /* At large text the figures go under the bowl rather than squeeze beside it. */
 .food-preview > div:last-child {
   flex: 1 1 10rem;
 }
 .food-preview-bowl {
-  width: 108px;
+  width: calc(108 * var(--ov-u));
   flex-shrink: 0;
 }
 .food-preview-unit {

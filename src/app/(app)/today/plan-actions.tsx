@@ -404,8 +404,7 @@ export function PickUpFromToday({
     <>
       <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="min-w-0 flex-1 type-meta text-ink-2 [overflow-wrap:anywhere]">
-          <span className="figures">{count}</span> missed {count === 1 ? "session is" : "sessions are"}{" "}
-          still waiting.
+          <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
         </p>
         <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
           Pick up from today

@@ -571,11 +571,16 @@ export function TodayView({
   return (
     <>
       <h1 className="sr-only">Today</h1>
-      <div className="today page-width">
+      <div className="today page-width page-wide">
         <header className="today-head">
           <p className="type-heading tabular-nums">{formatIsoWeekdayDay(today)}</p>
           {plan && plan.suggestion && day && (
-            <CycleMark cells={cycleCells(plan)} label={cycleLabel(plan)} behind={plan.behind} />
+            <CycleMark
+              cells={cycleCells(plan)}
+              label={cycleLabel(plan)}
+              // Said once: under the date with its way out when there is one, else here.
+              behind={plan.missed.length >= PICK_UP_AFTER && !sessionOpen ? 0 : plan.behind}
+            />
           )}
         </header>
         {discarded && <DiscardedNote />}

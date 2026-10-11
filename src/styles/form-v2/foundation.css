@@ -18,50 +18,64 @@
   --ov-figures: "tnum" 1, "lnum" 1;
   --ov-title-tracking: -0.012em;
 
+  /*
+   * Wider screens (ADR 0051): from 600 px of viewport to 1440, type, spacing, radii and targets
+   * grow smoothly, then stop. --ov-fluid runs from 0 to 1 px across that span, so a length that
+   * adds `var(--ov-fluid) * N` is N px larger at 1440 and wider and exactly as before on a phone.
+   * It adds to the reader's text size rather than replacing it: zooming or a larger text setting
+   * still multiplies everything.
+   */
+  --ov-fluid: clamp(0px, (100vw - 600px) / 840, 1px);
+  /* The component scale's pixel: 1 px on a phone, an eighth larger at 1440 and wider. Every
+     length in the component styles is written in it, hairlines and query thresholds aside. */
+  --ov-u: calc(1px + var(--ov-fluid) * 0.125);
+
   /* The type ramp, at 100% text. size = P·(1 − k) px + P·k / 16 rem grows by k at 200%. */
-  --ov-type-title: calc(9px + 1.6875rem); /* 36, k 0.75 */
-  --ov-type-display: calc(8.5px + 1.59375rem); /* 34, k 0.75 */
-  --ov-type-sheet-title: calc(7px + 1.3125rem); /* 28, k 0.75 */
-  --ov-type-card-title: calc(6px + 1.125rem); /* 24, k 0.75 */
-  --ov-type-figure-xl: calc(28px + 1.75rem); /* 56, k 0.5 */
-  --ov-type-entry: calc(21px + 1.3125rem); /* 42, k 0.5 */
-  --ov-type-log: calc(24px + 0.5rem); /* 32, k 0.25 */
-  --ov-type-figure-l: calc(13px + 0.8125rem); /* 26, k 0.5 */
-  --ov-type-figure: calc(10px + 0.625rem); /* 20, k 0.5 */
-  --ov-type-figure-s: 1.0625rem; /* 17, k 1: the rest pill doubles with its words */
-  --ov-type-heading: 1.0625rem; /* 17 */
-  --ov-type-body: 1rem; /* 16 */
-  --ov-type-meta: 0.9375rem; /* 15 */
-  --ov-type-meta-small: 0.875rem; /* 14 */
-  --ov-type-caption: 0.8125rem; /* 13 */
-  --ov-type-button: 1.0625rem; /* 17 */
-  --ov-type-tab: 0.8125rem; /* 13; 12 under 360 pt */
-  --ov-type-print-label: 0.75rem; /* 12 */
+  --ov-type-title: calc(9px + 1.6875rem + var(--ov-fluid) * 6); /* 36, k 0.75 */
+  --ov-type-display: calc(8.5px + 1.59375rem + var(--ov-fluid) * 4); /* 34, k 0.75 */
+  --ov-type-sheet-title: calc(7px + 1.3125rem + var(--ov-fluid) * 3); /* 28, k 0.75 */
+  --ov-type-card-title: calc(6px + 1.125rem + var(--ov-fluid) * 3); /* 24, k 0.75 */
+  --ov-type-figure-xl: calc(28px + 1.75rem + var(--ov-fluid) * 8); /* 56, k 0.5 */
+  --ov-type-entry: calc(21px + 1.3125rem + var(--ov-fluid) * 4); /* 42, k 0.5 */
+  --ov-type-log: calc(24px + 0.5rem + var(--ov-fluid) * 2); /* 32, k 0.25 */
+  --ov-type-figure-l: calc(13px + 0.8125rem + var(--ov-fluid) * 3); /* 26, k 0.5 */
+  --ov-type-figure: calc(10px + 0.625rem + var(--ov-fluid) * 2); /* 20, k 0.5 */
+  --ov-type-figure-s: calc(
+    1.0625rem + var(--ov-fluid) * 1
+  ); /* 17, k 1: the rest pill doubles with its words */
+  --ov-type-heading: calc(1.0625rem + var(--ov-fluid) * 2); /* 17 */
+  --ov-type-body: calc(1rem + var(--ov-fluid) * 1.5); /* 16 */
+  --ov-type-meta: calc(0.9375rem + var(--ov-fluid) * 1.5); /* 15 */
+  --ov-type-meta-small: calc(0.875rem + var(--ov-fluid) * 1); /* 14 */
+  --ov-type-caption: calc(0.8125rem + var(--ov-fluid) * 1); /* 13 */
+  --ov-type-button: calc(1.0625rem + var(--ov-fluid) * 1.5); /* 17 */
+  --ov-type-tab: calc(0.8125rem + var(--ov-fluid) * 1); /* 13; 12 under 360 pt */
+  --ov-type-print-label: calc(0.75rem + var(--ov-fluid) * 1); /* 12 */
   /* The Floors Rule: nothing typed or entered is under 16 px. */
-  --ov-type-input: max(16px, 1rem);
+  --ov-type-input: calc(max(16px, 1rem) + var(--ov-fluid) * 1.5);
 
   /* Spacing, in points. */
-  --ov-space-4: 4px;
-  --ov-space-6: 6px;
-  --ov-space-8: 8px;
-  --ov-space-10: 10px;
-  --ov-space-12: 12px;
-  --ov-space-14: 14px;
-  --ov-space-16: 16px;
-  --ov-space-20: 20px;
-  --ov-space-24: 24px;
-  /* Gutters are 20 pt, 16 under 360 pt wide. */
-  --ov-gutter: 20px;
+  --ov-space-4: calc(4px + var(--ov-fluid) * 1);
+  --ov-space-6: calc(6px + var(--ov-fluid) * 1.5);
+  --ov-space-8: calc(8px + var(--ov-fluid) * 2);
+  --ov-space-10: calc(10px + var(--ov-fluid) * 2.5);
+  --ov-space-12: calc(12px + var(--ov-fluid) * 3);
+  --ov-space-14: calc(14px + var(--ov-fluid) * 3.5);
+  --ov-space-16: calc(16px + var(--ov-fluid) * 4);
+  --ov-space-20: calc(20px + var(--ov-fluid) * 5);
+  --ov-space-24: calc(24px + var(--ov-fluid) * 6);
+  /* Gutters are 20 pt, 16 under 360 pt wide, and grow to 40 on wide screens. */
+  --ov-gutter: calc(20px + var(--ov-fluid) * 20);
   /* A list that mixes sports gives its marks this column; names start 12 pt after it. */
   --ov-mark-column: 20px;
 
   /* What a control adds at larger text: nothing at 100%, 20 pt at 200%. */
   --ov-grow: max(0px, calc(1.25rem - 20px));
   /* Every target is 44 pt at least (48 dp on Android, below), and grows with its text. */
-  --ov-target: calc(44px + var(--ov-grow));
-  --ov-target-header: calc(44px + var(--ov-grow) * 0.6);
-  --ov-button: calc(56px + var(--ov-grow));
-  --ov-button-short: calc(44px + var(--ov-grow));
+  --ov-target: calc(44px + var(--ov-grow) + var(--ov-fluid) * 4);
+  --ov-target-header: calc(44px + var(--ov-grow) * 0.6 + var(--ov-fluid) * 4);
+  --ov-button: calc(56px + var(--ov-grow) + var(--ov-fluid) * 4);
+  --ov-button-short: calc(44px + var(--ov-grow) + var(--ov-fluid) * 4);
   --ov-tab-bar: 64px;
 
   /* Rounded by role; prints are cut square. */
@@ -69,13 +83,13 @@
   --ov-radius-indicator: 2px;
   --ov-radius-checkbox: 6px;
   --ov-radius-tag: 8px;
-  --ov-radius-row: 10px;
+  --ov-radius-row: calc(10px + var(--ov-fluid) * 1);
   --ov-radius-segment: 11px;
-  --ov-radius-key: 12px;
-  --ov-radius-control: 14px;
-  --ov-radius-card: 16px;
-  --ov-radius-rest-pill: 18px;
-  --ov-radius-sheet: 24px;
+  --ov-radius-key: calc(12px + var(--ov-fluid) * 2);
+  --ov-radius-control: calc(14px + var(--ov-fluid) * 2);
+  --ov-radius-card: calc(16px + var(--ov-fluid) * 4);
+  --ov-radius-rest-pill: calc(18px + var(--ov-fluid) * 2);
+  --ov-radius-sheet: calc(24px + var(--ov-fluid) * 4);
   --ov-radius-full: 9999px;
 
   /* Motion: a press answers a touch, a set lands when the server has it, words swap in place. */
@@ -239,15 +253,15 @@
   --ov-space-5: 1rem;
   --ov-space-7: 1.5rem;
   --ov-page-gutter: var(--ov-gutter);
-  --ov-panel-padding: 14px;
-  --ov-section-gap: 24px;
+  --ov-panel-padding: calc(14px + var(--ov-fluid) * 4);
+  --ov-section-gap: calc(24px + var(--ov-fluid) * 8);
   --ov-row-gap: 0.375rem;
   --ov-control-height: 2.75rem;
   --ov-target-min: max(44px, 2.75rem);
-  --ov-icon-control: 1.25rem;
-  --ov-icon-navigation: 1.5rem;
-  --ov-icon-row: 1.5rem;
-  --ov-icon-feature: 1.75rem;
+  --ov-icon-control: calc(1.25rem + var(--ov-fluid) * 2);
+  --ov-icon-navigation: calc(1.5rem + var(--ov-fluid) * 2);
+  --ov-icon-row: calc(1.5rem + var(--ov-fluid) * 2);
+  --ov-icon-feature: calc(1.75rem + var(--ov-fluid) * 4);
   --ov-content-max: 32rem;
   --ov-nav-height: var(--ov-tab-bar);
   --ov-duration-instant: 0ms;
@@ -267,9 +281,9 @@
 
 /* Android's targets are 48 dp; the platform is read before the first paint (layout.tsx). */
 :where([data-overload-design="form-v2"][data-overload-platform="android"]) {
-  --ov-target: calc(48px + var(--ov-grow));
-  --ov-target-header: calc(48px + var(--ov-grow) * 0.6);
-  --ov-button-short: calc(48px + var(--ov-grow));
+  --ov-target: calc(48px + var(--ov-grow) + var(--ov-fluid) * 4);
+  --ov-target-header: calc(48px + var(--ov-grow) * 0.6 + var(--ov-fluid) * 4);
+  --ov-button-short: calc(48px + var(--ov-grow) + var(--ov-fluid) * 4);
 }
 
 /* System, including an absent or invalid preference; an explicit Light or Dark is excluded. */

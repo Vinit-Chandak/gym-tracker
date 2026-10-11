@@ -10,7 +10,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 .cycle-name {
   display: flex;
@@ -35,8 +35,8 @@
 /* Two to a row, 10 apart, 14 between rows; the day on offer the full width. */
 .cycle-days {
   display: grid;
-  margin-top: 10px;
-  gap: 14px 10px;
+  margin-top: calc(10 * var(--ov-u));
+  gap: calc(14 * var(--ov-u)) calc(10 * var(--ov-u));
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .cycle-day-next {
@@ -46,17 +46,17 @@
   display: block;
 }
 .cycle-day-print {
-  height: 64px;
+  height: calc(64 * var(--ov-u));
 }
 .cycle-day-next .cycle-day-print {
-  height: 92px;
+  height: calc(92 * var(--ov-u));
 }
 .cycle-day-name {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: calc(6 * var(--ov-u));
+  gap: calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
   line-height: 1.25;
@@ -72,20 +72,20 @@
    the words fit, and fewer once they would not (320 pt, large text). */
 .start-tiles {
   display: grid;
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: calc(6 * var(--ov-u));
+  gap: calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
 }
 .start-tile {
   display: flex;
   min-width: 0;
-  min-height: 76px;
+  min-height: calc(76 * var(--ov-u));
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 12px 10px;
+  padding: calc(12 * var(--ov-u)) calc(12 * var(--ov-u)) calc(10 * var(--ov-u));
   border-radius: 14px;
   background: var(--ov-surface);
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .start-tile-word {
   font-size: var(--ov-type-meta);
@@ -96,25 +96,25 @@
 
 /* ---------- a programme day (board Programme day) ---------- */
 .programme-day-print {
-  height: 120px;
+  height: calc(120 * var(--ov-u));
   margin: 2px 0 0;
 }
 @media (height < 800px) {
   .programme-day-print {
-    height: 96px;
+    height: calc(96 * var(--ov-u));
   }
 }
 
 /* ---------- an activity read back (board Run) ---------- */
 .activity-print {
-  height: 128px;
-  margin: 4px 0 0;
+  height: calc(128 * var(--ov-u));
+  margin: calc(4 * var(--ov-u)) 0 0;
 }
 /* What it recorded, two by two, each over a hairline: the figure and its unit, then its name. */
 .activity-stats {
   display: grid;
-  margin-top: 10px;
-  column-gap: 16px;
+  margin-top: calc(10 * var(--ov-u));
+  column-gap: calc(16 * var(--ov-u));
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .activity-stat {
@@ -122,14 +122,14 @@
   min-width: 0;
   flex-direction: column-reverse;
   justify-content: flex-end;
-  padding: 10px 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .activity-stat-figure {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 3px;
+  column-gap: calc(3 * var(--ov-u));
 }
 .activity-stat-unit {
   color: var(--ov-ink-2);

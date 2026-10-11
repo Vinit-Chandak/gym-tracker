@@ -26,7 +26,10 @@ function password(): string {
   return `${salt}:${scryptSync("password123", salt, 32).toString("hex")}`;
 }
 
-export async function exportToPostgres(t: TestDatabase, url: string): Promise<Record<string, number>> {
+export async function exportToPostgres(
+  t: TestDatabase,
+  url: string,
+): Promise<Record<string, number>> {
   assertYearDatabase(url);
   const tables = (
     await t.client.query<{ table_name: string }>(

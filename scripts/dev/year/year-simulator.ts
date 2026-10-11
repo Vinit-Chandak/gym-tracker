@@ -12,12 +12,7 @@
  */
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
-import {
-  equipmentInstances,
-  equipmentTypes,
-  plannedOccurrences,
-  profiles,
-} from "@/db/schema";
+import { equipmentInstances, equipmentTypes, plannedOccurrences, profiles } from "@/db/schema";
 import type { TestDatabase } from "@/db/test/pglite";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
@@ -99,14 +94,7 @@ import {
   markEquipmentNotHere,
 } from "@/server/repositories/workout-confirmation";
 
-import {
-  FOLLOWS,
-  isoWeekdayOf,
-  YEAR_END,
-  YEAR_START,
-  type Block,
-  type Persona,
-} from "./personas";
+import { FOLLOWS, isoWeekdayOf, YEAR_END, YEAR_START, type Block, type Persona } from "./personas";
 
 export type Clock = { set(at: Date): void };
 
@@ -245,7 +233,9 @@ export class YearSimulation {
     const [start, end] = a.p.bodyWeight;
     // Holidays add a little; the noise is a scale's, not a trend's.
     const festive = date >= "2025-12-24" && date <= "2026-01-08" ? 0.8 : 0;
-    return Math.round((start + (end - start) * share + festive + (a.random() - 0.5) * 0.8) * 10) / 10;
+    return (
+      Math.round((start + (end - start) * share + festive + (a.random() - 0.5) * 0.8) * 10) / 10
+    );
   }
 
   // --- Accounts --------------------------------------------------------------------------------
@@ -371,8 +361,11 @@ export class YearSimulation {
         const late = (a.p.lateNight ?? 0) > a.random();
         const [hours, mins] = (late ? "23:35" : a.p.trainAt).split(":").map(Number);
         const start = new Date(
-          this.at(date, `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`, a.p.timeZone).getTime() +
-            (late ? 0 : minutes * 60_000),
+          this.at(
+            date,
+            `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`,
+            a.p.timeZone,
+          ).getTime() + (late ? 0 : minutes * 60_000),
         );
         events.push({ at: start, a, what: "day", run: () => this.day(a, date, start) });
         // Food is logged through the day; written at the evening in one go.
@@ -389,6 +382,20 @@ export class YearSimulation {
           what: "look at today",
           run: () => this.lookAtToday(a, date),
         });
+        // The last morning, mid-session: the open workout the audit opens. Its own event, so it
+        // happens even when the audit runs before the athlete's usual evening.
+        if (a.p.username === "kenji" && date === YEAR_END)
+          events.push({
+            at: new Date(
+              Math.min(
+                this.now.getTime() - 30 * 60_000,
+                this.at(date, "10:30", a.p.timeZone).getTime(),
+              ),
+            ),
+            a,
+            what: "open workout",
+            run: () => this.openWorkoutNow(a, date),
+          });
       }
       events.sort((x, y) => x.at.getTime() - y.at.getTime());
       for (const event of events) {
@@ -533,11 +540,22 @@ export class YearSimulation {
       const fresh = (await getSchedule(tx, a.userId))!;
       const cycleIndex = pendingCycleForDay(fresh.state, next.dayIndex, "session");
       if (cycleIndex === null) return;
-      await recordSlotEvent(tx, a.userId, fresh.program.id, { cycleIndex, dayIndex: next.dayIndex }, "session", "completed", {
-        occurredOn: this.local(a),
-        note: "Rest day done",
+      await recordSlotEvent(
+        tx,
+        a.userId,
+        fresh.program.id,
+        { cycleIndex, dayIndex: next.dayIndex },
+        "session",
+        "completed",
+        {
+          occurredOn: this.local(a),
+          note: "Rest day done",
+        },
+      );
+      await voidPlanForSlot(tx, a.userId, fresh.program.id, {
+        cycleIndex,
+        dayIndex: next.dayIndex,
       });
-      await voidPlanForSlot(tx, a.userId, fresh.program.id, { cycleIndex, dayIndex: next.dayIndex });
     });
     this.count(a, "rest days marked");
   }
@@ -552,18 +570,37 @@ export class YearSimulation {
         const cycleIndex = pendingCycleForDay(fresh.state, ref.dayIndex, part);
         if (cycleIndex === null) return;
         if (part === "run") {
-          const occurrence = await this.occurrenceFor(tx, a, fresh.program.familyId, cycleIndex, ref.dayIndex);
+          const occurrence = await this.occurrenceFor(
+            tx,
+            a,
+            fresh.program.familyId,
+            cycleIndex,
+            ref.dayIndex,
+          );
           if (occurrence) {
             await skipOccurrence(tx, a.userId, occurrence.id, reason);
             return;
           }
         }
-        await recordSlotEvent(tx, a.userId, fresh.program.id, { cycleIndex, dayIndex: ref.dayIndex }, part, "skipped", {
-          occurredOn: this.local(a),
-          note: reason,
-        });
-        if (pendingParts(fresh.state, { cycleIndex, dayIndex: ref.dayIndex }).every((p) => p === part))
-          await voidPlanForSlot(tx, a.userId, fresh.program.id, { cycleIndex, dayIndex: ref.dayIndex });
+        await recordSlotEvent(
+          tx,
+          a.userId,
+          fresh.program.id,
+          { cycleIndex, dayIndex: ref.dayIndex },
+          part,
+          "skipped",
+          {
+            occurredOn: this.local(a),
+            note: reason,
+          },
+        );
+        if (
+          pendingParts(fresh.state, { cycleIndex, dayIndex: ref.dayIndex }).every((p) => p === part)
+        )
+          await voidPlanForSlot(tx, a.userId, fresh.program.id, {
+            cycleIndex,
+            dayIndex: ref.dayIndex,
+          });
       });
       this.count(a, `skipped ${part}`);
     }
@@ -606,7 +643,10 @@ export class YearSimulation {
       if (!day.includesLifting) continue;
       for (const cycleIndex of [current, current - 1]) {
         if (cycleIndex < 1) continue;
-        if (partStatus(schedule.state, { cycleIndex, dayIndex: day.dayIndex }, "session") !== "skipped")
+        if (
+          partStatus(schedule.state, { cycleIndex, dayIndex: day.dayIndex }, "session") !==
+          "skipped"
+        )
           continue;
         await this.lift(a, date, start, this.gymFor(a, date), day.id, day.dayIndex, cycleIndex);
         this.count(a, "trained a skipped day");
@@ -632,7 +672,11 @@ export class YearSimulation {
     const started = await this.as(a, async (tx) => {
       const open = await getInProgressSession(tx, a.userId);
       if (open) {
-        this.note(a, "start", `An earlier workout was still open (${open.id}); finishing it first.`);
+        this.note(
+          a,
+          "start",
+          `An earlier workout was still open (${open.id}); finishing it first.`,
+        );
         await this.finishOpen(tx, a, open.id, null);
       }
       const schedule = await getSchedule(tx, a.userId);
@@ -640,15 +684,26 @@ export class YearSimulation {
       if (!schedule || !day?.includesLifting) return null;
       const shown =
         fromCycleIndex !== undefined &&
-        partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") === "skipped"
+        partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") ===
+          "skipped"
           ? fromCycleIndex
           : null;
       const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
       if (cycleIndex === null) return null;
       if (shown !== null)
         await reopenSkippedSession(tx, a.userId, schedule.program.id, { cycleIndex, dayIndex });
-      await completeRestSlotsBefore(tx, a.userId, schedule, { cycleIndex, dayIndex }, this.local(a));
-      const { sessionId } = await startPlannedSession(tx, a.userId, { gymId, programDayId, cycleIndex });
+      await completeRestSlotsBefore(
+        tx,
+        a.userId,
+        schedule,
+        { cycleIndex, dayIndex },
+        this.local(a),
+      );
+      const { sessionId } = await startPlannedSession(tx, a.userId, {
+        gymId,
+        programDayId,
+        cycleIndex,
+      });
       if (a.random() < a.p.checkIn) await saveCheckIn(tx, a.userId, sessionId, this.checkIn(a));
       return { sessionId, cycleIndex };
     });
@@ -658,7 +713,11 @@ export class YearSimulation {
     }
     this.count(a, "planned workouts");
     const end = await this.logWorkout(a, started.sessionId, start, gymId, started.cycleIndex);
-    await this.finish(a, started.sessionId, end, date, { programDayId, dayIndex, cycleIndex: started.cycleIndex });
+    await this.finish(a, started.sessionId, end, date, {
+      programDayId,
+      dayIndex,
+      cycleIndex: started.cycleIndex,
+    });
     return end;
   }
 
@@ -687,7 +746,10 @@ export class YearSimulation {
       this.clock.set(new Date(clock));
     };
     const detail = await this.as(a, (tx) =>
-      getSessionDetail(tx, a.userId, sessionId, { preferredUnit: a.p.unit, timeZone: a.p.timeZone }),
+      getSessionDetail(tx, a.userId, sessionId, {
+        preferredUnit: a.p.unit,
+        timeZone: a.p.timeZone,
+      }),
     );
     if (!detail) throw new Error("The workout just started cannot be read back.");
     if (a.random() < 0.85)
@@ -700,7 +762,10 @@ export class YearSimulation {
       exercises =
         (
           await this.as(a, (tx) =>
-            getSessionDetail(tx, a.userId, sessionId, { preferredUnit: a.p.unit, timeZone: a.p.timeZone }),
+            getSessionDetail(tx, a.userId, sessionId, {
+              preferredUnit: a.p.unit,
+              timeZone: a.p.timeZone,
+            }),
           )
         )?.exercises ?? exercises;
     }
@@ -799,14 +864,20 @@ export class YearSimulation {
         tx,
         a.userId,
         sessionId,
-        chosen.map((row) => ({ exerciseId: row.id, equipmentInstanceId: compatible[row.id]?.[0] ?? null })),
+        chosen.map((row) => ({
+          exerciseId: row.id,
+          equipmentInstanceId: compatible[row.id]?.[0] ?? null,
+        })),
       );
       return workoutExerciseIds;
     });
     if (!added.length) return;
     this.count(a, "exercises added");
     const detail = await this.as(a, (tx) =>
-      getSessionDetail(tx, a.userId, sessionId, { preferredUnit: a.p.unit, timeZone: a.p.timeZone }),
+      getSessionDetail(tx, a.userId, sessionId, {
+        preferredUnit: a.p.unit,
+        timeZone: a.p.timeZone,
+      }),
     );
     for (const ex of detail?.exercises ?? [])
       if (added.includes(ex.id)) await this.logExercise(a, ex, gymId, false, null, tick);
@@ -899,7 +970,10 @@ export class YearSimulation {
           durationSeconds: seconds,
         });
       }
-      a.strength.set(ex.exercise.slug, Math.min(1.4, (a.strength.get(ex.exercise.slug) ?? 0.4) + 0.02));
+      a.strength.set(
+        ex.exercise.slug,
+        Math.min(1.4, (a.strength.get(ex.exercise.slug) ?? 0.4) + 0.02),
+      );
       return;
     }
     if (measure === "distance") {
@@ -923,7 +997,8 @@ export class YearSimulation {
 
     if (measure === "bodyweight" || measure === "assisted") {
       // Reps at body weight; the strongest add load, the weakest take help on a machine.
-      const capacityBase = a.strength.get(`${ex.exercise.slug}:reps`) ??
+      const capacityBase =
+        a.strength.get(`${ex.exercise.slug}:reps`) ??
         (a.p.level === "beginner" ? 6 : a.p.level === "intermediate" ? 12 : 16) *
           (/pull-up|chin-up/.test(ex.exercise.slug) ? 0.6 : 1);
       a.strength.set(`${ex.exercise.slug}:reps`, capacityBase);
@@ -987,7 +1062,12 @@ export class YearSimulation {
         load = roundDown(load * 0.92, step);
       }
       if (powerlifter && deload && i === count - 1 && first) setType = "amrap";
-      if (a.p.username === "sofia" && i === count - 1 && exerciseFactor(ex.exercise.slug) < 0.6 && a.random() < 0.4)
+      if (
+        a.p.username === "sofia" &&
+        i === count - 1 &&
+        exerciseFactor(ex.exercise.slug) < 0.6 &&
+        a.random() < 0.4
+      )
         setType = "drop";
       if (setType === "drop") load = roundDown(load * 0.75, step);
       if (deload && powerlifter) load = roundDown(load * 0.85, step);
@@ -1000,7 +1080,8 @@ export class YearSimulation {
         setType === "amrap" || setType === "drop"
           ? Math.max(1, capacity)
           : clamp(capacity - rirTarget, 1, high + (a.random() < 0.1 ? 2 : 0));
-      const rir = setType === "amrap" ? 0 : clamp(capacity - reps + Math.round((a.random() - 0.5) * 2), 0, 5);
+      const rir =
+        setType === "amrap" ? 0 : clamp(capacity - reps + Math.round((a.random() - 0.5) * 2), 0, 5);
       await save({
         setType,
         weight: load,
@@ -1025,9 +1106,12 @@ export class YearSimulation {
     const bodyWeightKg = weigh ? this.bodyWeightOn(a, date) : null;
     const notes =
       a.random() < 0.12
-        ? ["Felt strong today.", "Short on time, kept rest tight.", "Grip gave out on the last set.", "Gym was packed."][
-            Math.floor(a.random() * 4)
-          ]!
+        ? [
+            "Felt strong today.",
+            "Short on time, kept rest tight.",
+            "Grip gave out on the last set.",
+            "Gym was packed.",
+          ][Math.floor(a.random() * 4)]!
         : null;
     await this.as(a, async (tx) => {
       const finished = await finishSession(tx, a.userId, sessionId, { notes, bodyWeightKg });
@@ -1041,7 +1125,10 @@ export class YearSimulation {
           { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
           "session",
           "completed",
-          { occurredOn: todayInTimeZone(a.p.timeZone, finished.startedAt), workoutSessionId: sessionId },
+          {
+            occurredOn: todayInTimeZone(a.p.timeZone, finished.startedAt),
+            workoutSessionId: sessionId,
+          },
         );
       this.count(a, "records set", finished.records.length);
     });
@@ -1051,10 +1138,17 @@ export class YearSimulation {
       const schedule = await this.as(a, (tx) => getSchedule(tx, a.userId));
       if (
         schedule &&
-        partStatus(schedule.state, { cycleIndex: planned.cycleIndex, dayIndex: planned.dayIndex }, "session") !==
-          "completed"
+        partStatus(
+          schedule.state,
+          { cycleIndex: planned.cycleIndex, dayIndex: planned.dayIndex },
+          "session",
+        ) !== "completed"
       )
-        this.note(a, "finish", `Cycle ${planned.cycleIndex} day ${planned.dayIndex} is not completed after its workout.`);
+        this.note(
+          a,
+          "finish",
+          `Cycle ${planned.cycleIndex} day ${planned.dayIndex} is not completed after its workout.`,
+        );
     }
   }
 
@@ -1068,7 +1162,10 @@ export class YearSimulation {
         { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
         "session",
         "completed",
-        { occurredOn: todayInTimeZone(a.p.timeZone, finished.startedAt), workoutSessionId: sessionId },
+        {
+          occurredOn: todayInTimeZone(a.p.timeZone, finished.startedAt),
+          workoutSessionId: sessionId,
+        },
       );
   }
 
@@ -1101,7 +1198,10 @@ export class YearSimulation {
           tx,
           a.userId,
           sessionId,
-          usable.map((row) => ({ exerciseId: row.id, equipmentInstanceId: compatible[row.id]?.[0] ?? null })),
+          usable.map((row) => ({
+            exerciseId: row.id,
+            equipmentInstanceId: compatible[row.id]?.[0] ?? null,
+          })),
         );
       return sessionId;
     });
@@ -1159,7 +1259,13 @@ export class YearSimulation {
       const schedule = (await getSchedule(tx, a.userId))!;
       const cycleIndex = pendingCycleForDay(schedule.state, ref.dayIndex, "run");
       if (cycleIndex === null) return;
-      const occurrence = await this.occurrenceFor(tx, a, schedule.program.familyId, cycleIndex, ref.dayIndex);
+      const occurrence = await this.occurrenceFor(
+        tx,
+        a,
+        schedule.program.familyId,
+        cycleIndex,
+        ref.dayIndex,
+      );
       const planned = a.blueprint?.runs.find(
         (run) => run.weekIndex === cycleIndex && run.dayOfWeek === dayOfWeek,
       );
@@ -1169,11 +1275,27 @@ export class YearSimulation {
       const origin: LogOrigin = occurrence?.currentRevisionId
         ? plannedOrigin(occurrence.id, occurrence.currentRevisionId)
         : AD_HOC_ORIGIN;
-      await this.logActivity(tx, a, "running", at, km * 1000, this.paceSecondsPerKm(a, planned?.rpe?.[1] ?? 2), origin);
+      await this.logActivity(
+        tx,
+        a,
+        "running",
+        at,
+        km * 1000,
+        this.paceSecondsPerKm(a, planned?.rpe?.[1] ?? 2),
+        origin,
+      );
       if (!occurrence)
-        await recordSlotEvent(tx, a.userId, schedule.program.id, { cycleIndex, dayIndex: ref.dayIndex }, "run", "completed", {
-          occurredOn: this.local(a),
-        });
+        await recordSlotEvent(
+          tx,
+          a.userId,
+          schedule.program.id,
+          { cycleIndex, dayIndex: ref.dayIndex },
+          "run",
+          "completed",
+          {
+            occurredOn: this.local(a),
+          },
+        );
     });
     this.count(a, "planned runs");
   }
@@ -1202,9 +1324,10 @@ export class YearSimulation {
       actual = {
         sport,
         environment: a.random() < 0.15 ? "treadmill" : "outdoor",
-        distance: unit === "mi"
-          ? nativeDistance(Math.round((metres / 1609.344) * 100) / 100, "mi")
-          : nativeDistance(Math.round(metres / 10) / 100, "km"),
+        distance:
+          unit === "mi"
+            ? nativeDistance(Math.round((metres / 1609.344) * 100) / 100, "mi")
+            : nativeDistance(Math.round(metres / 10) / 100, "km"),
         durationMs,
         surface: null,
         elevationGainMetres: a.random() < 0.3 ? Math.round(a.random() * 120) : null,
@@ -1218,7 +1341,10 @@ export class YearSimulation {
         sport,
         environment: "indoor",
         durationMs,
-        distance: extra.distanceKnown === false ? null : nativeDistance(Math.round(metres / 100) / 10, "km"),
+        distance:
+          extra.distanceKnown === false
+            ? null
+            : nativeDistance(Math.round(metres / 100) / 10, "km"),
         assistance: "unassisted",
         resourceId: null,
         averagePowerWatts: a.random() < 0.6 ? 140 + Math.round(a.random() * 40) : null,
@@ -1256,7 +1382,10 @@ export class YearSimulation {
       recordedTimeZone: a.p.timeZone,
       timeZoneSource: "profile_at_entry",
       occurredOn: todayInTimeZone(a.p.timeZone, startedAt),
-      effort: a.random() < 0.9 ? reportedEffort(2 + Math.floor(a.random() * 3)) : { status: "unknown", value: null },
+      effort:
+        a.random() < 0.9
+          ? reportedEffort(2 + Math.floor(a.random() * 3))
+          : { status: "unknown", value: null },
       outcome: a.random() < 0.05 ? "ended_early" : "logged",
       title: null,
       notes: a.random() < 0.08 ? "Windy along the front." : null,
@@ -1283,13 +1412,31 @@ export class YearSimulation {
       // Before the programme, and through the summer, easy runs and swims of his own.
       if (date < "2025-11-03" && [2, 4, 6].includes(weekday) && a.random() < 0.8) {
         this.clock.set(later);
-        await this.as(a, (tx) => this.logActivity(tx, a, "running", later, 6000 + a.random() * 3000, this.paceSecondsPerKm(a, 2)));
+        await this.as(a, (tx) =>
+          this.logActivity(
+            tx,
+            a,
+            "running",
+            later,
+            6000 + a.random() * 3000,
+            this.paceSecondsPerKm(a, 2),
+          ),
+        );
       }
       if (date >= "2026-05-01" && date <= "2026-09-30" && weekday === 7 && a.random() < 0.6) {
         this.clock.set(later);
         const open = a.random() < 0.3;
         await this.as(a, (tx) =>
-          this.logActivity(tx, a, "swimming", later, open ? 1500 : 1000 + a.random() * 1000, 120, AD_HOC_ORIGIN, { pool: !open }),
+          this.logActivity(
+            tx,
+            a,
+            "swimming",
+            later,
+            open ? 1500 : 1000 + a.random() * 1000,
+            120,
+            AD_HOC_ORIGIN,
+            { pool: !open },
+          ),
         );
       }
     }
@@ -1299,11 +1446,14 @@ export class YearSimulation {
   private async specials(a: Athlete, date: string, start: Date) {
     const u = a.p.username;
     if (u === "kenji" && (date === "2026-01-10" || date === "2026-06-20")) {
-      await this.adHoc(a, date, this.at(date, "09:30", a.p.timeZone), this.gymFor(a, date), "meet", [
-        "low-bar-squat",
-        "barbell-bench-press",
-        "conventional-deadlift",
-      ]);
+      await this.adHoc(
+        a,
+        date,
+        this.at(date, "09:30", a.p.timeZone),
+        this.gymFor(a, date),
+        "meet",
+        ["low-bar-squat", "barbell-bench-press", "conventional-deadlift"],
+      );
     }
     if (u === "liam" && date === "2026-03-22") {
       const race = this.at(date, "07:00", a.p.timeZone);
@@ -1311,14 +1461,25 @@ export class YearSimulation {
       await this.as(a, (tx) => this.logActivity(tx, a, "running", race, 21_097.5, 312));
       this.count(a, "races");
     }
-    if (u === "sofia" && ((date >= "2026-02-10" && date <= "2026-02-13") || (date >= "2026-06-02" && date <= "2026-06-04"))) {
-      await this.adHoc(a, date, this.at(date, "06:45", a.p.timeZone), a.gymIds.get("milan")!, "travel", [
-        "flat-db-press",
-        "single-arm-db-row",
-        "goblet-squat",
-        "cable-lateral-raise",
-        "cable-triceps-pushdown",
-      ]);
+    if (
+      u === "sofia" &&
+      ((date >= "2026-02-10" && date <= "2026-02-13") ||
+        (date >= "2026-06-02" && date <= "2026-06-04"))
+    ) {
+      await this.adHoc(
+        a,
+        date,
+        this.at(date, "06:45", a.p.timeZone),
+        a.gymIds.get("milan")!,
+        "travel",
+        [
+          "flat-db-press",
+          "single-arm-db-row",
+          "goblet-squat",
+          "cable-lateral-raise",
+          "cable-triceps-pushdown",
+        ],
+      );
     }
     if (u === "aarav" && Number(date.slice(8)) === 3 && a.random() < 0.9) {
       // Starts, is called away before the first set, and discards the empty workout.
@@ -1348,8 +1509,6 @@ export class YearSimulation {
       await this.editRecent(a, date, 2, true);
     // Eight days after: the edit is refused, as it should be.
     if (u === "kenji" && Number(date.slice(8)) === 15) await this.editRecent(a, date, 8, false);
-    // Today, mid-session: the open workout the audit opens.
-    if (u === "kenji" && date === YEAR_END) await this.openWorkoutNow(a, date);
   }
 
   private async editRecent(a: Athlete, date: string, daysAgo: number, allowed: boolean) {
@@ -1367,7 +1526,9 @@ export class YearSimulation {
         preferredUnit: a.p.unit,
         timeZone: a.p.timeZone,
       });
-      const ex = detail?.exercises.find((e) => e.sets.some((s) => s.setType !== "warmup" && s.reps !== null));
+      const ex = detail?.exercises.find((e) =>
+        e.sets.some((s) => s.setType !== "warmup" && s.reps !== null),
+      );
       const set = ex?.sets.find((s) => s.setType !== "warmup" && s.reps !== null);
       if (!ex || !set) return;
       try {
@@ -1387,7 +1548,12 @@ export class YearSimulation {
         const last = [...ex.sets].sort((x, y) => y.setIndex - x.setIndex)[0]!;
         if (ex.sets.length > 2)
           await deleteSet(tx, a.userId, ex.id, last.setIndex, last.completedAt.toISOString());
-        if (!allowed) this.note(a, "edit", `A workout ${daysAgo} days old took a correction; it should be read only.`);
+        if (!allowed)
+          this.note(
+            a,
+            "edit",
+            `A workout ${daysAgo} days old took a correction; it should be read only.`,
+          );
         else this.count(a, "finished workouts corrected");
       } catch (error) {
         if (allowed) throw error;
@@ -1397,7 +1563,9 @@ export class YearSimulation {
   }
 
   private async openWorkoutNow(a: Athlete, date: string) {
-    const start = new Date(Math.min(this.now.getTime() - 25 * 60_000, this.at(date, "10:30", a.p.timeZone).getTime()));
+    const start = new Date(
+      Math.min(this.now.getTime() - 25 * 60_000, this.at(date, "10:30", a.p.timeZone).getTime()),
+    );
     if (todayInTimeZone(a.p.timeZone, start) !== date) return;
     const schedule = await this.as(a, (tx) => getSchedule(tx, a.userId));
     const ref = schedule ? this.nextTraining(schedule) : null;
@@ -1406,7 +1574,13 @@ export class YearSimulation {
     this.clock.set(start);
     const sessionId = await this.as(a, async (tx) => {
       const cycleIndex = pendingCycleForDay(schedule.state, ref.dayIndex, "session")!;
-      await completeRestSlotsBefore(tx, a.userId, schedule, { cycleIndex, dayIndex: ref.dayIndex }, this.local(a));
+      await completeRestSlotsBefore(
+        tx,
+        a.userId,
+        schedule,
+        { cycleIndex, dayIndex: ref.dayIndex },
+        this.local(a),
+      );
       const { sessionId } = await startPlannedSession(tx, a.userId, {
         gymId: this.gymFor(a, date),
         programDayId: day.id,
@@ -1416,7 +1590,10 @@ export class YearSimulation {
       return sessionId;
     });
     const detail = await this.as(a, (tx) =>
-      getSessionDetail(tx, a.userId, sessionId, { preferredUnit: a.p.unit, timeZone: a.p.timeZone }),
+      getSessionDetail(tx, a.userId, sessionId, {
+        preferredUnit: a.p.unit,
+        timeZone: a.p.timeZone,
+      }),
     );
     let clock = start.getTime();
     const tick = (seconds: number) => {
@@ -1461,15 +1638,20 @@ export class YearSimulation {
         this.count(a, "foods logged");
       }
       if (a.random() < 0.12) {
-        await logQuickFood(tx, a.userId, { eatenOn: date, meal: "dinner" }, {
-          name: a.random() < 0.5 ? "Dinner out" : QUICK_ADD_NAME,
-          portionAmount: 1,
-          unit: "serving",
-          kcal: 700 + Math.round(a.random() * 500),
-          carbsG: null,
-          fatG: null,
-          proteinG: null,
-        });
+        await logQuickFood(
+          tx,
+          a.userId,
+          { eatenOn: date, meal: "dinner" },
+          {
+            name: a.random() < 0.5 ? "Dinner out" : QUICK_ADD_NAME,
+            portionAmount: 1,
+            unit: "serving",
+            kcal: 700 + Math.round(a.random() * 500),
+            carbsG: null,
+            fatG: null,
+            proteinG: null,
+          },
+        );
         this.count(a, "quick adds");
       }
       if (!a.savedMealId && a.foodIds.size >= 2 && a.random() < 0.05) {
@@ -1486,7 +1668,9 @@ export class YearSimulation {
   private async follow(from: string, to: string, outcome: "accept" | "decline" | "leave") {
     const follower = this.byName.get(from)!;
     const followee = this.byName.get(to)!;
-    const status = await this.as(follower, (tx) => requestFollow(tx, follower.userId, followee.userId));
+    const status = await this.as(follower, (tx) =>
+      requestFollow(tx, follower.userId, followee.userId),
+    );
     if (status === "accepted" || outcome === "leave") return;
     if (outcome === "accept")
       await this.as(followee, (tx) => acceptFollow(tx, followee.userId, follower.userId));
@@ -1505,7 +1689,11 @@ export class YearSimulation {
     if (plan.suggestion) {
       const { cycleIndex } = plan.suggestion.slot;
       if (cycleIndex > plan.program.weeks)
-        this.note(a, "today", `Suggests cycle ${cycleIndex} of a ${plan.program.weeks}-cycle programme.`);
+        this.note(
+          a,
+          "today",
+          `Suggests cycle ${cycleIndex} of a ${plan.program.weeks}-cycle programme.`,
+        );
     }
   }
 
@@ -1524,7 +1712,14 @@ export class YearSimulation {
 }
 
 function missReason(a: Athlete): string {
-  const reasons = ["Work ran late", "Travel", "Slept badly", "Family plans", "Feeling run down", "Rain"];
+  const reasons = [
+    "Work ran late",
+    "Travel",
+    "Slept badly",
+    "Family plans",
+    "Feeling run down",
+    "Rain",
+  ];
   return reasons[Math.floor(a.random() * reasons.length)]!;
 }
 

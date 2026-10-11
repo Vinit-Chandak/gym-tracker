@@ -49,8 +49,8 @@ html:has(.session-layer) body {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 8px;
-  min-height: max(48px, var(--ov-target-header));
+  gap: calc(8 * var(--ov-u));
+  min-height: max(calc(48 * var(--ov-u)), var(--ov-target-header));
   padding: 0 var(--ov-gutter);
 }
 
@@ -62,8 +62,8 @@ html:has(.session-layer) body {
   flex-shrink: 1;
   align-items: center;
   gap: 2px;
-  margin-left: -10px;
-  padding-right: 6px;
+  margin-left: calc(-10 * var(--ov-u));
+  padding-right: calc(6 * var(--ov-u));
 }
 .session-back > span {
   overflow: hidden;
@@ -121,8 +121,8 @@ html:has(.session-layer) body {
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 12px;
-  margin-top: 4px;
+  gap: 2px calc(12 * var(--ov-u));
+  margin-top: calc(4 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
   font-weight: 500;
@@ -135,7 +135,7 @@ html:has(.session-layer) body {
   display: inline-flex;
   max-width: 100%;
   align-items: center;
-  gap: 5px;
+  gap: calc(5 * var(--ov-u));
 }
 .session-fact > svg {
   flex-shrink: 0;
@@ -143,7 +143,7 @@ html:has(.session-layer) body {
 
 .session-tabs {
   flex: none;
-  margin-top: 6px;
+  margin-top: calc(6 * var(--ov-u));
 }
 
 /* The Log panel fills what the title leaves, so the log can fill down to the entry. */
@@ -183,7 +183,7 @@ html:has(.session-layer) body {
 .log-edge {
   position: absolute;
   inset: 0 0 auto;
-  height: 20px;
+  height: calc(20 * var(--ov-u));
   background: linear-gradient(to bottom, var(--ov-ground), transparent);
   opacity: 0;
   pointer-events: none;
@@ -194,7 +194,7 @@ html:has(.session-layer) body {
 }
 
 .log {
-  padding: 8px 0;
+  padding: calc(8 * var(--ov-u)) 0;
 }
 
 /* One set done: its number in an 18-pt column at the edge, then its figures in the entry's
@@ -202,10 +202,12 @@ html:has(.session-layer) body {
 .log-line {
   display: grid;
   width: 100%;
-  min-height: max(var(--ov-target), calc(var(--log-size, 32px) * 1.8));
-  grid-template-columns: 18px minmax(0, 1fr) var(--op) minmax(0, 1fr) var(--op) minmax(0, 1fr);
+  min-height: max(var(--ov-target), calc(var(--log-size, calc(32 * var(--ov-u))) * 1.8));
+  grid-template-columns: calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(
+      --op
+    ) minmax(0, 1fr);
   align-items: baseline;
-  padding: 10px 0 8px;
+  padding: calc(10 * var(--ov-u)) 0 calc(8 * var(--ov-u));
   text-align: center;
 }
 .log-line > .log-number {
@@ -227,21 +229,21 @@ button.log-line {
 }
 .log-figure {
   font-family: var(--ov-font-display);
-  font-size: var(--log-size, 32px);
+  font-size: var(--log-size, calc(32 * var(--ov-u)));
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums lining-nums;
 }
 .log-op {
   color: var(--ov-ink-2);
-  font-size: var(--log-op, 17px);
+  font-size: var(--log-op, calc(17 * var(--ov-u)));
   font-weight: 600;
   text-align: center;
 }
 .log-rpe {
   color: var(--ov-ink-2);
   font-family: var(--ov-font-text);
-  font-size: calc(var(--log-size, 32px) * 0.5);
+  font-size: calc(var(--log-size, calc(32 * var(--ov-u))) * 0.5);
   font-weight: 600;
 }
 /* A warm-up in the notation: Figure, in ink 2, its operator quieter. */
@@ -266,19 +268,19 @@ button.log-line {
   align-items: baseline;
 }
 .log-warm > .log-number {
-  width: 28px;
+  width: calc(28 * var(--ov-u));
   flex-shrink: 0;
 }
 .log-warm-items {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 20px;
+  column-gap: calc(20 * var(--ov-u));
 }
 .log-warm-item {
   display: inline-flex;
   min-height: var(--ov-target);
   align-items: baseline;
-  padding: 10px 0 6px;
+  padding: calc(10 * var(--ov-u)) 0 calc(6 * var(--ov-u));
 }
 
 /* A set lands as the log's next line on the server's answer: it rises 10 pt as it fades in.
@@ -286,7 +288,7 @@ button.log-line {
 @keyframes log-write {
   from {
     opacity: 0;
-    translate: 0 10px;
+    translate: 0 calc(10 * var(--ov-u));
   }
 }
 .log-line[data-landed="true"],
@@ -298,35 +300,35 @@ button.log-line {
 
 .entry-dock {
   flex: none;
-  padding: 0 var(--ov-gutter) calc(env(safe-area-inset-bottom) + 8px);
+  padding: 0 var(--ov-gutter) calc(env(safe-area-inset-bottom) + calc(8 * var(--ov-u)));
   background: var(--ov-ground);
 }
 .session-layer[data-typing="true"] .entry-dock {
-  padding-bottom: 10px;
+  padding-bottom: calc(10 * var(--ov-u));
 }
 
 .entry {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 10px;
+  gap: calc(12 * var(--ov-u));
+  padding-top: calc(10 * var(--ov-u));
   border-top: 1px solid var(--ov-hair);
 }
 @media (height < 800px) {
   .entry {
-    gap: 8px;
+    gap: calc(8 * var(--ov-u));
   }
 }
 .session-layer[data-typing="true"] .entry {
-  gap: 8px;
-  padding-top: 8px;
+  gap: calc(8 * var(--ov-u));
+  padding-top: calc(8 * var(--ov-u));
 }
 
 .entry-head {
   display: flex;
-  min-height: 44px;
+  min-height: calc(44 * var(--ov-u));
   align-items: center;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 /* The set and its tag; the tag wraps under the set when the line is full. */
 .entry-title {
@@ -335,7 +337,7 @@ button.log-line {
   flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 10px;
+  column-gap: calc(10 * var(--ov-u));
 }
 .entry-options {
   display: grid;
@@ -343,7 +345,7 @@ button.log-line {
   height: var(--ov-target-header);
   flex-shrink: 0;
   place-items: center;
-  margin-right: -10px;
+  margin-right: calc(-10 * var(--ov-u));
   color: var(--ov-ink-2);
 }
 
@@ -355,10 +357,10 @@ button.log-line {
 }
 .entry-tag > span {
   display: inline-flex;
-  min-height: calc(12px + 1.125rem);
+  min-height: calc(calc(12 * var(--ov-u)) + 1.125rem);
   align-items: center;
-  gap: 5px;
-  padding: 0 9px 0 10px;
+  gap: calc(5 * var(--ov-u));
+  padding: 0 calc(9 * var(--ov-u)) 0 calc(10 * var(--ov-u));
   border: 1.5px solid var(--ov-ink);
   border-radius: var(--ov-radius-tag);
   font-size: calc(2px + 0.75rem);
@@ -371,9 +373,11 @@ button.log-line {
    up whatever its hint. */
 .entry-figures {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) var(--op) minmax(0, 1fr) var(--op) minmax(0, 1fr);
+  grid-template-columns: calc(18 * var(--ov-u)) minmax(0, 1fr) var(--op) minmax(0, 1fr) var(
+      --op
+    ) minmax(0, 1fr);
   grid-template-rows: auto auto auto;
-  row-gap: 6px;
+  row-gap: calc(6 * var(--ov-u));
 }
 /* Every piece has its column: an item placed by row alone would be placed before the empty
    number column and push the grid along. */
@@ -399,9 +403,9 @@ button.log-line {
 .entry-op {
   grid-row: 1;
   align-self: start;
-  padding-top: var(--entry-op-top, 13px);
+  padding-top: var(--entry-op-top, calc(13 * var(--ov-u)));
   color: var(--ov-ink-2);
-  font-size: var(--entry-op, 20px);
+  font-size: var(--entry-op, calc(20 * var(--ov-u)));
   font-weight: 500;
   line-height: 1.4;
   text-align: center;
@@ -413,14 +417,14 @@ button.log-line {
   grid-template-rows: subgrid;
   grid-template-columns: auto auto;
   justify-content: center;
-  column-gap: 8px;
+  column-gap: calc(8 * var(--ov-u));
 }
 .stepper-figure {
   display: flex;
   min-width: var(--ov-target);
   min-height: var(--ov-target);
   font-family: var(--ov-font-display);
-  font-size: var(--entry-size, 42px);
+  font-size: var(--entry-size, calc(42 * var(--ov-u)));
   font-weight: 600;
   line-height: 1.1;
   font-variant-numeric: tabular-nums lining-nums;
@@ -438,7 +442,7 @@ button.log-line {
   grid-area: 2 / 1 / 3 / 3;
   flex-direction: column;
   align-items: center;
-  margin-top: calc(var(--ov-target) / 2 - 10px);
+  margin-top: calc(var(--ov-target) / 2 - calc(10 * var(--ov-u)));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 600;
@@ -460,7 +464,7 @@ button.log-line {
 .stepper-units-line {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: calc(4 * var(--ov-u));
 }
 .stepper-minus {
   grid-area: 3 / 1;
@@ -493,8 +497,10 @@ button.log-line {
   height: var(--ov-target);
   flex-shrink: 0;
   place-items: center;
-  margin: calc((17px - var(--ov-target)) / 2) calc((16px - var(--ov-target)) / 2)
-    calc((17px - var(--ov-target)) / 2) calc((20px - var(--ov-target)) / 2);
+  margin: calc((calc(17 * var(--ov-u)) - var(--ov-target)) / 2)
+    calc((calc(16 * var(--ov-u)) - var(--ov-target)) / 2)
+    calc((calc(17 * var(--ov-u)) - var(--ov-target)) / 2)
+    calc((calc(20 * var(--ov-u)) - var(--ov-target)) / 2);
   color: var(--ov-ink-2);
 }
 
@@ -502,7 +508,7 @@ button.log-line {
 .figure-suggested {
   color: var(--ov-ink-2);
   text-decoration: underline dotted 2px;
-  text-underline-offset: 6px;
+  text-underline-offset: calc(6 * var(--ov-u));
 }
 .figure-empty {
   color: var(--ov-control);
@@ -516,7 +522,7 @@ button.log-line {
 .figure-input {
   display: inline-block;
   min-width: 1ch;
-  padding: 0 0 3px;
+  padding: 0 0 calc(3 * var(--ov-u));
   border: 0;
   border-bottom: 2.5px solid transparent;
   border-radius: 0;
@@ -562,7 +568,7 @@ button.log-line {
 .entry-slot {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .entry-slot-message {
   font-size: var(--ov-type-meta);
@@ -571,15 +577,15 @@ button.log-line {
 }
 .entry-slot-action {
   min-height: var(--ov-target);
-  margin: -12px 0;
-  padding: 0 4px;
+  margin: calc(-12 * var(--ov-u)) 0;
+  padding: 0 calc(4 * var(--ov-u));
   font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: calc(3 * var(--ov-u));
 }
 /* Where a superset goes after each set. */
 .entry-slot-next {
-  min-height: 32px;
+  min-height: calc(32 * var(--ov-u));
   flex-wrap: wrap;
   align-items: center;
   font-size: var(--ov-type-body);
@@ -592,7 +598,7 @@ button.log-line {
 @container session ((14rem <= width) and (width < min(380px, max(374px, calc(254px + 7.5rem))))) or ((14rem <= width) and (380px <= width) and (width < max(382px, calc(262px + 7.5rem)))) {
   .entry-figures {
     grid-template-rows: auto auto auto auto;
-    row-gap: 4px;
+    row-gap: calc(4 * var(--ov-u));
   }
   .stepper {
     grid-row: 1 / span 4;
@@ -613,7 +619,7 @@ button.log-line {
   }
   .stepper-units {
     grid-area: 4 / 1;
-    margin-top: calc(var(--ov-target) / 2 - 8px);
+    margin-top: calc(var(--ov-target) / 2 - calc(8 * var(--ov-u)));
   }
   .entry-op {
     grid-row: 2;
@@ -622,7 +628,7 @@ button.log-line {
 @container session (14rem <= width < max(406px, calc(286px + 7.5rem))) {
   :where([data-overload-platform="android"]) .entry-figures {
     grid-template-rows: auto auto auto auto;
-    row-gap: 4px;
+    row-gap: calc(4 * var(--ov-u));
   }
   :where([data-overload-platform="android"]) .stepper {
     grid-row: 1 / span 4;
@@ -643,7 +649,7 @@ button.log-line {
   }
   :where([data-overload-platform="android"]) .stepper-units {
     grid-area: 4 / 1;
-    margin-top: calc(var(--ov-target) / 2 - 8px);
+    margin-top: calc(var(--ov-target) / 2 - calc(8 * var(--ov-u)));
   }
   :where([data-overload-platform="android"]) .entry-op {
     grid-row: 2;
@@ -657,7 +663,7 @@ button.log-line {
    of its own, reps and RIR side by side, Save. Nothing is dropped. */
 @container session (width < 14rem) {
   .session-header {
-    min-height: calc(var(--ov-target-header) + 8px);
+    min-height: calc(var(--ov-target-header) + calc(8 * var(--ov-u)));
     border-bottom: 1px solid var(--ov-hair);
   }
   .session-body {
@@ -666,18 +672,18 @@ button.log-line {
     overscroll-behavior: contain;
   }
   .session-title {
-    margin-top: 10px;
+    margin-top: calc(10 * var(--ov-u));
   }
   .session-meta {
-    gap: 4px 18px;
-    margin-top: 10px;
+    gap: calc(4 * var(--ov-u)) calc(18 * var(--ov-u));
+    margin-top: calc(10 * var(--ov-u));
   }
   .session-tabs {
-    margin-top: 12px;
+    margin-top: calc(12 * var(--ov-u));
   }
   /* The tabs keep their words whole, side by side from the edge. */
   .session-tabs [role="tablist"] {
-    column-gap: 22px;
+    column-gap: calc(22 * var(--ov-u));
   }
   .session-tabs .tab {
     flex: none;
@@ -685,7 +691,7 @@ button.log-line {
   }
   .session-tabs .tab-indicator {
     inset-inline: 0;
-    height: 4px;
+    height: calc(4 * var(--ov-u));
   }
   .session-panel[data-tab="log"] {
     display: block;
@@ -703,30 +709,30 @@ button.log-line {
   /* The log reads as notation: the set's number, then 60 × 4 @ 2. */
   .log-line {
     display: flex;
-    min-height: 60px;
+    min-height: calc(60 * var(--ov-u));
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 0.3em;
-    padding: 4px 0;
+    padding: calc(4 * var(--ov-u)) 0;
     text-align: left;
   }
   .log-line > .log-number {
-    width: 40px;
-    margin-right: 12px;
+    width: calc(40 * var(--ov-u));
+    margin-right: calc(12 * var(--ov-u));
   }
   .log-warm {
     flex-wrap: wrap;
-    gap: 0 12px;
-    padding: 4px 0;
+    gap: 0 calc(12 * var(--ov-u));
+    padding: calc(4 * var(--ov-u)) 0;
   }
   .log-warm > .log-number {
-    width: 36px;
+    width: calc(36 * var(--ov-u));
   }
   .log-warm-items {
-    column-gap: 12px;
+    column-gap: calc(12 * var(--ov-u));
   }
   .log-warm-item {
-    min-height: 56px;
+    min-height: calc(56 * var(--ov-u));
   }
 
   .entry-dock {
@@ -734,17 +740,17 @@ button.log-line {
   }
   .entry {
     gap: 0;
-    padding-top: 6px;
+    padding-top: calc(6 * var(--ov-u));
   }
   .entry > .entry-slot {
-    margin: 2px 0 8px;
+    margin: 2px 0 calc(8 * var(--ov-u));
   }
   .entry-head {
     min-height: var(--ov-target-header);
-    column-gap: 10px;
+    column-gap: calc(10 * var(--ov-u));
   }
   .entry-title {
-    column-gap: 12px;
+    column-gap: calc(12 * var(--ov-u));
   }
   .entry-tag {
     min-height: var(--ov-target-header);
@@ -756,7 +762,7 @@ button.log-line {
   .entry-figures {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto;
-    column-gap: 16px;
+    column-gap: calc(16 * var(--ov-u));
     row-gap: 0;
   }
   .entry-figures > .entry-number,
@@ -772,8 +778,8 @@ button.log-line {
     grid-template-rows: auto auto 1fr;
     justify-content: start;
     justify-items: start;
-    gap: 0 10px;
-    padding: 8px 0 2px;
+    gap: 0 calc(10 * var(--ov-u));
+    padding: calc(8 * var(--ov-u)) 0 2px;
   }
   .stepper > .stepper-figure {
     grid-area: 1 / 1 / 2 / 3;
@@ -785,16 +791,16 @@ button.log-line {
     grid-area: 2 / 1 / 3 / 3;
     min-height: 0;
     align-items: flex-start;
-    margin: 0 0 6px;
+    margin: 0 0 calc(6 * var(--ov-u));
     line-height: 1.2;
     text-align: left;
   }
   /* ⓘ's full target keeps clear of the figure above it. */
   .stepper[data-field="effort"] > .stepper-units {
-    margin-top: calc(var(--ov-target-header) / 2 - 12px);
+    margin-top: calc(var(--ov-target-header) / 2 - calc(12 * var(--ov-u)));
   }
   .stepper-units-line {
-    gap: 6px;
+    gap: calc(6 * var(--ov-u));
   }
   .stepper-hint-fold {
     display: block;
@@ -824,7 +830,7 @@ button.log-line {
     grid-template-rows: auto auto;
     align-items: center;
     width: 100%;
-    padding: 2px 0 6px;
+    padding: 2px 0 calc(6 * var(--ov-u));
     border-bottom: 1px solid var(--ov-hair);
   }
   .stepper[data-field="load"] > .stepper-figure {
@@ -844,7 +850,7 @@ button.log-line {
   }
   .entry-save {
     margin-top: 0;
-    padding-top: 6px;
+    padding-top: calc(6 * var(--ov-u));
   }
   .entry-save > button {
     border-radius: var(--ov-radius-card);
@@ -890,7 +896,7 @@ button.log-line {
   position: sticky;
   bottom: 0;
   display: block;
-  height: 20px;
+  height: calc(20 * var(--ov-u));
   margin: 0 calc(var(--ov-gutter) * -1);
   background: linear-gradient(to bottom, transparent, var(--ov-ground));
   content: "";
@@ -956,19 +962,19 @@ html:has(.session-page) {
    the screen's foot, so nothing scrolls into the strip under Save (DESIGN.md, Layout). */
 html:has(.session-page) .pinned-actions {
   bottom: 0;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(calc(8 * var(--ov-u)) + env(safe-area-inset-bottom, 0px));
 }
 .session-page-body {
-  padding-bottom: 24px;
+  padding-bottom: calc(24 * var(--ov-u));
 }
 /* What a session recorded (boards Finish, Summary, Past workout): the exercise, its sets under
    it in ink; what it did not do, named once in ink 2. */
 .record-row {
   display: flex;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   flex-direction: column;
   justify-content: center;
-  padding: 6px 0;
+  padding: calc(6 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .record-row-name {
@@ -989,14 +995,14 @@ html:has(.session-page) .pinned-actions {
 .record-row-open {
   flex-direction: row;
   align-items: center;
-  gap: 12px;
+  gap: calc(12 * var(--ov-u));
 }
 .finished-edit-note {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-top: 14px;
-  padding: 10px 14px;
+  gap: calc(8 * var(--ov-u));
+  margin-top: calc(14 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   font-size: var(--ov-type-meta);
@@ -1005,7 +1011,7 @@ html:has(.session-page) .pinned-actions {
   overflow-wrap: anywhere;
 }
 .not-done {
-  padding: 6px 0 10px;
+  padding: calc(6 * var(--ov-u)) 0 calc(10 * var(--ov-u));
   border-bottom: 1px solid var(--ov-hair);
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
@@ -1017,11 +1023,11 @@ html:has(.session-page) .pinned-actions {
    trailing in Jost with its unit. */
 .figure-row {
   display: flex;
-  min-height: 52px;
+  min-height: calc(52 * var(--ov-u));
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 12px;
-  padding: 6px 0;
+  gap: 2px calc(12 * var(--ov-u));
+  padding: calc(6 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .figure-row-text {
@@ -1049,24 +1055,24 @@ html:has(.session-page) .pinned-actions {
 }
 /* A finished workout (boards Summary, Past workout): its print, then three stats in a row. */
 .finished-print {
-  height: calc(120px + 3rem);
-  margin: 4px 0 0;
+  height: calc(calc(120 * var(--ov-u)) + 3rem);
+  margin: calc(4 * var(--ov-u)) 0 0;
 }
 /* Opened again later, the record's print is a band, as a day's is (board Past workout). */
 .finished-print[data-past="true"] {
-  height: calc(90px + 1.875rem);
+  height: calc(calc(90 * var(--ov-u)) + 1.875rem);
 }
 /* Three across, and four check-in readings; fewer, never squeezed, as the text grows. */
 .finished-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  gap: calc(10 * var(--ov-u));
+  margin-top: calc(14 * var(--ov-u));
 }
 .finished-check-in {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 
 /* ---------- the Log tab's decision block (plan: gradual confirmation during workouts) ---------- */
@@ -1075,9 +1081,9 @@ html:has(.session-page) .pinned-actions {
 .machine-decision {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 12px 14px;
+  gap: calc(8 * var(--ov-u));
+  margin-top: calc(8 * var(--ov-u));
+  padding: calc(12 * var(--ov-u)) calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
 }
@@ -1085,7 +1091,7 @@ html:has(.session-page) .pinned-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
 }
 /* Beside the picture down to 320 pt, where the docked entry leaves the least room above it. */
 .machine-ask > .type-heading {
@@ -1095,19 +1101,19 @@ html:has(.session-page) .pinned-actions {
 /* Both classes: a drawing's own rule (rows.css, loaded after this file) makes it full width.
    In pixels, so large text grows the question and the answers, not the picture beside them. */
 .equipment-art.machine-ask-art {
-  width: 96px;
+  width: calc(96 * var(--ov-u));
   flex-shrink: 0;
 }
 /* The answers, one group labelled by the question. */
 .machine-ask-answers {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .machine-ask-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .machine-ask-row > * {
   flex: 1 1 9rem;

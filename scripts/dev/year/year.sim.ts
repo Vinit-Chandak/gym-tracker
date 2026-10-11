@@ -45,7 +45,9 @@ it("trains six athletes for a year", async () => {
   writeFileSync(join(out, "tables.json"), JSON.stringify(counts, null, 2));
   console.info(
     `Year simulated to ${now.toISOString()}: ${sim.findings.length} findings; report in ${out}.\n` +
-      summary.map((athlete) => `  ${athlete.username}: ${JSON.stringify(athlete.stats)}`).join("\n"),
+      summary
+        .map((athlete) => `  ${athlete.username}: ${JSON.stringify(athlete.stats)}`)
+        .join("\n"),
   );
   expect(summary).toHaveLength(PERSONAS.length);
 });
