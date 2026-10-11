@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EXERCISE_ALIASES } from "@/db/seed/data/exercise-aliases";
 import { EXERCISES } from "@/db/seed/data/exercises";
 
-import { exerciseSections, matchesExerciseQuery, searchExercises } from "./exercise-search";
+import { exerciseSections, likeOf, matchesExerciseQuery, searchExercises } from "./exercise-search";
 
 const latPulldown = {
   name: "Lat pulldown",
@@ -132,6 +132,31 @@ describe("exercise search", () => {
     expect(exerciseSections(library, "curl", squat).map((s) => s.key)).not.toContain("like");
     expect(exerciseSections(library, "", { movementPattern: "none such" })).toEqual(
       exerciseSections(library, ""),
+    );
+  });
+
+  it("lists the same movement closest first: the equipment, the muscles, then the name", () => {
+    // Alphabetically a low-bar squat's swap read the leg press, the thruster and the belt squat
+    // before the high-bar, the safety-bar and the pause squat.
+    const squat = library.find((e) => e.slug === "low-bar-squat")!;
+    // The swap lists every exercise but the one it replaces.
+    const others = library.filter((e) => e !== squat);
+    const same = names(exerciseSections(others, "", likeOf(squat))[0]!.items);
+    expect(same.slice(0, 2)).toEqual(["High-bar barbell squat", "Safety-bar squat"]);
+    expect(same.indexOf("Pause squat")).toBeLessThan(same.indexOf("Front squat"));
+    // Another barbell squat before any squat on other equipment, and a squat that works the
+    // same muscles before a thruster that adds the shoulders.
+    const barbell = same.filter(
+      (name) => library.find((e) => e.name === name)!.modality === "barbell",
+    );
+    expect(same.slice(0, barbell.length)).toEqual(barbell);
+    expect(same.indexOf("Front squat")).toBeLessThan(same.indexOf("Barbell thruster"));
+    // Equal in every way, the library's own order stands.
+    const boxAndZercher = same.filter((name) => name === "Box squat" || name === "Zercher squat");
+    expect(boxAndZercher).toEqual(["Box squat", "Zercher squat"]);
+    // With only the movement known, the list is as it was.
+    expect(names(exerciseSections(library, "", { movementPattern: "squat" })[0]!.items)).toEqual(
+      names(library.filter((e) => e.movementPattern === "squat")),
     );
   });
 });

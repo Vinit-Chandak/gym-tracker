@@ -107,4 +107,19 @@ describe("a distance in the reader's unit", () => {
     // Two ends that round to the same figure are one figure.
     expect(sportDistanceParts([5000, 5001], "running", km)).toEqual({ figure: "5", unit: "km" });
   });
+
+  it("reads a road range to a tenth, both ends alike, and a single distance to a hundredth", () => {
+    // A programme listed "4.35–5.59 mi" and "8.57–9.2 mi" beside Today's "4.6–5.9 mi".
+    const range = (lowKm: number, highKm: number) =>
+      formatSportDistance([toMetres(lowKm, "km"), toMetres(highKm, "km")], "running", miles);
+    expect(range(7, 9)).toBe("4.3–5.6 mi");
+    expect(range(13.8, 14.8)).toBe("8.6–9.2 mi");
+    expect(range(16.8, 17.8)).toBe("10.4–11.1 mi");
+    // One end that needs its tenth gives the other one too.
+    expect(formatSportDistance([4500, 6000], "running", km)).toBe("4.5–6.0 km");
+    expect(formatSportDistance([5000, 6000], "cycling", km)).toBe("5–6 km");
+    // A distance on its own, or a range in metres, is not rounded further.
+    expect(formatSportDistance(toMetres(7, "km"), "running", miles)).toBe("4.35 mi");
+    expect(formatSportDistance([1500, 2000], "swimming", km)).toBe("1,500–2,000 m");
+  });
 });

@@ -22,6 +22,7 @@ import {
   type BoardMode,
 } from "@/domain/leaderboard";
 import { PERIOD_LABELS } from "@/domain/period";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -242,6 +243,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                   rows={board.rows}
                   you={user.id}
                   format={(value) => formatBoardMetric(board.metric, value, unit)}
+                  currentYear={todayInTimeZone(viewer.timeZone).slice(0, 4)}
                 />
               </Section>
             ) : (

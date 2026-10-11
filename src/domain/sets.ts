@@ -1,3 +1,4 @@
+import { formatHold } from "./pace";
 import type { LoadUnit, SetType } from "./types";
 import { loadStepIn } from "@/lib/units";
 
@@ -91,9 +92,9 @@ export function formatSet(set: SetLike, unitLabel?: string, reading: LoadReading
       : `${set.distanceMeters}\u00a0m`;
   }
   if (set.durationSeconds !== null && set.reps === null) {
-    return set.weight
-      ? `${weight}${times}${set.durationSeconds}\u00a0s`
-      : `${set.durationSeconds}\u00a0s`;
+    // A hold reads as its best does: "45 s" under a minute, "1:12" from one.
+    const hold = formatHold(set.durationSeconds);
+    return set.weight ? `${weight}${times}${hold}` : hold;
   }
   const reps = set.reps === null ? "—" : `${set.reps}`;
   return `${weight}${times}${reps}`;

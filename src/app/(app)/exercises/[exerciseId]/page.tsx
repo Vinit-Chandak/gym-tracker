@@ -434,6 +434,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             rows={board}
             you={user.id}
             unit={unit}
+            currentYear={today.slice(0, 4)}
           />
         )}
 

@@ -7,6 +7,7 @@ import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
+import type { LikeExercise } from "@/lib/exercise-search";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -33,7 +34,7 @@ type Props = {
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
   /** The exercise being replaced: the list opens on its movement. */
-  like?: Pick<ExerciseListItem, "movementPattern"> | null;
+  like?: LikeExercise | null;
 };
 
 /**

@@ -145,8 +145,10 @@ it("leads each meal with its layer of the bowl, in the order the bowl fills", ()
 it("asks for a target until there is one, naming the goal's split, meals still below it", () => {
   view([entry("lunch", "Rice", 300)], { targets: false });
   expect(screen.getByRole("heading", { name: "No daily target yet" })).toBeTruthy();
-  // The split's numbers are held together by non-breaking spaces.
-  expect(screen.getByText(/^Build muscle · 55\s\/\s25\s\/\s20$/)).toBeTruthy();
+  // Each share named, and held to its number by a non-breaking space.
+  expect(
+    screen.getByText(/^Build muscle\s·\sCarbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/),
+  ).toBeTruthy();
   expect(screen.getByRole("link", { name: "Set target" }).getAttribute("href")).toBe(
     "/food/targets",
   );
@@ -204,8 +206,8 @@ it("leads its links wherever the preview says", () => {
   expect(screen.getByRole("link", { name: /^My foods/ }).getAttribute("href")).toBe(
     "/preview/food?page=my-foods",
   );
-  // With no goal on the profile, targets start from 55 / 25 / 20.
-  expect(screen.getByText(/^55\s\/\s25\s\/\s20$/)).toBeTruthy();
+  // With no goal on the profile, targets start from 55 / 25 / 20, each share named.
+  expect(screen.getByText(/^Carbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/)).toBeTruthy();
 });
 
 it("puts the last seven days under the header, ending on today, and the month above them", () => {

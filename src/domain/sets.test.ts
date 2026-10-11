@@ -102,6 +102,22 @@ describe("set helpers", () => {
     ).toBe("40\u00a0s");
   });
 
+  it("lists a hold of a minute or more as a clock, as its best is said", () => {
+    const hold = (durationSeconds: number, weight: number | null = null) => ({
+      setIndex: 1,
+      setType: "working" as const,
+      weight,
+      unit: "kg" as const,
+      reps: null,
+      rir: null,
+      durationSeconds,
+      distanceMeters: null,
+    });
+    // A session listed "72 s, 67 s" while the profile's longest hold read "0:51".
+    expect(formatSets([hold(72), hold(51)])).toBe("1:12, 51\u00a0s");
+    expect(formatSet(hold(90, 20), "kg")).toBe("20\u00a0kg\u00a0\u00d7\u00a01:30");
+  });
+
   it("reads a bodyweight movement's and an assisted machine's load as the logger does", () => {
     const set = (weight: number | null, reps: number) => ({
       setIndex: 1,

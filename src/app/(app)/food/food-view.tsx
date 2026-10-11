@@ -206,8 +206,7 @@ export function FoodView({
                 <div className="min-w-0">
                   <h2 className="type-heading">No daily target yet</h2>
                   <p className="type-meta-small text-ink-2 tabular-nums">
-                    {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
-                    {formatSplit(splitFor(goal))}
+                    {joinFacts([goal && TRAINING_GOAL_LABELS[goal], formatSplit(splitFor(goal))])}
                   </p>
                 </div>
                 <Link

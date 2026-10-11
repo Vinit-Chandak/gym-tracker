@@ -1,4 +1,4 @@
-import { formatDuration } from "@/domain/pace";
+import { formatDuration, formatHold } from "@/domain/pace";
 import { metricLabel, type SharedMetric } from "@/domain/shared-stats";
 import {
   formatSharedDistance,
@@ -169,7 +169,7 @@ function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): stri
       case "duration":
         return exercise.longestDurationSeconds === null
           ? null
-          : ["longest_hold", formatDuration(exercise.longestDurationSeconds)];
+          : ["longest_hold", formatHold(exercise.longestDurationSeconds)];
       case "distance":
         return exercise.longestDistanceMeters === null
           ? null
@@ -181,7 +181,7 @@ function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): stri
         if (exercise.topWeightKg !== null && exercise.topWeightKg > 0)
           return [
             "top_weight",
-            `${formatSharedLoad(exercise.topWeightKg, unit)}${
+            `${formatSharedLoad(exercise.topWeightKg, unit, true)}${
               exercise.topWeightReps === null ? "" : ` × ${exercise.topWeightReps}`
             }`,
           ];

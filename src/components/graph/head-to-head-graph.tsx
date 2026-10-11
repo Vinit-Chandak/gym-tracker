@@ -4,7 +4,7 @@ import type { Route } from "next";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { GraphRange } from "@/domain/graph-range";
-import { formatDuration } from "@/domain/pace";
+import { formatDuration, holdParts } from "@/domain/pace";
 import {
   METRIC_UNIT,
   metricLabel,
@@ -166,7 +166,7 @@ function MeasureGraph({
       case "reps":
         return { figure: String(value), unit: value === 1 ? "rep" : "reps" };
       case "seconds":
-        return { figure: formatDuration(value) };
+        return holdParts(value);
       case "metres":
         return { figure: decimal(value, 0), unit: "m" };
     }

@@ -3,7 +3,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 
 import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
-import { exerciseSections } from "@/lib/exercise-search";
+import { exerciseSections, type LikeExercise } from "@/lib/exercise-search";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { holdEnter } from "@/lib/search-keys";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
@@ -39,7 +39,7 @@ type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
   exercises: ExerciseListItem[];
   error?: string;
   /** The exercise being replaced (a swap, a fallback): the list opens on its movement. */
-  like?: Pick<ExerciseListItem, "movementPattern"> | null;
+  like?: LikeExercise | null;
 };
 
 /**

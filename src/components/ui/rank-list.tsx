@@ -4,7 +4,7 @@ import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
 import { List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import type { Ranked } from "@/domain/leaderboard";
-import { formatIsoDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type RankRow = Ranked<{
@@ -22,12 +22,14 @@ export type RankRow = Ranked<{
  * Leaderboard rows (plan §3.12): rank, avatar, name, value. Your own row reads "You" and is
  * tinted; a row with nothing to rank trails, greyed, with "—", so a friend's absence is
  * visible rather than mysterious. Each row opens the person's page. Server-renderable, so a
- * board costs no JavaScript.
+ * board costs no JavaScript. The day a best was set reads as the exercise page reads it, its
+ * year only outside `currentYear` (ADR 0044).
  */
 export function RankList({
   rows,
   you,
   format,
+  currentYear,
   className,
 }: {
   rows: readonly RankRow[];
@@ -35,6 +37,8 @@ export function RankList({
   you: string;
   /** How a value reads in the viewer's unit: "88 kg", "12 reps", "1.18×". */
   format: (value: number) => string;
+  /** The year it is in the viewer's zone, "2026". */
+  currentYear?: string;
   className?: string;
 }) {
   return (
@@ -86,7 +90,7 @@ export function RankList({
                     )}
                     {row.occurredOn && (
                       <span className="block text-xs text-ink-muted">
-                        {formatIsoDay(row.occurredOn)}
+                        {formatIsoDate(row.occurredOn, currentYear)}
                       </span>
                     )}
                   </>

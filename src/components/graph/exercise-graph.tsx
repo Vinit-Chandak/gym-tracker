@@ -11,7 +11,7 @@ import { useUrlChoice } from "@/components/graph/use-url-choice";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import type { GraphRange } from "@/domain/graph-range";
-import { formatDuration } from "@/domain/pace";
+import { formatDuration, holdParts } from "@/domain/pace";
 import {
   bestSession,
   EXERCISE_MEASURES,
@@ -114,7 +114,7 @@ export function ExerciseGraph({
   const lowerIsBetter = assisted && measure === "maxWeight";
   const figure = (value: number): { figure: string; unit?: string } => {
     if (measure === "maxReps") return { figure: String(value), unit: value === 1 ? "rep" : "reps" };
-    if (measure === "maxSeconds") return { figure: formatDuration(value) };
+    if (measure === "maxSeconds") return holdParts(value);
     if (measure === "maxMetres") return { figure: decimal(value, 0), unit: "m" };
     return { figure: decimal(value), unit };
   };

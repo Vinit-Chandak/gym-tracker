@@ -784,7 +784,7 @@ try {
       await expect(page.getByText("Get stronger", { exact: true })).toBeVisible();
       await expect(page.getByText("144 g at 80 kg", { exact: true })).toBeVisible();
       await page.getByLabel("Daily target, kcal").fill("500");
-      await page.getByLabel("Protein, g per kg of body weight", { exact: true }).fill("4");
+      await page.getByLabel("Protein per body weight, g per kg", { exact: true }).fill("4");
       await expect(page.getByText(/nothing left for carbs/)).toBeVisible();
       await page.getByRole("button", { name: "Save targets", exact: true }).click();
       await page.waitForURL(/\/food$/);
@@ -797,9 +797,9 @@ try {
         page.getByRole("link", { name: /^Targets 500 kcal Nothing left for carbs/ }),
       ).toBeVisible();
       await navigate("/food/targets");
-      await page.getByRole("button", { name: /^Use 55\s\/\s25\s\/\s20$/ }).click();
+      await page.getByRole("button", { name: "Use this split", exact: true }).click();
       // 20% of 500 kcal at 80 kg is 0.3 g/kg, kept to the bound of 0.5.
-      await expect(page.getByLabel("Protein, g per kg of body weight")).toHaveValue("0.5");
+      await expect(page.getByLabel("Protein per body weight, g per kg")).toHaveValue("0.5");
     },
   );
   await check(

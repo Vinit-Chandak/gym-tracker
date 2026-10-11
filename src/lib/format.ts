@@ -4,7 +4,7 @@ import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 
-import { formatDuration, formatPace } from "@/domain/pace";
+import { formatHold, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { dateTimeFormatter } from "./date-time-format";
 import {
@@ -15,6 +15,7 @@ import {
   UNIT_LABELS,
   type LengthUnit,
 } from "./distance-units";
+import { joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms, loadStepIn } from "./units";
 
@@ -220,9 +221,14 @@ export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
   return `${loadStepIn(kilograms, unit)}\u00a0${unit}`;
 }
 
-/** "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. */
-export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
-  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")}\u00a0${unit}`;
+/**
+ * "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. A load as it
+ * was lifted (`asLifted`) keeps the hundredths a kilogram is logged to, "38.75 kg", which a
+ * tenth read as "38.8 kg"; an estimate, and any load read in pounds, reads to the tenth.
+ */
+export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit, asLifted = false): string {
+  const value = asLifted && unit === "kg" ? roundTo(kilograms, 2) : fromKilograms(kilograms, unit);
+  return `${value.toLocaleString("en-GB")}\u00a0${unit}`;
 }
 
 /**
@@ -236,7 +242,7 @@ export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
 
 /**
  * A shared metric's value as a reader in `unit` should see it (ADR 0026): loads in their
- * unit, reps as a count, holds as a clock, carries in metres.
+ * unit, reps as a count, holds as a set list says them ("45 s", "1:12"), carries in metres.
  */
 export function formatSharedMetric(
   metric: SharedMetric,
@@ -245,11 +251,12 @@ export function formatSharedMetric(
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
-      return formatSharedLoad(value, unit);
+      // A top weight was lifted; an estimated 1RM and a set's volume are worked out.
+      return formatSharedLoad(value, unit, metric === "top_weight");
     case "reps":
       return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
     case "seconds":
-      return formatDuration(value);
+      return formatHold(value);
     case "metres":
       return `${value.toLocaleString("en-GB")}\u00a0m`;
   }
@@ -369,13 +376,17 @@ export function formatAmount(value: number): string {
 }
 
 /**
- * "55 / 25 / 20": a split as shares of carbohydrate, fat and protein, in whole percent (ADR
- * 0035). The spaces do not break, so the three numbers never part company at the end of a line.
+ * "Carbs 55% \u00b7 Fat 25% \u00b7 Protein 20%": a split as shares of the day's energy, in whole percent
+ * (ADR 0035), each named, in the order a target's grams are given ("Carbs 373 g \u00b7 Fat 75 g \u00b7
+ * Protein 133 g"). "55 / 25 / 20" said none of which was which, and was read as protein second.
  */
 export function formatSplit(split: { carbs: number; fat: number; protein: number }): string {
-  return [split.carbs, split.fat, split.protein]
-    .map((share) => String(Math.round(share * 100)))
-    .join("\u00a0/\u00a0");
+  const share = (value: number) => `${Math.round(value * 100)}%`;
+  return joinFacts([
+    `Carbs\u00a0${share(split.carbs)}`,
+    `Fat\u00a0${share(split.fat)}`,
+    `Protein\u00a0${share(split.protein)}`,
+  ]);
 }
 
 /** "100 g", "1 scoop", "1.5 scoops": an amount of a food in its own unit (ADR 0033). */

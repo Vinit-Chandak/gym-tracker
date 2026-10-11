@@ -37,7 +37,10 @@ import {
  * becoming a zero — which is why no speed appears for it either.
  *
  * Assistance has three answers, and "unknown" is one of them. An e-bike ride and an unpowered
- * one are not the same effort, and nothing here quietly assumes the second.
+ * one are not the same effort, and nothing here quietly assumes the second. It is asked of a ride
+ * outdoors only: a trainer or a spin bike has no motor to help, and "Not sure / Unassisted /
+ * Assisted" under Indoor asked something that means nothing there. The answer is kept, not
+ * cleared, while Indoor is chosen, so a ride moved indoors and back loses nothing.
  */
 
 const ENVIRONMENTS = [
@@ -88,6 +91,7 @@ export function CyclingForm({
   const values = useFormValues(state, initial);
   const [distance, setDistance] = useState(() => values("distanceValue"));
   const [unit, setUnit] = useState(() => values("distanceUnit") || "km");
+  const [environment, setEnvironment] = useState(() => values("environment") || "outdoor");
   const [duration, setDuration] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
@@ -122,7 +126,8 @@ export function CyclingForm({
         <IconChoice
           name="environment"
           options={ENVIRONMENTS}
-          defaultValue={values("environment") || "outdoor"}
+          value={environment}
+          onChange={setEnvironment}
         />
       </div>
       <div className="mt-1.5">
@@ -154,7 +159,8 @@ export function CyclingForm({
           error={errors?.distance ?? errors?.distanceValue}
         />
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
-        <div className="space-y-1.5 pt-3 pb-1">
+        {/* Hidden rather than removed indoors, so its answer is still sent and kept. */}
+        <div className="space-y-1.5 pt-3 pb-1" hidden={environment === "indoor"}>
           <p id="ride-assistance" className="type-meta-small font-bold">
             Assistance
           </p>

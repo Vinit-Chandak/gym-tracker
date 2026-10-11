@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import type {
   ExerciseBest,
   PeriodRecord,
@@ -63,16 +63,20 @@ export function SessionRecordsCard({
 /**
  * "Your records" on an exercise page: the best of each metric the movement is measured by,
  * with the day it was set and, under the top weight, how it was worked ("12 reps · 4 sets").
- * Tiles, like the exercise's defaults above them.
+ * Tiles, like the exercise's defaults above them. A day names its year only outside
+ * `currentYear` (ADR 0044), as every other day in the app does.
  */
 export function ExerciseBestsTiles({
   exercise,
   bests,
   unit,
+  currentYear,
 }: {
   exercise: MetricExercise;
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
+  /** The year it is in the reader's zone, "2026". */
+  currentYear?: string;
 }) {
   if (bests.length === 0) return null;
   return (
@@ -88,7 +92,7 @@ export function ExerciseBestsTiles({
                 {formatSharedMetric(best.metric, best.value, unit)}
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
                   {best.work ? `${topWeightWorkLabel(best.work)} · ` : ""}
-                  {formatIsoDay(best.occurredOn)}
+                  {formatIsoDate(best.occurredOn, currentYear)}
                 </span>
               </>
             }
@@ -103,14 +107,18 @@ export function ExerciseBestsTiles({
  * A person's best lifts in a span (plan §3.13, as built: the span's bests, which the page heads
  * "Best lifts" since a best is not always a record): the best lifts by estimated 1RM, then the
  * other movements by what they are measured in. The same list on your own page as on a
- * friend's, in the reader's unit.
+ * friend's, in the reader's unit, each day as the exercise page dates it: "Tue 15 Sept", with
+ * its year only outside `currentYear`.
  */
 export function PeriodRecordsList({
   records,
   unit,
+  currentYear,
 }: {
   records: readonly PeriodRecord[];
   unit: BodyLoadUnit;
+  /** The year it is in the reader's zone, "2026". */
+  currentYear?: string;
 }) {
   return (
     <ul className="divide-y divide-line text-sm">
@@ -124,7 +132,8 @@ export function PeriodRecordsList({
               {record.exercise.name}
             </span>
             <span className="block text-xs text-ink-muted">
-              {metricLabel(record.metric, record.exercise)} · {formatIsoDay(record.occurredOn)}
+              {metricLabel(record.metric, record.exercise)} ·{" "}
+              {formatIsoDate(record.occurredOn, currentYear)}
             </span>
           </span>
           <span className="font-medium tabular-nums">

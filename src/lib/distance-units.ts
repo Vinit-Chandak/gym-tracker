@@ -100,6 +100,9 @@ export function sameDistance(a: number, b: number): boolean {
 
 const DISPLAY_DECIMALS: Record<LengthUnit, number> = { m: 0, km: 2, mi: 2, yd: 0 };
 
+/** A range of road distances reads to a tenth; see `sportDistanceParts`. */
+const RANGE_DECIMALS = 1;
+
 /** "8.05 km" / "5 mi" / "400 m". Display rounding only; comparisons use the stored value. */
 export function formatDistance(metres: number, unit: LengthUnit, places?: number): string {
   const value = roundTo(fromMetres(metres, unit), places ?? DISPLAY_DECIMALS[unit]);
@@ -126,6 +129,10 @@ export function readingUnit(sport: string, units: SportUnits): DistanceUnit | Po
  * metres for an athlete who swims in metres, and a five-mile run reads 8.05 km. A road distance
  * short of a kilometre reads in metres, which is how a 400 m repeat is said; miles stay miles.
  * Display rounding only — the metres underneath are never rewritten from it.
+ *
+ * A road range is a target, not a measurement: it reads to a tenth, and both ends alike —
+ * "4.3–5.6 mi" and "4.5–6.0 km", never "4.35–5.59 mi" beside "8.57–9.2 mi" — or whole when
+ * both ends are ("5–6 km"). A single distance keeps its hundredths ("8.05 km").
  */
 export function sportDistanceParts(
   metres: number | readonly [number, number],
@@ -135,13 +142,15 @@ export function sportDistanceParts(
   const [low, high] = typeof metres === "number" ? [metres, metres] : metres;
   const reading = readingUnit(sport, units);
   const unit: LengthUnit = reading === "km" && high < METRES_PER_KM ? "m" : reading;
-  const places = DISPLAY_DECIMALS[unit];
+  const range = low !== high;
+  const places = range ? Math.min(DISPLAY_DECIMALS[unit], RANGE_DECIMALS) : DISPLAY_DECIMALS[unit];
+  const [from, to] = [low, high].map((value) => roundTo(fromMetres(value, unit), places));
+  // One end that needs its tenth gives the other one too: "4.5–6.0 km", not "4.5–6 km".
+  const fixed = range && [from!, to!].some((value) => !Number.isInteger(value)) ? places : 0;
   const figure = (value: number) =>
-    roundTo(fromMetres(value, unit), places).toLocaleString("en-GB", {
-      maximumFractionDigits: places,
-    });
-  const [from, to] = [figure(low), figure(high)];
-  return { figure: from === to ? to : `${from}–${to}`, unit: UNIT_LABELS[unit] };
+    value.toLocaleString("en-GB", { minimumFractionDigits: fixed, maximumFractionDigits: places });
+  const [first, last] = [figure(from!), figure(to!)];
+  return { figure: first === last ? last : `${first}–${last}`, unit: UNIT_LABELS[unit] };
 }
 
 /** The same, as one phrase: "8 × 50 m" is built from it, and so is "5–6 km". */

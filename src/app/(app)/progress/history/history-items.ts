@@ -1,3 +1,4 @@
+import { enduranceName } from "@/components/activities/endurance-line";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatTime } from "@/lib/format";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
 import type { readHistoryWorkouts, readLatestActivities } from "@/server/repositories/history";
@@ -118,8 +119,11 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
     kind: "run",
     date: r.startedAt.toISOString(),
     day: r.occurredOn,
-    title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${distanceIn(r.distanceMeters, "running", clock)}`,
-    subtitle: clock.timeOf(r.startedAt),
+    title: joinFacts([
+      r.title ?? enduranceName("running"),
+      distanceIn(r.distanceMeters, "running", clock),
+    ]),
+    subtitle: joinFacts([clock.timeOf(r.startedAt), ENDURANCE_PLACE_LABELS[r.environment]]),
     href: `/training/activities/${r.id}${originQuery("history")}` as const,
     meta: `${formatDuration(r.durationSeconds)} · ${paceIn(r.averagePaceSecondsPerKm, clock)}`,
     gymId: r.gymId,
@@ -128,19 +132,28 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
   };
 }
 
-/** A ride or a swim. */
+/**
+ * A ride or a swim, named as its own page and the day name it: its title, else "Ride" or "Swim",
+ * with where it happened beside the time ("09:48 · Indoor"). One ride read "Ride" here, "Indoor
+ * ride" on its day and "Cycling" on its page.
+ */
 export function enduranceItem(activity: ActivityListItem, clock: HistoryClock): HistoryItem {
-  const name = activity.sport === "cycling" ? "Ride" : "Swim";
+  const name = activity.title ?? enduranceName(activity.sport);
   return {
     id: activity.id,
     kind: activity.sport as "cycling" | "swimming",
     date: activity.startedAt.toISOString(),
     day: activity.occurredOn,
-    title:
+    title: joinFacts([
+      name,
       activity.distanceMetres === null
-        ? name
-        : `${name} · ${distanceIn(activity.distanceMetres, activity.sport, clock)}`,
-    subtitle: clock.timeOf(activity.startedAt),
+        ? null
+        : distanceIn(activity.distanceMetres, activity.sport, clock),
+    ]),
+    subtitle: joinFacts([
+      clock.timeOf(activity.startedAt),
+      activity.environment ? ENDURANCE_PLACE_LABELS[activity.environment] : null,
+    ]),
     href: `/training/activities/${activity.id}${originQuery("history")}` as const,
     // An unrecorded duration says so rather than reading as zero minutes.
     meta:

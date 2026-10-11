@@ -5,6 +5,7 @@ import { SessionPage } from "@/components/shell/session-page";
 import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { likeOf } from "@/lib/exercise-search";
 import { addGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
 import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
@@ -71,7 +72,7 @@ export default async function GymFallbackPage(
         exercises={data.exercises}
         machines={data.machines}
         compatibleMachines={data.compatibleMachines}
-        like={{ movementPattern: data.exercise.movementPattern }}
+        like={likeOf(data.exercise)}
       />
     </SessionPage>
   );

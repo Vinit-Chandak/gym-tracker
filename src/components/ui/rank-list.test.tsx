@@ -44,3 +44,15 @@ it("trails a person with nothing to rank, greyed, with a dash", () => {
   // The rank column reads a dash too, not a number after the ranked rows.
   expect(within(last).getAllByText("—")).toHaveLength(2);
 });
+
+it("dates a best as the exercise page does, its year only outside this one", () => {
+  // "24 Mar 2026" on a board read in 2026, beside the exercise page's "Thu 8 Oct".
+  const dated = rank([
+    { key: "v", username: "vinit", displayName: "Vinit", value: 88, occurredOn: "2026-03-24" },
+    { key: "p", username: "phani03", displayName: "Phani", value: 92.5, occurredOn: "2025-10-13" },
+  ]);
+  render(<RankList rows={dated} you="v" format={String} currentYear="2026" />);
+  const [first, second] = screen.getAllByRole("link");
+  expect(first!.textContent).toMatch(/Mon\s13\sOct\s2025$/);
+  expect(second!.textContent).toMatch(/Tue\s24\sMar$/);
+});

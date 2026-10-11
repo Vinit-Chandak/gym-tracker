@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { historyClock, newestFirst, recoveryItem, runItem, workoutItem } from "./history-items";
+import {
+  enduranceItem,
+  historyClock,
+  newestFirst,
+  recoveryItem,
+  runItem,
+  workoutItem,
+} from "./history-items";
 
 type Workout = Parameters<typeof workoutItem>[0];
 type Reading = Parameters<typeof recoveryItem>[0];
@@ -85,7 +92,9 @@ describe("a run in History", () => {
 
   it("reads in kilometres by default", () => {
     const item = runItem(run, historyClock("UTC"));
-    expect(item.title).toBe("Outdoor · 5\u00a0km");
+    // Named as its page names it, where it was run beside the time, as a workout's gym is.
+    expect(item.title).toBe("Run ·\u00a05\u00a0km");
+    expect(item.subtitle).toBe("07:00 ·\u00a0Outdoor");
     expect(item.meta).toBe("30:00 · 6:00/km");
   });
 
@@ -94,7 +103,34 @@ describe("a run in History", () => {
       run,
       historyClock("UTC", { running: { distanceUnit: "mi", poolUnit: "yd" } }),
     );
-    expect(item.title).toBe("Outdoor · 3.11\u00a0mi");
+    expect(item.title).toBe("Run ·\u00a03.11\u00a0mi");
     expect(item.meta).toBe("30:00 · 9:39/mi");
+  });
+});
+
+describe("a ride in History", () => {
+  const ride = {
+    id: "ride-1",
+    sport: "cycling",
+    startedAt: new Date("2026-10-11T08:48:00Z"),
+    occurredOn: "2026-10-11",
+    durationMs: 3_092_000,
+    distanceMetres: null,
+    effortValue: 2,
+    effortStatus: "reported",
+    title: null,
+    occurrenceId: null,
+    performedRevisionId: null,
+    environment: "indoor",
+  } as const;
+
+  it("is a ride wherever it is named, with where it happened beside its time", () => {
+    // One ride read "Ride" here, "Indoor ride" on its day and "Cycling" on its own page.
+    const item = enduranceItem(ride, historyClock("UTC"));
+    expect(item.title).toBe("Ride");
+    expect(item.subtitle).toBe("08:48 ·\u00a0Indoor");
+    expect(enduranceItem({ ...ride, title: "Spin class" }, historyClock("UTC")).title).toBe(
+      "Spin class",
+    );
   });
 });

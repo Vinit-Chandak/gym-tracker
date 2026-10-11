@@ -1,13 +1,14 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
+import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
 import { BackLink } from "@/components/shell/back-link";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ACTIVITY_SPORT_LABELS, describeEffort } from "@/domain/activity";
+import { describeEffort } from "@/domain/activity";
 import {
   actualDistanceMetres,
   formatPaceSeconds,
@@ -139,7 +140,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
 
   const sport = activity.sport === "strength" ? null : activity.sport;
-  const title = activity.title ?? ACTIVITY_SPORT_LABELS[activity.sport];
+  // A session's name, as History and its day name it: "Ride", not the sport's "Cycling".
+  const title = activity.title ?? enduranceName(activity.sport);
   const where = actual ? WHERE[actual.environment] : undefined;
 
   return (

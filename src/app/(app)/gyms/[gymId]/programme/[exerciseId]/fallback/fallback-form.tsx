@@ -6,6 +6,7 @@ import { ExercisePicker } from "@/components/exercise-picker";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
+import type { LikeExercise } from "@/lib/exercise-search";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -16,7 +17,7 @@ type FallbackFormProps = {
   machines: { id: string; name: string }[];
   compatibleMachines: Record<string, string[]>;
   /** The exercise it stands in for: the list opens on its movement. */
-  like?: Pick<ExerciseListItem, "movementPattern"> | null;
+  like?: LikeExercise | null;
 };
 
 export function FallbackForm({
