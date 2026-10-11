@@ -17,6 +17,7 @@ import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
 import { ENDURANCE_PLACE_LABELS, SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
@@ -124,7 +125,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           // The open workout's sets are its own page's to count: this one can be held on Back.
           minutes === null ? null : `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
         ]),
-        href: `/workouts/${workout.id}` as Route,
+        // A finished workout is History's, as the day is Progress's; the open one is Today's.
+        href: `/workouts/${workout.id}${workout.completedAt ? originQuery("history") : ""}` as Route,
         piece: {
           sport: "strength",
           columns: workout.exercises

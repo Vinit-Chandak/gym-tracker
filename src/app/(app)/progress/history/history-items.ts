@@ -9,7 +9,7 @@ import {
   type SportUnits,
 } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
-import { formatTime } from "@/lib/format";
+import { formatSleep, formatTime } from "@/lib/format";
 import { ENDURANCE_PLACE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
@@ -68,14 +68,19 @@ function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
   return `${formatPace(seconds)}/${unit}`;
 }
 
-/** "Sleep 7.25 h · Fatigue 2": each reading kept whole on its line, its name, figure and unit. */
-function readings(values: [string, number | null, string?][]) {
+/**
+ * "Sleep 7 h 15 min · Fatigue 2": each reading kept to its name, its figure to its unit. A night's
+ * sleep is said as every other time is, not "7.25 h", and may break between its hours and minutes.
+ */
+function readings(values: [string, number | string | null, string?][]) {
   return joinFacts(
     values
       .filter(([, value]) => value !== null)
       .map(([label, value, unit]) => `${label}\u00a0${value}${unit ? `\u00a0${unit}` : ""}`),
   );
 }
+
+const sleep = (hours: number | null) => (hours === null ? null : formatSleep(hours));
 
 /**
  * A run's effort, said to be unconfirmed where it is a migrated number nobody stood by.
@@ -109,7 +114,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
       machineId: e.machineId,
       machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
     })),
-    recovery: readings([["Sleep", w.sleepHours, "h"]]),
+    recovery: readings([["Sleep", sleep(w.sleepHours)]]),
   };
 }
 
@@ -174,7 +179,7 @@ export function recoveryItem(r: RecoveryReading): HistoryItem {
     day: r.date,
     title: "Recovery",
     subtitle: readings([
-      ["Sleep", r.sleepHours, "h"],
+      ["Sleep", sleep(r.sleepHours)],
       ["Energy", r.energy],
       ["Fatigue", r.fatigue],
       ["Soreness", r.soreness],

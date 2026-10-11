@@ -218,6 +218,14 @@ export function formatMinutes(totalMinutes: number): string {
 }
 
 /**
+ * A night's sleep, as every other time is said: "7 h 45 min", never "7.75 h". The check-in takes
+ * it in hours; an average of several nights keeps its tenth of an hour ("7.1 h").
+ */
+export function formatSleep(hours: number): string {
+  return formatMinutes(hours * 60);
+}
+
+/**
  * A load step the library gives in kilograms, as the jump a reader in `unit` makes: "2.5 kg",
  * or in pounds the plate jump nearest it, "5 lb". The same step progression moves by
  * (`loadStepIn`), so the page never names a 5.5 lb jump that nobody can load.
@@ -259,7 +267,10 @@ export function formatSharedMetric(
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
-      // A top weight was lifted; an estimated 1RM and a set's volume are worked out.
+      // A set's volume is load × reps, read whole as every volume is: 35 lb × 14 is 490 lb,
+      // never the 490.1 lb its kilograms come back as.
+      if (metric === "best_set_volume") return formatVolume(value, unit);
+      // A top weight was lifted; an estimated 1RM is worked out.
       return formatSharedLoad(value, unit, metric === "top_weight");
     case "reps":
       return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;

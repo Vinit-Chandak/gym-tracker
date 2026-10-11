@@ -68,10 +68,11 @@ export default async function OccurrencePage(
   const standing = running
     ? sessionStanding(running.state, occurrence, today)
     : standingByDate(occurrence, today);
-  const dayName =
+  const day =
     running && occurrence.cycleDayIndex !== null
-      ? (running.days.find((day) => day.dayIndex === occurrence.cycleDayIndex)?.name ?? null)
+      ? (running.days.find((entry) => entry.dayIndex === occurrence.cycleDayIndex) ?? null)
       : null;
+  const dayName = day?.name ?? null;
   const badge =
     standing === "next"
       ? { label: "Next", tone: "accent" as const }
@@ -96,6 +97,13 @@ export default async function OccurrencePage(
   const logged = occurrence.resolution.kind === "logged";
   const planned = logged && target ? sessionLine(target, units) : null;
   const plannedNote = logged && target ? enduranceNote(target) : null;
+  // The card is headed by what the session is for, its day's focus ("Zone 2"), where it has
+  // one. Without one it is headed by the target until it is logged; logged, the line of the plan
+  // under it already says the target, and saying it twice was the audit's "2.6–3.1 km" over
+  // "2.6–3.1 km · 18–22 min" (October 2026).
+  const headline =
+    day?.focus ??
+    (!target ? "No targets set" : logged ? null : describePrescription(target, units));
   // A date of this year is said without it, as the programme's list says it.
   const year = today.slice(0, 4);
   const sport = ACTIVITY_SPORT_LABELS[occurrence.sport];
@@ -115,12 +123,20 @@ export default async function OccurrencePage(
       />
       <PageContent>
         <Card>
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">
-              {target ? describePrescription(target, units) : "No targets set"}
-            </h2>
-            {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
-          </div>
+          {(headline || badge) && (
+            <div className="flex items-start justify-between gap-3">
+              {headline && (
+                <h2 className="min-w-0 text-lg font-medium [overflow-wrap:break-word]">
+                  {headline}
+                </h2>
+              )}
+              {badge && (
+                <span className="ml-auto">
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                </span>
+              )}
+            </div>
+          )}
           {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
           {plannedNote && (
             <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>

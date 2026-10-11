@@ -18,8 +18,10 @@ import type { SportUnits } from "@/lib/distance-units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
-import { unitsBySport } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
 import { formatIsoDate } from "@/lib/format";
+
+import { hasTemplateSports } from "../templates/template-sessions";
 
 export const metadata: Metadata = { title: "Scheduled by you" };
 
@@ -92,15 +94,19 @@ export default async function ScheduledPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);
-  const { schedule, units } = await withUser(
+  const { schedule, units, enabled } = await withUser(
     getDb(),
     user.id,
     async (tx) => ({
       schedule: await standaloneSchedule(tx, user.id, today),
       units: await unitsBySport(tx, user.id),
+      enabled: await enabledSportsFor(tx, user.id),
     }),
     { readOnly: true },
   );
+  // Only runs, rides and swims can be scheduled: a lifter with none of those on is not offered
+  // a page with nothing for them (it still opens for anyone who goes to it).
+  const canSchedule = hasTemplateSports(enabled);
   const unitsOf = (occurrence: ScheduledOccurrence) => units[occurrence.sport];
   // A session taken off the calendar is gone from it, whichever day it was for.
   const kept = (occurrence: ScheduledOccurrence) => occurrence.resolution.kind !== "cancelled";
@@ -126,9 +132,11 @@ export default async function ScheduledPage() {
               // Training's cycle. "Under Programme" sent a lifter to a page that sent them back.
               description="Sessions you put on the calendar yourself wait here. Your programme's days are on Training, a cycle at a time, and today's sessions are on Today."
               action={
-                <LinkButton href="/training/schedule" variant="secondary">
-                  Schedule an activity
-                </LinkButton>
+                canSchedule ? (
+                  <LinkButton href="/training/schedule" variant="secondary">
+                    Schedule an activity
+                  </LinkButton>
+                ) : undefined
               }
             />
           ) : (

@@ -162,7 +162,8 @@ function MeasureGraph({
   const figure = (value: number): Pick<GraphSide, "figure" | "unit"> => {
     switch (counted) {
       case "kg":
-        return { figure: decimal(value), unit };
+        // A set's volume is load × reps, whole as every volume is (`formatVolume`).
+        return { figure: decimal(value, metric === "best_set_volume" ? 0 : 1), unit };
       case "reps":
         return { figure: String(value), unit: value === 1 ? "rep" : "reps" };
       case "seconds":

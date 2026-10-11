@@ -74,9 +74,9 @@ export function perKgAvailable(readings: ReadonlyMap<string, SharedReading>): bo
 
 /**
  * The circle ranked on one movement's metric over all time, with the day each best was set
- * and, for a top weight, how it was worked ("12 reps · 4 sets"). A per-kg metric divides the load by
- * each person's latest reading and lists only the people whose reading the viewer holds;
- * everyone else is left off rather than trailing as "—".
+ * and, for a top weight, how it was worked ("4 sets · best 12 reps"). A per-kg metric divides
+ * the load by each person's latest reading and lists only the people whose reading the viewer
+ * holds; everyone else is left off rather than trailing as "—".
  */
 export function rankExercise(
   circle: readonly DirectoryProfile[],

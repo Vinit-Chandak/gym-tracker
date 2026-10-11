@@ -7,7 +7,7 @@ import type { ProgrammeOccurrence } from "@/server/repositories/occurrences";
 
 import OccurrencePage from "./page";
 
-const mocks = vi.hoisted(() => ({ occurrence: vi.fn() }));
+const mocks = vi.hoisted(() => ({ occurrence: vi.fn(), focus: null as string | null }));
 
 vi.mock("@/server/auth", () => ({
   requireUser: async () => ({ id: "me", email: "meera@example.test" }),
@@ -29,7 +29,7 @@ vi.mock("@/server/repositories/sport-preferences", () => ({
 vi.mock("@/server/repositories/schedule", () => ({
   getSchedule: async () => ({
     program: { familyId: "family" },
-    days: [{ dayIndex: 4, name: "Tempo run" }],
+    days: [{ dayIndex: 4, name: "Tempo run", focus: mocks.focus }],
     state: {
       slots: [{ dayIndex: 4, name: "Tempo run", includesLifting: false, includesRun: true }],
       cycles: 10,
@@ -89,6 +89,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
   mocks.occurrence.mockResolvedValue(tempo);
+  mocks.focus = null;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -103,7 +104,25 @@ it("is named for its day, and keeps a line of its plan once it is logged", async
     "4.2–5.0\u00a0km ·\u00a026–31\u00a0min ·\u00a0Effort 3\u2060–\u20604 of\u00a05",
   );
   expect(html).toContain("10K effort");
+  // Said once: the card is not also headed by the distance the line under it starts with.
+  expect(html.split("4.2–5.0\u00a0km")).toHaveLength(2);
   // A date of this year is said without its year.
   expect(html).toContain("Logged on Thu 6\u00a0Aug.");
   expect(html).not.toContain("2026");
+});
+
+it("is headed by what its day is for, and the target is said once", async () => {
+  mocks.focus = "Threshold";
+  const logged = renderToStaticMarkup(await OccurrencePage(props));
+  expect(logged).toMatch(/<h2[^>]*>Threshold<\/h2>/);
+  expect(logged.split("4.2–5.0\u00a0km")).toHaveLength(2);
+  // Still to do, the plan's own card says the target; the card over it says what it is for.
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  const pending = renderToStaticMarkup(await OccurrencePage(props));
+  expect(pending).toMatch(/<h2[^>]*>Threshold<\/h2>/);
+  expect(pending.split("4.2–5.0\u00a0km")).toHaveLength(2);
 });

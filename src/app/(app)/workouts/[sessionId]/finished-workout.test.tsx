@@ -137,8 +137,9 @@ it("counts the sets it lists, warm-ups aside, as its volume does", () => {
 });
 
 it("says each check-in reading on its own scale, as the check-in asked it", () => {
-  show({ sleepHours: 7.5, sleepQuality: 2, fatigue: 4, soreness: 1 });
-  expect(stat("Sleep")).toBe("7.5 h");
+  show({ sleepHours: 7.75, sleepQuality: 2, fatigue: 4, soreness: 1 });
+  // A night's sleep as every other time is said, not "7.75 h".
+  expect(stat("Sleep")).toBe("7 h 45 min");
   expect(stat("Sleep quality")).toBe("2 / 5");
   expect(stat("Fatigue")).toBe("4 / 5");
   expect(stat("Soreness")).toBe("1 / 5");

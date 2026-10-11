@@ -87,8 +87,12 @@ describe("metricsForExercise", () => {
     expect(metricLabel("best_set_volume", bench)).toBe("Best set volume");
   });
   it("says how a top weight was worked with each number named", () => {
-    expect(topWeightWorkLabel({ sets: 2, reps: 11 })).toBe("11\u00a0reps ·\u00a02\u00a0sets");
-    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1\u00a0rep ·\u00a01\u00a0set");
+    // 20 kg × 12 and × 11: two sets, the better of them twelve, never two sets of twelve.
+    expect(topWeightWorkLabel({ sets: 2, reps: 12 })).toBe(
+      "2\u00a0sets ·\u00a0best\u00a012\u00a0reps",
+    );
+    // One set has no best to single out.
+    expect(topWeightWorkLabel({ sets: 1, reps: 1 })).toBe("1\u00a0set ·\u00a01\u00a0rep");
     // A hold or a carry has no reps to count: its sets alone.
     expect(topWeightWorkLabel({ sets: 3, reps: null })).toBe("3\u00a0sets");
   });

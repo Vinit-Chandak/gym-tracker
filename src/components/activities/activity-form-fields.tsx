@@ -8,8 +8,19 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { RowStepper } from "@/components/ui/row-stepper";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
+import {
+  climbIn,
+  climbUnit,
+  entryIn,
+  LENGTH_UNITS,
+  METRES_PER_FOOT,
+  roundTo,
+  type DistanceUnit,
+  type LengthUnit,
+} from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { dateTimeLocalCandidates, formatUtcOffset, timeZoneOffsetMinutes } from "@/lib/time";
-import { EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
+import { DECIMALS, EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
 import type { FormState } from "@/server/validation/form";
 
 /**
@@ -109,10 +120,68 @@ const EFFORT_OPTIONS = [
   { value: "unsure", label: "Not sure" },
 ];
 
+/** A distance as it was entered: the figure as typed, and the unit it was typed in. */
+export type DistanceEntry = { value: string; unit: string };
+
+const isLengthUnit = (unit: string): unit is LengthUnit =>
+  (LENGTH_UNITS as readonly string[]).includes(unit);
+
+/** The figure an entry comes to in `unit` (`entryIn`), or null where it is not a distance. */
+function entryFigure(entry: DistanceEntry, unit: string): { value: string; exact: boolean } | null {
+  if (entry.unit === unit) return { value: entry.value, exact: true };
+  const typed = Number(entry.value.replace(",", "."));
+  if (entry.value.trim() === "" || !Number.isFinite(typed)) return null;
+  if (!isLengthUnit(entry.unit) || !isLengthUnit(unit)) return null;
+  const read = entryIn(typed, entry.unit, unit);
+  return { value: String(read.value), exact: read.exact };
+}
+
+/**
+ * A recorded distance as a form opens on it: in the athlete's own unit for the sport (`readIn`:
+ * the pool's for a swim, the road's for a run or a ride), whatever unit it was entered in, with
+ * the entry kept beside it (`recorded`). A blank distance opens in their unit too. Without a
+ * unit to read in, it opens as it was entered.
+ */
+export function openDistance(
+  value: string,
+  unit: string,
+  readIn: string | undefined,
+): DistanceEntry & { recorded: DistanceEntry | null } {
+  if (!readIn || unit === readIn) return { value, unit, recorded: null };
+  if (value.trim() === "") return { value, unit: readIn, recorded: null };
+  const read = entryFigure({ value, unit }, readIn);
+  return read
+    ? { value: read.value, unit: readIn, recorded: { value, unit } }
+    : { value, unit, recorded: null };
+}
+
+/**
+ * What a distance field posts: the recorded entry while the figure still reads as the form
+ * opened on it, so correcting the notes of a swim entered in metres converts nothing; what is
+ * typed, in the unit beside it, once either is changed. `note` says the entry where the figure
+ * on screen is only near it ("1640 yd" for 1,500 m).
+ */
+export function postedDistance(
+  value: string,
+  unit: string,
+  recorded: DistanceEntry | null | undefined,
+): DistanceEntry & { note: string | null } {
+  const read = recorded ? entryFigure(recorded, unit) : null;
+  if (!recorded || !read || read.value !== value) return { value, unit, note: null };
+  const figure = Number(recorded.value.replace(",", ".")).toLocaleString("en-GB", {
+    maximumFractionDigits: DECIMALS.distance,
+  });
+  return {
+    ...recorded,
+    note: read.exact ? null : `Entered as ${figure}\u00a0${recorded.unit}`,
+  };
+}
+
 /**
  * A distance and the unit it was entered in, as a figure in a row (boards Log a run, a ride):
  * − and + by a tenth, the unit beside the figure, pressing it says the distance in the other.
- * Both are stored; neither is re-derived.
+ * Both are stored; neither is re-derived. A recorded distance opened in another unit
+ * (`openDistance`) is posted as it was entered until it is changed, and says what that was.
  */
 export function DistanceField({
   value,
@@ -126,6 +195,7 @@ export function DistanceField({
   step = 0.1,
   name = "distanceValue",
   unitName = "distanceUnit",
+  recorded = null,
 }: {
   value: string;
   unit: string;
@@ -139,17 +209,32 @@ export function DistanceField({
   step?: number;
   name?: string;
   unitName?: string;
+  /** The entry a recorded distance was opened from, in a unit other than the field's. */
+  recorded?: DistanceEntry | null;
 }) {
   const at = units.findIndex((option) => option.value === unit);
   const other = units[(at + 1) % units.length] ?? units[0]!;
   const shown = units[at]?.label ?? unit;
+  const posted = postedDistance(value, unit, recorded);
+  const kept = posted.value !== value || posted.unit !== unit;
   return (
     <>
-      <input type="hidden" name={unitName} value={unit} />
+      <input type="hidden" name={unitName} value={posted.unit} />
+      {kept && <input type="hidden" name={name} value={posted.value} />}
       <RowStepper
         label={label}
-        hint={hint}
-        name={name}
+        hint={
+          hint && posted.note ? (
+            <>
+              {hint}
+              {FACT_SEPARATOR}
+              {posted.note}
+            </>
+          ) : (
+            (posted.note ?? hint)
+          )
+        }
+        name={kept ? undefined : name}
         value={value}
         onChange={onValueChange}
         unit={shown}
@@ -377,7 +462,8 @@ export function NotesFields({
 /**
  * Everything optional, folded away behind one row (board Log a run: "Notes, heart rate, more"):
  * when it happened (now, until it is changed), the sport's own details, heart rate, a title and
- * notes. A beginner never has to open it; a refused field opens it.
+ * notes. A beginner never has to open it; a refused field opens it. Its name starts with the
+ * date, which is in it: "Notes, heart rate, more" left a run logged late nowhere to be dated.
  */
 export function MoreDetails({
   children,
@@ -404,10 +490,57 @@ export function MoreDetails({
     >
       <summary className="more-details-summary">
         <Glyph name={open ? "minus" : "plus"} className="glyph-20" />
-        Notes, heart rate, more
+        Date, notes, heart rate, more
       </summary>
       <div className="space-y-4 pt-1 pb-2">{children}</div>
     </details>
+  );
+}
+
+/**
+ * Elevation gain, in feet for an athlete who runs or rides in miles and in metres otherwise
+ * (`climbUnit`); it is kept in metres, and a figure in feet is turned into metres as it is posted.
+ * A recorded climb opens in their unit and is posted as it was stored until it is changed.
+ */
+export function ElevationField({
+  values,
+  errors,
+  readIn,
+}: {
+  values: (key: string) => string;
+  errors?: Record<string, string>;
+  /** The road unit the athlete reads distances in. */
+  readIn?: DistanceUnit;
+}) {
+  const unit = climbUnit(readIn ?? "km");
+  const stored = values("elevationGainMetres");
+  const [opened] = useState(() => {
+    const metres = Number(stored);
+    return unit === "ft" && stored.trim() !== "" && Number.isFinite(metres)
+      ? String(climbIn(metres, "ft"))
+      : stored;
+  });
+  const [figure, setFigure] = useState(opened);
+  const feet = Number(figure.replace(",", "."));
+  const posted =
+    unit === "m"
+      ? figure
+      : figure === opened
+        ? stored
+        : figure.trim() === "" || !Number.isFinite(feet)
+          ? figure
+          : String(roundTo(feet * METRES_PER_FOOT, DECIMALS.elevation));
+  return (
+    <Field label={`Elevation gain ${unit}`} error={errors?.elevationGainMetres}>
+      <Input
+        name={unit === "m" ? "elevationGainMetres" : undefined}
+        inputMode="decimal"
+        value={figure}
+        onChange={(event) => setFigure(event.target.value)}
+        placeholder="—"
+      />
+      {unit === "ft" && <input type="hidden" name="elevationGainMetres" value={posted} />}
+    </Field>
   );
 }
 

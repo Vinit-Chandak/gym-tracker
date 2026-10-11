@@ -12,7 +12,7 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
-import { AVAILABILITY_LABELS, exerciseOnMachine } from "@/lib/labels";
+import { AVAILABILITY_LABELS, exerciseOnMachine, programmeLabel } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
 import { requireUuid } from "@/server/validation/params";
@@ -58,7 +58,10 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
       <PageHeader title="Programme fit" backHref={`/gyms/${gym.id}`} />
       <PageContent>
         <Card>
-          <p className="text-sm text-ink-muted">{joinFacts([gym.name, program?.name])}</p>
+          {/* A finished programme is named as one: its fit is still read, for the next block. */}
+          <p className="text-sm text-ink-muted">
+            {joinFacts([gym.name, program && programmeLabel(program)])}
+          </p>
           {program ? (
             <StatTileRow>
               {(["direct", "fallback", "unknown", "unavailable"] as const).map((status) => (

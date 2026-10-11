@@ -134,3 +134,17 @@ describe("a ride in History", () => {
     );
   });
 });
+
+describe("sleep in History", () => {
+  it("says a night's sleep as every other time is said, not in decimal hours", () => {
+    const clock = historyClock("UTC");
+    // Sofia's 6.25 h read "Sleep 6.25 h" beside workouts of "1 h 3 min".
+    expect(
+      workoutItem({ ...lift("night", "2026-10-11T08:00:00Z"), sleepHours: 6.25 }, clock).recovery,
+    ).toBe("Sleep 6 h 15 min");
+    expect(recoveryItem({ ...reading("whole", "2026-10-10"), sleepHours: 8 }).subtitle).toBe(
+      "Sleep 8 h",
+    );
+    expect(workoutItem(lift("none", "2026-10-11T08:00:00Z"), clock).recovery).toBe("");
+  });
+});

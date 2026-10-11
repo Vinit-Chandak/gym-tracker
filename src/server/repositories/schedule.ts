@@ -683,6 +683,11 @@ export async function getTodayPlan(
   };
 }
 
+/** Nothing but rest is left (ADR 0051): what Today says as "Programme complete". */
+export function scheduleComplete(schedule: Schedule): boolean {
+  return suggestion(schedule.state) === null;
+}
+
 export type ProgramDayPlan = {
   day: ScheduleDay;
   exercises: PlannedExercisePreview[];

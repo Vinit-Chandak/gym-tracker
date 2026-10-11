@@ -1035,7 +1035,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   "Programme cue" in the workout. Text at body size with 1.45 leading; captions in ink 2.
 - No guide says "Guide not available yet." in ink 2 and keeps everything else written about the
   exercise; nothing is invented to fill the space. A custom exercise's notes stand as "Your
-  notes".
+  notes". The library says it only where drafts are reviewed: elsewhere a guide awaiting review
+  would be announced on nearly every exercise, so How to do it says only what there is, and is
+  left out when there is nothing. The Technique tab always says it, rather than stand blank.
 - A demonstration is a row that opens YouTube: "Watch demonstration", the channel under it. No
   thumbnail, no embedded player: a video's colour would be the only colour on the screen. An
   in-app player waits for testing on real phones and the owner's approval, and would mount only

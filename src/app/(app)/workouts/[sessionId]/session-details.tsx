@@ -4,7 +4,7 @@ import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatSleep } from "@/lib/format";
 import { formatBodyWeight } from "@/lib/units";
 
 import type { SessionVM } from "./view-model";
@@ -20,6 +20,14 @@ export const CHECK_IN_LABELS: [keyof SessionVM, string, string][] = [
   ["fatigue", "Fatigue", "/ 5"],
   ["soreness", "Soreness", "/ 5"],
 ];
+
+/**
+ * A check-in reading as it is said: a night's sleep as every other time is ("7 h 45 min", not
+ * "7.75 h"), an answer on its scale ("2 / 5").
+ */
+export function checkInReading(key: keyof SessionVM, value: number, unit: string): string {
+  return key === "sleepHours" ? formatSleep(value) : `${value} ${unit}`;
+}
 
 /** One fact: its name in ink 2 at the gutter, what it is in ink at the end, on a hair rule. */
 function Row({ label, value }: { label: string; value: string }) {
@@ -51,7 +59,7 @@ export function SessionDetails({
 }) {
   const readings = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
-    return typeof value === "number" ? [[label, `${value} ${unit}`] as const] : [];
+    return typeof value === "number" ? [[label, checkInReading(key, value, unit)] as const] : [];
   });
   const durationMinutes = session.completedAt
     ? Math.round(

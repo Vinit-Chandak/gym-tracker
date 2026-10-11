@@ -11,6 +11,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { originQuery } from "@/lib/nav";
 import { fromKilograms } from "@/lib/units";
 import type { ExerciseMonth } from "@/server/repositories/exercise-life";
 import type { ExerciseBest } from "@/server/repositories/shared-stats";
@@ -165,7 +166,8 @@ export function ExerciseLife({
         return (
           <li key={performance.id}>
             <Link
-              href={`/workouts/${performance.sessionId}`}
+              // A past workout is History's, whichever page it is opened from.
+              href={`/workouts/${performance.sessionId}${originQuery("history")}`}
               className={index === list.length - 1 ? "latest-row plan-row-last" : "latest-row"}
             >
               <span className="flex flex-wrap items-baseline justify-between gap-x-2">

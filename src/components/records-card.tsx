@@ -64,8 +64,8 @@ export function SessionRecordsCard({
 
 /**
  * "Your records" on an exercise page: the best of each metric the movement is measured by,
- * with the day it was set and, under the top weight, how it was worked ("12 reps · 4 sets").
- * Tiles, like the exercise's defaults above them. A day names its year only outside
+ * with the day it was set and, under the top weight, how it was worked ("4 sets · best 12
+ * reps"). Tiles, like the exercise's defaults above them. A day names its year only outside
  * `currentYear` (ADR 0044), as every other day in the app does.
  */
 export function ExerciseBestsTiles({

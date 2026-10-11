@@ -73,9 +73,10 @@ it("tiles the bests with their dates, labelled for the movement", () => {
     ),
   ).toBeTruthy();
   expect(document.querySelector(".figures")?.textContent).toBe("12");
-  // Each number named: "3 × 8" read as three sets of eight, which it need not have been. A day
-  // in another year names it; one in this year does not.
-  expect(screen.getByText(/^8 reps · 3 sets · Sat\s30\sAug\s2025$/)).toBeTruthy();
+  // Each number named, the reps as the best set's: "3 × 8" and "8 reps · 3 sets" both read as
+  // three sets of eight, which it need not have been. A day in another year names it; one in
+  // this year does not.
+  expect(screen.getByText(/^3 sets · best 8 reps · Sat\s30\sAug\s2025$/)).toBeTruthy();
   expect(screen.getByText(/^Tue\s8\sSept$/)).toBeTruthy();
 });
 

@@ -97,16 +97,18 @@ export function metricLabel(metric: SharedMetric, exercise: MetricExercise): str
 }
 
 /**
- * How a top weight was worked, said under it: the most reps a set at it reached, then how many
- * working sets were at it ("11 reps · 2 sets"), or the sets alone for a hold or a carry, which
- * have no reps. Each number names what it counts, as the exercise graph's "Heaviest set" says
- * "11 reps" under its load: "2 × 11" read as two sets of eleven, which it need not have been.
+ * How a top weight was worked, said under it: how many working sets were at it, then the most
+ * reps one of them reached ("2 sets · best 12 reps"), or the sets alone for a hold or a carry,
+ * which have no reps. Each number names what it counts, and the reps say they are the best
+ * set's: "2 × 12" and "12 reps · 2 sets" both read as two sets of twelve, where the sets at
+ * 20 kg were 12 and 11. One set has no best to single out ("1 set · 8 reps").
  */
 export function topWeightWorkLabel(work: { sets: number; reps: number | null }): string {
   // Each count held to its noun, and the dot to the count after it (FACT_SEPARATOR).
   const sets = `${work.sets}\u00a0${work.sets === 1 ? "set" : "sets"}`;
   if (work.reps === null) return sets;
-  return joinFacts([`${work.reps}\u00a0${work.reps === 1 ? "rep" : "reps"}`, sets]);
+  const reps = `${work.reps}\u00a0${work.reps === 1 ? "rep" : "reps"}`;
+  return joinFacts([sets, work.sets === 1 ? reps : `best\u00a0${reps}`]);
 }
 
 export type ComparableExercise = { userId: string | null; loadPortability: LoadPortability };

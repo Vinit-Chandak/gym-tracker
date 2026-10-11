@@ -112,3 +112,28 @@ it("offers each measure either of you has, as an exercise's own graph does, and 
   fireEvent.click(measures.getByRole("radio", { name: "Max reps" }));
   expect(window.location.search).toBe("?measure=most_reps");
 });
+
+it("reads a set's volume whole, as every volume reads", () => {
+  render(
+    <HeadToHeadGraph
+      data={data(
+        [[], []],
+        [
+          {
+            metric: "best_set_volume",
+            // 35 lb × 14 is 490 lb, which comes back from its kilograms as 490.13.
+            lines: [
+              [{ date: "2026-10-01", value: 490.13, href: "/workouts/b" as Route }],
+              [{ date: "2026-09-12", value: 540, href: "/u/phani/activities/c" as Route }],
+            ],
+          },
+        ],
+      )}
+    />,
+  );
+  const volume = within(
+    screen.getByText("Biggest set, load × reps").closest(".graph-readout") as HTMLElement,
+  );
+  expect(volume.getByText("490")).toBeTruthy();
+  expect(volume.queryByText("490.1")).toBeNull();
+});

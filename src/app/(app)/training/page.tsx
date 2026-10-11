@@ -70,6 +70,9 @@ export default async function TrainingPage() {
   ]);
   const overview = data.overview;
   const sports = logSports(ENDURANCE_SPORTS, data.enabled, overview?.days ?? []);
+  // Scheduling, like templates, is runs, rides and swims: a lifter with none of those on is not
+  // offered it (the page still opens for anyone who goes to it).
+  const endurance = hasTemplateSports(data.enabled);
   const drills = new Map(data.protocols.map((protocol) => [protocol.id, protocol.drills.length]));
   const days: CycleDayTile[] = (overview?.days ?? []).map((plan) => {
     // The day being trained now opens on its workout, not on what the day asks for.
@@ -93,9 +96,15 @@ export default async function TrainingPage() {
       <PageHeader
         title="Training"
         action={
-          <Link href="/training/schedule" aria-label="Schedule an activity" className="icon-button">
-            <Glyph name="plus" className="glyph-24" />
-          </Link>
+          endurance ? (
+            <Link
+              href="/training/schedule"
+              aria-label="Schedule an activity"
+              className="icon-button"
+            >
+              <Glyph name="plus" className="glyph-24" />
+            </Link>
+          ) : undefined
         }
       />
       <div className="page-width pb-8">
@@ -152,9 +161,7 @@ export default async function TrainingPage() {
             (the page still opens for anyone who goes to it). */}
         <ul className={overview && sports.length === 0 ? "mt-5" : "mt-2"}>
           <NavRow href="/training/scheduled" glyph="calendar" label="Scheduled by you" />
-          {hasTemplateSports(data.enabled) && (
-            <NavRow href="/training/templates" glyph="note" label="Templates" />
-          )}
+          {endurance && <NavRow href="/training/templates" glyph="note" label="Templates" />}
         </ul>
       </div>
     </div>

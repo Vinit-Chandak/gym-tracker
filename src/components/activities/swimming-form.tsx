@@ -27,6 +27,8 @@ import {
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  openDistance,
+  postedDistance,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -105,8 +107,13 @@ export function SwimmingForm({
   const [poolLength, setPoolLength] = useState(() => values("poolLengthValue"));
   const [poolUnit, setPoolUnit] = useState(() => values("poolLengthUnit") || "m");
   const [lengths, setLengths] = useState(() => values("lengths"));
-  const [distance, setDistance] = useState(() => values("distanceValue"));
-  const [distanceUnit, setDistanceUnit] = useState(() => values("distanceUnit") || "m");
+  // A swim entered in metres opens in yards for a yards swimmer, and the other way round.
+  const [opened] = useState(() =>
+    openDistance(values("distanceValue"), values("distanceUnit") || readIn, readIn),
+  );
+  const [distance, setDistance] = useState(opened.value);
+  const [distanceUnit, setDistanceUnit] = useState(opened.unit);
+  const posted = postedDistance(distance, distanceUnit, opened.recorded);
   const [elapsed, setElapsed] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
@@ -116,8 +123,8 @@ export function SwimmingForm({
   const derivedMetres =
     method === "lengths" && poolLength.trim() !== "" && lengths.trim() !== ""
       ? toMetres(Number(poolLength.replace(",", ".")), poolUnit as "m" | "yd") * Number(lengths)
-      : method === "manual" && distance.trim() !== ""
-        ? toMetres(Number(distance.replace(",", ".")), distanceUnit as "m" | "yd")
+      : method === "manual" && posted.value.trim() !== ""
+        ? toMetres(Number(posted.value.replace(",", ".")), posted.unit as "m" | "yd")
         : null;
   const activeMs =
     activeMinutes.trim() === "" && activeSeconds.trim() === ""
@@ -267,6 +274,7 @@ export function SwimmingForm({
             onValueChange={setDistance}
             onUnitChange={setDistanceUnit}
             units={POOL_UNITS}
+            recorded={opened.recorded}
             step={25}
             error={errors?.distance ?? errors?.distanceValue}
           />

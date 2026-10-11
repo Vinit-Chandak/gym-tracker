@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { guidanceOf, NO_GUIDANCE, type ExerciseGuidance } from "@/lib/guidance";
 
-import { ExerciseGuide } from "./exercise-guide";
+import { ExerciseGuide, guideHasContent } from "./exercise-guide";
 
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
@@ -111,6 +111,20 @@ it("never leaves the tab blank: an exercise with nothing written still says so",
   render(<ExerciseGuide guidance={NO_GUIDANCE} />);
   expect(screen.getByText("Guide not available yet.")).toBeTruthy();
   expect(screen.queryByRole("term")).toBeNull();
+});
+
+it("says only what there is where a missing guide is not to be announced", () => {
+  // The bench press in production: its guide awaits review, and a form guide elsewhere remains.
+  const bench = guidance({ guide: null, demonstrations: [], formUrl: "https://example.test" });
+  render(<ExerciseGuide guidance={bench} sayMissing={false} />);
+  expect(screen.queryByText("Guide not available yet.")).toBeNull();
+  expect(screen.getByRole("link", { name: /Read a form guide/ })).toBeTruthy();
+  expect(guideHasContent(bench)).toBe(true);
+  // With nothing at all, there is nothing to show, and the library leaves the section out.
+  expect(guideHasContent(NO_GUIDANCE)).toBe(false);
+  // A custom exercise is the athlete's own, and still says it has no notes.
+  const own = guidanceOf({ userId: "me", formNotes: "", formUrl: null, logNote: null }, null, []);
+  expect(guideHasContent(own)).toBe(true);
 });
 
 it("keeps a custom exercise's own notes as its guide", () => {

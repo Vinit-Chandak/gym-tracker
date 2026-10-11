@@ -862,7 +862,7 @@ describe("top weight, worked", () => {
       key: alice,
       rank: 1,
       value: 65,
-      detail: "6\u00a0reps ·\u00a03\u00a0sets",
+      detail: "3\u00a0sets ·\u00a0best\u00a06\u00a0reps",
     });
     expect(rankExercise(circle, new Map([[alice, bests]]), new Map(), "e1rm")[0]).toMatchObject({
       value: 78,

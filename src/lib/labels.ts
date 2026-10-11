@@ -377,3 +377,12 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
 
 /** A workout that is not a programme day: its name wherever a day's name would stand. */
 export const UNPLANNED_SESSION = "Unplanned session";
+
+/**
+ * The active programme by its name, said to be complete once nothing but rest is left in it
+ * (ADR 0051), as Today says "Programme complete": its fit at a gym is still read, for repeating
+ * the block, but not as though it were still being trained.
+ */
+export function programmeLabel(program: { name: string; complete: boolean }): string {
+  return program.complete ? `${program.name} (complete)` : program.name;
+}

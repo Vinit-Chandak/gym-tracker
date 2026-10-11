@@ -8,7 +8,7 @@ import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatSpeed, speedMetresPerSecond } from "@/domain/activity-metrics";
-import { toMetres } from "@/lib/distance-units";
+import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -19,11 +19,14 @@ import {
   DurationField,
   durationFromParts,
   EffortField,
+  ElevationField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  openDistance,
   parseDuration,
+  postedDistance,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -73,6 +76,8 @@ type Props = {
   keptEffort?: { value: number | null } | null;
   /** Opens the folded details from the start, when something in them needs reading. */
   openDetails?: boolean;
+  /** The unit the athlete reads rides in, which a recorded ride opens in. */
+  readIn?: DistanceUnit;
 };
 
 export function CyclingForm({
@@ -86,11 +91,17 @@ export function CyclingForm({
   notice,
   keptEffort = null,
   openDetails = false,
+  readIn,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
-  const [distance, setDistance] = useState(() => values("distanceValue"));
-  const [unit, setUnit] = useState(() => values("distanceUnit") || "km");
+  // A ride entered in kilometres opens in miles for a miles rider, and the other way round.
+  const [opened] = useState(() =>
+    openDistance(values("distanceValue"), values("distanceUnit") || readIn || "km", readIn),
+  );
+  const [distance, setDistance] = useState(opened.value);
+  const [unit, setUnit] = useState(opened.unit);
+  const posted = postedDistance(distance, unit, opened.recorded);
   const [environment, setEnvironment] = useState(() => values("environment") || "outdoor");
   const [duration, setDuration] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
@@ -98,9 +109,9 @@ export function CyclingForm({
 
   const durationMs = (parseDuration(duration) ?? 0) * 1000;
   const metres =
-    distance.trim() === ""
+    posted.value.trim() === ""
       ? null
-      : toMetres(Number(distance.replace(",", ".")), unit as "km" | "mi");
+      : toMetres(Number(posted.value.replace(",", ".")), posted.unit as "km" | "mi");
   const speed = metres === null ? null : speedMetresPerSecond(metres, durationMs);
   const errors = state.fieldErrors;
 
@@ -147,6 +158,7 @@ export function CyclingForm({
           onValueChange={setDistance}
           onUnitChange={setUnit}
           units={DISTANCE_UNITS}
+          recorded={opened.recorded}
           hint={
             speed !== null ? (
               <span role="status">
@@ -213,14 +225,7 @@ export function CyclingForm({
             />
           </Field>
         </div>
-        <Field label="Elevation gain m" error={errors?.elevationGainMetres}>
-          <Input
-            name="elevationGainMetres"
-            inputMode="decimal"
-            defaultValue={values("elevationGainMetres")}
-            placeholder="—"
-          />
-        </Field>
+        <ElevationField values={values} errors={errors} readIn={readIn} />
         <HeartRateFields values={values} errors={errors} />
         <NotesFields values={values} errors={errors} />
       </MoreDetails>

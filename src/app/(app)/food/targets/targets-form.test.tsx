@@ -20,7 +20,8 @@ afterEach(() => {
 
 const field = (name: string) => screen.getByRole<HTMLInputElement>("textbox", { name });
 const KCAL = "Daily target, kcal";
-const PROTEIN = "Protein per body weight, g per kg";
+// Its unit held together, so a wrapped label never ends on "g" (200% text).
+const PROTEIN = "Protein per body weight, g\u00a0per\u00a0kg";
 const FAT = "Fat, % of daily target";
 const USE_SPLIT = "Use this split";
 
