@@ -3,13 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="text-scale" content="scale" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111214" />
     <title>Offline · Overload</title>
     <!--
       Served from the cache with no network and no account, so this page carries its own
       copy of Form v2's ground and ink rather than importing the app's theme. It reads the same
-      device-local appearance key so an explicit Light or Dark choice still holds here.
+      device-local appearance key so an explicit Light or Dark choice still holds here, and
+      sizes its words in rem so they follow the reader's text size as the app's do.
     -->
     <style>
       :root {
@@ -40,7 +42,7 @@
         background: var(--ground);
         color: var(--ink);
         font:
-          500 16px/1.45 ui-sans-serif,
+          500 1rem/1.45 ui-sans-serif,
           system-ui,
           -apple-system,
           sans-serif;
@@ -74,7 +76,7 @@
         text-align: center;
         text-decoration: none;
         font-weight: 700;
-        font-size: 17px;
+        font-size: 1.0625rem;
       }
       ::selection {
         background: var(--ink);
@@ -84,10 +86,31 @@
     <script>
       try {
         var m = localStorage.getItem("overload:appearance");
-        if (m === "light" || m === "dark")
+        if (m === "light" || m === "dark") {
           document.documentElement.setAttribute("data-overload-mode", m);
+          // The browser's bar follows the choice too, as in the app (lib/appearance.ts).
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < metas.length; i++)
+            metas[i].setAttribute("content", m === "dark" ? "#111214" : "#ffffff");
+        }
       } catch (e) {
         /* No storage: the media query decides, which is the System default anyway. */
+      }
+      // The installed app on iOS: the reader's text size, as lib/platform.ts reads it.
+      try {
+        if (navigator.standalone === true) {
+          var probe = document.createElement("span");
+          probe.style.font = "-apple-system-body";
+          probe.style.position = "absolute";
+          probe.style.visibility = "hidden";
+          document.documentElement.appendChild(probe);
+          var body = parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          var root = Math.min(32, Math.max(16, (16 * body) / 17));
+          if (root > 16) document.documentElement.style.fontSize = root + "px";
+        }
+      } catch (e) {
+        /* The browser's own size stands. */
       }
     </script>
   </head>
@@ -99,7 +122,19 @@
         This page needs a connection. Reconnect and try again. Your unsaved set and activity drafts
         stay on this device until you save them.
       </p>
-      <a href="/today">Try again</a>
+      <a id="retry" href="/today">Try again</a>
     </main>
+    <script>
+      // This page stands in for the screen that could not open, at that screen's address, so
+      // Try again asks for that screen again, and so does the connection coming back. Without
+      // a script the link still opens Today.
+      document.getElementById("retry").addEventListener("click", function (event) {
+        event.preventDefault();
+        location.reload();
+      });
+      addEventListener("online", function () {
+        location.reload();
+      });
+    </script>
   </body>
 </html>
