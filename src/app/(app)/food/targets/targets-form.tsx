@@ -23,7 +23,7 @@ import { formatFoodAmount, formatSplit } from "@/lib/format";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
-import { formatBodyWeight } from "@/lib/units";
+import { formatBodyWeight, LB_PER_KG } from "@/lib/units";
 import { saveTargetsAction } from "@/server/actions/nutrition";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -32,6 +32,14 @@ function numberIn(value: string, bounds: { min: number; max: number }): number |
   const parsed = Number(value.replace(",", "."));
   if (value.trim() === "" || !Number.isFinite(parsed)) return null;
   return parsed >= bounds.min && parsed <= bounds.max ? parsed : null;
+}
+
+/** "0.82": grams per kilogram, to the tenth it is kept to, read per pound of body weight. */
+function perPound(perKg: number): string {
+  return (Math.round(((Math.round(perKg * 10) / 10) * 100) / LB_PER_KG) / 100).toLocaleString(
+    "en-GB",
+    { maximumFractionDigits: 2 },
+  );
 }
 
 /**
@@ -162,8 +170,16 @@ export function TargetsForm({
           label="Protein, g per kg of body weight"
           error={state.fieldErrors?.proteinPerKg}
           hint={
-            weighed && perKg !== null
-              ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+            perKg !== null && (weighed || unit === "lb")
+              ? [
+                  // Typed and kept per kilogram; someone who weighs in pounds reads it per pound too.
+                  unit === "lb" ? `${perPound(perKg)} g per lb` : null,
+                  weighed
+                    ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : undefined
           }
         >

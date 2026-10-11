@@ -114,8 +114,26 @@ it("warns when protein and fat leave nothing for carbs, in the account's own uni
     />,
   );
   expect(screen.getByText(/nothing left for carbs/)).toBeTruthy();
-  // The weight is written in the account's own unit; the ratio stays per kilogram.
-  expect(screen.getByText("264 g at 264.6 lb")).toBeTruthy();
+  // The weight is written in the account's own unit; the ratio is typed and kept per kilogram,
+  // and read per pound beside it: 2.2 g/kg is 1 g/lb.
+  expect(screen.getByText("1 g per lb · 264 g at 264.6 lb")).toBeTruthy();
+});
+
+it("reads protein per pound for an account in pounds, without changing what is saved", () => {
+  const { container } = render(
+    <TargetsForm
+      targets={{ dailyKcal: 2600, proteinPerKg: 1.8, fatPercent: 25 }}
+      bodyWeightKg={86.2}
+      unit="lb"
+      goal="build_muscle"
+    />,
+  );
+  expect(screen.getByText("0.82 g per lb · 155 g at 190 lb")).toBeTruthy();
+  expect(new FormData(container.querySelector("form")!).get("proteinPerKg")).toBe("1.8");
+  cleanup();
+  // With no body weight there are no grams to give, but the ratio still reads per pound.
+  render(<TargetsForm targets={null} bodyWeightKg={null} unit="lb" goal="lose_fat" />);
+  expect(screen.getByText("0.82 g per lb")).toBeTruthy();
 });
 
 it("says a goal that is not set, and starts from 55 / 25 / 20", () => {
