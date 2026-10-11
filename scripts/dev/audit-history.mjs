@@ -108,15 +108,22 @@ await mkdir(folder, { recursive: true });
 const persist = () => writeFile(`${folder}/results.json`, JSON.stringify(report, null, 2));
 const sql = postgres(database, { max: 1 });
 
+/** A night as History says it: a time, "6 h 30 min", as every other time is said. */
+function night(hours) {
+  const total = Math.round(Number(hours) * 60);
+  const [h, m] = [Math.floor(total / 60), total % 60];
+  return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
 function readings(row) {
   return [
-    ["Sleep", row.sleep_hours, "h"],
+    ["Sleep", row.sleep_hours === null ? null : night(row.sleep_hours)],
     ["Energy", row.energy],
     ["Fatigue", row.fatigue],
     ["Soreness", row.soreness],
   ]
     .filter(([, value]) => value !== null)
-    .map(([label, value, unit]) => `${label} ${Number(value)}${unit ? ` ${unit}` : ""}`)
+    .map(([label, value]) => `${label} ${typeof value === "string" ? value : Number(value)}`)
     .join(" · ");
 }
 
