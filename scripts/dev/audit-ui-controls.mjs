@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
 import { assertReadableText } from "./audit-text-readability.mjs";
+import { launch, skipDevice } from "./audit-engines.mjs";
 import { checkFoodLayout } from "./audit-food-layout.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
@@ -14,12 +15,14 @@ await mkdir(folder, { recursive: true });
 const results = [];
 
 for (const config of [
-  { name: "android", engine: chromium, options: devices["Pixel 7"] },
-  { name: "iphone", engine: webkit, options: devices["iPhone 13"] },
+  { name: "android", engine: "chromium", options: devices["Pixel 7"] },
+  { name: "iphone", engine: "webkit", options: devices["iPhone 13"] },
 ].filter((item) => !process.env.AUDIT_DEVICE || item.name === process.env.AUDIT_DEVICE)) {
-  const browser = await config.engine.launch({
-    executablePath: config.engine === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-  });
+  if (skipDevice(config.name, config.engine)) {
+    results.push({ device: config.name, name: "every check", status: "SKIPPED", skipped: true });
+    continue;
+  }
+  const browser = await launch(config.engine);
   // Keep forced document loads deterministic; food/endurance suites exercise the real SW.
   const context = await browser.newContext({ ...config.options, baseURL, serviceWorkers: "block" });
   let page = await context.newPage();
@@ -423,10 +426,12 @@ await writeFile(
   `${folder}/results${process.env.AUDIT_DEVICE ? `-${process.env.AUDIT_DEVICE}` : ""}.json`,
   JSON.stringify(results, null, 2),
 );
+const ran = results.filter((result) => !result.skipped);
 console.log(
   JSON.stringify({
-    passed: results.filter((result) => result.ok).length,
-    failed: results.filter((result) => !result.ok).length,
+    passed: ran.filter((result) => result.ok).length,
+    failed: ran.filter((result) => !result.ok).length,
+    skipped: results.filter((result) => result.skipped).map((result) => result.device),
   }),
 );
-if (results.some((result) => !result.ok)) process.exitCode = 1;
+if (ran.some((result) => !result.ok)) process.exitCode = 1;

@@ -3,8 +3,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -434,14 +435,13 @@ async function checkKindTransitions(page, data, window, engine) {
   await checkFilters(page, window);
 }
 
-const configs = [{ name: "chromium", engine: chromium, indices: months.map((_, index) => index) }];
-if (process.env.AUDIT_HISTORY_WEBKIT_SAMPLE === "true")
-  configs.push({ name: "webkit", engine: webkit, indices: sampleIndices });
+const configs = [{ name: "chromium", indices: months.map((_, index) => index) }];
+if (process.env.AUDIT_HISTORY_WEBKIT_SAMPLE === "true" && !skipDevice("iphone", "webkit"))
+  configs.push({ name: "webkit", indices: sampleIndices });
+report.skipped = skippedDevices;
 try {
   for (const config of configs) {
-    const browser = await config.engine.launch({
-      executablePath: config.name === "chromium" ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-    });
+    const browser = await launch(config.name);
     try {
       for (const username of usernames) {
         const data = await snapshot(username);

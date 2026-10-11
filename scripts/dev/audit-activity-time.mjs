@@ -1,9 +1,10 @@
 // Native date/time regression audit. Each browser uses a disposable local QA account.
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { fillActivityField } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -26,7 +27,10 @@ const sql = postgres(database, { max: 1 });
 const results = [];
 const pageErrors = [];
 const saveReport = () =>
-  writeFile(`${output}/results.json`, JSON.stringify({ results, pageErrors }, null, 2));
+  writeFile(
+    `${output}/results.json`,
+    JSON.stringify({ results, pageErrors, skipped: skippedDevices }, null, 2),
+  );
 
 async function run(engine) {
   const id = randomUUID();
@@ -73,9 +77,7 @@ async function run(engine) {
     await sql`update profiles set onboarded_at=now(), time_zone='America/New_York',
       body_weight_kg=75, height_cm=175, date_of_birth='1994-06-15', training_goal='get_stronger'
       where id=${id}`;
-    browser = await (engine === "webkit" ? webkit : chromium).launch({
-      executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-    });
+    browser = await launch(engine);
     const context = await browser.newContext({
       ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
       baseURL,
@@ -246,6 +248,7 @@ async function run(engine) {
 
 try {
   for (const engine of engines) {
+    if (skipDevice(engine === "webkit" ? "iphone" : "android", engine)) continue;
     try {
       await run(engine);
     } catch (error) {

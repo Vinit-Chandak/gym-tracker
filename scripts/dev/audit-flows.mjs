@@ -1,9 +1,10 @@
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
 import { fillActivityField } from "./audit-controls.mjs";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -19,10 +20,9 @@ if (
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
 const fixtures = JSON.parse(await readFile(`${output}/fixtures.json`, "utf8"));
 const device = process.env.AUDIT_DEVICE ?? "android";
-// A machine whose browsers predate this Playwright can point at its own Chromium.
-const browser = await (device === "iphone" ? webkit : chromium).launch({
-  executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+const engine = device === "iphone" ? "webkit" : "chromium";
+await skipWholeRun(device, engine, `${output}/flows-${device}.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
   baseURL,

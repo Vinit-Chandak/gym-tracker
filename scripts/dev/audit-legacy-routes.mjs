@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
+import { launch, skipDevice } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const origin = new URL(baseURL);
@@ -47,13 +48,16 @@ async function login(context, email) {
   }
 }
 
-for (const [engine, type, device, repetitions] of [
-  ["webkit", webkit, devices["iPhone 13"], 10],
-  ["chromium", chromium, devices["Pixel 7"], 5],
+for (const [engine, device, repetitions] of [
+  ["webkit", devices["iPhone 13"], 10],
+  ["chromium", devices["Pixel 7"], 5],
 ]) {
-  const browser = await type.launch({
-    executablePath: engine === "chromium" ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-  });
+  if (skipDevice(engine === "webkit" ? "iphone" : "android", engine)) {
+    results.push({ engine, name: "Every check", status: "SKIPPED", skipped: true });
+    await save();
+    continue;
+  }
+  const browser = await launch(engine);
   const context = await browser.newContext({ ...device, baseURL, deviceScaleFactor: 1 });
   const check = async (name, work, target = context) => {
     const page = await target.newPage();
@@ -197,6 +201,7 @@ for (const [engine, type, device, repetitions] of [
     await browser.close();
   }
 }
+const ran = results.filter((result) => !result.skipped);
 console.log(
-  `${results.filter((result) => result.passed).length}/${results.length} legacy-route checks passed.`,
+  `${ran.filter((result) => result.passed).length}/${ran.length} legacy-route checks passed${ran.length < results.length ? "; WebKit SKIPPED" : ""}.`,
 );

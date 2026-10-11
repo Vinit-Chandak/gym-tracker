@@ -1,6 +1,7 @@
-import { chromium, webkit, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { launch, skipDevice } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
@@ -157,11 +158,11 @@ const routes = [
   `/u/shreyash/activities/${fixtures.shared.find((a) => a.userId === user("shreyash") && a.sport === "cycle").id}`,
 ];
 const configurations = [
-  { name: "android", browser: chromium, options: devices["Pixel 7"] },
-  { name: "iphone", browser: webkit, options: devices["iPhone 13"] },
+  { name: "android", browser: "chromium", options: devices["Pixel 7"] },
+  { name: "iphone", browser: "webkit", options: devices["iPhone 13"] },
   {
     name: "iphone17",
-    browser: webkit,
+    browser: "webkit",
     explicitOnly: true,
     options: {
       ...devices["iPhone 17"],
@@ -174,10 +175,10 @@ const configurations = [
   },
   {
     name: "narrow",
-    browser: chromium,
+    browser: "chromium",
     options: { viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true },
   },
-  { name: "desktop", browser: chromium, options: { viewport: { width: 1440, height: 1000 } } },
+  { name: "desktop", browser: "chromium", options: { viewport: { width: 1440, height: 1000 } } },
 ];
 for (const config of configurations.filter((c) =>
   process.env.AUDIT_DEVICE ? c.name === process.env.AUDIT_DEVICE : !c.explicitOnly,
@@ -187,10 +188,12 @@ for (const config of configurations.filter((c) =>
   const fontSize = Number(process.env.AUDIT_FONT_SIZE ?? 16);
   if (fontSize !== 16) config.name += `-text${fontSize}`;
   if (process.env.AUDIT_EXPAND_DETAILS === "true") config.name += "-expanded";
-  // A machine whose browsers predate this Playwright can point at its own Chromium.
-  const browser = await config.browser.launch({
-    executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-  });
+  if (skipDevice(config.name, config.browser)) {
+    const skipped = { device: config.name, status: "SKIPPED", skipped: true };
+    await writeFile(`${output}/screens-${config.name}.json`, JSON.stringify([skipped], null, 2));
+    continue;
+  }
+  const browser = await launch(config.browser);
   const context = await browser.newContext({ ...config.options, baseURL, colorScheme: theme });
   await context.addInitScript((mode) => {
     if (location.origin !== "null") localStorage.setItem("overload:appearance", mode);

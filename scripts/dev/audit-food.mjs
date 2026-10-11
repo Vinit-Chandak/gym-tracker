@@ -1,11 +1,12 @@
 // Production-build food audit. Uses only the dedicated loopback audit database.
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import postgres from "postgres";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -20,10 +21,12 @@ if (
 )
   throw new Error("Local audit only");
 const engine = process.env.AUDIT_BROWSER ?? "chromium";
-// A machine whose browsers predate this Playwright can point at its own Chromium.
-const browser = await (engine === "webkit" ? webkit : chromium).launch({
-  executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+await skipWholeRun(
+  engine === "webkit" ? "iphone" : "android",
+  engine,
+  `${process.env.AUDIT_OUTPUT_DIR ?? "output/food-audit"}/food-${engine}/results.json`,
+);
+const browser = await launch(engine);
 let context, page;
 const sql = postgres(database, { max: 1 });
 const results = [];

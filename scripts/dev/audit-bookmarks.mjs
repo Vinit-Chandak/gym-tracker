@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { chromium, webkit, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { launch, skipDevice } from "./audit-engines.mjs";
 
 // Read-only bookmarked activity navigation, including signing in after the session ends.
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
@@ -48,11 +49,16 @@ const cases = [
 ];
 const results = [];
 await mkdir(folder, { recursive: true });
-for (const [engine, browserType, device] of [
-  ["chromium", chromium, devices["Pixel 7"]],
-  ["webkit", webkit, devices["iPhone 13"]],
+for (const [engine, device] of [
+  ["chromium", devices["Pixel 7"]],
+  ["webkit", devices["iPhone 13"]],
 ]) {
-  const browser = await browserType.launch();
+  if (skipDevice(engine === "webkit" ? "iphone" : "android", engine)) {
+    results.push({ engine, status: "SKIPPED", skipped: true });
+    await writeFile(`${folder}/results.json`, JSON.stringify(results, null, 2));
+    continue;
+  }
+  const browser = await launch(engine);
   try {
     for (const [index, testCase] of cases.entries()) {
       const context = await browser.newContext({ ...device, baseURL, colorScheme: "dark" });
