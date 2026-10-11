@@ -4,6 +4,7 @@ import { DetailList } from "@/components/ui/detail-list";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import {
+  durationTargetParts,
   expandSteps,
   prescriptionTotals,
   type EndurancePrescription,
@@ -51,6 +52,15 @@ function range(low: number, high: number, format: (value: number) => string): st
 }
 
 /**
+ * "37–47 min", "20 s": a duration or its range with its unit said once, as the card's figure and
+ * every other screen say it. Each end with its own unit ("37 min–47 min") read as two targets.
+ */
+function durationLine(ms: readonly [number, number]): string {
+  const { figure, unit } = durationTargetParts(ms);
+  return `${figure}\u00a0${unit}`;
+}
+
+/**
  * "Effort 2–3 of 5". A prescribed effort is on the athlete's own five steps since 0034, and it
  * says so, so the target reads against the answer the log form asks for. It said "of 10" after
  * the scale changed, which made an easy 2 read as almost nothing.
@@ -67,7 +77,7 @@ export function stepLine(
 ): string {
   const target =
     step.target.kind === "duration"
-      ? range(step.target.ms[0], step.target.ms[1], minutes)
+      ? durationLine(step.target.ms)
       : formatSportDistance(step.target.metres, sport, units);
   const parts = [ACTION_LABELS[step.action], target];
   if (step.effort) parts.push(effortLine(step.effort));
@@ -80,7 +90,7 @@ export function sessionLine(prescription: EndurancePrescription, units: SportUni
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
   const parts = [
     distanceMetres ? formatSportDistance(distanceMetres, prescription.sport, units) : null,
-    durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
+    durationMs ? durationLine(durationMs) : null,
     effort ? effortLine(effort) : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;

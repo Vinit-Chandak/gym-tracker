@@ -20,8 +20,9 @@ it("gives a session's effort out of five", () => {
     sport: "running",
     sessionTargets: { durationMs: [25 * MINUTE, 30 * MINUTE], effort: [1, 2] },
   });
+  // The range says its unit once, as the card's figure and the programme day do.
   expect(sessionLine(prescription, DEFAULT_SPORT_UNITS)).toBe(
-    "25 min–30 min ·\u00a0Effort 1–2 of 5",
+    "25–30\u00a0min ·\u00a0Effort 1–2 of 5",
   );
 });
 
@@ -43,7 +44,7 @@ it("gives a step's effort out of five", () => {
     }),
   );
   expect(stepLine(step!, "running", DEFAULT_SPORT_UNITS)).toBe(
-    "Run ·\u00a010 min ·\u00a0Effort 3 of 5",
+    "Run ·\u00a010\u00a0min ·\u00a0Effort 3 of 5",
   );
 });
 
