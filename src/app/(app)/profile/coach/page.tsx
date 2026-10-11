@@ -6,15 +6,18 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listCoachTokens } from "@/server/repositories/coach-tokens";
+import { expiresLabel } from "./expires";
 import { TokenManager } from "./token-manager";
 
 export const metadata: Metadata = { title: "Coach access" };
 export default async function CoachSettingsPage() {
   const user = await requireUser();
-  const tokens = await withUser(getDb(), user.id, (tx) => listCoachTokens(tx, user.id), {
-    readOnly: true,
-  });
+  const [{ timeZone }, tokens] = await Promise.all([
+    getRequestProfile(user.id, user.email),
+    withUser(getDb(), user.id, (tx) => listCoachTokens(tx, user.id), { readOnly: true }),
+  ]);
   return (
     <>
       <PageHeader title="Coach access" backHref="/profile" />
@@ -24,6 +27,7 @@ export default async function CoachSettingsPage() {
             ...t,
             createdAt: t.createdAt.toISOString(),
             expiresAt: t.expiresAt.toISOString(),
+            expires: expiresLabel(t.expiresAt, timeZone),
             revokedAt: t.revokedAt?.toISOString() ?? null,
             expired: t.expiresAt <= new Date(),
           }))}

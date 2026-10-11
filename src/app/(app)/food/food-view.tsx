@@ -6,7 +6,6 @@ import { paintToken } from "@/components/art/shapes";
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
 import { FoodRowText, RowKcal } from "@/components/food/food-row";
 import { FoodSummary, mealTotals } from "@/components/food/food-summary";
-import { DayRollover } from "@/components/shell/day-rollover";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
@@ -28,7 +27,6 @@ export type FoodLinks = {
 };
 
 export type FoodViewProps = {
-  timeZone?: string;
   today: string;
   /** The day on screen: today, or any day before it (ADR 0037). */
   date?: string;
@@ -158,7 +156,6 @@ function FoodTile({
  * does.
  */
 export function FoodView({
-  timeZone,
   today,
   date = today,
   day,
@@ -186,7 +183,6 @@ export function FoodView({
 
   return (
     <>
-      {timeZone && <DayRollover today={today} timeZone={timeZone} />}
       <PageHeader
         title="Food"
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}

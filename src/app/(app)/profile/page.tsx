@@ -89,6 +89,8 @@ export default async function ProfilePage() {
           </h2>
           <ul>
             <NavRow href="/profile/programme" glyph="table" label="Programme" />
+            {/* Which sports the app offers, chosen in setup and changed only here. */}
+            <NavRow href="/profile/sports" glyph="distance" label="Sports" />
             <NavRow href="/gyms" glyph="pin" label="Gyms and machines" />
             <NavRow href="/exercises" glyph="book" label="Exercise library" />
             <RestTimerSetting enabled={profile.restTimerEnabled} />

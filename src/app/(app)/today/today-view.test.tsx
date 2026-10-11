@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -306,16 +306,6 @@ it("says once that an empty session was discarded, and drops it from the address
   show({ discarded: true });
   expect(await screen.findByText("Empty session discarded.")).toBeTruthy();
   expect(window.location.search).toBe("");
-});
-
-it("renders again once the day it shows is over, as an installed app left open overnight", () => {
-  vi.useFakeTimers();
-  // 23:59 in Kolkata, on the day the screen shows.
-  vi.setSystemTime(new Date("2026-09-11T18:29:00Z"));
-  show();
-  expect(refresh).not.toHaveBeenCalled();
-  act(() => vi.advanceTimersByTime(120_000));
-  expect(refresh).toHaveBeenCalled();
 });
 
 describe("what is scheduled today, without a programme day to stand under", () => {

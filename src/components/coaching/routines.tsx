@@ -27,7 +27,7 @@ export function RoutineLibrary({
   const busy = saving || navigating;
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-medium">Saved routines</h1>
+      {/* The page's header titles it; each routine below is a heading under that. */}
       <p className="text-sm text-ink-muted">
         Start a repeatable workout without changing your active programme. Completed workouts and
         sets stay in history.

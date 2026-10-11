@@ -25,6 +25,7 @@ export function MealView({
   day,
   backHref = "/food",
 }: {
+  /** The account's zone, which the page keeps its day past midnight in; absent in a preview. */
   timeZone?: string;
   today: string;
   /** The day the meal is on, and what is added to it is logged on. */

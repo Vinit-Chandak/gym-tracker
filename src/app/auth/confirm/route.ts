@@ -1,4 +1,4 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
+import { isAuthPKCECodeVerifierMissingError, type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { isSupabaseConfigured } from "@/lib/env";
@@ -42,7 +42,14 @@ function isRecoveryFlow(data: unknown): boolean {
  * Where every link Supabase emails lands: confirmations, invitations, magic links and password
  * recovery. Supabase's default templates send a `code` to exchange; templates written against
  * the server-side flow send `token_hash` plus a `type`. Both are accepted, so the app works
- * whichever the project uses.
+ * whichever the project uses — but only a `token_hash` link works in any browser, which is why
+ * SETUP.md asks for those templates.
+ *
+ * A `code` can be exchanged only by the browser that asked for the email: the other half of it,
+ * the code verifier, is a cookie that browser was given. A link opened anywhere else — on the
+ * phone when the reset was asked for on a laptop, or in Safari when it was asked for from the
+ * app on an iPhone's home screen, which keeps cookies of its own — cannot be finished here, and
+ * the athlete is told that, rather than that the link has expired.
  *
  * The address the app hands Supabase carries no query string of its own. Supabase matches the
  * whole redirect URL, query included, against the project's Redirect URLs; a `?next=…` on the
@@ -71,17 +78,20 @@ export async function GET(request: NextRequest) {
 
   if (!isSupabaseConfigured()) return failure("not-configured");
 
+  const type = searchParams.get("type") as EmailOtpType | null;
   // Supabase reports its own failures on the redirect itself (expired or already-used links).
+  // That address says what the link was for only when the project passes `type` through, so
+  // only a link known to be a reset is sent back to ask for another; a confirmation is not.
   if (searchParams.get("error")) {
-    return here("/forgot-password?error=link");
+    return here(type === "recovery" ? "/forgot-password?error=link" : "/login?error=link");
   }
 
   const supabase = await createSupabaseServerClient();
-  const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return failure("link");
+    // The verifier went with the browser that asked, and with it what the link was for.
+    if (error) return failure(isAuthPKCECodeVerifierMissingError(error) ? "browser" : "link");
     // The flow that sent the email is remembered alongside its code verifier, so a recovery
     // link is recognisable even though the address it came back to says nothing about it.
     // Supabase passes `type` through on some configurations; either signal is enough.

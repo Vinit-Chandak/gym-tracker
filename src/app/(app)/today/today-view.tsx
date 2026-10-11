@@ -4,7 +4,6 @@ import { Art } from "@/components/art/art";
 import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activities/today-activities";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
-import { DayRollover } from "@/components/shell/day-rollover";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
@@ -646,7 +645,6 @@ export function TodayView({
   return (
     <>
       {/* Left open overnight, the installed app would go on showing yesterday as today. */}
-      <DayRollover today={today} timeZone={timeZone} />
       <h1 className="sr-only">Today</h1>
       <div className="today page-width page-wide">
         <header className="today-head">
