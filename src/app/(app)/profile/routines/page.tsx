@@ -1,4 +1,5 @@
 import { and, eq, isNull, or } from "drizzle-orm";
+import type { Metadata } from "next";
 import { RoutineLibrary } from "@/components/coaching/routines";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -8,6 +9,9 @@ import { withUser } from "@/db/with-user";
 
 import { requireProfiledUser } from "@/server/auth";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
+
+export const metadata: Metadata = { title: "Routines" };
+
 export default async function Page() {
   const user = await requireProfiledUser();
   const [routines, locations, library] = await withUser(
@@ -29,7 +33,9 @@ export default async function Page() {
   );
   return (
     <>
-      <PageHeader title="Routines" backHref="/today" />
+      {/* Under Profile, whose tab is lit here, so that is where Back goes without a page
+          before it. */}
+      <PageHeader title="Routines" backHref="/profile" />
       <PageContent>
         <RoutineLibrary routines={routines} gyms={locations} library={library} />
       </PageContent>
