@@ -2,10 +2,15 @@
 
 import { useState, useTransition } from "react";
 
+import { ConfirmSheet } from "@/components/confirm-sheet";
 import { PersonRow, type Person } from "@/components/person-row";
 import { Button } from "@/components/ui/button";
 import { attempted } from "@/lib/offline-submit";
-import { acceptRequestAction, declineRequestAction } from "@/server/actions/follows";
+import {
+  acceptRequestAction,
+  cancelRequestAction,
+  declineRequestAction,
+} from "@/server/actions/follows";
 
 const OFFLINE = "Could not save. Check your connection and try again.";
 
@@ -47,5 +52,42 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * A request you sent that is still waiting: Cancel, after asking in a sheet, as the Requested
+ * button on their page does (plan §3.6). Withdrawn, they no longer see it among their requests.
+ */
+export function SentRequestRow({ person }: { person: Person & { id: string } }) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const confirm = () =>
+    startTransition(async () => {
+      setError(null);
+      const outcome = await attempted(() => cancelRequestAction(person.id), OFFLINE);
+      if (!outcome.ok) setError(outcome.message);
+      else setOpen(false);
+    });
+  return (
+    <>
+      <PersonRow person={person}>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+          Cancel
+        </Button>
+      </PersonRow>
+      <ConfirmSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Cancel request?"
+        description={`@${person.username} has not answered yet. You can ask again at any time.`}
+        confirmLabel="Cancel request"
+        pendingLabel="Cancelling…"
+        pending={pending}
+        error={error}
+        onConfirm={confirm}
+      />
+    </>
   );
 }
