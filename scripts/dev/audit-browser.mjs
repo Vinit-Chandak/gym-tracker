@@ -236,10 +236,12 @@ for (const config of configurations.filter((c) =>
       // A streamed redirect can briefly reach network-idle while only its shell is visible.
       // Wait for the promised destination and real page content before judging that screen.
       await page.waitForURL(new URL(expectedRoute, baseURL).href, { timeout: 15_000 });
-      await page
-        .getByRole("heading", { level: 1 })
-        .first()
-        .waitFor({ state: "visible", timeout: 15_000 });
+      // /warm is what a keep-warm scheduler asks for (ADR 0050): a page with one line, no title.
+      await (
+        route === "/warm"
+          ? page.getByText("Warm.", { exact: true })
+          : page.getByRole("heading", { level: 1 }).first()
+      ).waitFor({ state: "visible", timeout: 15_000 });
       const durationMs = Math.round(performance.now() - started);
       await page.evaluate(
         ({ fontSize, expand }) => {
@@ -347,7 +349,13 @@ for (const config of configurations.filter((c) =>
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   }
-  for (const [i, route] of ["/login", "/signup", "/forgot-password", "/reset-password"].entries())
+  for (const [i, route] of [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/warm",
+  ].entries())
     await visit(route, "public", i);
   await login("vinit");
   for (const [i, route] of routes.entries()) await visit(route, "vinit", i);
