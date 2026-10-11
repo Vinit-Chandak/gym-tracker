@@ -73,7 +73,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search name, muscle or equipment…"
+          placeholder="Name, muscle or equipment"
           aria-label="Search exercises"
           className="search-box-input"
           autoCapitalize="none"
