@@ -17,6 +17,7 @@ import { describePrescription } from "@/domain/activity-prescription";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { SessionStanding, SportAdherence } from "@/domain/programme-sessions";
 import type { SportUnits } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -65,8 +66,11 @@ function adherenceLine(counts: SportAdherence): string {
 /**
  * One session: its programme day, what it asks for, and where it stands.
  *
- * The date is where the block put it. One logged on another day says the day it was logged,
- * so a run done a fortnight late is not read as done on its date (year audit, October 2026).
+ * The date is where the block put it, and says so: "planned for Thu 1 Oct". The sequence waits
+ * (ADR 0051), so a run still to come is not due on it, and a bare date beside a projected end
+ * read as a schedule ten days stale. One logged on another day says the day it was logged, so a
+ * run done a fortnight late is not read as done on its date (year audit, October 2026). The
+ * cycle and the date stand on a line of their own in every row, however short they are.
  */
 function SessionRow({ row, units, year }: { row: ProgrammeRow; units: SportUnits; year: string }) {
   const { occurrence, standing, dayName } = row;
@@ -91,12 +95,10 @@ function SessionRow({ row, units, year }: { row: ProgrammeRow; units: SportUnits
         ]
           .filter(Boolean)
           .join(" · ")}
-        meta={[
+        detail={joinFacts([
           occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
-          formatIsoDate(occurrence.scheduledOn, year),
-        ]
-          .filter(Boolean)
-          .join(" · ")}
+          `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
+        ])}
       />
     </li>
   );
@@ -207,20 +209,26 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
           </Section>
         )}
 
+        {/* Titled by what they hold, "Runs to come": the lifting the adherence counts is not
+            listed, its days being the cycle, on Training. */}
         {view.ahead.length > 0 && (
           <Section
-            title="To come"
+            title={view.titles.ahead}
             description={
               view.ahead.some((row) => row.occurrence.scheduledOn < today)
-                ? "The programme waits for you, so a session whose date has gone by is still to do."
+                ? "The programme waits for you, so a session planned for a day gone by is still to do."
                 : undefined
             }
           >
             {rows(view.ahead)}
           </Section>
         )}
-        {view.notDone.length > 0 && <Section title="Not done">{rows(view.notDone)}</Section>}
-        {view.earlier.length > 0 && <Section title="Earlier">{rows(view.earlier)}</Section>}
+        {view.notDone.length > 0 && (
+          <Section title={view.titles.notDone}>{rows(view.notDone)}</Section>
+        )}
+        {view.earlier.length > 0 && (
+          <Section title={view.titles.earlier}>{rows(view.earlier)}</Section>
+        )}
 
         {/* Lifting has no sessions to list: its days are the cycle, on Training (plan §2.3). */}
         {data.occurrences.length === 0 && (
@@ -237,10 +245,17 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
                 : "The sessions it schedules appear here, one by one."
             }
             action={
-              narrowed && (
+              narrowed ? (
                 <LinkButton href="/training/programme" variant="secondary">
                   See the whole programme
                 </LinkButton>
+              ) : (
+                // The way to what it names, rather than a page name to go and find.
+                lifts && (
+                  <LinkButton href="/training" variant="secondary">
+                    See its days on Training
+                  </LinkButton>
+                )
               )
             }
           />
