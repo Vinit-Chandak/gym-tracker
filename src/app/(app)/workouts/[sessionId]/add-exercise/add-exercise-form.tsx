@@ -32,6 +32,8 @@ type Props = {
   exerciseFieldName?: string;
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
+  /** The exercise being replaced: the list opens on its movement. */
+  like?: Pick<ExerciseListItem, "movementPattern"> | null;
 };
 
 /**
@@ -51,6 +53,7 @@ export function PickExerciseForm({
   plannedExerciseId = null,
   exerciseFieldName = "exerciseId",
   long = false,
+  like = null,
 }: Props) {
   const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -69,6 +72,7 @@ export function PickExerciseForm({
         onChange={setExerciseId}
         error={state.fieldErrors?.[exerciseFieldName]}
         long={long}
+        like={like}
       />
 
       <PinnedActions stack>
