@@ -91,6 +91,10 @@ The owner chose **adaptive + fluid**:
    - Its container queries and the logger's measure read that column, not the screen.
    - The session strip and pinned actions stand over the same column at every width. Pinned
      actions clear the home indicator in landscape.
+   - A page of the session's own (Log a run, the check-in, Add exercise) has no navigation, so
+     at the expanded size it keeps no room for the rail either: it stands in the middle of the
+     screen. Its pinned actions follow the page there instead of the screen's foot, half a tall
+     screen below the fields: they ride the foot while it scrolls and rest after its last field.
 
 5. **Targets go through the platform's target.** Shared controls are sized with `--ov-target`
    or `--ov-target-header`, never Tailwind's fixed `min-h-11` or `size-11`. That makes them 48 dp
