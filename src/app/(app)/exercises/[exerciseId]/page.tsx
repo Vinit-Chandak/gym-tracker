@@ -45,7 +45,7 @@ import { requireUser } from "@/server/auth";
 import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 import { guidanceFor } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { recentPerformances } from "@/server/queries/comparable";
+import { recentPerformances, type ComparablePerformance } from "@/server/queries/comparable";
 import {
   exerciseAvailability,
   type ExerciseGymAvailability,
@@ -58,6 +58,7 @@ import {
 import { readExerciseLife } from "@/server/repositories/exercise-life";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
 import {
+  parseSeriesId,
   pickSeries,
   readExerciseSeriesOptions,
   readExerciseSetRows,
@@ -66,7 +67,7 @@ import { readRangeChoice } from "@/server/queries/graph-range";
 import { dateWindow } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
 
-import { ExerciseLife } from "./exercise-life";
+import { ExerciseLife, type LatestPerformance } from "./exercise-life";
 
 export const metadata: Metadata = { title: "Exercise" };
 
@@ -136,15 +137,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       // a machine's numbers stay with its machine, in the trend below. The same movements are
       // the ones friends are ranked on, so one read of the circle's bests serves both.
       const circle = isComparable(exercise) ? await loadCircle(tx, user.id) : [];
-      // A movement whose load means the same everywhere is read across gyms and machines; one
-      // bound to its machine is read on the machine it was last done on.
-      const latest = await recentPerformances(tx, user.id, exerciseId);
-      const machine =
-        exercise.loadPortability === "global"
-          ? null
-          : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
-            null);
-      const [availability, options, bests, profile, life, written] = await Promise.all([
+      const [availability, options, bests, profile, written] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
         // This movement's series only: one machine's loads are not another's.
         readExerciseSeriesOptions(tx, user.id, window, exerciseId),
@@ -156,18 +149,40 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             )
           : new Map(),
         requestProfile,
-        readExerciseLife(tx, user.id, exerciseId, requestProfile.timeZone, machine),
         // The guide and its demonstrations, from the cached library; drafts only where shown.
         guidanceFor(tx, exerciseId, showsDrafts()),
       ]);
-      const performances = latest;
       const selected = pickSeries(
         options,
         typeof params.series === "string" ? params.series : undefined,
       );
-      const sets = selected
-        ? await readExerciseSetRows(tx, user.id, profile.timeZone, window, selected.id)
-        : [];
+      // Everything on the page is read on the series the graph draws. A movement whose load
+      // means the same everywhere is one, across gyms and machines; one bound to its machine is
+      // read on the machine chosen over the graph, in its unit, and a machine nobody recorded is
+      // its one workout. Free weights keep their history across gyms; machines keep their own.
+      const key = selected ? parseSeriesId(selected.id) : null;
+      const machineKey = key && key.machineKey !== "global" ? key.machineKey : null;
+      const slot = machineKey?.startsWith("unknown:") ? machineKey.slice("unknown:".length) : null;
+      const machine = machineKey && !slot ? machineKey : null;
+      const [sets, latest, life] = await Promise.all([
+        selected
+          ? readExerciseSetRows(tx, user.id, profile.timeZone, window, selected.id)
+          : Promise.resolve([]),
+        recentPerformances(
+          tx,
+          user.id,
+          exerciseId,
+          machine ? { equipmentInstanceId: machine } : slot ? { workoutExerciseId: slot } : null,
+        ),
+        readExerciseLife(
+          tx,
+          user.id,
+          exerciseId,
+          profile.timeZone,
+          machine,
+          machineKey ? { workoutExerciseId: slot ?? undefined, unit: key!.unit } : {},
+        ),
+      ]);
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
       // anyone in the circle has logged the movement; nothing dead ships.
       const board =
@@ -177,7 +192,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         guidance: guidanceOf(exercise, written.guide, written.media),
         sources: written.guide?.sources ?? [],
         availability,
-        performances,
+        performances: latest.scoped,
+        elsewhere: latest.elsewhere,
         bests: bests.get(user.id) ?? [],
         board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
         options,
@@ -188,10 +204,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             })
           : [],
         life,
-        machineName: machine
-          ? (latest.find((performance) => performance.equipmentInstanceId === machine)
-              ?.equipmentInstanceName ?? null)
-          : null,
+        machineName: machine ? (latest.scoped[0]?.equipmentInstanceName ?? null) : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
       };
@@ -205,6 +218,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     sources,
     availability,
     performances,
+    elsewhere,
     bests,
     board,
     options,
@@ -215,6 +229,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     life,
     machineName,
   } = data;
+  const latestRow = (performance: ComparablePerformance): LatestPerformance => ({
+    id: performance.workoutExerciseId,
+    sessionId: performance.workoutSessionId,
+    performedAt: performance.performedAt.toISOString(),
+    gymName: performance.gymName,
+    machineName: performance.equipmentInstanceName,
+    sets: performance.sets.map((set) =>
+      exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
+    ),
+  });
   const graphRange = rangeOf(
     choice,
     today,
@@ -274,16 +298,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               />
             </GraphRangeProvider>
           }
-          performances={performances.map((performance) => ({
-            id: performance.workoutExerciseId,
-            sessionId: performance.workoutSessionId,
-            performedAt: performance.performedAt.toISOString(),
-            gymName: performance.gymName,
-            machineName: performance.equipmentInstanceName,
-            sets: performance.sets.map((set) =>
-              exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
-            ),
-          }))}
+          loadUnit={selected?.unit ?? null}
+          performances={performances.map(latestRow)}
+          elsewhere={elsewhere.map(latestRow)}
         />
 
         <Card>

@@ -65,14 +65,61 @@ const props = (assisted: boolean) => ({
 it("shows an assisted machine's least help as its best, and leads each session with it", () => {
   render(<ExerciseLife {...props(true)} />);
   const stat = screen.getByText("Least assistance").closest("div")!;
-  expect(stat.textContent).toBe("Least assistance15kg");
-  // The session's lightest help, not the 20 kg it started with.
+  expect(stat.textContent).toBe("Least assistance15 kg");
+  // The session's lightest help, and of it the most reps, not the 20 kg it started with.
   expect(screen.getByText("15 kg × 8")).toBeTruthy();
   expect(screen.queryByText("Top weight")).toBeNull();
 });
 
 it("shows any other machine's heaviest", () => {
   render(<ExerciseLife {...props(false)} />);
-  expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40kg");
+  expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40 kg");
   expect(screen.getByText("20 kg × 8")).toBeTruthy();
+});
+
+it("says what its figures and its latest sessions are read on, and lists other machines apart", () => {
+  const lat = { ...assistedPullUp, name: "Lat pulldown" };
+  render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={lat}
+      machineName="Lat pulldown"
+      performances={[
+        // 42.5 kg twice: the row leads with the better of the two.
+        performance("17-sept", "2026-09-17T08:00:00Z", [
+          [40, 13],
+          [42.5, 10],
+          [42.5, 11],
+        ]),
+      ]}
+      elsewhere={[
+        { ...performance("7-oct", "2026-10-07T08:00:00Z", [[17.5, 12]]), machineName: null },
+      ]}
+    />,
+  );
+  // The figures are every session's on the machine chosen over the graph, and say so.
+  expect(screen.getByRole("heading", { name: "All time on Lat pulldown" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Latest on Lat pulldown" })).toBeTruthy();
+  expect(screen.getByText("42.5 kg × 11")).toBeTruthy();
+  // Another machine's session is in view, never as this machine's.
+  expect(screen.getByRole("heading", { name: "Latest on other machines" })).toBeTruthy();
+  expect(screen.getByText("Wed 7 Oct · Unrecorded machine")).toBeTruthy();
+});
+
+it("names a machine called after its kind once", () => {
+  const smithBench = { ...assistedPullUp, modality: "smith_machine" } as const;
+  render(<ExerciseLife {...props(false)} exercise={smithBench} machineName="Smith machine" />);
+  expect(screen.getAllByText("Smith machine")).toHaveLength(1);
+});
+
+it("reads a free-weight lift's records as all time, across gyms", () => {
+  render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{ ...assistedPullUp, modality: "barbell", loadPortability: "global" }}
+      machineName={null}
+    />,
+  );
+  expect(screen.getByRole("heading", { name: "All time, across gyms" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Latest" })).toBeTruthy();
 });

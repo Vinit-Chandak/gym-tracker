@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
@@ -14,7 +14,7 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import type { DbOrTx } from "@/db/types";
-import { sessionHistories } from "@/server/queries/comparable";
+import { recentPerformances, sessionHistories } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
 
 import { readExerciseLife } from "./exercise-life";
@@ -143,5 +143,58 @@ it("takes a machine's starting guess from another machine, never from its own ol
     // The newest elsewhere is the one done before a machine was chosen; this machine's is not.
     expect(read!.elsewhere).toMatchObject({ equipmentInstanceId: null });
     expect(read!.elsewhere?.sets[0]?.weight).toBe(47.5);
+  });
+});
+
+it("reads an exercise's page on the machine its graph draws, with other machines apart", async () => {
+  const a = await athlete();
+  await a.as(async (db) => {
+    const pulldown = await a.machine(db, "lat_pulldown");
+    const cable = await a.machine(db, "cable_station");
+    for (const day of ["2026-09-03", "2026-09-17", "2026-09-24"])
+      await a.log(db, "lat-pulldown", pulldown.id, `${day}T08:00:00Z`, [40, 42.5]);
+    // Done last on another machine, and once on one nobody recorded.
+    await a.log(db, "lat-pulldown", null, "2026-10-05T08:00:00Z", [20]);
+    const lat = await a.log(db, "lat-pulldown", cable.id, "2026-10-07T08:00:00Z", [17.5, 37.5]);
+    const day = (performance: { performedAt: Date }) =>
+      performance.performedAt.toISOString().slice(0, 10);
+
+    const onPulldown = await recentPerformances(db, a.user.id, lat.id, {
+      equipmentInstanceId: pulldown.id,
+    });
+    expect(onPulldown.scoped.map(day)).toEqual(["2026-09-24", "2026-09-17", "2026-09-03"]);
+    expect(onPulldown.elsewhere.map((p) => p.equipmentInstanceId)).toEqual([cable.id, null]);
+    // The pulldown's own figures, not the cable station's it was last done on.
+    expect(
+      await readExerciseLife(db, a.user.id, lat.id, "UTC", pulldown.id, { unit: "kg" }),
+    ).toMatchObject({ sessions: 3, months: [{ month: "2026-09", topKg: 42.5 }] });
+    // In another unit there is nothing: a stack's numbers are not kilograms.
+    expect(
+      await readExerciseLife(db, a.user.id, lat.id, "UTC", pulldown.id, { unit: "stack_index" }),
+    ).toMatchObject({ sessions: 0, months: [] });
+
+    // A machine nobody recorded is a series of its one workout.
+    const [unrecorded] = await db
+      .select({ id: workoutExercises.id })
+      .from(workoutExercises)
+      .where(
+        and(eq(workoutExercises.userId, a.user.id), isNull(workoutExercises.equipmentInstanceId)),
+      );
+    const alone = await recentPerformances(db, a.user.id, lat.id, {
+      workoutExerciseId: unrecorded!.id,
+    });
+    expect(alone.scoped.map(day)).toEqual(["2026-10-05"]);
+    expect(alone.elsewhere).toHaveLength(4);
+    expect(
+      await readExerciseLife(db, a.user.id, lat.id, "UTC", null, {
+        workoutExerciseId: unrecorded!.id,
+        unit: "kg",
+      }),
+    ).toMatchObject({ sessions: 1, months: [{ month: "2026-10", topKg: 20 }] });
+
+    // A movement whose load means the same everywhere is read on any equipment, in one list.
+    const anywhere = await recentPerformances(db, a.user.id, lat.id);
+    expect(anywhere.scoped).toHaveLength(5);
+    expect(anywhere.elsewhere).toEqual([]);
   });
 });
