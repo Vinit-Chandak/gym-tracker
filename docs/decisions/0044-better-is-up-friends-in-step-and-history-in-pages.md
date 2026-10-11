@@ -51,7 +51,8 @@ left behind.
    drawn as the span tray was: a surface tray, each page a 44-pt target, the page being read in
    ink. They show every page up to five, then the first and the last and the page being read
    with its neighbours, with a gap mark between (`pageSlots`), so they keep their targets at
-   320 pt. The page is kept in the URL, so Back from an entry returns to it. A filter starts
+   320 pt (since October 2026, at larger text the tray folds onto a second row rather than
+   shrink a tab). The page is kept in the URL, so Back from an entry returns to it. A filter starts
    again at page 1, and a new page is read from the top. Dates chosen by hand stay behind the
    funnel and narrow the list. Without them it reads back as far as its readers go: the newest
    500 workouts and 500 runs, as All did. Where a reader stops short, the list ends after the

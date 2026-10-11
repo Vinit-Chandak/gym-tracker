@@ -1,7 +1,7 @@
 import type { Route } from "next";
 
 import { PageHeader } from "@/components/shell/page-header";
-import type { Meal } from "@/domain/nutrition";
+import { mealSlug, type Meal } from "@/domain/nutrition";
 import { formatIsoWeekdayDay } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import type { MealScreen } from "@/server/repositories/nutrition";
@@ -13,7 +13,8 @@ import type { FoodDayBowl } from "./portion-sheet";
 /**
  * A meal of the day's own page (ADR 0033; board Dinner), one level under the Food screen. Its
  * header names the day it adds to: today's is said with the title, as the screen it came from
- * shows it; a day before today (ADR 0037) is written under it.
+ * shows it; a day before today (ADR 0037) is written under it. Left open past midnight, the page
+ * keeps its day, which is then written under the title too.
  */
 export function MealView({
   timeZone,
@@ -37,7 +38,13 @@ export function MealView({
 }) {
   return (
     <>
-      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
+      {timeZone && (
+        <FoodDayRollover
+          today={today}
+          timeZone={timeZone}
+          keep={date === today ? (`/food/${mealSlug(meal)}?day=${date}` as Route) : undefined}
+        />
+      )}
       <PageHeader
         title={MEAL_LABELS[meal]}
         meta={formatIsoWeekdayDay(date)}

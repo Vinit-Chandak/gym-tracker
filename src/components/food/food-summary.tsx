@@ -47,10 +47,13 @@ export function FoodSummary({
   eaten,
   target,
   entries,
+  isToday = true,
 }: {
   eaten: FoodTotals;
   target: MacroTargets | null;
   entries: readonly EatenEntry[];
+  /** Whether the day is today or one before it (ADR 0037), which the breakdowns say. */
+  isToday?: boolean;
 }) {
   const meals = mealTotals(entries);
   return (
@@ -77,7 +80,7 @@ export function FoodSummary({
               label={bowlLabel(meals, eaten.kcal, target.kcal)}
             />
           </figure>
-          <MacroBars eaten={eaten} target={target} entries={entries} />
+          <MacroBars eaten={eaten} target={target} entries={entries} isToday={isToday} />
         </>
       )}
     </>

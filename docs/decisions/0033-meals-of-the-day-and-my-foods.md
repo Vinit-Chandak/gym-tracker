@@ -74,7 +74,8 @@ to be over-engineered. This record covers what changed and why.
      That is how "Usual breakfast" is brought up to date.
    - The star is lit while the meal holds exactly a saved meal's foods and amounts. Change a
      portion and it is a meal of its own again, with nothing stored to go stale.
-   - Tapping a lit star deletes that saved meal.
+   - Tapping a lit star deletes that saved meal. Since October 2026 a sheet asks first, as the
+     deletion cannot be taken back.
    - A saved meal is a copy, so it adds what was saved even after its foods are corrected or
      deleted.
 
