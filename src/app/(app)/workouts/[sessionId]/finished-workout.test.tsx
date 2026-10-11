@@ -134,3 +134,13 @@ it("counts the sets it lists, warm-ups aside, as its volume does", () => {
   expect(stat("Volume")).toBe("1,350 kg");
   expect(stat("Time")).toBe("69 min");
 });
+
+it("says each check-in reading on its own scale, as the check-in asked it", () => {
+  show({ sleepHours: 7.5, sleepQuality: 2, fatigue: 4, soreness: 1 });
+  expect(stat("Sleep")).toBe("7.5 h");
+  expect(stat("Sleep quality")).toBe("2 / 5");
+  expect(stat("Fatigue")).toBe("4 / 5");
+  expect(stat("Soreness")).toBe("1 / 5");
+  // Energy is no longer asked, and a check-in without it says nothing of it.
+  expect(screen.queryByText("Energy")).toBeNull();
+});

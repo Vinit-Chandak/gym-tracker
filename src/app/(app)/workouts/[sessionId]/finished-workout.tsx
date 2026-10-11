@@ -167,9 +167,9 @@ export function FinishedWorkout({
       )
     : null;
   const day = todayInTimeZone(session.timeZone, new Date(session.startedAt));
-  const checkIn = CHECK_IN_LABELS.flatMap(([key, label]) => {
+  const checkIn = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
-    return typeof value === "number" ? [{ label, value }] : [];
+    return typeof value === "number" ? [{ label, value, unit }] : [];
   });
 
   // What Add exercise just added stands at the end of the list: named on the status line, and
@@ -391,10 +391,15 @@ export function FinishedWorkout({
               Check-in
             </h2>
             <dl className="finished-check-in">
-              {checkIn.map(({ label, value }) => (
-                <div key={label} className="min-w-0">
+              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
+                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+              {checkIn.map(({ label, value, unit }) => (
+                <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  <dd className="mt-0.5 type-figure">{value}</dd>
+                  <dd className="mt-0.5 whitespace-nowrap">
+                    <span className="type-figure">{value}</span>
+                    <span className="figure-row-unit"> {unit}</span>
+                  </dd>
                 </div>
               ))}
             </dl>
