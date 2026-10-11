@@ -376,6 +376,11 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(true);
+      // The row is saved before the switch's answer is drawn: the switch stays busy until the
+      // page has been drawn again, and that redraw starts the note's form afresh. Type once it
+      // is free, as the screen says to.
+      await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
+      await settle();
       const note =
         "Travelling next week: keep three shorter strength sessions and review my programme.";
       await field(page, "Notes for the coach").fill(note);
