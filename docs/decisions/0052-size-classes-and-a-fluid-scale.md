@@ -75,7 +75,8 @@ The owner chose **adaptive + fluid**:
      and the next day across two, and its header widens with it. _Note, 11 October 2026:_ the
      days keep their order and leave no hole before the next one: beyond a phone the next day
      takes one column where it falls at a row's end, and its print is as tall as the others', so
-     a row's names line up; on a phone the day alone in its row before it takes the row.
+     a row's names line up; on a phone the day alone in its row before it takes the row, and so
+     does the last day where it would stand alone.
    - The Progress overview and Food split in two: the month and its totals beside History, and
      the day's bowl and macronutrients beside its meals. Each pane is a phone's width or more,
      22rem, so they split only where the column holds 46rem (two panes and the gap): a tablet
