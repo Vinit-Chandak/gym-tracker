@@ -53,9 +53,36 @@ export function measureOf(set: Pick<SetLike, "reps" | "durationSeconds" | "dista
   return "reps" as const;
 }
 
-/** "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label. */
-export function formatSet(set: SetLike, unitLabel?: string): string {
-  const weight = set.weight === null ? "—" : `${set.weight}${unitLabel ? ` ${unitLabel}` : ""}`;
+/**
+ * What an exercise's logged load is: a weight lifted; on a bodyweight movement, what was added
+ * to the body (the logger's "kg added"); on an assisted machine, the help it gave (ADR 0048).
+ */
+export type LoadReading = "load" | "bodyweight" | "assisted";
+
+export function loadReadingOf(
+  exercise: { modality: string },
+  assisted: boolean | undefined,
+): LoadReading {
+  if (assisted) return "assisted";
+  return exercise.modality === "bodyweight" ? "bodyweight" : "load";
+}
+
+/** A set's load in words: "80 kg", "Bodyweight" for nothing added, "50 kg assistance". */
+function loadWords(set: SetLike, unitLabel: string | undefined, reading: LoadReading): string {
+  // Nothing added to the body, or a machine giving no help, is the body alone, never "0 kg".
+  if ((reading === "bodyweight" && !set.weight) || (reading === "assisted" && set.weight === 0))
+    return "Bodyweight";
+  if (set.weight === null) return "—";
+  const load = `${set.weight}${unitLabel ? ` ${unitLabel}` : ""}`;
+  return reading === "assisted" ? `${load} assistance` : load;
+}
+
+/**
+ * "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label; with a unit, "80 kg × 10", and read
+ * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6".
+ */
+export function formatSet(set: SetLike, unitLabel?: string, reading: LoadReading = "load"): string {
+  const weight = loadWords(set, unitLabel, reading);
   const times = unitLabel ? " × " : "×";
   if (set.reps === null && set.distanceMeters !== null) {
     return set.weight ? `${weight}${times}${set.distanceMeters} m` : `${set.distanceMeters} m`;
@@ -71,10 +98,11 @@ export function formatSet(set: SetLike, unitLabel?: string): string {
 export function formatSets(
   sets: readonly SetLike[],
   unitLabel?: (unit: LoadUnit) => string,
+  reading: LoadReading = "load",
 ): string {
   const working = sets.filter((s) => s.setType !== "warmup");
   const shown = working.length > 0 ? working : sets;
-  return shown.map((set) => formatSet(set, unitLabel?.(set.unit))).join(", ");
+  return shown.map((set) => formatSet(set, unitLabel?.(set.unit), reading)).join(", ");
 }
 
 /** Total load moved by working sets, ignoring bodyweight-only sets. */

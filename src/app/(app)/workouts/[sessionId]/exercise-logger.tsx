@@ -26,7 +26,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
-import { formatSets, SET_LIMITS } from "@/domain/sets";
+import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
@@ -657,6 +657,7 @@ export function ExerciseLogger({
                     ? `: ${formatSets(
                         exercise.basis.sets.map((set) => setInUnit(set, unit)),
                         (load) => LOAD_UNIT_LABELS[load],
+                        loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
                       )}`
                     : ""
                 }.`

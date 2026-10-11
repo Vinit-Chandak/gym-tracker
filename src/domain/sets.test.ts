@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSets, sanitizeNumberEntry, stepValue, weightStepFor, workingVolume } from "./sets";
+import {
+  formatSet,
+  formatSets,
+  loadReadingOf,
+  sanitizeNumberEntry,
+  stepValue,
+  weightStepFor,
+  workingVolume,
+} from "./sets";
 
 describe("set helpers", () => {
   it("picks the load step from the machine, then the exercise, then 2.5", () => {
@@ -81,6 +89,33 @@ describe("set helpers", () => {
         },
       ]),
     ).toBe("40 s");
+  });
+
+  it("reads a bodyweight movement's and an assisted machine's load as the logger does", () => {
+    const set = (weight: number | null, reps: number) => ({
+      setIndex: 1,
+      setType: "working" as const,
+      weight,
+      unit: "kg" as const,
+      reps,
+      rir: 2,
+      durationSeconds: null,
+      distanceMeters: null,
+    });
+    // Nothing added to the body is the body, never "0 kg" lifted.
+    expect(formatSet(set(0, 3), "kg", "bodyweight")).toBe("Bodyweight × 3");
+    expect(formatSet(set(null, 3), "kg", "bodyweight")).toBe("Bodyweight × 3");
+    expect(formatSet(set(10, 8), "kg", "bodyweight")).toBe("10 kg × 8");
+    // An assisted machine's number is help given, not load; no help at all is the body alone.
+    expect(formatSet(set(50, 6), "kg", "assisted")).toBe("50 kg assistance × 6");
+    expect(formatSet(set(0, 6), "kg", "assisted")).toBe("Bodyweight × 6");
+    // Anywhere else a load is a load, whatever it is.
+    expect(formatSet(set(0, 3), "kg")).toBe("0 kg × 3");
+    expect(formatSet(set(50, 6), "kg", loadReadingOf({ modality: "machine" }, true))).toBe(
+      "50 kg assistance × 6",
+    );
+    expect(loadReadingOf({ modality: "bodyweight" }, undefined)).toBe("bodyweight");
+    expect(loadReadingOf({ modality: "barbell" }, false)).toBe("load");
   });
 
   it("keeps typed entry to something the log-set action accepts", () => {

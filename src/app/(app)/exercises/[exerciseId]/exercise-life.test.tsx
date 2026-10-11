@@ -67,8 +67,11 @@ it("shows an assisted machine's least help as its best, and leads each session w
   const stat = screen.getByText("Least assistance").closest("div")!;
   // The unit is a word apart from its figure, never "15kg".
   expect(stat.textContent).toBe("Least assistance15 kg");
-  // The session's lightest help, not the 20 kg it started with.
-  expect(screen.getByText("15 kg × 8")).toBeTruthy();
+  // The session's lightest help, not the 20 kg it started with, said as help rather than load.
+  expect(screen.getByText("15 kg assistance × 8")).toBeTruthy();
+  expect(
+    screen.getByText("20 kg assistance × 8, 15 kg assistance × 8, 15 kg assistance × 6"),
+  ).toBeTruthy();
   expect(screen.queryByText("Top weight")).toBeNull();
 });
 
@@ -76,4 +79,34 @@ it("shows any other machine's heaviest", () => {
   render(<ExerciseLife {...props(false)} />);
   expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40 kg");
   expect(screen.getByText("20 kg × 8")).toBeTruthy();
+});
+
+it("says a bodyweight set with nothing added as the body, never as 0 kg", () => {
+  render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{
+        modality: "bodyweight",
+        defaultPrescriptionType: "reps",
+        loadPortability: "global",
+      }}
+      machineName={null}
+      performances={[
+        { ...performance("october", "2026-10-09T08:00:00Z", [[0, 8]]), machineName: null },
+        {
+          ...performance("september", "2026-09-10T08:00:00Z", [
+            [0, 8],
+            [10, 5],
+          ]),
+          machineName: null,
+        },
+      ]}
+    />,
+  );
+  // October's one set leads its row and is its line.
+  expect(screen.getAllByText("Bodyweight × 8")).toHaveLength(2);
+  expect(screen.queryByText(/(^|[^\d])0 kg/)).toBeNull();
+  // Anything added is still the load it was, and the heavier set leads.
+  expect(screen.getByText("10 kg × 5")).toBeTruthy();
+  expect(screen.getByText("Bodyweight × 8, 10 kg × 5")).toBeTruthy();
 });

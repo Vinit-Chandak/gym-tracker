@@ -9,7 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { isLeftOpen } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets } from "@/domain/sets";
+import { formatSets, loadReadingOf } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
@@ -89,6 +89,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                     {formatSets(
                       exercise.sets.map((set) => setInUnit(set, exercise.equipment?.unit ?? unit)),
                       (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
+                      loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
                     )}
                   </span>
                 </li>
