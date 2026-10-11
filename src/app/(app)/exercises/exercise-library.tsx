@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
-import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { EXERCISE_MODALITY_LABELS, LOAD_PORTABILITY_TAGS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 function subtitle(exercise: ExerciseListItem): string {
@@ -19,17 +19,20 @@ function subtitle(exercise: ExerciseListItem): string {
 function Rows({ items }: { items: ExerciseListItem[] }) {
   return (
     <List>
-      {items.map((exercise) => (
-        <li key={exercise.id}>
-          <LinkRow
-            prefetch="intent"
-            href={`/exercises/${exercise.id}`}
-            title={exercise.name}
-            subtitle={subtitle(exercise)}
-            badge={exercise.loadPortability === "global" ? undefined : <Badge>Per machine</Badge>}
-          />
-        </li>
-      ))}
+      {items.map((exercise) => {
+        const tag = LOAD_PORTABILITY_TAGS[exercise.loadPortability];
+        return (
+          <li key={exercise.id}>
+            <LinkRow
+              prefetch="intent"
+              href={`/exercises/${exercise.id}`}
+              title={exercise.name}
+              subtitle={subtitle(exercise)}
+              badge={tag ? <Badge>{tag}</Badge> : undefined}
+            />
+          </li>
+        );
+      })}
     </List>
   );
 }

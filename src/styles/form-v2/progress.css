@@ -289,11 +289,18 @@
 }
 
 /* ---------- an exercise across its life ---------- */
+/* The figures' caption ("All time on Lat pulldown") takes the space the figures stood off by. */
+.exercise-stats-head {
+  margin-top: calc(12 * var(--ov-u));
+}
 .exercise-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(max(6rem, 30%), 1fr));
   gap: calc(10 * var(--ov-u));
   margin-top: calc(12 * var(--ov-u));
+}
+.exercise-stats-head + .exercise-stats {
+  margin-top: calc(4 * var(--ov-u));
 }
 .exercise-stats > div {
   display: flex;

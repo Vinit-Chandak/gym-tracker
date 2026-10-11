@@ -194,6 +194,7 @@ const OPEN_SESSION = {
   completedAt: null,
   exerciseCount: 4,
   setCount: 5,
+  workingSetCount: 5,
   lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
 };
 

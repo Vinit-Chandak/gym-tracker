@@ -9,12 +9,16 @@ import { formatBodyWeight } from "@/lib/units";
 
 import type { SessionVM } from "./view-model";
 
-export const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
-  ["sleepHours", "Sleep (h)"],
-  ["sleepQuality", "Sleep quality"],
-  ["energy", "Energy"],
-  ["fatigue", "Fatigue"],
-  ["soreness", "Soreness"],
+/**
+ * The check-in's readings, each with what its number is counted in: hours, or the check-in's
+ * 1–5 scale (docs/check-in.md), written "/ 5" as Progress writes it, so a 2 reads as two of five.
+ */
+export const CHECK_IN_LABELS: [keyof SessionVM, string, string][] = [
+  ["sleepHours", "Sleep", "h"],
+  ["sleepQuality", "Sleep quality", "/ 5"],
+  ["energy", "Energy", "/ 5"],
+  ["fatigue", "Fatigue", "/ 5"],
+  ["soreness", "Soreness", "/ 5"],
 ];
 
 /** One fact: its name in ink 2 at the gutter, what it is in ink at the end, on a hair rule. */
@@ -45,9 +49,10 @@ export function SessionDetails({
   session: SessionVM;
   readOnly: boolean;
 }) {
-  const readings = CHECK_IN_LABELS.map(([key, label]) => [label, session[key]] as const).filter(
-    ([, value]) => value !== null && value !== undefined,
-  );
+  const readings = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
+    const value = session[key];
+    return typeof value === "number" ? [[label, `${value} ${unit}`] as const] : [];
+  });
   const durationMinutes = session.completedAt
     ? Math.round(
         (new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 60_000,
@@ -94,7 +99,7 @@ export function SessionDetails({
         ) : (
           <dl className="mt-1 type-meta">
             {readings.map(([label, value]) => (
-              <Row key={label} label={label} value={String(value)} />
+              <Row key={label} label={label} value={value} />
             ))}
           </dl>
         )}

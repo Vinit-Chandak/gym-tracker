@@ -9,8 +9,8 @@ import {
   AVAILABILITY_LABELS,
   EQUIPMENT_CATEGORY_LABELS,
   equipmentCountLabel,
+  equipmentLoadLabel,
   GYM_KIND_LABELS,
-  RESISTANCE_MODE_LABELS,
 } from "@/lib/labels";
 import {
   markEquipmentAbsentFromFormAction,
@@ -50,6 +50,9 @@ function machineGlyph(item: EquipmentListItem): GlyphName {
   }
 }
 
+const loadLabel = (item: EquipmentListItem) =>
+  equipmentLoadLabel(item.typeCategory, item.resistanceMode);
+
 function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListItem[] }) {
   return (
     <ul>
@@ -68,8 +71,8 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
                   {/* Machines are usually named after their type, so only add it when it
                       differs. */}
                   {item.typeName === item.name
-                    ? RESISTANCE_MODE_LABELS[item.resistanceMode]
-                    : `${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`}
+                    ? loadLabel(item)
+                    : `${item.typeName} · ${loadLabel(item)}`}
                 </span>
               </span>
             </span>

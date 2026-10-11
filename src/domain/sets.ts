@@ -105,6 +105,15 @@ export function formatSets(
   return shown.map((set) => formatSet(set, unitLabel?.(set.unit), reading)).join(", ");
 }
 
+/**
+ * How many sets a workout counts: every set but a warm-up, as its sets are listed (`formatSets`),
+ * its volume is totalled and a friend reads it (ADR 0026). A warm-up is done, drawn grey in the
+ * print, and counted nowhere.
+ */
+export function workingSetCount(sets: readonly Pick<SetLike, "setType">[]): number {
+  return sets.filter((s) => s.setType !== "warmup").length;
+}
+
 /** Total load moved by working sets, ignoring bodyweight-only sets. */
 export function workingVolume(sets: readonly SetLike[]): number {
   return sets

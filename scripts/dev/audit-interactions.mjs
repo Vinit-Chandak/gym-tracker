@@ -8,8 +8,8 @@ const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3107";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
   throw new Error("Local audit only.");
 const output = `${process.env.AUDIT_OUTPUT_DIR ?? "output/audit-2026-10-07"}/interactions`;
-const fixtures = JSON.parse(await readFile(`${output}/../fixtures.json`, "utf8"));
 await mkdir(output, { recursive: true });
+const fixtures = JSON.parse(await readFile(`${output}/../fixtures.json`, "utf8"));
 const results = [];
 
 for (const config of [

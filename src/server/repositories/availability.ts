@@ -474,6 +474,8 @@ export type ExerciseGymAvailability = {
   equipment: EquipmentState;
   resolvedExerciseName: string;
   missingTypes: NamedType[];
+  /** What the way it is done here takes for granted rather than has registered: a gym's basics. */
+  assumedTypes: NamedType[];
   /** Active machines at the gym, for the "preferred machine" picker. */
   machines: { id: string; name: string }[];
   preferredInstanceId: string | null;
@@ -575,6 +577,10 @@ export async function exerciseAvailability(
               id,
               name: names.get(id) ?? "Unknown",
             }))
+          : [],
+      assumedTypes:
+        resolution.status === "direct" || resolution.status === "fallback"
+          ? resolution.assumedTypeIds.map((id) => ({ id, name: names.get(id) ?? "Unknown" }))
           : [],
       machines,
       preferredInstanceId: preferred?.equipmentInstanceId ?? null,

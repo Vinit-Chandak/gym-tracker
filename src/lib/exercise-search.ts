@@ -211,18 +211,28 @@ export type ExerciseSection<T> = { key: string; title: string; items: T[] };
  * What a list of exercises shows for a query: the library by body region when nothing is
  * typed, and the ranked results when something is. Grouping search results by region put an
  * "Assisted pull-up" above the Pull-up just because both are back exercises and "A" < "P".
+ *
+ * Choosing one to do instead of another (`like`: a swap, a fallback), the library opens on the
+ * same movement, the rest by region under it: a squat's swap began at the chest exercises. Each
+ * is listed once, so a choice is one row, never two.
  */
 export function exerciseSections<T extends SearchableExercise>(
   exercises: readonly T[],
   query: string,
+  like: Pick<SearchableExercise, "movementPattern"> | null = null,
 ): ExerciseSection<T>[] {
   const results = searchExercises(exercises, query);
   if (!results) {
-    return groupByRegion(exercises).map((group) => ({
-      key: group.region,
-      title: BODY_REGION_LABELS[group.region],
-      items: group.items,
-    }));
+    const same = (e: T) => like !== null && e.movementPattern === like.movementPattern;
+    const first = exercises.filter(same);
+    return [
+      ...(first.length > 0 ? [{ key: "like", title: "Same movement", items: first }] : []),
+      ...groupByRegion(exercises.filter((e) => !same(e))).map((group) => ({
+        key: group.region,
+        title: BODY_REGION_LABELS[group.region],
+        items: group.items,
+      })),
+    ];
   }
   return [
     { key: "name", title: "Best matches", items: results.byName },

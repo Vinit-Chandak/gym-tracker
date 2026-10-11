@@ -292,6 +292,42 @@ export function measuresWithData(sessions: readonly ExerciseSession[]): Exercise
   );
 }
 
+/**
+ * The workout a graph's readout names as the span's best by a measure. A tie goes to the better
+ * set behind it (more reps at the heaviest load; at the most reps, more load, or less help), then
+ * to the latest workout: 42.5 kg for 12 beats the 42.5 kg for 11 a week before, and of two equal
+ * bests the newer says where the lift stands. Sessions come oldest first; on an assisted machine
+ * less weight is the stronger set (ADR 0048).
+ */
+export function bestSession(
+  sessions: readonly ExerciseSession[],
+  measure: ExerciseMeasure,
+  { assisted = false }: { assisted?: boolean } = {},
+): ExerciseSession | null {
+  /** Above zero when `a` is the better of two figures. */
+  const compare = (a: number, b: number, lower: boolean) => (lower ? b - a : a - b);
+  const behind = (session: ExerciseSession) =>
+    measure === "maxWeight"
+      ? session.maxWeightReps
+      : measure === "maxReps"
+        ? session.maxRepsWeight
+        : null;
+  let best: ExerciseSession | null = null;
+  for (const session of sessions) {
+    const value = session[measure];
+    if (value === null) continue;
+    const byValue =
+      best === null ? 1 : compare(value, best[measure]!, assisted && measure === "maxWeight");
+    const [mine, theirs] = [behind(session), best && behind(best)];
+    const bySet =
+      mine !== null && theirs !== null
+        ? compare(mine, theirs, assisted && measure === "maxReps")
+        : 0;
+    if (byValue > 0 || (byValue === 0 && bySet >= 0)) best = session;
+  }
+  return best;
+}
+
 // ---------- Running ----------
 
 export type RunInput = {

@@ -12,8 +12,8 @@ import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatSets, loadReadingOf } from "@/domain/sets";
-import { formatIsoWeekdayDay } from "@/lib/format";
+import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
+import { formatIsoDate, formatIsoWeekdayDay } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -165,7 +165,8 @@ export function FinishedWorkout({
   const editing = edit?.editing === true && !justFinished;
   const done = session.exercises.filter((exercise) => exercise.sets.length > 0);
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
-  const sets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // The sets listed under it, warm-ups aside: the print draws those, grey, and counts nothing.
+  const sets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
   const volume = volumeOf(session);
   const minutes = session.completedAt
     ? Math.round(
@@ -173,9 +174,12 @@ export function FinishedWorkout({
       )
     : null;
   const day = todayInTimeZone(session.timeZone, new Date(session.startedAt));
-  const checkIn = CHECK_IN_LABELS.flatMap(([key, label]) => {
+  // History reaches back a year and more: a workout from another year names it, as a friend's
+  // copy of it does.
+  const year = todayInTimeZone(session.timeZone).slice(0, 4);
+  const checkIn = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
-    return typeof value === "number" ? [{ label, value }] : [];
+    return typeof value === "number" ? [{ label, value, unit }] : [];
   });
 
   // What Add exercise just added stands at the end of the list: named on the status line, and
@@ -261,7 +265,7 @@ export function FinishedWorkout({
           {!justFinished && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
-              {formatIsoWeekdayDay(day)}
+              {formatIsoDate(day, year)}
             </span>
           )}
           <span className="meta-fact">
@@ -397,10 +401,15 @@ export function FinishedWorkout({
               Check-in
             </h2>
             <dl className="finished-check-in">
-              {checkIn.map(({ label, value }) => (
-                <div key={label} className="min-w-0">
+              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
+                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+              {checkIn.map(({ label, value, unit }) => (
+                <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  <dd className="mt-0.5 type-figure">{value}</dd>
+                  <dd className="mt-0.5 whitespace-nowrap">
+                    <span className="type-figure">{value}</span>
+                    <span className="figure-row-unit"> {unit}</span>
+                  </dd>
                 </div>
               ))}
             </dl>

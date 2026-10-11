@@ -493,18 +493,13 @@ export const STRENGTH_5K_BUILDER = blueprint(
     rest(7, 7),
   ],
   [
-    ...runs(
-      10,
-      1,
-      (w) => ({ minutes: [18, 22], km: [2.5 + w * 0.1, 3 + w * 0.1], rpe: [2, 2] }),
-      STOP,
-    ),
+    ...runs(10, 1, () => ({ minutes: [18, 22], km: [2.6, 3.1], rpe: [2, 2] }), STOP),
     ...runs(
       10,
       4,
       (w) => ({
-        minutes: [25 + w, 30 + w],
-        km: [3.5 + w * 0.15, 4 + w * 0.2],
+        minutes: [20 + w, 25 + w],
+        km: [(20 + w) / 6.2, (25 + w) / 6.2],
         rpe: [3, 4],
         pace: "10K effort",
       }),
@@ -514,8 +509,8 @@ export const STRENGTH_5K_BUILDER = blueprint(
       10,
       6,
       (w) => ({
-        minutes: [35 + w * 2, 45 + w * 2],
-        km: [4.5 + w * 0.3, 5.5 + w * 0.4],
+        minutes: [35 + w * 1.5, 45 + w * 1.5],
+        km: [(35 + w * 1.5) / 7.25, (45 + w * 1.5) / 7.25],
         rpe: [2, 3],
       }),
       STOP,
@@ -1054,30 +1049,29 @@ export const HYBRID_HALF_MARATHON = blueprint(
       ],
       { warmup: "lower" },
     ),
-    day(6, 6, "Long run", "Easy, long", [], { run: true, warmup: "run", time: "60–110 min" }),
+    day(6, 6, "Long run", "Easy, long", [], { run: true, warmup: "run", time: "60–120 min" }),
     rest(7, 7),
   ],
   [
-    ...runs(
-      16,
-      2,
-      (w) => ({ minutes: [40, 50], km: [6 + w * 0.1, 7 + w * 0.1], rpe: [2, 2] }),
-      CALF,
-    ),
+    ...runs(16, 2, () => ({ minutes: [40, 50], km: [7, 9], rpe: [2, 2] }), CALF),
     ...runs(
       16,
       4,
-      (w) => ({ minutes: [40 + w, 50 + w], km: [7, 9], rpe: [3, 4], pace: "Half-marathon pace" }),
+      (w) => ({
+        minutes: [30 + w * 0.5, 40 + w * 0.5],
+        km: [(30 + w * 0.5) / 4.9, (40 + w * 0.5) / 4.9],
+        rpe: [3, 4],
+        pace: "Half-marathon pace",
+      }),
       CALF,
     ),
     ...runs(
       16,
       6,
-      (w) => ({
-        minutes: [55 + w * 4, 65 + w * 4],
-        km: [Math.min(9 + w * 0.6, 18), Math.min(10 + w * 0.6, 19)],
-        rpe: [2, 3],
-      }),
+      (w) => {
+        const km: Range = [Math.min(9 + w * 0.6, 18), Math.min(10 + w * 0.6, 19)];
+        return { minutes: [km[0] * 6, km[1] * 6], km, rpe: [2, 3] };
+      },
       CALF,
     ),
   ],

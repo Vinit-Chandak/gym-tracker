@@ -4,6 +4,7 @@ import { allRange, customRange, presetRange } from "./graph-range";
 import { addDays, daysBetween } from "./program-calendar";
 import {
   averagePace,
+  bestSession,
   exerciseSessions,
   foodGraph,
   measuresWithData,
@@ -185,6 +186,69 @@ describe("one exercise, workout by workout", () => {
     // The same sets on a machine that adds load keep the heaviest, and their volume.
     const [loaded] = exerciseSessions([set("a", 40, 8), set("a", 45, 10)], "machine", "kg");
     expect(loaded).toMatchObject({ maxWeight: 45, maxVolume: 450 });
+  });
+
+  it("names a tied best by the better set behind it, then by the latest workout", () => {
+    const rows = (sets: [string, number, number][]): ExerciseSetRow[] =>
+      sets.map(([sessionId, weight, reps]) => ({
+        ...set(sessionId, weight, reps),
+        date: `2026-09-${sessionId.padStart(2, "0")}`,
+      }));
+    // Aarav's lat pulldown: 42.5 kg on the 17th for 11, and on the 24th for 12.
+    const pulldown = exerciseSessions(
+      rows([
+        ["17", 40, 13],
+        ["17", 42.5, 10],
+        ["17", 42.5, 11],
+        ["24", 40, 12],
+        ["24", 42.5, 12],
+        ["24", 42.5, 10],
+      ]),
+      "machine",
+      "kg",
+    );
+    expect(bestSession(pulldown, "maxWeight")).toMatchObject({ date: "2026-09-24" });
+    // The heavier set still wins whatever its reps.
+    expect(bestSession([...pulldown].reverse(), "maxWeight")!.maxWeightReps).toBe(12);
+    // Equal in every way: the newer workout says where the lift stands.
+    const twice = exerciseSessions(
+      rows([
+        ["01", 170, 7],
+        ["08", 185, 4],
+      ]),
+      "barbell",
+      "lb",
+    );
+    expect(twice[0]!.e1rm).toBe(twice[1]!.e1rm);
+    expect(bestSession(twice, "e1rm")).toMatchObject({ date: "2026-09-08" });
+    // Most reps, tied: the heavier load behind them; on an assisted machine, the least help.
+    const reps = rows([
+      ["01", 30, 10],
+      ["08", 20, 10],
+    ]);
+    expect(bestSession(exerciseSessions(reps, "machine", "kg"), "maxReps")).toMatchObject({
+      date: "2026-09-01",
+    });
+    expect(
+      bestSession(exerciseSessions(reps, "machine", "kg", { assisted: true }), "maxReps", {
+        assisted: true,
+      }),
+    ).toMatchObject({ date: "2026-09-08" });
+    // Less help is the stronger set, and a tie on it goes to more reps.
+    const help = exerciseSessions(
+      rows([
+        ["01", 25, 6],
+        ["08", 25, 8],
+        ["15", 30, 12],
+      ]),
+      "machine",
+      "kg",
+      { assisted: true },
+    );
+    expect(bestSession(help, "maxWeight", { assisted: true })).toMatchObject({
+      date: "2026-09-08",
+    });
+    expect(bestSession([], "maxWeight")).toBeNull();
   });
 });
 

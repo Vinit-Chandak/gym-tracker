@@ -15,6 +15,8 @@ type FallbackFormProps = {
   exercises: ExerciseListItem[];
   machines: { id: string; name: string }[];
   compatibleMachines: Record<string, string[]>;
+  /** The exercise it stands in for: the list opens on its movement. */
+  like?: Pick<ExerciseListItem, "movementPattern"> | null;
 };
 
 export function FallbackForm({
@@ -22,6 +24,7 @@ export function FallbackForm({
   exercises,
   machines,
   compatibleMachines,
+  like = null,
 }: FallbackFormProps) {
   const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -44,6 +47,7 @@ export function FallbackForm({
           setMachineId("");
         }}
         error={state.fieldErrors?.fallbackExerciseId}
+        like={like}
         long
       />
       <PinnedActions stack>
