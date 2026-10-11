@@ -72,10 +72,13 @@ export function CycleDay({ plan, open = false }: { plan: ProgramDayPlan; open?: 
 
   return (
     <details className="group box min-w-0">
+      {/* The day answers a press with its tint, not the controls' 0.97: at large text the head
+          is hundreds of points tall, and shrinking it took its rounded corner out from under a
+          thumb pressed near it, so the press landed on the card and the day stayed shut. */}
       <summary
         className={cn(
           HEAD,
-          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+          "list-none rounded-card transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:scale-100 active:bg-surface-raised",
         )}
       >
         {head}
