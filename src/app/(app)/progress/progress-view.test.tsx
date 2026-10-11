@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { presetRange } from "@/domain/graph-range";
+import { allRange, presetRange } from "@/domain/graph-range";
 import { emptyMuscleVolume } from "@/domain/muscle-volume";
 import { foodGraph, recoveryGraph, runningGraph, strengthGraph } from "@/domain/progress-graphs";
 
@@ -61,6 +61,40 @@ it("draws Body weight on the span every graph shares, its dates and the funnel b
   expect(screen.getByText("76.8")).toBeTruthy();
   // The body map is a section of its own now.
   expect(screen.queryByRole("button", { name: "Previous week" })).toBeNull();
+});
+
+it("names Strength's dates as its graph draws them: the exercise's own under All", () => {
+  // Lifting since March 2025; the Romanian deadlift only since June 2026.
+  const all = allRange("2025-03-03", TODAY);
+  const exercise = allRange("2026-06-10", TODAY);
+  const drawn: ProgressData = {
+    ...data,
+    preset: "all",
+    strength: { range: all, graph: strengthGraph([], all, TODAY), unit: "kg" },
+    exercise: {
+      range: exercise,
+      options: [
+        { id: "rdl", name: "Romanian deadlift", machine: "Across gyms", unit: "kg", group: "legs" },
+      ],
+      selected: {
+        id: "rdl",
+        name: "Romanian deadlift",
+        machine: "Across gyms",
+        unit: "kg",
+        modality: "barbell",
+        assisted: false,
+        sessions: [],
+      },
+    },
+  };
+  route.search = "view=strength";
+  render(<ProgressView data={drawn} />);
+  // No exercise in the URL: the muscle groups' volume, over every lift.
+  expect(screen.getByText("1 Mar 2025 – 8 Oct 2026")).toBeTruthy();
+  cleanup();
+  route.search = "view=strength&series=rdl";
+  render(<ProgressView data={drawn} />);
+  expect(screen.getByText("8 Jun – 8 Oct 2026")).toBeTruthy();
 });
 
 it("draws Muscles on its own week, with no span and no custom dates to choose", () => {

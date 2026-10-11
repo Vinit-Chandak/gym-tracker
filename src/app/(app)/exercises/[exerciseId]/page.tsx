@@ -181,7 +181,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
         options,
         selected,
-        sessions: selected ? exerciseSessions(sets, selected.modality, selected.unit) : [],
+        sessions: selected
+          ? exerciseSessions(sets, selected.modality, selected.unit, {
+              assisted: selected.assisted,
+            })
+          : [],
         life,
         machineName: machine
           ? (latest.find((performance) => performance.equipmentInstanceId === machine)
@@ -261,6 +265,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                         machine: selected.machine,
                         unit: selected.unit,
                         modality: selected.modality,
+                        assisted: selected.assisted,
                         sessions,
                       }
                     : null,

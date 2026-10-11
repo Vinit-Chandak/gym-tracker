@@ -73,6 +73,7 @@ function draw(selected: "squat" | null = null) {
             machine: "Across gyms",
             unit: "kg",
             modality: "barbell",
+            assisted: false,
             sessions,
           }
         : null,

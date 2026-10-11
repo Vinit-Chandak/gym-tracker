@@ -1,7 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { exercises, foodEntries, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import {
+  equipmentInstances,
+  exercises,
+  foodEntries,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -10,6 +17,7 @@ import { exerciseSessions } from "@/domain/progress-graphs";
 import type { LoadUnit } from "@/domain/types";
 import { dateWindow } from "@/server/validation/date-range";
 
+import { readExerciseLife } from "./exercise-life";
 import {
   parseSeriesId,
   pickSeries,
@@ -32,7 +40,11 @@ async function workout(
   userId: string,
   localStart: string,
   sets: [string, number | null, number | null, LoadUnit?][],
-  { finished = true, exerciseId = bench }: { finished?: boolean; exerciseId?: string } = {},
+  {
+    finished = true,
+    exerciseId = bench,
+    machineId = null,
+  }: { finished?: boolean; exerciseId?: string; machineId?: string | null } = {},
 ) {
   return withUser(t.db, userId, async (tx) => {
     const startedAt = new Date(`${localStart}+05:30`);
@@ -42,7 +54,13 @@ async function workout(
       .returning({ id: workoutSessions.id });
     const [slot] = await tx
       .insert(workoutExercises)
-      .values({ userId, workoutSessionId: session!.id, exerciseId, orderIndex: 0 })
+      .values({
+        userId,
+        workoutSessionId: session!.id,
+        exerciseId,
+        orderIndex: 0,
+        equipmentInstanceId: machineId,
+      })
       .returning({ id: workoutExercises.id });
     await tx.insert(setLogs).values(
       sets.map(([setType, weight, reps, unit = "kg"], setIndex) => ({
@@ -137,6 +155,90 @@ describe("strength", () => {
     expect(row).toMatchObject({ workingSets: 3, volumeKg: 510.3 });
   });
 
+  it("reads an assisted machine's number as help: no volume, and the least of it the best", async () => {
+    const dave = await t.createAuthUser("assisted-graphs@example.com");
+    const { machine, pullUp } = await withUser(t.db, dave.id, async (tx) => {
+      await seedTestUserData(tx, dave);
+      const [row] = await tx
+        .select({ id: equipmentInstances.id })
+        .from(equipmentInstances)
+        .where(
+          and(
+            eq(equipmentInstances.userId, dave.id),
+            eq(equipmentInstances.name, "Assisted pull-up machine"),
+          ),
+        );
+      const [exercise] = await tx
+        .select({ id: exercises.id })
+        .from(exercises)
+        .where(eq(exercises.slug, "assisted-pull-up"));
+      return { machine: row!.id, pullUp: exercise!.id };
+    });
+    const help = (kg: number): [string, number, number][] => [
+      ["working", kg, 8],
+      ["working", kg, 8],
+      ["working", kg, 8],
+    ];
+    await workout(dave.id, "2026-08-04T18:00:00", help(50), {
+      exerciseId: pullUp,
+      machineId: machine,
+    });
+    await workout(dave.id, "2026-09-01T18:00:00", help(40), {
+      exerciseId: pullUp,
+      machineId: machine,
+    });
+    await workout(dave.id, "2026-09-29T18:00:00", help(25), {
+      exerciseId: pullUp,
+      machineId: machine,
+    });
+    // A lift whose load means the same everywhere is a load, whatever machine it was done on.
+    await workout(dave.id, "2026-09-15T18:00:00", [["working", 60, 5]], { machineId: machine });
+
+    const rows = await withUser(t.db, dave.id, (tx) =>
+      readStrengthRows(tx, dave.id, zone, september),
+    );
+    // Three sets of work each time, and no load: 40 kg of help times 24 reps is not volume.
+    expect(rows.map((row) => [row.date, row.workingSets, row.volumeKg])).toEqual([
+      ["2026-09-01", 3, 0],
+      ["2026-09-15", 1, 300],
+      ["2026-09-29", 3, 0],
+    ]);
+
+    const options = await withUser(t.db, dave.id, (tx) =>
+      readExerciseSeriesOptions(tx, dave.id, september),
+    );
+    const series = options.find((option) => option.exerciseId === pullUp)!;
+    expect(series).toMatchObject({ id: `${pullUp}:${machine}:kg`, assisted: true });
+    expect(options.find((option) => option.exerciseId === bench)!.assisted).toBe(false);
+
+    const sets = await withUser(t.db, dave.id, (tx) =>
+      readExerciseSetRows(tx, dave.id, zone, september, series.id),
+    );
+    // Stronger is up: the least help each workout, 40 then 25, and nothing to call volume.
+    expect(
+      exerciseSessions(sets, series.modality, series.unit, { assisted: true }).map((session) => [
+        session.maxWeight,
+        session.maxVolume,
+      ]),
+    ).toEqual([
+      [40, null],
+      [25, null],
+    ]);
+
+    // The exercise's page agrees: each month's best is its least help.
+    const life = await withUser(t.db, dave.id, (tx) =>
+      readExerciseLife(tx, dave.id, pullUp, zone, machine),
+    );
+    expect(life).toEqual({
+      months: [
+        { month: "2026-08", topKg: 50 },
+        { month: "2026-09", topKg: 25 },
+      ],
+      sessions: 3,
+      assisted: true,
+    });
+  });
+
   it("offers every series ever logged, counting the workouts in the window apart", async () => {
     const options = await withUser(t.db, alice.id, (tx) =>
       readExerciseSeriesOptions(tx, alice.id, september),
@@ -214,6 +316,7 @@ describe("series ids", () => {
       unit: "kg",
       modality: "barbell",
       group: null,
+      assisted: false,
       measure: "reps",
       sessionsInRange: 0,
       sessions: 10,

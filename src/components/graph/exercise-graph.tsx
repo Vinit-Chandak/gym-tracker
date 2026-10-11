@@ -40,19 +40,30 @@ export type ExerciseGraphData = {
   selected:
     | (Omit<ExerciseSeriesChoice, "group"> & {
         modality: ExerciseModality;
+        /** An assisted machine: its number is help given, so less is stronger (ADR 0048). */
+        assisted: boolean;
         sessions: ExerciseSession[];
       })
     | null;
 };
 
+type MeasureNames = { short: string; long: string; best: string };
+
 /** Each measure: its segment, its name, and the summary over the range. */
-const MEASURES: Record<ExerciseMeasure, { short: string; long: string; best: string }> = {
+const MEASURES: Record<ExerciseMeasure, MeasureNames> = {
   e1rm: { short: "e1RM", long: "Estimated 1RM", best: "Best estimated 1RM" },
   maxWeight: { short: "Weight", long: "Max weight", best: "Heaviest set" },
   maxReps: { short: "Reps", long: "Max reps", best: "Most reps in a set" },
   maxVolume: { short: "Volume", long: "Max volume", best: "Biggest set, load × reps" },
   maxSeconds: { short: "Time", long: "Max time", best: "Longest set" },
   maxMetres: { short: "Distance", long: "Max distance", best: "Longest set" },
+};
+
+/** An assisted machine's weight is the help it gave, so its best is the least of it. */
+const ASSISTANCE: MeasureNames = {
+  short: "Assistance",
+  long: "Least assistance",
+  best: "Least assistance",
 };
 
 /**
@@ -76,6 +87,8 @@ export function ExerciseGraph({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const { selected, options, range } = data;
+  const assisted = selected?.assisted ?? false;
+  const named = (m: ExerciseMeasure) => (assisted && m === "maxWeight" ? ASSISTANCE : MEASURES[m]);
 
   const sessions = selected?.sessions ?? [];
   const available = measuresWithData(sessions);
@@ -94,6 +107,9 @@ export function ExerciseGraph({
   const machines = selected ? options.filter((option) => option.name === selected.name) : [];
 
   const unit = selected ? LOAD_UNIT_LABELS[selected.unit] : "";
+  // Less assistance is the stronger set: its line keeps the least, on a scale that runs
+  // downward, so better is still up (ADR 0044).
+  const lowerIsBetter = assisted && measure === "maxWeight";
   const figure = (value: number): { figure: string; unit?: string } => {
     if (measure === "maxReps") return { figure: String(value), unit: value === 1 ? "rep" : "reps" };
     if (measure === "maxSeconds") return { figure: formatDuration(value) };
@@ -114,7 +130,7 @@ export function ExerciseGraph({
       case "maxReps":
         return session.maxRepsWeight === null
           ? null
-          : `At ${decimal(session.maxRepsWeight)} ${unit}`;
+          : `At ${decimal(session.maxRepsWeight)} ${unit}${assisted ? " assistance" : ""}`;
       case "maxVolume":
         return session.maxVolumeSet
           ? setOf(session.maxVolumeSet.weight, session.maxVolumeSet.reps)
@@ -126,10 +142,14 @@ export function ExerciseGraph({
 
   const points = sessions.map((session) => ({ date: session.date, value: session[measure] }));
   // Past about sixty workouts, a point per week or month: that span's best workout.
-  const line = thinRecords(points, range, { reduce: "max" });
+  const line = thinRecords(points, range, { reduce: lowerIsBetter ? "min" : "max" });
   const bestIndex = points.reduce(
     (best, point, index) =>
-      point.value !== null && (best < 0 || point.value > points[best]!.value!) ? index : best,
+      point.value !== null &&
+      (best < 0 ||
+        (lowerIsBetter ? point.value < points[best]!.value! : point.value > points[best]!.value!))
+        ? index
+        : best,
     -1,
   );
   const best = bestIndex >= 0 ? sessions[bestIndex]! : null;
@@ -158,8 +178,8 @@ export function ExerciseGraph({
           aria-label="Measure"
           options={EXERCISE_MEASURES.filter((m) => available.includes(m)).map((m) => ({
             value: m,
-            label: MEASURES[m].short,
-            accessibleLabel: MEASURES[m].long,
+            label: named(m).short,
+            accessibleLabel: named(m).long,
           }))}
           value={measure}
           onChange={setMeasure}
@@ -169,7 +189,7 @@ export function ExerciseGraph({
       {selected ? (
         <div className={pending ? "opacity-50 transition-opacity" : undefined}>
           <Graph
-            name={`${selected.name}, ${MEASURES[measure].long.toLowerCase()}`}
+            name={`${selected.name}, ${named(measure).long.toLowerCase()}`}
             mark="line"
             placement="record"
             range={range}
@@ -179,8 +199,10 @@ export function ExerciseGraph({
                 ? formatDuration(value)
                 : decimal(value, value >= 100 ? 0 : 1)
             }
+            // Reps are counted whole; assistance runs downward, so less of it stands higher.
+            scale={{ integral: measure === "maxReps", invert: lowerIsBetter }}
             summary={{
-              label: MEASURES[measure].best,
+              label: named(measure).best,
               ...(best ? figure(best[measure]!) : { figure: null }),
               context: best
                 ? [detail(best), dayLabel(best.date, today)].filter(Boolean).join(" · ")
@@ -219,6 +241,8 @@ export function ExerciseGraph({
                   {measure === "e1rm" &&
                     " Estimated 1RM is Epley's formula on barbell and dumbbell sets of 1–10 reps; a dumbbell counts as logged, not doubled per hand."}
                   {measure === "maxVolume" && " Volume is one set's load × reps."}
+                  {assisted &&
+                    " On an assisted machine the weight is the help it gave, so less is stronger and stands higher; it adds no volume."}
                 </>
               ),
             }}

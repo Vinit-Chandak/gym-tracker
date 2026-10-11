@@ -71,3 +71,13 @@ exercise's group, as a follower reads it), `u/[username]/social-sports.test.tsx`
 place of the period), and `components/ui/page-tabs.test.tsx` with
 `progress/history/history-view.test.tsx` (ten a page, the tabs, the page in the URL). Rendered
 against the audit account.
+
+## Note, 11 October 2026
+
+An assisted machine (assisted pull-up, assisted dip) logs the help it gave, so less is stronger
+(ADR 0048), and its graph had been drawn upside down. Its exercise graph now keeps each
+workout's least assistance ("Least assistance") and draws it downward, as pace is, so better is
+still up; the exercise page's figure and its latest sessions read it the same way. Its help adds
+no volume to a muscle group's total, and no Volume measure is offered for it. Nor is one for a
+stack step or a plate count: volume is load × reps in kg or lb only, as ADR 0043 already counts a
+group's.
