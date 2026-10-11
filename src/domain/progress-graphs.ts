@@ -171,19 +171,23 @@ export type ExerciseSetRow = {
 /** A set as the readout names it: "100 kg × 6". */
 export type SetFigure = { weight: number | null; reps: number | null };
 
-/** What one workout did with the exercise: its best by each measure, and the set behind it. */
+/**
+ * What one workout did with the exercise: its best by each measure, and the set behind it. On
+ * an assisted machine the weight is help given, so its best is the least of it.
+ */
 export type ExerciseSession = {
   date: string;
   sessionId: string;
   e1rm: number | null;
   e1rmSet: SetFigure | null;
+  /** The heaviest load; on an assisted machine, the least assistance. */
   maxWeight: number | null;
-  /** The most reps done at the heaviest load. */
+  /** The most reps done at that load. */
   maxWeightReps: number | null;
   maxReps: number | null;
-  /** The heaviest load the most reps were done with. */
+  /** The heaviest load the most reps were done with; on an assisted machine, the least help. */
   maxRepsWeight: number | null;
-  /** The best single set by load × reps. */
+  /** The best single set by load × reps, in kg or lb only. */
   maxVolume: number | null;
   maxVolumeSet: SetFigure | null;
   maxSeconds: number | null;
@@ -206,17 +210,28 @@ export type ExerciseMeasure = (typeof EXERCISE_MEASURES)[number];
 
 const better = (value: number | null, best: number | null) =>
   value !== null && (best === null || value > best);
+const less = (value: number | null, best: number | null) =>
+  value !== null && (best === null || value < best);
 
 /**
  * Each workout's bests, oldest first. A load of nothing is a bodyweight set: it has reps, and
  * no weight or volume to speak of. Estimated 1RM is Epley's, on barbell and dumbbell sets of
- * 1–10 reps, through the one function the rest of the app uses.
+ * 1–10 reps, through the one function the rest of the app uses. Volume is load × reps in kg or
+ * lb only: a stack step or a plate count is a position, not a weight (ADR 0043).
+ *
+ * On an assisted machine (`assisted`) the number is help given: less of it is the stronger set,
+ * as the Next up box reads it (ADR 0048). Its best is the least assistance, and it has no volume:
+ * help times reps is not work done.
  */
 export function exerciseSessions(
   rows: readonly ExerciseSetRow[],
   modality: string,
   unit: string,
+  { assisted = false }: { assisted?: boolean } = {},
 ): ExerciseSession[] {
+  const loaded = !assisted && (unit === "kg" || unit === "lb");
+  /** Whether a load beats the best so far: a heavier one, or on an assisted machine a lighter. */
+  const stronger = assisted ? less : better;
   const sessions = new Map<string, ExerciseSession>();
   for (const row of rows) {
     const session = sessions.get(row.sessionId) ?? {
@@ -235,12 +250,12 @@ export function exerciseSessions(
     };
     const weight = row.weight !== null && row.weight > 0 ? row.weight : null;
     const reps = row.reps !== null && row.reps > 0 ? row.reps : null;
-    const e1rm = estimated1RM(weight, reps, modality, unit);
+    const e1rm = assisted ? null : estimated1RM(weight, reps, modality, unit);
     if (better(e1rm, session.e1rm)) {
       session.e1rm = e1rm;
       session.e1rmSet = { weight, reps };
     }
-    if (better(weight, session.maxWeight)) {
+    if (stronger(weight, session.maxWeight)) {
       session.maxWeight = weight;
       session.maxWeightReps = reps;
     } else if (
@@ -252,9 +267,9 @@ export function exerciseSessions(
     if (better(reps, session.maxReps)) {
       session.maxReps = reps;
       session.maxRepsWeight = weight;
-    } else if (reps !== null && reps === session.maxReps && better(weight, session.maxRepsWeight))
+    } else if (reps !== null && reps === session.maxReps && stronger(weight, session.maxRepsWeight))
       session.maxRepsWeight = weight;
-    const volume = weight !== null && reps !== null ? round(weight * reps) : null;
+    const volume = loaded && weight !== null && reps !== null ? round(weight * reps) : null;
     if (better(volume, session.maxVolume)) {
       session.maxVolume = volume;
       session.maxVolumeSet = { weight, reps };
@@ -378,7 +393,7 @@ export type FoodGraph = {
   buckets: FoodBucket[];
   kcal: LoggedMean;
   protein: LoggedMean;
-  /** Days the range has had so far, for "24 of 30 days logged". */
+  /** Days the range has had so far, from its first that counts, for "24 of 30 days logged". */
   days: number;
 };
 
@@ -386,11 +401,16 @@ export type FoodGraph = {
  * A day counts toward an average once something on it adds up to more than zero; a day with
  * nothing logged is not a day of eating nothing (ADR 0042). A day logged in part still counts:
  * what it holds is what was recorded.
+ *
+ * `firstDay` is where "of 30 days" starts counting. A range is widened back to its first
+ * bucket's start (a Monday, the 1st), so under All it can start before anything was ever logged,
+ * and with dates chosen by hand before the From chosen: those days were never there to log.
  */
 export function foodGraph(
   days: readonly FoodDayInput[],
   range: GraphRange,
   today: string,
+  firstDay: string = range.from,
 ): FoodGraph {
   const buckets = rangeSlots(range, today).map((slot) => ({
     slot,
@@ -429,7 +449,7 @@ export function foodGraph(
     }),
     kcal: meanOf(kcal, 1),
     protein: meanOf(protein, 1),
-    days: daysSoFar(range, today),
+    days: daysSoFar({ ...range, from: firstDay > range.from ? firstDay : range.from }, today),
   };
 }
 

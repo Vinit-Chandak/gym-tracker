@@ -122,7 +122,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     rangeOf(choice, today, choice.preset === "all" ? earliestOf(dates) : null);
 
   const sessions = data.selected
-    ? exerciseSessions(data.sets, data.selected.modality, data.selected.unit)
+    ? exerciseSessions(data.sets, data.selected.modality, data.selected.unit, {
+        assisted: data.selected.assisted,
+      })
     : [];
   // Oldest first, as every graph draws; the reader hands them back newest first.
   const runs = data.runs.runs
@@ -137,6 +139,13 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const strengthRange = rangeFor(data.strength.map((row) => row.date));
   const runningRange = rangeFor(runs.map((run) => run.date));
   const foodRange = rangeFor(data.food.map((day) => day.date));
+  // "24 of 30 days logged" counts from the first day there was to log: under All the first day
+  // logged, with dates chosen by hand the From chosen, not the Monday or the 1st either range
+  // reaches back to.
+  const foodFrom =
+    choice.custom?.from ??
+    (choice.preset === "all" ? earliestOf(data.food.map((day) => day.date)) : null) ??
+    foodRange.from;
   const bodyRange = rangeFor(data.weights.map((reading) => reading.measuredOn));
   const recoveryRange = rangeFor(data.recovery.map((reading) => reading.date));
 
@@ -182,6 +191,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                     machine: data.selected.machine,
                     unit: data.selected.unit,
                     modality: data.selected.modality,
+                    assisted: data.selected.assisted,
                     sessions,
                   }
                 : null,
@@ -193,7 +203,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             },
             food: {
               range: foodRange,
-              graph: foodGraph(data.food, foodRange, today),
+              graph: foodGraph(data.food, foodRange, today, foodFrom),
               targets: data.targets
                 ? {
                     kcal: data.targets.dailyKcal,

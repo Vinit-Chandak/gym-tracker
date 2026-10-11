@@ -27,14 +27,22 @@ import { StrengthSection } from "./sections/strength-section";
 /**
  * The range a section is drawn over, for the dates beside its name and the funnel's. Overview
  * has none: its month is this month and its list the latest (ADR 0045). Nor has Muscles: it
- * keeps its own week, named over the body map (ADR 0047).
+ * keeps its own week, named over the body map (ADR 0047). Strength's is its exercise's while
+ * one is drawn (`series`, as StrengthSection tests it): under All, that exercise's graph starts
+ * at its own first workout, not at the first of any.
  */
-function sectionRange(section: ProgressSection, data: ProgressData): GraphRange | null {
+function sectionRange(
+  section: ProgressSection,
+  data: ProgressData,
+  series: string | null,
+): GraphRange | null {
   switch (section) {
     case "overview":
       return null;
     case "strength":
-      return data.strength.range;
+      return data.exercise.selected && data.exercise.selected.id === series
+        ? data.exercise.range
+        : data.strength.range;
     case "muscles":
       return null;
     case "running":
@@ -64,7 +72,7 @@ export function ProgressView({ data }: { data: ProgressData }) {
     const query = next.toString();
     window.history.replaceState(null, "", query ? `/progress?${query}` : "/progress");
   };
-  const range = sectionRange(tab, data);
+  const range = sectionRange(tab, data, params.get("series"));
   const rangeText = range ? formatDateRange(range.from, range.to) : null;
   // Dates that could not be read are said where a span is drawn; a week, only on Muscles.
   const error = tab === "muscles" ? data.weekError : range ? data.rangeError : null;

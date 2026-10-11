@@ -52,18 +52,25 @@ export type LatestPerformance = {
   sets: Set[];
 };
 
-/** The session's heaviest working set, the figure a row of Latest leads with: "72.5 kg × 6". */
-function topSet(sets: readonly Set[]): string | null {
-  const working = sets.filter((set) => set.setType !== "warmup" && set.weight !== null);
+/**
+ * The session's best working set, the figure a row of Latest leads with: "72.5 kg × 6". The
+ * heaviest; on an assisted machine, where the number is help given, the least help.
+ */
+function topSet(sets: readonly Set[], assisted: boolean): string | null {
+  const working = sets.filter(
+    (set) => set.setType !== "warmup" && set.weight !== null && (!assisted || set.weight > 0),
+  );
   if (working.length === 0) return null;
-  const top = working.reduce((best, set) => (set.weight! > best.weight! ? set : best));
+  const top = working.reduce((best, set) =>
+    (assisted ? set.weight! < best.weight! : set.weight! > best.weight!) ? set : best,
+  );
   return formatSet(top, LOAD_UNIT_LABELS[top.unit]);
 }
 
 /**
  * An exercise across its whole life (board Exercise): its equipment and where, its graph (the
  * one Progress draws, ADR 0042), then the count of sessions and its records, and the latest
- * sessions, each led by its heaviest set.
+ * sessions, each led by its best set.
  */
 export function ExerciseLife({
   exercise,
@@ -76,7 +83,8 @@ export function ExerciseLife({
   performances,
 }: {
   exercise: MetricExercise & { modality: ExerciseModality; loadPortability: string };
-  life: { months: ExerciseMonth[]; sessions: number };
+  /** `assisted`: the machine's number is help given, so its best is the least of it. */
+  life: { months: ExerciseMonth[]; sessions: number; assisted: boolean };
   /** The machine the months are read on, for a movement bound to its machine. */
   machineName: string | null;
   bests: readonly ExerciseBest[];
@@ -100,7 +108,9 @@ export function ExerciseLife({
     ) / 10;
   const label = LOAD_UNIT_LABELS[shownUnit];
 
-  const top = life.months.length ? inUnit(Math.max(...life.months.map((m) => m.topKg))) : null;
+  const top = life.months.length
+    ? inUnit((life.assisted ? Math.min : Math.max)(...life.months.map((m) => m.topKg)))
+    : null;
 
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
     { key: "sessions", figure: String(life.sessions), label: "Sessions" },
@@ -114,7 +124,14 @@ export function ExerciseLife({
       };
     }),
     ...(bests.length === 0 && top !== null
-      ? [{ key: "top", figure: String(top), unit: label, label: "Top weight" }]
+      ? [
+          {
+            key: "top",
+            figure: String(top),
+            unit: label,
+            label: life.assisted ? "Least assistance" : "Top weight",
+          },
+        ]
       : []),
   ];
 
@@ -159,7 +176,7 @@ export function ExerciseLife({
       ) : (
         <ul>
           {performances.map((performance, index) => {
-            const best = topSet(performance.sets);
+            const best = topSet(performance.sets, life.assisted);
             return (
               <li key={performance.id}>
                 <Link

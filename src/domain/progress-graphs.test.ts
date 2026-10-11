@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { presetRange } from "./graph-range";
+import { allRange, customRange, presetRange } from "./graph-range";
+import { addDays, daysBetween } from "./program-calendar";
 import {
   averagePace,
   exerciseSessions,
@@ -141,7 +142,49 @@ describe("one exercise, workout by workout", () => {
     expect(measuresWithData([pullUps!])).toEqual(["maxReps"]);
     const [stack] = exerciseSessions([set("a", 12, 10)], "machine", "stack_index");
     expect(stack!.e1rm).toBeNull();
-    expect(measuresWithData([stack!])).toEqual(["maxWeight", "maxReps", "maxVolume"]);
+    // A stack step or a plate count is a position, not a weight: step 12 × 10 is no volume.
+    expect(stack).toMatchObject({ maxWeight: 12, maxVolume: null });
+    expect(measuresWithData([stack!])).toEqual(["maxWeight", "maxReps"]);
+    const [plates] = exerciseSessions([set("a", 4, 8)], "machine", "plate_count");
+    expect(measuresWithData([plates!])).toEqual(["maxWeight", "maxReps"]);
+    // A machine loaded in kilograms still has its biggest set.
+    const [kilos] = exerciseSessions([set("a", 50, 10)], "machine", "kg");
+    expect(kilos!.maxVolume).toBe(500);
+  });
+
+  it("keeps the least help on an assisted machine as its best, and gives it no volume", () => {
+    // A beginner's assisted pull-ups: 40 kg of help in September, 25 kg (stronger) in October.
+    const sessions = exerciseSessions(
+      [
+        set("a", 40, 8),
+        set("a", 45, 10),
+        set("a", 40, 10),
+        set("b", 25, 8),
+        set("b", 30, 8),
+        set("b", 25, 6),
+      ],
+      "machine",
+      "kg",
+      { assisted: true },
+    );
+    expect(sessions).toEqual([
+      expect.objectContaining({
+        sessionId: "a",
+        // The least help, and the most reps done with it.
+        maxWeight: 40,
+        maxWeightReps: 10,
+        // Ten reps twice: with 40 kg of help is the stronger of the two.
+        maxReps: 10,
+        maxRepsWeight: 40,
+        maxVolume: null,
+        e1rm: null,
+      }),
+      expect.objectContaining({ sessionId: "b", maxWeight: 25, maxWeightReps: 8, maxReps: 8 }),
+    ]);
+    expect(measuresWithData(sessions)).toEqual(["maxWeight", "maxReps"]);
+    // The same sets on a machine that adds load keep the heaviest, and their volume.
+    const [loaded] = exerciseSessions([set("a", 40, 8), set("a", 45, 10)], "machine", "kg");
+    expect(loaded).toMatchObject({ maxWeight: 45, maxVolume: 450 });
   });
 });
 
@@ -208,6 +251,30 @@ describe("food", () => {
     );
     const week = graph.buckets.find((bucket) => bucket.start === "2026-09-14")!;
     expect(week).toMatchObject({ kcal: 2300, kcalDays: 2, protein: 120, lastDay: "2026-09-16" });
+  });
+
+  it("counts the days logged from the first there was to log, not the range's widened start", () => {
+    // First logged on Friday 20 March and every day since. All starts on that week's Monday.
+    const today = "2026-10-11";
+    const all = allRange("2026-03-20", today);
+    expect(all).toMatchObject({ from: "2026-03-16", bucket: "week" });
+    const logged = Array.from({ length: daysBetween("2026-03-20", today) + 1 }, (_, i) => ({
+      date: addDays("2026-03-20", i),
+      kcal: 2000,
+      protein: 120,
+    }));
+    // Every day since the first: 206 of 206, not of the 210 since the Monday.
+    expect(foodGraph(logged, all, today, "2026-03-20")).toMatchObject({
+      kcal: { days: 206 },
+      days: 206,
+    });
+    expect(foodGraph(logged, all, today).days).toBe(210);
+    // Dates chosen by hand count from the From chosen; a span keeps the start it was given.
+    const custom = customRange("2026-01-15", "2026-03-31");
+    expect(custom.from).toBe("2026-01-12");
+    expect(foodGraph([], custom, today, "2026-01-15").days).toBe(76);
+    // A first day before the range's own start counts from the range's start.
+    expect(foodGraph([], MONTH, TODAY, "2026-01-01").days).toBe(30);
   });
 
   it("reaches a target in the whole kcal and grams the graph writes", () => {

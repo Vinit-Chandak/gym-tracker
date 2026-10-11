@@ -1,7 +1,8 @@
-import { and, asc, eq, gte, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 
 import {
   equipmentInstances,
+  equipmentTypes,
   exercises,
   foodEntries,
   gyms,
@@ -10,6 +11,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
 import {
   strengthGroupOf,
   type ExerciseSetRow,
@@ -49,11 +51,24 @@ const workingSetsOf = (userId: string, window: Pick<DateRange, "start" | "end"> 
   );
 
 /**
+ * A slot done on an assisted machine (assisted pull-up, assisted dip), whose number is the help
+ * it gave: less is the stronger set (ADR 0048). Read as the load ladders read it, from the type
+ * of the machine the slot was done on. A movement whose load means the same everywhere is never
+ * one, whatever machine it was done on. Needs the slot's machine and its type joined.
+ */
+const ASSISTED_SLOT = and(
+  ne(exercises.loadPortability, "global"),
+  inArray(equipmentTypes.slug, [...ASSISTED_EQUIPMENT_TYPES]),
+)!;
+
+/**
  * Load × reps of a set in kilograms, as a workout's shared volume adds it up: kg and lb sets
  * only (a stack step or a plate count weighs nothing anyone can add), a pound converted to the
- * hundredth of a kilogram first.
+ * hundredth of a kilogram first. An assisted machine's set lifts no load either: its number is
+ * help, and more help is not more work.
  */
 const SET_VOLUME_KG = sql<number>`case
+  when ${ASSISTED_SLOT} then null
   when ${setLogs.unit} = 'kg' then ${setLogs.weight} * ${setLogs.reps}
   when ${setLogs.unit} = 'lb' then round(${setLogs.weight} / ${LB_PER_KG}, 2) * ${setLogs.reps}
 end`;
@@ -80,6 +95,8 @@ export async function readStrengthRows(
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
     .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+    .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+    .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
     .where(workingSetsOf(userId, window))
     // Both keys are primary keys: the day and the muscles follow from them.
     .groupBy(workoutSessions.id, exercises.id)
@@ -107,6 +124,8 @@ export type ExerciseSeriesOption = {
   modality: ExerciseModality;
   /** The muscle group it is filed under (ADR 0043); null when it names no known muscle. */
   group: StrengthGroup | null;
+  /** On an assisted machine: its number is help given, so less is stronger (ADR 0048). */
+  assisted: boolean;
   /** Counted in reps, seconds or metres. */
   measure: PrescriptionType;
   /** Finished workouts it was in inside the window being drawn, and ever. */
@@ -138,6 +157,8 @@ export async function readExerciseSeriesOptions(
       unit: setLogs.unit,
       machineName: sql<string | null>`max(${equipmentInstances.name})`,
       gymName: sql<string | null>`max(${gyms.name})`,
+      // A series is one machine, or a load that means the same everywhere, which is never help.
+      assisted: sql<boolean>`coalesce(bool_or(${ASSISTED_SLOT}), false)`,
       sessionsInRange: sql<number>`count(distinct ${workoutSessions.id}) filter (where ${workoutSessions.startedAt} >= ${window.start} and ${workoutSessions.startedAt} < ${window.end})::int`,
       sessions: sql<number>`count(distinct ${workoutSessions.id})::int`,
       lastAt: sql<string>`max(${workoutSessions.startedAt})`,
@@ -147,6 +168,7 @@ export async function readExerciseSeriesOptions(
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
     .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
     .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+    .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
     .leftJoin(
       gyms,
       eq(gyms.id, sql`coalesce(${equipmentInstances.gymId}, ${workoutSessions.gymId})`),
@@ -182,6 +204,7 @@ export async function readExerciseSeriesOptions(
       unit: row.unit,
       modality: row.modality,
       group: strengthGroupOf(row.primaryMuscles),
+      assisted: row.assisted === true,
       measure: row.measure,
       sessionsInRange: Number(row.sessionsInRange),
       sessions: Number(row.sessions),

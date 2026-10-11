@@ -116,9 +116,30 @@
 }
 
 /* ---------- the month: a tile of paper for each day, an icon for each activity ---------- */
+/* Each day's tile is as tall as the phone gives it (the generator's rule): 58 pt on a tall
+   screen, 44 on a short or a narrow one, 50 otherwise. Each day is a link, so a tile is never
+   shorter than a target: 44 pt, 48 dp on Android. Set here rather than measured, so the first
+   paint already has it and the month does not jump once the page wakes. A month given its own
+   height (the calendar page's) sets --month-day itself. */
 .month {
   --month-gap: 3px;
   --month-grow: 0px;
+  --month-fit: 50px;
+  --month-floor: 44px;
+  --month-day: max(var(--month-floor), var(--month-fit));
+}
+@media (height >= 860px) {
+  .month {
+    --month-fit: 58px;
+  }
+}
+@media (width < 360px), (height < 800px) {
+  .month {
+    --month-fit: 44px;
+  }
+}
+:where([data-overload-platform="android"]) .month {
+  --month-floor: 48px;
 }
 /* A date is a Jost figure: it grows by half with the reader's text (12 at 100%, 18 at 200%),
    and its tile grows by as much, so the icons keep their room under it. */
