@@ -675,15 +675,21 @@ li:last-child > .sheet-row {
 .pick-up {
   margin-block: var(--ov-space-4) var(--ov-space-10);
 }
+/* A Today with no card to show keeps its way on at a phone's width, not stretched across a
+   desktop's. */
+.today-empty {
+  max-width: calc(32rem - 2 * var(--ov-gutter));
+}
 /* Today is a day's few cards: two columns at most, however wide the screen. */
 .today.page-wide {
   --content-width: min(var(--content-width-wide), 62rem);
 }
-/* Beyond a phone the day's cards stand side by side where they fit (ADR 0052). */
+/* Beyond a phone the day's cards stand side by side where they fit (ADR 0052); a day of one
+   card gives it the row rather than half of one. */
 @media (width >= 600px) {
   .today-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
     align-items: start;
   }
   .today-print {

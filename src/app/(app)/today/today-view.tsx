@@ -146,7 +146,7 @@ function Caption({ id, children }: { id?: string; children: ReactNode }) {
 /** A screen that has nothing to offer yet: what is missing, and the way to it. */
 function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <section className="mt-3">
+    <section className="today-empty mt-3">
       <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>{title}</FitTitle>
       {children}
     </section>
