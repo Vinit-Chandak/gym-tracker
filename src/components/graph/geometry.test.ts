@@ -7,6 +7,7 @@ import {
   barLayout,
   barPath,
   barScale,
+  clearOfRule,
   dayX,
   linePath,
   lineScale,
@@ -105,6 +106,21 @@ describe("the scale", () => {
       lo: 1,
       hi: 5,
     });
+  });
+});
+
+describe("the scale's labels beside the rule", () => {
+  it("keeps a step's label a step from the rule at any text size", () => {
+    // A 148-pt plot in four steps: 37 pt apart. Labels are 12 pt at 100% text, 24 at 200%.
+    expect(clearOfRule(37, 74, 12)).toBe(true);
+    expect(clearOfRule(37, 74, 24)).toBe(true);
+    expect(clearOfRule(111, 74, 24)).toBe(true);
+  });
+
+  it("gives way to the rule where the two would touch", () => {
+    // On the rule's own line, and half a step from it at 200% text.
+    expect(clearOfRule(74, 74, 12)).toBe(false);
+    expect(clearOfRule(55.5, 74, 24)).toBe(false);
   });
 });
 
