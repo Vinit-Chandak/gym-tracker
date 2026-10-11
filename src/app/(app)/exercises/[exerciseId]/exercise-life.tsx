@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
-import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
+import { formatSet, formatSets } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -56,8 +56,7 @@ export type LatestPerformance = {
  * The session's best working set, the figure a row of Latest leads with: "72.5 kg × 6". The
  * heaviest; on an assisted machine, where the number is help given, the least help.
  */
-function topSet(sets: readonly Set[], reading: LoadReading): string | null {
-  const assisted = reading === "assisted";
+function topSet(sets: readonly Set[], assisted: boolean): string | null {
   const working = sets.filter(
     (set) => set.setType !== "warmup" && set.weight !== null && (!assisted || set.weight > 0),
   );
@@ -65,7 +64,7 @@ function topSet(sets: readonly Set[], reading: LoadReading): string | null {
   const top = working.reduce((best, set) =>
     (assisted ? set.weight! < best.weight! : set.weight! > best.weight!) ? set : best,
   );
-  return formatSet(top, LOAD_UNIT_LABELS[top.unit], reading);
+  return formatSet(top, LOAD_UNIT_LABELS[top.unit]);
 }
 
 /**
@@ -96,8 +95,6 @@ export function ExerciseLife({
   performances: readonly LatestPerformance[];
 }) {
   const glyph = glyphFor(exercise.modality);
-  // A bodyweight movement's load is what was added, an assisted machine's the help it gave.
-  const reading = loadReadingOf(exercise, life.assisted);
   const where = performances[0]?.gymName ?? null;
   // A machine's loads are in its own unit; anything else in the account's.
   const shownUnit: LoadUnit =
@@ -166,7 +163,7 @@ export function ExerciseLife({
             <dd className="whitespace-nowrap">
               <span className="type-figure-l">{stat.figure}</span>
               {stat.unit && (
-                <span className="type-caption font-semibold text-ink-2"> {stat.unit}</span>
+                <span className="ml-0.5 type-caption font-semibold text-ink-2">{stat.unit}</span>
               )}
             </dd>
           </div>
@@ -179,7 +176,7 @@ export function ExerciseLife({
       ) : (
         <ul>
           {performances.map((performance, index) => {
-            const best = topSet(performance.sets, reading);
+            const best = topSet(performance.sets, life.assisted);
             return (
               <li key={performance.id}>
                 <Link
@@ -200,11 +197,7 @@ export function ExerciseLife({
                     {best && <span className="type-figure-s whitespace-nowrap">{best}</span>}
                   </span>
                   <span className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2 tabular-nums">
-                    {formatSets(
-                      performance.sets,
-                      (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
-                      reading,
-                    )}
+                    {formatSets(performance.sets, (loadUnit) => LOAD_UNIT_LABELS[loadUnit])}
                   </span>
                 </Link>
               </li>
