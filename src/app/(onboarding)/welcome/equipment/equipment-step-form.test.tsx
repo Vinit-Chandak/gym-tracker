@@ -53,33 +53,49 @@ function show(step = previewMachinesStep("gym", "new")) {
   return { container, sent };
 }
 
-it("shows a beginner at a gym the basics as one line, then a handful of extras to tick", () => {
-  const { sent } = show();
+it("shows someone who already trains the basics as one line, then what is often missed", () => {
+  const { sent } = show(previewMachinesStep("gym", "experienced"));
   const review = screen.getByRole("button", { name: /^Usually here \(18\)/ });
-  expect(review.textContent).toContain("Usually here (18)");
   expect(review.textContent).toContain(
     "Barbell, EZ curl bar, dumbbells, weight plates and 14 more",
   );
-  const extras = within(screen.getByRole("region", { name: "What else is here?" }));
-  const tiles = extras.getAllByRole("checkbox");
-  expect(tiles.length).toBeGreaterThanOrEqual(8);
-  expect(tiles.length).toBeLessThanOrEqual(12);
-  expect(tiles.every((tile) => !(tile as HTMLInputElement).checked)).toBe(true);
-  expect(screen.queryByRole("button", { name: /select all/i })).toBeNull();
-  expect(screen.queryByRole("searchbox")).toBeNull();
+  const missed = within(screen.getByRole("list", { name: "Often missed" }));
+  const rows = missed.getAllByRole("checkbox");
+  expect(
+    rows.map((row) => row.closest("label")!.querySelector(".picker-row-name")!.textContent),
+  ).toEqual([
+    "Belt squat machine",
+    "Glute-ham developer",
+    "Trap / hex bar",
+    "Reverse hyper",
+    "Safety squat bar",
+  ]);
+  expect(rows.every((row) => !(row as HTMLInputElement).checked)).toBe(true);
   expect(sent()).toEqual({ typeIds: [], combinationIds: [], notHere: [] });
-  fireEvent.click(extras.getByRole("checkbox", { name: /Hack squat/ }));
-  fireEvent.click(extras.getByRole("checkbox", { name: /Assisted dip and chin/ }));
-  expect(sent()).toEqual({
-    typeIds: ["hack_squat"],
-    combinationIds: ["assisted_dip_chin"],
-    notHere: [],
+  fireEvent.click(missed.getByRole("checkbox", { name: /Belt squat/ }));
+  expect(sent().typeIds).toEqual(["belt_squat"]);
+  expect(screen.getByRole("button", { name: "Add 1 and continue" })).toBeTruthy();
+});
+
+/** Audit B3: "pec deck" used to find only the rear delt machine, since the basics were left out. */
+it("finds the basics too, counted already, with Not here beside them", () => {
+  const { sent } = show(previewMachinesStep("gym", "experienced"));
+  fireEvent.change(screen.getByRole("searchbox", { name: "Find equipment" }), {
+    target: { value: "pec deck" },
   });
-  expect(screen.getByRole("button", { name: "Add 2 and continue" })).toBeTruthy();
+  const matches = within(screen.getByRole("list", { name: "Matches" }));
+  const pecDeck = matches.getByText("Pec deck (fly / reverse fly)").closest("li")!;
+  expect(pecDeck.textContent).toContain("Usually here, counted already");
+  // Nothing to tick: it counts as there already. Saying it is not is the one thing to do.
+  expect(within(pecDeck).queryByRole("checkbox")).toBeNull();
+  fireEvent.click(within(pecDeck).getByRole("button", { name: /is not here/ }));
+  expect(sent().notHere).toEqual(["pec_deck"]);
+  expect(pecDeck.textContent).toContain("Marked not here");
+  expect(matches.getByRole("checkbox", { name: /Rear delt machine/ })).toBeTruthy();
 });
 
 it("records a basic as not here from its Review, and counts what is left", () => {
-  const { sent } = show();
+  const { sent } = show(previewMachinesStep("gym", "experienced"));
   fireEvent.click(screen.getByRole("button", { name: /^Usually here \(18\)/ }));
   const sheet = within(screen.getByRole("dialog", { name: "Usually here" }));
   const pecDeck = sheet.getByRole("checkbox", { name: /Pec deck/ }) as HTMLInputElement;
@@ -92,11 +108,9 @@ it("records a basic as not here from its Review, and counts what is left", () =>
 });
 
 it("asks which variant a family is, and registers nothing when the answer is Not sure", () => {
-  const { sent } = show();
-  const extras = within(screen.getByRole("region", { name: "What else is here?" }));
+  const { sent } = show(previewMachinesStep("gym", "new"));
+  const extras = within(screen.getByRole("list", { name: "What else is here?" }));
   const family = extras.getByRole("checkbox", { name: /^Chest press/ });
-  // Said before it is pressed: this box asks which one rather than ticking.
-  expect(family.getAttribute("aria-describedby")).toBeTruthy();
   fireEvent.click(family);
   let sheet = within(screen.getByRole("dialog", { name: "Which chest press?" }));
   fireEvent.click(sheet.getByRole("button", { name: "Not sure" }));
@@ -105,20 +119,10 @@ it("asks which variant a family is, and registers nothing when the answer is Not
   sheet = within(screen.getByRole("dialog", { name: "Which chest press?" }));
   fireEvent.click(sheet.getByRole("button", { name: /Iso-lateral/ }));
   expect(sent().typeIds).toEqual(["iso_lateral_press"]);
-  const tile = extras.getByRole("checkbox", { name: /^Chest press/ }) as HTMLInputElement;
-  expect(tile.checked).toBe(true);
-  expect(tile.closest("label")!.textContent).toContain("Iso-lateral");
 });
 
-it("gives somebody who already trains every other type, searchable by any of its names", () => {
+it("searches every other type by any of its names, and keeps what was chosen", () => {
   const { sent } = show(previewMachinesStep("gym", "experienced"));
-  expect(screen.getByRole("button", { name: /^Usually here \(18\)/ })).toBeTruthy();
-  expect(screen.queryByRole("region", { name: "What else is here?" })).toBeNull();
-  // The basics are on their line, not in the list; nothing is ticked to begin with.
-  expect(screen.queryByRole("checkbox", { name: /^Pec deck/ })).toBeNull();
-  expect(screen.getAllByRole("checkbox").every((box) => !(box as HTMLInputElement).checked)).toBe(
-    true,
-  );
   const search = screen.getByRole("searchbox", { name: "Find equipment" });
   fireEvent.change(search, { target: { value: "smith" } });
   fireEvent.click(screen.getByRole("checkbox", { name: /^Smith machine/ }));
@@ -135,6 +139,7 @@ it("gives somebody who already trains every other type, searchable by any of its
 
 it("shows both things a shared name means, side by side, rather than guessing", () => {
   show(previewMachinesStep("home", "experienced"));
+  fireEvent.click(screen.getByRole("button", { name: /Browse all equipment/ }));
   fireEvent.change(screen.getByRole("searchbox", { name: "Find equipment" }), {
     target: { value: "Roman chair" },
   });
@@ -143,19 +148,22 @@ it("shows both things a shared name means, side by side, rather than guessing", 
   expect(either.getByRole("checkbox", { name: /Captain/ })).toBeTruthy();
 });
 
-it("starts a beginner at home from a starter set, with everything a tap away", () => {
-  show(previewMachinesStep("home", "new"));
-  expect(screen.queryByRole("button", { name: /usually here/ })).toBeNull();
-  const starter = within(screen.getByRole("region", { name: "Common here" }));
-  expect(starter.getByRole("checkbox", { name: /^Dumbbells/ })).toBeTruthy();
-  expect(screen.queryByRole("searchbox")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Browse all equipment" }));
-  expect(screen.getByRole("searchbox", { name: "Find equipment" })).toBeTruthy();
+it("asks anyone at home what they have, as pictures, with everything else a tap away", () => {
+  for (const experience of ["new", "experienced"] as const) {
+    show(previewMachinesStep("home", experience));
+    expect(screen.queryByRole("button", { name: /usually here/i })).toBeNull();
+    const kit = within(screen.getByRole("list", { name: "Equipment" }));
+    expect(kit.getByRole("checkbox", { name: /^Dumbbells/ })).toBeTruthy();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Browse all equipment/ }));
+    expect(screen.getByRole("searchbox", { name: "Find equipment" })).toBeTruthy();
+    cleanup();
+  }
 });
 
 it("gives everyone outdoors the short calisthenics set", () => {
   show(previewMachinesStep("outdoor", "experienced"));
-  const set = within(screen.getByRole("region", { name: "Common here" }));
+  const set = within(screen.getByRole("list", { name: "Equipment" }));
   expect(set.getAllByRole("checkbox")).toHaveLength(4);
   expect(set.getByRole("checkbox", { name: /Pull-up bar/ })).toBeTruthy();
 });
@@ -167,6 +175,7 @@ it("shows what the place already has, and offers an archived machine back to res
       archived: ["hack_squat"],
     }),
   );
+  fireEvent.click(screen.getByRole("button", { name: "Browse all equipment" }));
   const smith = screen.getByRole("checkbox", { name: /^Smith machine/ }) as HTMLInputElement;
   expect(smith.checked).toBe(true);
   expect(smith.disabled).toBe(true);
@@ -179,25 +188,24 @@ it("shows what the place already has, and offers an archived machine back to res
 
 it("explains an item in words and pictures behind ⓘ, without ticking it", () => {
   const { sent } = show(previewMachinesStep("gym", "experienced"));
-  fireEvent.click(screen.getByRole("button", { name: "About Hack squat" }));
-  const sheet = within(screen.getByRole("dialog", { name: "Hack squat" }));
-  expect(sheet.getByText("How to recognise it")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "About Belt squat machine" }));
+  const sheet = within(screen.getByRole("dialog", { name: "Belt squat machine" }));
   expect(sent().typeIds).toEqual([]);
   fireEvent.click(sheet.getByRole("button", { name: "Tick it" }));
-  expect(sent().typeIds).toEqual(["hack_squat"]);
+  expect(sent().typeIds).toEqual(["belt_squat"]);
 });
 
-it("says Skip only when there is something to discard", () => {
-  show();
-  // With nothing chosen or marked, Continue already skips.
-  expect(screen.queryByRole("link", { name: "Skip for now" })).toBeNull();
-  const extras = within(screen.getByRole("region", { name: "What else is here?" }));
-  fireEvent.click(extras.getByRole("checkbox", { name: /Hack squat/ }));
-  expect(screen.getByRole("link", { name: "Skip for now" })).toBeTruthy();
+/** Audit B9: a Skip beside Add dropped whatever was ticked, without a word. */
+it("has no Skip: Continue with nothing chosen is the way past", () => {
+  show(previewMachinesStep("gym", "experienced"));
+  expect(screen.getByRole("button", { name: "Continue" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: /Belt squat/ }));
+  expect(screen.queryByRole("link", { name: /skip/i })).toBeNull();
+  expect(screen.getByRole("button", { name: "Add 1 and continue" })).toBeTruthy();
 });
 
 it("goes back to the basics' Review from a basic's About, which can say it is not here", () => {
-  const { sent } = show();
+  const { sent } = show(previewMachinesStep("gym", "experienced"));
   fireEvent.click(screen.getByRole("button", { name: /^Usually here \(18\)/ }));
   let review = within(screen.getByRole("dialog", { name: "Usually here" }));
   fireEvent.click(review.getByRole("button", { name: /^About Pec deck/ }));

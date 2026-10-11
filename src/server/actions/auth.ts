@@ -9,11 +9,13 @@ import { APP_NAME } from "@/lib/app";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
 import { safeAppPath } from "@/lib/safe-app-path";
-import { usernameSchema } from "@/server/validation/username";
+import { getDb } from "@/db/client";
+import { numberedUsernames, usernameFromName } from "@/domain/username";
+import { usernameAvailable } from "@/server/repositories/people";
 
 /** A sentence for the form, and the field it is about when it is about one. */
 export type SignInState = { error?: string; field?: "email" | "password" };
-export type SignUpState = { error?: string; checkEmail?: string };
+export type SignUpState = { error?: string; field?: "email" | "password"; checkEmail?: string };
 export type PasswordResetState = { error?: string; sent?: boolean };
 export type PasswordChangeState = { error?: string; done?: boolean };
 
@@ -35,27 +37,33 @@ const signInSchema = z.object({
   next: z.string().optional(),
 });
 
-const signUpSchema = z
-  .object({
-    email: z.email("Enter a valid email address."),
-    password: passwordSchema,
-    confirmPassword: z.string(),
-    displayName: z.string().trim().max(80).optional(),
-    /**
-     * Asked for but not required: the auth trigger makes one from the email when this is
-     * blank, and Welcome step 1 shows it. Typed, it has to follow the rules; whether it is
-     * still free when the account is created is the trigger's call (ADR 0026).
-     */
-    username: z.preprocess(
-      (value) => (typeof value === "string" && value.trim() !== "" ? value : undefined),
-      usernameSchema.optional(),
-    ),
-    next: z.string().optional(),
-  })
-  .refine((values) => values.password === values.confirmPassword, {
-    message: "The two passwords do not match.",
-    path: ["confirmPassword"],
-  });
+/**
+ * Sign-up asks for a name (optional), an email and one password, shown on request rather than
+ * typed twice. The username is not asked for: it is made from the name, and the auth trigger
+ * makes one from the email when that one is taken or there is no name (ADR 0026). It is
+ * changed later from the profile.
+ */
+const signUpSchema = z.object({
+  email: z.email(),
+  password: passwordSchema,
+  displayName: z.string().trim().max(80).optional(),
+  next: z.string().optional(),
+});
+
+/**
+ * The first username free among those made from the name (`kit`, `kit2`…), or "" when there is
+ * none, or the directory cannot be asked: the auth trigger then makes one from the email. The
+ * trigger checks again, so a name taken between here and there is never given twice.
+ */
+async function freeUsernameFrom(name: string): Promise<string> {
+  try {
+    for (const candidate of numberedUsernames(usernameFromName(name)))
+      if (await usernameAvailable(getDb(), candidate)) return candidate;
+  } catch {
+    // The directory could not be asked: leave the choice to the trigger.
+  }
+  return "";
+}
 
 /** Only same-origin paths inside the app are accepted as a post-login destination. */
 function safeNextPath(next: string | undefined): Route {
@@ -132,22 +140,32 @@ export async function signUpAction(
   formData: FormData,
 ): Promise<SignUpState> {
   const parsed = signUpSchema.safeParse({
-    email: formData.get("email"),
+    email: String(formData.get("email") ?? "").trim(),
     password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
     displayName: formData.get("displayName") ?? undefined,
-    username: formData.get("username") ?? undefined,
     next: formData.get("next") ?? undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Check the details and try again." };
+    // Each field's own sentence, under that field, as on the sign-in form.
+    const email = String(formData.get("email") ?? "").trim();
+    if (email === "") return { error: "Enter your email.", field: "email" };
+    if (!z.email().safeParse(email).success)
+      return { error: "Enter a valid email address, such as name@example.com.", field: "email" };
+    const password = passwordSchema.safeParse(formData.get("password") ?? "");
+    if (!password.success)
+      return {
+        error: password.error.issues[0]?.message ?? "Choose a password.",
+        field: "password",
+      };
+    return { error: "Check the details and try again." };
   }
 
   const supabase = await createSupabaseServerClient();
   const displayName = parsed.data.displayName?.trim();
+  const username = displayName ? await freeUsernameFrom(displayName) : "";
   const metadata = {
     ...(displayName ? { display_name: displayName } : {}),
-    ...(parsed.data.username ? { username: parsed.data.username } : {}),
+    ...(username ? { username } : {}),
   };
   const { value, error: transport } = await attempt(
     supabase.auth.signUp({
@@ -167,13 +185,13 @@ export async function signUpAction(
   if (error) {
     if (isAuthRetryableFetchError(error)) return { error: UNREACHABLE_MESSAGE };
     if (error.code === "user_already_exists" || error.code === "email_exists") {
-      return { error: "That email already has an account. Sign in instead." };
+      return { error: "That email already has an account. Sign in instead.", field: "email" };
     }
     if (error.code === "signup_disabled") {
       return { error: `${APP_NAME} is not accepting new accounts right now.` };
     }
     if (error.code === "weak_password") {
-      return { error: "Pick a stronger password." };
+      return { error: "Pick a stronger password.", field: "password" };
     }
     return { error: error.message };
   }

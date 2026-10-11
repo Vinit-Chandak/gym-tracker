@@ -241,3 +241,38 @@ it("says once that an empty session was discarded, and drops it from the address
   expect(await screen.findByText("Empty session discarded.")).toBeTruthy();
   expect(window.location.search).toBe("");
 });
+
+/** Audit B1: an account that only swims was told to add a gym, as its only way forward. */
+it("never asks someone who does not lift for a gym, and offers their own sports instead", () => {
+  show({ gyms: [], plan: null, programmeOccurrences: [], sports: ["swimming", "running"] });
+  expect(screen.queryByText("Add a gym to start training")).toBeNull();
+  expect(screen.getByText("Nothing planned")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log a run" }).getAttribute("href")).toBe(
+    "/training/new?sport=running",
+  );
+  expect(screen.getByRole("link", { name: "Log a swim" }).getAttribute("href")).toBe(
+    "/training/new?sport=swimming",
+  );
+  expect(screen.queryByRole("link", { name: "Log a ride" })).toBeNull();
+});
+
+it("still asks a lifter with nowhere to train to add a gym", () => {
+  show({ gyms: [], plan: null, programmeOccurrences: [], sports: ["strength"] });
+  expect(screen.getByText("Add a gym to start training")).toBeTruthy();
+});
+
+/** Audit B7: after choosing to log their own workouts, Today led with "Choose a programme". */
+it("leads with starting a workout for someone who logs their own", () => {
+  show({ plan: null, programmeOccurrences: [], tracking: true });
+  expect(screen.queryByText("No programme")).toBeNull();
+  const start = screen.getByRole("link", { name: "Start a workout" });
+  expect(start.getAttribute("href")).toContain("gym=g1");
+  // A programme is still there for whenever they want one, quieter.
+  expect(screen.getByRole("link", { name: "Choose a programme" })).toBeTruthy();
+});
+
+it("keeps choosing a programme first for an account that never said", () => {
+  show({ plan: null, programmeOccurrences: [] });
+  expect(screen.getByText("No programme")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Choose a programme" })).toBeTruthy();
+});

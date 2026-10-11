@@ -1,77 +1,64 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
-import { Art } from "@/components/art/art";
-import { APP_NAME } from "@/lib/app";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import { firstAcceptedLanguage } from "@/lib/setup-path";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import {
+  hasChosenSports,
+  enabledSportsFor,
+  listSportPreferences,
+} from "@/server/repositories/sport-preferences";
 
-import { OnboardingFrame } from "./onboarding-frame";
-import { ProfileStepForm } from "./profile-step-form";
+import { YouStep } from "./you-step";
 
 export const metadata: Metadata = { title: "Welcome" };
 
-/** The print's key, once: each form beside its sport. */
-const KEY = [
-  ["strength", "Lifting"],
-  ["run", "Running"],
-  ["ride", "Cycling"],
-  ["swim", "Swimming"],
-] as const;
-
 /**
- * The first step (board Welcome): what the app draws, a print of lifting, a run, a ride and a
- * swim with its key under it; then who you are and how you measure.
+ * Setup's first step (board You), straight after sign-up: which sounds like you and what you
+ * train, with the units and the zone the phone proposes. Nothing given at sign-up (the name,
+ * the username) is asked again.
  */
 export default async function WelcomePage() {
   const user = await requireUser();
   // The cached read: it writes only for a missing profile, where this used to lock every visit.
   const profile = await getRequestProfile(user.id, user.email, user.displayName);
+  const sports = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      if (!(await hasChosenSports(tx, user.id))) return null;
+      const [enabled, preferences] = await Promise.all([
+        enabledSportsFor(tx, user.id),
+        listSportPreferences(tx, user.id),
+      ]);
+      return { enabled, preferences };
+    },
+    { readOnly: true },
+  );
+  const road = sports?.preferences.find((preference) => preference.sport === "running");
+  const pool = sports?.preferences.find((preference) => preference.sport === "swimming");
+  const language = firstAcceptedLanguage((await headers()).get("accept-language"));
 
   return (
-    <OnboardingFrame step="profile" title={null}>
-      <figure className="welcome-print">
-        <Art
-          kind="print"
-          label="A print: lifting, a run, a ride and a swim"
-          parts={[
-            {
-              kind: "strength",
-              columns: [
-                { sets: 2, done: 2 },
-                { sets: 3, done: 3 },
-              ],
-            },
-            { kind: "run", state: "done" },
-            { kind: "ride", state: "done" },
-            { kind: "swim", state: "done" },
-          ]}
-          className="size-full"
-        />
-      </figure>
-      <p className="welcome-key">
-        {KEY.map(([sport, label]) => (
-          <span key={sport} className="inline-flex items-center gap-1.5">
-            <Art kind="mark" sport={sport} size={12} />
-            {label}
-          </span>
-        ))}
-      </p>
-      <h1 className="onboarding-title">Welcome to {APP_NAME}</h1>
-      <p className="onboarding-sub">
-        A few short steps. Everything here can be changed later, from your profile.
-      </p>
-      <ProfileStepForm
-        displayName={profile.displayName ?? ""}
-        username={profile.username}
-        timeZone={profile.timeZone}
-        preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
-        bodyWeightKg={profile.bodyWeightKg}
-        heightCm={profile.heightCm}
-        dateOfBirth={profile.dateOfBirth}
-        sex={profile.sex}
-        trainingGoal={profile.trainingGoal}
-        trainingExperience={profile.trainingExperience}
-      />
-    </OnboardingFrame>
+    <YouStep
+      name={profile.displayName}
+      experience={profile.trainingExperience}
+      sports={sports?.enabled ?? null}
+      // Coming back to the step shows what was chosen; a first visit reads the phone.
+      units={
+        sports
+          ? {
+              weight: profile.preferredUnit === "lb" ? "lb" : "kg",
+              distance: road?.distanceUnit ?? "km",
+              pool: pool?.poolUnit ?? "m",
+            }
+          : null
+      }
+      zone={profile.timeZone === "UTC" && !sports ? null : profile.timeZone}
+      language={language}
+    />
   );
 }

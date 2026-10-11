@@ -15,11 +15,7 @@ import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
-import {
-  basicProfileInputSchema,
-  profileInputSchema,
-  type ProfileInput,
-} from "@/server/validation/profile";
+import { profileInputSchema, type ProfileInput } from "@/server/validation/profile";
 import { USERNAME_TAKEN_MESSAGE } from "@/server/validation/username";
 
 /**
@@ -73,29 +69,6 @@ export async function saveProfileAction(
   revalidatePath("/progress");
   revalidatePath("/today");
   return {};
-}
-
-/** Onboarding step 1: optional name, username, units and time zone, then the next step. */
-export async function saveOnboardingProfileAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const user = await requireUser();
-  const parsed = parseForm(basicProfileInputSchema, formData);
-  if (!parsed.success) return parsed.state;
-
-  try {
-    await withUser(getDb(), user.id, async (tx) => {
-      await ensureProfile(tx, user);
-      await tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) return usernameTaken(formData);
-    throw error;
-  }
-  await profileChanged(user.id);
-  // Which sports come next; the gym step follows only if lifting is one of them.
-  redirect("/welcome/sports");
 }
 
 /**

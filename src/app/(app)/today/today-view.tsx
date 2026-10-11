@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
@@ -9,6 +10,7 @@ import { CoachNote } from "@/components/ui/coach-note";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
+import type { ActivitySport } from "@/domain/activity";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
@@ -55,7 +57,18 @@ export type TodayViewProps = {
   standaloneOccurrences?: readonly ScheduledOccurrence[];
   /** An empty session was just discarded, which Today says once. */
   discarded?: boolean;
+  /** The sports the athlete trains; lifting unless told otherwise. */
+  sports?: readonly ActivitySport[];
+  /** The athlete chose to log their own workouts rather than follow a programme. */
+  tracking?: boolean;
 };
+
+/** Each endurance sport's way to log one, as Training's new activity page asks for it. */
+const LOG_SPORT: { sport: ActivitySport; label: string; query: string }[] = [
+  { sport: "running", label: "Log a run", query: "running" },
+  { sport: "cycling", label: "Log a ride", query: "cycling" },
+  { sport: "swimming", label: "Log a swim", query: "swimming" },
+];
 
 /**
  * What the coach is doing about the day, only when there is something to say: that it is
@@ -193,7 +206,13 @@ export function TodayView({
   programmeOccurrences = [],
   standaloneOccurrences = [],
   discarded = false,
+  sports = ["strength"],
+  tracking = false,
 }: TodayViewProps) {
+  // A gym is a lifter's to add: someone who only runs, rides or swims is never asked for one
+  // (audit B1), and logs their own sport from here instead.
+  const lifts = sports.includes("strength");
+  const logSports = LOG_SPORT.filter((entry) => sports.includes(entry.sport));
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
     null;
@@ -579,7 +598,7 @@ export function TodayView({
 
         {elsewhereCard && <ul className="today-cards">{elsewhereCard}</ul>}
 
-        {gyms.length === 0 ? (
+        {gyms.length === 0 && lifts ? (
           <Empty title="Add a gym to start training">
             <p className="mt-2 type-body text-ink-2">
               Its equipment decides which exercises your plan can use, and how far a load steps up.
@@ -587,6 +606,51 @@ export function TodayView({
             <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
               Add your first gym
             </LinkButton>
+          </Empty>
+        ) : !plan && !lifts ? (
+          <>
+            {standaloneOccurrences.length > 0 && (
+              <ul aria-label="Today" className="today-cards">
+                {enduranceCards(standaloneOccurrences.filter(isOutstanding))}
+                {enduranceCards(
+                  standaloneOccurrences.filter(
+                    (occurrence) => isAnswered(occurrence) && !isOutstanding(occurrence),
+                  ),
+                )}
+              </ul>
+            )}
+            <Empty title={standaloneOccurrences.length > 0 ? "Anything else?" : "Nothing planned"}>
+              <p className="mt-2 type-body text-ink-2">Log what you do as you do it.</p>
+              <div className="mt-4 flex flex-col gap-2">
+                {logSports.map((entry, i) => (
+                  <LinkButton
+                    key={entry.sport}
+                    href={`/training/new?sport=${entry.query}` as Route}
+                    size="lg"
+                    variant={i === 0 ? "primary" : "secondary"}
+                    className="w-full"
+                  >
+                    {entry.label}
+                  </LinkButton>
+                ))}
+              </div>
+            </Empty>
+          </>
+        ) : !plan && tracking ? (
+          // The athlete chose to log their own workouts (audit B7): starting one leads, and a
+          // programme is there for whenever they want one.
+          <Empty title="Ready when you are">
+            <p className="mt-2 type-body text-ink-2">
+              Start a workout and log it as you go. Suggestions learn from every set you save.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              {!sessionOpen && (
+                <StartAdHocButton gymId={defaultGym?.id ?? gyms[0]?.id ?? null} primary />
+              )}
+              <LinkButton href="/profile/programme" variant="ghost" className="w-full">
+                Choose a programme
+              </LinkButton>
+            </div>
           </Empty>
         ) : !plan ? (
           <Empty title="No programme">

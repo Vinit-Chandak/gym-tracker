@@ -1,0 +1,233 @@
+"use client";
+
+import { useMemo } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Glyph } from "@/components/ui/glyphs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
+import { Sheet } from "@/components/ui/sheet";
+import type { ActivitySport } from "@/domain/activity";
+import type { MeasureUnits } from "@/lib/setup-path";
+import { zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
+
+const WEIGHT = [
+  { value: "kg", label: "kg" },
+  { value: "lb", label: "lb" },
+] as const;
+const DISTANCE = [
+  { value: "km", label: "km" },
+  { value: "mi", label: "mi" },
+] as const;
+const POOL = [
+  { value: "m", label: "Metres" },
+  { value: "yd", label: "Yards" },
+] as const;
+
+/** Runs and rides go by the road's unit, swims by the pool's; lifting only by weight. */
+function distanceMatters(sports: readonly ActivitySport[]): boolean {
+  return sports.includes("running") || sports.includes("cycling");
+}
+
+/**
+ * The units and the zone as one quiet line under the answers ("kg · km · London time"), each
+ * named only where a chosen sport uses it, with Change at its end.
+ */
+export function UnitsLine({
+  units,
+  zone,
+  sports,
+  error,
+  onChange,
+}: {
+  units: MeasureUnits;
+  zone: string;
+  sports: readonly ActivitySport[];
+  error?: string;
+  onChange: () => void;
+}) {
+  const parts = [
+    units.weight,
+    distanceMatters(sports) ? (units.distance === "mi" ? "miles" : "km") : null,
+    sports.includes("swimming") ? (units.pool === "yd" ? "yard pools" : "metre pools") : null,
+    zoneLine(zone),
+  ].filter(Boolean);
+  return (
+    <div className="units-line-wrap">
+      <div className="units-line">
+        <Glyph name="globe" className="glyph-20 shrink-0 text-ink-2" />
+        <p className="units-line-text">{parts.join(" · ")}</p>
+        <button
+          type="button"
+          aria-label="Change units and time zone"
+          aria-haspopup="dialog"
+          onClick={onChange}
+          className="units-line-change"
+        >
+          Change
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="you-error">
+          <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Every zone this device knows, by region, each with its city and its offset now. */
+function useZoneOptions(open: boolean, current: string) {
+  return useMemo(() => {
+    if (!open) return [] as { region: string; zones: { value: string; label: string }[] }[];
+    let zones: string[];
+    try {
+      zones = Intl.supportedValuesOf("timeZone");
+    } catch {
+      zones = [];
+    }
+    if (!zones.includes(current)) zones = [current, ...zones];
+    const now = new Date();
+    const byRegion = new Map<string, { value: string; label: string }[]>();
+    for (const value of zones) {
+      const region = value.includes("/") ? value.split("/")[0]! : "Other";
+      const offset = zoneOffset(value, now);
+      const label = offset ? `${zoneCity(value)} · ${offset}` : zoneCity(value);
+      byRegion.set(region, [...(byRegion.get(region) ?? []), { value, label }]);
+    }
+    return [...byRegion.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([region, entries]) => ({
+        region,
+        zones: entries.sort((a, b) => a.label.localeCompare(b.label)),
+      }));
+  }, [open, current]);
+}
+
+/**
+ * Board Units and time zone: taken from the phone, changed here or later in the profile.
+ * Weight; the road's distance where runs or rides were chosen; the pool where swims were; and
+ * the zone, which decides which day a workout counts for.
+ */
+export function UnitsSheet({
+  open,
+  onClose,
+  units,
+  zone,
+  phoneZone,
+  sports,
+  onUnits,
+  onZone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  units: MeasureUnits;
+  zone: string;
+  phoneZone: string | null;
+  sports: readonly ActivitySport[];
+  onUnits: (units: MeasureUnits) => void;
+  onZone: (zone: string) => void;
+}) {
+  const regions = useZoneOptions(open, zone);
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Units and time zone"
+      footer={
+        <Button size="lg" className="w-full" onClick={onClose}>
+          Done
+        </Button>
+      }
+    >
+      {open && (
+        <div className="space-y-5 pb-1">
+          <p className="type-body text-ink-2">
+            Taken from your phone. Change them here or later in your profile.
+          </p>
+          <div className="units-row">
+            <span id="units-weight" className="units-row-label">
+              Weight
+            </span>
+            <div className="units-row-control">
+              <SegmentedControl
+                name="sheet-weight"
+                aria-labelledby="units-weight"
+                options={WEIGHT}
+                value={units.weight}
+                onChange={(weight) => onUnits({ ...units, weight })}
+                columns={2}
+              />
+            </div>
+          </div>
+          {distanceMatters(sports) && (
+            <div className="units-row">
+              <span id="units-distance" className="units-row-label">
+                Distance
+                <span className="units-row-hint">Runs and rides</span>
+              </span>
+              <div className="units-row-control">
+                <SegmentedControl
+                  name="sheet-distance"
+                  aria-labelledby="units-distance"
+                  options={DISTANCE}
+                  value={units.distance}
+                  onChange={(distance) => onUnits({ ...units, distance })}
+                  columns={2}
+                />
+              </div>
+            </div>
+          )}
+          {sports.includes("swimming") && (
+            <div className="units-row">
+              <span id="units-pool" className="units-row-label">
+                Pools
+              </span>
+              <div className="units-row-control">
+                <SegmentedControl
+                  name="sheet-pool"
+                  aria-labelledby="units-pool"
+                  options={POOL}
+                  value={units.pool}
+                  onChange={(pool) => onUnits({ ...units, pool })}
+                  columns={2}
+                />
+              </div>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="units-zone"
+              className="block text-[length:var(--ov-type-meta-small)] font-bold"
+            >
+              Time zone
+            </label>
+            <Select id="units-zone" value={zone} onChange={(event) => onZone(event.target.value)}>
+              {phoneZone && (
+                <optgroup label="This phone">
+                  <option value={phoneZone}>
+                    {zoneCity(phoneZone)}
+                    {zoneOffset(phoneZone) ? ` · ${zoneOffset(phoneZone)}` : ""}
+                  </option>
+                </optgroup>
+              )}
+              {regions.map((group) => (
+                <optgroup key={group.region} label={group.region}>
+                  {group.zones.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+            <p className="text-[length:var(--ov-type-caption)] font-medium text-ink-2">
+              Decides which day a workout counts for.
+            </p>
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}

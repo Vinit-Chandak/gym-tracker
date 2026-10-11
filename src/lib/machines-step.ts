@@ -81,6 +81,19 @@ export type StepMachine = { isActive: boolean; typeIds: string[] };
 /** Floor work needs nothing registered, so the floor is never offered. */
 const NEVER_OFFERED = new Set(["bodyweight"]);
 
+/**
+ * What someone who already trains is shown at a gym, under the basics (board Anything unusual):
+ * the specialist kit a serious gym has and a chain gym does not, which their programme would
+ * otherwise never be written around. Everything else is one search away.
+ */
+export const OFTEN_MISSED_AT_A_GYM: readonly { type: string }[] = [
+  { type: "belt_squat" },
+  { type: "glute_ham_raise" },
+  { type: "trap_bar" },
+  { type: "reverse_hyper" },
+  { type: "safety_squat_bar" },
+];
+
 const CATEGORY_ORDER: readonly (EquipmentCategory | "combination")[] = [
   "machine",
   "cable",
@@ -120,9 +133,11 @@ function combinationItem(combination: StepCombination): StarterItem {
 }
 
 /**
- * The step for one place. Suggestions go only to those who said they are new, and to everyone
- * outdoors; at a gym the basics come first and the full list holds everything else, combinations
- * included; the floor is never offered.
+ * The step for one place. At home and outdoors nothing is taken as there, so everyone is shown
+ * the short set for that kind of place (board What you have). At a gym the basics come first;
+ * someone who already trains is then shown what is often missed (board Anything unusual), and a
+ * beginner's preset still stands for anyone who asks for it. The full list holds everything
+ * else, combinations included; the floor is never offered.
  */
 export function buildMachinesStep(input: {
   gym: MachinesStep["gym"];
@@ -175,13 +190,15 @@ export function buildMachinesStep(input: {
     };
   };
 
-  const preset =
-    gym.kind === "outdoor" || experience === "new"
-      ? presets.find(
-          (p) => p.gymKind === gym.kind && (p.experience === "any" || p.experience === experience),
-        )
-      : undefined;
-  const suggestions = (preset?.items ?? []).flatMap((item): StarterItem[] => {
+  const items =
+    gym.kind !== "gym"
+      ? (presets.find((p) => p.gymKind === gym.kind)?.items ?? [])
+      : experience === "new"
+        ? (presets.find((p) => p.gymKind === "gym" && p.experience === "new")?.items ?? [])
+        : experience === "experienced"
+          ? OFTEN_MISSED_AT_A_GYM
+          : [];
+  const suggestions = items.flatMap((item): StarterItem[] => {
     if ("type" in item) {
       const type = bySlug.get(item.type);
       return type && !NEVER_OFFERED.has(type.slug) ? [typeItem(type)] : [];

@@ -1,93 +1,112 @@
 "use client";
 
-import { MailCheck } from "@/components/ui/icons";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import Link from "@/components/ui/app-link";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
-import { UsernameField } from "@/components/username-field";
 import { signUpAction, type SignUpState } from "@/server/actions/auth";
+
+import { AUTH_LINK } from "../auth-link";
 
 const INITIAL: SignUpState = {};
 
+/**
+ * Board Sign up: a name (optional), the email and one password with Show, then Create account.
+ * The password is not typed twice: Show is how it is checked, as on the sign-in form. No
+ * username either: one is made from the name and changed later in the profile, so setup asks
+ * none of these again.
+ *
+ * As on sign-in, the browser's own validation bubble is off and each sentence stands under the
+ * field it is about, in ink, led by its glyph; what was typed stays typed, the password
+ * included, so a slip is corrected rather than typed again.
+ */
 export function SignUpForm() {
   const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
-  // What they typed survives a refused attempt, as it does on the sign-in form. Only the
-  // passwords are asked for again, which is the one pair worth retyping.
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
+  const [shown, setShown] = useState(false);
+  const alertId = useId();
+  const general = state.error && !state.field;
 
   if (state.checkEmail) {
     return (
-      <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-success">
-          <MailCheck className="shrink-0" aria-hidden />
+      <div role="status" className="space-y-3">
+        <p className="flex items-center gap-2 type-heading">
+          <Glyph name="check" className="glyph-20 shrink-0" />
           Check your inbox
         </p>
-        <p className="text-sm text-ink-muted">
-          A confirmation link was requested for <span className="text-ink">{state.checkEmail}</span>
-          . Check your inbox and spam folder. Open the link to finish setting up your account.
+        <p className="type-body text-ink-2">
+          A confirmation link was sent to{" "}
+          <span className="font-bold [overflow-wrap:anywhere] text-ink">{state.checkEmail}</span>.
+          Open it to finish setting up your account. If it is not there, look in your spam folder.
         </p>
-        <p className="text-sm text-ink-muted">
+        <p className="type-meta text-ink-2">
           Already registered?{" "}
-          <Link href="/login" className="text-accent underline">
+          <Link href="/login" className={AUTH_LINK}>
             Sign in
           </Link>{" "}
           or{" "}
-          <Link href="/forgot-password" className="text-accent underline">
+          <Link href="/forgot-password" className={AUTH_LINK}>
             reset your password
           </Link>
-          .
         </p>
       </div>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-4">
-      <Field label="Name">
-        <Input
-          type="text"
-          name="displayName"
-          autoComplete="name"
-          maxLength={80}
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-        />
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        startTransition(() => formAction(data));
+      }}
+      noValidate
+      className="space-y-4"
+    >
+      <Field label="Name" aside="Optional">
+        <Input type="text" name="displayName" autoComplete="name" maxLength={80} />
       </Field>
-      {/* Optional here: a blank one is made from the email and shown on the first step of
-          setup, where it can be changed. Typed, it is checked as you go. */}
-      <UsernameField
-        required={false}
-        hint="Optional. Lowercase letters, digits, dots and underscores; made from your email if left blank."
-      />
-      <Field label="Email">
+      <Field label="Email" error={state.field === "email" ? state.error : undefined}>
         <Input
           type="email"
           name="email"
           autoComplete="email"
           inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
           required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
         />
       </Field>
-      <Field label="Password" hint="At least 8 characters">
-        <Input type="password" name="password" autoComplete="new-password" minLength={8} required />
-      </Field>
-      <Field label="Confirm password">
+      <Field
+        label="Password"
+        hint="At least 8 characters"
+        error={state.field === "password" ? state.error : undefined}
+        aside={
+          <button
+            type="button"
+            // The word on screen leads the name, so a voice command saying it still finds it.
+            aria-label={shown ? "Hide password" : "Show password"}
+            onClick={() => setShown((value) => !value)}
+            className="-my-3 inline-flex min-h-11 min-w-11 items-center justify-end px-1 font-bold text-ink underline underline-offset-4"
+          >
+            {shown ? "Hide" : "Show"}
+          </button>
+        }
+      >
         <Input
-          type="password"
-          name="confirmPassword"
+          type={shown ? "text" : "password"}
+          name="password"
           autoComplete="new-password"
           minLength={8}
           required
         />
       </Field>
-      {state.error && (
-        <p role="alert" className="text-sm text-danger">
-          {state.error}
+      {general && (
+        <p id={alertId} role="alert" className="flex items-start gap-2 type-meta font-semibold">
+          <Glyph name="warn" className="mt-px glyph-18" />
+          <span className="min-w-0 [overflow-wrap:anywhere]">{state.error}</span>
         </p>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>

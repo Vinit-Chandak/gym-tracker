@@ -1,74 +1,70 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { gyms, sports, transaction, tx } = vi.hoisted(() => {
+const { state, programme, transaction, tx } = vi.hoisted(() => {
   const tx = {};
   return {
-    gyms: vi.fn(),
-    sports: vi.fn(),
+    state: vi.fn(),
+    programme: vi.fn(),
     tx,
     transaction: vi.fn((_db: unknown, _id: string, run: (tx: unknown) => unknown) => run(tx)),
   };
 });
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
-vi.mock("@/db/with-user", () => ({
-  withUser: transaction,
+vi.mock("@/db/with-user", () => ({ withUser: transaction }));
+vi.mock("@/server/queries/setup-state", () => ({
+  readSetupState: state,
+  pendingFirstProgramme: programme,
 }));
-vi.mock("@/server/repositories/gyms", () => ({ listGyms: gyms }));
-vi.mock("@/server/repositories/sport-preferences", () => ({ enabledSportsFor: sports }));
 
 import { onboardingEntry } from "./onboarding-entry";
 
+const place = { id: "gym-1", name: "Iron Temple", kind: "gym", equipmentCount: 0 };
+
 beforeEach(() => {
   transaction.mockClear();
-  gyms.mockReset();
-  sports.mockReset();
-  // Lifting is on unless a test says otherwise, which is the path through all four steps.
-  sports.mockResolvedValue(["strength", "running"]);
-});
-
-const gym = (over: Partial<{ id: string; isDefault: boolean; equipmentCount: number }> = {}) => ({
-  id: "gym-1",
-  isDefault: true,
-  equipmentCount: 0,
-  ...over,
+  state.mockReset();
+  programme.mockReset();
+  programme.mockResolvedValue(null);
 });
 
 /**
- * Setup is four steps and they are sequential, so what has been saved says how far it got.
- * Returning everyone to step one made them repeat themselves, and the gym step took the same
- * name a second time.
+ * Setup's steps are sequential, so what has been saved says how far it got. Returning everyone
+ * to the first step made them repeat themselves, and the gym step took the same name twice.
  */
-it("starts at the beginning when nothing has been saved", async () => {
-  gyms.mockResolvedValue([]);
-  expect(await onboardingEntry("user-1")).toBe("/welcome");
-});
-
-it("picks up at the machines once a gym is there", async () => {
-  gyms.mockResolvedValue([gym({ id: "gym-7" })]);
-  expect(await onboardingEntry("user-1")).toBe("/welcome/equipment?gym=gym-7");
-  expect(transaction).toHaveBeenCalledTimes(1);
+it("starts at the first step until its two answers are saved", async () => {
+  state.mockResolvedValue({ experience: null, sports: null, place: null });
+  expect(await onboardingEntry("user-1", null)).toBe("/welcome");
+  state.mockResolvedValue({ experience: "new", sports: null, place: null });
+  expect(await onboardingEntry("user-1", "new")).toBe("/welcome");
   expect(transaction).toHaveBeenCalledWith({}, "user-1", expect.any(Function), { readOnly: true });
-  expect(sports).toHaveBeenCalledWith(tx, "user-1");
-  expect(gyms).toHaveBeenCalledWith(tx, "user-1");
+  expect(state).toHaveBeenCalledWith(tx, "user-1", "new");
 });
 
-it("picks up at the programme once that gym has machines", async () => {
-  gyms.mockResolvedValue([gym({ equipmentCount: 3 })]);
-  expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
+it("asks a lifter where they train once the first step is answered", async () => {
+  state.mockResolvedValue({ experience: "new", sports: ["strength"], place: null });
+  expect(await onboardingEntry("user-1", "new")).toBe("/welcome/gym");
 });
 
-/** SCOPE-02: a swimmer never reaches the gym steps, so their absence says nothing. */
-it("skips the gym steps for an account that does not lift", async () => {
-  sports.mockResolvedValue(["swimming"]);
-  gyms.mockResolvedValue([]);
-  expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
-  expect(gyms).not.toHaveBeenCalled();
+/**
+ * Audit B4: a gym with no machines is what passing the optional equipment step with nothing
+ * ticked leaves, so it is not a reason to be sent back to that step.
+ */
+it("goes on to the plan once there is a place, machines or none", async () => {
+  state.mockResolvedValue({ experience: "experienced", sports: ["strength"], place });
+  expect(await onboardingEntry("user-1", "experienced")).toBe("/welcome/programme");
 });
 
-it("goes by the gym they train at, not the first one added", async () => {
-  gyms.mockResolvedValue([
-    gym({ id: "other", isDefault: false, equipmentCount: 0 }),
-    gym({ id: "usual", isDefault: true, equipmentCount: 5 }),
-  ]);
-  expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
+it("comes back to a programme the coach is writing, or has written", async () => {
+  state.mockResolvedValue({ experience: "new", sports: ["strength", "running"], place });
+  programme.mockResolvedValue({ jobId: "job-1" });
+  expect(await onboardingEntry("user-1", "new")).toBe("/welcome/programme/jobs/job-1");
+  programme.mockResolvedValue({ draftId: "draft-1" });
+  expect(await onboardingEntry("user-1", "new")).toBe("/welcome/programme/drafts/draft-1");
+});
+
+/** A swimmer's setup ends on its first step, so that is where an unfinished one resumes. */
+it("never sends an account that does not lift to the gym steps", async () => {
+  state.mockResolvedValue({ experience: "new", sports: ["swimming"], place: null });
+  expect(await onboardingEntry("user-1", "new")).toBe("/welcome");
+  expect(programme).not.toHaveBeenCalled();
 });

@@ -10,6 +10,11 @@ const auth = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({ auth }) }));
 vi.mock("@/lib/site-url", () => ({ getSiteUrl: async () => "http://localhost:3010" }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+const directory = vi.hoisted(() => ({ taken: new Set<string>() }));
+vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
+vi.mock("@/server/repositories/people", () => ({
+  usernameAvailable: async (_db: unknown, candidate: string) => !directory.taken.has(candidate),
+}));
 import {
   requestPasswordResetAction,
   updatePasswordAction,
@@ -33,7 +38,6 @@ const signup = () =>
     email: "athlete@example.test",
     displayName: "Sam",
     password: "Example-password-1!",
-    confirmPassword: "Example-password-1!",
   });
 
 it("does not promise email delivery for an obfuscated repeat signup", async () => {
@@ -53,35 +57,77 @@ it("passes the signup name to Auth and requests confirmation only for a new iden
   expect(auth.signUp).toHaveBeenCalledWith(
     expect.objectContaining({
       options: {
-        data: { display_name: "Sam" },
+        data: { display_name: "Sam", username: "sam" },
         emailRedirectTo: "http://localhost:3010/auth/confirm",
       },
     }),
   );
 });
 
-it("passes a chosen username to Auth, made canonical, and refuses one that breaks the rules", async () => {
+it("asks Auth for a username made from the name, and none when the name gives none", async () => {
   auth.signUp.mockResolvedValue({
     data: { user: { id: "new-user", identities: [{ id: "email-identity" }] }, session: null },
     error: null,
   });
   const data = signup();
-  data.set("username", " @Sam.94 ");
+  data.set("displayName", " Bea Newcomer ");
   await signUpAction({}, data);
   expect(auth.signUp).toHaveBeenCalledWith(
     expect.objectContaining({
-      options: expect.objectContaining({ data: { display_name: "Sam", username: "sam.94" } }),
+      options: expect.objectContaining({
+        data: { display_name: "Bea Newcomer", username: "bea.newcomer" },
+      }),
     }),
   );
-  data.set("username", "coach");
-  expect((await signUpAction({}, data)).error).toBe("That name is reserved.");
-  data.set("username", "   ");
+  // Too short to be a username: the auth trigger makes one from the email instead.
+  data.set("displayName", "Al");
   await signUpAction({}, data);
   expect(auth.signUp).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      options: expect.objectContaining({ data: { display_name: "Sam" } }),
+      options: expect.objectContaining({ data: { display_name: "Al" } }),
     }),
   );
+  // Taken: the next number that is free, rather than a name made from the email.
+  directory.taken.add("bea.newcomer");
+  directory.taken.add("bea.newcomer2");
+  data.set("displayName", "Bea Newcomer");
+  await signUpAction({}, data);
+  expect(auth.signUp).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      options: expect.objectContaining({
+        data: { display_name: "Bea Newcomer", username: "bea.newcomer3" },
+      }),
+    }),
+  );
+  directory.taken.clear();
+  // No name at all: nothing to pass.
+  data.set("displayName", "  ");
+  await signUpAction({}, data);
+  expect(auth.signUp).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      options: { emailRedirectTo: "http://localhost:3010/auth/confirm" },
+    }),
+  );
+});
+
+it("says what is wrong under the field it is about", async () => {
+  expect(await signUpAction({}, form({ email: "", password: "Example-password-1!" }))).toEqual({
+    error: "Enter your email.",
+    field: "email",
+  });
+  expect(
+    await signUpAction({}, form({ email: "not-an-address", password: "Example-password-1!" })),
+  ).toEqual({ error: "Enter a valid email address, such as name@example.com.", field: "email" });
+  expect(await signUpAction({}, form({ email: "a@example.test", password: "short" }))).toEqual({
+    error: "Use at least 8 characters.",
+    field: "password",
+  });
+  expect(auth.signUp).not.toHaveBeenCalled();
+  auth.signUp.mockResolvedValue({ data: {}, error: { code: "email_exists", message: "" } });
+  expect(await signUpAction({}, signup())).toEqual({
+    error: "That email already has an account. Sign in instead.",
+    field: "email",
+  });
 });
 
 it("does not treat an empty provider response or delivery failure as a successful signup", async () => {
