@@ -52,7 +52,7 @@ export function NumberField({
           onClick={() => bump(-step)}
           disabled={disabled}
           aria-label={`Decrease ${label}`}
-          className="order-2 h-11 border-t border-r border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
+          className="order-2 h-[var(--ov-target)] border-t border-r border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
         >
           −
         </button>
@@ -65,14 +65,14 @@ export function NumberField({
           onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
           disabled={disabled}
           aria-label={label}
-          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-semibold tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+          className="order-1 col-span-2 h-[var(--ov-target)] w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-semibold tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
         />
         <button
           type="button"
           onClick={() => bump(step)}
           disabled={disabled}
           aria-label={`Increase ${label}`}
-          className="order-3 h-11 border-t border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
+          className="order-3 h-[var(--ov-target)] border-t border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
         >
           +
         </button>

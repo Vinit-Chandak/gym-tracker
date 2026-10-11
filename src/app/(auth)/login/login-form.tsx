@@ -61,7 +61,7 @@ export function LoginForm({ next }: { next?: string }) {
             // The word on screen leads the name, so a voice command saying it still finds it.
             aria-label={shown ? "Hide password" : "Show password"}
             onClick={() => setShown((value) => !value)}
-            className="-my-3 inline-flex min-h-11 items-center px-1 font-bold text-ink underline underline-offset-4"
+            className="-my-3 inline-flex min-h-[var(--ov-target)] items-center px-1 font-bold text-ink underline underline-offset-4"
           >
             {shown ? "Hide" : "Show"}
           </button>
@@ -87,7 +87,7 @@ export function LoginForm({ next }: { next?: string }) {
       </Button>
       <Link
         href="/forgot-password"
-        className="flex min-h-11 items-center justify-center type-meta font-bold text-ink underline underline-offset-4"
+        className="flex min-h-[var(--ov-target)] items-center justify-center type-meta font-bold text-ink underline underline-offset-4"
       >
         Forgot your password?
       </Link>

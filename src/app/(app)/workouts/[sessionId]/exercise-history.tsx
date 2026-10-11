@@ -78,7 +78,7 @@ export function ExerciseHistory({
         Could not load the history.{" "}
         <button
           type="button"
-          className="min-h-11 font-bold text-ink"
+          className="min-h-[var(--ov-target)] font-bold text-ink"
           onClick={() => {
             setState({ status: "loading" });
             setAttempt((n) => n + 1);

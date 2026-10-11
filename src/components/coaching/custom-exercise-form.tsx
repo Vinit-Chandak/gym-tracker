@@ -95,7 +95,7 @@ export function CustomExerciseForm({
         </legend>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(7rem,45%)),1fr))] gap-2">
           {MUSCLE_GROUPS.map((m) => (
-            <label key={m} className="flex min-h-11 min-w-0 items-center gap-2">
+            <label key={m} className="flex min-h-[var(--ov-target)] min-w-0 items-center gap-2">
               <input
                 type="checkbox"
                 checked={muscles.includes(m)}

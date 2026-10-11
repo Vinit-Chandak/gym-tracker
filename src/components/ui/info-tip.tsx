@@ -136,7 +136,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         aria-describedby={open ? id : undefined}
         onClick={toggle}
         className={cn(
-          "-m-1.5 flex size-11 items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
+          "-m-1.5 flex size-[var(--ov-target)] items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
           open && "text-accent",
         )}
       >

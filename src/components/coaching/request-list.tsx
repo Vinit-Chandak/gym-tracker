@@ -130,7 +130,7 @@ function RequestRow({
       {settled && request.draftId && (
         <Link
           href={`${base}/drafts/${request.draftId}` as Route}
-          className="flex min-h-11 items-center type-meta font-bold underline underline-offset-4"
+          className="flex min-h-[var(--ov-target)] items-center type-meta font-bold underline underline-offset-4"
         >
           See the change
         </Link>

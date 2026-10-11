@@ -755,8 +755,9 @@ button.activity-card-toggle {
 }
 .activity-card-chevron {
   display: grid;
-  width: calc(44 * var(--ov-u));
-  height: calc(44 * var(--ov-u));
+  /* A header's target: 44 pt, 48 dp on Android. */
+  width: var(--ov-target-header);
+  height: var(--ov-target-header);
   flex-shrink: 0;
   place-items: center;
   margin-left: auto;

@@ -79,7 +79,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
               <div className="min-w-0">
                 <Link
                   href={`/exercises/${row.exercise.id}`}
-                  className="flex min-h-11 flex-col justify-center"
+                  className="flex min-h-[var(--ov-target)] flex-col justify-center"
                 >
                   <span className="font-medium">{row.exercise.name}</span>
                   <span className="text-xs text-ink-muted">{row.days.join(" · ")}</span>

@@ -63,7 +63,7 @@ export function Disclosure({
         className={cn(
           "flex list-none flex-wrap items-center gap-2 font-medium",
           variant === "box" && "min-h-14 rounded-card px-4 py-3",
-          variant === "inline" && "min-h-11 py-2 text-sm",
+          variant === "inline" && "min-h-[var(--ov-target)] py-2 text-sm",
           variant === "footer" &&
             "min-h-12 rounded-b-card px-[var(--panel-padding)] py-3 text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
         )}

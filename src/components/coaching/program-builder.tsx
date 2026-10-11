@@ -370,7 +370,7 @@ export function ProgramBuilder({
                     />
                   ))}
               </div>
-              <label className="flex min-h-11 items-center gap-2 text-sm">
+              <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={entry.rir !== null}
@@ -380,7 +380,7 @@ export function ProgramBuilder({
                 />
                 Set a reps-in-reserve target (optional)
               </label>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-[var(--ov-target)] items-center gap-2">
                 <input
                   type="checkbox"
                   className="size-5"
@@ -445,7 +445,7 @@ export function ProgramBuilder({
               dayChange(d, { includesLifting: true, exercises: [...day.exercises, entry] })
             }
           />
-          <label className="flex min-h-11 items-center gap-2">
+          <label className="flex min-h-[var(--ov-target)] items-center gap-2">
             <input
               type="checkbox"
               className="size-5"
@@ -464,7 +464,9 @@ export function ProgramBuilder({
           </label>
           {day.includesRun && (
             <details open>
-              <summary className="min-h-11 cursor-pointer py-2">Running targets by week</summary>
+              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2">
+                Running targets by week
+              </summary>
               <div className="space-y-3">
                 {plan.runs
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)

@@ -139,7 +139,7 @@ export function SupersetSheet({
               <li key={exercise.id}>
                 <label
                   className={cn(
-                    "flex min-h-11 cursor-pointer items-center gap-3 py-2",
+                    "flex min-h-[var(--ov-target)] cursor-pointer items-center gap-3 py-2",
                     pending && "opacity-60",
                   )}
                 >

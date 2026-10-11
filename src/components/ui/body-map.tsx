@@ -149,7 +149,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
                     <button
                       type="button"
                       aria-pressed={active === muscle}
-                      className="flex min-h-11 w-full items-center gap-2 py-2 text-left"
+                      className="flex min-h-[var(--ov-target)] w-full items-center gap-2 py-2 text-left"
                     >
                       <span
                         className="size-2.5 shrink-0 rounded-[3px]"

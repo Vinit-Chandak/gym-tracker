@@ -154,7 +154,9 @@ export function DraftPreview({
           )}
           {day.includesRun && (
             <details>
-              <summary className="min-h-11 cursor-pointer py-2">Run targets</summary>
+              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2">
+                Run targets
+              </summary>
               <ul className="space-y-2 text-sm">
                 {current.blueprint.runs
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)

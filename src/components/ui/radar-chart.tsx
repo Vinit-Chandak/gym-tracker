@@ -139,7 +139,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         ))}
       </svg>
       <details className="group text-xs text-ink-muted">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-medium select-none">
+        <summary className="flex min-h-[var(--ov-target)] cursor-pointer list-none items-center gap-1.5 font-medium select-none">
           <ChevronDown
             className="shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
             aria-hidden

@@ -225,7 +225,7 @@ function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
       )}
       {runs.notes.length > 0 && (
         <details className="group mt-1">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center type-meta-small font-bold">
+          <summary className="flex min-h-[var(--ov-target)] cursor-pointer list-none items-center type-meta-small font-bold">
             {runs.notes.length === 1
               ? `New ${runs.notes[0]!.label.toLowerCase()} note`
               : `New run notes (${runs.notes.map((note) => note.label.toLowerCase()).join(", ")})`}
