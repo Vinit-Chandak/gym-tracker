@@ -45,7 +45,7 @@ it("folds the tray onto a second row rather than shrinking a tab under its targe
     expect(slot.className).not.toContain("min-w-0");
   }
   // A gap is its ellipsis, in the tabs' own type, not a width that grows past it.
-  const gaps = pages.querySelectorAll('li[aria-hidden="true"]');
+  const gaps = pages.querySelectorAll('li[aria-hidden="true"]:not(.fold-break)');
   expect(gaps).toHaveLength(2);
   for (const gap of gaps) {
     expect(gap.className).not.toMatch(/\bw-\d/);

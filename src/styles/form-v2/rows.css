@@ -1712,3 +1712,25 @@ li:last-child > .picker-row {
 .today-note:not(:empty) {
   margin: 2px 0 calc(8 * var(--ov-u));
 }
+
+/* ---------- a segmented choice, and any tray that folds evenly (fold.ts) ---------- */
+/* A segment's label keeps its words on one line: its unseen copy, on one line and no height,
+   is what the segment cannot be narrower than, so "30 days" folds the tray rather than wrap to
+   "30 / days" beside "7 days". Only a label wider than the whole tray wraps, between words. */
+.segment-label {
+  min-width: 0;
+}
+.segment-label::after {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: nowrap;
+  content: attr(data-label);
+}
+/* Between two items, a break: no width while they share a row (its margins give back the gap
+   it adds), the full width where the tray folds there. */
+.fold-break {
+  height: 0;
+  margin-inline: -1px;
+}

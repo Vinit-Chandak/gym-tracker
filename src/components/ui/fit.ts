@@ -26,6 +26,31 @@ export function emWidth(text: string): number {
   return em;
 }
 
+/**
+ * Atkinson Hyperlegible Next Bold's advance widths, in thousandths of an em as Chromium sets
+ * them, glyph by glyph in the order of `BOLD_GLYPHS`: what a control's words need, known before
+ * the page has measured anything.
+ */
+const BOLD_GLYPHS =
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789  -.,:#()'’×/+%–—…";
+const BOLD_WIDTHS = [
+  552, 596, 496, 596, 563, 376, 593, 571, 300, 292, 555, 309, 882, 571, 577, 596, 599, 385, 508,
+  376, 567, 553, 763, 563, 544, 506, 700, 643, 644, 689, 597, 566, 718, 701, 425, 561, 664, 552,
+  858, 717, 747, 629, 757, 650, 610, 621, 686, 662, 894, 685, 685, 618, 659, 440, 579, 600, 633,
+  604, 626, 564, 624, 571, 313, 313, 373, 272, 271, 272, 765, 335, 335, 210, 269, 536, 321, 595,
+  969, 501, 832, 781,
+];
+
+/** How wide `text` is in Atkinson Hyperlegible Next Bold, in em; an unlisted glyph counts 0.9. */
+export function boldEmWidth(text: string): number {
+  let em = 0;
+  for (const ch of text) {
+    const index = BOLD_GLYPHS.indexOf(ch);
+    em += index < 0 ? 0.9 : BOLD_WIDTHS[index]! / 1000;
+  }
+  return em;
+}
+
 /** The ramp step at which the widest of `texts` fits `available` points, between min and max. */
 export function fitFigure(
   texts: readonly string[],
