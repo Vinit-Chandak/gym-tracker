@@ -12,8 +12,8 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
-import { addDays, todayInTimeZone } from "@/domain/program-calendar";
-import { allSlots, isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { SKIP_CHECK_IN } from "@/lib/check-in";
 import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
@@ -922,18 +922,15 @@ export async function pickUpFromTodayAction(
     const today = todayInTimeZone(profile.timeZone);
     const startDate = schedule.program.startDate ?? today;
     const { skip, rest } = pickUpFromToday(schedule.state, startDate, today);
-    const position = new Map(
-      allSlots(schedule.state).map((ref, index) => [`${ref.cycleIndex}:${ref.dayIndex}`, index]),
-    );
     for (const { ref, part } of skip)
       await recordSlotEvent(tx, user.id, schedule.program.id, ref, part, "skipped", {
         occurredOn: today,
         note: "Picked up from today",
       });
     // A passed rest day is dated by its own day, so it never reads as finished today.
-    for (const ref of rest)
+    for (const { ref, date } of rest)
       await recordSlotEvent(tx, user.id, schedule.program.id, ref, "session", "completed", {
-        occurredOn: addDays(startDate, position.get(`${ref.cycleIndex}:${ref.dayIndex}`) ?? 0),
+        occurredOn: date,
         note: "Rest day passed",
       });
     const skippedSlots = new Map(skip.map(({ ref }) => [`${ref.cycleIndex}:${ref.dayIndex}`, ref]));

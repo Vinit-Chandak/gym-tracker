@@ -12,6 +12,7 @@ import {
   runEventsFromOccurrences,
   sessionsBehind,
   slotFinishedOn,
+  slotDates,
   slotParts,
   slotStatus,
   suggestion,
@@ -226,13 +227,16 @@ describe("behind the calendar", () => {
       { ref: { cycleIndex: 1, dayIndex: 5 }, part: "session" },
       { ref: { cycleIndex: 1, dayIndex: 6 }, part: "run" },
     ]);
-    expect(pickUp.rest).toEqual([{ cycleIndex: 1, dayIndex: 7 }]);
+    // The rest day keeps its own date, the day before today's.
+    expect(pickUp.rest).toEqual([{ ref: { cycleIndex: 1, dayIndex: 7 }, date: "2026-09-13" }]);
     expect(pickUp.resumeAt).toEqual({ cycleIndex: 2, dayIndex: 1 });
     // Answered as it says, nothing is behind and the next day is today's.
     const answered = state([
       ...events,
-      ...pickUp.skip.map(({ ref, part: which }) => part(ref.cycleIndex, ref.dayIndex, which, "skipped")),
-      ...pickUp.rest.map((ref) => part(ref.cycleIndex, ref.dayIndex, "session")),
+      ...pickUp.skip.map(({ ref, part: which }) =>
+        part(ref.cycleIndex, ref.dayIndex, which, "skipped"),
+      ),
+      ...pickUp.rest.map(({ ref }) => part(ref.cycleIndex, ref.dayIndex, "session")),
     ]);
     expect(sessionsBehind(answered, "2026-09-08", "2026-09-14")).toBe(0);
     expect(nextPendingSlot(answered)).toEqual({ cycleIndex: 2, dayIndex: 1 });
@@ -369,5 +373,53 @@ describe("endurance answers the day it belongs to", () => {
     );
     expect(slotStatus(ran, { cycleIndex: 1, dayIndex: 3 })).toBe("completed");
     expect(nextPendingSlot(ran)).toEqual({ cycleIndex: 1, dayIndex: 4 });
+  });
+});
+
+describe("a cycle that repeats every week on fewer than seven days", () => {
+  // Monday, Wednesday and Friday, eight weeks: eight cycles, each day on its weekday.
+  const mwf = (events: SlotEvent[] = []): ScheduleState => ({
+    slots: [
+      { ...lift(1, "Full body A"), dayOfWeek: 1 },
+      { ...lift(2, "Full body B"), dayOfWeek: 3 },
+      { ...lift(3, "Full body C"), dayOfWeek: 5 },
+    ],
+    cycles: 8,
+    startDayIndex: 1,
+    events,
+    repeats: "weekly",
+  });
+
+  it("lays each day on its weekday, from the first Monday on or after the start", () => {
+    // Started on Thursday 10 September 2026: the first Monday is the 14th.
+    const dates = slotDates(mwf(), "2026-09-10").map(({ date }) => date);
+    expect(dates.slice(0, 4)).toEqual(["2026-09-14", "2026-09-16", "2026-09-18", "2026-09-21"]);
+    expect(dates).toHaveLength(24);
+  });
+
+  it("owes nothing for the days between, and nothing before the first Monday", () => {
+    expect(sessionsBehind(mwf(), "2026-09-10", "2026-09-14")).toBe(0);
+    // Thursday the 17th: Monday and Wednesday have passed untrained.
+    expect(missedSlots(mwf(), "2026-09-10", "2026-09-17")).toEqual([
+      { cycleIndex: 1, dayIndex: 1 },
+      { cycleIndex: 1, dayIndex: 2 },
+    ]);
+    // Picking up resumes on Friday's day, the next the calendar holds.
+    expect(pickUpFromToday(mwf(), "2026-09-10", "2026-09-17").resumeAt).toEqual({
+      cycleIndex: 1,
+      dayIndex: 3,
+    });
+  });
+
+  it("projects the end onto the weekdays the days fall on", () => {
+    // Nothing done on Monday the 14th: 24 sessions, the last on Friday 6 November.
+    expect(projectedEndDate(mwf(), "2026-09-14")).toBe("2026-11-06");
+    // The same plan read one slot a day would have ended on 7 October.
+    expect(projectedEndDate({ ...mwf(), repeats: null }, "2026-09-14")).toBe("2026-10-07");
+  });
+
+  it("is read one slot a day when it predates the choice", () => {
+    const dates = slotDates({ ...mwf(), repeats: undefined }, "2026-09-10").map((d) => d.date);
+    expect(dates.slice(0, 3)).toEqual(["2026-09-10", "2026-09-11", "2026-09-12"]);
   });
 });

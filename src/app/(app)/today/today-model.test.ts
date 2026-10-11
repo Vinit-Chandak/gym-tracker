@@ -70,7 +70,7 @@ const WRIST = slot({
 /** The fields the squares read; the rest of a plan does not reach them. */
 function plan(statuses: readonly ("completed" | "skipped" | "pending")[], offered: number) {
   return {
-    program: { weeks: 8 },
+    program: { weeks: 8, cycles: 8 },
     behind: 0,
     missed: [],
     pickUpDay: null,
@@ -88,7 +88,9 @@ describe("the cycle's squares", () => {
 
   it("are read aloud with where the cycle stands, behind included", () => {
     const week = { ...plan(["completed", "completed", "pending"], 3), behind: 25 } as TodayPlan;
-    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme");
+    expect(cycleLabel(week)).toBe(
+      "Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme",
+    );
   });
 });
 

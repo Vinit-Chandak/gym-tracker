@@ -13,18 +13,32 @@ import {
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
-/** "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one. */
+/**
+ * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
+ * with the cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
+ */
 function shape(blueprint: ProgramBlueprint): string {
   const sets = blueprint.days.reduce(
     (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
     0,
   );
   const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
-  return `${plural(blueprint.weeks, "week")} · ${plural(blueprint.days.length, "day")} per cycle · ${plural(sets, "lifting set")} per cycle`;
+  // A first programme that has not chosen takes the repeat its days suggest when it starts.
+  const plan = { ...blueprint, repeats: blueprint.repeats ?? inferCycleRepeat(blueprint.days) };
+  const { cycles, byWeekday } = cycleLayout(plan);
+  const days = plural(blueprint.days.length, "day");
+  const cycle =
+    blueprint.days.length === 7
+      ? `${days} per cycle`
+      : byWeekday
+        ? `${days} a week`
+        : `${plural(cycles, "cycle")} of ${days}`;
+  return `${plural(blueprint.weeks, "week")} · ${cycle} · ${plural(sets, "lifting set")} per cycle`;
 }
 
 /**

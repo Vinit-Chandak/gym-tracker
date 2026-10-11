@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { cycleCount } from "@/domain/cycle-repeat";
 import type { OccurrenceDisposition } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -30,7 +31,7 @@ import {
   type Suggestion,
   withDerivedRunEvents,
 } from "@/domain/schedule";
-import type { ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
+import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 export type ActiveProgram = {
@@ -42,6 +43,10 @@ export type ActiveProgram = {
   startDate: string | null;
   endDate: string | null;
   weeks: number;
+  /** How the cycle repeats; null for a programme that predates the choice. */
+  repeats: CycleRepeat | null;
+  /** How many cycles the weeks hold: "Cycle 3 of 14". */
+  cycles: number;
   startDayIndex: number;
   notes: string | null;
 };
@@ -56,14 +61,18 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
       startDate: programs.startDate,
       endDate: programs.endDate,
       weeks: programs.weeks,
+      repeats: programs.repeats,
       startDayIndex: programs.startDayIndex,
       notes: programs.notes,
+      dayCount: sql<number>`(select count(*)::int from program_days d where d.program_id = programs.id)`,
     })
     .from(programs)
     .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
     .limit(1);
   if (!row) return null;
-  return { ...row, weeks: row.weeks ?? 8 };
+  const { dayCount, ...program } = row;
+  const weeks = row.weeks ?? 8;
+  return { ...program, weeks, cycles: cycleCount(weeks, dayCount, row.repeats) };
 }
 
 export type ScheduleDay = {
@@ -101,6 +110,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       startDate: programs.startDate,
       endDate: programs.endDate,
       weeks: programs.weeks,
+      repeats: programs.repeats,
       startDayIndex: programs.startDayIndex,
       notes: programs.notes,
       // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
@@ -161,6 +171,8 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
     startDate: row.startDate,
     endDate: row.endDate,
     weeks: row.weeks ?? 8,
+    repeats: row.repeats,
+    cycles: cycleCount(row.weeks ?? 8, row.days.length, row.repeats),
     startDayIndex: row.startDayIndex,
     notes: row.notes,
   };
@@ -173,8 +185,10 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         name: d.name,
         includesLifting: d.includesLifting,
         includesRun: d.includesRun,
+        dayOfWeek: d.dayOfWeek,
       })),
-      cycles: program.weeks,
+      cycles: program.cycles,
+      repeats: program.repeats,
       startDayIndex: program.startDayIndex,
       events: withDerivedRunEvents(
         row.events,

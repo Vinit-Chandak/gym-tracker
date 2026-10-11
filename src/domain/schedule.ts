@@ -1,5 +1,6 @@
-import { addDays, daysBetween } from "./program-calendar";
-import type { SlotPart } from "./types";
+import { datedByWeekday, weekdayOffsets } from "./cycle-repeat";
+import { addDays, isoWeekday } from "./program-calendar";
+import type { CycleRepeat, SlotPart } from "./types";
 
 /**
  * Sequence-based scheduling ("shift" policy).
@@ -21,6 +22,8 @@ export type ProgramSlot = {
   name: string;
   includesLifting: boolean;
   includesRun: boolean;
+  /** ISO weekday the day falls on; only a cycle that repeats weekly is dated by it. */
+  dayOfWeek?: number | null;
 };
 
 export type SlotStatus = "completed" | "skipped";
@@ -41,11 +44,13 @@ export type SlotRef = { cycleIndex: number; dayIndex: number };
 
 export type ScheduleState = {
   slots: readonly ProgramSlot[];
-  /** How many times the cycle is repeated (8 for the current plan). */
+  /** How many times the cycle is repeated: `cycleCount` of the programme's weeks. */
   cycles: number;
   /** Slot the programme started on; earlier slots of cycle 1 never existed. */
   startDayIndex: number;
   events: readonly SlotEvent[];
+  /** How the cycle repeats; absent for a programme that predates the choice (ADR 0051). */
+  repeats?: CycleRepeat | null;
 };
 
 /**
@@ -313,13 +318,37 @@ export function progress(state: ScheduleState): Progress {
 }
 
 /**
- * Where the sequence is laid on the calendar: one slot a day from the programme's start, so the
- * slot at position n (pre-start slots excluded) falls on start + n. Nothing is fixed to that date
- * — the sequence waits for the athlete — but it is what "behind" and "today's day" are read
- * against.
+ * Where the sequence is laid on the calendar, slot by slot in order. One slot a day from the
+ * programme's start, so the slot at position n (pre-start slots excluded) falls on start + n —
+ * unless the cycle repeats weekly on fewer than seven days, when each slot falls on its own
+ * weekday, a week a cycle, starting from the first time the starting day's weekday comes round.
+ * Nothing is fixed to these dates — the sequence waits for the athlete — but they are what
+ * "behind" and "today's day" are read against.
  */
+export function slotDates(
+  state: ScheduleState,
+  startDate: string,
+): { ref: SlotRef; date: string }[] {
+  const refs = allSlots(state);
+  const days = state.slots.map((slot) => ({ ...slot, dayOfWeek: slot.dayOfWeek ?? null }));
+  const offsets = datedByWeekday(days, state.repeats) ? weekdayOffsets(days) : null;
+  const first = refs[0];
+  const firstWeekday = first ? slotFor(state, first)?.dayOfWeek : null;
+  if (!offsets || !first || !firstWeekday)
+    return refs.map((ref, index) => ({ ref, date: addDays(startDate, index) }));
+  const firstDate = addDays(startDate, (firstWeekday - isoWeekday(startDate) + 7) % 7);
+  const cycleStart = addDays(firstDate, -(offsets.get(first.dayIndex) ?? 0));
+  return refs.map((ref) => ({
+    ref,
+    date: addDays(cycleStart, (ref.cycleIndex - 1) * 7 + (offsets.get(ref.dayIndex) ?? 0)),
+  }));
+}
+
+/** The slots the calendar has already passed, in order: always a leading run of the sequence. */
 function slotsDatedBefore(state: ScheduleState, startDate: string, today: string): SlotRef[] {
-  return allSlots(state).slice(0, Math.max(0, daysBetween(startDate, today)));
+  return slotDates(state, startDate)
+    .filter(({ date }) => date < today)
+    .map(({ ref }) => ref);
 }
 
 /**
@@ -352,19 +381,20 @@ export function pickUpFromToday(
   today: string,
 ): {
   skip: { ref: SlotRef; part: SlotPart }[];
-  rest: SlotRef[];
+  /** Rest days passed, each with the date the calendar gave it. */
+  rest: { ref: SlotRef; date: string }[];
   /** Where the sequence stands afterwards; null when the programme would be over. */
   resumeAt: SlotRef | null;
 } {
   const skip: { ref: SlotRef; part: SlotPart }[] = [];
-  const rest: SlotRef[] = [];
-  const dated = slotsDatedBefore(state, startDate, today);
-  for (const ref of dated) {
+  const rest: { ref: SlotRef; date: string }[] = [];
+  const dated = slotDates(state, startDate).filter(({ date }) => date < today);
+  for (const { ref, date } of dated) {
     const slot = slotFor(state, ref);
     if (!slot) continue;
     const owed = pendingParts(state, ref);
     if (owed.length === 0) continue;
-    if (isRestSlot(slot)) rest.push(ref);
+    if (isRestSlot(slot)) rest.push({ ref, date });
     else for (const part of owed) skip.push({ ref, part });
   }
   const after = allSlots(state).slice(dated.length);
@@ -373,8 +403,9 @@ export function pickUpFromToday(
 }
 
 /**
- * Last day of the programme if one slot is done per day from here on; null when finished. A day
- * already finished today has had its day, so what is left starts tomorrow.
+ * Last day of the programme if one slot is done per day from here on — or, in a cycle dated by
+ * weekday, each on its next weekday — and null when finished. A day already finished today has
+ * had its day, so what is left starts tomorrow.
  */
 export function projectedEndDate(
   state: ScheduleState,
@@ -383,5 +414,16 @@ export function projectedEndDate(
 ): string | null {
   const { remaining } = progress(state);
   if (remaining === 0) return null;
-  return addDays(today, remaining - (finishedToday ? 0 : 1));
+  const days = state.slots.map((slot) => ({ ...slot, dayOfWeek: slot.dayOfWeek ?? null }));
+  if (!datedByWeekday(days, state.repeats))
+    return addDays(today, remaining - (finishedToday ? 0 : 1));
+  let cursor = finishedToday ? addDays(today, 1) : today;
+  let last = cursor;
+  for (const ref of allSlots(state)) {
+    if (slotStatus(state, ref) !== "pending") continue;
+    const weekday = slotFor(state, ref)?.dayOfWeek ?? isoWeekday(cursor);
+    last = addDays(cursor, (weekday - isoWeekday(cursor) + 7) % 7);
+    cursor = addDays(last, 1);
+  }
+  return last;
 }

@@ -6,6 +6,7 @@ import {
   type ProgramBlueprint,
 } from "./program-blueprint";
 import { rangeLabel, restLabel, WEEKDAY_NAMES } from "@/lib/labels";
+import { cycleRepeatLabel, programLengthLabel } from "./cycle-repeat";
 import { exerciseTargets } from "./exercise-targets";
 
 export { exerciseTargets } from "./exercise-targets";
@@ -299,13 +300,10 @@ function runFields(before: BlueprintRun, after: BlueprintRun): DiffField[] {
 function programFields(before: ProgramBlueprint, after: ProgramBlueprint): DiffField[] {
   const fields: DiffField[] = [];
   push(fields, "name", "Name", before.name, after.name);
-  push(
-    fields,
-    "weeks",
-    "Length",
-    `${before.weeks} ${before.weeks === 1 ? "week" : "weeks"}`,
-    `${after.weeks} ${after.weeks === 1 ? "week" : "weeks"}`,
-  );
+  // A repeat left unsaid is the one before it; only a different calendar is a change to show.
+  const next = { ...after, repeats: after.repeats ?? before.repeats };
+  push(fields, "weeks", "Length", programLengthLabel(before), programLengthLabel(next));
+  push(fields, "repeats", "Repeats", cycleRepeatLabel(before), cycleRepeatLabel(next));
   push(fields, "notes", "Notes", text(before.notes) || DASH, text(after.notes) || DASH);
   push(fields, "slug", "Programme identity", before.slug, after.slug);
   return fields;

@@ -905,6 +905,9 @@ export async function planningContext(
       id: schedule.program.id,
       name: schedule.program.name,
       weeks: schedule.program.weeks,
+      /** How the cycle repeats and how many cycles the weeks hold (ADR 0051). */
+      repeats: schedule.program.repeats,
+      cycles: schedule.program.cycles,
       startDate: schedule.program.startDate,
       progress: state,
       adherence: liftingAdherence(schedule),

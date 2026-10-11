@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { DRAFT_EXERCISE_SLUGS } from "@/db/seed/data/exercises";
 import type { DbOrTx } from "@/db/types";
+import { cycleRepeatIssues, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { programEndDate } from "@/domain/program-calendar";
 import {
   BLUEPRINT_VERSION,
@@ -144,17 +145,40 @@ export async function createProgramFromBlueprint(
   const issues = enduranceCycleIssues(blueprint);
   if (issues.length > 0)
     throw new Error(`This programme's runs do not fit its days: ${issues.join(" ")}`);
+  const repeatIssues = cycleRepeatIssues(blueprint);
+  if (repeatIssues.length > 0)
+    throw new Error(`This programme cannot repeat as it says: ${repeatIssues.join(" ")}`);
   const familyId = options.familyId ?? crypto.randomUUID();
-  const [{ exerciseIdBySlug, typeIdBySlug, warmupIdBySlug }, [previous]] = await Promise.all([
-    referenceIds(db, blueprint, userId),
-    db
-      .select({ id: programs.id, version: programs.version })
-      .from(programs)
-      .where(and(eq(programs.userId, userId), eq(programs.slug, blueprint.slug)))
-      .orderBy(desc(programs.version))
-      .limit(1),
-  ]);
+  const [{ exerciseIdBySlug, typeIdBySlug, warmupIdBySlug }, [previous], [earlier]] =
+    await Promise.all([
+      referenceIds(db, blueprint, userId),
+      db
+        .select({ id: programs.id, version: programs.version })
+        .from(programs)
+        .where(and(eq(programs.userId, userId), eq(programs.slug, blueprint.slug)))
+        .orderBy(desc(programs.version))
+        .limit(1),
+      options.familyId
+        ? db
+            .select({ repeats: programs.repeats })
+            .from(programs)
+            .where(and(eq(programs.userId, userId), eq(programs.familyId, options.familyId)))
+            .orderBy(desc(programs.version))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
   const version = (previous?.version ?? 0) + 1;
+  // A repeat nobody chose: a later version keeps its programme's, which for one that predates
+  // the choice is none, and a new programme takes the one its days suggest — or none, read as
+  // programmes always were, when its days cannot repeat that way.
+  const inferred = inferCycleRepeat(blueprint.days);
+  const repeats =
+    blueprint.repeats ??
+    (earlier
+      ? earlier.repeats
+      : cycleRepeatIssues({ ...blueprint, repeats: inferred }).length === 0
+        ? inferred
+        : null);
   const status = options.status ?? "active";
 
   // Resolve every reference first, so a blueprint naming something unknown writes nothing.
@@ -200,6 +224,7 @@ export async function createProgramFromBlueprint(
       endDate: programEndDate(options.startDate, blueprint.weeks),
       weeks: blueprint.weeks,
       startDayIndex,
+      repeats,
       notes: blueprint.notes,
     })
     .returning({ id: programs.id });
@@ -383,6 +408,7 @@ export async function readProgramBlueprint(
     slug: program.slug,
     name: program.name,
     weeks: program.weeks ?? 8,
+    repeats: program.repeats ?? undefined,
     notes: program.notes ?? "",
     days: days.map(({ day, warmupSlug }) => ({
       dayIndex: day.dayIndex,

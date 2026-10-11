@@ -102,6 +102,8 @@ function schedule(): Schedule {
       startDate: "2026-09-01",
       endDate: null,
       weeks: 2,
+      repeats: null,
+      cycles: 2,
       startDayIndex: 1,
       notes: null,
     },

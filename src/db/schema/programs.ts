@@ -15,7 +15,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
-import type { ProgressionRule } from "../../domain/types";
+import type { CycleRepeat, ProgressionRule } from "../../domain/types";
 import { ownerPolicy, timestamps } from "./common";
 import {
   prescriptionTypeEnum,
@@ -50,6 +50,13 @@ export const programs = pgTable(
     weeks: integer("weeks"),
     /** Day slot the programme began on (1 = first day of the cycle). Earlier slots of cycle 1 never existed. */
     startDayIndex: integer("start_day_index").notNull().default(1),
+    /**
+     * How the cycle repeats (ADR 0051): `weekly`, one cycle a week with each day on its weekday,
+     * or `rolling`, the days back to back with as many cycles as fill the weeks. Null for a
+     * programme written before the choice existed, which is read from its days
+     * (`cycleRepeat` in domain/schedule.ts).
+     */
+    repeats: text("repeats").$type<CycleRepeat>(),
     notes: text("notes"),
     ...timestamps,
   },
@@ -60,6 +67,7 @@ export const programs = pgTable(
     uniqueIndex("programs_one_active_per_user_uq")
       .on(t.userId)
       .where(sql`status = 'active'`),
+    check("programs_repeats_chk", sql`repeats is null or repeats in ('weekly', 'rolling')`),
     index("programs_user_status_idx").on(t.userId, t.status),
     ownerPolicy("programs"),
   ],

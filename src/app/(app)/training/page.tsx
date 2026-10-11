@@ -92,7 +92,7 @@ export default async function TrainingPage() {
                 {overview.program.name}
               </Link>
               <span className="cycle-count">
-                Cycle {overview.currentCycle} of {overview.program.weeks}
+                Cycle {overview.currentCycle} of {overview.program.cycles}
               </span>
             </h2>
             <CycleDays days={days} label="The cycle’s days" />

@@ -6,7 +6,9 @@ import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
+import { cycleCount, inferCycleRepeat, weekdayOffsets } from "@/domain/cycle-repeat";
 import {
   type BlueprintDay,
   type BlueprintExercise,
@@ -18,6 +20,7 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
+import type { CycleRepeat } from "@/domain/types";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
 type LibraryEntry = {
@@ -33,6 +36,17 @@ type LibraryEntry = {
   defaultRir: number | null;
   defaultRestSeconds: number | null;
 };
+/** What the chosen repeat makes of the weeks, said under the choice. */
+function repeatHint(plan: ProgramBlueprint, repeats: CycleRepeat | undefined): string {
+  const weeks = plan.weeks > 0 ? plan.weeks : null;
+  if (repeats === undefined)
+    return "Not chosen yet. Until you choose, it counts one cycle a week, its days back to back.";
+  if (repeats === "weekly")
+    return `Each day falls on its weekday and the days between are rest${weeks ? `: ${weeks} ${weeks === 1 ? "cycle" : "cycles"}, one a week` : ""}.`;
+  const cycles = weeks ? cycleCount(weeks, plan.days.length, "rolling") : null;
+  return `The days run back to back, rest days included${cycles ? `: ${cycles} ${cycles === 1 ? "cycle" : "cycles"} in ${weeks} ${weeks === 1 ? "week" : "weeks"}` : ""}.`;
+}
+
 export function ProgramBuilder({
   initial,
   library,
@@ -68,6 +82,12 @@ export function ProgramBuilder({
     [error, setError] = useState<string | null>(null),
     [message, setMessage] = useState<string | null>(null);
   const busy = saving || navigating;
+  // How the cycle repeats. A plan being built takes the repeat its days suggest until somebody
+  // chooses; a programme that predates the choice keeps none, and so keeps counting as it did,
+  // until somebody does.
+  const unchosen = initial !== null && initial.blueprint.repeats === undefined;
+  const repeats: CycleRepeat | undefined =
+    plan.repeats ?? (unchosen ? undefined : inferCycleRepeat(plan.days));
   function change(patch: Partial<ProgramBlueprint>) {
     setPlan((p) => ({ ...p, ...patch }));
     setMessage(null);
@@ -95,7 +115,7 @@ export function ProgramBuilder({
     setMessage(null);
     try {
       const result = await coachingAction(() =>
-        saveProgramDraftAction(plan, draft?.id, draft?.revision),
+        saveProgramDraftAction({ ...plan, repeats }, draft?.id, draft?.revision),
       );
       if (!result.ok) throw new Error(result.error);
       setDraft({ id: result.value.id, revision: result.value.revision });
@@ -144,6 +164,35 @@ export function ProgramBuilder({
             onChange={(e) => weeksChange(Number(e.target.value))}
           />
         </Field>
+        {plan.days.length > 0 && plan.days.length < 7 ? (
+          <Field
+            group
+            label="Repeats"
+            hint={repeatHint(plan, repeats)}
+            error={
+              repeats === "weekly" && weekdayOffsets(plan.days) === null
+                ? "Give each day its own weekday, in order through the week."
+                : repeats === "rolling" && plan.days.some((day) => day.includesRun)
+                  ? "Runs are planned week by week, so a programme with running days repeats every week."
+                  : undefined
+            }
+          >
+            <SegmentedControl
+              name="repeats"
+              options={[
+                { value: "weekly", label: "Every week" },
+                {
+                  value: "rolling",
+                  label: `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`,
+                },
+              ]}
+              // Nothing chosen yet reads as no pill in ink, not as either answer.
+              value={repeats ?? ("" as CycleRepeat)}
+              onChange={(value) => change({ repeats: value })}
+              columns={2}
+            />
+          </Field>
+        ) : null}
         <Field label="Programme notes">
           <Textarea
             maxLength={2000}

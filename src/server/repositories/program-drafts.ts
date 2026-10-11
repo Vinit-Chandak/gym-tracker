@@ -22,6 +22,7 @@ import {
   blueprintExerciseSlugs,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
+import { cycleRepeatIssues } from "@/domain/cycle-repeat";
 import { enduranceCycleIssues } from "@/domain/program-blueprint-v2";
 import { assessProgramChange } from "@/domain/program-change";
 import { diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
@@ -166,7 +167,7 @@ export async function validateBlueprintForAthlete(
   }
   // One definition of what makes a programme's runs placeable in its cycle, shared with the
   // write itself: the coach is told here, in its own terms, before anything is stored.
-  const cycleIssues = enduranceCycleIssues(blueprint);
+  const cycleIssues = [...enduranceCycleIssues(blueprint), ...cycleRepeatIssues(blueprint)];
   if (cycleIssues.length > 0) throw new CoachingError(cycleIssues.join(" "), 422);
   const runningDays = blueprint.days.filter((d) => d.includesRun);
   for (const day of runningDays)

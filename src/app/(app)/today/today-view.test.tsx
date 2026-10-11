@@ -72,6 +72,8 @@ function plan(): TodayPlan {
       startDate: "2026-09-08",
       endDate: null,
       weeks: 8,
+      repeats: null,
+      cycles: 8,
       startDayIndex: 1,
       notes: null,
     },

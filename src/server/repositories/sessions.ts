@@ -1,6 +1,7 @@
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { cycleCount } from "@/domain/cycle-repeat";
 import { manualPrescription } from "@/domain/manual-prescription";
 
 import {
@@ -527,7 +528,10 @@ export async function getSessionDetail(
         timeNote: programDays.timeNote,
         warmupProtocolId: programDays.warmupProtocolId,
       },
-      cycles: programs.weeks,
+      programWeeks: programs.weeks,
+      programRepeats: programs.repeats,
+      // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
+      programDays: sql<number>`(select count(*)::int from program_days d where d.program_id = programs.id)`,
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
@@ -891,8 +895,10 @@ export async function getSessionDetail(
         }
       : null,
     cycleIndex: session.session.cycleIndex,
-    // A programme without a length runs 8 cycles, as Today's squares count them (schedule.ts).
-    cycles: session.session.programId ? (session.cycles ?? 8) : null,
+    // A programme without a length runs 8 weeks, as Today's squares count them (schedule.ts).
+    cycles: session.session.programId
+      ? cycleCount(session.programWeeks ?? 8, session.programDays, session.programRepeats)
+      : null,
     startedAt: session.session.startedAt,
     completedAt: session.session.completedAt,
     bodyWeightKg: session.session.bodyWeightKg,

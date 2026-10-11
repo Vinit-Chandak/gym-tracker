@@ -56,7 +56,7 @@ export default async function ChooseDayPage() {
       <PageHeader
         title="Choose a day"
         meta={
-          plan ? `Cycle ${plan.cycleDays[0]?.cycleIndex ?? 1} of ${plan.program.weeks}` : undefined
+          plan ? `Cycle ${plan.cycleDays[0]?.cycleIndex ?? 1} of ${plan.program.cycles}` : undefined
         }
         backHref="/today"
       />

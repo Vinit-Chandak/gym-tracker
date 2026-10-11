@@ -17,6 +17,7 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
+import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -125,7 +126,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
               <p className="text-xs text-ink-muted tabular-nums">
-                Cycle {overview.currentCycle} of {overview.program.weeks} ·{" "}
+                Cycle {overview.currentCycle} of {overview.program.cycles} ·{" "}
                 {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
                 {overview.progress.remaining} to go
                 {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
@@ -148,6 +149,14 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                         [
                           "Projected end",
                           overview.projectedEnd ? formatIsoDate(overview.projectedEnd) : null,
+                        ],
+                        [
+                          "Repeats",
+                          cycleRepeatLabel({
+                            weeks: overview.program.weeks,
+                            days: overview.days.map((entry) => entry.day),
+                            repeats: overview.program.repeats,
+                          }),
                         ],
                       ]}
                     />

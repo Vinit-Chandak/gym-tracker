@@ -39,7 +39,7 @@ export function cycleLabel(plan: TodayPlan): string {
   const cycle = plan.suggestion?.slot.cycleIndex;
   const day = plan.suggestedDay?.dayIndex;
   const parts = [
-    cycle ? `Cycle ${cycle} of ${plan.program.weeks}` : null,
+    cycle ? `Cycle ${cycle} of ${plan.program.cycles}` : null,
     day ? `day ${day} of ${plan.cycleDays.length}` : null,
     plan.behind > 0 ? sessionsBehindLabel(plan.behind) : null,
   ].filter(Boolean);
