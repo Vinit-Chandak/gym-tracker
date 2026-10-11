@@ -10,9 +10,10 @@ import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
+import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
 import { Figures } from "@/components/ui/figures";
+import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -473,12 +474,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   >
                     Preferred machine here
                   </label>
-                  {/* The select carries the long machine names, so it takes the row. */}
-                  <div className="flex items-center gap-2">
+                  {/* The select carries the long machine names, so it takes the row (its wrapper
+                      is what the row lays out), and Save goes under it before the choice would
+                      have less than a few words' room (large text). */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select
                       id={`preferred-machine-${entry.gym.id}`}
                       name="equipmentInstanceId"
-                      className="min-w-0 flex-1"
+                      wrapperClassName="min-w-0 flex-[1_1_12rem]"
                       defaultValue={entry.preferredInstanceId ?? ""}
                     >
                       <option value="">Automatic</option>
@@ -494,9 +497,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   </div>
                 </form>
               )}
-              <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
+              {/* A link inside a card, at the card's text edge and led on by its chevron, as
+                  Today's cards say theirs; a button's padding set it in from the lines above. */}
+              <Link href={`/gyms/${entry.gym.id}/programme`} className="activity-card-link">
                 Programme fit
-              </LinkButton>
+                <Glyph name="chevronRight" className="glyph-18" />
+              </Link>
             </Card>
           ))}
         </Section>
