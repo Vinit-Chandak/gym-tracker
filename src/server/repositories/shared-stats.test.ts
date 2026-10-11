@@ -32,6 +32,7 @@ import { loadHeadToHead } from "@/server/queries/head-to-head";
 import { recordBodyWeight } from "./body-weight";
 import { acceptFollow, requestFollow } from "./follows";
 import { listGyms } from "./gyms";
+import { createCustomExercise } from "./manual-training";
 import { addExerciseToSession, finishSession, logSet, startAdHocSession } from "./sessions";
 import {
   canViewTraining,
@@ -47,6 +48,7 @@ import {
   readPeriodTotals,
   readRecords,
   readSessionRecords,
+  readSharedSessionExercises,
 } from "./shared-stats";
 import { readWorkouts } from "./training-data";
 
@@ -931,5 +933,60 @@ describe("what is shared of a session, and a rebuild of it", () => {
     expect(await day()).toBe("2026-09-13");
     await backfillSharedStats(t.db);
     expect(await day()).toBe("2026-09-13");
+  });
+});
+
+describe("a shared workout's movements", () => {
+  it("lists the library movements a follower may see, by the shared row's id alone", async () => {
+    const own = await as(alice)((tx) =>
+      createCustomExercise(tx, alice, {
+        name: "Alice's landmine twist",
+        category: "strength",
+        modality: "dumbbell",
+        measurement: "reps",
+        primaryMuscles: ["obliques"],
+        equipmentInstanceId: null,
+      }),
+    );
+    const session = await train([
+      {
+        exercise: bench,
+        sets: [
+          { weight: 40, reps: 10, warmup: true },
+          { weight: 70, reps: 3 },
+          { weight: 70, reps: 2 },
+          { weight: 60, reps: 6 },
+        ],
+      },
+      { exercise: legPress, sets: [{ weight: 150, reps: 10 }] },
+      {
+        exercise: own.id,
+        sets: [
+          { weight: 10, reps: 12 },
+          { weight: 10, reps: 12 },
+        ],
+      },
+    ]);
+    const [row] = await t.db
+      .select({ id: sharedSessionStats.id, workingSets: sharedSessionStats.workingSets })
+      .from(sharedSessionStats)
+      .where(eq(sharedSessionStats.sourceId, session));
+    const read = (viewer: string, owner = alice, id = row!.id) =>
+      as(viewer)((tx) => readSharedSessionExercises(tx, owner, id));
+
+    const seen = await read(bob);
+    expect(
+      seen.map((e) => [e.name, e.comparable, e.workingSets, e.topWeightKg, e.topWeightReps]),
+    ).toEqual([
+      ["45° leg press", false, 1, 150, 10],
+      ["Barbell bench press", true, 3, 70, 3],
+    ]);
+    // The movement alice created has no shared row: the session's sets say there were more.
+    expect(row!.workingSets).toBe(6);
+    expect(await read(alice)).toEqual(seen);
+    // Not a follower, the id read as someone else's, or no such row: nothing at all.
+    expect(await read(carol)).toEqual([]);
+    expect(await read(bob, bob)).toEqual([]);
+    expect(await read(bob, alice, crypto.randomUUID())).toEqual([]);
   });
 });
