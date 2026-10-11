@@ -72,10 +72,16 @@ function isoParts(
 
 const ISO_DAY = { day: "numeric", month: "short", year: "numeric" } as const;
 
-/** "Tue 8 Sept 2026" for an ISO date string. */
-export function formatIsoDate(isoDate: string): string {
+/**
+ * "Tue 8 Sept 2026" for an ISO date string, or "Tue 8 Sept" inside `currentYear`: a day that
+ * could be in any year names its year when it is not this one.
+ */
+export function formatIsoDate(isoDate: string, currentYear?: string): string {
   const on = isoParts(isoDate, { weekday: "short", ...ISO_DAY });
-  return on ? `${on.weekday} ${on.day} ${on.month} ${on.year}` : isoDate;
+  if (!on) return isoDate;
+  return isoDate.slice(0, 4) === currentYear
+    ? `${on.weekday} ${on.day} ${on.month}`
+    : `${on.weekday} ${on.day} ${on.month} ${on.year}`;
 }
 
 /** "8 Sept 2026" for an ISO date string: the same date without its weekday. */
@@ -148,10 +154,14 @@ export function formatRunKm(distanceMeters: number): string {
   return String(Math.round(distanceMeters / 10) / 100);
 }
 
-/** "1 h 12 min" / "48 min". */
+/**
+ * "1 h 12 min" / "48 min". Rounded to the minute before it is split, so 1:59:40 is "2 h", never
+ * "1 h 60 min".
+ */
 export function formatMinutes(totalMinutes: number): string {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60);
+  const total = Math.round(totalMinutes);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
   if (hours === 0) return `${minutes} min`;
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 }

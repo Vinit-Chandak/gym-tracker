@@ -101,7 +101,7 @@ export function bucketForSpan(from: string, to: string): Bucket {
 /**
  * A preset's span, ending today. The start reaches back to its bucket's first day, so a week or
  * a month is never drawn cut short at the left edge; only the bucket still running (this week,
- * this month) is partial, and every graph says so.
+ * this month) can be partial, and every graph names it as the one running (`bucketLabel`).
  */
 export function presetRange(preset: Exclude<RangePreset, "all">, today: string): GraphRange {
   switch (preset) {

@@ -8,6 +8,7 @@ import {
   formatIsoDay,
   formatIsoWeekdayDay,
   formatMacros,
+  formatMinutes,
   formatPortion,
   formatRunKm,
   formatTime,
@@ -31,6 +32,11 @@ describe("dates that have to read the same on the server and in the page", () =>
     expect(formatIsoDate("2026-09-08")).toBe("Tue 8 Sept 2026");
     expect(formatIsoWeekdayDay("2026-09-11")).toBe("Fri 11 Sept");
     expect(formatIsoDay("2026-09-08")).toBe("8 Sept 2026");
+  });
+
+  it("leaves this year's year off a weekday date, and keeps another year's", () => {
+    expect(formatIsoDate("2026-10-11", "2026")).toBe("Sun 11 Oct");
+    expect(formatIsoDate("2025-10-11", "2026")).toBe("Sat 11 Oct 2025");
   });
 
   it("keeps a plain time and an unreadable date as they were", () => {
@@ -59,6 +65,18 @@ it("writes a period's total by what it counts, in the reader's unit", () => {
   expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25 /km");
   // One run keeps its logged distance; a total rounds to a tenth.
   expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25 km");
+});
+
+it("rounds a time to the minute before splitting off the hours", () => {
+  // 1:59:40 and 59:45 are a whole two hours and a whole hour, never "1 h 60 min" or "60 min".
+  expect(formatMinutes(7180 / 60)).toBe("2 h");
+  expect(formatMinutes(3585 / 60)).toBe("1 h");
+  expect(formatMinutes(59.5)).toBe("1 h");
+  expect(formatMinutes(119.6)).toBe("2 h");
+  expect(formatMinutes((13 * 3600 + 59 * 60 + 40) / 60)).toBe("14 h");
+  expect(formatMinutes(0.4)).toBe("0 min");
+  expect(formatMinutes(72.4)).toBe("1 h 12 min");
+  expect(formatMinutes(48)).toBe("48 min");
 });
 
 it("writes an amount of a food in its own unit, plural where the unit is a word", () => {

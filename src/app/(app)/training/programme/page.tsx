@@ -16,6 +16,7 @@ import { ACTIVITY_SPORT_LABELS, isActivitySport, type ActivitySport } from "@/do
 import { describePrescription } from "@/domain/activity-prescription";
 import { adherenceBySport } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { programmeOccurrences } from "@/server/repositories/occurrences";
@@ -119,8 +120,10 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
         <Section title="Cycle">
           {[...byDate.entries()].map(([date, occurrences]) => (
             <Card key={date}>
+              {/* Named as the scheduled page names a day: its weekday, and its year when it is
+                  not this one. */}
               <p className="text-xs font-medium tracking-wide text-ink-muted uppercase tabular-nums">
-                {date}
+                {formatIsoDate(date, today.slice(0, 4))}
                 {date < today ? " · earlier" : ""}
               </p>
               {occurrences.map((occurrence) => {

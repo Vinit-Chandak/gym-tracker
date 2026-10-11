@@ -70,4 +70,20 @@ describe("time zone wall-clock conversions", () => {
     ).toBe("2026-03-08T07:30:00.000Z");
     expect(fromDateTimeLocal("2026-03-08T02:30", "America/New_York")).not.toBeNull();
   });
+
+  it.each([
+    // Western zones whose clocks jump from midnight to one: the day starts at the jump, not at
+    // 23:00 the evening before.
+    ["2026-09-06T00:00", "America/Santiago", "2026-09-06T04:00:00.000Z"],
+    ["2026-03-08T00:00", "America/Havana", "2026-03-08T05:00:00.000Z"],
+    // Eastern ones always did.
+    ["2026-04-24T00:00", "Africa/Cairo", "2026-04-23T22:00:00.000Z"],
+    ["2026-03-29T00:00", "Asia/Beirut", "2026-03-28T22:00:00.000Z"],
+  ])("starts a day whose midnight never happened at the jump: %s in %s", (local, zone, iso) => {
+    const start = fromDateTimeLocal(local, zone);
+    expect(start?.toISOString()).toBe(iso);
+    expect(toDateTimeLocal(start!, zone)).toBe(`${local.slice(0, 10)}T01:00`);
+    // So a session at 23:30 the evening before falls before this day starts, in that evening's.
+    expect(toDateTimeLocal(new Date(start!.getTime() - 30 * 60_000), zone).slice(11)).toBe("23:30");
+  });
 });
