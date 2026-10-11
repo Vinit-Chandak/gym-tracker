@@ -364,10 +364,28 @@ describe("detectRecords", () => {
       ["pull-up", { most_reps: 10, top_weight: 0 }],
     ]);
     expect(detectRecords(previous, stats)).toEqual([
-      // 70 × (1 + 5/30) = 81.7 beats 80; top weight ties at 70; 350 beats 300; 5 reps does not beat 8.
-      { exerciseId: "bench", metric: "e1rm", value: 81.7, previous: 80 },
+      // 70 × (1 + 5/30) = 81.67 beats 80; top weight ties at 70; 350 beats 300; 5 reps does not beat 8.
+      { exerciseId: "bench", metric: "e1rm", value: 81.67, previous: 80 },
       { exerciseId: "bench", metric: "best_set_volume", value: 350, previous: 300 },
     ]);
+  });
+  it("keeps a pound lift's estimate so it reads back as itself, and never re-announces it", () => {
+    // 30 lb × 6 is 36 lb: 16.33 kg kept to the hundredth, where a tenth read back as 35.9 lb.
+    const [press] = sessionStats(
+      workout([
+        {
+          exerciseId: "bench",
+          exercise: bench,
+          sets: [set({ weight: 30, unit: "lb", reps: 6 })],
+        },
+      ]),
+      "UTC",
+    ).exercises;
+    expect(press!.bestE1rmKg).toBe(16.33);
+    // The same lift against an older row kept to the tenth is a tie, not a record...
+    expect(detectRecords(new Map([["bench", { e1rm: 16.3 }]]), [press!])).toEqual([]);
+    // ...while a real step up still is.
+    expect(detectRecords(new Map([["bench", { e1rm: 16.2 }]]), [press!])).toHaveLength(1);
   });
   it("never announces a first performance, nor a machine's number", () => {
     expect(detectRecords(new Map(), stats)).toEqual([]);

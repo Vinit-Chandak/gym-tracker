@@ -1,6 +1,6 @@
 import { convertLoad } from "@/lib/units";
 
-import { estimated1RM } from "./analytics";
+import { unroundedEstimated1RM } from "./analytics";
 import { ASSISTED_EQUIPMENT_TYPES } from "./load-steps";
 import { addExerciseVolume, emptyMuscleVolume } from "./muscle-volume";
 import type { MuscleSets } from "./muscle-split";
@@ -297,8 +297,9 @@ export function sessionStats(
       current.bestE1rmKg,
       max(
         loaded.flatMap((set) => {
-          const value = estimated1RM(set.kg, set.reps, slot.exercise.modality, "kg");
-          return value === null ? [] : [value];
+          // Kept to the column's hundredths, so a pound lift reads back as itself (30 × 6, 36 lb).
+          const value = unroundedEstimated1RM(set.kg, set.reps, slot.exercise.modality, "kg");
+          return value === null ? [] : [round2(value)];
         }),
       ),
     );

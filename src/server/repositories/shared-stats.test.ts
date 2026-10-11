@@ -203,7 +203,9 @@ describe("finishing a workout", () => {
     expect(rows).toHaveLength(3);
     const benchRow = rows.find((r) => r.exerciseId === bench)!;
     expect(benchRow.topWeightKg).toBe(series.load.at(-1)!.value);
-    expect(benchRow.bestE1rmKg).toBe(series.estimated1RM.at(-1)!.value);
+    // Progress reads the estimate to the tenth; the shared row keeps it to the hundredth, so a
+    // pound lift converts back to itself.
+    expect(benchRow.bestE1rmKg).toBeCloseTo(series.estimated1RM.at(-1)!.value!, 1);
     expect(benchRow.mostReps).toBe(series.reps.at(-1)!.value);
     expect(benchRow).toMatchObject({ comparable: true, workingSets: 2, totalReps: 9 });
     expect(rows.find((r) => r.exerciseId === legPress)).toMatchObject({
@@ -227,7 +229,7 @@ describe("finishing a workout", () => {
     ]);
     const records = await as(alice)((tx) => readSessionRecords(tx, alice, second));
     expect(records.map((r) => [r.exercise.name, r.metric, r.value, r.previous])).toEqual([
-      ["Barbell bench press", "e1rm", 75.8, 70.8],
+      ["Barbell bench press", "e1rm", 75.83, 70.83],
       ["Barbell bench press", "top_weight", 65, 62.5],
       ["Barbell bench press", "best_set_volume", 325, 300],
     ]);
@@ -238,7 +240,7 @@ describe("finishing a workout", () => {
   it("reads bests, period totals, the split and the records list for the owner", async () => {
     const bests = (await as(alice)((tx) => readExerciseBests(tx, [alice], bench))).get(alice)!;
     expect(bests.map((b) => [b.metric, b.value, b.work])).toEqual([
-      ["e1rm", 75.8, null],
+      ["e1rm", 75.83, null],
       // The second session's one set at 65, for 5.
       ["top_weight", 65, { sets: 1, reps: 5 }],
       ["best_set_volume", 325, null],
@@ -264,7 +266,7 @@ describe("finishing a workout", () => {
     expect(groups.Arms ?? 0).toBe(0);
     const records = await as(alice)((tx) => readRecords(tx, alice, ALL));
     expect(records.map((r) => [r.exercise.name, r.metric, r.value])).toEqual([
-      ["Barbell bench press", "e1rm", 75.8],
+      ["Barbell bench press", "e1rm", 75.83],
       ["Pull-up", "most_reps", 8],
     ]);
   });
@@ -414,7 +416,7 @@ describe("who may read", () => {
         .where(eq(sharedSessionStats.userId, alice)),
     ).rejects.toThrow();
     const bests = await as(alice)((tx) => readExerciseBests(tx, [alice], bench));
-    expect(bests.get(alice)!.find((b) => b.metric === "e1rm")!.value).toBe(75.8);
+    expect(bests.get(alice)!.find((b) => b.metric === "e1rm")!.value).toBe(75.83);
   });
 
   it("lists a follower's activity with the records count, newest first", async () => {
@@ -477,7 +479,7 @@ describe("head to head", () => {
     );
     const trend = trends.get("e1rm")!;
     // Alice's two sessions fell on one day, so the better one stands for the day.
-    expect(trend.get(alice)!.map((p) => p.value)).toEqual([75.8]);
+    expect(trend.get(alice)!.map((p) => p.value)).toEqual([75.83]);
     // Every metric asked for is read at once, each its own line.
     expect(
       trends
@@ -676,8 +678,8 @@ describe("leaderboard", () => {
     const board = rankExercise(people, bests, new Map(), "e1rm");
     expect(board.map((r) => [r.username, r.rank, r.value])).toEqual([
       ["carol", 1, 88],
-      ["alice", 2, 75.8],
-      ["bob", 3, 71.4],
+      ["alice", 2, 75.83],
+      ["bob", 3, 71.44],
     ]);
     // Only alice and bob share body weight; carol has no reading and is left off, not "—".
     await opt(alice, "share_body_weight", true);
@@ -845,7 +847,7 @@ describe("top weight, worked", () => {
     const records = await as(alice)((tx) => readSessionRecords(tx, alice, third));
     // 65 × 6 is a better Epley estimate than 65 × 5 and a heavier single set; 65 itself is not new.
     expect(records.map((r) => [r.metric, r.value, r.previous])).toEqual([
-      ["e1rm", 78, 75.8],
+      ["e1rm", 78, 75.83],
       ["best_set_volume", 390, 325],
       ["most_reps", 6, 5],
     ]);

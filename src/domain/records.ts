@@ -8,6 +8,9 @@ export type TrainingRecord = {
   previous: number;
 };
 
+/** Half the tenth an estimated 1RM used to be kept to: closer than this is the same lift. */
+const ESTIMATE_TIE = 0.05;
+
 /** The best an account had done per exercise and metric before this session. */
 export type PreviousMaxima = ReadonlyMap<string, Partial<Record<SharedMetric, number>>>;
 
@@ -16,6 +19,10 @@ export type PreviousMaxima = ReadonlyMap<string, Partial<Record<SharedMetric, nu
  * exercise, of a metric that movement is measured by, over a value that already existed. A
  * first-ever performance is not announced — a new account's first workout would otherwise
  * proclaim twenty records — so a metric with no earlier value never qualifies.
+ *
+ * An estimated 1RM is kept to the hundredth now and was kept to the tenth before, so the same
+ * lift can read 16.33 against an older row's 16.3: an estimate has to beat the best by more
+ * than that rounding (`ESTIMATE_TIE`) to be a record.
  */
 export function detectRecords(
   previous: PreviousMaxima,
@@ -29,7 +36,8 @@ export function detectRecords(
     for (const metric of stats.metrics) {
       const value = metricValue(stats, metric);
       const before = earlier[metric];
-      if (value === null || before === undefined || !(value > before)) continue;
+      const tie = metric === "e1rm" ? ESTIMATE_TIE : 0;
+      if (value === null || before === undefined || !(value > before + tie)) continue;
       records.push({ exerciseId: stats.exerciseId, metric, value, previous: before });
     }
   }
