@@ -38,7 +38,9 @@ export function FoodRowText({
           {" "}
           {/* A portion's figures in Jost, whose zero is plain ("100 g"), its words in Atkinson. */}
           <span className={cn("food-row-meta", wraps && "food-row-hint")}>
-            {typeof meta === "string" ? <Figures>{meta}</Figures> : meta}
+            {/* Only a line with figures gets their spans: a long list of foods stays one run
+                of text inside the line it is cut to. */}
+            {typeof meta === "string" && /\d/.test(meta) ? <Figures>{meta}</Figures> : meta}
           </span>
         </>
       )}
