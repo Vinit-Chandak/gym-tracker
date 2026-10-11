@@ -50,7 +50,9 @@ export function CustomExerciseForm({
             notes,
           }),
         );
-        if (result.ok) startNavigation(() => router.push(`/exercises/${result.value.id}` as Route));
+        // The new exercise takes the form's place, so Back does not open the form again, empty.
+        if (result.ok)
+          startNavigation(() => router.replace(`/exercises/${result.value.id}` as Route));
         else setError(result.error);
         setSaving(false);
       }}
