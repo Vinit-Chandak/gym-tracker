@@ -126,7 +126,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         meta: [
           workout.gym.name,
           minutes === null ? "In progress" : `${minutes} min`,
-          `${sets} ${sets === 1 ? "set" : "sets"}`,
+          // The open workout's sets are its own page's to count: this one can be held on Back.
+          minutes === null ? null : `${sets} ${sets === 1 ? "set" : "sets"}`,
         ]
           .filter(Boolean)
           .join(" · "),

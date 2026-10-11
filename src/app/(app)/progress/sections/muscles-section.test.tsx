@@ -33,8 +33,10 @@ it("opens on this week, named as a graph names it, and goes no further", () => {
   route.search = "view=muscles";
   render(<MusclesSection muscles={week("2026-10-05", "2026-10-11")} today={TODAY} />);
   expect(screen.getByText("This week")).toBeTruthy();
-  // Nothing is trained in a week still to come.
+  // Nothing is trained in a week still to come: the arrow there is off, and greyed as every
+  // glyph that leads nowhere is, not left the ink of the one beside it.
   expect(button("Next week").disabled).toBe(true);
+  expect(button("Next week").className).toContain("disabled:text-control");
   fireEvent.click(button("Previous week"));
   expect(router.replace).toHaveBeenCalledWith("/progress?view=muscles&week=2026-09-28", {
     scroll: false,

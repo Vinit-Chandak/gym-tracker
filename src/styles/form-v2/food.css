@@ -9,9 +9,15 @@
   container-type: inline-size;
 }
 
-/* Where the column holds two phone-wide panes (a tablet, a desktop, at 100% text), the day's
-   bowl and macronutrients stand beside its meals (ADR 0052); larger text keeps one column. */
-@container (width >= 40rem) {
+/* Food is wide to hold two panes, and no wider: two phone-wide panes need no more (ADR 0052). */
+.food-page.page-wide {
+  --content-width: min(var(--content-width-wide), 62rem);
+}
+
+/* Where the column holds two panes of a phone's width, 22 rem each and the gap (a tablet, a
+   desktop, at 100% text), the day's bowl and macronutrients stand beside its meals (ADR 0052);
+   narrower, or at larger text, they stay one column rather than squeeze "7.25 h" onto two lines. */
+@container (width >= 46rem) {
   .food-panes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -27,7 +33,9 @@
   margin-top: calc(8 * var(--ov-u));
   container-type: inline-size;
 }
-/* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. */
+/* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. The
+   weeks stand in order, oldest first, so a screen reader and the Tab key meet them in the order
+   they are drawn; the right-to-left scroller alone sets where the strip rests. */
 .food-strip-scroller {
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -41,7 +49,6 @@
 .food-strip-weeks {
   display: flex;
   width: max-content;
-  flex-direction: row-reverse;
   gap: calc(4 * var(--ov-u));
   direction: ltr;
 }

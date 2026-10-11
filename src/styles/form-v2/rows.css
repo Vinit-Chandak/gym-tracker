@@ -684,6 +684,12 @@ li:last-child > .sheet-row {
 .today.page-wide {
   --content-width: min(var(--content-width-wide), 62rem);
 }
+/* A Today with no card (no programme, or one complete) is its date, a few words and its way on:
+   it stands in the reading column every other screen stands in, not at the left of a wide one
+   with the rest of the screen empty beside it. */
+.today.page-wide:not(:has(.today-cards)) {
+  --content-width: inherit;
+}
 /* Beyond a phone the day's cards stand side by side where they fit (ADR 0052); a day of one
    card gives it the row rather than half of one. */
 @media (width >= 600px) {

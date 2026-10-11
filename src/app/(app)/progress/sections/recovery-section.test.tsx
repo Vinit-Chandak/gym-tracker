@@ -96,3 +96,26 @@ it("says a measure was not answered where the span has check-ins without it", ()
   );
   expect(screen.getByText("No check-ins in this range.")).toBeTruthy();
 });
+
+it("writes sleep's scale in hours, with the 6 h rule on a line of its own rather than over one", () => {
+  route.search = "recovery=sleepHours";
+  const { container } = render(
+    <RecoverySection
+      today={TODAY}
+      recovery={{
+        range: MONTH,
+        graph: recoveryGraph(
+          [reading("2026-09-20", { sleepHours: 7 }), reading("2026-09-27", { sleepHours: 9 })],
+          MONTH,
+          TODAY,
+        ),
+      }}
+    />,
+  );
+  const labels = [...container.querySelectorAll(".graph-plot svg text")]
+    .filter((text) => /h$/.test(text.textContent ?? ""))
+    .sort((a, b) => Number(a.getAttribute("y")) - Number(b.getAttribute("y")))
+    .map((text) => text.textContent);
+  // 0, 3, 6 and 9: the rule is the line at 6, named once, in ink.
+  expect(labels).toEqual(["9 h", "6 h", "3 h"]);
+});

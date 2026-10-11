@@ -38,19 +38,29 @@ function dateParts(
   return parts;
 }
 
-/** "Tue 8 Sept, 18:30" in the given IANA time zone. */
-export function formatDateTime(value: string | Date, timeZone: string): string {
+/**
+ * "Tue 8 Sept, 18:30" in the given IANA time zone. Given the year it is now (`currentYear`,
+ * "2026"), a day in another year names it, "Mon 13 Oct 2025, 18:30", so an old record never
+ * reads as one from this year.
+ */
+export function formatDateTime(
+  value: string | Date,
+  timeZone: string,
+  currentYear?: string,
+): string {
   const date = typeof value === "string" ? new Date(value) : value;
   const at = dateParts(date, {
     timeZone,
     weekday: "short",
     day: "numeric",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
-  return `${at.weekday} ${at.day} ${at.month}, ${at.hour}:${at.minute}`;
+  const year = currentYear === undefined || at.year === currentYear ? "" : ` ${at.year}`;
+  return `${at.weekday} ${at.day} ${at.month}${year}, ${at.hour}:${at.minute}`;
 }
 
 /** "09:15" in the given time zone. */
@@ -64,7 +74,7 @@ export function formatTime(value: string | Date, timeZone: string): string {
   }).format(date);
 }
 
-/** "19:30" when it was `today`, else with its day, "Sat 10 Oct, 19:30". */
+/** "19:30" when it was `today`, else with its day, "Sat 10 Oct, 19:30", and another year's. */
 export function formatTimeOrDateTime(
   value: string | Date,
   timeZone: string,
@@ -73,13 +83,19 @@ export function formatTimeOrDateTime(
   const date = typeof value === "string" ? new Date(value) : value;
   return todayInTimeZone(timeZone, date) === today
     ? formatTime(date, timeZone)
-    : formatDateTime(date, timeZone);
+    : formatDateTime(date, timeZone, today.slice(0, 4));
 }
 
-/** "8 Sep" in the given time zone. */
-export function formatDay(value: string | Date, timeZone: string): string {
+/**
+ * "8 Sept" in the given time zone. Given the year it is now (`currentYear`), a day in another
+ * year names it: "17 Nov 2025".
+ */
+export function formatDay(value: string | Date, timeZone: string, currentYear?: string): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return dateTimeFormatter("en-GB", { timeZone, day: "numeric", month: "short" }).format(date);
+  const on = dateParts(date, { timeZone, day: "numeric", month: "short", year: "numeric" });
+  return currentYear === undefined || on.year === currentYear
+    ? `${on.day} ${on.month}`
+    : `${on.day} ${on.month} ${on.year}`;
 }
 
 /** A calendar date, read as itself: no time zone shifts it off the day it names. */
@@ -297,7 +313,10 @@ export function formatActivityMetric(
   }
 }
 
-/** "Today", "Yesterday", else the weekday and date: how an activity row says when. */
+/**
+ * "Today", "Yesterday", else the weekday and date, with its year when it is not this one: how an
+ * activity row says when.
+ */
 export function formatRelativeDay(isoDate: string, today: string): string {
   if (isoDate === today) return "Today";
   const [y, m, d] = today.split("-").map(Number);
@@ -305,7 +324,7 @@ export function formatRelativeDay(isoDate: string, today: string): string {
     const yesterday = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
     if (isoDate === yesterday) return "Yesterday";
   }
-  return formatIsoWeekdayDay(isoDate);
+  return formatIsoDate(isoDate, today.slice(0, 4));
 }
 
 /**

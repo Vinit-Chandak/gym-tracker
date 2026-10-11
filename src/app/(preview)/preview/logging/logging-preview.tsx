@@ -459,6 +459,7 @@ function sessionFor(
     warnings: [],
     timeZone: "Asia/Kolkata",
     preferredUnit: scenario === "pounds" ? "lb" : "kg",
+    today: STARTED.slice(0, 10),
     exercises,
   };
   return { session, exercise: exercises[0]! };

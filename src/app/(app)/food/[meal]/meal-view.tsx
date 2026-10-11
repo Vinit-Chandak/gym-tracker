@@ -3,7 +3,7 @@ import type { Route } from "next";
 import { DayRollover } from "@/components/shell/day-rollover";
 import { PageHeader } from "@/components/shell/page-header";
 import { mealSlug, type Meal } from "@/domain/nutrition";
-import { formatIsoWeekdayDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import type { MealScreen } from "@/server/repositories/nutrition";
 
@@ -48,7 +48,7 @@ export function MealView({
       )}
       <PageHeader
         title={MEAL_LABELS[meal]}
-        meta={formatIsoWeekdayDay(date)}
+        meta={formatIsoDate(date, today.slice(0, 4))}
         metaHidden={date === today}
         backHref={backHref}
       />

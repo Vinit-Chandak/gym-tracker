@@ -61,7 +61,7 @@ it("stores the entered unit, converts displayed copies, and normalizes progressi
 
     await tx.update(profiles).set({ preferredUnit: "kg" }).where(eq(profiles.id, user.id));
     const detail = (await getSessionDetail(tx, user.id, first.sessionId))!;
-    const display = toSessionVM(detail, "UTC", "kg");
+    const display = toSessionVM(detail, "UTC", "kg", "2026-10-11");
     expect(display.exercises[0]!.sets[0]).toMatchObject({ weight: 18.14, unit: "kg" });
     expect(detail.exercises[0]!.sets[0]).toMatchObject({ weight: 40, unit: "lb" });
 

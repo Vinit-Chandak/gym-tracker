@@ -13,7 +13,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, workingSetCount } from "@/domain/sets";
-import { formatIsoDate, formatIsoWeekdayDay } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -167,9 +167,6 @@ export function FinishedWorkout({
       )
     : null;
   const day = todayInTimeZone(session.timeZone, new Date(session.startedAt));
-  // History reaches back a year and more: a workout from another year names it, as a friend's
-  // copy of it does.
-  const year = todayInTimeZone(session.timeZone).slice(0, 4);
   const checkIn = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
     const value = session[key];
     return typeof value === "number" ? [{ label, value, unit }] : [];
@@ -258,7 +255,7 @@ export function FinishedWorkout({
           {!justFinished && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
-              {formatIsoDate(day, year)}
+              {formatIsoDate(day, session.today.slice(0, 4))}
             </span>
           )}
           <span className="meta-fact">
@@ -284,7 +281,7 @@ export function FinishedWorkout({
             <Glyph name="edit" className="mt-px glyph-18 shrink-0" />
             <span className="min-w-0">
               Tap an exercise to change its sets. Each change saves as you make it, until{" "}
-              {formatIsoWeekdayDay(edit.until)}.
+              {formatIsoDate(edit.until, session.today.slice(0, 4))}.
             </span>
           </p>
         )}

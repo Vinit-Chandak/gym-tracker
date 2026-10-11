@@ -94,6 +94,7 @@ const session = (patch: Partial<SessionVM> = {}): SessionVM => ({
   warnings: [],
   timeZone: "UTC",
   preferredUnit: "kg",
+  today: "2026-10-11",
   exercises: [
     exercise("bench", "Bench press", [
       set(1, "warmup", 40, 8),

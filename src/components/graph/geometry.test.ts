@@ -18,6 +18,7 @@ import {
 const TODAY = "2026-10-07";
 const FRAME: Frame = { width: 362, left: 32, right: 362, top: 12, bottom: 164 };
 const widthOf = (label: string) => label.length * 7.2;
+const round = (value: number) => Math.round(value * 1000) / 1000;
 
 describe("the scale", () => {
   it("runs a bar scale to a round top at or over the highest bar, in two or three steps", () => {
@@ -41,13 +42,35 @@ describe("the scale", () => {
     expect(barScale([95], { steps: [15, 30, 45, 60, 90, 120] }).ticks).toEqual([0, 60, 120]);
   });
 
-  it("gives a line its readings with air, and two or three round values inside", () => {
-    const { ticks, lo, hi } = lineScale([75.95, 76.4, 77.5]);
-    expect(ticks).toEqual([76, 77]);
-    expect(lo).toBeLessThan(75.95);
-    expect(hi).toBeGreaterThan(77.5);
-    // Pace in seconds, stepped by half minutes.
-    expect(lineScale([345, 400], { steps: [5, 10, 15, 30, 60] }).ticks).toEqual([360, 390]);
+  it("runs a line's scale from a round value at or under its lowest reading to one at or over its highest", () => {
+    expect(lineScale([75.95, 76.4, 77.5])).toEqual({ ticks: [75, 77.5], lo: 75, hi: 77.5 });
+    expect(lineScale([70.2, 70.6, 71])).toEqual({ ticks: [70, 70.5, 71], lo: 70, hi: 71 });
+    // 190.5 lb no longer stands over a top line of 190.4.
+    expect(lineScale([190.5, 190])).toEqual({ ticks: [190, 191], lo: 190, hi: 191 });
+    // Nor 215 lb over a top line of 200.
+    expect(lineScale([180, 185, 195, 215]).ticks).toEqual([180, 200, 220]);
+    // Pace in seconds, by the minute: 5:45 to 6:40 between 5:00 and 7:00.
+    expect(lineScale([345, 400], { steps: [5, 10, 15, 30, 60] }).ticks).toEqual([300, 360, 420]);
+  });
+
+  it("steps by values its labels write exactly, so equal steps read as equal", () => {
+    // Pounds converted from kilograms: never 180.8, 181, 181.3 (a quarter, to a tenth).
+    expect(lineScale([180.75, 181.3]).ticks).toEqual([180, 181, 182]);
+    // Under 100 a tenth is written, so a step can be one.
+    expect(lineScale([81.9, 82.35]).ticks).toEqual([81.6, 82, 82.4]);
+    for (const values of [
+      [180.75, 181.3],
+      [64.1, 64.45, 64.9],
+      [3.41, 3.45],
+      [102.5, 110, 117.5],
+    ]) {
+      const { ticks } = lineScale(values);
+      const steps = ticks.slice(1).map((tick, i) => round(tick - ticks[i]!));
+      expect(new Set(steps).size, String(values)).toBe(1);
+      expect(ticks[0], String(values)).toBeLessThanOrEqual(Math.min(...values));
+      expect(ticks.at(-1), String(values)).toBeGreaterThanOrEqual(Math.max(...values));
+      expect(ticks.length, String(values)).toBeLessThanOrEqual(3);
+    }
   });
 
   it("stands one repeated reading on a round middle line, never on a false precision", () => {
@@ -66,8 +89,9 @@ describe("the scale", () => {
   });
 
   it("steps a line of counts by whole numbers, never 7.5 reps", () => {
-    expect(lineScale([6, 8, 10, 12]).ticks).toEqual([7.5, 10, 12.5]);
-    expect(lineScale([6, 8, 10, 12], { integral: true }).ticks).toEqual([8, 12]);
+    expect(lineScale([5, 10]).ticks).toEqual([5, 7.5, 10]);
+    expect(lineScale([5, 10], { integral: true }).ticks).toEqual([5, 10]);
+    expect(lineScale([6, 8, 10, 12], { integral: true }).ticks).toEqual([4, 8, 12]);
     // Five reps every time: 4, 5 and 6 around it, not 4.5 and 5.5.
     expect(lineScale([5, 5]).ticks).toEqual([4.5, 5, 5.5]);
     expect(lineScale([5, 5], { integral: true }).ticks).toEqual([4, 5, 6]);

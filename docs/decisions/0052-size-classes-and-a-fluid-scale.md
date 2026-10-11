@@ -68,18 +68,26 @@ The owner chose **adaptive + fluid**:
    - A screen of cards and sections takes `page-wide` and lays them out with `adaptive-grid`:
      one column on a phone, two on a tablet, three on a wide desktop. The column minimum is in
      rem, so larger text means fewer, wider columns rather than squeezed ones.
-   - Today holds at most two columns (62rem). A day with one card gives it the whole row, and a
-     Today with no card keeps its buttons at a phone's width.
+   - Today holds at most two columns (62rem). A day with one card gives it the whole row. A
+     Today with no card stands in the reading column, as every other screen does, and keeps its
+     buttons at a phone's width.
    - Training is a screen of tiles. It is wide, with the cycle's days in as many columns as fit
      and the next day across two, and its header widens with it. _Note, 11 October 2026:_ the
      days keep their order and leave no hole before the next one: beyond a phone the next day
      takes one column where it falls at a row's end, and its print is as tall as the others', so
      a row's names line up; on a phone the day alone in its row before it takes the row.
-   - The Progress overview and Food keep the reading width. Where that column holds two
-     phone-wide panes (40rem and up: a tablet or a desktop at 100% text), they split in two:
-     the month and its totals beside History, and the day's bowl and macronutrients beside its
-     meals. At larger text they stay one column. The other Progress sections, graphs read one
-     at a time, stay one column.
+   - The Progress overview and Food split in two: the month and its totals beside History, and
+     the day's bowl and macronutrients beside its meals. Each pane is a phone's width or more,
+     22rem, so they split only where the column holds 46rem (two panes and the gap): a tablet
+     or a desktop at 100% text. At larger text, or narrower, they stay one column. To hold two
+     such panes the two screens are wide, their headers with them, up to 62rem as Today is: two
+     panes need no more. The reading column (44–46rem) held two panes of about 20rem, where
+     "Sleep 7.25 h" broke onto two lines.
+   - The other Progress sections, graphs read one at a time, stay one column at the reading
+     width, so Progress narrows from its overview to them.
+   - The calendar is wide, its months side by side as many as each keep a phone's month (21rem),
+     read across then down, oldest first: two on a tablet, three on a desktop. It opens with this
+     month's name just under its header that stays, on every screen.
    - Friends' four shortcuts stand in one row beyond a phone, where their words fit.
    - Profile, settings, forms and detail pages stay one readable column.
 
@@ -89,6 +97,10 @@ The owner chose **adaptive + fluid**:
    - Its container queries and the logger's measure read that column, not the screen.
    - The session strip and pinned actions stand over the same column at every width. Pinned
      actions clear the home indicator in landscape.
+   - A page of the session's own (Log a run, the check-in, Add exercise) has no navigation, so
+     at the expanded size it keeps no room for the rail either: it stands in the middle of the
+     screen. Its pinned actions follow the page there instead of the screen's foot, half a tall
+     screen below the fields: they ride the foot while it scrolls and rest after its last field.
 
 5. **Targets go through the platform's target.** Shared controls are sized with `--ov-target`
    or `--ov-target-header`, never Tailwind's fixed `min-h-11` or `size-11`. That makes them 48 dp

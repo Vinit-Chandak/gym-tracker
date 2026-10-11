@@ -18,8 +18,8 @@ import {
   swimPaceSecondsPer100,
 } from "@/domain/activity-metrics";
 import { formatDuration } from "@/domain/pace";
-import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
 import { formatDateTime } from "@/lib/format";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
@@ -131,9 +131,11 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   // correction form shows it. A record from another zone says which, rather than being
   // quietly moved into the zone the profile is in now.
   const elsewhere = activity.recordedTimeZone !== profile.timeZone;
-  const startedAt = `${formatDateTime(activity.startedAt, activity.recordedTimeZone)}${
-    elsewhere ? ` (${activity.recordedTimeZone.replaceAll("_", " ")})` : ""
-  }`;
+  const startedAt = `${formatDateTime(
+    activity.startedAt,
+    activity.recordedTimeZone,
+    todayInTimeZone(profile.timeZone).slice(0, 4),
+  )}${elsewhere ? ` (${activity.recordedTimeZone.replaceAll("_", " ")})` : ""}`;
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
 
   const sport = activity.sport === "strength" ? null : activity.sport;
