@@ -633,10 +633,12 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 120,
     defaultLoadIncrement: null,
     equipment: [
-      // The selectorised seated row, first as the research proposes, awaits approval with its
-      // draft type; until then the plate-loaded machine is the only way.
-      "seated_row_machine",
+      // The machine it is named for first: at a gym with both, the research's order put it on
+      // the seated row machine, and its history with it (year audit). The selectorised seated
+      // row awaits approval with its draft type; until then the plate-loaded machine is the only
+      // way.
       "chest_supported_row_machine",
+      "seated_row_machine",
     ],
   },
   {
