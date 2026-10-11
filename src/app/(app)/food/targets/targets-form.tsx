@@ -177,9 +177,10 @@ export function TargetsForm({
         {/* Typed and kept per kilogram, which the label says as the field's unit, as "Daily
             target, kcal" does, rather than "per kg of body weight" as though the body were
             weighed in kilograms; someone who weighs in pounds reads the ratio per pound beside
-            it, and before there is one, what a gram per pound comes to. */}
+            it, and before there is one, what a gram per pound comes to. The unit is one phrase:
+            a label that wraps takes it whole to the next line, never "g" / "per kg". */}
         <Field
-          label="Protein per body weight, g per kg"
+          label={"Protein per body weight, g\u00a0per\u00a0kg"}
           error={state.fieldErrors?.proteinPerKg}
           hint={
             perKg !== null && (weighed || unit === "lb")
