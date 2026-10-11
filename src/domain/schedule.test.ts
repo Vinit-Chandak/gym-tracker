@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  allSlots as allSlotsOf,
+  missedSlots,
   nextPendingSlot,
   partStatus,
+  pickUpFromToday,
   pendingParts,
   progress,
   projectedEndDate,
@@ -187,6 +190,71 @@ describe("shift scheduling", () => {
     expect(projectedEndDate(state(), "2026-09-08")).toBe("2026-11-01");
     // One missed day pushes the end to 2 November.
     expect(projectedEndDate(state(done(1, 2)), "2026-09-10")).toBe("2026-11-02");
+  });
+});
+
+describe("behind the calendar", () => {
+  const trained = [1, 2, 3, 4, 5, 6].flatMap((day) => (day === 1 ? [] : done(1, day)));
+
+  it("never counts a rest day that simply passed", () => {
+    // Every training day of the first week done, the rest day untapped, and day 1 of the
+    // second cycle done on its own day: nothing is behind.
+    const events = [...trained, ...done(2, 1)];
+    expect(sessionsBehind(state(events), "2026-09-08", "2026-09-15")).toBe(0);
+    expect(missedSlots(state(events), "2026-09-08", "2026-09-15")).toEqual([]);
+  });
+
+  it("counts the training days whose date has passed and that still owe something", () => {
+    // Days 2 and 3 done; 4 and 5 missed, and 6 still owes its run.
+    const events = [...done(1, 2), ...done(1, 3), part(1, 6, "session")];
+    expect(missedSlots(state(events), "2026-09-08", "2026-09-14")).toEqual([
+      { cycleIndex: 1, dayIndex: 4 },
+      { cycleIndex: 1, dayIndex: 5 },
+      { cycleIndex: 1, dayIndex: 6 },
+    ]);
+    expect(sessionsBehind(state(events), "2026-09-08", "2026-09-14")).toBe(3);
+  });
+
+  it("picks up from today: the missed days skipped, the rest days passed, today's day next", () => {
+    const events = [...done(1, 2), part(1, 6, "session")];
+    // From 8 September at day 2, the calendar's day for 14 September is cycle 2, day 1.
+    const pickUp = pickUpFromToday(state(events), "2026-09-08", "2026-09-14");
+    expect(pickUp.skip).toEqual([
+      { ref: { cycleIndex: 1, dayIndex: 3 }, part: "session" },
+      { ref: { cycleIndex: 1, dayIndex: 3 }, part: "run" },
+      { ref: { cycleIndex: 1, dayIndex: 4 }, part: "session" },
+      { ref: { cycleIndex: 1, dayIndex: 5 }, part: "session" },
+      { ref: { cycleIndex: 1, dayIndex: 6 }, part: "run" },
+    ]);
+    expect(pickUp.rest).toEqual([{ cycleIndex: 1, dayIndex: 7 }]);
+    expect(pickUp.resumeAt).toEqual({ cycleIndex: 2, dayIndex: 1 });
+    // Answered as it says, nothing is behind and the next day is today's.
+    const answered = state([
+      ...events,
+      ...pickUp.skip.map(({ ref, part: which }) => part(ref.cycleIndex, ref.dayIndex, which, "skipped")),
+      ...pickUp.rest.map((ref) => part(ref.cycleIndex, ref.dayIndex, "session")),
+    ]);
+    expect(sessionsBehind(answered, "2026-09-08", "2026-09-14")).toBe(0);
+    expect(nextPendingSlot(answered)).toEqual({ cycleIndex: 2, dayIndex: 1 });
+  });
+
+  it("ends a programme whose only days left are rest days", () => {
+    // Everything trained but the last rest day, which nobody tapped: the programme is over.
+    const events = allSlotsOf(state()).flatMap((ref) =>
+      ref.cycleIndex === 8 && ref.dayIndex === 7 ? [] : done(ref.cycleIndex, ref.dayIndex),
+    );
+    expect(nextPendingSlot(state(events))).toBeNull();
+    expect(progress(state(events))).toMatchObject({ total: 55, completed: 55, remaining: 0 });
+    // A rest day with training still owed after it is not the end.
+    const early = events.filter((event) => !(event.cycleIndex === 8 && event.dayIndex === 6));
+    expect(nextPendingSlot(state(early))).toEqual({ cycleIndex: 8, dayIndex: 6 });
+  });
+
+  it("projects the end from tomorrow once today's day is finished", () => {
+    const events = done(1, 2);
+    expect(projectedEndDate(state(events), "2026-09-08", true)).toBe(
+      projectedEndDate(state(events), "2026-09-09"),
+    );
   });
 });
 

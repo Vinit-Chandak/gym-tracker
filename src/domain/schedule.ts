@@ -199,8 +199,22 @@ export function slotStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pe
   return statuses.some((status) => status === "skipped") ? "skipped" : "completed";
 }
 
+/**
+ * Whether the programme is over: nothing but rest days left to answer. A rest day is soft — the
+ * next session passes it — so when no session is left, nothing would ever pass it, and a
+ * programme ending on a rest day stayed open on that rest day until somebody happened to tap it,
+ * holding back the next block for weeks (found by the year simulation, Kenji's off-season).
+ */
+function onlyRestLeft(state: ScheduleState): boolean {
+  return !allSlots(state).some((ref) => {
+    const slot = slotFor(state, ref);
+    return slot !== undefined && !isRestSlot(slot) && pendingParts(state, ref).length > 0;
+  });
+}
+
 /** The earliest slot with anything left to do, or null when the programme is finished. */
 export function nextPendingSlot(state: ScheduleState): SlotRef | null {
+  if (onlyRestLeft(state)) return null;
   for (const ref of allSlots(state)) {
     if (pendingParts(state, ref).length > 0) return ref;
   }
@@ -279,11 +293,13 @@ export type Progress = {
 /** Counted in days, not in tasks: a day that lifts and runs is still one of the 56. */
 export function progress(state: ScheduleState): Progress {
   const refs = allSlots(state);
+  const over = onlyRestLeft(state);
   let completed = 0;
   let skipped = 0;
   for (const ref of refs) {
     const status = slotStatus(state, ref);
-    if (status === "completed") completed += 1;
+    // Once nothing but rest is left, the rest days left are the programme's end, not owed.
+    if (status === "completed" || (over && status === "pending")) completed += 1;
     else if (status === "skipped") skipped += 1;
   }
   const next = nextPendingSlot(state);
@@ -296,17 +312,76 @@ export function progress(state: ScheduleState): Progress {
   };
 }
 
-/** Sessions that the calendar says should be done by now but are not (0 when on track or ahead). */
-export function sessionsBehind(state: ScheduleState, startDate: string, today: string): number {
-  const elapsedDays = Math.max(0, daysBetween(startDate, today));
-  const { completed, skipped, total } = progress(state);
-  const expected = Math.min(total, elapsedDays);
-  return Math.max(0, expected - completed - skipped);
+/**
+ * Where the sequence is laid on the calendar: one slot a day from the programme's start, so the
+ * slot at position n (pre-start slots excluded) falls on start + n. Nothing is fixed to that date
+ * — the sequence waits for the athlete — but it is what "behind" and "today's day" are read
+ * against.
+ */
+function slotsDatedBefore(state: ScheduleState, startDate: string, today: string): SlotRef[] {
+  return allSlots(state).slice(0, Math.max(0, daysBetween(startDate, today)));
 }
 
-/** Last day of the programme if one slot is done per day from today on; null when finished. */
-export function projectedEndDate(state: ScheduleState, today: string): string | null {
+/**
+ * The training days the calendar has passed with something still owed, oldest first.
+ *
+ * A rest day that simply passed is never one of them (owner, 11 October 2026): nobody owes a
+ * rest day, and counting it made every untapped rest day read as a day behind. A day that both
+ * lifts and runs is behind while either half is owed.
+ */
+export function missedSlots(state: ScheduleState, startDate: string, today: string): SlotRef[] {
+  return slotsDatedBefore(state, startDate, today).filter((ref) => {
+    const slot = slotFor(state, ref);
+    return slot !== undefined && !isRestSlot(slot) && pendingParts(state, ref).length > 0;
+  });
+}
+
+/** Training sessions behind the calendar: 0 when on track. */
+export function sessionsBehind(state: ScheduleState, startDate: string, today: string): number {
+  return missedSlots(state, startDate, today).length;
+}
+
+/**
+ * "Pick up from today": everything dated before today still owed is answered, so the
+ * sequence resumes at the day the calendar has for today. Training is skipped, part by part,
+ * and rest days are passed. Nothing is said for slots from today on.
+ */
+export function pickUpFromToday(
+  state: ScheduleState,
+  startDate: string,
+  today: string,
+): {
+  skip: { ref: SlotRef; part: SlotPart }[];
+  rest: SlotRef[];
+  /** Where the sequence stands afterwards; null when the programme would be over. */
+  resumeAt: SlotRef | null;
+} {
+  const skip: { ref: SlotRef; part: SlotPart }[] = [];
+  const rest: SlotRef[] = [];
+  const dated = slotsDatedBefore(state, startDate, today);
+  for (const ref of dated) {
+    const slot = slotFor(state, ref);
+    if (!slot) continue;
+    const owed = pendingParts(state, ref);
+    if (owed.length === 0) continue;
+    if (isRestSlot(slot)) rest.push(ref);
+    else for (const part of owed) skip.push({ ref, part });
+  }
+  const after = allSlots(state).slice(dated.length);
+  const resumeAt = after.find((ref) => pendingParts(state, ref).length > 0) ?? null;
+  return { skip, rest, resumeAt };
+}
+
+/**
+ * Last day of the programme if one slot is done per day from here on; null when finished. A day
+ * already finished today has had its day, so what is left starts tomorrow.
+ */
+export function projectedEndDate(
+  state: ScheduleState,
+  today: string,
+  finishedToday = false,
+): string | null {
   const { remaining } = progress(state);
   if (remaining === 0) return null;
-  return addDays(today, remaining - 1);
+  return addDays(today, remaining - (finishedToday ? 0 : 1));
 }

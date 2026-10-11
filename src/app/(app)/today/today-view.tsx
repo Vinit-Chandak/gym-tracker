@@ -25,6 +25,7 @@ import { GymChoice, type SwitcherGym } from "./gym-switcher";
 import {
   CompleteRestButton,
   MoreOptions,
+  PickUpFromToday,
   StartAdHocButton,
   StartPlannedButton,
 } from "./plan-actions";
@@ -37,6 +38,12 @@ import {
   type PlanRowModel,
 } from "./today-model";
 import { CycleMark, Fact, PlanRows, TodayPrint } from "./today-parts";
+
+/**
+ * One missed session is ordinary: the waiting sequence simply offers it next. From the second,
+ * Today offers to pick up from today instead (owner, 11 October 2026).
+ */
+const PICK_UP_AFTER = 2;
 
 export type TodayViewProps = {
   today: string;
@@ -572,6 +579,10 @@ export function TodayView({
           )}
         </header>
         {discarded && <DiscardedNote />}
+        {/* A gap of more than a session or two: offered once, under the date, never in a card. */}
+        {plan && plan.suggestion && plan.missed.length >= PICK_UP_AFTER && !sessionOpen && (
+          <PickUpFromToday missed={plan.missed} resumeDayName={plan.pickUpDay?.name ?? null} />
+        )}
 
         {/* The day's print stands over the day it draws: at the top, or under Up next once
             today's day is done and the next one is on offer. */}

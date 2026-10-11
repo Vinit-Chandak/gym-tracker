@@ -72,6 +72,8 @@ function plan(statuses: readonly ("completed" | "skipped" | "pending")[], offere
   return {
     program: { weeks: 8 },
     behind: 0,
+    missed: [],
+    pickUpDay: null,
     suggestion: { slot: { cycleIndex: 1, dayIndex: offered } },
     suggestedDay: { dayIndex: offered },
     cycleDays: statuses.map((status, index) => ({ day: { dayIndex: index + 1 }, status })),
@@ -86,7 +88,7 @@ describe("the cycle's squares", () => {
 
   it("are read aloud with where the cycle stands, behind included", () => {
     const week = { ...plan(["completed", "completed", "pending"], 3), behind: 25 } as TodayPlan;
-    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 days behind. Open the programme");
+    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 sessions behind. Open the programme");
   });
 });
 

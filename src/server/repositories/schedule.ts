@@ -7,9 +7,11 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
   isRestSlot,
+  missedSlots,
   nextPendingSlot,
   partStatus,
   pendingParts,
+  pickUpFromToday,
   progress,
   projectedEndDate,
   runEventsFromOccurrences,
@@ -538,6 +540,10 @@ export type TodayPlan = {
    * not today's.
    */
   finishedToday: ScheduleDay | null;
+  /** Training days the calendar has passed with something still owed, oldest first. */
+  missed: { cycleIndex: number; dayIndex: number; name: string }[];
+  /** The day "Pick up from today" would resume at: the calendar's day for today. */
+  pickUpDay: (ScheduleDay & { cycleIndex: number }) | null;
   /** Every day of the current cycle with its status, for "choose another day". */
   cycleDays: DayStatus[];
 };
@@ -579,12 +585,20 @@ export async function getTodayPlan(
   });
   const startDate = schedule.program.startDate ?? today;
   const finishedRef = slotFinishedOn(state, today);
+  const dayOf = (ref: SlotRef) => schedule.days.find((d) => d.dayIndex === ref.dayIndex) ?? null;
+  const resumeAt = pickUpFromToday(state, startDate, today).resumeAt;
+  const resumeDay = resumeAt ? dayOf(resumeAt) : null;
   return {
     program: schedule.program,
     today,
     progress: progress(state),
     behind: sessionsBehind(state, startDate, today),
-    projectedEnd: projectedEndDate(state, today),
+    projectedEnd: projectedEndDate(state, today, finishedRef !== null),
+    missed: missedSlots(state, startDate, today).map((ref) => ({
+      ...ref,
+      name: dayOf(ref)?.name ?? `Day ${ref.dayIndex}`,
+    })),
+    pickUpDay: resumeAt && resumeDay ? { ...resumeDay, cycleIndex: resumeAt.cycleIndex } : null,
     suggestion: next,
     suggestedDay,
     suggestedExercises,
@@ -670,7 +684,11 @@ export async function getProgramOverview(
   return {
     program: schedule.program,
     progress: progress(state),
-    projectedEnd: projectedEndDate(state, todayInTimeZone(timeZone)),
+    projectedEnd: projectedEndDate(
+      state,
+      todayInTimeZone(timeZone),
+      slotFinishedOn(state, todayInTimeZone(timeZone)) !== null,
+    ),
     currentCycle,
     days,
     liftingDays: schedule.days.filter((day) => day.includesLifting).length,

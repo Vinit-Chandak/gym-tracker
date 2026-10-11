@@ -12,8 +12,8 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
-import { todayInTimeZone } from "@/domain/program-calendar";
-import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { allSlots, isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { SKIP_CHECK_IN } from "@/lib/check-in";
 import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
@@ -893,6 +893,52 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
     if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === "session")) {
       await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
     }
+    return { ok: true };
+  });
+  if (result.ok) revalidateSession();
+  return result;
+}
+
+/**
+ * "Pick up from today" (owner, 11 October 2026): every training day the calendar has passed
+ * without an answer is skipped, part by part, and the rest days among them are passed, so the
+ * sequence resumes at the day the programme has for today. Nothing from today on is touched, and
+ * every skip stays in History as one. Refused while a workout is open, since that workout is
+ * answering one of those days.
+ */
+export async function pickUpFromTodayAction(
+  _previous: ActionResult,
+  _formData: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const result = await withUser(getDb(), user.id, async (tx): Promise<ActionResult> => {
+    const [profile, schedule, open] = await Promise.all([
+      ensureProfile(tx, user),
+      getSchedule(tx, user.id),
+      getInProgressSession(tx, user.id),
+    ]);
+    if (!schedule) return { ok: false, error: "No active programme." };
+    if (open) return { ok: false, error: "Finish or discard the open workout first." };
+    const today = todayInTimeZone(profile.timeZone);
+    const startDate = schedule.program.startDate ?? today;
+    const { skip, rest } = pickUpFromToday(schedule.state, startDate, today);
+    const position = new Map(
+      allSlots(schedule.state).map((ref, index) => [`${ref.cycleIndex}:${ref.dayIndex}`, index]),
+    );
+    for (const { ref, part } of skip)
+      await recordSlotEvent(tx, user.id, schedule.program.id, ref, part, "skipped", {
+        occurredOn: today,
+        note: "Picked up from today",
+      });
+    // A passed rest day is dated by its own day, so it never reads as finished today.
+    for (const ref of rest)
+      await recordSlotEvent(tx, user.id, schedule.program.id, ref, "session", "completed", {
+        occurredOn: addDays(startDate, position.get(`${ref.cycleIndex}:${ref.dayIndex}`) ?? 0),
+        note: "Rest day passed",
+      });
+    const skippedSlots = new Map(skip.map(({ ref }) => [`${ref.cycleIndex}:${ref.dayIndex}`, ref]));
+    for (const ref of skippedSlots.values())
+      await voidPlanForSlot(tx, user.id, schedule.program.id, ref);
     return { ok: true };
   });
   if (result.ok) revalidateSession();

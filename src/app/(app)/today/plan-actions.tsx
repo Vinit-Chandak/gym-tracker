@@ -12,6 +12,7 @@ import type { SlotPart } from "@/domain/types";
 import { keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import {
   completeRestSlotAction,
+  pickUpFromTodayAction,
   skipSlotAction,
   type ActionResult,
 } from "@/server/actions/sessions";
@@ -369,5 +370,74 @@ export function CompleteRestButton({
       </Button>
       {error && <ActionError>{error}</ActionError>}
     </div>
+  );
+}
+
+/**
+ * After a gap, the waiting sequence is a long way behind the calendar. Rather than a large
+ * "behind" number, Today offers to pick up from today (owner, 11 October 2026): the days missed
+ * are skipped in one go, and the programme carries on from the day it has for today. Said in
+ * full before anything is written, since every missed day becomes a skip.
+ */
+export function PickUpFromToday({
+  missed,
+  resumeDayName,
+}: {
+  missed: readonly { cycleIndex: number; dayIndex: number; name: string }[];
+  /** The day the programme has for today, which Today offers next. */
+  resumeDayName: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, saving] = useActionState(
+    keepsOutcomeOnDisconnect(pickUpFromTodayAction),
+    INITIAL,
+  );
+  const [handled, setHandled] = useState<ActionResult>(INITIAL);
+  if (state !== handled) {
+    setHandled(state);
+    if (state.ok) setOpen(false);
+  }
+  const count = missed.length;
+  const sessions = `${count} ${count === 1 ? "session" : "sessions"}`;
+  const listed = missed.slice(0, 6);
+  return (
+    <>
+      <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="min-w-0 flex-1 type-meta text-ink-2 [overflow-wrap:anywhere]">
+          <span className="figures">{count}</span> missed {count === 1 ? "session is" : "sessions are"}{" "}
+          still waiting.
+        </p>
+        <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
+          Pick up from today
+        </Button>
+      </div>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Pick up from today">
+        <form action={formAction} className="space-y-4">
+          <p className="type-body [overflow-wrap:anywhere]">
+            Skip the {sessions} you missed and carry on from{" "}
+            {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
+            stay in History as skipped.
+          </p>
+          <ul className="ruled-list type-meta">
+            {listed.map((day) => (
+              <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{day.name}</span>
+                <span className="shrink-0 text-ink-2">Cycle {day.cycleIndex}</span>
+              </li>
+            ))}
+            {count > listed.length && (
+              <li className="py-2 text-ink-2">and {count - listed.length} more</li>
+            )}
+          </ul>
+          {!state.ok && <ActionError>{state.error}</ActionError>}
+          <Button type="submit" size="lg" className="w-full" disabled={saving}>
+            {saving ? "Skipping…" : `Skip ${sessions} and pick up`}
+          </Button>
+          <Button variant="text" className="w-full" onClick={() => setOpen(false)}>
+            Keep them waiting
+          </Button>
+        </form>
+      </Sheet>
+    </>
   );
 }

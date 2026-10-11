@@ -13,8 +13,9 @@ import { groupRows } from "./today-model";
 /**
  * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
  * the days done in ink, today ringed, a skipped day dashed, the rest a hairline. They stay
- * wordless while the programme is on track. Behind is news, so it is said beside them in days
- * ("25 days behind"; the feature inventory's Today status); their name says it too.
+ * wordless while the programme is on track. Behind is news, so it is said beside them in the
+ * training sessions the calendar has passed unanswered ("3 sessions behind"; rest days that
+ * simply passed are never counted); their name says it too.
  */
 /** A length that grows by half of the reader's text size: half fixed, half in rem. */
 const grown = (px: number) => `calc(${px / 2}px + ${px / 32}rem)`;
@@ -27,7 +28,7 @@ export function CycleMark({
 }: {
   cells: readonly CycleCell[];
   label: string;
-  /** Days the programme is behind, said beside the squares when there are any. */
+  /** Training sessions the programme is behind, said beside the squares when there are any. */
   behind?: number;
   href?: Route;
 }) {
@@ -44,7 +45,7 @@ export function CycleMark({
     >
       {behind > 0 && (
         <span className="min-w-0 text-right type-meta-small text-ink-2">
-          <span className="figures">{behind}</span> {behind === 1 ? "day" : "days"} behind
+          <span className="figures">{behind}</span> {behind === 1 ? "session" : "sessions"} behind
         </span>
       )}
       <svg

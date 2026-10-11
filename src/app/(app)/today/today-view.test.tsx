@@ -78,6 +78,8 @@ function plan(): TodayPlan {
     today: "2026-09-11",
     progress: { total: 56, completed: 2, skipped: 0, remaining: 54, currentCycle: 1 },
     behind: 0,
+    missed: [],
+    pickUpDay: null,
     projectedEnd: null,
     suggestion: {
       slot: { cycleIndex: 1, dayIndex: 3 },
