@@ -131,8 +131,8 @@ describe("materialising a blueprint", () => {
   });
 
   it("leaves out a fallback still awaiting the owner where drafts are not seeded, and keeps the rest", async () => {
-    /** The preacher curl slot's fallbacks in a programme, by exercise slug and rank. */
-    const preacherBackups = async (programId: string) => {
+    /** One slot's fallbacks in a programme, by exercise slug and rank. */
+    const backups = async (programId: string, planned: string) => {
       const slugById = new Map(
         (await t.db.select({ id: exercises.id, slug: exercises.slug }).from(exercises)).map(
           (row) => [row.id, row.slug],
@@ -152,20 +152,48 @@ describe("materialising a blueprint", () => {
         .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
         .where(eq(programDays.programId, programId));
       return rows
-        .filter((row) => slugById.get(row.planned) === "preacher-curl")
+        .filter((row) => slugById.get(row.planned) === planned)
         .sort((a, b) => a.rank - b.rank)
         .map((row) => [slugById.get(row.backup), row.rank]);
     };
-    // Production's catalogue: the incline bench preacher curl is still a draft, so it is not here.
-    const published = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
-    expect(await preacherBackups(published.id)).toEqual([["ez-bar-curl", 2]]);
-    // A local database seeds the drafts, and the template's first choice comes with them.
-    await seedReferenceData(t.db, { drafts: true });
-    resetReferenceCache();
-    const withDrafts = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
-    expect(await preacherBackups(withDrafts.id)).toEqual([
+    // The template's own backups are all published: the incline bench preacher curl was approved
+    // in October 2026, so production's catalogue keeps the template's first choice.
+    const template = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
+    expect(await backups(template.id, "preacher-curl")).toEqual([
       ["incline-bench-preacher-curl", 1],
       ["ez-bar-curl", 2],
+    ]);
+    // Upper A's row backed up first by the machine high row, which still waits for its machine type.
+    const withDraftBackup = parseProgramBlueprint({
+      ...STRENGTH_AESTHETICS_HYBRID_8WK,
+      slug: "draft-backup",
+      days: STRENGTH_AESTHETICS_HYBRID_8WK.days.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((exercise) =>
+          day.name === "Upper A" && exercise.exerciseSlug === "seated-cable-row"
+            ? {
+                ...exercise,
+                fallbacks: [
+                  { exerciseSlug: "machine-high-row", rank: 1 },
+                  { exerciseSlug: "chest-supported-db-row", rank: 2 },
+                ],
+              }
+            : exercise,
+        ),
+      })),
+    });
+    // Production's catalogue: the machine high row is a draft, so it is not here.
+    const published = await adopt(withDraftBackup, "2027-07-05");
+    expect(await backups(published.id, "seated-cable-row")).toEqual([
+      ["chest-supported-db-row", 2],
+    ]);
+    // A local database seeds the drafts, and the first choice comes with them.
+    await seedReferenceData(t.db, { drafts: true });
+    resetReferenceCache();
+    const withDrafts = await adopt(withDraftBackup, "2027-07-05");
+    expect(await backups(withDrafts.id, "seated-cable-row")).toEqual([
+      ["machine-high-row", 1],
+      ["chest-supported-db-row", 2],
     ]);
   });
 });

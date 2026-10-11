@@ -116,7 +116,7 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 
 All real, all in the repository:
 
-- The shared library: 276 exercises, 93 kinds of equipment, warm-up protocols and the
+- The shared library: 376 exercises, 93 kinds of equipment, warm-up protocols and the
   programme templates (`src/db/seed/data/`).
 - Development previews of Today, logging, coaching, food and Progress's Overview against fixed
   data (`src/app/(preview)/preview/`).

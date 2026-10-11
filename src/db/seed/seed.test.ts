@@ -394,22 +394,8 @@ const AWAITING = {
     "ab_crunch_back_extension",
     "chest_press_lat_pulldown",
   ],
-  exercises: [
-    "incline-push-up",
-    "kneeling-push-up",
-    "burpee",
-    "mountain-climber",
-    "jump-squat",
-    "db-sumo-squat",
-    "hindu-push-up",
-    "hindu-squat",
-    "decline-press-machine",
-    "lever-squat",
-    "machine-high-row",
-    "medicine-ball-slam",
-    // The owner's choice of backup for the template's preacher curl (5 October 2026).
-    "incline-bench-preacher-curl",
-  ],
+  // The rest of the researched exercises were published in October 2026; these wait for their types.
+  exercises: ["decline-press-machine", "lever-squat", "machine-high-row"],
   /** Ways to do a published exercise on a draft type, which wait with the type. */
   alternatives: [
     "barbell-bench-press: barbell + flat_bench_press_station",
