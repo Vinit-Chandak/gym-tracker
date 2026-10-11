@@ -88,6 +88,46 @@ describe("volume by muscle group", () => {
     expect(graph.weeksTrained).toBe(2);
   });
 
+  it("counts a trained week the range cuts short for its days in the range", () => {
+    // 8 Sept (a Tuesday) to Wednesday 7 Oct: six days of the first week, three of the last.
+    const edges: StrengthRow[] = [
+      {
+        sessionId: "a",
+        date: "2026-09-08",
+        primaryMuscles: ["quads"],
+        workingSets: 3,
+        volumeKg: 900,
+      },
+      {
+        sessionId: "b",
+        date: "2026-10-06",
+        primaryMuscles: ["quads"],
+        workingSets: 3,
+        volumeKg: 900,
+      },
+    ];
+    expect(strengthGraph(edges, MONTH, TODAY).weeksTrained).toBeCloseTo(9 / 7);
+    // A month trained every week, as 12 Sept to Sunday 11 Oct: 2 days of the first week and
+    // four whole ones, about 4.3 weeks, never the five calendar weeks it touches.
+    const today = "2026-10-11";
+    const weekly: StrengthRow[] = [
+      "2026-09-12",
+      "2026-09-15",
+      "2026-09-22",
+      "2026-09-29",
+      "2026-10-06",
+    ].map((date, i) => ({
+      sessionId: `w${i}`,
+      date,
+      primaryMuscles: ["chest"],
+      workingSets: 3,
+      volumeKg: 1000,
+    }));
+    const graph = strengthGraph(weekly, presetRange("1m", today), today);
+    expect(graph.weeksTrained).toBeCloseTo(4 + 2 / 7);
+    expect(graph.totals.volume.all / graph.weeksTrained).toBeCloseTo(5000 / (30 / 7));
+  });
+
   it("puts each day's volume in its slot, and names the slot's one workout", () => {
     const graph = strengthGraph(rows, MONTH, TODAY);
     expect(graph.buckets).toHaveLength(30);
