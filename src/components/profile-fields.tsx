@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { TimeZoneSelect } from "@/components/time-zone-select";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import {
   type TrainingGoal,
 } from "@/domain/types";
 import { LOAD_UNIT_LABELS, SEX_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
+import { checkTimeZone } from "@/lib/time-zones";
 import {
   fromKilograms,
   heightUnitFor,
@@ -102,7 +104,20 @@ export function ProfileFields({
   // Only fill in for an account still on the server default; never overwrite a real choice.
   const suggest =
     detectTimeZone && values.timeZone === "UTC" && detected !== null && detected !== "UTC";
-  const timeZone = editedZone ?? (suggest ? detected : values.timeZone);
+  // A zone saved before the field was a list can be an abbreviation or an offset ("EST",
+  // "+05:30"), which the app no longer keeps: the field then asks for a place instead.
+  const saved = checkTimeZone(values.timeZone);
+  const timeZone = editedZone ?? (suggest ? detected : (saved.zone ?? ""));
+  const zoneHint =
+    timeZone === "" && saved.problem
+      ? `Choose where you are: “${values.timeZone}”, saved before, ${
+          saved.problem === "unknown"
+            ? "is not a zone this app recognises."
+            : "is an abbreviation or an offset, which can mean another zone."
+        }`
+      : detected && detected !== timeZone
+        ? `This device says ${detected}`
+        : undefined;
 
   const [unit, setUnit] = useState<BodyLoadUnit>(values.preferredUnit);
   const imperial = heightUnitFor(unit) === "ftin";
@@ -180,29 +195,17 @@ export function ProfileFields({
         error={errors?.username}
       />
 
-      <Field
-        label="Time zone"
-        error={errors?.timeZone}
-        hint={detected && detected !== timeZone ? `This device says ${detected}` : undefined}
-      >
-        <Input
-          type="text"
+      {/* A place from a list, never typed: every day the app names is dated in it, and an
+          abbreviation or an offset can mean one zone here and another in the graphs. */}
+      <Field label="Time zone" error={errors?.timeZone} hint={zoneHint}>
+        <TimeZoneSelect
           name="timeZone"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          list="time-zone-suggestions"
           value={timeZone}
+          detected={detected}
           onChange={(event) => setEditedZone(event.target.value)}
           required
         />
       </Field>
-      {detected && (
-        <datalist id="time-zone-suggestions">
-          <option value={detected} />
-          <option value="UTC" />
-        </datalist>
-      )}
 
       <div className="space-y-1.5">
         <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">

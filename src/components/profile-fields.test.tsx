@@ -83,6 +83,37 @@ describe("profile fields", () => {
     ).toBe(true);
   });
 
+  it("offers the time zone as places under their regions, the saved one chosen", () => {
+    render(<ProfileFields values={saved} />);
+    const zone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLSelectElement;
+    expect(zone.value).toBe("Europe/Lisbon");
+    const chosen = zone.selectedOptions[0]!;
+    expect(chosen.textContent).toBe("Lisbon");
+    expect((chosen.parentElement as HTMLOptGroupElement).label).toBe("Europe");
+    // Places only: no abbreviation or offset is on the list to be chosen.
+    const values = Array.from(zone.options, (option) => option.value);
+    expect(values).toContain("Asia/Tokyo");
+    expect(values).toContain("UTC");
+    expect(values.some((value) => /^[A-Z]{3,4}$|^[+-]\d/.test(value) && value !== "UTC")).toBe(
+      false,
+    );
+    fireEvent.change(zone, { target: { value: "Asia/Tokyo" } });
+    expect(zone.value).toBe("Asia/Tokyo");
+  });
+
+  it("asks for a place where the saved zone was an abbreviation or an offset", () => {
+    render(<ProfileFields values={{ ...saved, timeZone: "EST" }} />);
+    const zone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLSelectElement;
+    // Nothing is chosen for them, and the field says why.
+    expect(zone.value).toBe("");
+    expect(zone.required).toBe(true);
+    expect(zone.selectedOptions[0]?.textContent).toBe("Choose a time zone");
+    expect(screen.getByText(/“EST”, saved before, is an abbreviation or an offset/)).toBeTruthy();
+    fireEvent.change(zone, { target: { value: "America/New_York" } });
+    expect(zone.value).toBe("America/New_York");
+    expect(screen.queryByText(/saved before/)).toBeNull();
+  });
+
   it("names the field in the unit it is asking for", () => {
     render(<ProfileFields values={saved} />);
     expect(screen.getByLabelText("Body weight (kg)")).toBeTruthy();
