@@ -83,3 +83,11 @@ The owner decided (11 October 2026):
 - The projected end of a weekly-dated cycle walks the remaining days onto their weekdays.
 - The builder shows the choice only for cycles of one to six days. A seven-day cycle reads the
   same either way, and a longer cycle can only run back to back.
+
+_Note, 11 October 2026 (year audit, second pass):_ a finished programme says so wherever it is
+shown, in Today's words ("Programme complete", "Plan the next block"): Training, Choose a day and
+the programme's card, which loses Edit future programme and plans the next block under it. The
+rest days it ends on read done in every list, not only in progress (`slotStatus`). Because the
+sequence waits, its end is the day its last day was answered (`finishedOn`), and the card shows
+that, or the projected end while it is under way; the end it was written with stays under "How
+it is meant to go" as Planned end.
