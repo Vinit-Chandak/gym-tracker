@@ -1109,10 +1109,20 @@ html:has(.session-page) .pinned-actions {
   gap: calc(10 * var(--ov-u));
   margin-top: calc(14 * var(--ov-u));
 }
+.finished-check-in-section {
+  container: check-in / inline-size;
+}
 .finished-check-in {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.25rem), 1fr));
   gap: calc(8 * var(--ov-u));
+}
+/* Four readings to a row while each has its 4.25rem; where four do not fit (320 pt), two and
+   two rather than three and one left alone under them. */
+@container check-in (width < 18.5rem) {
+  .finished-check-in {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 /* A name that wraps ("Sleep quality" in a narrow column) stands on its figure like the others:
    each name sits just over its figure, and the figures of a row share one line. */

@@ -398,7 +398,7 @@ export function FinishedWorkout({
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in">
+          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>
