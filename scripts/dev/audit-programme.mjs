@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { assertReadableText } from "./audit-text-readability.mjs";
 import {
@@ -10,6 +10,7 @@ import {
   addStarterChestPress,
   clickWithSlowNavigation,
 } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -35,9 +36,7 @@ const field = (page, name) => page.getByLabel(name, { exact: true });
 const password = "AuditProgramme123!";
 
 async function runDevice(device) {
-  const browser = await (device === "iphone" ? webkit : chromium).launch({
-    executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-  });
+  const browser = await launch(device === "iphone" ? "webkit" : "chromium");
   const context = await browser.newContext({
     ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
     baseURL,
@@ -377,6 +376,11 @@ async function runDevice(device) {
               .ai_coach_enabled,
         )
         .toBe(true);
+      // The row is saved before the switch's answer is drawn: the switch stays busy until the
+      // page has been drawn again, and that redraw starts the note's form afresh. Type once it
+      // is free, as the screen says to.
+      await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
+      await settle();
       const note =
         "Travelling next week: keep three shorter strength sessions and review my programme.";
       await field(page, "Notes for the coach").fill(note);
@@ -656,11 +660,11 @@ try {
   for (const device of process.env.AUDIT_DEVICE
     ? [process.env.AUDIT_DEVICE]
     : ["android", "iphone"])
-    await runDevice(device);
+    if (!skipDevice(device, device === "iphone" ? "webkit" : "chromium")) await runDevice(device);
   const passed = results.every((result) => result.passed) && runtimeErrors.length === 0;
   await writeFile(
     `${output}/results.json`,
-    JSON.stringify({ passed, results, runtimeErrors }, null, 2),
+    JSON.stringify({ passed, results, runtimeErrors, skipped: skippedDevices }, null, 2),
   );
   console.log(
     JSON.stringify({
@@ -668,6 +672,7 @@ try {
       checks: results.length,
       failed: results.filter((result) => !result.passed).length,
       runtimeErrors: runtimeErrors.length,
+      skipped: skippedDevices.map((row) => row.device),
     }),
   );
   if (!passed) process.exitCode = 1;

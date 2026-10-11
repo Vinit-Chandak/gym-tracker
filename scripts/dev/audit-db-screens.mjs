@@ -19,7 +19,8 @@
 // node-postgres sends each statement and its values in one exchange, so for this app the
 // statement count is the round-trip count: BEGIN, the claims statement, the athlete lock for a
 // write transaction, the screen's own statements and COMMIT.
-import { chromium, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
+import { launch } from "./audit-engines.mjs";
 import { writeFileSync } from "node:fs";
 import net from "node:net";
 import postgres from "postgres";
@@ -190,7 +191,7 @@ if (!ids.open) console.log("No open workout: start one to measure the in-workout
 
 // --- The browser: sign in, then open each screen from a neutral one. ---
 // AUDIT_CHROMIUM_PATH points at an installed Chromium when Playwright's own is not downloaded.
-const browser = await chromium.launch({ executablePath: process.env.AUDIT_CHROMIUM_PATH });
+const browser = await launch("chromium");
 const context = await browser.newContext({ ...devices["Pixel 7"], baseURL });
 await context.route("**/*", (route) => {
   const headers = route.request().headers();

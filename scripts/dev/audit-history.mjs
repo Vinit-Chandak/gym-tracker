@@ -3,8 +3,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -89,7 +90,8 @@ const report = {
   months: months.length,
   personas: usernames,
   semantics: {
-    workouts: "Completed sessions, started_at interpreted in the profile's current time_zone.",
+    workouts:
+      "Completed sessions on the day their parent activity froze (occurred_on), else started_at in the profile's current time_zone.",
     endurance:
       "Completed canonical running/cycling/swimming activities, using frozen occurred_on; running requires its detail row as the repository does.",
     recovery:
@@ -127,13 +129,20 @@ async function snapshot(username) {
     assert(profile, `Missing seeded account ${username}.`);
     assert.equal(profile.id, fixtures.people.find((person) => person.username === username)?.id);
     const [workouts, activities, recovery] = await Promise.all([
+      // A lift is dated by the day its parent activity froze, as a run is; only a session older
+      // than the parents falls back to its start in the account's zone.
       tx`
         select w.id, w.started_at,
-          to_char(w.started_at at time zone ${profile.time_zone}, 'YYYY-MM-DD') as day
+          coalesce(
+            to_char(a.occurred_on, 'YYYY-MM-DD'),
+            to_char(w.started_at at time zone ${profile.time_zone}, 'YYYY-MM-DD')
+          ) as day
         from workout_sessions w
         join gyms g on g.id=w.gym_id
+        left join activities a on a.id=w.activity_id and a.user_id=w.user_id
         where w.user_id=${profile.id} and w.completed_at is not null
-          and (w.started_at at time zone ${profile.time_zone})::date between ${from}::date and ${to}::date
+          and coalesce(a.occurred_on, (w.started_at at time zone ${profile.time_zone})::date)
+            between ${from}::date and ${to}::date
         order by w.started_at desc, w.id desc
       `,
       tx`
@@ -198,14 +207,18 @@ async function snapshot(username) {
 }
 const fingerprint = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const key = (record) => `${record.kind}:${record.id}`;
+// Newest first as History reads it: by day, then by when in the day, so a day's entries stand
+// together under one caption wherever their instants fall.
 function expectedFor(data, window, kind = "all") {
   return data.records
     .filter(
       (row) =>
         row.day >= window.from && row.day <= window.to && (kind === "all" || row.kind === kind),
     )
-    .sort((a, b) => b.order.localeCompare(a.order));
+    .sort((a, b) => b.day.localeCompare(a.day) || b.order.localeCompare(a.order));
 }
+/** Entries on a page of History (ADR 0044's `HISTORY_PAGE_SIZE`). */
+const PAGE_SIZE = 10;
 function rangeLabel(window) {
   const format = (day, year) =>
     new Intl.DateTimeFormat("en-GB", {
@@ -300,30 +313,58 @@ async function checkFilters(page, window, kind = "all") {
   return values;
 }
 
+// History is a page of its own behind Overview (ADR 0045), its entries ten to a page (ADR 0044).
+// Every page of the window is read, from the first, and the list is left on its first page.
 async function checkRecords(page, data, window, kind = "all") {
-  await expect(
-    page.getByRole("button", { name: "Progress section: History", exact: true }),
-  ).toBeVisible();
-  const count = page.getByRole("status").filter({ hasText: /^\d+ entr(?:y|ies)$/ });
+  await expect(page.getByRole("heading", { level: 1, name: "History", exact: true })).toBeVisible();
+  const count = page
+    .getByRole("status")
+    .filter({ hasText: /^[\d,]+ entr(?:y|ies)(?: · page \d+ of \d+)?$/ });
   await expect(count).toHaveCount(1);
   const expected = expectedFor(data, window, kind);
-  await expect(count).toHaveText(
-    `${expected.length} ${expected.length === 1 ? "entry" : "entries"}`,
-  );
+  const pages = Math.max(1, Math.ceil(expected.length / PAGE_SIZE));
+  const status = (number) =>
+    `${expected.length.toLocaleString("en-GB")} ${expected.length === 1 ? "entry" : "entries"}` +
+    (pages > 1 ? ` · page ${number} of ${pages}` : "");
+  const tab = (number) =>
+    page
+      .getByRole("navigation", { name: "History pages", exact: true })
+      .getByRole("button", { name: `Page ${number} of ${pages}`, exact: true });
+  if (pages > 1 && (await count.textContent()) !== status(1)) await tab(1).click();
+  await expect(count).toHaveText(status(1));
   // Next's route announcer is an alert containing the page title, outside main.
   const alerts = (await page.getByRole("main").getByRole("alert").allTextContents())
     .map((text) => text.trim())
     .filter(Boolean);
   assert.deepEqual(alerts, [], "History rendered an error.");
+  const actual = [];
+  for (let number = 1; number <= pages; number++) {
+    if (number > 1) {
+      await tab(number).click();
+      await expect(count).toHaveText(status(number));
+      await expect(tab(number)).toHaveAttribute("aria-current", "page");
+    }
+    actual.push(...(await readRows(count)));
+  }
+  // The last page says where a list that stopped short ends; a month never stops short.
   assert.equal(
     await page
-      .getByRole("status")
-      .filter({ hasText: /Showing the newest records only/ })
+      .getByRole("note")
+      .filter({ hasText: /^The list ends at / })
       .count(),
     0,
     "A monthly range was truncated.",
   );
-  const actual = await count.evaluate((status) => {
+  if (pages > 1) {
+    await tab(1).click();
+    await expect(count).toHaveText(status(1));
+  }
+  return compareRecords(actual, data, expected);
+}
+
+/** The rows of the page being shown, under their days. */
+function readRows(count) {
+  return count.evaluate((status) => {
     const rows = status.parentElement.querySelectorAll(
       'section[aria-labelledby^="history-"] > ul > li',
     );
@@ -347,6 +388,10 @@ async function checkRecords(page, data, window, kind = "all") {
       };
     });
   });
+}
+
+/** The rows read against the uncapped raw records, in History's order. */
+function compareRecords(actual, data, expected) {
   const byId = new Map(
     data.records.filter((row) => row.kind !== "recovery").map((row) => [row.id, row]),
   );
@@ -434,14 +479,13 @@ async function checkKindTransitions(page, data, window, engine) {
   await checkFilters(page, window);
 }
 
-const configs = [{ name: "chromium", engine: chromium, indices: months.map((_, index) => index) }];
-if (process.env.AUDIT_HISTORY_WEBKIT_SAMPLE === "true")
-  configs.push({ name: "webkit", engine: webkit, indices: sampleIndices });
+const configs = [{ name: "chromium", indices: months.map((_, index) => index) }];
+if (process.env.AUDIT_HISTORY_WEBKIT_SAMPLE === "true" && !skipDevice("iphone", "webkit"))
+  configs.push({ name: "webkit", indices: sampleIndices });
+report.skipped = skippedDevices;
 try {
   for (const config of configs) {
-    const browser = await config.engine.launch({
-      executablePath: config.name === "chromium" ? process.env.AUDIT_CHROMIUM_PATH : undefined,
-    });
+    const browser = await launch(config.name);
     try {
       for (const username of usernames) {
         const data = await snapshot(username);

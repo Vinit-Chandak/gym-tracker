@@ -1,9 +1,10 @@
 // Real workout lifecycle, device-local draft recovery and small-screen controls.
 // Each run creates a disposable athlete through the actual sign-up/onboarding UI.
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import { chooseOnboardingUnits } from "./audit-controls.mjs";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -19,7 +20,9 @@ if (
 const device = process.env.AUDIT_DEVICE ?? "android";
 const output = `${process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit"}/workout-${device}`;
 await mkdir(output, { recursive: true });
-const browser = await (device === "iphone" ? webkit : chromium).launch();
+const engine = device === "iphone" ? "webkit" : "chromium";
+await skipWholeRun(device, engine, `${output}/results.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -385,7 +388,9 @@ try {
       await page.waitForLoadState("networkidle");
       await context.setOffline(true);
       await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
-      await expect(page.getByRole("alert")).toBeVisible();
+      // Next's route announcer is an alert too, holding the page's title after a client
+      // navigation; the form's own alert says the start could not be sent.
+      await expect(page.getByRole("alert").filter({ hasText: /^Connection lost/ })).toBeVisible();
       await expect(page).toHaveURL(/\/workouts\/start\?/);
       await context.setOffline(false);
     },
