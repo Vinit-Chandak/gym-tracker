@@ -120,7 +120,7 @@ it("writes sleep's scale in hours, with the 6 h rule on a line of its own rather
   expect(labels).toEqual(["9 h", "6 h", "3 h"]);
 });
 
-it("says a night's sleep as a time, and an average of nights to its tenth of an hour", () => {
+it("gives a night's sleep and an average of nights to a tenth of an hour, as every graph does", () => {
   route.search = "recovery=sleepHours";
   const { container } = render(
     <RecoverySection
@@ -141,6 +141,6 @@ it("says a night's sleep as a time, and an average of nights to its tenth of an 
   const nights = [...container.querySelectorAll(".graph-value-figure")].map(
     (figure) => figure.textContent,
   );
-  // Newest first, as a time: never "7.8 h" for 7 h 45 min.
-  expect(nights).toEqual(["7 h 45 min", "6 h 30 min"]);
+  // Newest first, to a tenth: a graph's figures are, sleep's too (the owner's choice, ADR 0047).
+  expect(nights).toEqual(["7.8 h", "6.5 h"]);
 });
