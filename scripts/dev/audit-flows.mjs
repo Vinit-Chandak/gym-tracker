@@ -293,6 +293,12 @@ try {
     },
   );
   let template, occurrence;
+  // A session is scheduled for today or later, and moved only to today or later: a day gone by
+  // is logged, not scheduled (owner decision, 11 October 2026). So the dates follow Sam's today.
+  const [{ today, tomorrow }] = await sql`select
+    (now() at time zone time_zone)::date::text as today,
+    ((now() at time zone time_zone)::date + 1)::text as tomorrow
+    from profiles where id=${userId}`;
   await check(
     "Template sport switch, create, and schedule with the selected revision",
     async () => {
@@ -312,7 +318,7 @@ try {
       await go("/training/schedule");
       await choose("sport", "swimming");
       await page.locator('[name="templateId"]').selectOption(template.id);
-      await fill("scheduledOn", "2026-10-01");
+      await fill("scheduledOn", today);
       await fill("scheduledLocalTime", "07:15");
       await page.getByRole("button", { name: "Schedule it" }).click();
       await page.waitForURL("**/training/scheduled");
@@ -341,13 +347,13 @@ try {
     await page.getByRole("button", { name: "Skip this session" }).click();
     await page.getByRole("button", { name: "Put it back" }).click();
     await expect(page.getByRole("button", { name: "Skip this session" })).toBeVisible();
-    await fill("scheduledOn", "2026-10-02");
+    await fill("scheduledOn", tomorrow);
     await page.getByRole("button", { name: "Move it", exact: true }).click();
     await expect(page.getByText(/Moved from/)).toBeVisible();
     const [row] =
       await sql`select o.*,v.scheduled_on from planned_occurrences o join occurrence_versions v on v.id=o.current_revision_id where o.id=${occurrence.id}`;
     expect(row.disposition).toBe("pending");
-    expect(new Date(row.scheduled_on).toISOString().slice(0, 10)).toBe("2026-10-02");
+    expect(new Date(row.scheduled_on).toISOString().slice(0, 10)).toBe(tomorrow);
   });
   await check(
     "Ad hoc log leaves a scheduled session pending; linked log settles only it",
