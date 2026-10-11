@@ -1,6 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { userSportPreferences } from "@/db/schema";
+import { activities, userSportPreferences } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
 import type { DistanceUnit, PoolUnit, SportUnits } from "@/lib/distance-units";
@@ -47,6 +47,43 @@ export async function listSportPreferences(tx: DbOrTx, userId: string): Promise<
       shareStats: row?.shareStats ?? false,
     };
   });
+}
+
+/** The sports shared under a switch of their own; lifting and running are the training switch's. */
+export const SEPARATELY_SHARED = ["cycling", "swimming"] as const;
+export type SeparatelySharedSport = (typeof SEPARATELY_SHARED)[number];
+
+/**
+ * The ride and swim sharing switches Privacy offers, each with its setting: one for a sport you
+ * do, one you still share, and one you have logged. Turning a sport off keeps its history
+ * (above), so the history keeps its switch: rides logged before Cycling went off can still be
+ * shared, or stop being. A sport off, unshared and never logged has nothing to share.
+ */
+export async function listSportSharingSwitches(
+  tx: DbOrTx,
+  userId: string,
+): Promise<Partial<Record<SeparatelySharedSport, boolean>>> {
+  const preferences = await listSportPreferences(tx, userId);
+  const logged = await tx
+    .selectDistinct({ sport: activities.sport })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        inArray(activities.sport, [...SEPARATELY_SHARED]),
+        eq(activities.status, "completed"),
+      ),
+    );
+  const done = new Set(logged.map((row) => row.sport));
+  return Object.fromEntries(
+    preferences
+      .filter(
+        (preference): preference is SportPreference & { sport: SeparatelySharedSport } =>
+          (SEPARATELY_SHARED as readonly string[]).includes(preference.sport) &&
+          (preference.enabled || preference.shareStats || done.has(preference.sport)),
+      )
+      .map((preference) => [preference.sport, preference.shareStats]),
+  );
 }
 
 export async function enabledSportsFor(tx: DbOrTx, userId: string): Promise<ActivitySport[]> {
