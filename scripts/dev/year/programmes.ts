@@ -1035,7 +1035,7 @@ export const HYBRID_HALF_MARATHON = blueprint(
       ],
       { warmup: "lower" },
     ),
-    day(4, 4, "Tempo run", "Threshold", [], { run: true, warmup: "run", time: "45–55 min" }),
+    day(4, 4, "Tempo run", "Threshold", [], { run: true, warmup: "run", time: "35–55 min" }),
     day(
       5,
       5,

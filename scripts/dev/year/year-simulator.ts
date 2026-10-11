@@ -1445,7 +1445,8 @@ export class YearSimulation {
             "swimming",
             later,
             open ? 1500 : 1000 + a.random() * 1000,
-            120,
+            // About two minutes a hundred metres, as a steady swimmer goes: seconds per km.
+            1150 + a.random() * 200,
             AD_HOC_ORIGIN,
             { pool: !open },
           ),
