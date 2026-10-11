@@ -27,6 +27,7 @@ import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
+import { startDayLabel } from "./choose/start-option";
 import { CoachPending, CoachWaiting, type CoachGym } from "./coach-actions";
 import { DiscardedNote } from "./discarded-note";
 import { GymChoice, type SwitcherGym } from "./gym-switcher";
@@ -678,7 +679,12 @@ export function TodayView({
                   programDayId={startInstead.id}
                   dayIndex={startInstead.dayIndex}
                   variant="tonal"
-                  label={`Start ${startInstead.name} instead`}
+                  // In the words Choose a day and the day's own page use for the same tap.
+                  label={startDayLabel(
+                    startInstead.name,
+                    startInstead.cycleIndex,
+                    plan.suggestion.slot.cycleIndex,
+                  )}
                   className="w-full"
                 />
               )}

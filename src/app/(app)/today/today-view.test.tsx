@@ -371,7 +371,7 @@ it("offers no start on a rest day for a next day that only runs", () => {
     programmeOccurrences: [],
   });
   // Nothing to start: the check-in it led to went back to Today with nothing started.
-  expect(screen.queryByRole("link", { name: /instead/ })).toBeNull();
+  expect(screen.queryByRole("link", { name: /^Start / })).toBeNull();
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 
   cleanup();
@@ -380,7 +380,16 @@ it("offers no start on a rest day for a next day that only runs", () => {
     plan: { ...restPlan, nextTrainingDay: { ...lifting, cycleIndex: 1 } },
     programmeOccurrences: [],
   });
-  expect(screen.getByRole("link", { name: "Start Lower B instead" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Start Lower B" })).toBeTruthy();
+  cleanup();
+
+  // The cycle's last day a rest day: the next lift begins the next cycle, and says so with its
+  // name, as Choose a day and the day's own page do.
+  show({
+    plan: { ...restPlan, nextTrainingDay: { ...lifting, name: "Push A", cycleIndex: 2 } },
+    programmeOccurrences: [],
+  });
+  expect(screen.getByRole("link", { name: "Start cycle 2 with Push A" })).toBeTruthy();
 });
 
 it("keeps the run of a day finished today on today, and the next day up next", () => {

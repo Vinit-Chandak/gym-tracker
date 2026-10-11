@@ -22,6 +22,16 @@ function inTurn(state: ScheduleState, ref: SlotRef): boolean {
 }
 
 /**
+ * Starting a day, said with its name: "Start cycle 5 with Push A" where it begins a cycle after
+ * the one on screen, else "Start Lower B". Today's rest day, Choose a day and the day's own page
+ * say the one action in these words; "Start next cycle" named no day, and Today said "Start
+ * Push A instead" for the same tap (year audit, October 2026).
+ */
+export function startDayLabel(name: string, cycleIndex: number, shownCycle: number): string {
+  return cycleIndex > shownCycle ? `Start cycle ${cycleIndex} with ${name}` : `Start ${name}`;
+}
+
+/**
  * The button must describe the workout it will actually start, independent of a run.
  *
  * A day already done this cycle starts its next cycle's (ADR 0005): the day repeated on purpose,
@@ -29,10 +39,11 @@ function inTurn(state: ScheduleState, ref: SlotRef): boolean {
  * as moving on and leaving those behind (year audit, 11 October 2026), so it is said for what it
  * is: "Do again" for a day done this cycle, "Start early" for one this cycle does not have. Only
  * where nothing is owed before it — this cycle's training all answered — does it start the next
- * cycle, as Today offers it, and say so.
+ * cycle, as Today offers it, and say so with the day's name (`startDayLabel`).
  */
 export function liftingStartOption(state: ScheduleState, cycleIndex: number, dayIndex: number) {
-  if (!state.slots.find((slot) => slot.dayIndex === dayIndex)?.includesLifting) return null;
+  const day = state.slots.find((slot) => slot.dayIndex === dayIndex);
+  if (!day?.includesLifting) return null;
   const refs = allSlots(state).filter(
     (ref) => ref.dayIndex === dayIndex && ref.cycleIndex >= cycleIndex,
   );
@@ -43,6 +54,10 @@ export function liftingStartOption(state: ScheduleState, cycleIndex: number, day
   const next = refs.find((ref) => partStatus(state, ref, "session") === "pending");
   if (!next) return null;
   if (next.cycleIndex === cycleIndex) return { cycleIndex, label: "Start" };
-  if (inTurn(state, next)) return { cycleIndex: next.cycleIndex, label: "Start next cycle" };
+  if (inTurn(state, next))
+    return {
+      cycleIndex: next.cycleIndex,
+      label: startDayLabel(day.name, next.cycleIndex, cycleIndex),
+    };
   return { cycleIndex: next.cycleIndex, label: current ? "Do again" : "Start early" };
 }
