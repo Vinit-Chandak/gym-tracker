@@ -25,6 +25,7 @@
 /output/audit-2026-10-11/
 # The year simulation's report and the browser audit of its six accounts (scripts/dev/year).
 /output/year*/
+/output/audit-suite-*/
 /output/*.log
 /output/audit-20261007-*.log
 /output/audit-20260929-*.log
