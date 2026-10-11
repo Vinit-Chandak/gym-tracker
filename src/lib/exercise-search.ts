@@ -33,6 +33,11 @@ type AskedWord = {
    * Typed as a plural, so finished: "lats" asks for the lats, not for anything "lateral".
    */
   whole: boolean;
+  /**
+   * For the word still being typed, the singular of the plural it has started: "presse" is on
+   * its way to "presses", the press, though it is no longer the start of "press".
+   */
+  heading: string | null;
 };
 
 function askedWords(query: string): AskedWord[] {
@@ -48,7 +53,10 @@ function askedWords(query: string): AskedWord[] {
     const [word] = searchWords(raw);
     if (!word) return [];
     const whole = word !== raw;
-    return [{ word, whole, partial: !whole && stillTyping && i === typed.length - 1 }];
+    const partial = !whole && stillTyping && i === typed.length - 1;
+    const [singular] = partial ? searchWords(`${word}s`) : [];
+    const heading = singular && singular.length < word.length ? singular : null;
+    return [{ word, whole, partial, heading }];
   });
 }
 
@@ -59,7 +67,7 @@ function askedWords(query: string): AskedWord[] {
  * for pull-ups with every row in the library.
  */
 function wordMatches(asked: AskedWord, known: string, inName: boolean): boolean {
-  if (asked.word === known) return true;
+  if (asked.word === known || asked.heading === known) return true;
   if (asked.whole || !known.startsWith(asked.word)) return false;
   return asked.word.length >= 3 || (asked.partial && inName);
 }
@@ -79,6 +87,8 @@ function compactMatch(
   // to here; the query run together is long enough to lose it.
   const compacts =
     joined.length > 3 && joined.endsWith("s") ? [joined, joined.slice(0, -1)] : [joined];
+  const heading = asked.at(-1)?.heading;
+  if (heading) compacts.push([...asked.slice(0, -1).map((a) => a.word), heading].join(""));
   const partial = asked.at(-1)?.partial ?? false;
   let best: { atStart: boolean; whole: boolean; partial: boolean } | null = null;
   for (let i = 0; i < nameWords.length; i += 1) {

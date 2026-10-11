@@ -95,6 +95,10 @@ export function ExercisePicker(props: ExercisePickerProps) {
         )}
       </div>
 
+      {/* The choice is sent from here, not from its radio: a search that hides the chosen row
+          takes its radio with it, and the form would go without the exercise it still names. */}
+      {!several && <input type="hidden" name={props.name} value={props.value} />}
+
       {long && selected && (
         <p className="mt-2 type-meta-small text-ink-2">
           Selected:{" "}
@@ -150,7 +154,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
                       ) : (
                         <input
                           type="radio"
-                          name={props.name}
+                          name={`${id}-choice`}
                           value={exercise.id}
                           checked={chosen}
                           onChange={() => props.onChange(exercise.id)}

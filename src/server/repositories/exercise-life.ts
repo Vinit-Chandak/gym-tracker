@@ -1,4 +1,4 @@
-import { and, eq, gt, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, exists, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 
 import { setLogs, workoutExercises, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -14,9 +14,10 @@ export type ExerciseMonth = {
 
 /**
  * An exercise across its whole life (board Exercise: "Heaviest set each month"): the heaviest
- * working set of each month it was done in, and how many finished sessions it was in. Warm-ups
- * are not counted; neither is an unweighted set. A machine's loads are its own, so a movement
- * bound to its machine is read on one machine only.
+ * working set of each month it was done in, and how many finished sessions it was done in, with
+ * at least one set beyond its warm-ups. Warm-ups are not counted; neither is an unweighted set
+ * in a month's heaviest. A machine's loads are its own, so a movement bound to its machine is
+ * read on one machine only.
  */
 export async function readExerciseLife(
   tx: DbOrTx,
@@ -43,6 +44,7 @@ export async function readExerciseLife(
           eq(setLogs.userId, userId),
           eq(workoutExercises.exerciseId, exerciseId),
           isNotNull(workoutSessions.completedAt),
+          isNull(workoutExercises.skippedAt),
           ne(setLogs.setType, "warmup"),
           gt(setLogs.weight, 0),
           onMachine,
@@ -61,6 +63,19 @@ export async function readExerciseLife(
           eq(workoutExercises.userId, userId),
           eq(workoutExercises.exerciseId, exerciseId),
           isNotNull(workoutSessions.completedAt),
+          // A session it was only planned in, skipped or left out of is not one it was in.
+          isNull(workoutExercises.skippedAt),
+          exists(
+            tx
+              .select({ one: sql`1` })
+              .from(setLogs)
+              .where(
+                and(
+                  eq(setLogs.workoutExerciseId, workoutExercises.id),
+                  ne(setLogs.setType, "warmup"),
+                ),
+              ),
+          ),
           onMachine,
         ),
       ),
