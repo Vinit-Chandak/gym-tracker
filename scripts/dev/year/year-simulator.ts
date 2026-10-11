@@ -412,6 +412,8 @@ export class YearSimulation {
     await this.maybeStartBlock(a, date);
     await this.maybeRevise(a, date);
     await this.specials(a, date, start);
+    // Away for work, she trains in the hotel gym and her programme waits for her return.
+    if (this.travelling(a, date)) return;
     const away = a.p.breaks.find((b) => date >= b.from && date <= b.to);
     if (away) {
       if (date === away.from) await this.skipWhileAway(a, away.reason);
@@ -1442,6 +1444,15 @@ export class YearSimulation {
     }
   }
 
+  /** Sofia's work trips to Milan, when the hotel gym stands in for her own. */
+  private travelling(a: Athlete, date: string) {
+    return (
+      a.p.username === "sofia" &&
+      ((date >= "2026-02-10" && date <= "2026-02-13") ||
+        (date >= "2026-06-02" && date <= "2026-06-04"))
+    );
+  }
+
   /** Dated moments: a meet, a race, travel, an edit, a discarded start. */
   private async specials(a: Athlete, date: string, start: Date) {
     const u = a.p.username;
@@ -1461,11 +1472,7 @@ export class YearSimulation {
       await this.as(a, (tx) => this.logActivity(tx, a, "running", race, 21_097.5, 312));
       this.count(a, "races");
     }
-    if (
-      u === "sofia" &&
-      ((date >= "2026-02-10" && date <= "2026-02-13") ||
-        (date >= "2026-06-02" && date <= "2026-06-04"))
-    ) {
+    if (this.travelling(a, date)) {
       await this.adHoc(
         a,
         date,
