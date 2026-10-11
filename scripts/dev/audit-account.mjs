@@ -204,17 +204,18 @@ async function runDevice(device) {
     );
     await step("profile-validation-conversion-and-save", async () => {
       await go(page, "/profile/edit");
-      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
+      // The time zone is chosen from a list, so an impossible body weight is what is refused.
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("1200");
       await page.getByLabel("Feet", { exact: true }).fill("5");
       await page.getByLabel("Inches", { exact: true }).fill("10");
       await page.getByLabel("Date of birth", { exact: true }).fill("1994-06-15");
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
-      await page.getByLabel("Time zone", { exact: true }).fill("Invalid/Time_Zone");
+      await page.getByLabel("Time zone", { exact: true }).selectOption("America/New_York");
       await button(page, "Save").click();
       await expect(page.getByRole("alert").first()).toBeVisible();
-      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("170");
+      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("1200");
       await expect(page.getByLabel("Date of birth", { exact: true })).toHaveValue("1994-06-15");
-      await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
       await choose(page, "preferredUnit", "kg");
       assert.ok(
         Math.abs(

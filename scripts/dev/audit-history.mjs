@@ -241,11 +241,8 @@ async function enterHistory(page) {
     .getByRole("link", { name: "Progress", exact: true })
     .click();
   await page.waitForURL((address) => address.pathname === "/progress");
-  await page.getByRole("button", { name: /^Progress section:/ }).click();
-  await page
-    .getByRole("dialog", { name: "Progress section", exact: true })
-    .getByRole("link", { name: "History", exact: true })
-    .click();
+  // History is not a section any more (ADR 0045): it is the page behind Overview's latest.
+  await page.getByRole("link", { name: "All history", exact: true }).click();
   await page.waitForURL((address) => address.pathname === "/progress/history");
   await page.waitForLoadState("networkidle");
 }
