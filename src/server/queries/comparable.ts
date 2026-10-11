@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, isNotNull, isNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, exists, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
 import {
@@ -55,6 +55,8 @@ type PerformanceFilter = {
   exerciseId: string;
   /** Restrict to one machine; leave undefined for any equipment (or none). */
   equipmentInstanceId?: string;
+  /** Any equipment but this machine, or none: what another machine did, as a starting guess. */
+  excludeEquipmentInstanceId?: string;
   before?: Date;
   excludeWorkoutExerciseId?: string;
   limit: number;
@@ -77,6 +79,14 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
   ];
   if (filter.equipmentInstanceId !== undefined) {
     conditions.push(eq(workoutExercises.equipmentInstanceId, filter.equipmentInstanceId));
+  }
+  if (filter.excludeEquipmentInstanceId !== undefined) {
+    conditions.push(
+      or(
+        isNull(workoutExercises.equipmentInstanceId),
+        ne(workoutExercises.equipmentInstanceId, filter.excludeEquipmentInstanceId),
+      )!,
+    );
   }
   if (filter.before)
     conditions.push(
@@ -195,8 +205,11 @@ export async function sessionHistories(db: DbOrTx, queries: ComparableQuery[]) {
         equipmentInstanceId: machine ? query.equipmentInstanceId! : undefined,
         limit: query.limit ?? 6,
       });
+    // Another machine's latest, never this one's: an old session on this machine is still this
+    // machine's history, not a guess from somewhere else.
     const elsewhere = machine && query.equipmentInstanceId !== null ? filters.length : null;
-    if (elsewhere !== null) filters.push({ ...base, limit: 1 });
+    if (elsewhere !== null)
+      filters.push({ ...base, excludeEquipmentInstanceId: query.equipmentInstanceId!, limit: 1 });
     return { comparable, elsewhere };
   });
   const results = await batchPerformances(db, filters);

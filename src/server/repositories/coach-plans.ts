@@ -1701,6 +1701,7 @@ async function reviewStoredPlan(
       weightStep: weightStepFor({
         equipmentLoadIncrement: machine?.loadIncrement ?? null,
         exerciseDefaultIncrement: library?.defaultLoadIncrement ?? null,
+        unit: machine?.unit ?? input.unit,
       }),
       isStrengthCompound: STRENGTH_COMPOUND_SLUGS.has(entry.exerciseSlug),
       unit: machine?.unit ?? input.unit,

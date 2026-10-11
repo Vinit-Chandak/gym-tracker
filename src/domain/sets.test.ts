@@ -11,6 +11,19 @@ describe("set helpers", () => {
     );
   });
 
+  it("reads the library's kilogram step as the plate jump in pounds, never the machine's own", () => {
+    const step = (equipmentLoadIncrement: number | null, unit: string) =>
+      weightStepFor({ equipmentLoadIncrement, exerciseDefaultIncrement: 2.5, unit });
+    expect(step(null, "lb")).toBe(5);
+    expect(
+      weightStepFor({ equipmentLoadIncrement: null, exerciseDefaultIncrement: 2, unit: "lb" }),
+    ).toBe(5);
+    // A typed increment is already in its machine's unit, and a stack's pins have no pounds.
+    expect(step(2.5, "lb")).toBe(2.5);
+    expect(step(null, "kg")).toBe(2.5);
+    expect(step(null, "stack_index")).toBe(2.5);
+  });
+
   it("steps values from the current entry or from the faint prefill", () => {
     expect(stepValue("", 2.5, 60)).toBe("62.5");
     expect(stepValue("", 2.5, null)).toBe("2.5");

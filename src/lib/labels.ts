@@ -219,6 +219,7 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   lengthen: "Add distance",
   transfer: "Starting guess",
   start: "No history",
+  resume: "Back after a break",
   coach: "Coach plan",
 };
 

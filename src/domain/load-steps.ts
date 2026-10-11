@@ -122,6 +122,20 @@ export function stepHarder(ladder: LoadLadder, from: number): LoadStep | null {
   return ladder.assisted ? stepDown(ladder, from) : stepUp(ladder, from);
 }
 
+/**
+ * Whether `from` is the least help an assisted machine gives: nothing known below it, and the
+ * step its stops make, taken once more, would leave no help at all. There is no next weight to
+ * ask for there; what is harder is the movement without the machine.
+ */
+export function leastAssistance(ladder: LoadLadder, from: number): boolean {
+  if (!ladder.assisted || stepDown(ladder, from)) return false;
+  if (ladder.stack) {
+    const above = ladder.known.filter((load) => load >= from - EPSILON);
+    return above.length >= 2 && round(from - (above[1]! - above[0]!)) <= 0;
+  }
+  return ladder.increment !== null && round(from - ladder.increment) <= 0;
+}
+
 /** One step easier: less load, or more help on an assisted machine. */
 export function stepEasier(ladder: LoadLadder, from: number): LoadStep | null {
   return ladder.assisted ? stepUp(ladder, from) : stepDown(ladder, from);

@@ -1,11 +1,23 @@
 import type { LoadUnit, SetType } from "./types";
+import { loadStepIn } from "@/lib/units";
 
-/** Smallest sensible load jump: the machine's setting, else the exercise default, else 2.5. */
+/**
+ * Smallest sensible load jump: the machine's setting, else the exercise default, else 2.5.
+ *
+ * The machine's setting is typed in the machine's own unit. The default is the library's, in
+ * kilograms, so where the load is read in pounds it is the plate jump nearest it: onboarding
+ * registers a pound lifter's barbell and dumbbells without an increment, and 2.5 read as pounds
+ * asked for a 137.5 lb bar.
+ */
 export function weightStepFor(input: {
   equipmentLoadIncrement: number | null;
   exerciseDefaultIncrement: number | null;
+  /** The unit the step is used in; a machine's own scale takes the default as it is. */
+  unit?: string;
 }): number {
-  return input.equipmentLoadIncrement ?? input.exerciseDefaultIncrement ?? 2.5;
+  if (input.equipmentLoadIncrement !== null) return input.equipmentLoadIncrement;
+  const step = input.exerciseDefaultIncrement ?? 2.5;
+  return input.unit === "lb" ? loadStepIn(step, "lb") : step;
 }
 
 /**

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { knownLoads, stepHarder, type LoadLadder } from "@/domain/load-steps";
+import { knownLoads, leastAssistance, stepHarder, type LoadLadder } from "@/domain/load-steps";
 import { attempted } from "@/lib/offline-submit";
 import { sanitizeNumberEntry } from "@/domain/sets";
 import { confirmMachineLoadAction } from "@/server/actions/equipment";
@@ -18,7 +18,8 @@ import { confirmMachineLoadAction } from "@/server/actions/equipment";
  * `null` when there is nothing to ask: not a stack, nothing lifted, or the next stop is
  * already a known one. Otherwise the load it starts from and the app's guess — the gap
  * between the two heaviest stops, carried one further — or null when there is no gap yet.
- * On an assisted machine the step past the best is the one with less help.
+ * On an assisted machine the step past the best is the one with less help, and at the least
+ * help the machine gives there is none to ask for: the step after it is no help at all.
  */
 export function nextLoadQuestion(
   ladder: LoadLadder | null | undefined,
@@ -32,8 +33,9 @@ export function nextLoadQuestion(
   );
   if (lifted.length === 0) return null;
   const from = ladder.assisted ? lifted[0]! : lifted.at(-1)!;
-  const next = stepHarder({ ...ladder, known: knownLoads(ladder.known, lifted) }, from);
-  if (next?.source === "known") return null;
+  const known = { ...ladder, known: knownLoads(ladder.known, lifted) };
+  const next = stepHarder(known, from);
+  if (next?.source === "known" || (!next && leastAssistance(known, from))) return null;
   return { from, guess: next?.load ?? null };
 }
 
