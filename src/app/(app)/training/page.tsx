@@ -146,7 +146,8 @@ export default async function TrainingPage() {
           </section>
         )}
 
-        <ul className="mt-2">
+        {/* Under the cycle itself when no sport is there to log, as far down as Log would be. */}
+        <ul className={overview && sports.length === 0 ? "mt-5" : "mt-2"}>
           <NavRow href="/training/scheduled" glyph="calendar" label="Scheduled" />
           <NavRow href="/training/templates" glyph="note" label="Templates" />
         </ul>
