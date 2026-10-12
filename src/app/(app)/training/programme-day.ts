@@ -94,6 +94,42 @@ export function programmeDayParts(
 }
 
 /**
+ * The largest module the day's own page draws a rest day's crescent at. Left to fill its band it
+ * stood as tall as the band, the largest thing on a page that asks for nothing; at this it is
+ * about a third of a working day's print there, and still more than Training's tile gives it.
+ */
+export const REST_PAGE_MODULE = 16;
+
+/** The module the day's own page caps its print at: a print of rest alone stays quiet. */
+export function dayPageMaxModule(parts: readonly PrintPart[]): number | undefined {
+  return parts.length > 0 && parts.every((part) => part.kind === "rest")
+    ? REST_PAGE_MODULE
+    : undefined;
+}
+
+/**
+ * What the day's own print says for a screen reader, its parts in the print's order: "Easy
+ * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done".
+ */
+export function dayPrintLabel(
+  plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
+  parts: readonly PrintPart[],
+  drills: number,
+): string {
+  const { day } = plan;
+  const runFirst = !day.includesLifting || runLeads(day);
+  const exercises = plan.exercises.length;
+  const said = [
+    plan.run && runFirst ? "the run" : null,
+    drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
+    exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
+    plan.run && !runFirst ? "the run" : null,
+    parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
+  ].filter(Boolean);
+  return `${day.name}: ${said.join(", ")}${plan.status === "completed" ? ", done" : ""}`;
+}
+
+/**
  * What a day's exercises become at the athlete's default gym, where that is news: the fallback
  * starting the day there will put in its place ("At Planet Fitness: Smith machine bench press"),
  * or that nothing there will do. Read from the resolution the start itself uses

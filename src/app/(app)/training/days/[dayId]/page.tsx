@@ -25,7 +25,13 @@ import { getProgramOverview, getSchedule } from "@/server/repositories/schedule"
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
-import { atGymLines, programmeDayParts, runLeads } from "../../programme-day";
+import {
+  atGymLines,
+  dayPageMaxModule,
+  dayPrintLabel,
+  programmeDayParts,
+  runLeads,
+} from "../../programme-day";
 
 export const metadata: Metadata = { title: "Programme day" };
 
@@ -97,7 +103,6 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
     at: data.atGym.get(row.key) ?? null,
   }));
   const parts = programmeDayParts(plan, { drills, warmup: true });
-  const exercises = plan.exercises.length;
   const rest = !day.includesLifting && !day.includesRun;
   // A day that lifts and runs puts the run where the day is written to: "Lower + easy run" last.
   const runFirst = !day.includesLifting || runLeads(day);
@@ -129,15 +134,9 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
             <Art
               kind="print"
               parts={parts}
-              label={`${day.name}: ${[
-                plan.run && runFirst ? "the run" : null,
-                drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
-                exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
-                plan.run && !runFirst ? "the run" : null,
-                parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}${plan.status === "completed" ? ", done" : ""}`}
+              label={dayPrintLabel(plan, parts, drills)}
+              // A rest day's crescent alone stands quiet, not as tall as the band.
+              maxModule={dayPageMaxModule(parts)}
               className="size-full"
             />
           </figure>

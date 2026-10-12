@@ -1069,7 +1069,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
   sets in grey at the foot of their columns. A programme's rest day with nothing in it prints its
   crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
-  Today's band is left off on such a day, as before.
+  Today's band is left off on such a day, as before. On the day's page the crescent alone is
+  held to a 16 px module, about a third of a working day's print there, so it never fills the
+  band or outweighs the day's name on a page that asks for nothing.
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).
