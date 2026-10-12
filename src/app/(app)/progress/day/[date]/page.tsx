@@ -132,10 +132,11 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         sport: "strength",
         at: workout.startedAt,
         title: sessionName(workout.day?.name, workout.title),
-        // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps.
+        // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps, and
+        // the open one's state whole, as Today says it ("In progress", never "In / progress").
         meta: joinFacts([
           workout.gym.name,
-          minutes === null ? "In progress" : `${minutes}\u00a0min`,
+          minutes === null ? "In\u00a0progress" : `${minutes}\u00a0min`,
           // The open workout's sets are its own page's to count: this one can be held on Back.
           minutes === null ? null : `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
         ]),
