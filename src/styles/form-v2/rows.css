@@ -424,12 +424,15 @@ li:last-child > .sheet-row {
   margin-top: calc(6 * var(--ov-u));
   gap: calc(14 * var(--ov-u));
 }
+/* The initial is sized with its disc, not with the text: the name beside it says who it is, and
+   an initial that doubled at 200% inside a disc that does not ran out of it (a J's tail). */
 .person-card-avatar {
   width: calc(56 * var(--ov-u));
   height: calc(56 * var(--ov-u));
   font-family: var(--ov-font-display);
-  font-size: 1.625rem;
+  font-size: calc(26 * var(--ov-u));
   font-weight: 700;
+  line-height: 1;
 }
 .person-card-text {
   min-width: 0;
