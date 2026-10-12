@@ -567,6 +567,8 @@ phone at 200% text and a 320-pt phone from 150%, never one at 100%. There a phon
 than growing past its screen: the logger folds its entry, and the session strip folds into a
 screen's pinned actions. It is read with a container query on the box that folds, never a media
 query, whose rem is the browser's and not the root's that the installed app on an iPhone sets.
+What a fold stands in for follows the fold rather than asking again: the strip stands down while
+its key is shown, so two readings of one width can never leave the workout without a way back.
 
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
@@ -623,9 +625,13 @@ query, whose rem is the browser's and not the root's that the installed app on a
   the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
   the session strip folds into them and stands down: its key ends their last line, beside the
   last action while that action's longest word still fits (its words may wrap), else on a line
-  of its own at the end, and the actions come down to the tab bar. The tab bar, the strip and the
-  actions had held 28 to 50% of a phone's screen at 200% text; folded, 20 to 49%, the most where
-  the action itself is long (Delete everything at 320 × 568, whose key takes its own line).
+  of its own at the end, and always on its own after a field, which keeps its width (AI coach's
+  note); the actions come down to the tab bar. A multi-step form's actions, kept on screen as a
+  card (Create a programme), are pinned actions too: at large text Back has a line to itself,
+  and the key takes the rest of it, so the card grows by nothing. The tab bar, the strip and the
+  actions had held 28 to 63% of a phone's screen at 200% text; folded, 20 to 50%, the most where
+  the action is long (Delete everything at 320 × 568), a field keeps its line (AI coach), or a
+  step keeps two actions on screen (Create a programme).
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -842,12 +848,14 @@ and every control answers a press.
   the time, Resume on on-ink. The system's one shadow.
 - **The strip, folded** (large text, on a screen with pinned actions): a key on the control
   surface, `control` corners, 44 pt wide at least (48 dp on Android, growing with the text) and as
-  tall as the line it ends: the session's mark over Resume, or while a rest runs its dial over the
-  time (Go at zero). Mark and word are held at the tab bar's sizes, as the tab bar holds its own,
-  so the key stays a tab's width beside the action. Its name carries the rest of the strip:
-  "Resume Lower A", with the rest it shows ("Rest, 1:15 left"). The strip and the key read one
-  width, so the workout is one tap away at every size and never twice; a page of the session's
-  own, which has no strip, has no key.
+  tall as the line it ends: the session's mark over Resume, or while a rest runs its dial and
+  time over Resume (Go's glyph and Go at zero), so it always says where it goes and is never
+  taken for the rest pill. Mark, time and word are held at the tab bar's sizes, as the tab bar
+  holds its own, so the key stays about a tab's width beside the action. Its name carries the
+  rest of the strip: "Resume Lower A", with the rest it shows ("Rest, 1:15 left"), read with the
+  time on its face, so the two never say different seconds. The strip stands down only while the
+  key is shown, so the workout is one tap away at every size and never twice; a page of the
+  session's own, which has no strip, has no key.
 
 ### Rows and marks
 

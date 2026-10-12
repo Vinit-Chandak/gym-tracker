@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SessionChrome } from "./session-chrome";
@@ -8,24 +8,59 @@ import { SessionChrome } from "./session-chrome";
 const route = vi.hoisted(() => ({ pathname: "/workouts/active" }));
 const rest = vi.hoisted(() => ({ remaining: 60 as number | null }));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
-vi.mock("./rest-timer", () => ({
+// The strip's own timer is the real one's stand-in; the folded key draws the real face and name
+// from the one reading the chrome takes.
+vi.mock("./rest-timer", async (original) => ({
+  ...(await original<typeof import("./rest-timer")>()),
   RestTime: () => (rest.remaining === null ? null : <span role="timer">1:00</span>),
-  RestFace: () => (rest.remaining === null ? null : <span>1:00</span>),
-  restNamed: (remaining: number) => (remaining === 0 ? "Rest over: Go" : "Rest, 1:00 left"),
-  useRestRemaining: () => rest.remaining,
+  useRestReading: () => ({ remaining: rest.remaining, total: 120_000 }),
 }));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ prefetch: _prefetch, ...props }: ComponentProps<"a"> & { prefetch?: unknown }) => (
     <a {...props} />
   ),
 }));
+
+/** Whether rows.css gives the folded key a box: at large text, on a screen that pins actions. */
+const layout = vi.hoisted(() => ({ keyShown: false }));
+let observed: { callback: ResizeObserverCallback; target: Element }[] = [];
 vi.stubGlobal(
   "ResizeObserver",
   class {
-    observe() {}
-    disconnect() {}
+    callback: ResizeObserverCallback;
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+    observe(target: Element) {
+      observed.push({ callback: this.callback, target });
+    }
+    disconnect() {
+      observed = observed.filter(({ callback }) => callback !== this.callback);
+    }
   },
 );
+const getClientRects = HTMLElement.prototype.getClientRects;
+beforeEach(() => {
+  layout.keyShown = false;
+  observed = [];
+  HTMLElement.prototype.getClientRects = function (this: HTMLElement) {
+    if (this.classList.contains("session-fold"))
+      return (layout.keyShown ? [this.getBoundingClientRect()] : []) as unknown as DOMRectList;
+    return getClientRects.call(this);
+  };
+});
+afterEach(() => {
+  HTMLElement.prototype.getClientRects = getClientRects;
+});
+/** The reader's text grows or shrinks past large text: the key gains or loses its box. */
+function relayout(keyShown: boolean) {
+  layout.keyShown = keyShown;
+  act(() => {
+    for (const { callback, target } of observed)
+      callback([{ target } as ResizeObserverEntry], {} as ResizeObserver);
+  });
+}
+const frame = () => document.querySelector(".session-chrome");
 afterEach(cleanup);
 
 const session = { id: "active", name: "Lower A", restTimerEnabled: true };
@@ -93,12 +128,42 @@ it("keeps its folded key at the end of a screen's pinned actions, named for the 
   expect(screen.getByRole("complementary", { name: "Workout in progress" })).toBeTruthy();
 });
 
-it("names the folded key with the rest it shows", () => {
+it("keeps Resume on the folded key while a rest runs, the time over it, named alike", () => {
   route.pathname = "/profile/sports";
-  rest.remaining = 60;
+  rest.remaining = 75;
   render(<ScreenWithSave />);
-  const key = screen.getByRole("link", { name: "Resume Lower A. Rest, 1:00 left" });
-  expect(key.textContent).toBe("1:00");
+  // The name and the face come from one reading, so they say the same second (WCAG 2.5.3).
+  const key = screen.getByRole("link", { name: "Resume Lower A. Rest, 1:15 left" });
+  expect(key.textContent).toBe("1:15Resume");
+  expect(key.querySelector("svg")).toBeTruthy();
+});
+
+it("says Go on the folded key when the rest is over, and still Resume", () => {
+  route.pathname = "/profile/sports";
+  rest.remaining = 0;
+  render(<ScreenWithSave />);
+  const key = screen.getByRole("link", { name: "Resume Lower A. Rest over: Go" });
+  expect(key.textContent).toBe("GoResume");
+});
+
+it("stands the strip down only while its key has a box, from the first paint", () => {
+  route.pathname = "/profile/sports";
+  rest.remaining = null;
+  // At 100% text the key has no box, so the strip stays.
+  const view = render(<ScreenWithSave />);
+  expect(frame()?.hasAttribute("data-folded")).toBe(false);
+  // The reader's text grows: the key shows, so the strip goes.
+  relayout(true);
+  expect(frame()?.hasAttribute("data-folded")).toBe(true);
+  // However the key's width is read, a key without a box never takes the strip with it.
+  relayout(false);
+  expect(frame()?.hasAttribute("data-folded")).toBe(false);
+  view.unmount();
+
+  // Opened at large text, it is folded before anything is painted.
+  layout.keyShown = true;
+  render(<ScreenWithSave />);
+  expect(frame()?.hasAttribute("data-folded")).toBe(true);
 });
 
 it("folds into nothing where there is nothing pinned, or no strip to fold", () => {
@@ -122,4 +187,14 @@ it("takes the key back when the screen's pinned actions go", () => {
   view.rerender(<ScreenWithSave pinned={false} />);
   expect(screen.queryByRole("link", { name: "Resume Lower A" })).toBeNull();
   expect(screen.getByRole("link", { name: "Resume" })).toBeTruthy();
+});
+
+it("unfolds the strip when the key goes, even at large text", () => {
+  route.pathname = "/profile/sports";
+  rest.remaining = null;
+  layout.keyShown = true;
+  const view = render(<ScreenWithSave />);
+  expect(frame()?.hasAttribute("data-folded")).toBe(true);
+  view.rerender(<ScreenWithSave pinned={false} />);
+  expect(frame()?.hasAttribute("data-folded")).toBe(false);
 });

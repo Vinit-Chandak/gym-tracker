@@ -24,7 +24,9 @@ Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
   "History", "My foods") and returns to the previous in-app page, or to that destination when
   there is none.
 - **The session strip:** while a workout is unfinished, every screen except Today and the
-  workout itself shows "In progress · {session name}" with Resume.
+  workout itself shows "In progress · {session name}" with Resume. At large text, on a screen
+  with its own pinned actions, the strip folds into them as a key that keeps one-tap Resume and
+  the rest's time, with the session's name in its accessible name.
 - **The rest timer** (only when turned on in Profile): "Rest" and an m:ss countdown, +30 s and
   Stop, then "Go", which clears after 60 s. It survives navigation and reloads and stays in
   step across tabs, and shows on every screen including Today.

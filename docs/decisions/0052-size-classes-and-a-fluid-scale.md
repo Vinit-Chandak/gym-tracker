@@ -123,15 +123,27 @@ The owner chose **adaptive + fluid**:
      reader's text to the root (`platform.ts`), which only a container query sees.
    - At large text, on a screen that pins its own actions, the session strip folds into them.
      With a workout open, the tab bar, the strip and a pinned Save held 28 to 42% of a phone's
-     screen at 200% text, and up to half with a longer action (Delete everything at 320 × 568).
-     The strip stands down and its key ends the actions' last line: the session's mark over
-     Resume, or the rest's dial over the time, a target wide, on the control surface. It stands
-     beside the last action while that action's longest word still fits, else on a line of its
-     own at the end. The open workout stays one tap away.
-   - The strip's frame and the pinned actions each ask the question of their own box. Both run
-     between the gutters, so both ask "under 14rem less two 20-pt gutters", and the strip goes
-     exactly where its key comes. Under 360 pt the gutters are 16, so there the fold comes 8 pt
-     sooner than the logger's.
+     screen at 200% text, up to half with a longer action (Delete everything at 320 × 568), and
+     63% under Create a programme's Back and Continue. The strip stands down and its key ends
+     the actions' last line: the session's mark over Resume, or the rest's dial and time over
+     Resume, a target wide, on the control surface. It stands beside the last action while that
+     action's longest word still fits, else on a line of its own at the end. After a field it
+     always takes its own line: beside AI coach's note it left the note 118 pt of 192 at
+     320 × 568, about six letters a line, which costs the reader more than a line costs the
+     screen. Create a programme keeps Back and Continue on screen as a card of its own (the
+     intake form's `sticky-actions`, not `PinnedActions`); at large text Back has a line to
+     itself there, and the key takes the rest of it. The open workout stays one tap away.
+   - Each set of actions asks the question of its own box, less what runs beside that box: the
+     pinned actions run between the gutters, so they ask "under 14rem less two 20-pt gutters";
+     the intake's card stands inside the gutters and pads itself by 0.5rem a side, so it asks
+     "under 13rem less two gutters". Both mean fewer than 14rem across the screen. Under 360 pt
+     the gutters are 16, so there the fold comes 8 pt sooner than the logger's.
+   - The strip asks nothing of its own: it stands down while its key has a box, which the key
+     reports as it gains or loses one. The first build had the strip's frame ask the same
+     question of its own box. Chromium was seen to answer the two queries differently after a
+     reload, hiding the strip while the key stayed hidden too, and the open workout had no way
+     back on that screen. Now a key that does not show leaves the strip standing: a width read
+     two ways can at worst show the workout twice, for a frame, and never not at all.
    - Measured at 200% text with a workout open (tab bar, strip and pinned actions, as a share of
      the screen), before and after:
 
@@ -139,8 +151,9 @@ The owner chose **adaptive + fluid**:
      | -------------------- | ----------- | ----------- | ----------- |
      | Sports (Save)        | 41.5 → 28.9 | 35.7 → 24.9 | 28.2 → 19.7 |
      | Add machine          | 41.5 → 36.4 | 35.7 → 24.9 | 28.2 → 19.7 |
-     | AI coach (compose)   | 49.3 → 44.4 | 42.3 → 31.5 | 33.4 → 24.9 |
+     | AI coach (note)      | 49.3 → 48.6 | 42.3 → 41.7 | 33.4 → 32.9 |
      | Delete account       | 49.8 → 49.1 | 42.7 → 31.9 | 33.8 → 25.2 |
+     | Create a programme   | 63.0 → 50.4 | 53.7 → 42.9 | 42.4 → 33.9 |
      | Training (no action) | 26.4 → 26.4 | 22.5 → 22.5 | 17.8 → 17.8 |
 
      At 100% text nothing moved: the same screens are pixel for pixel as before.
@@ -156,4 +169,8 @@ The owner chose **adaptive + fluid**:
 - The pixel-diff check at 320, 360 and 390 px is how a change to the scale proves a phone did
   not move.
 - A new fold at large text queries its own box against 14rem, less whatever runs beside that box
-  (as the strip and the pinned actions take off the gutters), with a container query.
+  (as the pinned actions take off the gutters, and the intake's card its padding too), with a
+  container query. Whatever the fold stands in for follows the fold's own box, as the strip
+  follows its key, rather than asking a second query that could answer differently.
+- A screen that keeps its own actions on screen, pinned or as a card, keeps a place for the
+  folded strip (`PinnedFold`) where a line of theirs has room for it.

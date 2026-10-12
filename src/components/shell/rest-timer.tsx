@@ -140,9 +140,17 @@ function useRest(sessionId: string) {
   return { remaining, total, stop, extend };
 }
 
-/** Seconds of rest left (0 while it says Go), or null when no rest runs. */
-export function useRestRemaining(sessionId: string): number | null {
-  return useRest(sessionId).remaining;
+/**
+ * The running rest as one reading: seconds left (0 while it says Go, null when no rest runs) and
+ * the whole of it. Whatever shows the time and whatever names it read this once, so the two
+ * never say different seconds.
+ */
+export function useRestReading(sessionId: string): {
+  remaining: number | null;
+  total: number | null;
+} {
+  const { remaining, total } = useRest(sessionId);
+  return { remaining, total };
 }
 
 /**
@@ -176,20 +184,20 @@ export function RestTime({ sessionId }: { sessionId: string }) {
 
 /**
  * The rest on the strip folded into a screen's pinned actions (DESIGN.md, The session strip):
- * the dial over the time, or Go's glyph over Go, live as the strip's and as narrow as a tab.
- * Nothing while no rest runs. Its key is named with the time it shows (restNamed).
+ * the dial and the time, or Go's glyph and Go, as the strip shows them. It draws the reading it
+ * is given, so the key that holds it is named from the same second (restNamed).
  */
 export function RestFace({
-  sessionId,
+  remaining,
+  total,
   glyphClassName,
   timeClassName,
 }: {
-  sessionId: string;
+  remaining: number;
+  total: number | null;
   glyphClassName?: string;
   timeClassName?: string;
 }) {
-  const { remaining, total } = useRest(sessionId);
-  if (remaining === null) return null;
   const go = remaining === 0;
   const fraction = total ? Math.min(1, (remaining * 1000) / total) : 1;
   return (

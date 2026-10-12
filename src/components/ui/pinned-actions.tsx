@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } 
 
 /*
  * Where the session strip folds into the screen's own actions at large text (DESIGN.md, The
- * session strip). The pinned actions hold a place at the end of their last line and say where it
- * is; the strip, which knows the workout, draws its folded self there. One screen pins one set of
- * actions, so one place is held at a time: the latest to arrive, until it goes.
+ * session strip). The pinned actions, or a form's kept-on-screen actions, hold a place at the end
+ * of their last line and say where it is; the strip, which knows the workout, draws its folded
+ * self there. One screen pins one set of actions, so one place is held at a time: the latest to
+ * arrive, until it goes.
  */
 let fold: HTMLElement | null = null;
 const listeners = new Set<() => void>();
@@ -70,6 +71,23 @@ export function PinnedActions({
     };
   }, []);
 
+  return (
+    <div ref={ref} className="pinned-actions">
+      <div className={stack ? "pinned-actions-stack" : "pinned-actions-row"}>
+        {children}
+        <PinnedFold />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The place a screen's actions keep for the folded strip, where a line of theirs has room for its
+ * key: after the last action of the pinned actions; beside Back in a form's kept actions. It adds
+ * no box of its own (rows.css), and the key, drawn into it, stands where it stands in the focus
+ * order too. Whatever holds it measures its own width for large text (rows.css).
+ */
+export function PinnedFold() {
   const holdPlace = useCallback((element: HTMLSpanElement | null) => {
     if (!element) return;
     holdFold(element);
@@ -77,13 +95,5 @@ export function PinnedActions({
       if (fold === element) holdFold(null);
     };
   }, []);
-
-  return (
-    <div ref={ref} className="pinned-actions">
-      <div className={stack ? "pinned-actions-stack" : "pinned-actions-row"}>
-        {children}
-        <span ref={holdPlace} className="pinned-fold" />
-      </div>
-    </div>
-  );
+  return <span ref={holdPlace} className="pinned-fold" />;
 }

@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Field, Input } from "@/components/ui/input";
+import { PinnedFold } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { TRAINING_GOALS } from "@/domain/types";
@@ -407,7 +408,12 @@ function StepProgress({
   );
 }
 
-/** Back and Continue, kept on screen while a long step is scrolled. */
+/**
+ * Back and Continue, kept on screen while a long step is scrolled. They are this screen's pinned
+ * actions, so at large text, while a workout is open, the session strip folds into them. There
+ * Back has a line to itself, and the strip's key takes the rest of it, so the card grows by
+ * nothing: Back, the workout, then Continue, as they read.
+ */
 function Actions({
   busy,
   disabled,
@@ -433,6 +439,7 @@ function Actions({
           Back
         </Button>
       )}
+      <PinnedFold />
       <Button
         size="lg"
         disabled={busy || disabled}

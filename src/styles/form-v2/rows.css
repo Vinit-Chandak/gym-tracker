@@ -568,14 +568,6 @@ li:last-child > .sheet-row {
 }
 
 /* ---------- the session strip, on every screen while a workout is minimised ---------- */
-/* Between the gutters, and beyond a phone over the page's column (ADR 0052). Its frame keeps the
-   gutters, so the frame's own width is what the pinned actions measure too (the fold, below). */
-.session-chrome {
-  --strip-side: max(var(--ov-gutter), (100% - var(--content-width)) / 2 + var(--ov-gutter));
-  padding: 0 max(var(--strip-side), env(safe-area-inset-right)) 0
-    max(var(--strip-side), env(safe-area-inset-left));
-  container: chrome / inline-size;
-}
 /* Ink, 52 pt, card corners, 8 pt over the tab bar between the gutters: the system's one
    shadow, in light only. In dark the strip is the light ink, so its mark keeps the deep
    ultramarine rather than the dark palette's lighter one. */
@@ -584,7 +576,10 @@ li:last-child > .sheet-row {
   min-height: calc(calc(52 * var(--ov-u)) + var(--ov-grow) * 0.6);
   align-items: center;
   gap: calc(10 * var(--ov-u));
-  margin-bottom: calc(8 * var(--ov-u));
+  /* Between the gutters, and beyond a phone over the page's column (ADR 0052). */
+  --strip-side: max(var(--ov-gutter), (100% - var(--content-width)) / 2 + var(--ov-gutter));
+  margin: 0 max(var(--strip-side), env(safe-area-inset-right)) calc(8 * var(--ov-u))
+    max(var(--strip-side), env(safe-area-inset-left));
   padding: 0 calc(4 * var(--ov-u)) 0 calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-card);
   background: var(--ov-ink);
@@ -614,10 +609,6 @@ li:last-child > .sheet-row {
   font-weight: 700;
 }
 @media (min-width: 64rem) {
-  /* Beside the rail the frame starts at the rail, so the strip centres itself in what is left. */
-  .session-chrome {
-    padding-inline: 0;
-  }
   .session-strip {
     max-width: calc(var(--content-width) - 2 * var(--ov-gutter));
     margin-inline: auto;
@@ -627,63 +618,77 @@ li:last-child > .sheet-row {
 /* ---------- the strip folded into a screen's pinned actions, at large text ---------- */
 /* Large text (ADR 0052) is fewer than 14rem across the screen, where the logger folds its entry:
    every phone at 200%, a 320-pt phone from 150%, never at 100%. There, on a screen that pins its
-   own actions, the tab bar, the strip and the actions held 28 to 50% of the screen, so the strip
+   own actions, the tab bar, the strip and the actions held 28 to 63% of the screen, so the strip
    folds into the actions: a key at the end of their last line, as one tap back to the workout.
-   The strip's frame and the pinned actions each measure their own box between the gutters, the
-   same width, and ask the same question of it (14rem less two 20-pt gutters; 8 pt sooner under
-   360 pt, where the gutters are 16), so the strip goes exactly where its key comes: never both,
-   never neither. Container queries, not media queries: the installed app on an iPhone sets the
-   reader's text on the root (platform.ts), which a media query's rem never sees. */
+   Each set of actions asks of its own box, with a container query, whether the screen is that
+   narrow: the box's width less what runs beside it (the gutters, 8 pt sooner under 360 pt where
+   they are 16; a card's padding). Not a media query: the installed app on an iPhone sets the
+   reader's text on the root (platform.ts), which a media query's rem never sees. The strip asks
+   nothing itself: it stands down while its key has a box (session-chrome.tsx), so the workout is
+   one tap away whichever way the key's question is answered, and never twice. */
 .pinned-actions {
   container: pinned / inline-size;
+}
+/* A multi-step form's actions, kept on screen as a card inside the page's gutters, with 0.5rem
+   of padding of their own (globals.css). */
+.sticky-actions {
+  container: kept-actions / inline-size;
 }
 /* The place the actions hold for the key adds nothing while it is empty. */
 .pinned-fold {
   display: contents;
 }
-.session-fold {
+.session-chrome[data-folded] .session-strip {
   display: none;
 }
-@container chrome (width < calc(14rem - 40px)) {
-  html:has(.session-fold) .session-strip {
-    display: none;
-  }
+/* A target on the control surface, as tall as the line it ends: the session's mark, or while a
+   rest runs its dial and time, over Resume, all held at the tab bar's sizes as the tab bar holds
+   its own, so the key stays about as narrow as a tab; on a line of its own, at the end. */
+.session-fold {
+  display: none;
+  min-width: var(--ov-target);
+  min-height: var(--ov-target);
+  flex: none;
+  flex-direction: column;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  gap: calc(3 * var(--ov-u));
+  margin-left: auto;
+  padding: calc(6 * var(--ov-u)) calc(4 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface-control);
+  color: var(--ov-ink);
+  font-size: min(var(--ov-type-tab), calc(15 * var(--ov-u)));
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.session-fold-state {
+  display: flex;
+  min-height: calc(20 * var(--ov-u));
+  align-items: center;
+  gap: calc(3 * var(--ov-u));
+}
+.session-fold-glyph {
+  width: calc(20 * var(--ov-u));
+  height: calc(20 * var(--ov-u));
+}
+/* Beside the time, the dial is the strip's size, so the two keep to the width of Resume. */
+.session-fold-state > .session-fold-glyph:not(:only-child) {
+  width: calc(16 * var(--ov-u));
+  height: calc(16 * var(--ov-u));
+}
+.session-fold:active {
+  background: var(--ov-surface-control-pressed);
 }
 @container pinned (width < calc(14rem - 40px)) {
-  /* A target on the control surface, as tall as the line it ends: the session's mark, or the
-     rest's dial while one runs, over Resume, both held at the tab bar's sizes as the tab bar
-     holds its own, so the key stays as narrow as a tab; on a line of its own, at the end. */
   .session-fold {
     display: flex;
-    min-width: var(--ov-target);
-    min-height: var(--ov-target);
-    flex: none;
-    flex-direction: column;
-    align-self: stretch;
-    align-items: center;
-    justify-content: center;
-    gap: calc(3 * var(--ov-u));
-    margin-left: auto;
-    padding: calc(6 * var(--ov-u)) calc(4 * var(--ov-u));
-    border-radius: var(--ov-radius-control);
-    background: var(--ov-surface-control);
-    color: var(--ov-ink);
-  }
-  .session-fold-glyph {
-    width: calc(20 * var(--ov-u));
-    height: calc(20 * var(--ov-u));
-  }
-  .session-fold-label {
-    font-size: min(var(--ov-type-tab), calc(15 * var(--ov-u)));
-    font-weight: 700;
-    line-height: 1;
-    white-space: nowrap;
-  }
-  .session-fold:active {
-    background: var(--ov-surface-control-pressed);
   }
   /* The last line shares itself with the key while its longest word still fits beside it, and
-     leaves the key a line of its own when it does not; the lines before it keep the width. */
+     leaves the key a line of its own when it does not; the lines before it keep the width. A
+     field keeps its width too: the key never narrows what is being typed into (AI coach). */
   .pinned-actions-stack:has(.session-fold) {
     flex-flow: row wrap;
     column-gap: calc(10 * var(--ov-u));
@@ -693,6 +698,18 @@ li:last-child > .sheet-row {
   }
   .pinned-actions-stack:has(.session-fold) > :nth-last-child(2) {
     flex: 1 1 0%;
+  }
+  .pinned-actions-stack:has(.session-fold)
+    > :nth-last-child(2):has(textarea, select, input:not([type="hidden"])) {
+    flex: 1 0 100%;
+  }
+}
+/* Its box is the screen less the gutters and its padding, so it asks the same question 1rem
+   sooner. Its actions already wrap there, Back on a line of its own, and the key takes the rest
+   of Back's line (intake-form.tsx), so the card grows by nothing. */
+@container kept-actions (width < calc(13rem - 40px)) {
+  .session-fold {
+    display: flex;
   }
 }
 /* A page of the session's own has no strip to fold (session.css), so it has no key either. */

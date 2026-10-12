@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { PinnedActions, usePinnedFold } from "./pinned-actions";
+import { PinnedActions, PinnedFold, usePinnedFold } from "./pinned-actions";
 
 let observed: { callback: ResizeObserverCallback; elements: Element[] }[] = [];
 
@@ -85,6 +85,23 @@ it("keeps a place for the folded strip at the end of its last line, while it sta
   // After the actions, adding nothing of its own (rows.css: display: contents).
   expect(stack.lastElementChild?.className).toBe("pinned-fold");
   expect(stack.lastElementChild?.childNodes.length).toBe(0);
+  expect(screen.getByRole("status").textContent).toBe("pinned-fold");
+  view.rerender(<FoldProbe />);
+  expect(screen.getByRole("status").textContent).toBe("none");
+});
+
+it("lends its place to a form's own kept actions, which are a screen's pinned actions too", () => {
+  const view = render(
+    <>
+      <div className="sticky-actions">
+        <button type="button">Continue</button>
+        <PinnedFold />
+      </div>
+      <FoldProbe />
+    </>,
+  );
+  const kept = screen.getByRole("button", { name: "Continue" }).parentElement!;
+  expect(kept.lastElementChild?.className).toBe("pinned-fold");
   expect(screen.getByRole("status").textContent).toBe("pinned-fold");
   view.rerender(<FoldProbe />);
   expect(screen.getByRole("status").textContent).toBe("none");
