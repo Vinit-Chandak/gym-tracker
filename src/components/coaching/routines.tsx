@@ -9,6 +9,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
+import { setLengthIn, SET_LENGTH_WORDS, type SetLengthUnit } from "@/lib/distance-units";
 import { startRoutineAction, saveWorkoutRoutineAction } from "@/server/actions/manual-training";
 /** What a routine is started beside: a programme under way, or none to change. */
 export type RoutineProgramme = "ongoing" | "none";
@@ -24,10 +25,13 @@ export function RoutineLibrary({
   gyms,
   library,
   programme = "ongoing",
+  length,
 }: {
   routines: { id: string; name: string; day: SavedRoutineDay }[];
   gyms: { id: string; name: string; isDefault?: boolean }[];
   library: { slug: string; name: string }[];
+  /** What a carry's range reads in: the athlete's metres or yards (ADR 0056). */
+  length: SetLengthUnit;
   programme?: RoutineProgramme;
 }) {
   const router = useRouter();
@@ -66,8 +70,13 @@ export function RoutineLibrary({
                 {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
                 {"sets" in entry && (
                   <p className="text-ink-muted">
-                    {entry.sets} × {(entry.reps ?? entry.duration ?? entry.distance)?.join("–")}{" "}
-                    {entry.reps ? "reps" : entry.duration ? "seconds" : "metres"}
+                    {entry.sets} ×{" "}
+                    {(
+                      entry.reps ??
+                      entry.duration ??
+                      entry.distance?.map((metres) => setLengthIn(metres, length))
+                    )?.join("–")}{" "}
+                    {entry.reps ? "reps" : entry.duration ? "seconds" : SET_LENGTH_WORDS[length]}
                   </p>
                 )}
               </li>

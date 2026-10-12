@@ -1,5 +1,6 @@
 import { formatHold } from "./pace";
 import type { LoadUnit, SetType } from "./types";
+import { formatSetLength, type SetLengthUnit } from "@/lib/distance-units";
 import { loadStepIn } from "@/lib/units";
 
 /**
@@ -80,16 +81,21 @@ function loadWords(set: SetLike, unitLabel: string | undefined, reading: LoadRea
 
 /**
  * "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label; with a unit, "80 kg × 10", and read
- * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6". A set is one fact, its spaces
- * unbreakable: a list of them wraps between sets, never inside one.
+ * as `reading` says: "Bodyweight × 12", "50 kg assistance × 6". A carry reads in `length`, the
+ * athlete's own ("32 kg × 44 yd"); the coach's lines keep the metres it is stored in. A set is
+ * one fact, its spaces unbreakable: a list of them wraps between sets, never inside one.
  */
-export function formatSet(set: SetLike, unitLabel?: string, reading: LoadReading = "load"): string {
+export function formatSet(
+  set: SetLike,
+  unitLabel?: string,
+  reading: LoadReading = "load",
+  length: SetLengthUnit = "m",
+): string {
   const weight = loadWords(set, unitLabel, reading);
   const times = unitLabel ? "\u00a0×\u00a0" : "×";
   if (set.reps === null && set.distanceMeters !== null) {
-    return set.weight
-      ? `${weight}${times}${set.distanceMeters}\u00a0m`
-      : `${set.distanceMeters}\u00a0m`;
+    const distance = formatSetLength(set.distanceMeters, length);
+    return set.weight ? `${weight}${times}${distance}` : distance;
   }
   if (set.durationSeconds !== null && set.reps === null) {
     // A hold reads as its best does: "45 s" under a minute, "1:12" from one.
@@ -105,10 +111,11 @@ export function formatSets(
   sets: readonly SetLike[],
   unitLabel?: (unit: LoadUnit) => string,
   reading: LoadReading = "load",
+  length: SetLengthUnit = "m",
 ): string {
   const working = sets.filter((s) => s.setType !== "warmup");
   const shown = working.length > 0 ? working : sets;
-  return shown.map((set) => formatSet(set, unitLabel?.(set.unit), reading)).join(", ");
+  return shown.map((set) => formatSet(set, unitLabel?.(set.unit), reading, length)).join(", ");
 }
 
 /**

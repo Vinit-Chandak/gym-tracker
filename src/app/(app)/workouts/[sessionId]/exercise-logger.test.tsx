@@ -116,6 +116,7 @@ const session: SessionVM = {
   warnings: [],
   timeZone: "Asia/Kolkata",
   preferredUnit: "kg" as const,
+  length: "m" as const,
   today: "2026-09-08",
   exercises: [exercise],
 };
@@ -127,6 +128,8 @@ function renderLogger(
     /** A finished workout opened for changes (ADR 0049). */
     amending?: boolean;
     preferredUnit?: "kg" | "lb";
+    /** What a carry is typed in (ADR 0056). */
+    length?: "m" | "yd";
     onLogged?: (seconds: number) => void;
   } = {},
 ) {
@@ -138,6 +141,7 @@ function renderLogger(
         ...session,
         completedAt: overrides.amending ? "2026-09-08T12:30:00.000Z" : session.completedAt,
         preferredUnit: overrides.preferredUnit ?? "kg",
+        length: overrides.length ?? "m",
         exercises: [merged],
       }}
       userId="user"
@@ -179,7 +183,9 @@ function fill(values: Record<string, string>) {
   const [first] = Object.keys(values);
   if (!screen.queryByRole("textbox", { name: first }))
     fireEvent.click(
-      screen.getAllByRole("button", { name: /\. Type (a load|reps|RIR|RPE|metres|seconds)$/ })[0]!,
+      screen.getAllByRole("button", {
+        name: /\. Type (a load|reps|RIR|RPE|metres|yards|seconds)$/,
+      })[0]!,
     );
   for (const [label, value] of Object.entries(values))
     fireEvent.change(screen.getByRole("textbox", { name: label }), { target: { value } });
@@ -345,6 +351,28 @@ it("preserves decimal metres in the entry and in the set it saved", async () => 
   press(/^Set 1: 20 kilograms, 25\.5 metres, RPE 7\. Edit$/);
   fireEvent.change(field("Metres"), { target: { value: "26.5" } });
   expect(field("Metres").value).toBe("26.5");
+});
+
+it("takes a carry in whole yards beside miles, keeps its metres, and reads it back as typed", async () => {
+  // 50 yd is 45.72 m, kept to the tenth the set's column holds (ADR 0056).
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 45.7 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  fill({ Yards: "50", RPE: "7" });
+  // Whole yards: the keypad has no point, and a typed one is dropped.
+  expect(field("Yards").getAttribute("inputmode")).toBe("numeric");
+  expect(screen.queryByRole("textbox", { name: "Metres" })).toBeNull();
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 45.7 })),
+  );
+  press(/^Set 1: 20 kilograms, 50 yards, RPE 7\. Edit$/);
+  expect(field("Yards").value).toBe("50");
 });
 
 it("picks up a set carried here by a machine answer as the row it was, whenever it arrives", async () => {

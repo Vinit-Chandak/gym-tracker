@@ -21,6 +21,7 @@ import { RANGE_PRESET_WORDS, readWindowOf } from "@/domain/graph-range";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatActivityMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -224,6 +225,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                     <PeriodRecordsList
                       records={training.records}
                       unit={unit}
+                      length={setLengthFor(viewer)}
                       currentYear={today.slice(0, 4)}
                     />
                   ) : (

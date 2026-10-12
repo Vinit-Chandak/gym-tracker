@@ -9,6 +9,7 @@ import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
@@ -60,7 +61,12 @@ export type LatestPerformance = {
  * heaviest, and of the heaviest the most reps; on an assisted machine, where the number is help
  * given, the least help.
  */
-function topSet(sets: readonly Set[], assisted: boolean, reading: LoadReading): string | null {
+function topSet(
+  sets: readonly Set[],
+  assisted: boolean,
+  reading: LoadReading,
+  length: SetLengthUnit,
+): string | null {
   const working = sets.filter(
     (set) => set.setType !== "warmup" && set.weight !== null && (!assisted || set.weight > 0),
   );
@@ -71,7 +77,7 @@ function topSet(sets: readonly Set[], assisted: boolean, reading: LoadReading): 
       ? set
       : best,
   );
-  return formatSet(top, LOAD_UNIT_LABELS[top.unit], reading);
+  return formatSet(top, LOAD_UNIT_LABELS[top.unit], reading, length);
 }
 
 /** Two names for one thing, as a reader would take them: "Smith machine" and "smith machine". */
@@ -92,6 +98,7 @@ export function ExerciseLife({
   loadUnit,
   bests,
   unit,
+  length,
   timeZone,
   today,
   graph,
@@ -109,6 +116,8 @@ export function ExerciseLife({
   loadUnit?: LoadUnit | null;
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
+  /** What a carry reads in: the athlete's metres or yards (ADR 0056). */
+  length: SetLengthUnit;
   timeZone: string;
   /** Today in the account's zone: a session in another year is named with it. */
   today: string;
@@ -142,7 +151,9 @@ export function ExerciseLife({
   const stats: { key: string; figure: string; unit?: string; label: string }[] = [
     { key: "sessions", figure: String(life.sessions), label: "Sessions" },
     ...bests.slice(0, 2).map((best) => {
-      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit).split(/\s/);
+      const [figure, ...rest] = formatSharedMetric(best.metric, best.value, unit, length).split(
+        /\s/,
+      );
       return {
         key: best.metric,
         figure: figure!,
@@ -170,7 +181,7 @@ export function ExerciseLife({
   const rows = (list: readonly LatestPerformance[], named: boolean) => (
     <ul>
       {list.map((performance, index) => {
-        const best = topSet(performance.sets, life.assisted, reading);
+        const best = topSet(performance.sets, life.assisted, reading, length);
         return (
           <li key={performance.id}>
             <Link
@@ -200,7 +211,12 @@ export function ExerciseLife({
               </span>
               <span className="type-caption font-medium [overflow-wrap:break-word] text-ink-2 tabular-nums">
                 <Figures>
-                  {formatSets(performance.sets, (setUnit) => LOAD_UNIT_LABELS[setUnit], reading)}
+                  {formatSets(
+                    performance.sets,
+                    (setUnit) => LOAD_UNIT_LABELS[setUnit],
+                    reading,
+                    length,
+                  )}
                 </Figures>
               </span>
             </Link>

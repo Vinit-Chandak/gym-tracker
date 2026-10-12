@@ -14,7 +14,7 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { withPreparedTargets } from "@/server/repositories/coach-plans";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Log an activity" };
@@ -73,7 +73,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   // question on a screen of its own.
   if (!sport) redirect("/training");
 
-  const units = await withUser(getDb(), user.id, (tx) => unitsFor(tx, user.id, sport), {
+  const units = await withUser(getDb(), user.id, (tx) => readSportUnits(tx, user.id), {
     readOnly: true,
   });
   const target = occurrence?.prescription

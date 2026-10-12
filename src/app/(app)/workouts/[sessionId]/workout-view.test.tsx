@@ -101,6 +101,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     warnings: [],
     timeZone: "UTC",
     preferredUnit: "kg",
+    length: "m",
     today: "2026-09-08",
     exercises: [{ ...exercise, sets }],
   };

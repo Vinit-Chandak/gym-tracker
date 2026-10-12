@@ -45,11 +45,11 @@ import {
   type StatsWorkout,
 } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
-import { DEFAULT_DISTANCE_UNITS, type SharedDistanceUnits } from "@/lib/format";
+import type { SharedDistanceUnits } from "@/lib/format";
 import type { DateRange } from "@/server/validation/date-range";
 
 import type { BodyWeightReading } from "./body-weight";
-import { listSportPreferences } from "./sport-preferences";
+import { readSportUnits } from "./sport-preferences";
 
 /**
  * The shared tables (ADR 0026). Every function names the user ids it reads; the policies —
@@ -448,13 +448,8 @@ export async function writeBodyWeight(
  * metres or yards, which is what a swim is measured in, never kilometres.
  */
 export async function readDistanceUnits(tx: DbOrTx, userId: string): Promise<SharedDistanceUnits> {
-  const preferences = await listSportPreferences(tx, userId);
-  const of = (sport: ActivitySport) => preferences.find((p) => p.sport === sport);
-  return {
-    run: of("running")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.run,
-    cycle: of("cycling")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.cycle,
-    swim: of("swimming")?.poolUnit ?? DEFAULT_DISTANCE_UNITS.swim,
-  };
+  const { distanceUnit, poolUnit } = await readSportUnits(tx, userId);
+  return { run: distanceUnit, cycle: distanceUnit, swim: poolUnit };
 }
 
 /** Whether the signed-in user may see `ownerId`'s training, as the policies decide it. */

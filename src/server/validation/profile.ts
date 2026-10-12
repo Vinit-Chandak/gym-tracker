@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
+import { DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
 import { checkTimeZone } from "@/lib/time-zones";
 import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
 
@@ -104,7 +105,8 @@ const HEIGHT_CM = { min: 50, max: 260 } as const;
  * Weight and height arrive in whichever units the account uses — pounds and feet, or
  * kilograms and centimetres — and leave as kilograms and centimetres, which is how they are
  * stored. `preferredUnit` is part of the same submission, so the conversion never has to
- * guess which units the numbers were typed in.
+ * guess which units the numbers were typed in. Distances arrive as the form shows them; only
+ * what differs from the weight unit's is stored (ADR 0056).
  */
 export const profileInputSchema = z
   .object({
@@ -119,6 +121,8 @@ export const profileInputSchema = z
     username: usernameSchema,
     timeZone: timeZoneSchema,
     preferredUnit: z.enum(BODY_LOAD_UNITS, { error: "Choose kilograms or pounds." }),
+    distanceUnit: z.enum(DISTANCE_UNITS, { error: "Choose kilometres or miles." }),
+    poolUnit: z.enum(POOL_UNITS, { error: "Choose metres or yards." }),
     dateOfBirth: dateOfBirthSchema,
     sex: sexSchema,
     trainingGoal: z.enum(TRAINING_GOALS, { error: "Choose what you are training for." }),
@@ -174,6 +178,8 @@ export const profileInputSchema = z
       username: values.username,
       timeZone: values.timeZone,
       preferredUnit: unit,
+      distanceUnit: values.distanceUnit,
+      poolUnit: values.poolUnit,
       dateOfBirth: values.dateOfBirth,
       sex: values.sex,
       trainingGoal: values.trainingGoal,

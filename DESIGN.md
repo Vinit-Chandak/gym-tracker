@@ -820,7 +820,7 @@ and every control answers a press.
 - A figure with its unit under it (and its hint on a line of its own, so every column's buttons
   line up) and two round buttons, 44 pt (48 dp on Android) and 8 apart; under 375 pt, + over the
   figure and − under it. Load steps by the machine's real increment (2.5 kg, 5 lb), reps by 1,
-  metres by 5.
+  metres (or yards, beside miles; ADR 0056) by 5.
 - **The figure is a button:** a tap types it, on the decimal pad; its name says its value, that
   it is suggested, and what a tap does ("62.5 kilograms, suggested. Type a load").
 - **Suggested until touched:** ink 2 with a dotted underline; then ink, because it is what Save

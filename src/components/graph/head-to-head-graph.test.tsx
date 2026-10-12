@@ -48,6 +48,7 @@ const data = (
   today: "2026-10-07",
   exercise: { modality: "barbell", defaultPrescriptionType: "reps" },
   unit: "kg",
+  length: "m",
   names: ["Vinit", "Phani"],
   measures: [{ metric: "e1rm", lines }, ...more],
 });

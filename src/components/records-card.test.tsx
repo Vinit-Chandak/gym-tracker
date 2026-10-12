@@ -43,6 +43,7 @@ it("says each record in the reader's unit, with what it was before", () => {
   render(
     <SessionRecordsCard
       unit="lb"
+      length="m"
       records={[
         { exerciseId: "bench", metric: "e1rm", value: 88, previous: 85, exercise: bench },
         { exerciseId: "pull-up", metric: "most_reps", value: 12, previous: 11, exercise: pullUp },
@@ -62,7 +63,7 @@ it("says each record in the reader's unit, with what it was before", () => {
 });
 
 it("renders nothing at all when a session set no records", () => {
-  const { container } = render(<SessionRecordsCard unit="kg" records={[]} />);
+  const { container } = render(<SessionRecordsCard unit="kg" length="m" records={[]} />);
   expect(container.innerHTML).toBe("");
 });
 
@@ -70,6 +71,7 @@ it("tiles the bests with their dates, labelled for the movement", () => {
   render(
     <ExerciseBestsTiles
       unit="kg"
+      length="m"
       exercise={pullUp}
       bests={[
         { metric: "most_reps", value: 12, occurredOn: "2026-09-08", work: null },
@@ -97,6 +99,7 @@ it("lists period records with the metric and day under the name", () => {
   render(
     <PeriodRecordsList
       unit="kg"
+      length="m"
       records={[{ exercise: bench, metric: "e1rm", value: 81.7, occurredOn: "2026-09-08" }]}
       currentYear="2026"
     />,

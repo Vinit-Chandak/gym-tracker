@@ -52,6 +52,7 @@ const props = (assisted: boolean) => ({
   machineName: "Assisted pull-up machine",
   bests: [],
   unit: "kg" as const,
+  length: "m" as const,
   timeZone: "UTC",
   today: "2026-10-11",
   performances: [
@@ -226,4 +227,42 @@ it("says a bodyweight set as the body, not as nothing lifted", () => {
   );
   expect(screen.getByText("Bodyweight × 14")).toBeTruthy();
   expect(screen.queryByText(/0 kg/)).toBeNull();
+});
+
+it("reads a carry in the athlete's length: its sets, its best and its longest", () => {
+  const carry = {
+    ...assistedPullUp,
+    name: "Farmer's carry",
+    modality: "dumbbell",
+    defaultPrescriptionType: "distance",
+    loadPortability: "global",
+  } as const;
+  const carried = {
+    ...performance("carry", "2026-09-10T08:00:00Z", [[32, 0]]),
+    sets: [40, 45.7].map((metres, index) => ({
+      setIndex: index + 1,
+      setType: "working" as const,
+      weight: 32,
+      unit: "kg" as const,
+      reps: null,
+      rir: null,
+      durationSeconds: null,
+      distanceMeters: metres,
+    })),
+  };
+  const { container } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={carry}
+      machineName={null}
+      length="yd"
+      bests={[{ metric: "longest_carry", value: 45.7, occurredOn: "2026-09-10", work: null }]}
+      performances={[carried]}
+    />,
+  );
+  const text = container.textContent!.replaceAll("\u00a0", " ");
+  // 45.7 m was typed as 50 yd, and reads back as it was typed (ADR 0056); 40 m is 44 yd.
+  expect(text).toContain("32 kg × 44 yd, 32 kg × 50 yd");
+  expect(text).toContain("Longest carry50 yd");
+  expect(text).not.toMatch(/\d m\b/);
 });

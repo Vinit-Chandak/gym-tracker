@@ -459,6 +459,8 @@ function sessionFor(
     warnings: [],
     timeZone: "Asia/Kolkata",
     preferredUnit: scenario === "pounds" ? "lb" : "kg",
+    // Pounds read a carry in yards, as an account in pounds does until it says otherwise.
+    length: scenario === "pounds" ? "yd" : "m",
     today: STARTED.slice(0, 10),
     exercises,
   };

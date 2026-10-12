@@ -5,6 +5,7 @@ import { bodyWeightLogs, profiles } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
 const mocks = vi.hoisted(() => ({ getDb: vi.fn(), requireUser: vi.fn() }));
@@ -27,8 +28,16 @@ async function weighedIn(weightKg: number, preferredUnit: "kg" | "lb") {
   );
 }
 
-/** The edit form as it is sent: everything filled in, the weight as the field holds it. */
-async function save(fields: { preferredUnit: "kg" | "lb"; bodyWeight: string }) {
+/**
+ * The edit form as it is sent: everything filled in, the weight as the field holds it, and the
+ * distances as the weight unit gives them unless the test says otherwise.
+ */
+async function save(fields: {
+  preferredUnit: "kg" | "lb";
+  bodyWeight: string;
+  distanceUnit?: "km" | "mi";
+  poolUnit?: "m" | "yd";
+}) {
   const [row] = await t.db.select().from(profiles).where(eq(profiles.id, user.id));
   const form = new FormData();
   for (const [key, value] of Object.entries({
@@ -41,6 +50,8 @@ async function save(fields: { preferredUnit: "kg" | "lb"; bodyWeight: string }) 
     heightCm: "165",
     heightFeet: "5",
     heightInches: "5",
+    distanceUnit: fields.preferredUnit === "lb" ? "mi" : "km",
+    poolUnit: fields.preferredUnit === "lb" ? "yd" : "m",
     ...fields,
   }))
     form.set(key, value);
@@ -113,4 +124,41 @@ it("records a weight that was changed as today's reading", async () => {
 it("records the first weight a profile is given", async () => {
   await save({ preferredUnit: "kg", bodyWeight: "70" });
   expect((await readings()).map((reading) => reading.weightKg)).toEqual([70]);
+});
+
+/** ADR 0056: distances start from the weight unit, and only a unit set apart is stored. */
+it("keeps distances following the weight unit, and stores only one set apart from it", async () => {
+  const stored = async () => {
+    const [row] = await t.db
+      .select({ distanceUnit: profiles.distanceUnit, poolUnit: profiles.poolUnit })
+      .from(profiles)
+      .where(eq(profiles.id, user.id));
+    return row;
+  };
+  const read = () =>
+    withUser(t.db, user.id, (tx) => readSportUnits(tx, user.id), { readOnly: true });
+
+  // Pounds with miles and yards is what pounds give: nothing is stored, so it goes on following.
+  expect(await save({ preferredUnit: "lb", bodyWeight: "150" })).toEqual({});
+  expect(await stored()).toEqual({ distanceUnit: null, poolUnit: null });
+  expect(await read()).toEqual({ distanceUnit: "mi", poolUnit: "yd" });
+
+  // Kilometres beside pounds is a choice, and is kept; the pool still follows.
+  await save({ preferredUnit: "lb", bodyWeight: "150", distanceUnit: "km" });
+  expect(await stored()).toEqual({ distanceUnit: "km", poolUnit: null });
+  expect(await read()).toEqual({ distanceUnit: "km", poolUnit: "yd" });
+
+  // Back to kilograms, where kilometres are what the weight unit gives: no choice left stored.
+  await save({ preferredUnit: "kg", bodyWeight: "68" });
+  expect(await stored()).toEqual({ distanceUnit: null, poolUnit: null });
+  expect(await read()).toEqual({ distanceUnit: "km", poolUnit: "m" });
+});
+
+it("refuses a distance unit that is not a road's", async () => {
+  const state = await save({
+    preferredUnit: "kg",
+    bodyWeight: "68",
+    distanceUnit: "yd" as unknown as "km",
+  });
+  expect(state.fieldErrors?.distanceUnit).toBe("Choose kilometres or miles.");
 });

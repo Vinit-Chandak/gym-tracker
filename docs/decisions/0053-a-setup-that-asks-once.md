@@ -4,7 +4,9 @@ Date: 2026-10-11
 Status: accepted; amends decision 7 of
 [ADR 0041](0041-gym-basics-the-coach-backup-rule-and-machines-with-several-types.md) and the
 onboarding flow of the
-[onboarding, equipment and technique plan](../planning/ONBOARDING_EQUIPMENT_TECHNIQUE_PLAN.md#onboarding-flow)
+[onboarding, equipment and technique plan](../planning/ONBOARDING_EQUIPMENT_TECHNIQUE_PLAN.md#onboarding-flow).
+Decision 2's units amended by [ADR 0056](0056-distances-start-from-the-weight-unit.md): the
+weight chosen in the sheet carries the distances with it, and they are kept on the profile.
 
 ## Context
 

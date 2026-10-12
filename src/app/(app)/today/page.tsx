@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { coachPreferences } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { setLengthFor } from "@/lib/distance-units";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { tidyCoachJobsLater } from "@/server/coach-tidy";
@@ -166,6 +167,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
         restProtocol={restProtocol}
         coach={coach}
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+        length={setLengthFor(profile)}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
         finishedOccurrences={finished}

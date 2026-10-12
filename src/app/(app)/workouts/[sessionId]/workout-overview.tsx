@@ -110,10 +110,12 @@ function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): s
   const done = workDone(exercise);
   if ((readOnly || underWay(exercise)) && done.length > 0) {
     const reading = loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted);
-    return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit], reading)).join(", ");
+    return done
+      .map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit], reading, session.length))
+      .join(", ");
   }
   const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
-  const line = prescriptionLabel(exercise, unitLabel);
+  const line = prescriptionLabel(exercise, unitLabel, session.length);
   const machine = equipmentLine(exercise);
   if (!line) return machine;
   // A machine still to settle is news on the row, as it is under the exercise's name.

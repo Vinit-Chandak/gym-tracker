@@ -100,8 +100,11 @@ describe("the cycle's squares", () => {
 
 describe("a row's prescription", () => {
   it("writes RIR for sets counted in reps, and the work alone for a carry", () => {
-    expect(rowPrescription(CURL)).toBe("3 × 8–12 @ 1–2 RIR");
-    expect(rowPrescription(CARRY)).toBe("3 × 20–40 m");
+    expect(rowPrescription(CURL, "m")).toBe("3 × 8–12 @ 1–2 RIR");
+    expect(rowPrescription(CARRY, "m")).toBe("3 × 20–40 m");
+    // An athlete reading yards (ADR 0056) reads the same carry in them; a curl is unchanged.
+    expect(rowPrescription(CARRY, "yd")).toBe("3 × 22–44 yd");
+    expect(rowPrescription(CURL, "yd")).toBe("3 × 8–12 @ 1–2 RIR");
   });
 });
 
@@ -134,7 +137,7 @@ const set = (weight: number, reps: number, rir: number) => ({
 
 describe("the day's rows", () => {
   it("keep the programme's order and word when there is no coach", () => {
-    const rows = planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg");
+    const rows = planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m");
     expect(rows.map((row) => [row.name, row.glyph, row.line])).toEqual([
       ["Barbell curl", "dumbbell", "3 × 8–12 @ 1–2 RIR"],
       ["Rope triceps pushdown", "cable", "3 × 12–15 @ 1 RIR"],
@@ -162,6 +165,7 @@ describe("the day's rows", () => {
         ],
       },
       "kg",
+      "m",
     );
     expect(rows[0]).toMatchObject({
       line: "30 kg ·\u00a03 × 10 @ 2, 2, 1 RIR",
@@ -216,6 +220,7 @@ describe("the day's rows", () => {
         },
       },
       "kg",
+      "m",
     );
     const machine = (line: string) => line.slice(line.lastIndexOf(FACT_SEPARATOR) + 3);
     expect(rows.map((row) => [row.glyph, machine(row.line)])).toEqual([
@@ -230,6 +235,7 @@ describe("the day's rows", () => {
         [EXTENSION],
         { exercises: [entry({ slotId: "e5", equipmentInstanceId: "x" })] },
         "kg",
+        "m",
       )[0]?.glyph,
     ).toBe("bodyweight");
   });
@@ -245,7 +251,7 @@ describe("the day's print", () => {
     } as unknown as ScheduledOccurrence;
     const parts = todayParts({
       programme: [run],
-      rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg"),
+      rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
       standalone: [],
     });
     expect(parts.map((part) => part.kind)).toEqual(["run", "strength"]);
@@ -268,7 +274,7 @@ describe("the day's print", () => {
       }) as unknown as ScheduledOccurrence;
     const parts = todayParts({
       programme: [run("cancelled"), run("legacy_completed")],
-      rows: planRows([CURL], null, "kg"),
+      rows: planRows([CURL], null, "kg", "m"),
       standalone: [],
     });
     // The withdrawn run has no card under the print, so the print does not owe it either.

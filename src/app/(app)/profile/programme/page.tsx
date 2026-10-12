@@ -26,7 +26,7 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview } from "@/server/repositories/schedule";
-import { enabledSportsFor, unitsFor } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, readSportUnits } from "@/server/repositories/sport-preferences";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
@@ -97,7 +97,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
             .orderBy(desc(programs.updatedAt))
             .limit(20),
-          unitsFor(tx, user.id, "running"),
+          readSportUnits(tx, user.id),
           enabledSportsFor(tx, user.id),
         ]);
         return { overview, changes, archived, runUnits, enabled };

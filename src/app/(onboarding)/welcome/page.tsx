@@ -3,14 +3,11 @@ import { headers } from "next/headers";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { resolveSportUnits } from "@/lib/distance-units";
 import { firstAcceptedLanguage } from "@/lib/setup-path";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import {
-  hasChosenSports,
-  enabledSportsFor,
-  listSportPreferences,
-} from "@/server/repositories/sport-preferences";
+import { hasChosenSports, enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 import { YouStep } from "./you-step";
 
@@ -28,32 +25,24 @@ export default async function WelcomePage() {
   const sports = await withUser(
     getDb(),
     user.id,
-    async (tx) => {
-      if (!(await hasChosenSports(tx, user.id))) return null;
-      const [enabled, preferences] = await Promise.all([
-        enabledSportsFor(tx, user.id),
-        listSportPreferences(tx, user.id),
-      ]);
-      return { enabled, preferences };
-    },
+    async (tx) => ((await hasChosenSports(tx, user.id)) ? enabledSportsFor(tx, user.id) : null),
     { readOnly: true },
   );
-  const road = sports?.preferences.find((preference) => preference.sport === "running");
-  const pool = sports?.preferences.find((preference) => preference.sport === "swimming");
+  const distances = resolveSportUnits(profile.preferredUnit, profile);
   const language = firstAcceptedLanguage((await headers()).get("accept-language"));
 
   return (
     <YouStep
       name={profile.displayName}
       experience={profile.trainingExperience}
-      sports={sports?.enabled ?? null}
+      sports={sports}
       // Coming back to the step shows what was chosen; a first visit reads the phone.
       units={
         sports
           ? {
               weight: profile.preferredUnit === "lb" ? "lb" : "kg",
-              distance: road?.distanceUnit ?? "km",
-              pool: pool?.poolUnit ?? "m",
+              distance: distances.distanceUnit,
+              pool: distances.poolUnit,
             }
           : null
       }

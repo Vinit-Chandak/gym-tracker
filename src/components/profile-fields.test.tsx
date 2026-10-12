@@ -11,6 +11,9 @@ const saved: ProfileFieldValues = {
   username: "sam",
   timeZone: "Europe/Lisbon",
   preferredUnit: "kg",
+  distanceUnit: "km",
+  poolUnit: "m",
+  swims: false,
   bodyWeightKg: 74.5,
   heightCm: 177.8,
   dateOfBirth: "1994-03-21",
@@ -142,5 +145,54 @@ describe("profile fields", () => {
     expect(screen.getByLabelText("Body weight (kg)")).toBeTruthy();
     chooseUnit(/pounds/);
     expect(screen.getByLabelText("Body weight (lb)")).toBeTruthy();
+  });
+
+  it("carries the distances along with the weight unit until they are set apart", () => {
+    const { container } = render(
+      <form>
+        <ProfileFields values={{ ...saved, swims: true }} />
+      </form>,
+    );
+    const posted = (name: string) => new FormData(container.querySelector("form")!).get(name);
+    const distance = screen.getByRole("radiogroup", { name: "Distance" });
+    expect(distance.getAttribute("aria-describedby")).toBeTruthy();
+    expect(
+      screen.getByText("Runs and rides in kilometres, carries and sleds in metres."),
+    ).toBeTruthy();
+
+    // Pounds read miles and yard pools (ADR 0056), and the line says what that means for a carry.
+    chooseUnit(/pounds/);
+    expect([posted("distanceUnit"), posted("poolUnit")]).toEqual(["mi", "yd"]);
+    expect(screen.getByText("Runs and rides in miles, carries and sleds in yards.")).toBeTruthy();
+
+    // Kilometres chosen by hand beside pounds stay, whatever the weight unit does next.
+    fireEvent.click(screen.getByRole("radio", { name: "km (kilometres)" }));
+    chooseUnit(/kilograms/);
+    chooseUnit(/pounds/);
+    expect([posted("distanceUnit"), posted("poolUnit")]).toEqual(["km", "yd"]);
+  });
+
+  it("keeps a distance saved apart from the weight unit where it is", () => {
+    const { container } = render(
+      <form>
+        <ProfileFields values={{ ...saved, distanceUnit: "mi" }} />
+      </form>,
+    );
+    const posted = (name: string) => new FormData(container.querySelector("form")!).get(name);
+    chooseUnit(/pounds/);
+    chooseUnit(/kilograms/);
+    expect(posted("distanceUnit")).toBe("mi");
+  });
+
+  it("asks about pools only of an account that swims, and still sends its pool", () => {
+    const { container } = render(
+      <form>
+        <ProfileFields values={saved} />
+      </form>,
+    );
+    expect(screen.queryByRole("radiogroup", { name: "Pools" })).toBeNull();
+    chooseUnit(/pounds/);
+    // Not asked, so it goes on following the weight unit.
+    expect(new FormData(container.querySelector("form")!).get("poolUnit")).toBe("yd");
   });
 });

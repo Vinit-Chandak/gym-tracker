@@ -372,6 +372,13 @@
       "when": 1791707371717,
       "tag": "0052_run_efforts_back_inside_five",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791802867158,
+      "tag": "0053_sport_units_on_the_profile",
+      "breakpoints": true
     }
   ]
 }

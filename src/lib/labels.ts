@@ -1,4 +1,5 @@
 import type { AvailabilityStatus } from "@/domain/equipment-resolution";
+import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
 import type { BodyRegion } from "@/domain/muscles";
 import type { FoodUnit, Meal } from "@/domain/nutrition";
 import type { SuggestionKind } from "@/domain/progression";
@@ -65,19 +66,46 @@ export const PRESCRIPTION_TYPE_LABELS: Record<PrescriptionType, string> = {
   distance: "Distance",
 };
 
-/** The set grid's third column: what one set of this exercise is actually counted in. */
-export const MEASURE_COLUMN_LABELS: Record<PrescriptionType, string> = {
-  reps: "Reps",
-  duration: "Seconds",
-  distance: "Metres",
-};
+/**
+ * The set grid's third column: what one set of this exercise is actually counted in, a carry
+ * in the athlete's own length ("Yards" beside miles, ADR 0056).
+ */
+export function measureColumnLabel(measure: PrescriptionType, length: SetLengthUnit): string {
+  switch (measure) {
+    case "duration":
+      return "Seconds";
+    case "distance":
+      return length === "yd" ? "Yards" : "Metres";
+    default:
+      return "Reps";
+  }
+}
 
-/** The unit that follows a number of this measure, e.g. "25 m". */
-export const MEASURE_UNIT_SUFFIX: Record<PrescriptionType, string> = {
-  reps: "",
-  duration: " s",
-  distance: " m",
-};
+/** The unit that follows a number of this measure, e.g. "25 m", "27 yd". */
+export function measureUnitSuffix(measure: PrescriptionType, length: SetLengthUnit): string {
+  switch (measure) {
+    case "duration":
+      return " s";
+    case "distance":
+      return ` ${length}`;
+    default:
+      return "";
+  }
+}
+
+/**
+ * A range of a set's metres in the athlete's length: "20–40 m", or "22–44 yd" beside miles.
+ * Each end is read as a logged set is (`setLengthIn`), so a target and the set that meets it
+ * say the same figure.
+ */
+export function lengthRangeLabel(
+  minMetres: number | null,
+  maxMetres: number | null,
+  length: SetLengthUnit,
+): string {
+  const read = (metres: number | null) => (metres === null ? null : setLengthIn(metres, length));
+  return rangeLabel(read(minMetres), read(maxMetres), measureUnitSuffix("distance", length));
+}
 
 /**
  * What one exercise's RIR target means, in the words of that exercise.

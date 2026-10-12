@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
 import type { ActivitySport } from "@/domain/activity";
 import type { MeasureUnits } from "@/lib/setup-path";
-import { zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
+import { withWeight, zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
 import {
   listedTimeZones,
   preferredTimeZone,
@@ -167,7 +167,7 @@ export function UnitsSheet({
                 aria-labelledby="units-weight"
                 options={WEIGHT}
                 value={units.weight}
-                onChange={(weight) => onUnits({ ...units, weight })}
+                onChange={(weight) => onUnits(withWeight(units, weight))}
                 columns={2}
               />
             </div>

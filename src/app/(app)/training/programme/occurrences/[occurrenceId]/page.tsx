@@ -21,7 +21,7 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
@@ -48,7 +48,7 @@ export default async function OccurrencePage(
       return {
         occurrence,
         plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
-        units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
+        units: occurrence ? await readSportUnits(tx, user.id) : DEFAULT_SPORT_UNITS,
         // The sequence it waits in, when it is the running programme's.
         schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
       };

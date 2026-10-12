@@ -1,17 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  chosenSportUnits,
   climbIn,
   climbUnit,
   decimalPlaces,
   entryIn,
+  followsWeight,
+  followWeight,
   formatDistance,
+  formatSetLength,
   formatSportDistance,
   fromMetres,
+  resolveSportUnits,
   roundTo,
   sameDistance,
+  setLengthFor,
+  setLengthIn,
+  setLengthToMetres,
+  setLengthUnit,
   sportDistanceParts,
   toMetres,
+  unitsForWeight,
 } from "./distance-units";
 
 /** AT-LOG-13: conversion is exact by definition, and nothing drifts on the way back. */
@@ -142,5 +152,104 @@ describe("a recorded distance opened in another unit", () => {
     expect(climbUnit("km")).toBe("m");
     expect(climbIn(89, "ft")).toBe(292);
     expect(climbIn(89.4, "m")).toBe(89);
+  });
+});
+
+/** ADR 0056: one setting for distances, which starts from the weight unit. */
+describe("distances that start from the weight unit", () => {
+  const metric = { distanceUnit: "km", poolUnit: "m" } as const;
+  const imperial = { distanceUnit: "mi", poolUnit: "yd" } as const;
+
+  it("reads miles and yard pools for pounds, and kilometres and metre pools for kilograms", () => {
+    expect(unitsForWeight("lb")).toEqual(imperial);
+    expect(unitsForWeight("kg")).toEqual(metric);
+    // A machine's own scale is no weight unit; it reads as the default.
+    expect(unitsForWeight("stack_index")).toEqual(metric);
+  });
+
+  it("follows the weight unit where nothing was chosen, and keeps what was", () => {
+    expect(resolveSportUnits("lb", { distanceUnit: null, poolUnit: null })).toEqual(imperial);
+    expect(resolveSportUnits("kg", { distanceUnit: null, poolUnit: null })).toEqual(metric);
+    expect(resolveSportUnits("lb", { distanceUnit: "km", poolUnit: null })).toEqual({
+      distanceUnit: "km",
+      poolUnit: "yd",
+    });
+    expect(resolveSportUnits("kg", { distanceUnit: "mi", poolUnit: "yd" })).toEqual(imperial);
+    // A stored value that is not a road or a pool unit is no choice at all.
+    expect(resolveSportUnits("lb", { distanceUnit: "m", poolUnit: "km" })).toEqual(imperial);
+  });
+
+  it("stores only a unit that differs from the weight unit's, so the rest go on following", () => {
+    expect(chosenSportUnits("lb", imperial)).toEqual({ distanceUnit: null, poolUnit: null });
+    expect(chosenSportUnits("kg", metric)).toEqual({ distanceUnit: null, poolUnit: null });
+    expect(chosenSportUnits("kg", { distanceUnit: "mi", poolUnit: "m" })).toEqual({
+      distanceUnit: "mi",
+      poolUnit: null,
+    });
+    expect(chosenSportUnits("lb", { distanceUnit: "km", poolUnit: "m" })).toEqual({
+      distanceUnit: "km",
+      poolUnit: "m",
+    });
+    // What is stored reads back as what was shown.
+    for (const weight of ["kg", "lb"])
+      for (const distanceUnit of ["km", "mi"] as const)
+        for (const poolUnit of ["m", "yd"] as const)
+          expect(
+            resolveSportUnits(weight, chosenSportUnits(weight, { distanceUnit, poolUnit })),
+          ).toEqual({ distanceUnit, poolUnit });
+  });
+
+  it("moves a following distance with the weight unit, and leaves one set apart", () => {
+    expect(followsWeight("kg", metric)).toEqual({ distanceUnit: true, poolUnit: true });
+    expect(followsWeight("kg", { distanceUnit: "mi", poolUnit: "m" })).toEqual({
+      distanceUnit: false,
+      poolUnit: true,
+    });
+    expect(followWeight(metric, "lb", { distanceUnit: true, poolUnit: true })).toEqual(imperial);
+    expect(
+      followWeight({ distanceUnit: "mi", poolUnit: "m" }, "lb", {
+        distanceUnit: false,
+        poolUnit: true,
+      }),
+    ).toEqual(imperial);
+    expect(
+      followWeight({ distanceUnit: "mi", poolUnit: "yd" }, "kg", {
+        distanceUnit: false,
+        poolUnit: true,
+      }),
+    ).toEqual({ distanceUnit: "mi", poolUnit: "m" });
+  });
+});
+
+describe("a set's distance in metres or yards", () => {
+  it("reads yards beside miles and metres beside kilometres, never feet", () => {
+    expect(setLengthUnit("mi")).toBe("yd");
+    expect(setLengthUnit("km")).toBe("m");
+    expect(setLengthFor({ preferredUnit: "lb", distanceUnit: null, poolUnit: null })).toBe("yd");
+    expect(setLengthFor({ preferredUnit: "lb", distanceUnit: "km", poolUnit: null })).toBe("m");
+    expect(setLengthFor({ preferredUnit: "kg", distanceUnit: "mi", poolUnit: null })).toBe("yd");
+  });
+
+  it("keeps a typed distance to the tenth of a metre a set stores", () => {
+    expect(setLengthToMetres(50, "yd")).toBe(45.7);
+    expect(setLengthToMetres(20, "yd")).toBe(18.3);
+    expect(setLengthToMetres(25.5, "m")).toBe(25.5);
+    expect(setLengthToMetres(20.25, "m")).toBe(20.3);
+  });
+
+  it("reads back every whole number of yards as it was typed", () => {
+    // Kept to a tenth of a metre, a whole yard is never more than 0.06 yd from itself.
+    for (let yards = 0; yards <= 2000; yards++)
+      expect(setLengthIn(setLengthToMetres(yards, "yd"), "yd")).toBe(yards);
+    for (const yards of [10_000, 54_321, 109_361])
+      expect(setLengthIn(setLengthToMetres(yards, "yd"), "yd")).toBe(yards);
+  });
+
+  it("reads metres as kept and yards whole, each held to its unit", () => {
+    expect(setLengthIn(40, "m")).toBe(40);
+    expect(setLengthIn(25.5, "m")).toBe(25.5);
+    expect(setLengthIn(40, "yd")).toBe(44);
+    expect(formatSetLength(45.7, "yd")).toBe("50\u00a0yd");
+    expect(formatSetLength(20, "m")).toBe("20\u00a0m");
   });
 });

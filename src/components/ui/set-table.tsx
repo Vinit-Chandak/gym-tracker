@@ -1,18 +1,22 @@
 import { measureOf, type SetLike } from "@/domain/sets";
 import { effortMetric } from "@/domain/effort";
-import { LOAD_UNIT_LABELS, MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
+import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+import { LOAD_UNIT_LABELS, measureColumnLabel, SET_TYPE_LABELS } from "@/lib/labels";
 
 /**
  * Recorded sets, read only. The same columns as the logger's grid — set, load, reps or
  * seconds/metres, reported effort — so a finished workout reads as it was logged.
- * Used by the completed-session view and by History, which must agree exactly.
+ * Used by the completed-session view and by History, which must agree exactly. A carry reads in
+ * the athlete's length, metres or yards (ADR 0056).
  */
 export function SetTable({
   sets,
   unitLabel,
+  length = "m",
 }: {
   sets: readonly (SetLike & { rpe?: number | null })[];
   unitLabel: string;
+  length?: SetLengthUnit;
 }) {
   if (sets.length === 0) return <p className="text-sm text-ink-muted">No sets logged.</p>;
   // The recorded sets say what they counted; the plan that asked for them is not in scope here.
@@ -36,7 +40,7 @@ export function SetTable({
             {heading}
           </th>
           <th scope="col" className="py-1 text-center font-medium">
-            {mixedMeasures ? "Result" : MEASURE_COLUMN_LABELS[measure]}
+            {mixedMeasures ? "Result" : measureColumnLabel(measure, length)}
           </th>
           <th scope="col" className="py-1 text-center font-medium">
             {mixedEffort ? "Effort" : effortMetric(measure).toUpperCase()}
@@ -52,7 +56,9 @@ export function SetTable({
             setMeasure === "duration"
               ? set.durationSeconds
               : setMeasure === "distance"
-                ? set.distanceMeters
+                ? set.distanceMeters === null
+                  ? null
+                  : setLengthIn(set.distanceMeters, length)
                 : set.reps;
           return (
             <tr key={set.setIndex} className="border-b border-line last:border-0">
@@ -72,7 +78,7 @@ export function SetTable({
               <td className="py-1.5 text-center">
                 {result ?? "—"}
                 {mixedMeasures && result !== null
-                  ? ` ${MEASURE_COLUMN_LABELS[setMeasure].toLowerCase()}`
+                  ? ` ${measureColumnLabel(setMeasure, length).toLowerCase()}`
                   : ""}
               </td>
               <td className="py-1.5 text-center">

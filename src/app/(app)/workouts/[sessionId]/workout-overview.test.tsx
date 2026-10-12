@@ -142,6 +142,7 @@ const SESSION: SessionVM = {
   coachPlan: null,
   timeZone: "UTC",
   preferredUnit: "kg",
+  length: "m",
   today: "2026-09-29",
   exercises: [
     exercise("Barbell bench press", { sets: [set(1, 60, 4), set(2, 60, 4)] }),

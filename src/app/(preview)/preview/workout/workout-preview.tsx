@@ -344,6 +344,7 @@ function sessionFor(scenario: Scenario): { session: SessionVM; title: string } {
         : null,
     timeZone: "Asia/Kolkata",
     preferredUnit: "kg",
+    length: "m",
     today: STARTED.slice(0, 10),
     exercises: slots.map(exercise),
   };

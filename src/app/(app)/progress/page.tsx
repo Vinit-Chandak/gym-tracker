@@ -13,6 +13,7 @@ import {
   runningGraph,
   strengthGraph,
 } from "@/domain/progress-graphs";
+import { setLengthFor } from "@/lib/distance-units";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { readRangeChoice } from "@/server/queries/graph-range";
@@ -185,6 +186,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
               range: strengthRange,
               graph: strengthGraph(data.strength, strengthRange, today),
               unit,
+              length: setLengthFor(profile),
             },
             exercise: {
               range: rangeFor(sessions.map((session) => session.date)),

@@ -129,8 +129,127 @@ export function formatDistance(metres: number, unit: LengthUnit, places?: number
 /** How one athlete reads one sport's distances: a road in km or mi, a pool in m or yd. */
 export type SportUnits = { distanceUnit: DistanceUnit; poolUnit: PoolUnit };
 
-/** What an athlete who has never chosen reads: kilometres on the road, metres in the pool. */
+/** What an athlete in kilograms reads until they choose otherwise: kilometres, metre pools. */
 export const DEFAULT_SPORT_UNITS: SportUnits = { distanceUnit: "km", poolUnit: "m" };
+
+const IMPERIAL_SPORT_UNITS: SportUnits = { distanceUnit: "mi", poolUnit: "yd" };
+
+export function isDistanceUnit(unit: string | null | undefined): unit is DistanceUnit {
+  return (DISTANCE_UNITS as readonly (string | null | undefined)[]).includes(unit);
+}
+
+export function isPoolUnit(unit: string | null | undefined): unit is PoolUnit {
+  return (POOL_UNITS as readonly (string | null | undefined)[]).includes(unit);
+}
+
+/**
+ * The distances a weight unit starts an athlete on (ADR 0056): pounds read miles and yard
+ * pools, kilograms kilometres and metre pools.
+ */
+export function unitsForWeight(weight: string): SportUnits {
+  return weight === "lb" ? IMPERIAL_SPORT_UNITS : DEFAULT_SPORT_UNITS;
+}
+
+/** What an account has set apart from its weight unit; null follows it. */
+export type ChosenSportUnits = { distanceUnit: DistanceUnit | null; poolUnit: PoolUnit | null };
+
+/**
+ * How an account reads distances: what it chose, and where it chose nothing, what its weight
+ * unit implies, so pounds read miles until miles are changed. A stored value that is not a road
+ * or a pool unit is no choice.
+ */
+export function resolveSportUnits(
+  weight: string,
+  chosen: { distanceUnit: string | null; poolUnit: string | null },
+): SportUnits {
+  const implied = unitsForWeight(weight);
+  return {
+    distanceUnit: isDistanceUnit(chosen.distanceUnit) ? chosen.distanceUnit : implied.distanceUnit,
+    poolUnit: isPoolUnit(chosen.poolUnit) ? chosen.poolUnit : implied.poolUnit,
+  };
+}
+
+/** Which of an account's distances go with its weight unit, and which were set apart. */
+export type Following = { distanceUnit: boolean; poolUnit: boolean };
+
+/** The distances that are what `weight` gives, and so follow it: the ones never set apart. */
+export function followsWeight(weight: string, units: SportUnits): Following {
+  const implied = unitsForWeight(weight);
+  return {
+    distanceUnit: units.distanceUnit === implied.distanceUnit,
+    poolUnit: units.poolUnit === implied.poolUnit,
+  };
+}
+
+/**
+ * What to store for distances read in `units` beside `weight`: only what the weight unit would
+ * not give. A unit the weight unit implies is stored as no choice, so it goes on following the
+ * weight unit, and a stored choice is always one that differs from it.
+ */
+export function chosenSportUnits(weight: string, units: SportUnits): ChosenSportUnits {
+  const follows = followsWeight(weight, units);
+  return {
+    distanceUnit: follows.distanceUnit ? null : units.distanceUnit,
+    poolUnit: follows.poolUnit ? null : units.poolUnit,
+  };
+}
+
+/**
+ * Distances as a form holds them when its weight unit changes to `to`: the ones that `follow`
+ * it become what the new weight unit gives, and one set apart stays where it was.
+ */
+export function followWeight(units: SportUnits, to: string, follow: Following): SportUnits {
+  const implied = unitsForWeight(to);
+  return {
+    distanceUnit: follow.distanceUnit ? implied.distanceUnit : units.distanceUnit,
+    poolUnit: follow.poolUnit ? implied.poolUnit : units.poolUnit,
+  };
+}
+
+/**
+ * What a set's distance (a carry, a sled push) is read in: yards beside miles, metres beside
+ * kilometres. Never feet: a carry is ground covered, and turf is marked in yards; feet are for
+ * a climb and a height. It is stored in metres either way (ADR 0021).
+ */
+export type SetLengthUnit = "m" | "yd";
+
+export function setLengthUnit(distanceUnit: DistanceUnit): SetLengthUnit {
+  return distanceUnit === "mi" ? "yd" : "m";
+}
+
+/** What an account reads a set's distance in, from its profile: yards beside miles. */
+export function setLengthFor(profile: {
+  preferredUnit: string;
+  distanceUnit: string | null;
+  poolUnit: string | null;
+}): SetLengthUnit {
+  return setLengthUnit(resolveSportUnits(profile.preferredUnit, profile).distanceUnit);
+}
+
+/** The words a set's distance is said in, aloud and on a column: "metres", "yards". */
+export const SET_LENGTH_WORDS: Record<SetLengthUnit, string> = { m: "metres", yd: "yards" };
+
+/** A set's metres are kept to a tenth (`set_logs.distance_meters`, numeric(8, 1)). */
+const SET_METRE_PLACES = 1;
+
+/**
+ * A set's metres read in `unit`: metres as kept, to their tenth; yards whole. A whole number of
+ * yards kept to a tenth of a metre is never more than 0.06 yd from itself, so it reads back as
+ * typed: 50 yd is kept as 45.7 m and read as 50 yd.
+ */
+export function setLengthIn(metres: number, unit: SetLengthUnit): number {
+  return unit === "yd" ? Math.round(fromMetres(metres, "yd")) : roundTo(metres, SET_METRE_PLACES);
+}
+
+/** A set's distance as typed in `unit`, as the metres it is kept in: 50 yd is 45.7 m. */
+export function setLengthToMetres(value: number, unit: SetLengthUnit): number {
+  return roundTo(toMetres(value, unit), SET_METRE_PLACES);
+}
+
+/** "40 m", "44 yd": a set's distance, held to its unit. */
+export function formatSetLength(metres: number, unit: SetLengthUnit): string {
+  return `${setLengthIn(metres, unit)} ${unit}`;
+}
 
 /** A foot, by definition. */
 export const METRES_PER_FOOT = 0.3048;

@@ -11,6 +11,7 @@ import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { BodyLoadUnit } from "@/domain/types";
+import { chosenSportUnits } from "@/lib/distance-units";
 import { fromKilograms } from "@/lib/units";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -68,12 +69,14 @@ async function saveProfile(tx: DbOrTx, user: SessionUser, input: ProfileInput): 
   // The units the form was opened in: this submission may be the one that changes them.
   const openedIn: BodyLoadUnit =
     (await ensureProfile(tx, user)).preferredUnit === "lb" ? "lb" : "kg";
-  const { bodyWeightKg, ...rest } = input;
+  const { bodyWeightKg, distanceUnit, poolUnit, ...rest } = input;
   // The weight is deliberately not among the columns written here, so what comes back is the
-  // weight as it stood before this submission — the thing worth comparing against.
+  // weight as it stood before this submission — the thing worth comparing against. A distance
+  // unit is kept only where it differs from the weight unit's, so one the athlete never set
+  // apart goes on following it (ADR 0056).
   const [before] = await tx
     .update(profiles)
-    .set(rest)
+    .set({ ...rest, ...chosenSportUnits(input.preferredUnit, { distanceUnit, poolUnit }) })
     .where(eq(profiles.id, user.id))
     .returning({ bodyWeightKg: profiles.bodyWeightKg });
   if (showsAsStored(before?.bodyWeightKg ?? null, bodyWeightKg, [openedIn, input.preferredUnit]))

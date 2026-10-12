@@ -19,7 +19,12 @@ import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
 import { formatDuration } from "@/domain/pace";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
-import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
+import {
+  DEFAULT_SPORT_UNITS,
+  sportDistanceParts,
+  type SetLengthUnit,
+  type SportUnits,
+} from "@/lib/distance-units";
 import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
@@ -72,6 +77,8 @@ export type TodayViewProps = {
   coach?: TodayCoachState | null;
   /** The label for loads the coach writes without a machine, e.g. "kg". */
   unit?: string;
+  /** What a carry's distance reads in: metres, or yards beside miles. */
+  length?: SetLengthUnit;
   /** The programme's endurance work for the slot being offered — by sequence, not by date. */
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
@@ -326,6 +333,7 @@ export function TodayView({
   restProtocol,
   coach = null,
   unit = "kg",
+  length = "m",
   programmeOccurrences = [],
   standaloneOccurrences = [],
   finishedOccurrences = [],
@@ -408,7 +416,7 @@ export function TodayView({
   );
 
   const rows: PlanRowModel[] =
-    day?.includesLifting && plan ? planRows(plan.suggestedExercises, coachPlan, unit) : [];
+    day?.includesLifting && plan ? planRows(plan.suggestedExercises, coachPlan, unit, length) : [];
   const coachSaid = coachPlan ? writtenSummaryForSport(coachPlan, "workout") : null;
   const coachRun = coachPlan ? writtenSummaryForSport(coachPlan, "run") : null;
 

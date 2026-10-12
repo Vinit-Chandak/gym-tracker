@@ -8,6 +8,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { Swap } from "@/components/ui/swap";
 import { sanitizeNumberEntry, stepValue } from "@/domain/sets";
 import type { PrescriptionType } from "@/domain/types";
+import { holdFigures } from "@/lib/facts";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
@@ -216,9 +217,11 @@ export function Entry({
               </button>
             )}
           </span>
-          {field.hint && <span className="stepper-hint">{field.hint}</span>}
+          {/* A target is a range held at its dash and to its unit, which a folded column at
+              large text would otherwise break as "22–" over "44 yd". */}
+          {field.hint && <span className="stepper-hint">{holdFigures(field.hint)}</span>}
           {field.foldHint && (
-            <span className="stepper-hint stepper-hint-fold">{field.foldHint}</span>
+            <span className="stepper-hint stepper-hint-fold">{holdFigures(field.foldHint)}</span>
           )}
         </span>
         <button

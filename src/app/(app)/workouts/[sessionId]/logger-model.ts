@@ -2,7 +2,14 @@ import { accessoryGlyph, GLYPH_LABELS, type GlyphName } from "@/components/ui/gl
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
-import { MEASURE_UNIT_SUFFIX, nameSaysEquipment, rangeLabel, restLabel } from "@/lib/labels";
+import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+import {
+  lengthRangeLabel,
+  measureUnitSuffix,
+  nameSaysEquipment,
+  rangeLabel,
+  restLabel,
+} from "@/lib/labels";
 
 import type { RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
@@ -17,15 +24,15 @@ export function measureOf(exercise: ExerciseVM): PrescriptionType {
 }
 
 /**
- * The range a set aims at in the exercise's own measure: "8–12", "20–45 s", "20–30 m". The
- * programme slot's, or for an exercise nothing planned, the library's defaults (plan: today's
- * targets, ad hoc exercises keep their defaults).
+ * The range a set aims at in the exercise's own measure: "8–12", "20–45 s", "20–30 m", a carry
+ * in the athlete's `length` ("22–33 yd"). The programme slot's, or for an exercise nothing
+ * planned, the library's defaults (plan: today's targets, ad hoc exercises keep their defaults).
  */
-export function volumeRange(exercise: ExerciseVM): string | null {
+export function volumeRange(exercise: ExerciseVM, length: SetLengthUnit): string | null {
   const p = exercise.planned;
   const d = exercise.exercise.defaults;
   const measure = measureOf(exercise);
-  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const suffix = measureUnitSuffix(measure, length);
   const range = (min: number | null, max: number | null) =>
     min === null && max === null ? null : rangeLabel(min, max, suffix);
   switch (measure) {
@@ -35,8 +42,10 @@ export function volumeRange(exercise: ExerciseVM): string | null {
         : range(d.durationMinSeconds, d.durationMaxSeconds);
     case "distance":
       return p
-        ? rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix)
-        : range(d.distanceMinMeters, d.distanceMaxMeters);
+        ? lengthRangeLabel(p.distanceMinMeters, p.distanceMaxMeters, length)
+        : d.distanceMinMeters === null && d.distanceMaxMeters === null
+          ? null
+          : lengthRangeLabel(d.distanceMinMeters, d.distanceMaxMeters, length);
     default:
       return p ? rangeLabel(p.repMin, p.repMax) : range(d.repMin, d.repMax);
   }
@@ -64,20 +73,30 @@ function coachMeasure(set: TargetSet): PrescriptionType {
   return "reps";
 }
 
-function coachCount(set: TargetSet, measure: PrescriptionType): number | null {
+/** What a coach's set asks for in its measure, a carry in the athlete's `length`. */
+function coachCount(
+  set: TargetSet,
+  measure: PrescriptionType,
+  length: SetLengthUnit,
+): number | null {
   return measure === "distance"
-    ? set.distanceMeters
+    ? set.distanceMeters === null
+      ? null
+      : setLengthIn(set.distanceMeters, length)
     : measure === "duration"
       ? set.durationSeconds
       : set.reps;
 }
 
 /** "5", "5/5/3", "30 s", "20 m": what the coach's sets ask for. */
-function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionType } | null {
+function coachVolume(
+  sets: TargetSet[],
+  length: SetLengthUnit,
+): { text: string; measure: PrescriptionType } | null {
   const measure = coachMeasure(sets[0]!);
-  const counts = sets.map((set) => coachCount(set, measure));
+  const counts = sets.map((set) => coachCount(set, measure, length));
   if (counts.every((count) => count === null)) return null;
-  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const suffix = measureUnitSuffix(measure, length);
   const text = counts.every((count) => count === counts[0])
     ? `${counts[0]}${suffix}`
     : `${counts.map((count) => count ?? "—").join("/")}${suffix}`;
@@ -141,16 +160,20 @@ export function openRow(rows: readonly RowState[]): RowState | null {
  * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
  * ("5", "8–12", "30 s"). `target` is the set's own suggested set (`targetFor`).
  */
-export function countTargetLabel(exercise: ExerciseVM, target: TargetSet | null): string | null {
+export function countTargetLabel(
+  exercise: ExerciseVM,
+  target: TargetSet | null,
+  length: SetLengthUnit,
+): string | null {
   const coach = coachWork(exercise);
   if (coach) {
     // The coach's own figure for that set, a warm-up's included; past them, the first working set.
     const own = target ?? coach[0]!;
     const measure = coachMeasure(own);
-    const count = coachCount(own, measure);
-    if (count !== null) return `${count}${MEASURE_UNIT_SUFFIX[measure]}`;
+    const count = coachCount(own, measure, length);
+    if (count !== null) return `${count}${measureUnitSuffix(measure, length)}`;
   }
-  return volumeRange(exercise);
+  return volumeRange(exercise, length);
 }
 
 /** Whether today's sets are per side: the coach's word for this session, else the programme's. */
@@ -163,12 +186,12 @@ export function perSideToday(exercise: ExerciseVM): boolean {
  * "5 reps" when the coach wrote today's sets. How many sets and the RIR target are the entry's,
  * so they are not said twice (DESIGN.md, Layout).
  */
-export function perSetLabel(exercise: ExerciseVM): string | null {
+export function perSetLabel(exercise: ExerciseVM, length: SetLengthUnit): string | null {
   const side = perSideToday(exercise) ? " per side" : "";
   const coach = coachWork(exercise);
-  const volume = coach ? coachVolume(coach) : null;
+  const volume = coach ? coachVolume(coach, length) : null;
   if (volume) return `${volume.text}${volume.measure === "reps" ? " reps" : ""}${side}`;
-  const range = volumeRange(exercise);
+  const range = volumeRange(exercise, length);
   if (range === null) return null;
   return `${range}${measureOf(exercise) === "reps" ? " reps" : ""}${side}`;
 }
@@ -178,18 +201,22 @@ export function perSetLabel(exercise: ExerciseVM): string | null {
  * wrote today's sets ("70 kg · 3 × 5 @ 2 RIR"), else the programme's ("4 × 3–5 @ 2 RIR"), else
  * the exercise's own defaults ("8–12 reps @ 2 RIR").
  */
-export function prescriptionLabel(exercise: ExerciseVM, unitLabel = ""): string | null {
+export function prescriptionLabel(
+  exercise: ExerciseVM,
+  unitLabel: string,
+  length: SetLengthUnit,
+): string | null {
   const coach = coachWork(exercise);
   if (coach) {
-    const line = targetsLine(coach, unitLabel, perSideToday(exercise));
+    const line = targetsLine(coach, unitLabel, length, perSideToday(exercise));
     if (line) return line;
   }
   const p = exercise.planned;
   if (p)
-    return `${p.sets} × ${volumeRange(exercise)}${perSideToday(exercise) ? " per side" : ""}${
+    return `${p.sets} × ${volumeRange(exercise, length)}${perSideToday(exercise) ? " per side" : ""}${
       p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ""
     }`;
-  const range = volumeRange(exercise);
+  const range = volumeRange(exercise, length);
   if (range === null) return null;
   const rir = exercise.exercise.defaults.rir;
   const reps = measureOf(exercise) === "reps";

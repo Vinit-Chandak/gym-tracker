@@ -1,6 +1,8 @@
 # 0021 — Two tasks a day, three ways to count a set
 
-Status: accepted, 2026-09-11.
+Status: accepted, 2026-09-11; decision 4's "Metres, always" amended by
+[ADR 0056](0056-distances-start-from-the-weight-unit.md): a set's distance is still kept in
+metres, and is read in yards by an athlete who reads miles.
 
 ## Context
 

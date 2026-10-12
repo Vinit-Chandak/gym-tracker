@@ -56,7 +56,7 @@ function draw(assisted: boolean, workouts: [string, number, number][]) {
       sessions: exerciseSessions(rows(workouts), "machine", "kg", { assisted }),
     },
   };
-  return render(<ExerciseGraph data={data} today={TODAY} origin="history" />);
+  return render(<ExerciseGraph data={data} today={TODAY} origin="history" length="m" />);
 }
 
 /** Each workout's point down the plot, oldest first: a smaller number stands higher. */

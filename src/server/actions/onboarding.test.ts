@@ -34,15 +34,20 @@ afterEach(async () => {
   await t.close();
 });
 
-/** Setup's first step as it is sent, for someone who lifts, in the zone given. */
-function save(timeZone: string) {
+/** Setup's first step as it is sent, for someone who lifts, in the zone and units given. */
+function save(
+  timeZone: string,
+  units: { preferredUnit: string; distanceUnit: string; poolUnit: string } = {
+    preferredUnit: "kg",
+    distanceUnit: "km",
+    poolUnit: "m",
+  },
+) {
   const form = new FormData();
   for (const [key, value] of Object.entries({
     trainingExperience: "experienced",
     sports: "strength",
-    preferredUnit: "kg",
-    distanceUnit: "km",
-    poolUnit: "m",
+    ...units,
     timeZone,
   }))
     form.set(key, value);
@@ -79,4 +84,20 @@ it("saves nothing in a zone the browser reads but Postgres, which dates the grap
   expect(state.values?.timeZone).toBe("Asia/Tokyo");
   expect(await savedZone()).toBe(before);
   expect(mocks.redirect).not.toHaveBeenCalled();
+});
+
+/** ADR 0056: setup's weight seeds the distances, and only a unit set apart is kept. */
+it("keeps setup's distances following its weight unit unless they were set apart", async () => {
+  const stored = async () => {
+    const [row] = await t.db
+      .select({ distanceUnit: profiles.distanceUnit, poolUnit: profiles.poolUnit })
+      .from(profiles)
+      .where(eq(profiles.id, user.id));
+    return row;
+  };
+  await save("America/New_York", { preferredUnit: "lb", distanceUnit: "mi", poolUnit: "yd" });
+  expect(await stored()).toEqual({ distanceUnit: null, poolUnit: null });
+  // Kilograms with miles: the miles were chosen, and stay chosen whatever the weight does.
+  await save("Europe/London", { preferredUnit: "kg", distanceUnit: "mi", poolUnit: "m" });
+  expect(await stored()).toEqual({ distanceUnit: "mi", poolUnit: null });
 });

@@ -4,6 +4,7 @@ import {
   firstAcceptedLanguage,
   setupSteps,
   unitsForLocale,
+  withWeight,
   zoneCity,
   zoneLine,
   zoneOffset,
@@ -59,6 +60,23 @@ describe("units from the phone", () => {
     // A language alone says its most likely region: English is the United States'.
     expect(unitsForLocale("en")).toEqual({ weight: "lb", distance: "mi", pool: "yd" });
     expect(unitsForLocale("de")).toEqual({ weight: "kg", distance: "km", pool: "m" });
+  });
+
+  it("takes the distances along when the weight changes, unless they were changed apart", () => {
+    // A phone in Britain proposes kilograms; choosing pounds reads miles and yards (ADR 0056).
+    const british = unitsForLocale("en-GB");
+    expect(withWeight(british, "lb")).toEqual({ weight: "lb", distance: "mi", pool: "yd" });
+    // Kilograms with miles was set apart: the miles stay, and the metre pools follow.
+    expect(withWeight({ ...british, distance: "mi" }, "lb")).toEqual({
+      weight: "lb",
+      distance: "mi",
+      pool: "yd",
+    });
+    expect(withWeight({ weight: "lb", distance: "km", pool: "yd" }, "kg")).toEqual({
+      weight: "kg",
+      distance: "km",
+      pool: "m",
+    });
   });
 
   it("falls back to metric when the phone says nothing usable", () => {

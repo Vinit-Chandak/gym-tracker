@@ -3,6 +3,7 @@ import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/g
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { PlanMachineType } from "@/server/repositories/coach-plans";
@@ -77,11 +78,11 @@ export type PlanRowModel = {
 /**
  * A slot's prescription as a row says it: "3 × 8–12 @ 1–2 RIR". RIR is written for sets counted
  * in reps; a carry or a hold is rated by RPE as it is logged, so its line is the work alone
- * ("3 × 20–40 m").
+ * ("3 × 20–40 m", or "3 × 22–44 yd" for an athlete in yards).
  */
-export function rowPrescription(slot: PlannedExercisePreview): string {
-  if (slot.prescriptionType === "reps") return prescription(slot);
-  return `${slot.sets} × ${volumeRange(slot)}${slot.perSide ? " per side" : ""}`;
+export function rowPrescription(slot: PlannedExercisePreview, length: SetLengthUnit): string {
+  if (slot.prescriptionType === "reps") return prescription(slot, length);
+  return `${slot.sets} × ${volumeRange(slot, length)}${slot.perSide ? " per side" : ""}`;
 }
 
 /**
@@ -98,12 +99,14 @@ export function planRows(
     machines?: Readonly<Record<string, PlanMachineType>>;
   } | null,
   unit: string,
+  /** What a carry reads in: the athlete's metres or yards. */
+  length: SetLengthUnit,
 ): PlanRowModel[] {
   const fromSlot = (slot: PlannedExercisePreview): PlanRowModel => ({
     key: slot.programExerciseId,
     name: slot.name,
     glyph: modalityGlyph(slot.modality),
-    line: rowPrescription(slot),
+    line: rowPrescription(slot, length),
     note: null,
     dropped: false,
     sets: slot.sets,
@@ -116,6 +119,7 @@ export function planRows(
     const line = targetsLine(
       entry.sets,
       entry.unit ?? unit,
+      length,
       entry.perSide ?? slot?.perSide ?? false,
     );
     const working = entry.sets.filter((set) => set.setType !== "warmup").length;
@@ -130,9 +134,9 @@ export function planRows(
           : modalityGlyph(slot?.modality),
       line: dropped
         ? slot
-          ? prescription(slot)
+          ? prescription(slot, length)
           : ""
-        : `${line ?? (slot ? prescription(slot) : "By the rule")}${
+        : `${line ?? (slot ? prescription(slot, length) : "By the rule")}${
             entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
           }`,
       note: entry.note || null,

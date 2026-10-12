@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { setLengthFor } from "@/lib/distance-units";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -165,7 +166,10 @@ export default async function ChooseDayPage() {
                             variant="inline"
                             className="border-0"
                           >
-                            <PlannedExerciseList exercises={exercises} />
+                            <PlannedExerciseList
+                              exercises={exercises}
+                              length={setLengthFor(requestProfile)}
+                            />
                           </Disclosure>
                         )}
                         {inProgress ? null : start ? (

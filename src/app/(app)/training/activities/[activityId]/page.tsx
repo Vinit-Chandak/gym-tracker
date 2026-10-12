@@ -27,7 +27,7 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
 import { namedOccurrence } from "@/server/repositories/occurrences";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
@@ -78,7 +78,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       const activity = await getActivity(tx, user.id, activityId);
       return {
         activity,
-        units: activity ? await unitsFor(tx, user.id, activity.sport) : DEFAULT_SPORT_UNITS,
+        units: activity ? await readSportUnits(tx, user.id) : DEFAULT_SPORT_UNITS,
         answered: activity?.origin.occurrenceId
           ? await namedOccurrence(tx, user.id, activity.origin.occurrenceId)
           : null,

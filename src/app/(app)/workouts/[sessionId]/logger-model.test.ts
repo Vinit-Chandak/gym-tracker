@@ -108,8 +108,8 @@ const row = (setIndex: number, setType: RowState["setType"] = "working"): RowSta
 
 describe("what the header says", () => {
   it("gives the Log tab the range a set aims at, and the other tabs the whole prescription", () => {
-    expect(perSetLabel(exercise())).toBe("3–5 reps");
-    expect(prescriptionLabel(exercise())).toBe("4 × 3–5 @ 2 RIR");
+    expect(perSetLabel(exercise(), "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(exercise(), "", "m")).toBe("4 × 3–5 @ 2 RIR");
     expect(restText(exercise())).toBe("3–4 min");
   });
 
@@ -127,15 +127,54 @@ describe("what the header says", () => {
         restMaxSeconds: 90,
       },
     });
-    expect(perSetLabel(carry)).toBe("20–40 m");
-    expect(prescriptionLabel(carry)).toBe("3 × 20–40 m");
+    expect(perSetLabel(carry, "m")).toBe("20–40 m");
+    expect(prescriptionLabel(carry, "", "m")).toBe("3 × 20–40 m");
     expect(restText(carry)).toBe("90 s");
+    // Beside miles a carry reads in yards, each end as a logged set of it would (ADR 0056).
+    expect(perSetLabel(carry, "yd")).toBe("22–44 yd");
+    expect(prescriptionLabel(carry, "", "yd")).toBe("3 × 22–44 yd");
+    expect(countTargetLabel(carry, null, "yd")).toBe("22–44 yd");
+  });
+
+  it("says the coach's carry in the athlete's length, its metres underneath unchanged", () => {
+    const carried = exercise({
+      planned: {
+        ...planned,
+        sets: 2,
+        prescriptionType: "distance",
+        repMin: null,
+        repMax: null,
+        distanceMinMeters: 20,
+        distanceMaxMeters: 40,
+      },
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Coach plan for today",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [1, 2].map((setIndex) => ({
+          setIndex,
+          setType: "working" as const,
+          weight: 32,
+          reps: null,
+          rir: null,
+          rpe: 7,
+          durationSeconds: null,
+          distanceMeters: 30,
+        })),
+      },
+    });
+    expect(perSetLabel(carried, "m")).toBe("30 m");
+    expect(perSetLabel(carried, "yd")).toBe("33 yd");
+    expect(countTargetLabel(carried, null, "yd")).toBe("33 yd");
+    expect(prescriptionLabel(carried, "kg", "yd")).toBe("32 kg ·\u00a02 × 33 yd ·\u00a0RPE 7");
   });
 
   it("says nothing it does not know: an exercise with no plan and no defaults has no range", () => {
     const adHoc = exercise({ planned: null });
-    expect(perSetLabel(adHoc)).toBeNull();
-    expect(prescriptionLabel(adHoc)).toBeNull();
+    expect(perSetLabel(adHoc, "m")).toBeNull();
+    expect(prescriptionLabel(adHoc, "", "m")).toBeNull();
     expect(restText(adHoc)).toBeNull();
     expect(restSecondsOf(adHoc)).toBeNull();
   });
@@ -275,13 +314,13 @@ describe("today's targets: every number from one source (plan: today's targets)"
       coachRestSeconds: 150,
     });
     // The programme says 4 × 3–5 @ 2 RIR, rest 3–4 min; the coach wrote 3 × 5 @ 60 kg, 150 s.
-    expect(perSetLabel(coached)).toBe("5 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60 kg ·\u00a03 × 5 @ 2 RIR");
+    expect(perSetLabel(coached, "m")).toBe("5 reps");
+    expect(prescriptionLabel(coached, "kg", "m")).toBe("60 kg ·\u00a03 × 5 @ 2 RIR");
     expect(restText(coached)).toBe("2.5 min");
     expect(restSecondsOf(coached)).toBe(150);
-    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("5");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!, "m")).toBe("5");
     // The coach's warm-up asks for its own reps.
-    expect(countTargetLabel(coached, coached.suggestion!.sets[0]!)).toBe("8");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[0]!, "m")).toBe("8");
   });
 
   it("says each set when the coach's sets differ", () => {
@@ -292,9 +331,11 @@ describe("today's targets: every number from one source (plan: today's targets)"
         { weight: 70, reps: 4, rir: 1 },
       ]),
     });
-    expect(perSetLabel(coached)).toBe("8/6/4 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60/65/70 kg ·\u00a03 × 8/6/4 @ 3, 2, 1 RIR");
-    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!)).toBe("4");
+    expect(perSetLabel(coached, "m")).toBe("8/6/4 reps");
+    expect(prescriptionLabel(coached, "kg", "m")).toBe(
+      "60/65/70 kg ·\u00a03 × 8/6/4 @ 3, 2, 1 RIR",
+    );
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!, "m")).toBe("4");
     // The coach gave no rest: the programme's stands.
     expect(restText(coached)).toBe("3–4 min");
   });
@@ -308,23 +349,23 @@ describe("today's targets: every number from one source (plan: today's targets)"
       ]),
       coachRestSeconds: 60,
     });
-    expect(perSetLabel(added)).toBe("12 reps");
-    expect(prescriptionLabel(added, "kg")).toBe("20 kg ·\u00a02 × 12 @ 2 RIR");
+    expect(perSetLabel(added, "m")).toBe("12 reps");
+    expect(prescriptionLabel(added, "kg", "m")).toBe("20 kg ·\u00a02 × 12 @ 2 RIR");
     expect(restText(added)).toBe("60 s");
   });
 
   it("keeps the programme's numbers where the coach left the sets to the programme", () => {
     const left = exercise({ coachRestSeconds: 120 });
-    expect(perSetLabel(left)).toBe("3–5 reps");
-    expect(prescriptionLabel(left, "kg")).toBe("4 × 3–5 @ 2 RIR");
+    expect(perSetLabel(left, "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(left, "kg", "m")).toBe("4 × 3–5 @ 2 RIR");
     // The coach's rest still wins, so the timer and the line agree.
     expect(restText(left)).toBe("2 min");
     expect(restSecondsOf(left)).toBe(120);
   });
 
   it("shows a programme-only exercise the programme's numbers, and its rest to the timer", () => {
-    expect(perSetLabel(exercise())).toBe("3–5 reps");
-    expect(countTargetLabel(exercise(), null)).toBe("3–5");
+    expect(perSetLabel(exercise(), "m")).toBe("3–5 reps");
+    expect(countTargetLabel(exercise(), null, "m")).toBe("3–5");
     expect(restSecondsOf(exercise())).toBe(180);
   });
 
@@ -345,30 +386,30 @@ describe("today's targets: every number from one source (plan: today's targets)"
         },
       },
     });
-    expect(perSetLabel(adHoc)).toBe("8–12 reps");
+    expect(perSetLabel(adHoc, "m")).toBe("8–12 reps");
     // Per side is today's figure too: the coach's word for the session, else the programme's.
     const planned = exercise();
     const coachSides = exercise({
       coachPerSide: true,
       planned: { ...planned.planned!, perSide: false },
     });
-    expect(perSetLabel(coachSides)).toBe("3–5 reps per side");
-    expect(prescriptionLabel(coachSides, "kg")).toBe("4 × 3–5 per side @ 2 RIR");
+    expect(perSetLabel(coachSides, "m")).toBe("3–5 reps per side");
+    expect(prescriptionLabel(coachSides, "kg", "m")).toBe("4 × 3–5 per side @ 2 RIR");
     const coachBoth = exercise({
       coachPerSide: false,
       planned: { ...planned.planned!, perSide: true },
     });
-    expect(perSetLabel(coachBoth)).toBe("3–5 reps");
-    expect(prescriptionLabel(adHoc, "kg")).toBe("8–12 reps @ 2 RIR");
+    expect(perSetLabel(coachBoth, "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(adHoc, "kg", "m")).toBe("8–12 reps @ 2 RIR");
     // Half a rep in reserve is not a target anyone can hold: it reads as the two either side.
     const half = {
       ...adHoc,
       exercise: { ...adHoc.exercise, defaults: { ...adHoc.exercise.defaults, rir: 1.5 } },
     };
-    expect(prescriptionLabel(half, "kg")).toBe("8–12 reps @ 1–2 RIR");
+    expect(prescriptionLabel(half, "kg", "m")).toBe("8–12 reps @ 1–2 RIR");
     expect(restText(adHoc)).toBe("90 s");
     expect(restSecondsOf(adHoc)).toBe(90);
-    expect(countTargetLabel(adHoc, null)).toBe("8–12");
+    expect(countTargetLabel(adHoc, null, "m")).toBe("8–12");
     const hold = exercise({
       planned: null,
       exercise: {
@@ -377,8 +418,8 @@ describe("today's targets: every number from one source (plan: today's targets)"
         defaults: { ...adHoc.exercise.defaults, durationMinSeconds: 20, durationMaxSeconds: 45 },
       },
     });
-    expect(perSetLabel(hold)).toBe("20–45 s");
-    expect(prescriptionLabel(hold, "kg")).toBe("20–45 s");
+    expect(perSetLabel(hold, "m")).toBe("20–45 s");
+    expect(prescriptionLabel(hold, "kg", "m")).toBe("20–45 s");
   });
 });
 

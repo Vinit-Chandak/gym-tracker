@@ -15,6 +15,15 @@ import {
   type Sex,
   type TrainingGoal,
 } from "@/domain/types";
+import {
+  followsWeight,
+  followWeight,
+  setLengthUnit,
+  SET_LENGTH_WORDS,
+  type DistanceUnit,
+  type PoolUnit,
+  type SportUnits,
+} from "@/lib/distance-units";
 import { LOAD_UNIT_LABELS, SEX_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { checkTimeZone, deviceTimeZone, sameTimeZone } from "@/lib/time-zones";
 import {
@@ -30,6 +39,11 @@ export type ProfileFieldValues = {
   username: string;
   timeZone: string;
   preferredUnit: BodyLoadUnit;
+  /** As the account reads them now: chosen, or the weight unit's (ADR 0056). */
+  distanceUnit: DistanceUnit;
+  poolUnit: PoolUnit;
+  /** Whether the account swims, which is when it is asked about pools. */
+  swims: boolean;
   /** Stored in kilograms and centimetres; shown in whichever units the account uses. */
   bodyWeightKg: number | null;
   heightCm: number | null;
@@ -42,6 +56,16 @@ const UNIT_OPTIONS = BODY_LOAD_UNITS.map((unit) => ({
   value: unit as string,
   label: `${LOAD_UNIT_LABELS[unit]} (${unit === "kg" ? "kilograms" : "pounds"})`,
 }));
+
+const DISTANCE_OPTIONS = [
+  { value: "km", label: "km (kilometres)" },
+  { value: "mi", label: "mi (miles)" },
+] as const;
+
+const POOL_OPTIONS = [
+  { value: "m", label: "m (metres)" },
+  { value: "yd", label: "yd (yards)" },
+] as const;
 
 /** Saying nothing is the fourth answer, and the one the control starts on. */
 const SEX_OPTIONS = [
@@ -75,12 +99,13 @@ const text = (value: number | null): string => (value === null ? "" : String(val
 
 /**
  * The fields that make the app yours: who you are, how you measure things, and the body the
- * numbers are about. Shared by the onboarding step and the profile edit screen, so the two can
- * never drift apart — and so nothing asked during setup is impossible to change afterwards.
+ * numbers are about: everything setup asked, so nothing asked there is impossible to change
+ * afterwards.
  *
  * Units are a live choice rather than a saved one: switching to pounds re-labels the weight
  * and re-states the height in feet and inches, carrying whatever is in the fields across, so
- * a half-filled form survives changing your mind.
+ * a half-filled form survives changing your mind. It takes miles and yards along with it too,
+ * unless the distances were set apart from the weight unit.
  */
 export function ProfileFields({
   values,
@@ -114,6 +139,20 @@ export function ProfileFields({
 
   const [unit, setUnit] = useState<BodyLoadUnit>(values.preferredUnit);
   const imperial = heightUnitFor(unit) === "ftin";
+  const [distances, setDistances] = useState<SportUnits>({
+    distanceUnit: values.distanceUnit,
+    poolUnit: values.poolUnit,
+  });
+  // Which distances go with the weight unit: those never set apart from it, as saved, until one
+  // is chosen here. A choice the weight unit would give goes with it again (ADR 0056).
+  const [follows, setFollows] = useState(() => followsWeight(values.preferredUnit, distances));
+  function chooseDistance<K extends keyof SportUnits>(key: K, value: SportUnits[K]) {
+    const next = { ...distances, [key]: value };
+    setDistances(next);
+    setFollows({ ...follows, [key]: followsWeight(unit, next)[key] });
+  }
+  const road = distances.distanceUnit === "mi" ? "miles" : "kilometres";
+  const carry = SET_LENGTH_WORDS[setLengthUnit(distances.distanceUnit)];
 
   const initialHeight = values.heightCm === null ? null : toFeetAndInches(values.heightCm);
   const [weight, setWeight] = useState(() =>
@@ -129,9 +168,13 @@ export function ProfileFields({
   const [feet, setFeet] = useState(() => text(initialHeight?.feet ?? null));
   const [inches, setInches] = useState(() => text(initialHeight?.inches ?? null));
 
-  /** Re-states everything already typed in the units just chosen. */
+  /**
+   * Re-states everything already typed in the units just chosen, and carries along a distance
+   * that was following the weight unit (ADR 0056); one set apart from it stays.
+   */
   function changeUnit(next: BodyLoadUnit) {
     if (next === unit) return;
+    setDistances(followWeight(distances, next, follows));
     const typedWeight = typedNumber(weight);
     if (typedWeight !== null) {
       setWeight(String(fromKilograms(toKilograms(typedWeight, unit), next)));
@@ -200,13 +243,18 @@ export function ProfileFields({
         />
       </Field>
 
+      {/* The units, each a choice of two with what it decides said under it. Weight leads, and
+          the distances start from it: a distance nobody set apart moves with it (ADR 0056). */}
       <div className="space-y-1.5">
-        <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">
-          Units
+        <span
+          id="profile-weight-unit"
+          className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+        >
+          Weight
         </span>
         <SegmentedControl
           name="preferredUnit"
-          aria-label="Units"
+          aria-labelledby="profile-weight-unit"
           options={UNIT_OPTIONS}
           value={unit}
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
@@ -221,6 +269,63 @@ export function ProfileFields({
           </span>
         )}
       </div>
+
+      <div className="space-y-1.5">
+        <span
+          id="profile-distance-unit"
+          className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+        >
+          Distance
+        </span>
+        <SegmentedControl
+          name="distanceUnit"
+          aria-labelledby="profile-distance-unit"
+          aria-describedby="profile-distance-unit-says"
+          options={DISTANCE_OPTIONS}
+          value={distances.distanceUnit}
+          onChange={(distanceUnit) => chooseDistance("distanceUnit", distanceUnit)}
+          columns={2}
+        />
+        <span
+          id="profile-distance-unit-says"
+          className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
+        >
+          {`Runs and rides in ${road}, carries and sleds in ${carry}.`}
+        </span>
+        {errors?.distanceUnit && (
+          <span role="alert" className="block type-meta-small font-semibold">
+            {errors.distanceUnit}
+          </span>
+        )}
+      </div>
+
+      {/* Pools are asked of a swimmer only, as setup asks them; anyone else's goes on as it is,
+          following the weight unit unless it was set apart. */}
+      {values.swims ? (
+        <div className="space-y-1.5">
+          <span
+            id="profile-pool-unit"
+            className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+          >
+            Pools
+          </span>
+          <SegmentedControl
+            name="poolUnit"
+            aria-labelledby="profile-pool-unit"
+            options={POOL_OPTIONS}
+            value={distances.poolUnit}
+            onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
+            columns={2}
+          />
+          {errors?.poolUnit && (
+            <span role="alert" className="block type-meta-small font-semibold">
+              {errors.poolUnit}
+            </span>
+          )}
+        </div>
+      ) : (
+        <input type="hidden" name="poolUnit" value={distances.poolUnit} />
+      )}
 
       {/* Metric, the two figures share a row (board Edit profile); feet and inches need one
           of their own. */}
