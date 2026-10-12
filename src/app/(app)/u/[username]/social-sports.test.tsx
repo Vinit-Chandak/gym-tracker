@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { holdHyphens } from "@/lib/facts";
 import LeaderboardPage from "@/app/(app)/profile/friends/leaderboard/page";
 import ComparePage from "./compare/page";
 import PersonPage from "./page";
@@ -190,6 +191,19 @@ it("lifting still renders the muscle split and exercises in common", async () =>
   expect(html).toContain("Exercises in common");
   expect(mocks.muscles).toHaveBeenCalledTimes(2);
   expect(mocks.common).toHaveBeenCalledOnce();
+});
+
+it("lists the exercises in common at the gutter, unboxed, each name held at its hyphens", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Archer push-up", region: "chest" }],
+    notComparable: 0,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  // In a box, its rows inset a rem each side, "Seated dumbbell shoulder press" took three lines
+  // at 200% text: a list to choose from puts its names at the gutter (DESIGN.md, One Left Edge).
+  expect(html).not.toContain("box-rows");
+  expect(html).toContain('<li class="nav-row-item"><a href="/u/friend/compare/e1">');
+  expect(html).toContain(holdHyphens("Archer push-up"));
 });
 
 it.each([

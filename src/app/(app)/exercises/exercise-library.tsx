@@ -1,42 +1,57 @@
 "use client";
 
 import { Search } from "@/components/ui/icons";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Glyph, modalityGlyph } from "@/components/ui/glyphs";
 import { Input } from "@/components/ui/input";
-import { LinkRow, List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { NavRow } from "@/components/ui/nav-row";
 import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { EXERCISE_MODALITY_LABELS, LOAD_PORTABILITY_TAGS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
-/** "Bodyweight · Chest, Triceps": a wrapped line breaks before the dot, never after it. */
-function subtitle(exercise: ExerciseListItem): string {
+/**
+ * "[dumbbell] Barbell · Chest, Triceps": the equipment's glyph leads the line, as it leads every
+ * exercise row's, and the equipment is still said, since the search finds it and the glyph draws
+ * a barbell and a dumbbell alike. A wrapped line breaks before the dot, never after it.
+ */
+function Equipment({ exercise }: { exercise: ExerciseListItem }) {
+  const glyph = modalityGlyph(exercise.modality);
   const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ");
-  return joinFacts([EXERCISE_MODALITY_LABELS[exercise.modality], muscles]);
+  return (
+    <span className="meta-fact">
+      {glyph && <Glyph name={glyph} className="glyph-16" />}
+      {joinFacts([EXERCISE_MODALITY_LABELS[exercise.modality], muscles])}
+    </span>
+  );
 }
 
-function Rows({ items }: { items: ExerciseListItem[] }) {
+/**
+ * A group of the library, as a list to choose from draws it (DESIGN.md, Rows and marks): each
+ * name at the gutter with nothing boxing it, so the name has the row's width up to the chevron.
+ */
+function Group({ title, items }: { title: string; items: ExerciseListItem[] }) {
+  const id = useId();
   return (
-    <List>
-      {items.map((exercise) => {
-        const tag = LOAD_PORTABILITY_TAGS[exercise.loadPortability];
-        return (
-          <li key={exercise.id}>
-            <LinkRow
-              prefetch="intent"
-              href={`/exercises/${exercise.id}`}
-              // "Archer push-up" breaks between its words, never at its hyphen.
-              title={holdHyphens(exercise.name)}
-              subtitle={subtitle(exercise)}
-              badge={tag ? <Badge>{tag}</Badge> : undefined}
-            />
-          </li>
-        );
-      })}
-    </List>
+    <section aria-labelledby={id}>
+      <h2 id={id} className="caption-head">
+        {title}
+      </h2>
+      <ul>
+        {items.map((exercise) => (
+          <NavRow
+            key={exercise.id}
+            prefetch="intent"
+            href={`/exercises/${exercise.id}`}
+            // "Archer push-up" breaks between its words, never at its hyphen.
+            label={holdHyphens(exercise.name)}
+            sub={<Equipment exercise={exercise} />}
+            tag={LOAD_PORTABILITY_TAGS[exercise.loadPortability] ?? undefined}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -78,17 +93,11 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
       )}
 
       {groups.map((group) => (
-        <Section key={group.key} title={group.title}>
-          <Rows items={group.items} />
-        </Section>
+        <Group key={group.key} title={group.title} items={group.items} />
       ))}
 
       {/* Excluded exercises stay visible here; they are only kept out of new logging. */}
-      {excluded.length > 0 && (
-        <Section title="Excluded for now">
-          <Rows items={excluded} />
-        </Section>
-      )}
+      {excluded.length > 0 && <Group title="Excluded for now" items={excluded} />}
     </div>
   );
 }
