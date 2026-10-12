@@ -116,7 +116,9 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       ),
       unit: `/${units.distanceUnit}`,
     });
-  if (actual?.sport === "cycling")
+  // A ride's speed is its distance over its time: one with no distance (an indoor ride, as a
+  // rule) has none to show, not a second dash beside the distance's (AT-LOG-03).
+  if (actual?.sport === "cycling" && metres !== null)
     stats.push({
       label: "Speed",
       ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs), units.distanceUnit)),

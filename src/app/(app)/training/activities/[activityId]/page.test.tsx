@@ -101,3 +101,54 @@ it("speaks of no session when the activity answered none", async () => {
   mocks.activity.mockResolvedValue({ ...run, origin: AD_HOC_ORIGIN });
   expect(renderToStaticMarkup(await ActivityPage(props))).toContain("On delete: null");
 });
+
+// Sofia's indoor ride of 27 September: 40:51 on the trainer, and no distance (AT-LOG-03).
+const ride: ActivityRecord = {
+  ...run,
+  id: "f03911f7-7277-4d93-985d-5ae9083e4387",
+  sport: "cycling",
+  durationMs: 2_451_000,
+  origin: AD_HOC_ORIGIN,
+  actual: {
+    sport: "cycling",
+    environment: "indoor",
+    durationMs: 2_451_000,
+    distance: null,
+    assistance: "unassisted",
+    resourceId: null,
+    averagePowerWatts: null,
+    averageCadenceRpm: null,
+    averageHeartRate: null,
+    maxHeartRate: null,
+    elevationGainMetres: null,
+  },
+};
+
+/** Each stat's name, in the order the page reads them two by two. */
+function statNames(html: string): string[] {
+  return [...html.matchAll(/<dt class="activity-stat-label">([^<]*)<\/dt>/g)].map(
+    ([, name]) => name!,
+  );
+}
+
+/**
+ * Year audit, October 2026: a ride with no distance read "Speed —" beside "Distance —". Its speed
+ * is its distance over its time, so it has none; that its distance is not known is said once.
+ */
+it("shows no speed for a ride with no distance, and says the distance is not known", async () => {
+  mocks.activity.mockResolvedValue(ride);
+  const html = renderToStaticMarkup(await ActivityPage(props));
+  expect(statNames(html)).toEqual(["Distance", "Time", "Effort"]);
+  expect(html).toContain('<span class="type-heading">—</span>');
+  expect(html).toContain("40:51");
+});
+
+it("shows a ride's speed when its distance is known", async () => {
+  mocks.activity.mockResolvedValue({
+    ...ride,
+    actual: { ...ride.actual!, distance: { value: 20, unit: "km", metres: 20_000 } },
+  });
+  const html = renderToStaticMarkup(await ActivityPage(props));
+  expect(statNames(html)).toEqual(["Distance", "Time", "Speed", "Effort"]);
+  expect(html).toContain("29.4");
+});

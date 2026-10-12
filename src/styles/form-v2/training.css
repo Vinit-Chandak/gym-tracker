@@ -148,7 +148,11 @@
   height: calc(128 * var(--ov-u));
   margin: calc(4 * var(--ov-u)) 0 0;
 }
-/* What it recorded, two by two, each over a hairline: the figure and its unit, then its name. */
+/* What it recorded, two by two, each over a hairline: the figure and its unit, then its name.
+   Each stat is a subgrid of the two rows it spans, so the figures of a pair share a row and a
+   baseline, and their names a line, whatever stands over them: a dash in Atkinson beside a
+   figure in Jost, a word ("Not sure"), or a unit wrapped under its figure at large text (year
+   audit, October 2026: Distance's name 5 pt above Time's, beside a ride's 40:51). */
 .activity-stats {
   display: grid;
   margin-top: calc(10 * var(--ov-u));
@@ -156,15 +160,20 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .activity-stat {
-  display: flex;
+  display: grid;
   min-width: 0;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: baseline;
+  row-gap: 0;
   padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .activity-stat-figure {
   display: flex;
+  min-width: 0;
+  grid-row: 1;
   flex-wrap: wrap;
   align-items: baseline;
   column-gap: calc(3 * var(--ov-u));
@@ -174,7 +183,9 @@
   font-size: var(--ov-type-caption);
   font-weight: 600;
 }
+/* Named first, for a screen reader, and drawn under its figure. */
 .activity-stat-label {
+  grid-row: 2;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;
