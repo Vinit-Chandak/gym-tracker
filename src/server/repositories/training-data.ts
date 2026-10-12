@@ -18,6 +18,7 @@ import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domai
 import { paceSecondsPerKm } from "@/domain/pace";
 import type { DateRange } from "@/server/validation/date-range";
 
+import { printedSessionOf, sessionPrintColumns } from "./session-prints";
 import { strengthOnDays, strengthParent } from "./strength-day";
 
 export const TRAINING_RECORD_LIMIT = 500;
@@ -47,6 +48,12 @@ export async function readWorkouts(
      * froze, not the day its start falls on in the profile's zone today (`strengthOnDays`).
      */
     onDays?: boolean;
+    /**
+     * Each workout's print as well (`prints`, by session), for a reader that draws them (the
+     * calendar's day): read in the statement that reads the sessions, so it costs no
+     * statement of its own (ADR 0030).
+     */
+    prints?: boolean;
   } = {},
 ) {
   const matchingExercise = filter.exerciseId
@@ -71,6 +78,7 @@ export async function readWorkouts(
       gym: { id: gyms.id, name: gyms.name },
       day: { id: programDays.id, name: programDays.name },
       title: activities.title,
+      ...(filter.prints ? { print: sessionPrintColumns() } : {}),
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
@@ -168,6 +176,16 @@ export async function readWorkouts(
   }
   return {
     hasMore,
+    // Only when asked for, so what the coach's API sends is as it was.
+    ...(filter.prints
+      ? {
+          prints: new Map(
+            selected.flatMap((row) =>
+              row.print ? [[row.session.id, printedSessionOf(row.print)] as const] : [],
+            ),
+          ),
+        }
+      : {}),
     workouts: selected.map((row) => ({
       ...row.session,
       gym: row.gym,

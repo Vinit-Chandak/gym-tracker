@@ -433,8 +433,9 @@ export function TodayView({
           standalone: finishedToday ? [] : standaloneOccurrences,
           restDrills: restDay ? restProtocol?.drills.length : undefined,
           lifted: day.includesLifting && sessionStatus === "completed",
-          // Open, the day's workout inks its columns set by set, as its own print does.
-          session: openHere && inProgress ? inProgress.print : null,
+          // The day's workout draws its columns as its own print does: open, set by set as they
+          // are logged; finished (its run still owed), as the record.
+          session: openHere && inProgress ? inProgress.print : plan.sessionPrint,
         })
       : [];
   const print = day && plan && plan.suggestion && (

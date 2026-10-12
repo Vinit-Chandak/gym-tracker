@@ -1,5 +1,5 @@
 import type { FormState, PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { planColumn, warmupFan } from "@/components/art/session-print";
+import { exerciseColumn, planColumn, warmupFan, warmupState } from "@/components/art/session-print";
 import type { ActivitySport, EnduranceSport } from "@/domain/activity";
 import { pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { exerciseOnMachine } from "@/lib/labels";
@@ -57,8 +57,15 @@ export function runLeads(day: Pick<ScheduleDay, "name" | "focus">): boolean {
  * rows: the run where the day is written to have it (`runLeads`), first or after the lifting; a
  * rest day's routine, or on the day's own page the warm-up, as a fan of its drills; then a
  * column of sets for each exercise, a superset's two standing closer. A rest day with nothing
- * in it is the rest form. While the day's workout is open, its columns ink the sets logged for
- * each slot and its warm-up once it is marked done, as the workout's own print does.
+ * in it is the rest form.
+ *
+ * A day with a workout, open or finished, is drawn from it, as the workout's own print draws
+ * it: each row's column is the column of the exercise done for it (`exerciseColumn`), and the
+ * fan stands as its warm-up does (`warmupState`). Open, the sets logged ink the plan and what is
+ * owed stays thinned; finished, the working sets done, what was not done dashed. A plan's print,
+ * it draws no warm-up sets, so Training's tiles keep the module their plans need. That holds
+ * whatever the day's state: a day done once and done again ("Do again") is drawn from the
+ * workout under way. A day with no workout is drawn by its state, every set inked once done.
  */
 export function programmeDayParts(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "status">,
@@ -69,7 +76,7 @@ export function programmeDayParts(
   }: {
     drills?: number;
     warmup?: boolean;
-    /** The day's workout, open: what it has done inks the day's plan. */
+    /** The day's workout: the one open for it, else the one that did it this cycle. */
     session?: PrintedSession | null;
   } = {},
 ): PrintPart[] {
@@ -78,9 +85,9 @@ export function programmeDayParts(
   const runFirst = !plan.day.includesLifting || runLeads(plan.day);
   if (plan.day.includesRun && runFirst) parts.push({ kind: "run", state });
   if (drills > 0 && (warmup || !plan.day.includesLifting))
-    parts.push(warmupFan(drills, session?.warmupCompleted ? "done" : state));
+    parts.push(warmupFan(drills, session ? warmupState(session) : state));
   const columns: StrengthColumn[] = [];
-  const logged = session
+  const done = session
     ? pairBySlot(
         plan.exercises.map((exercise) => ({
           slotId: exercise.programExerciseId,
@@ -92,13 +99,17 @@ export function programmeDayParts(
   plan.exercises.forEach((exercise, index) => {
     if (exercise.sets <= 0) return;
     const next = plan.exercises[index + 1];
-    const open = logged[index] ?? null;
-    columns.push(
-      planColumn(exercise.sets, state === "done" ? exercise.sets : (open?.work ?? 0), {
-        skipped: state === "skipped" || (open?.skipped ?? false),
-        pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
-      }),
-    );
+    const pair = exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup;
+    const column = session
+      ? exerciseColumn(exercise.sets, done[index] ?? null, session.completed, {
+          pair,
+          warmups: false,
+        })
+      : planColumn(exercise.sets, state === "done" ? exercise.sets : 0, {
+          skipped: state === "skipped",
+          pair,
+        });
+    if (column) columns.push(column);
   });
   if (columns.length > 0) parts.push({ kind: "strength", columns });
   if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
@@ -125,13 +136,17 @@ export function dayPageMaxModule(parts: readonly PrintPart[]): number | undefine
 
 /**
  * What the day's own print says for a screen reader, its parts in the print's order: "Easy
- * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done", and while its workout is
- * open, "Lower: the warm-up, 4 exercises, the sets done inked".
+ * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done"; done, what its workout left
+ * dashed ("Pull A: the warm-up, 4 exercises, done, the warm-up not done, dashed"); and while its
+ * workout is open, how far it has got, the warm-up and the sets each said for itself ("Lower:
+ * the warm-up, 4 exercises, the warm-up done, the sets done inked"). A day done once and being
+ * done again is said as its open workout, not as done.
  */
 export function dayPrintLabel(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
   parts: readonly PrintPart[],
   drills: number,
+  open = false,
 ): string {
   const { day } = plan;
   const runFirst = !day.includesLifting || runLeads(day);
@@ -142,15 +157,38 @@ export function dayPrintLabel(
     exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
     plan.run && !runFirst ? "the run" : null,
     parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
-  ].filter(Boolean);
-  const begun = parts.some(
-    (part) =>
-      (part.kind === "strength" && part.columns.some((column) => column.done > 0)) ||
-      (part.kind === "mobility" && part.state === "done"),
+  ];
+  const notDone = parts.reduce(
+    (count, part) =>
+      count +
+      (part.kind === "strength" ? part.columns.filter((column) => column.skipped).length : 0),
+    0,
   );
-  return `${day.name}: ${said.join(", ")}${
-    plan.status === "completed" ? ", done" : begun ? ", the sets done inked" : ""
-  }`;
+  const progress =
+    plan.status === "completed" && !open
+      ? [
+          "done",
+          // Drawn from its workout, what it did not do is dashed, and said so.
+          day.includesLifting &&
+          parts.some((part) => part.kind === "mobility" && part.state === "skipped")
+            ? "the warm-up not done, dashed"
+            : null,
+          notDone > 0
+            ? `${notDone} ${notDone === 1 ? "exercise" : "exercises"} not done, dashed`
+            : null,
+        ]
+      : [
+          day.includesLifting &&
+          parts.some((part) => part.kind === "mobility" && part.state === "done")
+            ? "the warm-up done"
+            : null,
+          parts.some(
+            (part) => part.kind === "strength" && part.columns.some((column) => column.done > 0),
+          )
+            ? "the sets done inked"
+            : null,
+        ];
+  return `${day.name}: ${[...said, ...progress].filter(Boolean).join(", ")}`;
 }
 
 /**

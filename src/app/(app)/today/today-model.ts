@@ -1,5 +1,5 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { planColumn } from "@/components/art/session-print";
+import { exerciseColumn, planColumn } from "@/components/art/session-print";
 import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
@@ -211,9 +211,10 @@ export function loggedBesides(
 /**
  * The day's plan as a print (DESIGN.md, Prints): its parts in the order of the rows under it.
  * The programme's own endurance first, as the day is written; then the exercises, a column of
- * sets each, a superset's two standing closer; then anything else dated today. While the day's
- * workout is open, each column inks the sets logged for its row, as the workout's own print
- * does (`planColumn`).
+ * sets each, a superset's two standing closer; then anything else dated today. Once the day has
+ * a workout, each row's column is the column of the exercise done for it, as the workout's own
+ * print draws it (`exerciseColumn`): open, the sets logged ink the plan; finished, the working
+ * sets done, what was not done dashed. A plan's print, it draws no warm-up sets.
  */
 export function todayParts({
   programme,
@@ -228,9 +229,9 @@ export function todayParts({
   standalone: readonly ScheduledOccurrence[];
   /** A rest day's mobility: its drills as the fan's blades. */
   restDrills?: number;
-  /** The day's workout is logged: its columns print full. */
+  /** The day's workout is logged and was not read: its columns print full. */
   lifted?: boolean;
-  /** The day's workout, open: what it has logged for each row inks that row's column. */
+  /** The day's workout, open or finished: each row's column is drawn from what it did there. */
   session?: PrintedSession | null;
 }): PrintPart[] {
   // Work a revision withdrew asks for nothing, so it is not drawn as a run still to do; work
@@ -249,20 +250,22 @@ export function todayParts({
                 : "todo",
         };
   const columns: StrengthColumn[] = [];
-  const logged = session ? pairBySlot(rows, session.exercises) : [];
+  const done = session ? pairBySlot(rows, session.exercises) : [];
   rows.forEach((row, index) => {
     if (row.sets <= 0) return;
     const next = rows[index + 1];
-    const open = logged[index] ?? null;
-    columns.push(
-      planColumn(row.sets, row.dropped ? 0 : lifted ? row.sets : (open?.work ?? 0), {
-        skipped: row.dropped || (open?.skipped ?? false),
-        pair:
-          row.supersetGroup !== null &&
-          next !== undefined &&
-          next.supersetGroup === row.supersetGroup,
-      }),
-    );
+    const pair =
+      row.supersetGroup !== null && next !== undefined && next.supersetGroup === row.supersetGroup;
+    // What the coach dropped is asked for by nothing, done or not.
+    const column = row.dropped
+      ? planColumn(row.sets, 0, { skipped: true, pair })
+      : session
+        ? exerciseColumn(row.sets, done[index] ?? null, session.completed, {
+            pair,
+            warmups: false,
+          })
+        : planColumn(row.sets, lifted ? row.sets : 0, { pair });
+    if (column) columns.push(column);
   });
   return [
     ...(restDrills ? [{ kind: "mobility" as const, segments: restDrills, modules: 3 }] : []),

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PrintedExercise, PrintedSession } from "@/domain/session-print";
 
-import { sessionParts } from "./session-print";
+import { exerciseColumn, sessionParts } from "./session-print";
 
 const exercise = (patch: Partial<PrintedExercise>): PrintedExercise => ({
   slotId: null,
@@ -87,5 +87,47 @@ describe("a workout's print", () => {
     expect(sessionParts(squat({ drills: 0, exercises: [exercise({ planned: null })] }))).toEqual(
       [],
     );
+  });
+});
+
+describe("one exercise's column, wherever it is drawn", () => {
+  it("takes the size the row it is drawn on asks for, and nothing when it has nothing", () => {
+    // Under way: the row's plan, inked as far as it is done.
+    expect(exerciseColumn(4, { work: 1, warm: 2, skipped: false }, false)).toEqual({
+      sets: 4,
+      done: 1,
+      skipped: false,
+      pair: false,
+    });
+    expect(exerciseColumn(4, null, false, { pair: true })).toEqual({
+      sets: 4,
+      done: 0,
+      skipped: false,
+      pair: true,
+    });
+    // Finished: what was done, whatever the row asked; nothing done, dashed at the row's size.
+    expect(exerciseColumn(4, { work: 3, warm: 0, skipped: false }, true)).toEqual({
+      sets: 3,
+      done: 3,
+      warm: 0,
+      pair: false,
+    });
+    expect(exerciseColumn(4, null, true)).toEqual({ sets: 4, done: 0, skipped: true, pair: false });
+    // A plan's print draws the working sets alone: no plan asks for a warm-up set.
+    const warmedUp = { work: 3, warm: 2, skipped: false };
+    expect(exerciseColumn(4, warmedUp, true)).toEqual({ sets: 5, done: 5, warm: 2, pair: false });
+    expect(exerciseColumn(4, warmedUp, true, { warmups: false })).toEqual({
+      sets: 3,
+      done: 3,
+      pair: false,
+    });
+    expect(exerciseColumn(4, { ...warmedUp, work: 0 }, true, { warmups: false })).toEqual({
+      sets: 4,
+      done: 0,
+      skipped: true,
+      pair: false,
+    });
+    expect(exerciseColumn(0, null, true)).toBeNull();
+    expect(exerciseColumn(0, null, false)).toBeNull();
   });
 });

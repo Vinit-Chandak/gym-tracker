@@ -1,6 +1,6 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
-import { workoutSessions } from "@/db/schema";
+import { programSlotEvents, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import {
@@ -109,16 +109,66 @@ export function printedSessionOf(row: SessionPrintRow): PrintedSession {
   };
 }
 
-/** The prints of the athlete's workouts named, by session: a day's, read after its workouts. */
-export async function readSessionPrints(
+/**
+ * The prints of the workouts that did a programme's days in one cycle, by day (`dayIndex`), or
+ * of one day of it: Training's cycle and its days, and Today's day once its workout is done,
+ * draw a finished day from what its workout did rather than as every set inked. A day is done by
+ * the workout its slot's event names (`recordSlotEvent`); a day done any other way has none.
+ *
+ * A revision copies a programme's events onto its next version, whose slots are new rows, so a
+ * workout started from an earlier version's slot takes the slot of this version that shares its
+ * lineage: the squat the plan's row still asks for. Its coach's entries are paired before that,
+ * by the slots it was started from (`printedSessionOf`).
+ */
+export async function readSlotPrints(
   db: DbOrTx,
   userId: string,
-  sessionIds: readonly string[],
-): Promise<Map<string, PrintedSession>> {
-  if (sessionIds.length === 0) return new Map();
+  programId: string,
+  cycleIndex: number,
+  dayIndex?: number,
+): Promise<Map<number, PrintedSession>> {
   const rows = await db
-    .select({ id: workoutSessions.id, print: sessionPrintColumns() })
-    .from(workoutSessions)
-    .where(and(eq(workoutSessions.userId, userId), inArray(workoutSessions.id, [...sessionIds])));
-  return new Map(rows.map((row) => [row.id, printedSessionOf(row.print)]));
+    .select({
+      dayIndex: programSlotEvents.dayIndex,
+      print: sessionPrintColumns(),
+      slots: sql<Record<string, string> | null>`(
+        select json_object_agg(started.id, slot.id)
+        from workout_exercises we
+        join program_exercises started on started.id = we.planned_program_exercise_id
+        join program_exercises slot
+          on slot.lineage_id = started.lineage_id and slot.id <> started.id
+        join program_days sd on sd.id = slot.program_day_id
+        where we.workout_session_id = workout_sessions.id and sd.program_id = ${programId}
+      )`,
+    })
+    .from(programSlotEvents)
+    .innerJoin(workoutSessions, eq(workoutSessions.id, programSlotEvents.workoutSessionId))
+    .where(
+      and(
+        eq(programSlotEvents.userId, userId),
+        eq(programSlotEvents.programId, programId),
+        eq(programSlotEvents.cycleIndex, cycleIndex),
+        dayIndex === undefined ? undefined : eq(programSlotEvents.dayIndex, dayIndex),
+        eq(programSlotEvents.part, "session"),
+        eq(programSlotEvents.status, "completed"),
+      ),
+    );
+  return new Map(
+    rows.map(({ dayIndex, print, slots }) => {
+      const printed = printedSessionOf(print);
+      return [
+        dayIndex,
+        slots
+          ? {
+              ...printed,
+              exercises: printed.exercises.map((exercise) =>
+                exercise.slotId && slots[exercise.slotId]
+                  ? { ...exercise, slotId: slots[exercise.slotId]! }
+                  : exercise,
+              ),
+            }
+          : printed,
+      ];
+    }),
+  );
 }

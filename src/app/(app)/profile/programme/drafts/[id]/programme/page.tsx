@@ -93,6 +93,8 @@ function daysOf(
           : null,
         status: "pending" as const,
         isNext: false,
+        // A change not yet made has trained nothing.
+        print: null,
       };
     });
 }

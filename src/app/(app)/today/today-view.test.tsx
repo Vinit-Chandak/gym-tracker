@@ -101,6 +101,7 @@ function plan(): TodayPlan {
     suggestedExercises: [slot("e1", "Barbell curl", 3), slot("e2", "Rope triceps pushdown", 3)],
     nextTrainingDay: null,
     sessionStatus: "pending",
+    sessionPrint: null,
     finishedToday: null,
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
       day: { ...DAY, id: `day-${index + 1}`, dayIndex: index + 1 },

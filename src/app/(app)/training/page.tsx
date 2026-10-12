@@ -64,7 +64,8 @@ export default async function TrainingPage() {
       user.id,
       async (tx) => {
         const [overview, enabled, protocols] = await Promise.all([
-          getProgramOverview(tx, user.id, profile.timeZone),
+          // Each day the cycle has trained comes with its workout's print, drawn as it is.
+          getProgramOverview(tx, user.id, profile.timeZone, { prints: true }),
           enabledSportsFor(tx, user.id),
           sharedWarmupProtocols(tx),
         ]);
@@ -91,8 +92,9 @@ export default async function TrainingPage() {
       word: open ? "In progress" : plan.isNext ? "Next" : null,
       parts: programmeDayParts(plan, {
         drills: plan.day.warmupProtocolId ? (drills.get(plan.day.warmupProtocolId) ?? 0) : 0,
-        // Its sets inked as they are logged, as the workout's own print inks them.
-        session: open ? inProgress.print : null,
+        // Drawn as its workout draws it: the one under way, its sets inked as they are logged,
+        // else the one that did it this cycle.
+        session: open ? inProgress.print : plan.print,
       }),
     };
   });

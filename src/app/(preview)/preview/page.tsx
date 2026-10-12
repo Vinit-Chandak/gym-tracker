@@ -144,6 +144,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     suggestedExercises: EXERCISES,
     nextTrainingDay: null,
     sessionStatus: "completed",
+    sessionPrint: null,
     finishedToday: null,
     // The board's week: two days done, this one offered, four to come.
     cycleDays: Array.from({ length: 7 }, (_, index) => ({

@@ -30,7 +30,6 @@ import {
   recordSlotEvent,
   reopenSkippedSession,
 } from "./schedule";
-import { readSessionPrints } from "./session-prints";
 import {
   addExercisesToSession,
   addExerciseToSession,
@@ -56,6 +55,7 @@ import {
   SupersetGroupError,
   type SessionDetail,
 } from "./sessions";
+import { readWorkouts } from "./training-data";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -246,10 +246,11 @@ describe("planned session lifecycle", () => {
       { work: 0 },
     ]);
     expect(open?.print.exercises.find((e) => e.warm === 1)).toMatchObject({ work: 0 });
-    const prints = await withUser(t.db, user.id, (tx) =>
-      readSessionPrints(tx, user.id, [sessionId]),
+    // The calendar's day reads it with the day's workouts, in the same statement.
+    const { prints } = await withUser(t.db, user.id, (tx) =>
+      readWorkouts(tx, user.id, null, 0, 1, { sessionId, prints: true }),
     );
-    expect(prints.get(sessionId)).toEqual(drawn);
+    expect(prints?.get(sessionId)).toEqual(drawn);
     await withUser(t.db, user.id, (tx) => deleteSet(tx, user.id, row.id, 1));
     await expect(
       withUser(t.db, user.id, (tx) => discardSession(tx, user.id, sessionId)),

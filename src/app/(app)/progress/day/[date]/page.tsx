@@ -15,6 +15,7 @@ import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import type { PrintedSession } from "@/domain/session-print";
 import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
@@ -25,7 +26,6 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
-import { readSessionPrints } from "@/server/repositories/session-prints";
 import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { readWorkouts } from "@/server/repositories/training-data";
 import { civilDate, parseDateRange } from "@/server/validation/date-range";
@@ -70,18 +70,14 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
       // on its day as well, in progress, rather than leaving the day "nothing logged".
       const [days, lifted, units] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
-        readWorkouts(tx, user.id, range, 0, 20, { onDays: true }),
+        // Each workout with its print, as every screen that prints it draws it.
+        readWorkouts(tx, user.id, range, 0, 20, { onDays: true, prints: true }),
         unitsBySport(tx, user.id),
       ]);
       return {
         endurance: days.items.filter((item) => item.sport !== "strength"),
         workouts: lifted.workouts,
-        // Each workout as every screen that prints it draws it.
-        prints: await readSessionPrints(
-          tx,
-          user.id,
-          lifted.workouts.map((workout) => workout.id),
-        ),
+        prints: lifted.prints ?? new Map<string, PrintedSession>(),
         units,
       };
     },

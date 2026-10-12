@@ -356,6 +356,48 @@ describe("the day's print", () => {
     ]);
   });
 
+  it("draws the day's finished workout as its record while its run is still owed", () => {
+    // Easy Run + Arms, its workout finished: three curls after a warm-up set, the pushdown
+    // never done, the run still to come.
+    const record: PrintedSession = {
+      drills: 0,
+      warmupCompleted: false,
+      completed: true,
+      exercises: [
+        {
+          slotId: "e1",
+          exerciseId: "x1",
+          planned: 3,
+          work: 3,
+          warm: 1,
+          skipped: false,
+          supersetGroup: null,
+        },
+      ],
+    };
+    const parts = todayParts({
+      programme: [],
+      rows: planRows([CURL, PUSHDOWN], null, "kg", "m"),
+      standalone: [],
+      lifted: true,
+      session: record,
+    });
+    // As its own page draws it, not every planned set inked: the curls done (a plan's print
+    // draws no warm-up sets), the pushdown dashed.
+    expect(parts).toEqual([
+      {
+        kind: "strength",
+        columns: [
+          { sets: 3, done: 3, pair: false },
+          { sets: 3, done: 0, skipped: true, pair: false },
+        ],
+      },
+    ]);
+    expect(printLabel("Easy Run + Arms", parts)).toBe(
+      "Easy Run + Arms: 2 exercises as columns of their sets, done.",
+    );
+  });
+
   it("says a rest day's print as rest, never as a session", () => {
     expect(printLabel("Rest", [{ kind: "rest", state: "done" }])).toBe("Rest: rest done.");
   });

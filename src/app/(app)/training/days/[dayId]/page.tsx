@@ -63,7 +63,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
       user.id,
       async (tx) => {
         const [overview, schedule, gyms, runUnits] = await Promise.all([
-          getProgramOverview(tx, user.id, profile.timeZone),
+          getProgramOverview(tx, user.id, profile.timeZone, { prints: true }),
           getSchedule(tx, user.id),
           listGyms(tx, user.id),
           readSportUnits(tx, user.id),
@@ -110,11 +110,12 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
     at: data.atGym.get(row.key) ?? null,
   }));
   const open = inProgress !== null && inProgress.programDayId === day.id;
-  // The day being trained is drawn as its workout draws it: its sets and its warm-up inked.
+  // The day is drawn as its workout draws it: the one being trained, its sets and its warm-up
+  // inked as they are done, else the one that did it this cycle.
   const parts = programmeDayParts(plan, {
     drills,
     warmup: true,
-    session: open ? inProgress.print : null,
+    session: open ? inProgress.print : plan.print,
   });
   const rest = !day.includesLifting && !day.includesRun;
   // A day that lifts and runs puts the run where the day is written to: "Lower + easy run" last.
@@ -146,7 +147,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
             <Art
               kind="print"
               parts={parts}
-              label={dayPrintLabel(plan, parts, drills)}
+              label={dayPrintLabel(plan, parts, drills, open)}
               // A rest day's crescent alone stands quiet, not as tall as the band.
               maxModule={dayPageMaxModule(parts)}
               className="size-full"

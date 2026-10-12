@@ -105,6 +105,121 @@ describe("the day being trained", () => {
     expect(
       programmeDayParts(squat, { drills: 6, session: session(true) }).map((p) => p.kind),
     ).toEqual(["strength"]);
+    // The warm-up marked done and no set yet: the label says the warm-up, never the sets.
+    const warmedUp = programmeDayParts(squat, {
+      drills: 6,
+      warmup: true,
+      session: { ...session(true), exercises: [] },
+    });
+    expect(dayPrintLabel(squat, warmedUp, 6)).toBe(
+      "Squat day: the warm-up, 2 exercises, the warm-up done",
+    );
+  });
+
+  it("draws a day done once and being done again from the workout under way", () => {
+    // "Do again" on Pull A, done this cycle: the next cycle's workout is open for it, one set in.
+    const pull = { ...plan({ name: "Pull A" }), run: null, status: "completed" as const };
+    const open: PrintedSession = {
+      drills: 4,
+      warmupCompleted: false,
+      completed: false,
+      exercises: [
+        {
+          slotId: "pe-1",
+          exerciseId: "e-1",
+          planned: 3,
+          work: 1,
+          warm: 0,
+          skipped: false,
+          supersetGroup: null,
+        },
+      ],
+    };
+    const parts = programmeDayParts(pull, { drills: 4, warmup: true, session: open });
+    expect(parts).toEqual([
+      { kind: "mobility", segments: 4, segmentsDone: 0, state: "todo", modules: 3 },
+      { kind: "strength", columns: [{ sets: 3, done: 1, skipped: false, pair: false }] },
+    ]);
+    // Said as the workout under way, not as the day done.
+    expect(dayPrintLabel(pull, parts, 4, true)).toBe(
+      "Pull A: the warm-up, 1 exercise, the sets done inked",
+    );
+  });
+});
+
+describe("a day its workout has done", () => {
+  // Lower volume (jordan, Fri 2 Oct): the squat done, warm-ups first, the leg press skipped.
+  const lower = {
+    ...plan({ name: "Lower volume" }),
+    run: null,
+    status: "completed" as const,
+    exercises: [
+      plan({}).exercises[0]!,
+      { ...plan({}).exercises[0]!, programExerciseId: "pe-2", exerciseId: "e-2", sets: 4 },
+    ],
+  };
+  const finished = (warmupCompleted: boolean): PrintedSession => ({
+    drills: 4,
+    warmupCompleted,
+    completed: true,
+    exercises: [
+      {
+        slotId: "pe-1",
+        exerciseId: "e-1",
+        planned: 3,
+        work: 3,
+        warm: 2,
+        skipped: false,
+        supersetGroup: null,
+      },
+      {
+        slotId: "pe-2",
+        exerciseId: "e-2",
+        planned: 4,
+        work: 0,
+        warm: 0,
+        skipped: true,
+        supersetGroup: null,
+      },
+    ],
+  });
+
+  it("is drawn as the workout's record, not every set inked", () => {
+    const parts = programmeDayParts(lower, {
+      drills: 4,
+      warmup: true,
+      session: finished(false),
+    });
+    // As its own page and its day draw it: the fan dashed, the squats done, the leg press
+    // dashed at the size the plan asks for. A plan's print, it leaves out the warm-up sets the
+    // record greys, so Training's tiles keep the module their plans need.
+    expect(parts).toEqual([
+      { kind: "mobility", segments: 4, segmentsDone: 0, state: "skipped", modules: 3 },
+      {
+        kind: "strength",
+        columns: [
+          { sets: 3, done: 3, pair: false },
+          { sets: 4, done: 0, skipped: true, pair: false },
+        ],
+      },
+    ]);
+    expect(dayPrintLabel(lower, parts, 4)).toBe(
+      "Lower volume: the warm-up, 2 exercises, done, the warm-up not done, dashed, 1 exercise not done, dashed",
+    );
+    // Its warm-up done, the fan is full.
+    expect(
+      programmeDayParts(lower, { drills: 4, warmup: true, session: finished(true) })[0],
+    ).toMatchObject({ state: "done", segmentsDone: 4 });
+    // A done day with no workout to read (one done before prints were read) is all ink.
+    expect(programmeDayParts(lower)).toEqual([
+      {
+        kind: "strength",
+        columns: [
+          { sets: 3, done: 3, skipped: false, pair: false },
+          { sets: 4, done: 4, skipped: false, pair: false },
+        ],
+      },
+    ]);
   });
 });
 

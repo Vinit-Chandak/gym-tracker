@@ -1113,11 +1113,16 @@ good is the target or the goal, which a rule or the readout says, not a directio
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
   sets in grey at the foot of their columns. One workout is drawn the same on every screen that
-  prints it (year audit, October 2026): while it is open, the plans it is inking (Today's band,
-  Training's tile, the programme day) and its day ink its sets as it does and thin what is still
-  owed; finished, its own page and its day both lead with its warm-up's fan, full or dashed, and
-  the rows under the workout name that warm-up first, with its sets when done and first of what
-  was not done when not. A programme's rest day with nothing in it prints its
+  prints it (year audit, October 2026), open or finished, whatever its day's state says: the
+  plans its day stands on (Today's band, Training's tile, the programme day) draw each row's
+  column as the workout draws that exercise, and the programme day's fan as its warm-up stands.
+  While it is open they and its day ink its sets as it does and thin what is still owed; once it
+  is finished they, its own page and its day all draw what it did, and what it did not do dashed,
+  its warm-up's fan included. Only a record adds its warm-up sets in grey: no plan asks for them,
+  and on Training a tile's tall record would shrink every tile's module. A day done again is
+  drawn from the workout under way, and a day done with no workout to read, all in ink. The rows under a finished workout name its warm-up first,
+  as the fan leads its print: its drills when done, "Not done" when not. A programme's rest day
+  with nothing in it prints its
   crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
   Today's band is left off on such a day, as before. On the day's page the crescent alone is
   held to a 16 px module, about a third of a working day's print there, so it never fills the
