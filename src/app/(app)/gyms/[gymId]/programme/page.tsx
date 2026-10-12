@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdHyphens, joinFacts } from "@/lib/facts";
 import { AVAILABILITY_LABELS, exerciseOnMachine, programmeLabel } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
@@ -27,12 +27,12 @@ function detail(row: PlannedExerciseAvailability): string {
   const r = row.resolution;
   switch (r.status) {
     case "direct":
-      if (r.equipmentInstance) return `On ${r.equipmentInstance.name}`;
+      if (r.equipmentInstance) return `On ${holdHyphens(r.equipmentInstance.name)}`;
       return r.basis === "free"
         ? "No equipment needed"
         : `Usually here (${row.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
     case "fallback":
-      return `Do ${exerciseOnMachine(row.resolvedExerciseName, r.equipmentInstance?.name)} instead`;
+      return `Do ${holdHyphens(exerciseOnMachine(row.resolvedExerciseName, r.equipmentInstance?.name))} instead`;
     case "unknown":
       // A custom exercise names no kind of machine, only its own, which is at another gym.
       return row.missingTypes.length === 0
@@ -88,8 +88,10 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                   href={`/exercises/${row.exercise.id}`}
                   className="flex min-h-[var(--ov-target)] flex-col justify-center"
                 >
+                  {/* A name breaks between its words, never at a short compound's hyphen:
+                      "Neutral-grip lat pulldown (D-handles)", not "(D-" over "handles)". */}
                   <span className="font-medium [overflow-wrap:break-word]">
-                    {row.exercise.name}
+                    {holdHyphens(row.exercise.name)}
                   </span>
                   <span className="text-xs [overflow-wrap:break-word] text-ink-muted">
                     {row.days.join(FACT_SEPARATOR)}
@@ -126,7 +128,9 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                 {/* Wraps rather than cutting the name off: Remove moves under it when it must. */}
                 <span className="min-w-0 [overflow-wrap:break-word]">
                   Fallback here:{" "}
-                  {exerciseOnMachine(fallback.fallbackExerciseName, fallback.fallbackInstanceName)}
+                  {holdHyphens(
+                    exerciseOnMachine(fallback.fallbackExerciseName, fallback.fallbackInstanceName),
+                  )}
                 </span>
                 <form action={removeGymFallbackAction.bind(null, gym.id, fallback.id)}>
                   <SubmitButton variant="ghost" size="sm">
