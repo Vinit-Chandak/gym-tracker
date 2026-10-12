@@ -1215,7 +1215,9 @@ button.activity-card-toggle {
 
 /* ---------- a figure in a row, and a 1–5 scale (boards Check-in, Log a ride) ---------- */
 /* The name at the gutter; −, the figure in a 120-pt column, + at the end. Where both cannot
-   share a line, the stepper folds under the name, at the end. */
+   share a line, the stepper folds under the name, at the end. The name is weighed at its own
+   width up to 8rem, so a short one ("Distance") keeps the stepper beside it on a 360-dp phone,
+   and a long one ("Hours last night") folds the stepper rather than squeeze to a word a line. */
 .row-stepper {
   display: flex;
   flex-wrap: wrap;
@@ -1228,6 +1230,7 @@ button.activity-card-toggle {
 .row-stepper-text {
   display: flex;
   min-width: 0;
+  max-width: max-content;
   flex: 1 1 8rem;
   flex-direction: column;
   font-size: var(--ov-type-body);
