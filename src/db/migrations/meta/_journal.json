@@ -372,6 +372,13 @@
       "when": 1791707371717,
       "tag": "0052_run_efforts_back_inside_five",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791784765762,
+      "tag": "0053_shared_exercises_in_the_order_done",
+      "breakpoints": true
     }
   ]
 }
