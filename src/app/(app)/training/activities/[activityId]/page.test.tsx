@@ -32,7 +32,10 @@ vi.mock("@/server/repositories/sport-preferences", () => ({
 vi.mock("./activity-more", () => ({
   ActivityMore: ({ answered }: { answered: string | null }) => <p>On delete: {`${answered}`}</p>,
 }));
-vi.mock("@/components/shell/back-link", () => ({ BackLink: () => null }));
+// Where Back goes when there is no page before it, as the page gives it.
+vi.mock("@/components/shell/back-link", () => ({
+  BackLink: ({ fallback }: { fallback: string }) => <a data-back={fallback} />,
+}));
 vi.mock("@/components/art/art", () => ({ Art: () => null }));
 vi.mock("@/components/ui/fit-title", () => ({
   FitTitle: ({ children }: { children: ReactNode }) => <h1>{children}</h1>,
@@ -151,4 +154,20 @@ it("shows a ride's speed when its distance is known", async () => {
   const html = renderToStaticMarkup(await ActivityPage(props));
   expect(statNames(html)).toEqual(["Distance", "Time", "Speed", "Effort"]);
   expect(html).toContain("29.4");
+});
+
+/**
+ * Year audit, October 2026: a ride opened by a link of its own lit Training while its Back said
+ * History. With no page before it, Back goes to the tab its link names, History with none, which
+ * is the tab lit (NAV-03).
+ */
+it("goes back to the tab its link names, and to History when it names none", async () => {
+  const opened = (search: Record<string, string>) =>
+    ({ ...props, searchParams: Promise.resolve(search) }) as typeof props;
+  expect(renderToStaticMarkup(await ActivityPage(opened({ from: "today" })))).toContain(
+    'data-back="/today"',
+  );
+  expect(renderToStaticMarkup(await ActivityPage(opened({})))).toContain(
+    'data-back="/progress/history"',
+  );
 });
