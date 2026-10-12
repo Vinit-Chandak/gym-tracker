@@ -129,8 +129,17 @@ occurrence and counted the run as not done, and the run's own page offered to sk
    the occurrence names them) has a run skip on a version whose day runs becomes skipped, with
    an event from the migration naming the row, its date and its reason. Nothing logged,
    skipped, cancelled or completed before occurrences is touched, nor a run the athlete put
-   back, logged and deleted, or moved after its day was skipped: that one stays owed, and the
-   day's skip gives way to it. A revision's copies of a day's rows are read from the first.
+   back, or logged and deleted the log of, after its day was skipped: that one is owed, as it
+   would be had Today skipped the run itself, and the day's skip gives way to it. A run only
+   moved after its day was skipped is skipped like the rest, as moving a skipped run leaves it
+   skipped; left owed, it sent the programme back to it, cycles behind the athlete (review, 12
+   October 2026). A revision's copies of a day's rows are read from the first.
+7. **Every deploy carries them again** (`carryDaySkipsOntoRuns`, the migration's own
+   statement), after the occurrence repair: the deployment being replaced still serves while
+   the new one builds, and writes a run's skip on the day alone, and a programme first given
+   its runs' occurrences by the repair recorded its run skips on its days. Either would
+   otherwise read owed once the day's skip gave way to it. Once nothing pending is left to skip
+   it writes nothing.
 
 Consequences:
 

@@ -11,14 +11,20 @@
 -- of the cycle, as the occurrence itself names them) has a run skip recorded on a version of
 -- that programme whose day runs, and it is still pending with no activity behind it. Nothing
 -- logged, skipped, cancelled or completed before occurrences existed is touched. Nor is a run
--- the athlete did something with after its day was skipped: put back, logged and its log
--- deleted, or moved to another date. That says they meant to do it, so it stays owed, and the
--- day's skip gives way to it (`withDerivedRunEvents`). A revision copies a day's rows onto the
--- new version, so the skip is read from its first copy, the one written when it happened.
+-- the athlete took up again after its day was skipped: put back, or logged and its log deleted.
+-- That is owed now as it would be had Today skipped it on the run (`reopenOccurrence`,
+-- `deleteActivity`), so it stays owed, and the day's skip gives way to it
+-- (`withDerivedRunEvents`). A run only moved to another date after the skip is skipped all the
+-- same: moving a skipped run leaves it skipped, and the programme had already gone past it. A
+-- revision copies a day's rows onto the new version, so the skip is read from its first copy,
+-- the one written when it happened.
 --
 -- Each run skipped gets the event a skip from Today now writes, by the migration, naming the
 -- day's row it came from, dated the day it was skipped and with the reason given. Data only,
--- and safe to run twice: a second run finds nothing pending to skip.
+-- and safe to run twice: a second run finds nothing pending to skip. Every deploy runs it again
+-- after this (`carryDaySkipsOntoRuns`, src/db/runs-skipped-from-today.ts, which holds the same
+-- statement), for the skips the old code wrote while this deploy was being built and those of a
+-- programme only given its runs since.
 WITH "day_skips" AS (
   SELECT DISTINCT ON (p."user_id", p."family_id", e."cycle_index", e."day_index")
          p."user_id", p."family_id", e."cycle_index", e."day_index",
@@ -47,7 +53,7 @@ WITH "day_skips" AS (
       SELECT 1 FROM "occurrence_events" AS later
       WHERE later."user_id" = o."user_id"
         AND later."occurrence_id" = o."id"
-        AND later."kind" IN ('reopened', 'logged', 'log_deleted', 'rescheduled')
+        AND later."kind" IN ('reopened', 'logged', 'log_deleted')
         AND later."created_at" > s."created_at"
     )
 ),
@@ -65,4 +71,5 @@ SELECT "owed"."user_id", "owed"."id", 'skipped', 'migration',
          || CASE WHEN "owed"."note" IS NULL THEN '{}'::jsonb
                  ELSE jsonb_build_object('note', "owed"."note") END
 FROM "owed"
-JOIN "skipped" ON "skipped"."id" = "owed"."id";
+JOIN "skipped" ON "skipped"."id" = "owed"."id"
+RETURNING "occurrence_id";

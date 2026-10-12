@@ -15,14 +15,27 @@ import {
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { seedReferenceData } from "@/db/seed/reference";
 import { FIXTURE_START_DATE, logTestRun, seedTestUserData } from "@/db/test/fixtures";
+import { carryDaySkipsOntoRuns, RUNS_SKIPPED_FROM_TODAY } from "@/db/runs-skipped-from-today";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { plannedOrigin } from "@/domain/activity";
-import { partStatus, type SlotRef } from "@/domain/schedule";
+import {
+  allSlots,
+  nextPendingSlot,
+  partStatus,
+  slotFor,
+  slotParts,
+  type SlotRef,
+} from "@/domain/schedule";
 import type { SlotPart } from "@/domain/types";
 import { resetReferenceCache } from "@/server/queries/reference";
 import { readAdherence } from "@/server/repositories/activity-analytics";
-import { reopenOccurrence, skipOccurrence } from "@/server/repositories/occurrences";
+import { deleteActivity } from "@/server/repositories/activities";
+import {
+  reopenOccurrence,
+  rescheduleOccurrence,
+  skipOccurrence,
+} from "@/server/repositories/occurrences";
 import {
   materialiseOccurrences,
   occurrencesFromBlueprint,
@@ -310,7 +323,7 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     expect(partStatus(schedule.state, at([2, 3]), "run")).toBe("completed");
   });
 
-  it("leaves a run owed that was put back or moved after its day was skipped", async () => {
+  it("leaves a run owed that was put back or logged again after its day was skipped", async () => {
     const a = await athlete("taken-up@example.test");
     const skippedAt = new Date(Date.now() - 60 * MINUTE);
     // Put back after the day was skipped: skipped on its page, then put back.
@@ -318,16 +331,18 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     await a.onTheDay(at([2, 3]), "run", "skipped", { at: skippedAt });
     await a.as((tx) => skipOccurrence(tx, a.userId, putBack!.id));
     await a.as((tx) => reopenOccurrence(tx, a.userId, putBack!.id));
-    // Moved to another date after the day was skipped.
-    const [moved] = await a.sessions(at([2, 6]));
+    // Logged after the day was skipped, and the log deleted again.
+    const [relogged] = await a.sessions(at([2, 6]));
     await a.onTheDay(at([2, 6]), "run", "skipped", { at: skippedAt });
-    await t.db.insert(occurrenceEvents).values({
-      userId: a.userId,
-      occurrenceId: moved!.id,
-      kind: "rescheduled",
-      actor: "athlete",
-      detail: { from: "2026-09-20", to: "2026-10-14" },
-    });
+    const activity = await a.as((tx) =>
+      logTestRun(tx, a.userId, {
+        startedAt: new Date("2026-09-20T07:00:00Z"),
+        durationSeconds: 1800,
+        distanceMeters: 5000,
+        origin: plannedOrigin(relogged!.id, relogged!.revisionId!),
+      }),
+    );
+    await a.as((tx) => deleteActivity(tx, a.userId, activity.id));
     // Put back before its day was skipped: the skip is the later word, and stands.
     const [earlier] = await a.sessions(at([3, 3]));
     await a.as((tx) => skipOccurrence(tx, a.userId, earlier!.id));
@@ -339,11 +354,39 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     expect(await disposition(a, at([2, 3]))).toEqual(["pending"]);
     expect(await disposition(a, at([2, 6]))).toEqual(["pending"]);
     expect(await disposition(a, at([3, 3]))).toEqual(["skipped"]);
-    // Owed on the programme as it is to the coach: the day's skip gives way to it.
+    // Owed on the programme as it is to the coach, as either would be had Today skipped the run
+    // itself: the day's skip gives way to it.
     const schedule = (await a.as((tx) => getSchedule(tx, a.userId)))!;
     expect(partStatus(schedule.state, at([2, 3]), "run")).toBe("pending");
     expect(partStatus(schedule.state, at([2, 6]), "run")).toBe("pending");
     expect(partStatus(schedule.state, at([3, 3]), "run")).toBe("skipped");
+  });
+
+  /**
+   * Review, 12 October 2026: a run moved after its day was skipped was left owed, and the
+   * programme went back to it, cycles behind where the athlete was. Moving a run skipped on the
+   * run leaves it skipped (`rescheduleOccurrence`), so a run moved after its day was skipped is
+   * skipped too, and the programme stays where it was.
+   */
+  it("skips a run that was only moved after its day was skipped", async () => {
+    const a = await athlete("moved@example.test");
+    // The old "Pick up from today" over every day up to cycle 2's day 3, each half on the day.
+    const { state } = (await a.as((tx) => getSchedule(tx, a.userId)))!;
+    for (const ref of allSlots(state)) {
+      if (ref.cycleIndex > 2 || (ref.cycleIndex === 2 && ref.dayIndex > 3)) break;
+      for (const part of slotParts(slotFor(state, ref)!))
+        await a.onTheDay(ref, part, "skipped", { at: new Date(Date.now() - 60 * MINUTE) });
+    }
+    // Then cycle 2's run moved to a later date from its page.
+    const [moved] = await a.sessions(at([2, 3]));
+    await a.as((tx) => rescheduleOccurrence(tx, a.userId, moved!.id, "2026-10-20"));
+
+    await runMigration();
+
+    expect(await disposition(a, at([2, 3]))).toEqual(["skipped"]);
+    // The programme carries on after the days picked up, not from the run moved.
+    const after = (await a.as((tx) => getSchedule(tx, a.userId)))!;
+    expect(nextPendingSlot(after.state)).toEqual(at([2, 4]));
   });
 
   /**
@@ -395,5 +438,43 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
 
     expect(await disposition(a, at([2, 3]))).toEqual(["pending"]);
     expect(await disposition(a, at([2, 6]))).toEqual(["pending"]);
+  });
+});
+
+/**
+ * Review, 12 October 2026: the migration runs in the build while the deployment it replaces is
+ * still serving, and that one's "Pick up from today" writes a run's skip on the day alone. The
+ * migration never runs again, and the run read owed once the new code was live. Every deploy
+ * runs the same statement again (`carryDaySkipsOntoRuns`).
+ */
+describe("every deploy, after the migration", () => {
+  it("runs the migration's own statement", async () => {
+    const file = await readFile("src/db/migrations/0054_runs_skipped_from_today.sql", "utf8");
+    const statement = file
+      .split("\n")
+      .filter((line) => !line.startsWith("--"))
+      .join("\n")
+      .trim();
+    expect(RUNS_SKIPPED_FROM_TODAY).toBe(statement);
+  });
+
+  it("carries a skip the old code wrote once the migration had run, and nothing twice", async () => {
+    const a = await athlete("deploy-window@example.test");
+    await runMigration();
+    // The deployment being replaced picks up from today over a day that lifts and runs.
+    await a.onTheDay(at([4, 3]), "session", "skipped");
+    await a.onTheDay(at([4, 3]), "run", "skipped");
+    const runHalf = async () =>
+      partStatus((await a.as((tx) => getSchedule(tx, a.userId)))!.state, at([4, 3]), "run");
+    // Read by the new code, the day's skip gives way to its run, still pending: owed again.
+    expect(await runHalf()).toBe("pending");
+
+    expect(await carryDaySkipsOntoRuns(t.db)).toBe(1);
+
+    const [run] = await a.sessions(at([4, 3]));
+    expect(run!.disposition).toBe("skipped");
+    expect(await migrated(run!.id)).toHaveLength(1);
+    expect(await runHalf()).toBe("skipped");
+    expect(await carryDaySkipsOntoRuns(t.db)).toBe(0);
   });
 });
