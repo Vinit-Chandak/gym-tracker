@@ -95,12 +95,11 @@ it is meant to go" as Planned end.
 ## Amendment, 12 October 2026: a run skipped from Today is skipped everywhere
 
 Asked "a run skipped from Today can still be logged, but adherence counts it as not done.
-Should those two agree?", the owner answered (12 October 2026): "Mark it as done." That is read
-here as: make them agree by settling the skip, so the run is no longer owed and is never
-counted as not done. It is counted as skipped, not as done: adherence counts what was run, and
-the run was not; logging it later counts it done. Counting a skipped run as done would be a
-different change, to how adherence is counted, and this reading waits on the owner's
-confirmation. Decisions 1 and 2 stand; this says what their skips write.
+Should those two agree?", the owner answered (12 October 2026): "Mark it as done." Asked which
+of two readings that meant, settled as Skipped or counted as done, the owner chose settled as
+Skipped (12 October 2026): the run is no longer owed and is never counted as not done. It is
+counted as skipped, not as done: adherence counts what was run, and the run was not; logging it
+later counts it done. Decisions 1 and 2 stand; this says what their skips write.
 
 Skipping a day's run from Today, and "Pick up from today" over a day that runs, answered the run
 half on the day alone (a `run` row in `program_slot_events`) and left the run's own occurrences
