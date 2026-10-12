@@ -1,10 +1,11 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
+import type { PlanMachineType } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
 
@@ -83,10 +84,19 @@ export function rowPrescription(slot: PlannedExercisePreview): string {
   return `${slot.sets} × ${volumeRange(slot)}${slot.perSide ? " per side" : ""}`;
 }
 
-/** The programme's exercises, or the coach's plan for them, in the programme's order. */
+/**
+ * The programme's exercises, or the coach's plan for them, in the programme's order. A coach's
+ * row names its machine when it chose one, and is led by that machine's glyph where the machine
+ * is an accessory, as the workout's row will be (`equipmentGlyph`); otherwise by what loads the
+ * movement.
+ */
 export function planRows(
   planned: readonly PlannedExercisePreview[],
-  coach: { exercises: readonly StoredPlanExercise[] } | null,
+  coach: {
+    exercises: readonly StoredPlanExercise[];
+    /** The type of each machine the plan names, keyed by the machine. */
+    machines?: Readonly<Record<string, PlanMachineType>>;
+  } | null,
   unit: string,
 ): PlanRowModel[] {
   const fromSlot = (slot: PlannedExercisePreview): PlanRowModel => ({
@@ -109,10 +119,15 @@ export function planRows(
       entry.perSide ?? slot?.perSide ?? false,
     );
     const working = entry.sets.filter((set) => set.setType !== "warmup").length;
+    const machine =
+      !dropped && entry.equipmentInstanceId ? coach.machines?.[entry.equipmentInstanceId] : null;
     return {
       key: `${entry.slotId ?? "added"}-${index}`,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
-      glyph: modalityGlyph(slot?.modality),
+      glyph:
+        machine?.typeCategory === "accessory"
+          ? accessoryGlyph(machine.typeSlug)
+          : modalityGlyph(slot?.modality),
       line: dropped
         ? slot
           ? prescription(slot)

@@ -88,6 +88,7 @@ function exercise(slot: Slot, index: number): ExerciseVM {
           name: slot.machine,
           unit: "kg",
           typeCategory: "cable",
+          typeSlug: "cable_station",
           ladder: null,
         }
       : null,

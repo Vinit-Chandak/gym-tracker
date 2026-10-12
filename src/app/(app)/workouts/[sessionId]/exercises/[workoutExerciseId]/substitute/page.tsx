@@ -98,7 +98,13 @@ export default async function SubstitutePage(
           data.programExerciseId,
         )}
         exercises={data.exercises}
-        machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+        machines={data.machines.map((m) => ({
+          id: m.id,
+          name: m.name,
+          typeSlug: m.typeSlug,
+          typeCategory: m.typeCategory,
+          resistanceMode: m.resistanceMode,
+        }))}
         machinesByExercise={data.machinesByExercise}
         submitLabel="Use this instead"
         remember={data.plannedExerciseId !== null}

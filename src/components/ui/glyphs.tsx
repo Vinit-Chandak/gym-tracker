@@ -195,12 +195,20 @@ const GLYPHS = {
     <circle key="c" cx="12" cy="9.6" r="1.9" />,
     <path key="d" d="M12 11.5v5.5M12 17l-2.2 3.7M12 17l2.2 3.7" />,
   ],
-  // An accessory (a bench, a rack, an ab wheel): a flat bench, side on, as its drawing stands,
-  // its pad on two legs and their feet.
+  // An accessory: a flat bench, side on, as its drawing stands, its pad on two legs and their
+  // feet. It stands for every accessory without a glyph of its own, as the dumbbell stands for
+  // every free weight.
   accessory: [
     <rect key="a" x="3" y="6.5" width="18" height="4.5" rx="2.25" />,
     <path key="b" d="M6.5 11v8M17.5 11v8" />,
     <path key="c" d="M4.5 19h4M15.5 19h4" />,
+  ],
+  // The ab wheel, front on: the wheel as tall as the machine's stack, its handle out each side
+  // to a grip, so it is never the dumbbell's two plates.
+  abWheel: [
+    <rect key="a" x="8.5" y="4" width="7" height="16" rx="3.5" />,
+    <path key="b" d="M3.5 12h5M15.5 12h5" />,
+    <path key="c" d="M3.5 10.3v3.4M20.5 10.3v3.4" />,
   ],
   // Where a run, ride or swim happened.
   outdoor: [
@@ -338,14 +346,29 @@ export function modalityGlyph(modality: ExerciseModality | null | undefined): Gl
 }
 
 /**
- * A machine as its glyph, from what it is (DESIGN.md, Shapes): an accessory (a bench, a rack,
- * an ab wheel) is the bench however it is loaded, a cable station its cable, a cardio machine
- * the indoor bike, and anything else what loads it.
+ * An accessory as its glyph (DESIGN.md, Shapes), from its equipment type: the ab wheel as
+ * itself, and every other (a bench, a rack, a rope) as the bench, however it is loaded.
  */
-export function machineGlyph(category: EquipmentCategory, mode: ResistanceMode): GlyphName {
-  if (category === "accessory") return "accessory";
-  if (category === "cable") return "cable";
-  switch (mode) {
+export function accessoryGlyph(typeSlug: string): GlyphName {
+  return typeSlug === "ab_wheel" ? "abWheel" : "accessory";
+}
+
+/** What a machine is, as far as its glyph goes: its type, the type's kind, and what loads it. */
+export type MachineKind = {
+  typeSlug: string;
+  typeCategory: EquipmentCategory;
+  resistanceMode: ResistanceMode;
+};
+
+/**
+ * A machine as its glyph, from what it is (DESIGN.md, Shapes): an accessory as itself
+ * (`accessoryGlyph`), a cable station its cable, a cardio machine the indoor bike, and anything
+ * else what loads it.
+ */
+export function machineGlyph({ typeSlug, typeCategory, resistanceMode }: MachineKind): GlyphName {
+  if (typeCategory === "accessory") return accessoryGlyph(typeSlug);
+  if (typeCategory === "cable") return "cable";
+  switch (resistanceMode) {
     case "plate_loaded":
     case "selectorized":
       return "machine";
@@ -424,6 +447,7 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   smith: "Smith machine",
   bodyweight: "Bodyweight",
   accessory: "Accessory",
+  abWheel: "Ab wheel",
   outdoor: "Outdoors",
   treadmill: "Treadmill",
   trainer: "Indoor bike",

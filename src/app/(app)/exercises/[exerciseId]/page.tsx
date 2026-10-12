@@ -223,7 +223,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         life,
         programmeComplete: schedule !== null && scheduleComplete(schedule),
         machineName: machine ? (latest.scoped[0]?.equipmentInstanceName ?? null) : null,
-        onAccessory: machine !== null && selected?.accessory === true,
+        accessory: machine ? (selected?.accessory ?? null) : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
       };
@@ -247,7 +247,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     unit,
     life,
     machineName,
-    onAccessory,
+    accessory,
     programmeComplete,
   } = data;
   // A finished programme's days are still worth reading (repeating the block asks for them), but
@@ -285,7 +285,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           exercise={exercise}
           life={life}
           machineName={machineName}
-          onAccessory={onAccessory}
+          accessory={accessory}
           bests={bests}
           unit={unit}
           timeZone={timeZone}

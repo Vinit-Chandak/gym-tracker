@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
-import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { accessoryGlyph, GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit, ExerciseModality, LoadUnit, SetType } from "@/domain/types";
@@ -88,7 +88,7 @@ export function ExerciseLife({
   exercise,
   life,
   machineName,
-  onAccessory = false,
+  accessory = null,
   loadUnit,
   bests,
   unit,
@@ -103,8 +103,8 @@ export function ExerciseLife({
   life: { months: ExerciseMonth[]; sessions: number; assisted: boolean };
   /** The machine the graph, the figures and Latest are read on, for a movement bound to one. */
   machineName: string | null;
-  /** That machine is an accessory (a bench, a rack): its glyph is the accessory's. */
-  onAccessory?: boolean;
+  /** That machine's type, when it is an accessory (a bench, the ab wheel): drawn as one. */
+  accessory?: string | null;
   /** The unit of the series the graph draws: a machine's loads are in its own. */
   loadUnit?: LoadUnit | null;
   bests: readonly ExerciseBest[];
@@ -120,8 +120,9 @@ export function ExerciseLife({
   elsewhere?: readonly LatestPerformance[];
 }) {
   // The glyph says the kind of the machine named beside it: an accessory is its own kind, never
-  // the movement's (a back extension bench is no pull-up bar).
-  const glyph = machineName && onAccessory ? "accessory" : glyphFor(exercise.modality);
+  // the movement's (a back extension bench is no pull-up bar). With no machine named, it says
+  // what loads the movement, as the page's badge further down says it.
+  const glyph = machineName && accessory ? accessoryGlyph(accessory) : glyphFor(exercise.modality);
   const machine = machineName && !sameName(machineName, GLYPH_LABELS[glyph]) ? machineName : null;
   const global = exercise.loadPortability === "global";
   const where = performances[0]?.gymName ?? null;

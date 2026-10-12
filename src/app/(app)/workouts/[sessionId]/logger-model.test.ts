@@ -190,33 +190,44 @@ describe("what the header says", () => {
       modality: ExerciseVM["exercise"]["modality"],
       machine: string,
       typeCategory: NonNullable<ExerciseVM["equipment"]>["typeCategory"],
+      typeSlug: string,
     ) => {
       const done = exercise({
         exercise: { ...exercise().exercise, name, modality },
-        equipment: { id: machine, name: machine, unit: "kg", typeCategory, ladder: null },
+        equipment: { id: machine, name: machine, unit: "kg", typeCategory, typeSlug, ladder: null },
       });
       return [equipmentGlyph(done), equipmentLabel(done)];
     };
     // A back extension bench was drawn as the pull-up bar, a calf block as a dumbbell.
-    expect(on("Back extension", "bodyweight", "Back extension bench", "accessory")).toEqual([
-      "accessory",
-      "Back extension bench",
+    expect(
+      on(
+        "Back extension",
+        "bodyweight",
+        "Back extension bench",
+        "accessory",
+        "back_extension_bench",
+      ),
+    ).toEqual(["accessory", "Back extension bench"]);
+    expect(
+      on("Single-leg calf raise", "dumbbell", "Calf raise block", "accessory", "calf_block"),
+    ).toEqual(["accessory", "Calf raise block"]);
+    // The ab wheel is drawn as itself and, named by the exercise, said by its kind.
+    expect(on("Ab wheel rollout", "bodyweight", "Ab wheel", "accessory", "ab_wheel")).toEqual([
+      "abWheel",
+      "Ab wheel",
     ]);
-    expect(on("Single-leg calf raise", "dumbbell", "Calf raise block", "accessory")).toEqual([
-      "accessory",
-      "Calf raise block",
-    ]);
-    // Named by the exercise, the ab wheel is said by its kind.
-    expect(on("Ab wheel rollout", "bodyweight", "Ab wheel", "accessory")).toEqual([
-      "accessory",
-      "Accessory",
+    expect(on("Kneeling rollout", "bodyweight", "Ab roller", "accessory", "ab_wheel")).toEqual([
+      "abWheel",
+      "Ab roller",
     ]);
     // Any other machine is still drawn by what loads the movement.
-    expect(on("Pull-up", "bodyweight", "Pull-up bar", "bodyweight")).toEqual([
+    expect(on("Pull-up", "bodyweight", "Pull-up bar", "bodyweight", "pull_up_bar")).toEqual([
       "bodyweight",
       "Pull-up bar",
     ]);
-    expect(on("Barbell bench press", "barbell", "Barbell", "free_weight")[0]).toBe("dumbbell");
+    expect(on("Barbell bench press", "barbell", "Barbell", "free_weight", "barbell")[0]).toBe(
+      "dumbbell",
+    );
   });
 });
 

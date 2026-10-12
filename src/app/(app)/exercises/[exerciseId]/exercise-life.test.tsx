@@ -132,7 +132,7 @@ it("leads an accessory with its own glyph, not the movement's", () => {
       {...props(false)}
       exercise={backExtension}
       machineName="Back extension bench"
-      onAccessory
+      accessory="back_extension_bench"
     />,
   );
   // The bench was led by the pull-up bar's glyph, read as "Bodyweight".
@@ -143,6 +143,38 @@ it("leads an accessory with its own glyph, not the movement's", () => {
   rerender(<ExerciseLife {...props(false)} exercise={backExtension} machineName={null} />);
   expect(screen.getByText("Bodyweight")).toBeTruthy();
   expect(screen.queryByRole("img", { name: "Accessory" })).toBeNull();
+});
+
+it("leads an ab wheel with the ab wheel, said once when it is named after it", () => {
+  const rollout = {
+    ...assistedPullUp,
+    name: "Kneeling rollout",
+    modality: "bodyweight",
+    loadPortability: "context_dependent",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rollout}
+      machineName="Ab roller"
+      accessory="ab_wheel"
+    />,
+  );
+  const fact = screen.getByRole("img", { name: "Ab wheel" }).parentElement!;
+  expect(fact.textContent).toBe("Ab roller");
+  // Named after its kind, it is said once, and the glyph is left unnamed beside the word.
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rollout}
+      machineName="Ab wheel"
+      accessory="ab_wheel"
+    />,
+  );
+  expect(screen.queryByRole("img", { name: "Ab wheel" })).toBeNull();
+  expect(screen.getByText("Ab wheel")).toBeTruthy();
+  // The wheel, front on: its tread and the handle out each side (the bench has two legs).
+  expect(container.querySelector("svg rect")?.getAttribute("height")).toBe("16");
 });
 
 it("names a machine called after its kind once", () => {

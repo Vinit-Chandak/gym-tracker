@@ -10,7 +10,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { renderToStaticMarkup } from "react-dom/server";
+
 import { listItem } from "@/components/exercise-picker.test-data";
+import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 
 import { AddExercisesForm } from "./add-exercises-form";
@@ -45,15 +48,37 @@ const EXERCISES = [
   listItem("curl", "Leg curl", { primaryMuscles: ["hamstrings"], movementPattern: "hinge" }),
   listItem("pushup", "Push-up", { modality: "bodyweight", requiresEquipment: false }),
   listItem("pulldown", "Lat pulldown", { primaryMuscles: ["lats"], movementPattern: "pull" }),
+  listItem("ropes", "Battle ropes", { modality: "cardio", movementPattern: "carry" }),
 ];
 
+const machine = (
+  id: string,
+  name: string,
+  typeSlug: string,
+  typeCategory: "machine" | "accessory" = "machine",
+) =>
+  ({
+    id,
+    name,
+    typeSlug,
+    typeCategory,
+    resistanceMode: typeCategory === "machine" ? "selectorized" : "bodyweight",
+  }) as const;
 const MACHINES = [
-  { id: "m-press", name: "Chest press" },
-  { id: "m-45", name: "45° leg press" },
-  { id: "m-flat", name: "Horizontal leg press" },
-  { id: "m-curl-a", name: "Leg curl by the window" },
-  { id: "m-curl-b", name: "Leg curl at the back" },
+  machine("m-press", "Chest press", "chest_press_machine"),
+  machine("m-45", "45° leg press", "leg_press_45"),
+  machine("m-flat", "Horizontal leg press", "leg_press_horizontal"),
+  machine("m-curl-a", "Leg curl by the window", "leg_curl_seated"),
+  machine("m-curl-b", "Leg curl at the back", "leg_curl_seated"),
+  machine("m-ropes", "Battle ropes", "battle_ropes", "accessory"),
 ];
+
+/** What a glyph draws, to tell one machine's from another's. */
+const drawing = (name: GlyphName) => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(<Glyph name={name} />);
+  return host.querySelector("svg")!.innerHTML;
+};
 
 function renderForm(
   action = vi.fn(async (..._args: [unknown, FormData]) => ({})),
@@ -68,6 +93,7 @@ function renderForm(
         press: ["m-press"],
         legpress: ["m-45", "m-flat"],
         curl: ["m-curl-a", "m-curl-b"],
+        ropes: ["m-ropes"],
       }}
       preferredMachines={{ curl: "m-curl-b" }}
       inWorkout={["pushup"]}
@@ -171,6 +197,19 @@ it("opens the selection to review and remove, saying what is already in the work
   await waitFor(() =>
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Search exercises"),
   );
+});
+
+it("draws each machine named in the review as what it is, an accessory as one", async () => {
+  renderForm();
+  tick(/Battle ropes/);
+  tick(/Machine chest press/);
+  fireEvent.click(screen.getByRole("button", { name: /^2 selected/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Selected exercises" });
+  const glyph = (text: string) =>
+    within(dialog).getByText(text).closest(".pinned-fact")!.querySelector("svg")!.innerHTML;
+  // The ropes were drawn as a weight stack beside "On Battle ropes".
+  expect(glyph("On Battle ropes")).toBe(drawing("accessory"));
+  expect(glyph("On Chest press")).toBe(drawing("machine"));
 });
 
 it("treats Enter in the search box as the end of typing, not as Add", () => {

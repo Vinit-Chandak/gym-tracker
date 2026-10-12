@@ -54,10 +54,7 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
               <span className="nav-row-label nav-row-label-bold">{item.name}</span>
               <span className="meta-line">
                 <span className="meta-fact">
-                  <Glyph
-                    name={machineGlyph(item.typeCategory, item.resistanceMode)}
-                    className="glyph-16"
-                  />
+                  <Glyph name={machineGlyph(item)} className="glyph-16" />
                   {/* Machines are usually named after their type, so only add it when it
                       differs. */}
                   {item.typeName === item.name

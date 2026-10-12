@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
@@ -104,6 +105,33 @@ describe("a row's prescription", () => {
   });
 });
 
+/** One exercise of a coach's plan as stored, the curl kept unless said otherwise. */
+const entry = (patch: Partial<StoredPlanExercise>): StoredPlanExercise => ({
+  slotId: "e1",
+  action: "keep",
+  exerciseSlug: "barbell-curl",
+  exerciseId: "x1",
+  exerciseName: "Barbell curl",
+  equipmentInstanceId: null,
+  equipmentInstanceName: null,
+  slotLineageId: null,
+  note: "",
+  sets: [],
+  restSeconds: null,
+  supersetGroup: null,
+  perSide: null,
+  unit: "kg",
+  ...patch,
+});
+const set = (weight: number, reps: number, rir: number) => ({
+  setType: "working" as const,
+  weight,
+  reps,
+  rir,
+  durationSeconds: null,
+  distanceMeters: null,
+});
+
 describe("the day's rows", () => {
   it("keep the programme's order and word when there is no coach", () => {
     const rows = planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg");
@@ -117,31 +145,6 @@ describe("the day's rows", () => {
   });
 
   it("say the coach's targets, its note, and a drop in its place", () => {
-    const entry = (patch: Partial<StoredPlanExercise>): StoredPlanExercise => ({
-      slotId: "e1",
-      action: "keep",
-      exerciseSlug: "barbell-curl",
-      exerciseId: "x1",
-      exerciseName: "Barbell curl",
-      equipmentInstanceId: null,
-      equipmentInstanceName: null,
-      slotLineageId: null,
-      note: "",
-      sets: [],
-      restSeconds: null,
-      supersetGroup: null,
-      perSide: null,
-      unit: "kg",
-      ...patch,
-    });
-    const set = (weight: number, reps: number, rir: number) => ({
-      setType: "working" as const,
-      weight,
-      reps,
-      rir,
-      durationSeconds: null,
-      distanceMeters: null,
-    });
     const rows = planRows(
       [CURL, PUSHDOWN],
       {
@@ -167,6 +170,68 @@ describe("the day's rows", () => {
       sets: 3,
     });
     expect(rows[1]).toMatchObject({ name: "Rope triceps pushdown", dropped: true, note: "Elbow." });
+  });
+
+  it("lead a machine the coach named with its glyph when it is an accessory", () => {
+    // Back extension on its bench read "3 × 15 · Back extension bench" behind the pull-up
+    // bar's figure, while the workout's row drew the bench.
+    const EXTENSION = slot({
+      programExerciseId: "e5",
+      name: "Back extension",
+      modality: "bodyweight",
+    });
+    const ROLLOUT = slot({
+      programExerciseId: "e6",
+      name: "Ab wheel rollout",
+      modality: "bodyweight",
+    });
+    const rows = planRows(
+      [EXTENSION, ROLLOUT, PUSHDOWN],
+      {
+        exercises: [
+          entry({
+            slotId: "e5",
+            exerciseName: "Back extension",
+            equipmentInstanceId: "bench",
+            equipmentInstanceName: "Back extension bench",
+            sets: [set(0, 15, 2)],
+          }),
+          entry({
+            slotId: "e6",
+            exerciseName: "Ab wheel rollout",
+            equipmentInstanceId: "wheel",
+            equipmentInstanceName: "Ab wheel",
+          }),
+          entry({
+            slotId: "e2",
+            exerciseName: "Rope triceps pushdown",
+            equipmentInstanceId: "cable",
+            equipmentInstanceName: "Cable station",
+          }),
+        ],
+        machines: {
+          bench: { typeSlug: "back_extension_bench", typeCategory: "accessory" },
+          wheel: { typeSlug: "ab_wheel", typeCategory: "accessory" },
+          cable: { typeSlug: "cable_station", typeCategory: "cable" },
+        },
+      },
+      "kg",
+    );
+    const machine = (line: string) => line.slice(line.lastIndexOf(FACT_SEPARATOR) + 3);
+    expect(rows.map((row) => [row.glyph, machine(row.line)])).toEqual([
+      ["accessory", "Back extension bench"],
+      ["abWheel", "Ab wheel"],
+      // Any other machine is drawn by what loads the movement, as the workout draws it.
+      ["cable", "Cable station"],
+    ]);
+    // A machine whose type was not read, and the programme's own rows, keep the movement's.
+    expect(
+      planRows(
+        [EXTENSION],
+        { exercises: [entry({ slotId: "e5", equipmentInstanceId: "x" })] },
+        "kg",
+      )[0]?.glyph,
+    ).toBe("bodyweight");
   });
 });
 

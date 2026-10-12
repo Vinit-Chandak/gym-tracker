@@ -298,9 +298,9 @@ describe("strength", () => {
     const on = (exerciseId: string) => options.find((o) => o.exerciseId === exerciseId)!;
     expect(on(backExtension)).toMatchObject({
       id: `${backExtension}:${benchId}:kg`,
-      accessory: true,
+      accessory: "back_extension_bench",
     });
-    expect(on(legPress)).toMatchObject({ id: `${legPress}:${legPressId}:kg`, accessory: false });
+    expect(on(legPress)).toMatchObject({ id: `${legPress}:${legPressId}:kg`, accessory: null });
   });
 
   it("offers every series ever logged, counting the workouts in the window apart", async () => {
@@ -381,7 +381,7 @@ describe("series ids", () => {
       modality: "barbell",
       group: null,
       assisted: false,
-      accessory: false,
+      accessory: null,
       measure: "reps",
       sessionsInRange: 0,
       sessions: 10,

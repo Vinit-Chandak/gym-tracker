@@ -382,6 +382,8 @@ export type SessionExercise = {
     unit: LoadUnit;
     /** What kind of machine it is: an accessory (a bench, a rack) is drawn as one. */
     typeCategory: EquipmentCategory;
+    /** Its type, so an accessory is drawn as what it is (an ab wheel, a bench). */
+    typeSlug: string;
     /** What is known about this machine's loads, for the Next up box (ADR 0028). */
     ladder: LoadLadder | null;
     /**
@@ -615,6 +617,7 @@ export async function getSessionDetail(
         // Beside the machine, not in it: a field from another joined table would make every
         // one of the machine's nullable.
         equipmentCategory: equipmentTypes.category,
+        equipmentTypeSlug: equipmentTypes.slug,
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
       })
@@ -852,6 +855,7 @@ export async function getSessionDetail(
             unit: row.equipment.unit,
             // Joined with its machine: an instance always has a type.
             typeCategory: row.equipmentCategory!,
+            typeSlug: row.equipmentTypeSlug!,
             ladder: ladders.get(row.equipment.id) ?? null,
             best: (() => {
               const lifted = best.get(`${row.equipment.id}:${row.exercise.id}`);
