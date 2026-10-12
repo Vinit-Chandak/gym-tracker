@@ -1,11 +1,11 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { sanitizeNumberEntry } from "@/domain/sets";
 
 import { FigureInput } from "./figure-input";
-import { emWidth } from "./fit";
+import { emWidth, growth, onRamp, rampSize } from "./fit";
 import { Glyph } from "./glyphs";
 
 /**
@@ -27,6 +27,22 @@ export function steppedValue(
   return next < min || next > max ? null : next;
 }
 
+/** How wide the figure's field is, in em: its glyphs and a little over, never under 0.9. */
+function figureEm(text: string): number {
+  return Math.max(0.9, emWidth(text)) + 0.08;
+}
+
+/**
+ * The figure's size (the Figures Never Truncate Rule): 26 at most, stepping down the ramp until
+ * it fits the room its column leaves beside the unit, never under 20. `grow` is how much larger
+ * figures are drawn at the reader's text size: at 200% text a swim's 1640 with yd beside it
+ * steps to 20, where at 26 it ran into − and lost the edge of its last digit.
+ */
+export function figureSize(text: string, room: number, grow = 1): number {
+  const fit = Math.floor(room / (figureEm(text) * grow));
+  return onRamp(Math.max(20, Math.min(26, fit)));
+}
+
 /** A figure as typed, read as a number: blank or not a number is none. */
 function parseNumber(value: string): number | null {
   if (value.trim() === "") return null;
@@ -37,11 +53,12 @@ function parseNumber(value: string): number | null {
 /**
  * A figure in a row (boards Check-in, Log a ride): the name and its hint at the gutter, then −,
  * the figure in a column of its own, and +, so the buttons line up row under row whatever the
- * figure. The figure is typed in place, as the entry's are; − and + step it. Blank stays blank
- * until something is given: a stepper does not answer for anyone.
+ * figure. The figure is typed in place, as the entry's are; − and + step it, and it steps down
+ * the ramp where its column cannot hold it beside its unit. Blank stays blank until something is
+ * given: a stepper does not answer for anyone.
  *
- * Where the name and the stepper cannot share a line (320 pt, large text), the stepper folds
- * under the name, at the end.
+ * Where the name and the stepper cannot share a line (a long name on a phone, large text), the
+ * stepper folds under the name, at the end.
  */
 export function RowStepper({
   label,
@@ -98,6 +115,26 @@ export function RowStepper({
   const id = useId();
   const [own, setOwn] = useState(defaultValue);
   const value = controlled ?? own;
+  const shown = value || placeholder;
+  // Drawn at 26 until its column is measured, and measured again as the text size changes it.
+  const column = useRef<HTMLSpanElement>(null);
+  const [size, setSize] = useState(26);
+  useLayoutEffect(() => {
+    const element = column.current;
+    if (!element) return;
+    const measure = () => {
+      const width = element.clientWidth;
+      if (width <= 0) return;
+      const unit = element.querySelector<HTMLElement>(".row-stepper-unit");
+      const gap = parseFloat(getComputedStyle(element).columnGap) || 0;
+      setSize(figureSize(shown, width - (unit ? unit.offsetWidth + gap : 0), growth(0.5)));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [shown]);
   const set = (next: string) => {
     if (controlled === undefined) setOwn(next);
     onChange?.(next);
@@ -146,6 +183,7 @@ export function RowStepper({
         </button>
         {/* The whole column is the value's target: a tap beside the figure types it too. */}
         <span
+          ref={column}
           className="row-stepper-figure"
           onClick={(event) => {
             if (event.target === event.currentTarget)
@@ -163,7 +201,10 @@ export function RowStepper({
               [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined
             }
             onChange={(event) => set(clean(event.target.value))}
-            style={{ width: `${Math.max(0.9, emWidth(value || placeholder)) + 0.08}em` }}
+            style={{
+              width: `${figureEm(shown)}em`,
+              fontSize: size < 26 ? rampSize(size, 0.5) : undefined,
+            }}
           />
           {unit &&
             (onUnit ? (

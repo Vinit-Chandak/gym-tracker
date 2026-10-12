@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { steppedValue } from "./row-stepper";
+import { figureSize, steppedValue } from "./row-stepper";
 
 it("steps on the steps from zero, a typed figure going to the nearer one that way", () => {
   expect(steppedValue(5, 0.5, 1)).toBe(5.5);
@@ -16,4 +16,16 @@ it("goes no lower than the least or higher than the most, and from blank only up
   expect(steppedValue(null, 0.5, -1)).toBeNull();
   expect(steppedValue(null, 0.5, 1)).toBe(0.5);
   expect(steppedValue(null, 1, 1, { min: 1 })).toBe(2);
+});
+
+it("steps the figure down the ramp to fit the room its column leaves beside the unit", () => {
+  // 100% text: a 120-pt column less yd's 44-pt target and the 3-pt gap holds 1640 at 26.
+  expect(figureSize("1640", 120 - 44 - 3)).toBe(26);
+  // 200% text: 160 less a 64-pt target ran 1640 at 26 (39 px) into − and cut its last 0.
+  expect(figureSize("1640", 160 - 64 - 3, 1.5)).toBe(20);
+  // A figure with no unit beside it keeps its size: 31:22 has the whole column.
+  expect(figureSize("31:22", 160, 1.5)).toBe(26);
+  // Never under 20, the ramp's last figure size, and never over 26.
+  expect(figureSize("123456.5", 60, 1.5)).toBe(20);
+  expect(figureSize("–", 200)).toBe(26);
 });
