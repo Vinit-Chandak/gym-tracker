@@ -982,7 +982,7 @@ describe("a shared workout's movements", () => {
     const read = (viewer: string, owner = alice, id = row!.id) =>
       as(viewer)((tx) => readSharedSessionExercises(tx, owner, id));
 
-    // In the order alice did them, not by name.
+    // In the workout's order, not by name.
     const seen = await read(bob);
     expect(
       seen.map((e) => [e.name, e.comparable, e.workingSets, e.topWeightKg, e.topWeightReps]),
@@ -1047,7 +1047,7 @@ describe("a shared workout's movements", () => {
     expect(await names()).toEqual(["45° leg press", "Barbell bench press"]);
 
     // Done later the same day and logged on the finished workout (ADR 0049): they take their
-    // own place, and the bench press moves along.
+    // slot's place, before the bench press, as alice's own finished workout lists them.
     await as(alice)((tx) =>
       logSet(tx, alice, {
         workoutExerciseId: slots[1]!,
@@ -1061,6 +1061,21 @@ describe("a shared workout's movements", () => {
       }),
     );
     const inOrder = ["45° leg press", "Pull-up", "Barbell bench press"];
+    expect(await names()).toEqual(inOrder);
+    // Not by the sets' times, which say when a set was last saved: mending the leg press's one
+    // set leaves it first.
+    await as(alice)((tx) =>
+      logSet(tx, alice, {
+        workoutExerciseId: slots[0]!,
+        setIndex: 1,
+        setType: "working",
+        weight: 145,
+        unit: "kg",
+        reps: 10,
+        rir: null,
+        durationSeconds: null,
+      }),
+    );
     expect(await names()).toEqual(inOrder);
 
     // Rows the deployment before the column wrote all sit at 0: they read by name, as before...

@@ -941,9 +941,9 @@ export type SharedSessionExercise = MetricExercise & {
  * What a shared workout was made of (ADR 0026): its shared-library movements, each with the
  * numbers its shared row carries, read through the session's own shared row by that row's id,
  * so the workout's own id is never asked for. A movement someone created themselves has no
- * shared row, which is why these sets can add up to fewer than the session's. In the order they
- * were done (migration 0053); by name where two share a place, as the rows of a workout the
- * deployment before it finished all do, at 0.
+ * shared row, which is why these sets can add up to fewer than the session's. In the workout's
+ * order, as its owner's finished workout lists them (migration 0053); by name where two share a
+ * place, as the rows of a workout the deployment before it finished all do, at 0.
  */
 export async function readSharedSessionExercises(
   tx: DbOrTx,

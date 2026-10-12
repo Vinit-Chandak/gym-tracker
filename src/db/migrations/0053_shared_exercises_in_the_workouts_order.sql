@@ -1,4 +1,5 @@
--- A friend's shared workout lists its movements in the order they were done (ADR 0026).
+-- A friend's shared workout lists its movements in the workout's order, as its owner's finished
+-- workout does (ADR 0026).
 --
 -- The shared rows kept no order of their own, so a follower read a workout's movements A–Z: a
 -- session of squats, then bench, then curls read as bench, curls, squats. Each row now holds its
@@ -15,7 +16,8 @@
 -- Written by hand from what Drizzle generated, and safe to run twice: the column is added only
 -- if missing, the check is replaced, and a second ranking finds every row already in its place.
 -- The previous deployment neither reads nor writes the column; a workout it finishes while this
--- one builds has its rows at 0, which read A–Z as before, until the workout is next changed.
+-- one builds has its rows at 0, which read A–Z as before, until the workout is next changed or
+-- `npm run db:backfill:shared-stats` is run once this deployment is serving.
 ALTER TABLE "shared_exercise_stats" ADD COLUMN IF NOT EXISTS "order_index" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "shared_exercise_stats" DROP CONSTRAINT IF EXISTS "shared_exercise_stats_order_chk";--> statement-breakpoint
 ALTER TABLE "shared_exercise_stats" ADD CONSTRAINT "shared_exercise_stats_order_chk" CHECK (order_index >= 0);--> statement-breakpoint

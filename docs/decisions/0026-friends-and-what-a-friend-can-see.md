@@ -84,7 +84,7 @@ follower when sharing is on:
   volume in kilograms, sets per muscle group, number of records set.
 - Per finished workout and shared-library exercise: working sets, total reps, top weight,
   best estimated 1RM, best set volume, most reps in a set, longest hold, longest carry, and its
-  place in the order the workout's shared exercises were done.
+  place among the workout's shared exercises, in the workout's own order.
 - Per run: date, distance, duration, pace.
 - Body weight, latest reading only, and only if both people opted in.
 
@@ -133,8 +133,11 @@ From the year audit of the friends' screens:
 
 ## Note, 12 October 2026
 
-- **A shared workout lists its exercises in the order they were done**, not A–Z (owner): each
-  shared exercise row keeps its place (`order_index`, migration 0053), counted among the
-  session's shared rows alone, so a movement the owner created or never worked leaves no gap to
-  count. Places that tie, as a workout finished by the deployment before the column has, read by
-  name.
+- **A shared workout lists its exercises in the workout's order**, as its owner's finished
+  workout does, not A–Z (owner): each shared exercise row keeps its place (`order_index`,
+  migration 0053), the first slot it was worked in, counted among the session's shared rows
+  alone, so a movement the owner created or never worked leaves no gap to count. Not by the
+  sets' times, which say when a set was last saved: mending a set could move its exercise to
+  the end. Places that tie, as a workout finished by the deployment before the column has, read
+  by name; `npm run db:backfill:shared-stats`, run once the deployment that adds the column is
+  serving, and again after a rollback and roll-forward, puts them back in order.

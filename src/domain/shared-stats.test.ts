@@ -305,7 +305,7 @@ describe("sessionStats", () => {
   it("lists the movements in the order the workout first worked them", () => {
     const { exercises } = sessionStats(
       workout([
-        // Left undone in the first slot and done in the last: it comes where it was done.
+        // Left undone in the first slot and worked in the last: it comes where it was worked.
         { exerciseId: "pull-up", exercise: pullUp, sets: [] },
         { exerciseId: "leg-press", exercise: legPress, sets: [set({ weight: 120, reps: 10 })] },
         {

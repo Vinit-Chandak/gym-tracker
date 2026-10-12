@@ -32,7 +32,7 @@ const ids = new Map<string, string>();
 
 async function runMigration(): Promise<void> {
   const file = await readFile(
-    "src/db/migrations/0053_shared_exercises_in_the_order_done.sql",
+    "src/db/migrations/0053_shared_exercises_in_the_workouts_order.sql",
     "utf8",
   );
   await t.client.exec("BEGIN");
