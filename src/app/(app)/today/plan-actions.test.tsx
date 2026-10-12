@@ -70,9 +70,10 @@ it("holds Start until there is a gym to train at", () => {
  * Year review, 12 October 2026: from a zero basis the count never asked the row to wrap, so at
  * 200% text Pick up from today kept its line and "10 sessions behind" was squeezed to a letter
  * a line beside it. The count asks for its own width: whole beside the button, or the button
- * under it (rows.css takes it to the row's width at large text).
+ * under it, at the end, as a name's button goes (rows.css takes it to the row's width at large
+ * text). A wrapped button had stood at the start, under the count, on a 320-pt phone at 100%.
  */
-it("keeps the count whole beside Pick up from today, or puts the button under it", () => {
+it("keeps the count whole beside Pick up from today, or puts the button under it at the end", () => {
   const missed = Array.from({ length: 10 }, (_, i) => ({
     cycleIndex: 13,
     dayIndex: i + 1,
@@ -85,7 +86,11 @@ it("keeps the count whole beside Pick up from today, or puts the button under it
   const row = count.parentElement!;
   expect(row.classList).toContain("pick-up");
   expect(row.classList).toContain("flex-wrap");
+  // Its own width, and nothing that sets a basis of zero or of a fixed width beside it.
   expect(count.classList).toContain("flex-auto");
-  expect(count.classList).not.toContain("flex-1");
-  expect(row.lastElementChild).toBe(screen.getByRole("button", { name: "Pick up from today" }));
+  expect([...count.classList].filter((name) => /^(flex-1|basis-|flex-\[)/.test(name))).toEqual([]);
+  const button = screen.getByRole("button", { name: "Pick up from today" });
+  expect(row.lastElementChild).toBe(button);
+  expect(button.classList).toContain("ml-auto");
+  expect(row.classList).not.toContain("justify-between");
 });

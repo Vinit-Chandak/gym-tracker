@@ -836,9 +836,9 @@ html:has(.session-page) .session-fold {
   margin-top: var(--ov-space-14);
 }
 /* "Pick up from today", under the date: the count and its way out on one line while the count
-   fits whole beside it, else the way out under it (plan-actions.tsx). At large text it is always
-   under, the row's width, as a card's next step is; asked of the row, which spans the page's
-   column, as the pinned actions ask of theirs. */
+   fits whole beside it, else the way out under it, at the end, as a name's button goes
+   (plan-actions.tsx). At large text it is always under, the row's width, as a card's next step
+   is; asked of the row, which spans the page's column, as the pinned actions ask of theirs. */
 .pick-up {
   container: pick-up / inline-size;
   margin-block: var(--ov-space-4) var(--ov-space-10);

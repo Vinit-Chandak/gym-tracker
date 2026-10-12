@@ -569,9 +569,10 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 
 Large text is a size of its own (ADR 0052): fewer than 14rem across the screen, which is every
 phone at 200% text and a 320-pt phone from 150%, never one at 100%. There a phone folds rather
-than growing past its screen: the logger folds its entry, and the session strip folds into a
-screen's pinned actions. It is read with a container query on the box that folds, never a media
-query, whose rem is the browser's and not the root's that the installed app on an iPhone sets.
+than growing past its screen: the logger folds its entry, the session strip folds into a
+screen's pinned actions, and Today's Pick up from today goes under its count, the row's width.
+It is read with a container query on the box that folds, never a media query, whose rem is the
+browser's and not the root's that the installed app on an iPhone sets.
 What a fold stands in for follows the fold rather than asking again: the strip stands down while
 its key is shown, so two readings of one width can never leave the workout without a way back.
 
@@ -1038,9 +1039,12 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
   at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "25 days behind" stands beside the squares. The
-  squares are 9 pt and grow with the reader's text by half, as glyphs do (13.5 at 200%): days done
-  in ink, today ringed, a skipped day dashed, the rest a hairline.
+  the programme is on track; behind is news, so "1 session behind" stands beside the squares.
+  From two behind, with no workout open, the count stands under the date with its way out, Pick
+  up from today (ADR 0051): beside the count while the count fits whole, else under it at the
+  end, and at large text under it at the row's width. The squares are 9 pt and grow with the
+  reader's text by half, as glyphs do (13.5 at 200%): days done in ink, today ringed, a skipped
+  day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
