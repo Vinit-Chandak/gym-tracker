@@ -5,7 +5,7 @@ import { Fragment, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { boldEmWidth, emWidth } from "./fit";
-import { foldStyles, scaleLayouts, segmentLayouts } from "./fold";
+import { foldStyles, scaleLayouts } from "./fold";
 
 export type SegmentOption<V extends string> = {
   value: V;
@@ -77,9 +77,9 @@ const FIGURE = /^\d+$/;
  * "Free weight") or a touch target. With columns, the segments share one row, the space beyond
  * their words split evenly; unspecified columns start each from a label-sized minimum instead.
  * Where they cannot all fit (a 320-pt phone, 200% text) the tray folds onto even rows (Fold,
- * Never Drop; fold.ts): four as two and two, five as three and two, never one alone under the
- * rest, so five that cannot go three and two go one a row. Only a label wider than the whole
- * tray wraps, between its words. A scale never folds its figures: only its words go under them.
+ * Never Drop; fold.ts): four as two and two, never three and one alone; five as three and two,
+ * or two, two and one where three cannot share a row. Only a label wider than the whole tray
+ * wraps, between its words. A scale never folds its figures: only its words go under them.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -101,11 +101,7 @@ export function SegmentedControl<V extends string>({
     options.map((option, index) =>
       index < figures ? figureWidth(option.label) : segmentWidth(option.label, Boolean(columns)),
     ),
-    {
-      layouts: scale
-        ? scaleLayouts(figures, options.length - figures)
-        : segmentLayouts(options.length),
-    },
+    scale ? { layouts: scaleLayouts(figures, options.length - figures) } : {},
   );
   return (
     <div
