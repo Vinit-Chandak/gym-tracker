@@ -433,7 +433,9 @@ export function form(
       });
     }
   } else if (shape === "fan") {
-    // A quarter disc standing on its corner, cut into its drills.
+    // A quarter disc standing on its corner, cut into its drills. Skipped, each drill is a dashed
+    // edge with the paper inside: a cut in the paper's colour around nothing drew no fan at all,
+    // and a warm-up a workout finished without stood as blank paper in its print.
     const r = Math.min(w, h);
     const ox = x;
     const oy = base;
@@ -445,7 +447,11 @@ export function form(
         kind: "path",
         d: `M${f1(ox)} ${f1(oy)}L${f1(ox + r * Math.cos(a0))} ${f1(oy + r * Math.sin(a0))}A${f1(r)} ${f1(r)} 0 0 1 ${f1(ox + r * Math.cos(a1))} ${f1(oy + r * Math.sin(a1))}Z`,
         fill: fillFor(k),
-        ...(isTodo(k) ? edge(k) : n > 1 ? { stroke: "cut", strokeWidth: cutW } : dash),
+        ...(isTodo(k)
+          ? edge(k)
+          : n > 1 && state !== "skipped"
+            ? { stroke: "cut", strokeWidth: cutW }
+            : dash),
       });
     }
     if (cut === "arc") {

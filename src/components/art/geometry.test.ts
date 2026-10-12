@@ -107,6 +107,11 @@ describe("a form's state", () => {
       for (const state of ["todo", "done"] as const)
         expect(form(sport, 0, 0, 24, 24, { state }).some((s) => "dash" in s && s.dash)).toBe(false);
     }
+    // A fan of drills too: each drill dashed in the pigment, never a cut around nothing.
+    const fan = form("mobility", 0, 0, 40, 40, { state: "skipped", segments: 6 }) as Path[];
+    expect(fan).toHaveLength(6);
+    for (const drill of fan) expect(drill).toMatchObject({ fill: "none", stroke: "mobility" });
+    expect(fan.every((drill) => drill.dash)).toBe(true);
   });
 
   it("inks a form's segments from the first as they are done", () => {
