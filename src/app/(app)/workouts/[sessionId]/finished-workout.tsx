@@ -139,7 +139,7 @@ export function FinishedWorkout({
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
   // The record as a print, drawn as the day it was done on draws it: the warm-up's fan as it
   // ended, then a column for each exercise. The rows under it name the fan first, as the
-  // programme day's do: done, under the sets; not done, first of what was not.
+  // programme day's do, done or not, as the Edit list does.
   const printed = printedSession(session);
   const drills = printed.drills;
   const warmup = drills > 0 ? warmupName(session) : null;
@@ -352,12 +352,16 @@ export function FinishedWorkout({
             </>
           ) : (
             <>
-              {(done.length > 0 || (warmup && session.warmupCompleted)) && (
+              {(done.length > 0 || warmup) && (
                 <ul>
-                  {warmup && session.warmupCompleted && (
+                  {warmup && (
                     <li className="record-row">
                       <span className="record-row-name">{warmup}</span>{" "}
-                      <span className="record-row-sets">{warmupLine}</span>
+                      <span
+                        className={cn("record-row-sets", !session.warmupCompleted && "text-ink-2")}
+                      >
+                        {session.warmupCompleted ? warmupLine : "Not done"}
+                      </span>
                     </li>
                   )}
                   {done.map((exercise) => (
@@ -383,19 +387,19 @@ export function FinishedWorkout({
           )}
         </section>
 
-        {!editing && (notDone.length > 0 || (warmup && !session.warmupCompleted)) && (
+        {/* The warm-up is named once, on its row above. */}
+        {!editing && notDone.length > 0 && (
           <section aria-labelledby="finished-not-done">
             <h2 id="finished-not-done" className="caption-head mt-3.5">
               Not done
             </h2>
             <p className="not-done">
-              {[
-                ...(warmup && !session.warmupCompleted ? [warmup] : []),
-                ...notDone.map(
+              {notDone
+                .map(
                   (exercise) =>
                     `${exercise.exercise.name}${exercise.skippedAt ? " (skipped)" : ""}`,
-                ),
-              ].join(", ")}
+                )
+                .join(", ")}
             </p>
           </section>
         )}

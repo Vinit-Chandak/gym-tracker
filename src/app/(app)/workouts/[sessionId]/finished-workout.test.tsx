@@ -202,10 +202,16 @@ it("names the warm-up's fan first under the print, as the programme day does", (
   ).toBeTruthy();
   cleanup();
 
-  // Never marked done, its fan is dashed and it is named first of what was not done.
+  // Never marked done, its fan is dashed and its row still leads, saying so, as the Edit list's
+  // does: named once, not again among what was not done.
   show({ warmup, warmupCompleted: false });
-  expect(document.querySelector("#finished-sets ~ ul > li")?.textContent).toMatch(/^Bench press/);
-  expect(screen.getByText("Upper-body warm-up, Curl")).toBeTruthy();
+  const first = document.querySelector("#finished-sets ~ ul > li");
+  expect(first?.textContent?.replace(/\s+/g, " ")).toBe("Upper-body warm-up Not done");
+  expect(first?.querySelector(".text-ink-2")?.textContent).toBe("Not done");
+  expect(document.querySelectorAll("#finished-sets ~ ul > li")[1]?.textContent).toMatch(
+    /^Bench press/,
+  );
+  expect(document.querySelector(".not-done")?.textContent).toBe("Curl");
 
   // A coach's warm-up stands in for the protocol: its lines are the drills, its name Warm-up.
   cleanup();
