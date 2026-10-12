@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Fragment, type ReactNode } from "react";
 
 import { StartPlannedButton } from "@/app/(app)/today/plan-actions";
 import { Fact, MetaLine, PlanRows } from "@/app/(app)/today/today-parts";
@@ -31,21 +32,22 @@ import { requireUuid } from "@/server/validation/params";
 
 import {
   atGymLines,
+  dayOrder,
   dayPageMaxModule,
   dayPrintLabel,
+  type DayPart,
   programmeDayParts,
-  runLeads,
 } from "../../programme-day";
 
 export const metadata: Metadata = { title: "Programme day" };
 
 /**
  * A day of the programme, read before it is trained (board Programme day): its print, its name
- * and focus, how long and how hard, then its rows in the order the day asks for them, the run
- * where the day puts it, the warm-up, each exercise with its prescription. Start workout starts
- * this day at the default gym, as Train another day does; a day already done is done again as
- * its next cycle's. While a workout is open nothing starts another: the session strip is the way
- * back to it. A rest day says what it is, as Today does.
+ * and focus, how long and how hard, then its rows in the order they are done in, the warm-up
+ * before what it warms up for, the run where the day puts it, each exercise with its
+ * prescription. Start workout starts this day at the default gym, as Train another day does; a
+ * day already done is done again as its next cycle's. While a workout is open nothing starts
+ * another: the session strip is the way back to it. A rest day says what it is, as Today does.
  */
 export default async function ProgrammeDayPage(props: PageProps<"/training/days/[dayId]">) {
   const { dayId } = await props.params;
@@ -118,21 +120,43 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
     session: open ? inProgress.print : plan.print,
   });
   const rest = !day.includesLifting && !day.includesRun;
-  // A day that lifts and runs puts the run where the day is written to: "Lower + easy run" last.
-  const runFirst = !day.includesLifting || runLeads(day);
+  // The rows in the order the day is done in, as its print draws them (`dayOrder`): the warm-up
+  // before what it warms up for, and the run where the day is written to have it ("Lower + easy
+  // run" last). The last row takes no rule under it.
+  const listed: Record<DayPart, boolean> = {
+    "warm-up": Boolean(warmup),
+    run: day.includesRun,
+    lifting: rows.length > 0,
+  };
+  const order = dayOrder(day).filter((part) => listed[part]);
+  const last = order.at(-1);
+  const runLine = plan.run && runSummary(plan.run, data.runUnits);
 
-  const runRow = day.includesRun && (
-    <li className={runFirst ? "plan-row" : "plan-row plan-row-last"}>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="plan-row-name">Run</span>
-        {plan.run && (
-          <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
-            {runSummary(plan.run, data.runUnits)}
+  const rowsOf: Record<DayPart, ReactNode> = {
+    "warm-up": warmup && (
+      <li className={last === "warm-up" ? "plan-row plan-row-last" : "plan-row"}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="plan-row-name">{warmup.name}</span>
+          <span className="type-meta-small text-ink-2 tabular-nums">
+            {drills} {drills === 1 ? "drill" : "drills"}
           </span>
-        )}
-      </span>
-    </li>
-  );
+        </span>
+      </li>
+    ),
+    run: (
+      <li className={last === "run" ? "plan-row plan-row-last" : "plan-row"}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="plan-row-name">Run</span>
+          {runLine && (
+            <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
+              {runLine}
+            </span>
+          )}
+        </span>
+      </li>
+    ),
+    lifting: <PlanRows rows={rows} isLast={last === "lifting"} />,
+  };
 
   return (
     <FreshAfterSets seen={seen} loading={<LoadingPage />}>
@@ -185,25 +209,9 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           ))}
 
         <ul aria-label={day.name} className="mt-2">
-          {runFirst && runRow}
-          {warmup && (
-            <li
-              className={
-                rows.length === 0 && (runFirst || !day.includesRun)
-                  ? "plan-row plan-row-last"
-                  : "plan-row"
-              }
-            >
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="plan-row-name">{warmup.name}</span>
-                <span className="type-meta-small text-ink-2 tabular-nums">
-                  {drills} {drills === 1 ? "drill" : "drills"}
-                </span>
-              </span>
-            </li>
-          )}
-          <PlanRows rows={rows} isLast={runFirst} />
-          {!runFirst && runRow}
+          {order.map((part) => (
+            <Fragment key={part}>{rowsOf[part]}</Fragment>
+          ))}
         </ul>
 
         {/* How to run it, once the time and effort are said; and the day's own notes. */}

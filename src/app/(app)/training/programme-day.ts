@@ -52,12 +52,29 @@ export function runLeads(day: Pick<ScheduleDay, "name" | "focus">): boolean {
   return true;
 }
 
+/** A part of a programme day, as its rows and its print name it. */
+export type DayPart = "warm-up" | "run" | "lifting";
+
+/**
+ * The order a programme day's parts come in, the same for its rows, its print and what the print
+ * says: the order they are done in. The warm-up comes before what it warms up for: on a day that
+ * only runs it is the run's ("Run warm-up"), so it leads, where it once followed the run and read
+ * as a cool-down (year audit, October 2026). On a day that lifts and runs it is the lifting's,
+ * and the run stands where the day is written to have it (`runLeads`): before the warm-up and
+ * the lifting ("Easy Run + Arms"), or after them ("Lower + easy run").
+ */
+export function dayOrder(
+  day: Pick<ScheduleDay, "name" | "focus" | "includesLifting">,
+): readonly DayPart[] {
+  if (!day.includesLifting) return ["warm-up", "run", "lifting"];
+  return runLeads(day) ? ["run", "warm-up", "lifting"] : ["warm-up", "lifting", "run"];
+}
+
 /**
  * A programme day as a print (boards Training, Programme day), its parts in the order of its
- * rows: the run where the day is written to have it (`runLeads`), first or after the lifting; a
- * rest day's routine, or on the day's own page the warm-up, as a fan of its drills; then a
- * column of sets for each exercise, a superset's two standing closer. A rest day with nothing
- * in it is the rest form.
+ * rows (`dayOrder`): a rest day's routine, a run's warm-up, or on the day's own page the
+ * lifting's, as a fan of its drills; the run; and a column of sets for each exercise, a
+ * superset's two standing closer. A rest day with nothing in it is the rest form.
  *
  * A day with a workout, open or finished, is drawn from it, as the workout's own print draws
  * it: each row's column is the column of the exercise done for it (`exerciseColumn`), and the
@@ -81,11 +98,6 @@ export function programmeDayParts(
   } = {},
 ): PrintPart[] {
   const state = dayState(plan.status);
-  const parts: PrintPart[] = [];
-  const runFirst = !plan.day.includesLifting || runLeads(plan.day);
-  if (plan.day.includesRun && runFirst) parts.push({ kind: "run", state });
-  if (drills > 0 && (warmup || !plan.day.includesLifting))
-    parts.push(warmupFan(drills, session ? warmupState(session) : state));
   const columns: StrengthColumn[] = [];
   const done = session
     ? pairBySlot(
@@ -111,8 +123,17 @@ export function programmeDayParts(
         });
     if (column) columns.push(column);
   });
-  if (columns.length > 0) parts.push({ kind: "strength", columns });
-  if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
+  const drawn: Record<DayPart, PrintPart | null> = {
+    "warm-up":
+      drills > 0 && (warmup || !plan.day.includesLifting)
+        ? warmupFan(drills, session ? warmupState(session) : state)
+        : null,
+    run: plan.day.includesRun ? { kind: "run", state } : null,
+    lifting: columns.length > 0 ? { kind: "strength", columns } : null,
+  };
+  const parts = dayOrder(plan.day)
+    .map((part) => drawn[part])
+    .filter((part): part is PrintPart => part !== null);
   // A rest day with no routine is rest, drawn as rest: a tile among the days' prints is never
   // blank paper.
   if (parts.length === 0 && !plan.day.includesLifting && !plan.day.includesRun)
@@ -136,11 +157,12 @@ export function dayPageMaxModule(parts: readonly PrintPart[]): number | undefine
 
 /**
  * What the day's own print says for a screen reader, its parts in the print's order: "Easy
- * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done"; done, what its workout left
- * dashed ("Pull A: the warm-up, 4 exercises, done, the warm-up not done, dashed"); and while its
- * workout is open, how far it has got, the warm-up and the sets each said for itself ("Lower:
- * the warm-up, 4 exercises, the warm-up done, the sets done inked"). A day done once and being
- * done again is said as its open workout, not as done.
+ * Run + Arms: the run, 4 exercises", "Easy run: the warm-up, the run", "Rest: the routine",
+ * "Rest: nothing to train, done"; done, what its workout left dashed ("Pull A: the warm-up, 4
+ * exercises, done, the warm-up not done, dashed"); and while its workout is open, how far it has
+ * got, the warm-up and the sets each said for itself ("Lower: the warm-up, 4 exercises, the
+ * warm-up done, the sets done inked"). A day done once and being done again is said as its open
+ * workout, not as done.
  */
 export function dayPrintLabel(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
@@ -149,13 +171,16 @@ export function dayPrintLabel(
   open = false,
 ): string {
   const { day } = plan;
-  const runFirst = !day.includesLifting || runLeads(day);
   const exercises = plan.exercises.length;
+  const named: Record<DayPart, string | null> = {
+    // A rest day's drills are its routine; a day that trains warms up for it.
+    "warm-up":
+      drills > 0 ? (day.includesLifting || day.includesRun ? "the warm-up" : "the routine") : null,
+    run: plan.run ? "the run" : null,
+    lifting: exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
+  };
   const said = [
-    plan.run && runFirst ? "the run" : null,
-    drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
-    exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
-    plan.run && !runFirst ? "the run" : null,
+    ...dayOrder(day).map((part) => named[part]),
     parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
   ];
   const notDone = parts.reduce(

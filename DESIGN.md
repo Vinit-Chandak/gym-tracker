@@ -1126,7 +1126,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
   crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
   Today's band is left off on such a day, as before. On the day's page the crescent alone is
   held to a 16 px module, about a third of a working day's print there, so it never fills the
-  band or outweighs the day's name on a page that asks for nothing.
+  band or outweighs the day's name on a page that asks for nothing. A programme day's parts stand
+  in the order they are done, in its print, its rows and Training's tile alike: the warm-up before
+  what it warms up for, so a day that only runs draws its fan, then its runner, and lists its
+  run's warm-up before the run (year audit, October 2026); a day that lifts and runs keeps its
+  warm-up with the lifting, and the run where the day is written to have it.
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).

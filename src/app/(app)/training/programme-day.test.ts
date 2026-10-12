@@ -5,6 +5,7 @@ import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule
 
 import {
   atGymLines,
+  dayOrder,
   dayPageMaxModule,
   dayPrintLabel,
   dayStateWord,
@@ -254,10 +255,64 @@ describe("a day that lifts and runs, in the order it is written", () => {
     ]);
   });
 
+  it("keeps the lifting's warm-up with the lifting, wherever the run stands", () => {
+    expect(dayOrder({ name: "Easy Run + Arms", focus: null, includesLifting: true })).toEqual([
+      "run",
+      "warm-up",
+      "lifting",
+    ]);
+    expect(dayOrder({ name: "Lower + easy run", focus: null, includesLifting: true })).toEqual([
+      "warm-up",
+      "lifting",
+      "run",
+    ]);
+    const easy = plan({ name: "Easy Run + Arms", includesRun: true });
+    expect(programmeDayParts(easy, { drills: 5, warmup: true }).map((p) => p.kind)).toEqual([
+      "run",
+      "mobility",
+      "strength",
+    ]);
+  });
+
   it("reads the focus when the name does not say, and runs first when neither does", () => {
     expect(runLeads({ name: "Day 4", focus: "Upper body, then an easy run" })).toBe(false);
     expect(runLeads({ name: "Day 4", focus: "Jog then press" })).toBe(true);
     expect(runLeads({ name: "Hybrid", focus: null })).toBe(true);
+  });
+});
+
+describe("a day that only runs", () => {
+  // Liam's Easy run in the year audit: its page and its tile drew the runner, then the fan of
+  // its "Run warm-up", and listed the warm-up after the run, as if a cool-down.
+  const easy = (status: ProgramDayPlan["status"] = "pending") => ({
+    ...plan({ name: "Easy run", focus: "Zone 2", includesLifting: false, includesRun: true }),
+    exercises: [],
+    status,
+  });
+  const run = { durationMinMinutes: 40 } as unknown as ProgramDayPlan["run"];
+
+  it("warms up before it runs, on its page and on Training's tile", () => {
+    expect(dayOrder(easy().day)).toEqual(["warm-up", "run", "lifting"]);
+    expect(programmeDayParts(easy(), { drills: 5, warmup: true }).map((p) => p.kind)).toEqual([
+      "mobility",
+      "run",
+    ]);
+    // Training's tiles draw a day's fan only where it is not a lifting day's.
+    expect(programmeDayParts(easy(), { drills: 5 })).toEqual([
+      { kind: "mobility", segments: 5, segmentsDone: 0, state: "todo", modules: 3 },
+      { kind: "run", state: "todo" },
+    ]);
+  });
+
+  it("says its warm-up before its run, and as a warm-up rather than a rest day's routine", () => {
+    const day = { ...easy(), run };
+    expect(dayPrintLabel(day, programmeDayParts(day, { drills: 5, warmup: true }), 5)).toBe(
+      "Easy run: the warm-up, the run",
+    );
+    const done = { ...easy("completed"), run };
+    expect(dayPrintLabel(done, programmeDayParts(done, { drills: 5, warmup: true }), 5)).toBe(
+      "Easy run: the warm-up, the run, done",
+    );
   });
 });
 
