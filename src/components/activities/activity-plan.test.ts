@@ -87,6 +87,19 @@ it("gives a programme run's effort out of five, and none when it asks for none",
   ).toBe("20\u2060–\u206025\u00a0min");
 });
 
+it("says a run's minutes once, under a day's time that already says them", () => {
+  // Liam's Easy run: "40–50 min" in the header, and again in its Run row.
+  const run = { distanceMinKm: 7, distanceMaxKm: 9, durationMinMinutes: 40, rpeMin: 2, rpeMax: 2 };
+  const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;
+  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime: "40–50 min" })).toBe(
+    "4.3\u2060–\u20605.6\u00a0mi ·\u00a0Effort 2 of\u00a05",
+  );
+  // A time that says something else leaves the run's own minutes said.
+  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime: "50–60 min" })).toBe(
+    "4.3\u2060–\u20605.6\u00a0mi ·\u00a040\u2060–\u206050\u00a0min ·\u00a0Effort 2 of\u00a05",
+  );
+});
+
 it("gives a programme run's distance in the athlete's road unit, as Today does", () => {
   const run = { distanceMinKm: 7.3, distanceMaxKm: 8.3, durationMinMinutes: 40 };
   const miles = { distanceUnit: "mi", poolUnit: "yd" } as const;

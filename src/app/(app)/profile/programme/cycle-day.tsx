@@ -16,13 +16,18 @@ function subtitle(day: ScheduleDay): string | null {
   return joinFacts([day.focus, day.timeNote && holdFigures(day.timeNote)]) || null;
 }
 
-/** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
+/**
+ * What it asks for: the sets, or the run in the athlete's road unit, or neither. On a day that
+ * only runs, minutes its time already says over it are not said again.
+ */
 function cost(plan: ProgramDayPlan, units: SportUnits): string {
+  const dayTime = plan.day.includesLifting ? null : plan.day.timeNote;
+  const run = plan.run && runSummary(plan.run, units, { dayTime });
   if (plan.exercises.length > 0)
-    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run, units)}` : null]
+    return [planSummary(plan.exercises), run ? `Run: ${run}` : null]
       .filter(Boolean)
       .join(FACT_SEPARATOR);
-  if (plan.run) return runSummary(plan.run, units);
+  if (run !== null) return run;
   return "Rest day";
 }
 
@@ -52,6 +57,7 @@ export function CycleDay({
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
   const expandable = plan.exercises.length > 0 || guidance || extras;
   const about = subtitle(day);
+  const asks = cost(plan, units);
 
   const head = (
     <>
@@ -84,9 +90,11 @@ export function CycleDay({
         </p>
       )}
       {/* Its time and its counts in Jost, whose zero is plain: "60–75 min", "13 sets". */}
-      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
-        <Figures>{cost(plan, units)}</Figures>
-      </p>
+      {asks && (
+        <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
+          <Figures>{asks}</Figures>
+        </p>
+      )}
     </>
   );
 

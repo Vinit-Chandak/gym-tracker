@@ -130,7 +130,10 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   };
   const order = dayOrder(day).filter((part) => listed[part]);
   const last = order.at(-1);
-  const runLine = plan.run && runSummary(plan.run, data.runUnits);
+  // On a day that only runs, minutes its time already says above are not said again.
+  const runLine =
+    plan.run &&
+    runSummary(plan.run, data.runUnits, { dayTime: day.includesLifting ? null : day.timeNote });
 
   const rowsOf: Record<DayPart, ReactNode> = {
     "warm-up": warmup && (

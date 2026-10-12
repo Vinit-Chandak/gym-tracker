@@ -23,9 +23,19 @@ export type RunTargets = {
  * distance in kilometres; it is read in the athlete's own road unit, as Today reads the same
  * run ("3.11 mi"). Effort is out of five since 0034, the scale the athlete answers on; a stored
  * zero means none was asked for, so it says nothing rather than "Effort 0".
+ *
+ * Shown under the time of a day that only runs (`dayTime`, the time note it says above), the
+ * minutes are left out where that time already says them: such a day said "40–50 min" in its
+ * header and again in its Run row (year audit, October 2026). A day that also lifts gives the
+ * time of the whole day, so its run's minutes are always said.
  */
-export function runSummary(run: RunTargets, units: SportUnits): string {
+export function runSummary(
+  run: RunTargets,
+  units: SportUnits,
+  { dayTime = null }: { dayTime?: string | null } = {},
+): string {
   const rpeMax = run.rpeMax ?? run.rpeMin;
+  const minutes = rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min");
   // Each held whole where the line wraps: a range at its dash, a figure to its unit, and the
   // scale to its top ("of 5").
   const parts = [
@@ -39,7 +49,7 @@ export function runSummary(run: RunTargets, units: SportUnits): string {
           "running",
           units,
         ),
-    rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
+    minutes === dayTime?.trim() ? null : minutes,
     run.rpeMin === null || run.rpeMin === undefined || !rpeMax
       ? null
       : `Effort ${rangeLabel(run.rpeMin, rpeMax)} of\u00a0${PRESCRIBED_EFFORT.max}`,
