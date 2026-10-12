@@ -96,3 +96,20 @@ it("leaves an ordinary group alone", () => {
   fireEvent.click(one);
   expect(one.checked).toBe(true);
 });
+
+it("draws its tray off the card it sits in", () => {
+  render(
+    <SegmentedControl
+      name="resistanceMode"
+      aria-label="Load"
+      columns={3}
+      options={["Free weight", "Plate-loaded", "Weight stack", "Bodyweight", "Cardio"].map(
+        (label) => ({ value: label, label }),
+      )}
+    />,
+  );
+  const tray = screen.getByRole("radiogroup", { name: "Load" });
+  // The tray token: the surface on the ground, surface 2 in a box (globals.css).
+  expect(tray.className).toContain("bg-tray");
+  expect(tray.className).not.toMatch(/\bbg-surface\b/);
+});

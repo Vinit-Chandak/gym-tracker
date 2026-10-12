@@ -37,6 +37,8 @@ it("folds the tray onto a second row rather than shrinking a tab under its targe
   const pages = screen.getByRole("navigation", { name: "History pages" });
   // At 200% text a tab is 64 px, and five with two gaps do not fit a 320-pt phone's row.
   expect(pages.querySelector("ul")!.className).toContain("flex-wrap");
+  // In the span tray's dress, a tone off whatever it stands on (the tray token).
+  expect(pages.querySelector("ul")!.className).toContain("bg-tray");
   const tabs = within(pages).getAllByRole("button");
   expect(tabs.map((tab) => tab.textContent)).toEqual(["1", "5", "6", "7", "25"]);
   for (const tab of tabs) {

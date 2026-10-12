@@ -68,8 +68,10 @@ function figureWidth(label: string): string {
 const FIGURE = /^\d+$/;
 
 /**
- * A segmented choice (DESIGN.md, Components): two to four words on a surface, the chosen one in
- * ink. A radio group, so it works without JavaScript; the label is the tap target.
+ * A segmented choice (DESIGN.md, Components): two to four words in a tray, the chosen one in
+ * ink. The tray is the surface on the ground and surface 2 in a box (`--ov-tray`), so it is
+ * never the fill of the card it sits in. A radio group, so it works without JavaScript; the
+ * label is the tap target.
  *
  * A label is never broken: a segment is never narrower than its words on one line ("30 days",
  * "Free weight") or a touch target. With columns, the segments share one row, the space beyond
@@ -106,7 +108,7 @@ export function SegmentedControl<V extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-surface p-[3px] text-[length:var(--ov-type-meta)]"
+      className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-tray p-[3px] text-[length:var(--ov-type-meta)]"
       style={fold.tray}
     >
       {options.map((option, index) => (

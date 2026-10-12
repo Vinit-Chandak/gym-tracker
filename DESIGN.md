@@ -7,6 +7,8 @@ colors:
   surface-2: "#e9e9ec"
   surface-control: "#f4f4f5"
   surface-control-pressed: "#e9e9ec"
+  surface-control-on-surface: "#e9e9ec"
+  surface-control-on-surface-pressed: "#dedee3"
   ink: "#16171b"
   ink-2: "#5b5d64"
   control: "#85878e"
@@ -19,6 +21,8 @@ colors:
   surface-2-dark: "#26272c"
   surface-control-dark: "#2b2c32"
   surface-control-pressed-dark: "#35363c"
+  surface-control-on-surface-dark: "#2b2c32"
+  surface-control-on-surface-pressed-dark: "#35363c"
   ink-dark: "#edeef0"
   ink-2-dark: "#a3a6ae"
   control-dark: "#73767e"
@@ -211,6 +215,13 @@ components:
     height: "56px"
   button-tonal:
     backgroundColor: "{colors.surface-control}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "0 20px"
+    height: "56px"
+  button-tonal-on-surface:
+    backgroundColor: "{colors.surface-control-on-surface}"
     textColor: "{colors.ink}"
     typography: "{typography.button}"
     rounded: "{rounded.control}"
@@ -445,7 +456,13 @@ same pigment.
   notes, a waiting button. **Control surface** (`surface-control`): round and tonal buttons; the
   surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
   ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
-  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground).
+  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground),
+  and a tray on a surface.
+- **On a surface** (a card, a list's box, kept actions), what stands on it steps a tone off it,
+  or it would be the card's own fill: in light a tonal Save under a select read as a stray word,
+  and a tray left its unchosen words bare. A tray takes surface 2; a tonal or round button takes
+  the **control surface on a surface** (`surface-control-on-surface`): surface 2 in light,
+  pressed `#dedee3`, and in dark the lifted control surface, which already reads there.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
   that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
@@ -775,7 +792,8 @@ and every control answers a press.
 
 - **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it).
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it);
+  on a card, the control surface on a surface (Do again, Save under a select).
   **Waiting:** surface with ink 2, for a button waiting on something (Save while RIR is empty,
   Saving…, Send answer with no answer, Try again offline). **Outline:** a 1.5-px control border
   (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt (48 dp on Android),
@@ -1010,12 +1028,12 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
-- **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
-  than its label on one line ("30 days", "Free weight"), and the tray folds before a label would
-  wrap, onto rows as even as fit: four as two and two, five as three and two, never three and
-  one alone. A tray of columns folds sooner, before a segment would keep less than 12 pt either
-  side of its words ("Prefer not to say" at 360 dp). Only a label wider than the whole tray
-  wraps, between its words. A scale's figures
+- **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
+  is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds
+  before a label would wrap, onto rows as even as fit: four as two and two, five as three and
+  two, never three and one alone. A tray of columns folds sooner, before a segment would keep
+  less than 12 pt either side of its words ("Prefer not to say" at 360 dp). Only a label wider
+  than the whole tray wraps, between its words. A scale's figures
   (1–5, Effort) never fold: they keep one row of equal columns at their 44-pt target, and a word
   beside them (Not sure) goes under them when it does not fit. Page tabs fold into columns of
   one width, a gap as wide as a page.
