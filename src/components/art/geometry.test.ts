@@ -107,11 +107,14 @@ describe("a form's state", () => {
       for (const state of ["todo", "done"] as const)
         expect(form(sport, 0, 0, 24, 24, { state }).some((s) => "dash" in s && s.dash)).toBe(false);
     }
-    // A fan of drills too: each drill dashed in the pigment, never a cut around nothing.
+    // A fan of drills too: its edge and each line between two drills dashed once in the
+    // pigment, never a cut around nothing, nor a line dashed twice out of step.
     const fan = form("mobility", 0, 0, 40, 40, { state: "skipped", segments: 6 }) as Path[];
-    expect(fan).toHaveLength(6);
-    for (const drill of fan) expect(drill).toMatchObject({ fill: "none", stroke: "mobility" });
-    expect(fan.every((drill) => drill.dash)).toBe(true);
+    expect(fan).toHaveLength(1 + 5);
+    for (const line of fan) expect(line).toMatchObject({ fill: "none", stroke: "mobility" });
+    expect(fan.every((line) => line.dash)).toBe(true);
+    expect(fan[0]?.d).toMatch(/A.*Z$/);
+    for (const cut of fan.slice(1)) expect(cut.d).toMatch(/^M0 40L[\d.]+ [\d.]+$/);
   });
 
   it("inks a form's segments from the first as they are done", () => {

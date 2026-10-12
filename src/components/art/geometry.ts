@@ -433,26 +433,37 @@ export function form(
       });
     }
   } else if (shape === "fan") {
-    // A quarter disc standing on its corner, cut into its drills. Skipped, each drill is a dashed
-    // edge with the paper inside: a cut in the paper's colour around nothing drew no fan at all,
-    // and a warm-up a workout finished without stood as blank paper in its print.
+    // A quarter disc standing on its corner, cut into its drills. Skipped, it is a dashed edge
+    // with the paper inside, and each cut between drills a dashed line of its own: a cut in the
+    // paper's colour around nothing drew no fan at all, and a warm-up a workout finished without
+    // stood as blank paper in its print; a dashed edge round each drill dashed every line between
+    // two drills twice, out of step, so those read as solid and only the rim as dashed.
     const r = Math.min(w, h);
     const ox = x;
     const oy = base;
     const n = Math.max(1, segments || 1);
-    for (let k = 0; k < n; k++) {
-      const a0 = -Math.PI / 2 + (k / n) * (Math.PI / 2);
-      const a1 = -Math.PI / 2 + ((k + 1) / n) * (Math.PI / 2);
+    const at = (k: number) => {
+      const a = -Math.PI / 2 + (k / n) * (Math.PI / 2);
+      return `${f1(ox + r * Math.cos(a))} ${f1(oy + r * Math.sin(a))}`;
+    };
+    if (state === "skipped") {
       out.push({
         kind: "path",
-        d: `M${f1(ox)} ${f1(oy)}L${f1(ox + r * Math.cos(a0))} ${f1(oy + r * Math.sin(a0))}A${f1(r)} ${f1(r)} 0 0 1 ${f1(ox + r * Math.cos(a1))} ${f1(oy + r * Math.sin(a1))}Z`,
-        fill: fillFor(k),
-        ...(isTodo(k)
-          ? edge(k)
-          : n > 1 && state !== "skipped"
-            ? { stroke: "cut", strokeWidth: cutW }
-            : dash),
+        d: `M${f1(ox)} ${f1(oy)}L${at(0)}A${f1(r)} ${f1(r)} 0 0 1 ${at(n)}Z`,
+        fill: "none",
+        ...dash,
       });
+      for (let k = 1; k < n; k++)
+        out.push({ kind: "path", d: `M${f1(ox)} ${f1(oy)}L${at(k)}`, fill: "none", ...dash });
+    } else {
+      for (let k = 0; k < n; k++) {
+        out.push({
+          kind: "path",
+          d: `M${f1(ox)} ${f1(oy)}L${at(k)}A${f1(r)} ${f1(r)} 0 0 1 ${at(k + 1)}Z`,
+          fill: fillFor(k),
+          ...(isTodo(k) ? edge(k) : n > 1 ? { stroke: "cut", strokeWidth: cutW } : dash),
+        });
+      }
     }
     if (cut === "arc") {
       const ar = r * 0.62;
