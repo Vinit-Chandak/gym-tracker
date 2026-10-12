@@ -7,11 +7,10 @@ import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { programmeClosureLine, showsClosure } from "@/components/activities/programme-closure";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Glyph } from "@/components/ui/glyphs";
+import { CardLink } from "@/components/ui/card-link";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
@@ -196,13 +195,9 @@ export default async function OccurrencePage(
             {/* The way into the record, as Today's card says it: in ink and bold, led on by its
                 chevron. In plain ink alone it read as a second line of the sentence above it
                 (year audit, October 2026). */}
-            <Link
-              href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="activity-card-link"
-            >
+            <CardLink href={`/training/activities/${occurrence.resolution.activityId}`}>
               See what you logged
-              <Glyph name="chevronRight" className="glyph-18" />
-            </Link>
+            </CardLink>
           </Card>
         ) : occurrence.resolution.kind === "legacy_completed" ? (
           <Card>

@@ -168,7 +168,7 @@ it("is headed by what its day is for, and the target is said once", async () => 
 it("leads into what was logged as Today's card does", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toMatch(
-    /<a href="\/training\/activities\/a1" class="activity-card-link">See what you logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
+    /<a href="\/training\/activities\/a1" class="activity-card-link">See what you <span class="activity-card-link-end">logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
   );
 });
 
@@ -309,7 +309,7 @@ it("reads a replaced programme's logged session by what was logged", async () =>
   mocks.named.mockResolvedValue({ dayName: "Tempo run", dayFocus: null });
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("<h1>Tempo run</h1>");
-  expect(html).toContain("See what you logged");
+  expect(html).toMatch(/>See what you <span[^>]*>logged</);
   expect(html).not.toContain("can no longer be logged");
   expect(mocks.closure).not.toHaveBeenCalled();
 });

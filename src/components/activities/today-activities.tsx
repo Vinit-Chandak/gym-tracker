@@ -1,7 +1,7 @@
 import { Art } from "@/components/art/art";
-import Link from "@/components/ui/app-link";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
@@ -104,13 +104,9 @@ function EnduranceDetails({
           ))}
         </dl>
       )}
-      <Link
-        href={`/training/programme/occurrences/${occurrence.id}`}
-        className="activity-card-link"
-      >
+      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>
         {occurrence.disposition === "skipped" ? "Undo skip or move" : "Skip or move"}
-        <Glyph name="chevronRight" className="glyph-18" />
-      </Link>
+      </CardLink>
     </div>
   );
 }
@@ -234,13 +230,9 @@ export function EnduranceCard({
       }
       actions={
         logged && occurrence.resolution.kind === "logged" ? (
-          <Link
-            href={`/training/activities/${occurrence.resolution.activityId}`}
-            className="activity-card-link"
-          >
+          <CardLink href={`/training/activities/${occurrence.resolution.activityId}`}>
             See what you logged
-            <Glyph name="chevronRight" className="glyph-18" />
-          </Link>
+          </CardLink>
         ) : occurrence.loggable && !skipped ? (
           <LinkButton
             href={`/training/new?occurrence=${occurrence.id}`}

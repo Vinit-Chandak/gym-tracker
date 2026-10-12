@@ -1034,21 +1034,35 @@ button.activity-card-toggle {
 .activity-card-footer + .activity-card-details {
   margin-top: calc(4 * var(--ov-u));
 }
-/* A link inside a card, as tall as a target: See what you logged, Skip or move. */
+/* A link inside a card (CardLink): See what you logged, Skip or move. Its words run as a line of
+   text, the chevron held to the last of them, so a label that wraps at large text ends "logged ›"
+   under its first words rather than leaving the chevron at the card's far edge. Its target is the
+   band above and below its line, as a quieter way out's is, so it is a target tall on one line and
+   keeps the band when it wraps (year audit, October 2026). Set at the top of the line it stands
+   on, so a wrapped label's last line does not sit on that line's baseline, with the line's own
+   descent added under its band. */
 .activity-card-link {
-  display: inline-flex;
-  min-height: var(--ov-target);
-  align-items: center;
-  gap: calc(4 * var(--ov-u));
+  display: inline-block;
+  padding-block: calc((var(--ov-target) - 1lh) / 2);
+  vertical-align: top;
   font-size: var(--ov-type-meta);
   font-weight: 700;
+}
+.activity-card-link-end {
+  white-space: nowrap;
+}
+.activity-card-link-end > svg {
+  display: inline-block;
+  margin-left: calc(4 * var(--ov-u));
+  vertical-align: middle;
 }
 .activity-card-plan > .activity-card-link {
   margin-top: calc(6 * var(--ov-u));
 }
-/* Ending a card (a session's See what you logged, a gym's Programme fit), the target reaches into
-   the card's padding, so its words stand as far from the card's foot as its first line does from
-   its head, rather than over a band of empty card (year audit, October 2026). */
+/* Ending a card (a session's See what you logged, a gym's Programme fit), the target's lower band
+   reaches into the card's padding, so its last line stands as far from the card's foot as the
+   card's first line does from its head, rather than over a band of empty card, on one line or
+   wrapped (year audit, October 2026). */
 .box > .activity-card-link:last-child {
   margin-bottom: calc((var(--ov-target) - 1lh) / -2);
 }

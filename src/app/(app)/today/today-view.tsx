@@ -7,8 +7,8 @@ import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activitie
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { ActivityCard } from "@/components/ui/activity-card";
-import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { FitTitle } from "@/components/ui/fit-title";
@@ -273,17 +273,15 @@ function LoggedCard({
       }
       status={<State glyph="check">{strength ? "Workout logged." : "Logged"}</State>}
       actions={
-        <Link
+        <CardLink
           href={
             strength && logged.sessionId
               ? `/workouts/${logged.sessionId}`
               : `/training/activities/${logged.id}`
           }
-          className="activity-card-link"
         >
           See what you logged
-          <Glyph name="chevronRight" className="glyph-18" />
-        </Link>
+        </CardLink>
       }
     />
   );
