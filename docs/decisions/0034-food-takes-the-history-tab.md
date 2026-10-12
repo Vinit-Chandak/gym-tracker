@@ -45,6 +45,12 @@ had, and for History to move into Progress.
    carries `from=history` as before (NAV-03). That now selects Progress and goes back to History by
    name. Deleting an activity lands on History, and so does Back from a finished workout opened by
    a direct link.
+   - _Year audit, October 2026:_ such a workout still lit Today, and a run, ride or swim opened by a
+     link of its own lit Training, while each went back to History. A record opened with no origin
+     now selects Progress as well: the tab lit is the one Back leads into. The open workout shares
+     a finished one's path but hides the tabs, and the session's pages under it stay Today's.
+     Today's "See what you logged", and logging from Today, name Today, so what they open stays
+     Today's.
 6. **Old paths still work.** `/history` redirects permanently to `/progress/history`, its query
    included, and `/today/food` and everything under it to `/food`, as `/settings` did to `/profile`
    (ADR 0026).

@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import {
   isNavItemActive,
   NAV_ITEMS,
+  NAV_ORIGINS,
   originPath,
   originQuery,
   parseOrigin,
@@ -15,7 +16,9 @@ it.each([
   ["/workouts/session/check-in", "/today"],
   // The check-in before a workout, which has no session yet, is Today's too.
   ["/workouts/start", "/today"],
-  ["/training/activities/abc", "/training"],
+  // A record opened with no origin is History's, inside Progress, as its Back is (NAV-03).
+  ["/workouts/abc", "/progress"],
+  ["/training/activities/abc", "/progress"],
   // Gyms left the tab bar; its screens keep Profile selected, the way it is reached.
   ["/gyms", "/profile"],
   ["/gyms/gym/equipment/new", "/profile"],
@@ -77,10 +80,11 @@ it("puts Training where Runs was, and Food where History was", () => {
 
 it.each([
   ["/training", "/training"],
-  ["/training/activities/abc", "/training"],
+  ["/training/new", "/training"],
   ["/training/programme", "/training"],
-  // The strength logger is opened from Today's card and keeps Today selected.
+  // The session's own pages are Today's, where a workout is started and finished.
   ["/workouts/abc/check-in", "/today"],
+  ["/workouts/abc/add-exercise", "/today"],
 ])("keeps one shared tab selected for %s", (pathname, expected) => {
   expect(
     NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href)).map(({ href }) => href),
@@ -109,6 +113,15 @@ it("sends a finished workout back to History unless its link names where it was 
   expect(workoutBackPath("history", false)).toBe("/today");
 });
 
+const selected = (pathname: string, origin: NavOrigin | null = null) =>
+  NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, origin)).map(({ href }) => href);
+
+it.each([null, ...NAV_ORIGINS])("lights the tab a record's Back leads into (%s)", (origin) => {
+  // A finished workout and a logged run, ride or swim, with their link's origin or none.
+  expect(selected("/workouts/abc", origin)).toEqual(selected(workoutBackPath(origin, true)));
+  expect(selected("/training/activities/abc", origin)).toEqual(selected(originPath(origin)));
+});
+
 it.each<[string, NavOrigin, string]>([
   // A finished workout opened from History keeps History's tab, Progress, and so does its
   // exercise.
@@ -117,6 +130,9 @@ it.each<[string, NavOrigin, string]>([
   // Correcting a run opened from History does not move you to Training.
   ["/training/activities/abc/edit", "history", "/progress"],
   ["/training/activities/abc", "programme", "/training"],
+  // Opened from Today's card, a finished workout or a logged run keeps Today selected.
+  ["/workouts/abc", "today", "/today"],
+  ["/training/activities/abc", "today", "/today"],
   ["/workouts/abc", "shared", "/profile"],
 ])("keeps %s under the tab its link names (%s)", (pathname, origin, expected) => {
   expect(

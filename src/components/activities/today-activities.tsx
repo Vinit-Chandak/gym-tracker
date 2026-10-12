@@ -10,6 +10,7 @@ import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -230,12 +231,15 @@ export function EnduranceCard({
       }
       actions={
         logged && occurrence.resolution.kind === "logged" ? (
-          <CardLink href={`/training/activities/${occurrence.resolution.activityId}`}>
+          // Opened from Today, it keeps Today selected and goes back to it (NAV-03).
+          <CardLink
+            href={`/training/activities/${occurrence.resolution.activityId}${originQuery("today")}`}
+          >
             See what you logged
           </CardLink>
         ) : occurrence.loggable && !skipped ? (
           <LinkButton
-            href={`/training/new?occurrence=${occurrence.id}`}
+            href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
             variant="tonal"
             className="w-full"
             aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}

@@ -351,7 +351,7 @@ it("names a workout started from a saved routine after the routine, open and fin
     within(lift)
       .getByRole("link", { name: /See what you logged/ })
       .getAttribute("href"),
-  ).toBe("/workouts/lift-1");
+  ).toBe("/workouts/lift-1?from=today");
   expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
@@ -549,7 +549,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
     within(ride)
       .getByRole("link", { name: /See what you logged/ })
       .getAttribute("href"),
-  ).toBe("/training/activities/ride-1");
+  ).toBe("/training/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
@@ -619,10 +619,10 @@ it("never asks someone who does not lift for a gym, and offers their own sports 
   expect(screen.queryByText("Add a gym to start training")).toBeNull();
   expect(screen.getByText("Nothing planned")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Log a run" }).getAttribute("href")).toBe(
-    "/training/new?sport=running",
+    "/training/new?sport=running&from=today",
   );
   expect(screen.getByRole("link", { name: "Log a swim" }).getAttribute("href")).toBe(
-    "/training/new?sport=swimming",
+    "/training/new?sport=swimming&from=today",
   );
   expect(screen.queryByRole("link", { name: "Log a ride" })).toBeNull();
 });

@@ -28,6 +28,7 @@ import {
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { sessionName } from "@/lib/labels";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -273,11 +274,13 @@ function LoggedCard({
       }
       status={<State glyph="check">{strength ? "Workout logged." : "Logged"}</State>}
       actions={
+        // Opened from Today, it keeps Today selected and goes back to it (NAV-03): with no origin
+        // a finished record is History's.
         <CardLink
           href={
             strength && logged.sessionId
-              ? `/workouts/${logged.sessionId}`
-              : `/training/activities/${logged.id}`
+              ? `/workouts/${logged.sessionId}${originQuery("today")}`
+              : `/training/activities/${logged.id}${originQuery("today")}`
           }
         >
           See what you logged
@@ -886,7 +889,7 @@ export function TodayView({
                 {logSports.map((entry, i) => (
                   <LinkButton
                     key={entry.sport}
-                    href={`/training/new?sport=${entry.query}` as Route}
+                    href={`/training/new?sport=${entry.query}&${ORIGIN_PARAM}=today` as Route}
                     size="lg"
                     variant={i === 0 ? "primary" : "secondary"}
                     className="w-full"

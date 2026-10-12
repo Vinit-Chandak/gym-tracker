@@ -31,6 +31,7 @@ import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Scheduled session" };
 
@@ -194,8 +195,13 @@ export default async function OccurrencePage(
             </p>
             {/* The way into the record, as Today's card says it: in ink and bold, led on by its
                 chevron. In plain ink alone it read as a second line of the sentence above it
-                (year audit, October 2026). */}
-            <CardLink href={`/training/activities/${occurrence.resolution.activityId}`}>
+                (year audit, October 2026). It names the programme, or Training for a session of
+                none, as this page's Back does, so Training stays selected (NAV-03). */}
+            <CardLink
+              href={`/training/activities/${occurrence.resolution.activityId}${originQuery(
+                standalone ? "training" : "programme",
+              )}`}
+            >
               See what you logged
             </CardLink>
           </Card>

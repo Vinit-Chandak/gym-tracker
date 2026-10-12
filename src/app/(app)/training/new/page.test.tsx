@@ -42,13 +42,25 @@ vi.mock("next/navigation", () => ({
 }));
 // The form itself is the editor's to test: here it is only whether the page opens it.
 vi.mock("@/components/activities/activity-editor", () => ({
-  ActivityEditor: ({ occurrence }: { occurrence: { id: string } | null }) => (
-    <form>Logging {occurrence?.id}</form>
-  ),
+  ActivityEditor: ({
+    occurrence,
+    origin,
+  }: {
+    occurrence: { id: string } | null;
+    origin?: string | null;
+  }) => <form data-origin={origin ?? ""}>Logging {occurrence?.id}</form>,
 }));
 vi.mock("@/components/shell/session-page", () => ({
-  SessionPage: ({ title, children }: { title: string; children: ReactNode }) => (
-    <main>
+  SessionPage: ({
+    title,
+    back,
+    children,
+  }: {
+    title: string;
+    back?: { href: string };
+    children: ReactNode;
+  }) => (
+    <main data-back={back?.href ?? ""}>
       <h1>{title}</h1>
       {children}
     </main>
@@ -83,9 +95,9 @@ const owed = {
   loggable: false,
 } as ScheduledOccurrence;
 
-const props = (occurrence = ID) =>
+const props = (occurrence = ID, from?: string) =>
   ({
-    searchParams: Promise.resolve({ occurrence }),
+    searchParams: Promise.resolve(from ? { occurrence, from } : { occurrence }),
   }) as unknown as PageProps<"/training/new">;
 
 beforeEach(() => {
@@ -105,7 +117,7 @@ beforeEach(() => {
  */
 it("refuses a closed programme's session, says how its programme ended, and offers the run", async () => {
   const html = renderToStaticMarkup(await NewActivityPage(props()));
-  expect(html).not.toContain("<form>");
+  expect(html).not.toContain("<form");
   expect(html).toContain("Its programme has ended");
   expect(html).toContain(
     "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026, so the run scheduled for Sat 27 Jun 2026 can no longer be logged. You can still log a run on its own.",
@@ -134,6 +146,28 @@ it("opens the form for a session of the athlete's programme", async () => {
     loggable: true,
   });
   const html = renderToStaticMarkup(await NewActivityPage(props()));
-  expect(html).toContain(`<form>Logging ${ID}</form>`);
+  expect(html).toContain(`>Logging ${ID}</form>`);
   expect(mocks.closure).not.toHaveBeenCalled();
+});
+
+/**
+ * NAV-03: what it saves opens under the tab it was opened from and goes back to it, as this page
+ * does: Today's when Today says so, and Training's otherwise.
+ */
+it("names where it was opened from to the activity it saves", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...owed,
+    familyId: "family",
+    closed: false,
+    loggable: true,
+  });
+  const fromToday = renderToStaticMarkup(await NewActivityPage(props(ID, "today")));
+  expect(fromToday).toContain('data-back="/today"');
+  expect(fromToday).toContain('data-origin="today"');
+  const fromTraining = renderToStaticMarkup(await NewActivityPage(props()));
+  expect(fromTraining).toContain('data-back="/training"');
+  expect(fromTraining).toContain('data-origin="training"');
+  // Only an origin it knows: anything else is Training's.
+  const unknown = renderToStaticMarkup(await NewActivityPage(props(ID, "https://example.test")));
+  expect(unknown).toContain('data-origin="training"');
 });

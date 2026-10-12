@@ -14,6 +14,7 @@ import { withUser } from "@/db/with-user";
 import { setLengthFor } from "@/lib/distance-units";
 import { holdFigures } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
+import { ORIGIN_PARAM } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -202,7 +203,7 @@ export default async function ChooseDayPage() {
                       occurrence.sport === "strength" ? null : (
                         <LinkButton
                           key={occurrence.id}
-                          href={`/training/new?occurrence=${occurrence.id}`}
+                          href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
                           variant="secondary"
                           className="w-full"
                           aria-label={`${LOG_LABEL[occurrence.sport]}: ${day.name}`}

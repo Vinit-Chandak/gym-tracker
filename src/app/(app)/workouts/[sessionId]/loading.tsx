@@ -1,5 +1,11 @@
 import { LoadingPage } from "@/components/shell/loading-page";
 
+import { WorkoutLoadingFrame } from "./loading-frame";
+
 export default function Loading() {
-  return <LoadingPage title="Session" />;
+  return (
+    <WorkoutLoadingFrame>
+      <LoadingPage title="Session" />
+    </WorkoutLoadingFrame>
+  );
 }

@@ -1035,7 +1035,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Tab bar:** Today, Training, Food, Progress, Profile on ground under a `hair` rule; 24-pt
   icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
   are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
-  sliders.
+  sliders. Where you are is the tab the way back leads into (NAV-03): a workout, run, ride or
+  swim keeps the tab its link names, and with none is History's, so Progress; the open workout
+  is Today's, a layer over the tabs (October 2026).
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
   at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while

@@ -8,6 +8,7 @@ import { CalendarDays } from "@/components/ui/icons";
 import type { ActivitySport } from "@/domain/activity";
 import type { ProgrammeClosure, ScheduledOccurrence } from "@/server/repositories/occurrences";
 import { formatIsoDate } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 
 import { programmeClosureLine, showsClosure } from "./programme-closure";
 
@@ -44,7 +45,8 @@ export function OccurrenceSettled({
           header: "Already done",
           title: "You have already logged this",
           description: `The ${noun} scheduled for ${when} was answered by an activity you logged. A scheduled session is logged once; correct that activity rather than logging a second one.`,
-          href: `/training/activities/${occurrence.resolution.activityId}` as Route,
+          // Opened from Training, whose page this is, it keeps Training selected (NAV-03).
+          href: `/training/activities/${occurrence.resolution.activityId}${originQuery("training")}` as Route,
           label: "See what you logged",
         }
       : occurrence.resolution.kind === "cancelled"

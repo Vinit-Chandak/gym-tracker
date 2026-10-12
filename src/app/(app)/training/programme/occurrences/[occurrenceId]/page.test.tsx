@@ -163,12 +163,13 @@ it("is headed by what its day is for, and the target is said once", async () => 
 /**
  * Year audit, October 2026: "See what you logged" was ink on ink, read as a second line of the
  * sentence above it. It is the way into the record, said as Today's card says it: bold, led on by
- * its chevron, in a target's height.
+ * its chevron, in a target's height. It names the programme it is opened from, so the record
+ * keeps Training selected and goes back to it (NAV-03).
  */
 it("leads into what was logged as Today's card does", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toMatch(
-    /<a href="\/training\/activities\/a1" class="activity-card-link">See what you <span class="activity-card-link-end">logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
+    /<a href="\/training\/activities\/a1\?from=programme" class="activity-card-link">See what you <span class="activity-card-link-end">logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
   );
 });
 

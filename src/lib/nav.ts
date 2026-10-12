@@ -48,14 +48,23 @@ const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
 
 /**
+ * A record's own page: a run, ride or swim (its correction too), or a workout itself rather than
+ * one of the session's pages under it or the check-in before it.
+ */
+const isRecordPage = (pathname: string) =>
+  withinSection(pathname, "/training/activities") ||
+  (/^\/workouts\/[^/]+$/.test(pathname) && pathname !== "/workouts/start");
+
+/**
  * Detail screens belong to the same primary section as their entry point.
  *
  * A record several tabs can open keeps the tab its link names: a finished workout opened from
  * History keeps Progress selected, however far into it you go. The origin is read only on those
  * records, so a tab's own screens ignore it — and History's date-range `from` never collides
- * with it. Without one, the strength logger is Today's, since that is where its card is, and
- * a shared activity route says where it belongs in its own path, which is why Training does
- * not have to be listed here.
+ * with it. Without one, a record is History's, as its Back is (NAV-03): the tab lit is the one
+ * Back leads into. The open workout has a finished one's path, but it is the session's layer
+ * over the tabs, which hides them, as its loading screen does (`WorkoutLoadingFrame`); the
+ * session's own pages under it are Today's, where a workout is started and finished.
  */
 export function isNavItemActive(
   pathname: string,
@@ -65,11 +74,13 @@ export function isNavItemActive(
   const sectionPath =
     origin && OPENED_FROM_ELSEWHERE.some((section) => withinSection(pathname, section))
       ? originPath(origin)
-      : pathname.startsWith("/workouts/")
-        ? "/today"
-        : UNDER_PROFILE.some((section) => withinSection(pathname, section))
-          ? "/profile"
-          : pathname;
+      : isRecordPage(pathname)
+        ? originPath(null)
+        : pathname.startsWith("/workouts/")
+          ? "/today"
+          : UNDER_PROFILE.some((section) => withinSection(pathname, section))
+            ? "/profile"
+            : pathname;
   return withinSection(sectionPath, href);
 }
 
@@ -156,7 +167,8 @@ export function originPath(
  * Where a workout's Back goes without a page before it. The open workout is Today's, where it is
  * started and finished. A finished one goes where its link said it was opened from, and
  * otherwise to History, where finished workouts live (NAV-03): opened from the calendar's day,
- * a year-old session or a link of its own, it said "Today" (year audit, October 2026).
+ * a year-old session or a link of its own, it said "Today" (year audit, October 2026). The tab
+ * bar lights the same tab (`isNavItemActive`).
  */
 export function workoutBackPath(origin: NavOrigin | null, finished: boolean): string {
   return finished ? originPath(origin) : "/today";

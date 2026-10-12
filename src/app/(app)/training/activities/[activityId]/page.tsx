@@ -22,7 +22,7 @@ import {
 import { formatDuration } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
-import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
+import { ORIGIN_PARAM, originPath, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
@@ -68,7 +68,8 @@ function split(text: string): { figure: string; unit?: string } {
 export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
   const { activityId } = await props.params;
   requireUuid(activityId);
-  // Passed on to the correction, so the tab it was opened from stays selected through it.
+  // Passed on to the correction, so the tab it was opened from stays selected through it, and
+  // where Back goes without a page before it: that tab, or History with none (NAV-03).
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
@@ -150,7 +151,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
     <>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
-          <BackLink fallback="/progress/history" />
+          <BackLink fallback={originPath(origin)} />
           <div className="page-header-action">
             <ActivityMore
               label={`Correct or delete this ${sport ? NOUN[sport] : "activity"}`}
