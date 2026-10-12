@@ -29,7 +29,7 @@ vi.mock("@/server/repositories/coach-plans", () => ({
   withPreparedTargets: async (_tx: unknown, _id: string, found: unknown[]) => found,
 }));
 vi.mock("@/server/repositories/sport-preferences", () => ({
-  unitsFor: async () => ({ distanceUnit: "km", poolUnit: "m" }),
+  readSportUnits: async () => ({ distanceUnit: "km", poolUnit: "m" }),
 }));
 vi.mock("@/server/actions/activities", () => ({ saveActivityAction: vi.fn() }));
 vi.mock("next/navigation", () => ({

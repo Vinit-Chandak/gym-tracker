@@ -26,7 +26,7 @@ vi.mock("@/db/with-user", () => ({
 vi.mock("@/server/repositories/activities", () => ({ getActivity: mocks.activity }));
 vi.mock("@/server/repositories/occurrences", () => ({ namedOccurrence: mocks.named }));
 vi.mock("@/server/repositories/sport-preferences", () => ({
-  unitsFor: async () => ({ distanceUnit: "km", poolUnit: "m" }),
+  readSportUnits: async () => ({ distanceUnit: "km", poolUnit: "m" }),
 }));
 // What More would offer, as the question its delete asks will put it.
 vi.mock("./activity-more", () => ({
