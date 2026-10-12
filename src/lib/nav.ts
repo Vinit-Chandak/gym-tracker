@@ -99,7 +99,9 @@ const SECTION_LABELS: Record<string, string> = {
   gyms: "Gyms",
   exercises: "Exercises",
   workouts: "Workout",
-  u: "People",
+  // No name for `/u`: it is no page, and a person's pages are named by who they are, which only
+  // the page linking to them knows (its `backLabel`). "People" said the list you follow them from
+  // and led to their page instead (year audit, October 2026).
 };
 
 /** A screen with a name of its own inside a section, which a back control names instead. */
@@ -113,9 +115,15 @@ const PAGE_LABELS: Record<string, string> = {
   "/food/my-foods": "My foods",
 };
 
+/** Comparing yourself with someone, one exercise of it included: a page named Compare. */
+const COMPARE_PAGE = /^\/u\/[^/]+\/compare(?:\/|$)/;
+
 export function sectionLabel(path: string): string | undefined {
   const pathname = path.split(/[?#]/)[0]!;
-  return PAGE_LABELS[pathname] ?? SECTION_LABELS[pathname.split("/")[1] ?? ""];
+  return (
+    PAGE_LABELS[pathname] ??
+    (COMPARE_PAGE.test(pathname) ? "Compare" : SECTION_LABELS[pathname.split("/")[1] ?? ""])
+  );
 }
 
 /**

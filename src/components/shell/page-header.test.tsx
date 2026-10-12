@@ -58,6 +58,31 @@ it("keeps the given name going back to the page it names, opened from any tab", 
   window.history.replaceState(null, "", "/");
 });
 
+/**
+ * Year audit, October 2026: a friend's shared workout went back to their page as "People", the
+ * name of the list you follow them from. Their page is named by who they are; comparing with
+ * them by Compare, wherever it is the page before.
+ */
+it("names a person's page by the name it is given, never as People", () => {
+  window.history.replaceState(null, "", "/u/aarav/activities/abc");
+  render(<PageHeader title="Workout" backHref="/u/aarav" backLabel="Aarav Sharma" />);
+  expect(screen.getByRole("link", { name: "Back to Aarav Sharma" }).getAttribute("href")).toBe(
+    "/u/aarav",
+  );
+  cleanup();
+  // Opened from a point on a comparison's graph, the way back names the comparison.
+  window.history.replaceState(
+    { overloadPreviousPage: "/u/aarav/compare/bench" },
+    "",
+    "/u/aarav/activities/abc",
+  );
+  render(<PageHeader title="Workout" backHref="/u/aarav" backLabel="Aarav Sharma" />);
+  expect(screen.getByRole("link", { name: "Back to Compare" }).getAttribute("href")).toBe(
+    "/u/aarav/compare/bench",
+  );
+  window.history.replaceState(null, "", "/");
+});
+
 it("falls back to Back where the path belongs to no section", () => {
   render(<PageHeader title="Somewhere" backHref="/login" />);
   expect(screen.getByRole("link", { name: "Back" }).textContent).toBe("Back");

@@ -1039,8 +1039,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   swim keeps the tab its link names, and with none is History's, so Progress; the open workout
   is Today's, a layer over the tabs (October 2026).
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
-  link that names where it goes; a session screen has its back or minimise, the rest pill, and
-  at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
+  link that names where it goes, a person's page by their name (never "People", which is the list
+  of them); a session screen has its back or minimise, the rest pill, and at most Finish and More.
+  Today's head is the date and the cycle as seven squares, wordless while
   the programme is on track; behind is news, so "1 session behind" stands beside the squares.
   From two behind, with no workout open, the count stands under the date with its way out, Pick
   up from today (ADR 0051): beside the count while the count fits whole, else under it at the

@@ -48,7 +48,13 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/gyms/abc/equipment/new")).toBe("Gyms");
   expect(sectionLabel("/workouts/abc")).toBe("Workout");
   expect(sectionLabel("/profile")).toBe("Profile");
-  expect(sectionLabel("/u/phani03")).toBe("People");
+  // A person's page has no section name: "People" is another page, the list you follow them from.
+  // What links to their page names them; Comparing with them is a page with a name of its own.
+  expect(sectionLabel("/u/phani03")).toBeUndefined();
+  expect(sectionLabel("/u/phani03/activities/abc")).toBeUndefined();
+  expect(sectionLabel("/u/phani03/compare?sport=running")).toBe("Compare");
+  expect(sectionLabel("/u/phani03/compare/bench")).toBe("Compare");
+  expect(sectionLabel("/u/compare")).toBeUndefined();
   // A meal's page goes back to the Food tab.
   expect(sectionLabel("/food")).toBe("Food");
   // My foods is a screen of Food's with a name of its own (ADR 0035); Targets is Food's.

@@ -129,7 +129,8 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
   if (found === null) notFound();
   if (found === "self") redirect(`/u/${handle}${asked ? `?sport=${asked}` : ""}`);
   const { me, them } = found;
-  // Back to the person in the sport being compared, or the one asked for while it is hidden.
+  // Back to the person, by name, in the sport being compared, or the one asked for while it is
+  // hidden.
   const sport = "sport" in found ? found.sport : asked;
   const back = `/u/${them.username}${sport ? `?sport=${sport}` : ""}` as const;
   const names: [string, string] = [
@@ -139,7 +140,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
 
   return (
     <>
-      <PageHeader title="Compare" backHref={back} />
+      <PageHeader title="Compare" backHref={back} backLabel={names[1]} />
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (

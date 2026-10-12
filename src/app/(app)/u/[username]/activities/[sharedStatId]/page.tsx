@@ -79,6 +79,8 @@ export default async function SharedActivityPage(
       <PageHeader
         title={activity.title}
         backHref={`/u/${person.username}`}
+        // Their page, by the name it is titled with.
+        backLabel={name}
         meta={
           <>
             <Link
