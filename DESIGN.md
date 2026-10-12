@@ -1130,7 +1130,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   in the order they are done, in its print, its rows and Training's tile alike: the warm-up before
   what it warms up for, so a day that only runs draws its fan, then its runner, and lists its
   run's warm-up before the run (year audit, October 2026); a day that lifts and runs keeps its
-  warm-up with the lifting, and the run where the day is written to have it.
+  warm-up with the lifting, and the run where the day is written to have it, on Today's band as
+  well ("Lower + easy run" draws its lifting, then its runner). Today's cards keep their own
+  order, the workout first (see Layout).
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).

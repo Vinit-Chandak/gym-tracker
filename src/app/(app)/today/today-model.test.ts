@@ -40,6 +40,18 @@ const slot = (patch: Partial<PlannedExercisePreview>): PlannedExercisePreview =>
 });
 
 const CURL = slot({});
+
+/** The days the band is drawn for: one that runs first, one that lifts first. */
+const EASY_RUN_ARMS = {
+  name: "Easy Run + Arms",
+  focus: "Aerobic + arms/forearms",
+  includesLifting: true,
+};
+const LOWER_EASY_RUN = {
+  name: "Lower + easy run",
+  focus: "Squat + hinge, then 20 min easy",
+  includesLifting: true,
+};
 const PUSHDOWN = slot({
   programExerciseId: "e2",
   name: "Rope triceps pushdown",
@@ -251,6 +263,7 @@ describe("the day's print", () => {
       prescription: null,
     } as unknown as ScheduledOccurrence;
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [run],
       rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
       standalone: [],
@@ -265,6 +278,39 @@ describe("the day's print", () => {
     ]);
   });
 
+  it("draws the run after the lifting on a day written to lift first, as its tile does", () => {
+    // Meera's Lower + easy run: the band drew the runner first, where Training's tile, the day's
+    // page and Today's own cards all put the lifting first.
+    const run = {
+      sport: "running",
+      disposition: "pending",
+      resolution: { kind: "incomplete" },
+      prescription: null,
+    } as unknown as ScheduledOccurrence;
+    const ride = { ...run, sport: "cycling" } as ScheduledOccurrence;
+    const parts = todayParts({
+      day: LOWER_EASY_RUN,
+      programme: [run],
+      rows: planRows([CURL, PUSHDOWN], null, "kg", "m"),
+      standalone: [ride],
+    });
+    // Anything else dated today still comes after the day.
+    expect(parts.map((part) => part.kind)).toEqual(["strength", "run", "ride"]);
+    expect(printLabel("Lower + easy run", parts)).toBe(
+      "Lower + easy run: 2 exercises as columns of their sets, to do, then a run to do, then a ride to do.",
+    );
+    // A rest day's routine leads whatever else is dated on it.
+    expect(
+      todayParts({
+        day: { name: "Rest", focus: null, includesLifting: false },
+        programme: [],
+        rows: [],
+        standalone: [ride],
+        restDrills: 5,
+      }).map((part) => part.kind),
+    ).toEqual(["mobility", "ride"]);
+  });
+
   it("draws no run a revision withdrew, and a run history answered as done", () => {
     const run = (resolution: ScheduledOccurrence["resolution"]["kind"]) =>
       ({
@@ -274,6 +320,7 @@ describe("the day's print", () => {
         prescription: null,
       }) as unknown as ScheduledOccurrence;
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [run("cancelled"), run("legacy_completed")],
       rows: planRows([CURL], null, "kg", "m"),
       standalone: [],
@@ -313,6 +360,7 @@ describe("the day's print", () => {
       ],
     };
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [],
       rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
       standalone: [],
@@ -343,6 +391,7 @@ describe("the day's print", () => {
     });
     const coached = planRows([CURL], { exercises: [entry({}), added] }, "kg", "m");
     const columns = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [],
       rows: coached,
       standalone: [],
@@ -376,6 +425,7 @@ describe("the day's print", () => {
       ],
     };
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [],
       rows: planRows([CURL, PUSHDOWN], null, "kg", "m"),
       standalone: [],

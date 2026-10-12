@@ -428,6 +428,7 @@ export function TodayView({
   const parts =
     day && plan
       ? todayParts({
+          day,
           programme: programmeOnOffer,
           rows,
           standalone: finishedToday ? [] : standaloneOccurrences,

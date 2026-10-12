@@ -1,3 +1,4 @@
+import { dayOrder, type DayPart } from "@/app/(app)/training/programme-day";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
 import { exerciseColumn, planColumn } from "@/components/art/session-print";
 import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
@@ -10,7 +11,11 @@ import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { PlanMachineType } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
+import type {
+  PlannedExercisePreview,
+  ScheduleDay,
+  TodayPlan,
+} from "@/server/repositories/schedule";
 
 // ---------- the cycle as squares ----------
 
@@ -209,14 +214,18 @@ export function loggedBesides(
 // ---------- the day's print ----------
 
 /**
- * The day's plan as a print (DESIGN.md, Prints): its parts in the order of the rows under it.
- * The programme's own endurance first, as the day is written; then the exercises, a column of
- * sets each, a superset's two standing closer; then anything else dated today. Once the day has
- * a workout, each row's column is the column of the exercise done for it, as the workout's own
- * print draws it (`exerciseColumn`): open, the sets logged ink the plan; finished, the working
- * sets done, what was not done dashed. A plan's print, it draws no warm-up sets.
+ * The day's plan as a print (DESIGN.md, Prints): its parts in the order the day is done
+ * (`dayOrder`), as Training's tile and the day's own page draw it. A rest day's routine; the
+ * programme's own endurance where the day is written to have it, before the lifting ("Easy
+ * Run + Arms") or after it ("Lower + easy run"), where the band once drew it first on every day;
+ * the exercises, a column of sets each, a superset's two standing closer; then anything else
+ * dated today. Once the day has a workout, each row's column is the column of the exercise done
+ * for it, as the workout's own print draws it (`exerciseColumn`): open, the sets logged ink the
+ * plan; finished, the working sets done, what was not done dashed. A plan's print, it draws no
+ * warm-up sets.
  */
 export function todayParts({
+  day,
   programme,
   rows,
   standalone,
@@ -224,6 +233,8 @@ export function todayParts({
   lifted = false,
   session = null,
 }: {
+  /** The programme day on offer, whose order its parts stand in. */
+  day: Pick<ScheduleDay, "name" | "focus" | "includesLifting">;
   programme: readonly ScheduledOccurrence[];
   rows: readonly PlanRowModel[];
   standalone: readonly ScheduledOccurrence[];
@@ -267,12 +278,14 @@ export function todayParts({
         : planColumn(row.sets, lifted ? row.sets : 0, { pair });
     if (column) columns.push(column);
   });
-  return [
-    ...(restDrills ? [{ kind: "mobility" as const, segments: restDrills, modules: 3 }] : []),
-    ...programme.map(endurance),
-    ...(columns.length > 0 ? [{ kind: "strength" as const, columns }] : []),
-    ...standalone.map(endurance),
-  ].filter((part): part is PrintPart => part !== null);
+  const drawn: Record<DayPart, readonly (PrintPart | null)[]> = {
+    "warm-up": restDrills ? [{ kind: "mobility", segments: restDrills, modules: 3 }] : [],
+    run: programme.map(endurance),
+    lifting: columns.length > 0 ? [{ kind: "strength", columns }] : [],
+  };
+  return [...dayOrder(day).flatMap((part) => drawn[part]), ...standalone.map(endurance)].filter(
+    (part): part is PrintPart => part !== null,
+  );
 }
 
 const PART_NAMES = { run: "a run", ride: "a ride", swim: "a swim", walk: "a walk" } as const;
