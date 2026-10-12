@@ -137,7 +137,8 @@ The owner chose **adaptive + fluid**:
      pinned actions run between the gutters, so they ask "under 14rem less two 20-pt gutters";
      the intake's card stands inside the gutters and pads itself by 0.5rem a side, so it asks
      "under 13rem less two gutters". Both mean fewer than 14rem across the screen. Under 360 pt
-     the gutters are 16, so there the fold comes 8 pt sooner than the logger's.
+     the gutters are 16, not 20, so there the strip folds only on a screen 8 pt narrower than
+     the one where the logger folds.
    - The strip asks nothing of its own: it stands down while its key has a box, which the key
      reports as it gains or loses one. The first build had the strip's frame ask the same
      question of its own box. Chromium was seen to answer the two queries differently after a

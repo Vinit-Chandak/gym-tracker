@@ -61,10 +61,12 @@ RETURNING "occurrence_id";`;
 /**
  * Carries any run skip still recorded on the day onto the day's runs, as the migration did, and
  * says how many runs it skipped. Run by every deploy after the migrations and the occurrence
- * repair, because a skip on the day can still turn up after the migration ran:
+ * repair, and again after `next build` (`db:deploy:after-build`), because a skip on the day can
+ * still turn up after the migration ran:
  *
  * - the deployment being replaced keeps serving while this one builds, and its "Pick up from
- *   today" and Today's skip write the run's skip on the day alone;
+ *   today" and Today's skip write the run's skip on the day alone (the run after the build
+ *   carries those; what it writes while the new one is promoted waits for the next deploy);
  * - a programme first given its runs' occurrences by the repair (`materialiseMissingOccurrences`)
  *   recorded its run skips on its days, where they had to go.
  *

@@ -1,7 +1,8 @@
 # ADR 0051: Missed days, and how a cycle repeats
 
 Date: 2026-10-11
-Status: accepted
+Status: accepted; amended 12 October 2026 (a run skipped from Today is skipped everywhere). A
+replaced programme's sessions: [ADR 0054](0054-a-replaced-programme-closes-its-sessions.md).
 
 ## Context
 
@@ -121,7 +122,7 @@ occurrence and counted the run as not done, and the run's own page offered to sk
 3. **A skipped run is no longer owed and is never counted as missed.** It reads Skipped on
    Today, Training, the programme, its own page and in the coach's adherence alike, and the
    sequence moves past it as before. History is not among them: it lists what was done,
-   workouts finished and activities logged (DESIGN.md, "History lists every session"), and
+   workouts finished and activities logged (ADR 0045), and
    lists nothing skipped, workout or run. "Pick up from today" says its skips stay in the
    programme, where they are listed, rather than in History.
 4. **Logging it still replaces the skip**, on the session and on the day: logged after its day
@@ -146,11 +147,14 @@ occurrence and counted the run as not done, and the run's own page offered to sk
    skipped; left owed, it sent the programme back to it, cycles behind the athlete (review, 12
    October 2026). A revision's copies of a day's rows are read from the first.
 7. **Every deploy carries them again** (`carryDaySkipsOntoRuns`, the migration's own
-   statement), after the occurrence repair: the deployment being replaced still serves while
-   the new one builds, and writes a run's skip on the day alone, and a programme first given
-   its runs' occurrences by the repair recorded its run skips on its days. Either would
-   otherwise read owed once the day's skip gave way to it. Once nothing pending is left to skip
-   it writes nothing.
+   statement): in `db:deploy`, after the occurrence repair, since a programme first given its
+   runs' occurrences by the repair recorded its run skips on its days; and once more after
+   `next build` (`db:deploy:after-build`, the last step of `vercel.json`'s build command), since
+   the deployment being replaced still serves while the new one builds, and writes a run's skip
+   on the day alone. Either would otherwise read owed once the day's skip gave way to it. What
+   the old deployment writes after that, while the new one is uploaded and promoted, or after
+   an instant rollback to a release before this one, the next deploy carries. Once nothing
+   pending is left to skip it writes nothing.
 8. **A skipped run is dated by its skip** (`runEventsFromOccurrences`): its last skip's date, or
    for one skipped on its page, the athlete's date it was skipped on. The day's skip carried the
    date; without it a programme whose last days were picked up from today ended on the last day

@@ -44,6 +44,7 @@
     "db:seed": "tsx src/db/seed/run.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "db:deploy": "tsx src/db/deploy.ts",
+    "db:deploy:after-build": "tsx src/db/deploy.ts after-build",
     "db:backfill:shared-stats": "tsx src/db/backfill-shared-stats.ts",
     "db:audit:multisport": "tsx src/db/multisport-audit.ts",
     "db:audit:schedule": "tsx src/db/programme-schedule-audit.ts",

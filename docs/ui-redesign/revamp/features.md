@@ -65,8 +65,8 @@ anything scheduled), where they will train, and one tap to start or resume it.
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
-    prescription ("3 × 8–12 @ 1–2 RIR", or metres or seconds for carries and holds), with
-    supersets grouped. When the coach planned the day, each exercise also shows its machine,
+    prescription ("3 × 8–12 @ 1–2 RIR", or metres (yards beside miles) or seconds for carries
+    and holds), with supersets grouped. When the coach planned the day, each exercise also shows its machine,
     loads in the account's unit, the coach's notes, exercises dropped for today, and any
     warnings.
 - **The coach's status**, when the coach is on: planning (the screen updates itself), could
@@ -193,13 +193,15 @@ than adding, and keep the RIR honest").
   - the set number and type: Warm-up, Working, Back-off, Drop, AMRAP or To failure;
   - load: kg or lb for free weights (the account's unit), added load for bodyweight moves (0
     means bodyweight), or the machine's own unit (plates or stack number), never converted;
-  - reps, seconds or metres, depending on how the exercise is counted;
+  - reps, seconds or a distance (metres, or yards for an account that reads miles; ADR 0055),
+    depending on how the exercise is counted;
   - effort: RIR for reps, RPE 1–10 for time and distance; required on working sets, optional
     on warm-ups, and never pre-filled;
   - Save, then a confirmed check. Untouched load and reps take the suggested value, shown
     faintly until saved; effort never does.
 - **Set options** for a row: its type, steppers for load (in the machine's real increments),
-  reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
+  reps (1), seconds (5), metres or yards (5) and effort (1), and remove the row or delete the
+  set.
 - **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
   coach's rest, else the plan's, else the exercise's own default, else 90 s. A light first set saved without effort before any
   working set becomes a warm-up, with Undo.

@@ -1,5 +1,5 @@
 -- One pair of distance units an account, on its profile, that starts from the weight unit
--- (owner, 12 October 2026; ADR 0056).
+-- (owner, 12 October 2026; ADR 0055).
 --
 -- Each sport's row in `user_sport_preferences` had its own road and pool unit, defaulting to
 -- kilometres and metres, and no screen set them: an account in pounds read its runs in

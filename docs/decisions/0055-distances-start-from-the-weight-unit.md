@@ -43,7 +43,8 @@ yards beside miles.
    Each line is the control's description to a screen reader.
 
    Switching the weight carries a distance along while it follows the weight unit. One chosen
-   by hand stays where it was, whatever the weight does next in the same form. A pool that is
+   by hand that differs from the weight's unit stays where it was, whatever the weight does next
+   in the same form; one chosen equal to it goes on following the weight. A pool that is
    not asked is still sent, and still follows the weight unit.
 
 4. **Setup's weight seeds the distances.** The sheet's design is unchanged. Choosing a weight

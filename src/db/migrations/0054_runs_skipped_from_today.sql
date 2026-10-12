@@ -22,9 +22,9 @@
 -- Each run skipped gets the event a skip from Today now writes, by the migration, naming the
 -- day's row it came from, dated the day it was skipped and with the reason given. Data only,
 -- and safe to run twice: a second run finds nothing pending to skip. Every deploy runs it again
--- after this (`carryDaySkipsOntoRuns`, src/db/runs-skipped-from-today.ts, which holds the same
--- statement), for the skips the old code wrote while this deploy was being built and those of a
--- programme only given its runs since.
+-- after this and after `next build` (`carryDaySkipsOntoRuns`, src/db/runs-skipped-from-today.ts,
+-- which holds the same statement), for the skips the old code wrote while this deploy was being
+-- built and those of a programme only given its runs since.
 WITH "day_skips" AS (
   SELECT DISTINCT ON (p."user_id", p."family_id", e."cycle_index", e."day_index")
          p."user_id", p."family_id", e."cycle_index", e."day_index",

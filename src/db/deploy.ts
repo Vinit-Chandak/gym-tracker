@@ -78,6 +78,14 @@ async function main(): Promise<void> {
   const url = getMigrationDatabaseUrl();
   const client = createMigrationClient(url);
   try {
+    // After `next build`: only the run skips the deployment being replaced wrote while this one
+    // built (ADR 0051). Run before the build too, the carry alone would miss them for a release.
+    if (process.argv[2] === "after-build") {
+      console.log(`Database deploy after the build (${because}) → ${describeTarget(url)}`);
+      const carried = await carryDaySkipsOntoRuns(drizzle(client, { schema }));
+      console.log(`  ${carried} run(s) skipped from Today carried from their day onto the run`);
+      return;
+    }
     console.log(`Database deploy (${because}) → ${describeTarget(url)}`);
     await runMigrations(client);
     console.log("  migrations applied");

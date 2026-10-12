@@ -422,8 +422,8 @@ export function sessionName(
 /**
  * The longest workout name the session's chrome says whole (DESIGN.md, The session): the strip,
  * a way back to the workout and the logger's Back to. Each stays a line or two at 200% text on a
- * 320-pt phone, where a line holds about ten letters. A programme day's name and
- * UNPLANNED_SESSION are inside it; a routine's name may run to 120 characters.
+ * 320-pt phone, where a line holds about ten letters. UNPLANNED_SESSION and the templates'
+ * day names are inside it; a day named by hand may run to 80 characters, a routine's to 120.
  */
 export const SESSION_CHROME_NAME_LIMIT = 20;
 
