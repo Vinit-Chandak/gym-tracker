@@ -1252,7 +1252,9 @@ button.activity-card-toggle {
   margin-left: auto;
 }
 /* The value's fixed column. The whole column is the field's target: a tap anywhere in it types
-   the value (row-stepper.tsx), and the field itself is never smaller than a target. */
+   the value (row-stepper.tsx), and the field itself is never smaller than a target. The column
+   carries the figure's 26 as its own size, which row-stepper.tsx reads to know what a 26 is
+   drawn at here (larger text, a wider screen) before it steps the figure down to fit. */
 .row-stepper-figure {
   display: flex;
   width: calc(calc(120 * var(--ov-u)) + var(--ov-grow) * 2);
@@ -1261,6 +1263,7 @@ button.activity-card-toggle {
   align-items: baseline;
   justify-content: center;
   gap: calc(3 * var(--ov-u));
+  font-size: var(--ov-type-figure-l);
   cursor: text;
 }
 .row-stepper-figure > .figure-input {
