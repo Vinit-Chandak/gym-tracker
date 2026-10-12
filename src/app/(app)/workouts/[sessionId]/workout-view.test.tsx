@@ -137,23 +137,35 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-/** Types set 1's load, reps and RIR into the entry and presses Save. */
-function enterFirstSet() {
+/** Types set 1's load, reps and RIR into the entry. */
+function typeFirstSet() {
   fireEvent.click(screen.getByRole("button", { name: /Type a load$/ }));
   fireEvent.change(screen.getByRole("textbox", { name: "Load in kilograms" }), {
     target: { value: "60" },
   });
   fireEvent.change(screen.getByRole("textbox", { name: "Reps" }), { target: { value: "5" } });
   fireEvent.change(screen.getByRole("textbox", { name: "RIR" }), { target: { value: "2" } });
+}
+
+/** Types set 1 and presses Save, leaving the save on its way. */
+function enterFirstSet() {
+  typeFirstSet();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 }
 const LINE = "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit";
 /** Back to the workout: the logger's back link names it (an unplanned session here). */
 const BACK = "Unplanned session";
 
+/**
+ * Saves set 1 and lets all of the save land before the test goes on. Waiting only for its line
+ * is not enough: the end of the save's transition can still be waiting in React's scheduler
+ * then, and on a busy machine the next step's act renders it, stops there, and leaves the
+ * step's own update unrendered.
+ */
 async function saveFirstSet() {
-  enterFirstSet();
-  await screen.findByRole("button", { name: LINE });
+  typeFirstSet();
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save" })));
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
 }
 
 it("shows a saved set in the list, in the reopened exercise and on Back, without a new render", async () => {
@@ -215,9 +227,10 @@ it("drops a deleted set from the list", async () => {
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   fireEvent.click(screen.getByRole("button", { name: LINE }));
   fireEvent.click(screen.getByRole("button", { name: "Delete this set" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete it" }));
-  await vi.waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
-  await vi.waitFor(() => expect(setChangesMade()).toBeGreaterThan(seen));
+  // All of the deletion lands before Back, as a save does in saveFirstSet.
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Delete it" })));
+  expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt);
+  expect(setChangesMade()).toBeGreaterThan(seen);
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
