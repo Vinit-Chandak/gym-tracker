@@ -33,8 +33,9 @@ import {
   validateActual,
   type EnduranceActual,
 } from "@/domain/activity-metrics";
-import { canLog } from "@/domain/occurrences";
+import { canLog, programmeClosed } from "@/domain/occurrences";
 
+import { OccurrenceClosedError } from "./occurrences";
 import { deleteActivityStats, writeEnduranceStats, writeRunStats } from "./shared-stats";
 
 /**
@@ -255,14 +256,11 @@ async function resolveTarget(
     .where(and(eq(activities.userId, userId), eq(activities.occurrenceId, row.occurrenceId)))
     .limit(1);
   if (taken) throw new OccurrenceTakenError(taken.id);
-  if (
-    !canLog(
-      { disposition: row.disposition, programFamilyId: row.familyId },
-      null,
-      row.activeFamilyId,
-    )
-  )
-    throw new OccurrenceNotFoundError();
+  const owner = { disposition: row.disposition, programFamilyId: row.familyId };
+  // Said as its page says it, rather than as a session that is not theirs: it is, and the page
+  // the log form was opened from may simply predate the switch.
+  if (programmeClosed(owner, row.activeFamilyId)) throw new OccurrenceClosedError();
+  if (!canLog(owner, null, row.activeFamilyId)) throw new OccurrenceNotFoundError();
   const [plan] = origin.performedPlanId
     ? await tx
         .select({ id: sessionPlans.id })

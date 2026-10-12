@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
+import { showsClosure } from "@/components/activities/programme-closure";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -50,9 +51,10 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
           return {
             // Logged against what the coach prepared for today, where it prepared something.
             occurrence: found ? (await withPreparedTargets(tx, user.id, [found]))[0]! : null,
-            // How its programme stopped being the athlete's, when it has (ADR 0054).
+            // How its programme stopped being the athlete's, where it is refused for that
+            // (ADR 0054) rather than for having been logged or cancelled.
             closure:
-              found?.closed && found.familyId
+              found && showsClosure(found)
                 ? await programmeClosure(tx, user.id, found.familyId, profile.timeZone)
                 : null,
           };

@@ -40,11 +40,12 @@ export class OccurrenceNotFoundError extends Error {
 
 /**
  * A session of a programme the athlete has moved on from (ADR 0054). It keeps what became of
- * it, and nothing more can: logging, skipping, putting back and moving are all refused.
+ * it, and nothing more can: logging, skipping, putting back and moving are all refused, in the
+ * words its page uses ("… so this session can no longer be logged").
  */
 export class OccurrenceClosedError extends Error {
   constructor() {
-    super("That session's programme is no longer yours, so it can no longer be changed.");
+    super("This session's programme has ended, so it can no longer be logged, skipped or moved.");
     this.name = "OccurrenceClosedError";
   }
 }
@@ -648,6 +649,13 @@ export type NamedOccurrence = {
   cycleIndex: number | null;
   /** The programme day it belongs to, as the version that wrote it names that day. */
   dayName: string | null;
+  /** That day's focus ("Zone 2"), from the same version. */
+  dayFocus: string | null;
+  /**
+   * Its programme is no longer the athlete's (ADR 0054): the activity that answered it is the
+   * last that can, and deleting that activity leaves the session unlogged for good.
+   */
+  closed: boolean;
 };
 
 /**
@@ -676,6 +684,15 @@ export async function namedOccurrence(
           and d.day_index = planned_occurrences.cycle_day_index
         limit 1
       )`,
+      dayFocus: sql<string | null>`(
+        select d.focus from program_days d
+        where d.program_id = occurrence_versions.program_version_id
+          and d.user_id = planned_occurrences.user_id
+          and d.day_index = planned_occurrences.cycle_day_index
+        limit 1
+      )`,
+      // The athlete's programme now, as the base query joins it: one row at most.
+      activeFamilyId: programs.familyId,
     })
     .from(plannedOccurrences)
     .innerJoin(
@@ -685,9 +702,18 @@ export async function namedOccurrence(
         eq(occurrenceVersions.userId, plannedOccurrences.userId),
       ),
     )
+    .leftJoin(
+      programs,
+      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
+    )
     .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  const { activeFamilyId, ...named } = row;
+  return {
+    ...named,
+    closed: programmeClosed({ programFamilyId: row.familyId }, activeFamilyId ?? null),
+  };
 }
 
 export type ProgrammeClosure = {
@@ -695,20 +721,23 @@ export type ProgrammeClosure = {
   name: string;
   /** The athlete's day it stopped being their programme. */
   closedOn: string;
-  /** The programme started in its place that day, or null when it was archived alone. */
-  replacedBy: string | null;
+  /**
+   * The programme the athlete started that day, which took its place, or null when it was
+   * archived alone. Not said to have replaced it: the one before may have finished long since.
+   */
+  followedBy: string | null;
 };
 
 /**
  * How the programme a closed session belongs to stopped being the athlete's (ADR 0054): which
- * programme replaced it and on what day, or the day it was archived with nothing in its place.
- * Null while the family is still the athlete's programme, or names nothing they own.
+ * programme took its place and on what day, or the day it was archived with nothing in its
+ * place. Null while the family is still the athlete's programme, or names nothing they own.
  *
  * Read from the programme rows, not stored at the switch. Its last version was archived when it
  * stopped (`updated_at`, which nothing else writes once a version is archived), and the next
- * programme of another family started after that version is what followed it. That one replaced
- * it when it started on the day it was archived, as starting a programme archives the one before;
- * started on a later day, it followed a programme that had been archived on its own.
+ * programme of another family started after that version is what followed it. That one took its
+ * place when it started on the day it was archived, as starting a programme archives the one
+ * before; started on a later day, it followed a programme that had been archived on its own.
  */
 export async function programmeClosure(
   tx: DbOrTx,
@@ -751,6 +780,6 @@ export async function programmeClosure(
   return {
     name: last.name,
     closedOn,
-    replacedBy: next && todayInTimeZone(timeZone, next.createdAt) <= closedOn ? next.name : null,
+    followedBy: next && todayInTimeZone(timeZone, next.createdAt) <= closedOn ? next.name : null,
   };
 }

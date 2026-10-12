@@ -9,6 +9,7 @@ import OccurrencePage from "./page";
 
 const mocks = vi.hoisted(() => ({
   occurrence: vi.fn(),
+  named: vi.fn(),
   closure: vi.fn(),
   focus: null as string | null,
   events: [] as unknown[],
@@ -26,6 +27,7 @@ vi.mock("@/db/with-user", () => ({
 }));
 vi.mock("@/server/repositories/occurrences", () => ({
   getOccurrence: mocks.occurrence,
+  namedOccurrence: mocks.named,
   programmeClosure: mocks.closure,
 }));
 vi.mock("@/server/repositories/coach-plans", () => ({
@@ -105,7 +107,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
   mocks.occurrence.mockResolvedValue(tempo);
+  mocks.named.mockResolvedValue(null);
   mocks.closure.mockResolvedValue(null);
+  mocks.closure.mockClear();
   mocks.focus = null;
   mocks.events = [];
 });
@@ -220,18 +224,27 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
     loggable: false,
   };
   mocks.occurrence.mockResolvedValue(owed);
+  // Its day as its own block named it: the running programme has no such day.
+  mocks.named.mockResolvedValue({ dayName: "Easy run", dayFocus: "Zone 2" });
   mocks.closure.mockResolvedValue({
     name: "Strength Maintenance + 2 Runs",
     closedOn: "2026-07-06",
-    replacedBy: "Hybrid Half Marathon",
+    followedBy: "Hybrid Half Marathon",
   });
   const html = renderToStaticMarkup(await OccurrencePage(props));
+  // Named for its day and headed by its focus, so its target is said once, on the plan.
+  expect(html).toContain("<h1>Easy run</h1>");
+  expect(html).toMatch(/<h2[^>]*>Zone 2<\/h2>/);
+  expect(html.split(DISTANCE)).toHaveLength(2);
   // Not done, as it was when the block ended: it is not offered as still to do.
   expect(html).toContain(">Not done<");
   expect(html).not.toContain("still to do");
+  // How the programme ended, which is not said to be a replacement: the one before may have
+  // finished weeks before the next began.
   expect(html).toContain(
-    "Strength Maintenance + 2 Runs was replaced by Hybrid Half Marathon on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
+    "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
   );
+  expect(html).not.toContain("replaced");
   expect(html).not.toContain("Log it");
   expect(html).not.toContain("Skip, put back or move.");
   // Its plan is still there to read, no longer called the athlete's programme.
@@ -249,11 +262,11 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
   expect(skipped).not.toContain("Skip, put back or move.");
   expect(skipped).toContain("so this session can no longer be logged.");
 
-  // Archived with nothing in its place; a block replaced by a new one of the same programme.
+  // Archived with nothing in its place; a block followed by a new one of the same programme.
   mocks.closure.mockResolvedValue({
     name: "Hybrid Half Marathon",
     closedOn: "2026-07-06",
-    replacedBy: null,
+    followedBy: null,
   });
   expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
     "Hybrid Half Marathon was archived on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
@@ -261,11 +274,22 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
   mocks.closure.mockResolvedValue({
     name: "Hybrid Half Marathon",
     closedOn: "2025-12-01",
-    replacedBy: "Hybrid Half Marathon",
+    followedBy: "Hybrid Half Marathon",
   });
   expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
-    "This block of Hybrid Half Marathon was replaced by a new one on Mon\u00a01\u00a0Dec\u00a02025, so this session can no longer be logged.",
+    "This block of Hybrid Half Marathon made way for a new one on Mon\u00a01\u00a0Dec\u00a02025, so this session can no longer be logged.",
   );
+});
+
+/** Logged before its programme ended, it says what was logged, and nothing reads how it ended. */
+it("reads a replaced programme's logged session by what was logged", async () => {
+  mocks.occurrence.mockResolvedValue({ ...tempo, familyId: "old-block", closed: true });
+  mocks.named.mockResolvedValue({ dayName: "Tempo run", dayFocus: null });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain("<h1>Tempo run</h1>");
+  expect(html).toContain("See what you logged");
+  expect(html).not.toContain("can no longer be logged");
+  expect(mocks.closure).not.toHaveBeenCalled();
 });
 
 it("offers the running programme's session its actions", async () => {

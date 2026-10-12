@@ -21,6 +21,8 @@ const session = (overrides: Partial<NamedOccurrence> = {}): NamedOccurrence => (
   familyId: "49c8d04c-7f86-481a-a292-c6012d71b946",
   cycleIndex: 10,
   dayName: "Tempo run",
+  dayFocus: null,
+  closed: false,
   ...overrides,
 });
 

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
 import { enduranceNote } from "@/components/activities/endurance-line";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
-import { programmeClosureLine } from "@/components/activities/programme-closure";
+import { programmeClosureLine, showsClosure } from "@/components/activities/programme-closure";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
@@ -20,7 +20,11 @@ import { putBackGoesNext, sessionStanding, standingByDate } from "@/domain/progr
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
-import { getOccurrence, programmeClosure } from "@/server/repositories/occurrences";
+import {
+  getOccurrence,
+  namedOccurrence,
+  programmeClosure,
+} from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
@@ -43,7 +47,7 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan, units, schedule, closure } = await withUser(
+  const { occurrence, plan, units, schedule, named, closure } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -54,9 +58,12 @@ export default async function OccurrencePage(
         units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
         // The sequence it waits in, when it is the running programme's.
         schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
-        // How its programme stopped being the athlete's, when it has.
+        // A closed session's day, which the running programme's days do not have: named as the
+        // version that wrote it named it, as the activity that answered it names it.
+        named: occurrence?.closed ? await namedOccurrence(tx, user.id, occurrenceId) : null,
+        // How its programme stopped being the athlete's, where the page says so.
         closure:
-          occurrence?.closed && occurrence.familyId
+          occurrence && showsClosure(occurrence)
             ? await programmeClosure(tx, user.id, occurrence.familyId, profile.timeZone)
             : null,
       };
@@ -79,7 +86,9 @@ export default async function OccurrencePage(
   const day =
     running && occurrence.cycleDayIndex !== null
       ? (running.days.find((entry) => entry.dayIndex === occurrence.cycleDayIndex) ?? null)
-      : null;
+      : named?.dayName
+        ? { name: named.dayName, focus: named.dayFocus }
+        : null;
   const dayName = day?.name ?? null;
   const badge =
     standing === "next"

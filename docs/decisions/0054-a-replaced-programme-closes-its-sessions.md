@@ -30,42 +30,54 @@ Asked about it, the owner left the decision to us (12 October 2026: "decide acco
    occurrence gets `closed` beside `loggable` (`ScheduledOccurrence`).
 3. **The server refuses, not only the page.** Each write that would answer or revive a closed
    session refuses it:
-   - logging an activity against it (`createActivity`'s target check: "That planned session is not
-     in your programme.");
-   - skipping it, putting it back, moving it, or claiming it to log (`OccurrenceClosedError`: "That
-     session's programme is no longer yours, so it can no longer be changed.").
+   - logging an activity against it (`createActivity`'s target check, `OccurrenceClosedError`; the
+     log form says "This session's programme has ended, so it can no longer be logged. You can
+     still log the run on its own.");
+   - skipping it, putting it back, moving it, or claiming it to log (`OccurrenceClosedError`: "This
+     session's programme has ended, so it can no longer be logged, skipped or moved.").
 
    Skipping a day from Today and "Pick up from today" only reach the running programme's sessions,
    and a coach's preparation for a programme since replaced was already refused.
 
 4. **Its page reads it as it was.** The badge is the one it had: Not done, Skipped or Logged. The
-   plan is kept, no longer labelled "Your programme", and Log it, Skip and Move are gone. In their
-   place is one line saying how the programme ended, read from the programme rows
-   (`programmeClosure`):
-   - replaced: "Strength Maintenance + 2 Runs was replaced by Hybrid Half Marathon on Mon 6 Jul,
-     so this session can no longer be logged.";
-   - replaced by a new block of the same programme: "This block of Hybrid Half Marathon was
-     replaced by a new one on …";
+   plan is kept, no longer labelled "Your programme", and the page is named for its day, read from
+   the version that wrote it ("Easy run"), as the running programme's days no longer have it. Log
+   it, Skip and Move are gone. In their place is one line saying how the programme ended, read
+   from the programme rows (`programmeClosure`):
+   - followed by another: "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon
+     6 Jul, so this session can no longer be logged.";
+   - followed by a new block of the same programme: "This block of Hybrid Half Marathon made way
+     for a new one on …";
    - archived with nothing in its place: "Hybrid Half Marathon was archived on …".
 
-   A programme counts as replaced when the next one started on the day it was archived, since
+   It does not say the programme was replaced, or that it ended that day. The next block often
+   starts weeks after the last one finished, and a finished programme is not replaced (the
+   profile's "Start this programme", not "Replace my programme"); "made way for" is true of both.
+   A programme counts as followed when the next one started on the day it was archived, since
    starting a programme archives the one before. If the next one started on a later day, the old
    one was archived on its own. The log page (`/training/new?occurrence=`) refuses the session
-   with the same sentence and offers to log the sport on its own.
+   with the same sentence under "Its programme has ended" (or "was archived") and offers to log
+   the sport on its own. The line is only for a session left owed or skipped: one logged,
+   cancelled or completed before the record was kept is told by what became of it, as before.
 
-5. **A finished programme stays open until another replaces it.** While nothing has replaced it,
-   it is still the athlete's programme: Today says "Programme complete" and plans the next block
-   from it. The sequence waits for every session (ADR 0051), so a finished programme owes nothing,
-   and what is left to do is log a run it skipped, which replaces the skip on a block that is still
-   theirs. Closing it at its end would mean reading the sequence for every occurrence, and would
-   close a block the athlete has not left. Once the next block starts, it closes like any other.
+5. **A finished programme stays open until the next one starts.** Until then it is still the
+   athlete's programme: Today says "Programme complete" and plans the next block from it. The
+   sequence waits for every session (ADR 0051), so a finished programme owes nothing, and what is
+   left to do is log a run it skipped, which replaces the skip on a block that is still theirs.
+   Closing it at its end would mean reading the sequence for every occurrence, and would close a
+   block the athlete has not left. Once the next block starts, it closes like any other.
 6. **Standalone sessions never close.** They belong to no programme, so a switch or an archive does
    not touch them, even when the athlete has no programme at all.
 
 ## Consequences
 
 - A revision of a running programme (the same family, a new version) closes nothing.
-- Deleting the activity that answered a closed session leaves it Not done, and it cannot be logged
-  again. The activity page's delete still works, and a run is logged on its own instead.
+- Deleting the activity that answered a closed session leaves it unlogged, and it cannot be logged
+  again. The activity page's delete still works, and its confirmation says so ("…, and the planned
+  session cannot be logged again: its programme has ended") rather than promising the session
+  back. A run is logged on its own instead.
+- What closes is said before it closes. Archiving asks first, and the question says that the
+  programme's sessions still owed or skipped can then only be logged on their own. "Replace my
+  programme" asks nothing, so the same is said under it.
 - History and the programme pages show what they showed before: History lists what was done, and
   the programme page lists the running programme.

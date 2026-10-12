@@ -9,7 +9,7 @@ import type { ActivitySport } from "@/domain/activity";
 import type { ProgrammeClosure, ScheduledOccurrence } from "@/server/repositories/occurrences";
 import { formatIsoDate } from "@/lib/format";
 
-import { programmeClosureLine } from "./programme-closure";
+import { programmeClosureLine, showsClosure } from "./programme-closure";
 
 /**
  * A scheduled session that cannot be logged again, and why.
@@ -17,9 +17,9 @@ import { programmeClosureLine } from "./programme-closure";
  * Refusing is right — one occurrence is answered once — but "that page or item does not
  * exist, or it belongs to a different account" is untrue of a session this account owns and
  * has already done. It says what became of it, and offers the thing they probably wanted:
- * what they logged, or the programme the cancelled session came from. A session of a programme
- * the athlete has moved on from says how that programme ended (`closure`, ADR 0054), and offers
- * the sport on its own.
+ * what they logged, or the programme the cancelled session came from. One left owed or skipped
+ * by a programme the athlete has moved on from says how that programme ended (`closure`, ADR
+ * 0054), and offers the sport on its own.
  */
 const SPORT_NOUNS: Record<ActivitySport, string> = {
   strength: "session",
@@ -55,16 +55,15 @@ export function OccurrenceSettled({
             href: `/training/new?sport=${occurrence.sport}` as Route,
             label: `Log a ${noun} anyway`,
           }
-        : occurrence.closed
+        : showsClosure(occurrence)
           ? {
-              // Nothing was done about it, so it is not said to be: it is named for what it is.
+              // Owed or skipped, so nothing was done about it, and it is not said to be: it is
+              // named for what it is. One completed before the record was kept is settled.
               header: "Scheduled session",
               title:
-                closure && closure.replacedBy === null
+                closure && closure.followedBy === null
                   ? "Its programme was archived"
-                  : closure
-                    ? "Its programme was replaced"
-                    : "Its programme has ended",
+                  : "Its programme has ended",
               description: `${programmeClosureLine(closure)}, so the ${noun} scheduled for ${when} can no longer be logged. You can still log a ${noun} on its own.`,
               href: `/training/new?sport=${occurrence.sport}` as Route,
               label: `Log a ${noun} anyway`,

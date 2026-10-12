@@ -38,7 +38,11 @@ vi.mock("next/navigation", () => ({
 
 import { ensureProfile } from "@/server/queries/profile";
 import { resetReferenceCache } from "@/server/queries/reference";
-import { getOccurrence, programmeClosure } from "@/server/repositories/occurrences";
+import {
+  getOccurrence,
+  namedOccurrence,
+  programmeClosure,
+} from "@/server/repositories/occurrences";
 import {
   activateProgramDraft,
   adoptProgramme,
@@ -47,7 +51,7 @@ import {
   refreshProgramDraft,
 } from "@/server/repositories/program-drafts";
 
-import { saveActivityAction } from "./activities";
+import { deleteActivityAction, saveActivityAction } from "./activities";
 import {
   reopenOccurrenceAction,
   rescheduleOccurrenceAction,
@@ -59,7 +63,11 @@ const ZONE = "UTC";
 const HYBRID = STRENGTH_AESTHETICS_HYBRID_8WK;
 /** The block that replaces it: the same days under a name of its own. */
 const NEXT = { ...HYBRID, slug: "hybrid-next-block", name: "Hybrid Next Block" };
-const CLOSED = "That session's programme is no longer yours, so it can no longer be changed.";
+const CLOSED =
+  "This session's programme has ended, so it can no longer be logged, skipped or moved.";
+/** The log form's refusal, which offers the way on. */
+const CLOSED_LOG =
+  "This session's programme has ended, so it can no longer be logged. You can still log the run on its own.";
 
 let t: TestDatabase;
 const today = todayInTimeZone(ZONE);
@@ -143,11 +151,20 @@ async function switched() {
   // Before the switch, each is the athlete's to answer.
   expect(owed!.closed).toBe(false);
   expect(owed!.loggable).toBe(true);
-  expect(await saveActivityAction(null, {}, runLog(logged!))).toHaveProperty("savedActivityId");
+  const { savedActivityId: activityId } = await saveActivityAction(null, {}, runLog(logged!));
+  expect(activityId).toBeTruthy();
   expect(await skipOccurrenceAction(skipped!.id)).toEqual({ ok: true });
 
   const next = await as(a, (tx) => adoptProgramme(tx, a.id, NEXT, { startDate: today }));
-  return { a, first, next, logged: logged!, skipped: skipped!, owed: owed! };
+  return {
+    a,
+    first,
+    next,
+    logged: logged!,
+    activityId: activityId!,
+    skipped: skipped!,
+    owed: owed!,
+  };
 }
 
 describe("a programme the athlete has moved on from", () => {
@@ -175,7 +192,7 @@ describe("a programme the athlete has moved on from", () => {
     // Logging either one, by the form its page would have posted.
     for (const occurrence of [owed, skipped]) {
       const state = await saveActivityAction(null, {}, runLog(occurrence));
-      expect(state.formError).toBe("That planned session is not in your programme.");
+      expect(state.formError).toBe(CLOSED_LOG);
       expect(state).not.toHaveProperty("savedActivityId");
     }
     // Skipping the one still owed, putting back the skipped one, moving either.
@@ -208,6 +225,27 @@ describe("a programme the athlete has moved on from", () => {
     expect((await read(a, skipped.id))!.disposition).toBe("skipped");
   });
 
+  /**
+   * The review of 12 October: the activity page promised a deleted run's session back to be
+   * logged, which it is not. The page reads `closed` from `namedOccurrence` to say so instead.
+   */
+  it("does not give a session back to be logged when the activity that answered it is deleted", async () => {
+    const { a, logged, activityId } = await switched();
+    const named = await as(a, (tx) => namedOccurrence(tx, a.id, logged.id));
+    expect(named!.closed).toBe(true);
+    // Named for its own day, as the block that wrote it named it, though that block has ended.
+    expect(named!.dayName).toMatch(/^Easy Run \+ /);
+    expect(named!.dayFocus).toMatch(/^Aerobic \+ /);
+
+    await expect(deleteActivityAction(activityId)).rejects.toThrow("redirect:/progress/history");
+    const after = await read(a, logged.id);
+    expect(after!.resolution.kind).toBe("incomplete");
+    expect(after!.closed).toBe(true);
+    expect(after!.loggable).toBe(false);
+    const state = await saveActivityAction(null, {}, runLog(after!));
+    expect(state.formError).toBe(CLOSED_LOG);
+  });
+
   it("leaves the programme that replaced it open", async () => {
     const { a, next } = await switched();
     const [first] = await as(a, (tx) =>
@@ -230,16 +268,17 @@ describe("a programme the athlete has moved on from", () => {
     const run = await read(a, first!.id);
     expect(run!.closed).toBe(false);
     expect(run!.loggable).toBe(true);
+    expect((await as(a, (tx) => namedOccurrence(tx, a.id, run!.id)))!.closed).toBe(false);
     expect(await skipOccurrenceAction(run!.id)).toEqual({ ok: true });
     expect(await reopenOccurrenceAction(run!.id)).toEqual({ ok: true });
   });
 
-  it("says which programme replaced it and when, or that it was archived", async () => {
+  it("says which programme followed it and when, or that it was archived", async () => {
     const { a, first, next } = await switched();
     expect(await as(a, (tx) => programmeClosure(tx, a.id, first.familyId, ZONE))).toEqual({
       name: HYBRID.name,
       closedOn: today,
-      replacedBy: NEXT.name,
+      followedBy: NEXT.name,
     });
     // The athlete's programme now has closed nothing.
     expect(await as(a, (tx) => programmeClosure(tx, a.id, next.familyId, ZONE))).toBeNull();
@@ -249,10 +288,10 @@ describe("a programme the athlete has moved on from", () => {
     expect(await as(a, (tx) => programmeClosure(tx, a.id, next.familyId, ZONE))).toEqual({
       name: NEXT.name,
       closedOn: today,
-      replacedBy: null,
+      followedBy: null,
     });
     expect(
-      (await as(a, (tx) => programmeClosure(tx, a.id, first.familyId, ZONE)))!.replacedBy,
+      (await as(a, (tx) => programmeClosure(tx, a.id, first.familyId, ZONE)))!.followedBy,
     ).toBe(NEXT.name);
 
     // A programme started on a later day than the last was archived followed it; it did not
@@ -267,7 +306,7 @@ describe("a programme the athlete has moved on from", () => {
     expect(await as(a, (tx) => programmeClosure(tx, a.id, next.familyId, ZONE))).toEqual({
       name: NEXT.name,
       closedOn: addDays(today, -1),
-      replacedBy: null,
+      followedBy: null,
     });
   });
 
