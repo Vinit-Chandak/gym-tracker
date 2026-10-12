@@ -234,6 +234,13 @@ components:
     rounded: "{rounded.control}"
     padding: "0 20px"
     height: "56px"
+  button-waiting-on-surface:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.ink-2}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "0 20px"
+    height: "56px"
   button-outline:
     textColor: "{colors.ink}"
     typography: "{typography.button}"
@@ -247,6 +254,11 @@ components:
     height: "44px"
   round-button:
     backgroundColor: "{colors.surface-control}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.full}"
+    size: "44px"
+  round-button-on-surface:
+    backgroundColor: "{colors.surface-control-on-surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
     size: "44px"
@@ -307,6 +319,11 @@ components:
     height: "52px"
   segmented:
     backgroundColor: "{colors.surface}"
+    rounded: "{rounded.control}"
+    padding: "3px"
+    height: "50px"
+  segmented-on-surface:
+    backgroundColor: "{colors.surface-2}"
     rounded: "{rounded.control}"
     padding: "3px"
     height: "50px"
@@ -457,12 +474,13 @@ same pigment.
   surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
   ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
   pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground),
-  and a tray on a surface.
+  and a tray or a waiting button on a surface.
 - **On a surface** (a card, a list's box, kept actions), what stands on it steps a tone off it,
   or it would be the card's own fill: in light a tonal Save under a select read as a stray word,
-  and a tray left its unchosen words bare. A tray takes surface 2; a tonal or round button takes
-  the **control surface on a surface** (`surface-control-on-surface`): surface 2 in light,
-  pressed `#dedee3`, and in dark the lifted control surface, which already reads there.
+  a tray left its unchosen words bare, and Saving… lost its button. A tray and a waiting button
+  take surface 2; a tonal or round button takes the **control surface on a surface**
+  (`surface-control-on-surface`): surface 2 in light, pressed `#dedee3`, and in dark the lifted
+  control surface, which already reads there.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
   that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
@@ -794,10 +812,11 @@ and every control answers a press.
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
 - **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it);
   on a card, the control surface on a surface (Do again, Save under a select).
-  **Waiting:** surface with ink 2, for a button waiting on something (Save while RIR is empty,
-  Saving…, Send answer with no answer, Try again offline). **Outline:** a 1.5-px control border
-  (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt (48 dp on Android),
-  the control surface, a glyph (− and +).
+  **Waiting:** surface with ink 2, surface 2 on a card, for a button waiting on something (Save
+  while RIR is empty, Saving…, Send answer with no answer, Try again offline). **Outline:** a
+  1.5-px control border (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt
+  (48 dp on Android), the control surface (on a card, the control surface on a surface), a
+  glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
   confirmed, never in the primary place. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.

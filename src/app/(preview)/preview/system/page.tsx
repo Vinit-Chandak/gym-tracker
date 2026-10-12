@@ -86,7 +86,12 @@ const INTERFACE = [
   ["Ground", "bg-ground", "The page"],
   ["Surface", "bg-surface", "Tiles, trays, notes, a waiting button"],
   ["Control surface", "bg-surface-control", "Steppers and tonal buttons; lifted in dark"],
-  ["Surface 2", "bg-surface-2", "Pressed, the switch's off track, a tray on a card"],
+  [
+    "Control surface on a surface",
+    "bg-surface-control-on-surface",
+    "Tonal and round buttons on a card",
+  ],
+  ["Surface 2", "bg-surface-2", "Pressed, the switch's off track, a tray or a wait on a card"],
   ["Ink", "bg-ink", "Text, figures, the main button, whatever is chosen"],
   ["Ink 2", "bg-ink-2", "Secondary text, suggested values, captions"],
   ["Control", "bg-control", "Field and outline borders, an empty RIR"],

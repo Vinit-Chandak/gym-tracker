@@ -183,9 +183,11 @@
   --ov-grain-multiply: var(--ov-light-grain-multiply);
   --ov-grain-screen: var(--ov-light-grain-screen);
 
-  /* A tray (a segmented choice, page tabs) is the surface; on a surface it steps to surface 2,
-     as the control surface steps to its own on-surface fill (globals.css, the box). */
+  /* A tray (a segmented choice, page tabs) and a waiting button are the surface; on a surface
+     they step to surface 2, as the control surface steps to its own on-surface fill
+     (globals.css, the box). */
   --ov-tray: var(--ov-surface);
+  --ov-waiting: var(--ov-surface);
 
   /*
    * Form's names, still read by the screens that have no Form v2 board, now resolved from

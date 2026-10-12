@@ -6,8 +6,9 @@ import { expect, it } from "vitest";
  * Every control reads as a shape on what it stands on (DESIGN.md, Neutral). In light the
  * control surface is the surface itself, and a tray is the surface, so on a card (a box, a
  * list's box, kept actions), filled with that same surface, Save under a select read as a stray
- * word and a segmented tray left its unchosen words bare. There a tray takes surface 2 and a
- * tonal or round button its on-surface fill, in both palettes.
+ * word and a segmented tray left its unchosen words bare; a waiting button is the surface too,
+ * so Saving… lost its shape. There a tray and a waiting button take surface 2 and a tonal or
+ * round button its on-surface fill, in both palettes.
  */
 
 const read = (path: string) =>
@@ -64,21 +65,23 @@ function onSurface(mode: Mode, utility: string, token: string): string {
   return colour(mode, named[1]!);
 }
 
-it("is the trouble: in light the control surface and a tray are the surface itself", () => {
+it("is the trouble: in light the control surface, a tray and a wait are the surface itself", () => {
   expect(colour("light", "surface-control")).toBe(colour("light", "surface"));
   expect(colour("light", "tray")).toBe(colour("light", "surface"));
+  for (const mode of MODES) expect(colour(mode, "waiting")).toBe(colour(mode, "surface"));
 });
 
-it("gives a tray and a tonal button a fill of their own on the ground", () => {
+it("gives a tray, a waiting button and a tonal button a fill of their own on the ground", () => {
   for (const mode of MODES) {
     const ground = colour(mode, "ground");
     expect(colour(mode, "tray")).not.toBe(ground);
+    expect(colour(mode, "waiting")).not.toBe(ground);
     expect(colour(mode, "surface-control")).not.toBe(ground);
     expect(colour(mode, "surface-control-pressed")).not.toBe(colour(mode, "surface-control"));
   }
 });
 
-it("steps a tray and a tonal button a tone off a card, a list's box and kept actions", () => {
+it("steps a tray, a wait and a tonal button a tone off a card, a list's box and kept actions", () => {
   for (const utility of ["box", "box-rows", "sticky-actions"]) {
     const body = block(globals, `@utility ${utility} {`);
     expect(declared(body, "background")).toBe("var(--ov-surface)");
@@ -87,6 +90,7 @@ it("steps a tray and a tonal button a tone off a card, a list's box and kept act
       const tonal = onSurface(mode, utility, "surface-control");
       const pressed = onSurface(mode, utility, "surface-control-pressed");
       expect(onSurface(mode, utility, "tray"), `${utility} tray, ${mode}`).not.toBe(surface);
+      expect(onSurface(mode, utility, "waiting"), `${utility} waiting, ${mode}`).not.toBe(surface);
       expect(tonal, `${utility} tonal, ${mode}`).not.toBe(surface);
       expect(pressed, `${utility} pressed, ${mode}`).not.toBe(tonal);
       expect(pressed, `${utility} pressed, ${mode}`).not.toBe(surface);
@@ -100,5 +104,7 @@ it("keeps dark's lifted control surface on a card, where it already reads", () =
 });
 
 it("names every Tailwind colour it adds from a token", () => {
-  expect(declared(block(globals, "@theme inline {"), "--color-tray")).toBe("var(--ov-tray)");
+  const theme = block(globals, "@theme inline {");
+  for (const token of ["tray", "waiting", "surface-control-on-surface"])
+    expect(declared(theme, `--color-${token}`)).toBe(`var(--ov-${token})`);
 });
