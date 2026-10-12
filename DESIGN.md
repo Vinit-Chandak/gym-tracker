@@ -1036,8 +1036,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
   are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
   sliders. Where you are is the tab the way back leads into (NAV-03): a workout, run, ride or
-  swim keeps the tab its link names, and with none is History's, so Progress; the open workout
-  is Today's, a layer over the tabs (October 2026).
+  swim keeps the tab its link names (Profile, from an exercise's page), and with none is
+  History's, so Progress; the open workout and the summary Finish lands on are Today's, layers
+  over the tabs, and the summary's Edit stays Today's (October 2026).
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes, a person's page by their name (never "People", which is the list
   of them); a session screen has its back or minimise, the rest pill, and at most Finish and More.

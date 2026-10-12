@@ -74,6 +74,17 @@ it("shows an assisted machine's least help as its best, and leads each session w
   expect(screen.queryByText("Top weight")).toBeNull();
 });
 
+/**
+ * Year audit, October 2026: a session opened from here lit Progress while its Back came here,
+ * a page of Profile's. Its link names the exercise's page, so Profile stays lit (NAV-03).
+ */
+it("opens a latest session as opened from the exercise's page", () => {
+  render(<ExerciseLife {...props(false)} />);
+  expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+    "/workouts/session-september?from=exercises",
+  ]);
+});
+
 it("shows any other machine's heaviest", () => {
   render(<ExerciseLife {...props(false)} />);
   expect(screen.getByText("Top weight").closest("div")!.textContent).toBe("Top weight40 kg");

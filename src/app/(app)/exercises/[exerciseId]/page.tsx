@@ -304,8 +304,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               )}
               <ExerciseGraph
                 today={today}
-                // A past workout is History's, as the exercise's latest sessions say (NAV-03).
-                origin="history"
+                // A past workout opened here keeps the exercise's tab, Profile, and goes back to
+                // it, as the exercise's latest sessions do (NAV-03).
+                origin="exercises"
                 length={length}
                 data={{
                   range: graphRange,

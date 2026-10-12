@@ -101,8 +101,8 @@ afterAll(async () => {
 it("takes Finish pressed again after a lost reply to the summary, not to a refusal", async () => {
   const sessionId = await workout();
   const finish = () => finishSessionAction(sessionId, INITIAL_FORM_STATE, new FormData());
-  await expect(finish()).rejects.toThrow(`redirect:/workouts/${sessionId}?finished=1`);
-  await expect(finish()).rejects.toThrow(`redirect:/workouts/${sessionId}?finished=1`);
+  await expect(finish()).rejects.toThrow(`redirect:/workouts/${sessionId}?from=today&finished=1`);
+  await expect(finish()).rejects.toThrow(`redirect:/workouts/${sessionId}?from=today&finished=1`);
 });
 
 it("finishes a workout left open as of its last set, from the Finish page or with one tap", async () => {
@@ -117,12 +117,12 @@ it("finishes a workout left open as of its last set, from the Finish page or wit
 
   const fromToday = await workout(lastSet);
   await expect(finishLeftOpenAction(fromToday)).rejects.toThrow(
-    `redirect:/workouts/${fromToday}?finished=1`,
+    `redirect:/workouts/${fromToday}?from=today&finished=1`,
   );
   expect((await completedAt(fromToday))?.toISOString()).toBe(lastSet.toISOString());
   // Pressed again after a lost reply, it was done the first time.
   await expect(finishLeftOpenAction(fromToday)).rejects.toThrow(
-    `redirect:/workouts/${fromToday}?finished=1`,
+    `redirect:/workouts/${fromToday}?from=today&finished=1`,
   );
 });
 

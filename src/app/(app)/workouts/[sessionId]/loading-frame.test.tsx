@@ -32,4 +32,13 @@ it("hides the tabs while the open workout loads, and keeps them for a record a t
   );
   expect(opened.container.querySelector(".session-page")).toBeNull();
   expect(opened.container.textContent).toBe("Loading");
+  cleanup();
+  // The summary Finish lands on names Today, and is still the session's layer.
+  route.search = "from=today&finished=1";
+  const summary = render(
+    <WorkoutLoadingFrame>
+      <p>Loading</p>
+    </WorkoutLoadingFrame>,
+  );
+  expect(summary.container.querySelector(".session-page")?.textContent).toBe("Loading");
 });

@@ -8,6 +8,7 @@ import {
   parseOrigin,
   sectionLabel,
   workoutBackPath,
+  workoutOrigin,
   type NavOrigin,
 } from "./nav";
 
@@ -114,6 +115,8 @@ it("sends a finished workout back to History unless its link names where it was 
   expect(sectionLabel(workoutBackPath(null, true))).toBe("History");
   expect(workoutBackPath("today", true)).toBe("/today");
   expect(workoutBackPath("shared", true)).toBe("/profile/friends");
+  // Opened from an exercise's page and loaded again, it goes back to Exercises, where that is.
+  expect(sectionLabel(workoutBackPath("exercises", true))).toBe("Exercises");
   // The open workout is Today's, wherever it was opened from.
   expect(workoutBackPath(null, false)).toBe("/today");
   expect(workoutBackPath("history", false)).toBe("/today");
@@ -126,6 +129,12 @@ it.each([null, ...NAV_ORIGINS])("lights the tab a record's Back leads into (%s)"
   // A finished workout and a logged run, ride or swim, with their link's origin or none.
   expect(selected("/workouts/abc", origin)).toEqual(selected(workoutBackPath(origin, true)));
   expect(selected("/training/activities/abc", origin)).toEqual(selected(originPath(origin)));
+  // A finished workout's edit's Add exercise keeps the tab the workout lit, its link naming none
+  // included; the open workout's is Today's.
+  expect(selected("/workouts/abc/add-exercise", workoutOrigin(origin, true))).toEqual(
+    selected("/workouts/abc", origin),
+  );
+  expect(selected("/workouts/abc/add-exercise", workoutOrigin(null, false))).toEqual(["/today"]);
 });
 
 it.each<[string, NavOrigin, string]>([
@@ -140,6 +149,9 @@ it.each<[string, NavOrigin, string]>([
   ["/workouts/abc", "today", "/today"],
   ["/training/activities/abc", "today", "/today"],
   ["/workouts/abc", "shared", "/profile"],
+  // Year audit, October 2026: a workout opened from an exercise's graph lit Progress while its
+  // Back went to the exercise, which is Profile's. The exercise's tab stays selected.
+  ["/workouts/abc", "exercises", "/profile"],
 ])("keeps %s under the tab its link names (%s)", (pathname, origin, expected) => {
   expect(
     NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, origin)).map(({ href }) => href),

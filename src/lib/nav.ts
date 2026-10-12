@@ -71,16 +71,18 @@ export function isNavItemActive(
   href: string,
   origin: NavOrigin | null = null,
 ): boolean {
-  const sectionPath =
+  const openedFrom =
     origin && OPENED_FROM_ELSEWHERE.some((section) => withinSection(pathname, section))
       ? originPath(origin)
       : isRecordPage(pathname)
         ? originPath(null)
         : pathname.startsWith("/workouts/")
           ? "/today"
-          : UNDER_PROFILE.some((section) => withinSection(pathname, section))
-            ? "/profile"
-            : pathname;
+          : pathname;
+  // Profile's sections keep Profile, whether you are in one or a record was opened from one.
+  const sectionPath = UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
+    ? "/profile"
+    : openedFrom;
   return withinSection(sectionPath, href);
 }
 
@@ -133,7 +135,14 @@ export function sectionLabel(path: string): string | undefined {
  * redirect wearing a helpful name. Anything unrecognised falls back to the section the record
  * belongs to, which is History for something already done.
  */
-export const NAV_ORIGINS = ["today", "training", "history", "programme", "shared"] as const;
+export const NAV_ORIGINS = [
+  "today",
+  "training",
+  "history",
+  "programme",
+  "shared",
+  "exercises",
+] as const;
 export type NavOrigin = (typeof NAV_ORIGINS)[number];
 
 const ORIGIN_PATHS: Record<NavOrigin, string> = {
@@ -142,6 +151,9 @@ const ORIGIN_PATHS: Record<NavOrigin, string> = {
   history: "/progress/history",
   programme: "/training/programme",
   shared: "/profile/friends",
+  // An exercise's page, which is Profile's: a workout opened from its graph or its latest
+  // sessions keeps Profile, as Back to it does (year audit, October 2026).
+  exercises: "/exercises",
 };
 
 /** The search parameter a record's link names its origin in. */
@@ -180,4 +192,13 @@ export function originPath(
  */
 export function workoutBackPath(origin: NavOrigin | null, finished: boolean): string {
   return finished ? originPath(origin) : "/today";
+}
+
+/**
+ * The origin a workout's own pages carry on (its edit's Add exercise): its link's, or History's
+ * for a finished one whose link named none, so they keep the tab the workout lit. The open
+ * workout's pages are Today's, and carry nothing.
+ */
+export function workoutOrigin(origin: NavOrigin | null, finished: boolean): NavOrigin | null {
+  return origin ?? (finished ? "history" : null);
 }

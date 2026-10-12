@@ -17,7 +17,6 @@ import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatIsoDate, formatSleep } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
-import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +35,11 @@ export type FinishedEdit = {
   editing: boolean;
   onEdit: () => void;
   onDone: () => void;
+  /**
+   * The summary's Edit, which puts the past workout it becomes in its place, opened from where
+   * the summary was: Today, where it was finished (NAV-03).
+   */
+  editHref: Route;
   addHref: Route;
   /** How many exercises Add exercise just put at the end of the list, to say so once. */
   added: number;
@@ -407,11 +411,7 @@ export function FinishedWorkout({
         {justFinished && edit && (
           // Something missed is mended where it is noticed: the summary becomes the past workout,
           // open for changes, in place of itself.
-          <Link
-            href={`/workouts/${session.id}?${EDIT_PARAM}=1` as Route}
-            replace
-            className={buttonClassName("tonal", "sm", "mt-2.5")}
-          >
+          <Link href={edit.editHref} replace className={buttonClassName("tonal", "sm", "mt-2.5")}>
             <Glyph name="edit" className="glyph-18" />
             Edit workout
           </Link>
