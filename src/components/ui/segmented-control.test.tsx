@@ -97,7 +97,7 @@ it("leaves an ordinary group alone", () => {
   expect(one.checked).toBe(true);
 });
 
-it("draws its tray off the card it sits in", () => {
+it("draws its tray off the card it sits in, and never leaves one segment alone", () => {
   render(
     <SegmentedControl
       name="resistanceMode"
@@ -112,4 +112,10 @@ it("draws its tray off the card it sits in", () => {
   // The tray token: the surface on the ground, surface 2 in a box (globals.css).
   expect(tray.className).toContain("bg-tray");
   expect(tray.className).not.toMatch(/\bbg-surface\b/);
+  // Five, three and two, then one a row: never Cardio alone under two rows of two.
+  expect(
+    ["--fold-r0", "--fold-r1", "--fold-r2", "--fold-r3"].map(
+      (name) => tray.style.getPropertyValue(name) !== "",
+    ),
+  ).toEqual([true, true, true, false]);
 });

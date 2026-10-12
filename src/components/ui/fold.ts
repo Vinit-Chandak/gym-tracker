@@ -24,6 +24,17 @@ export function evenLayouts(count: number): number[][] {
 }
 
 /**
+ * The layouts a tray of segments tries: the even ones, save any that leaves one segment alone
+ * under fuller rows. Page tabs keep a short last row to their columns; a segment alone takes
+ * the tray's whole width, so Cardio stood stretched under two rows of two like another kind of
+ * control. Five that cannot go three and two go one a row, and three that cannot share a row
+ * go one a row too.
+ */
+export function segmentLayouts(count: number): number[][] {
+  return evenLayouts(count).filter((rows) => rows.at(-1)! > 1 || rows[0] === 1);
+}
+
+/**
  * The layouts of an ordinal scale (DESIGN.md, Segmented): its figures and then any words, such
  * as Not sure. Every one on a row while they fit; else the figures keep their row, columns of
  * one width, and the words go under them together, then one a row. The figures never fold:
@@ -53,7 +64,8 @@ type FoldOptions = {
 
 /**
  * Fold, Never Drop, evenly (DESIGN.md, Segmented): a tray of segments on one row while their
- * words fit, else on as few even rows as fit, never three on a row and one alone under it.
+ * words fit, else on as few even rows as fit (`layouts`): segments never leave one alone under
+ * the rest (`segmentLayouts`), and page tabs keep a short last row to their columns.
  *
  * `widths` are what each item needs on a row, as CSS lengths (its words and padding, at least a
  * target). The tray's own width decides, at any text size and before the page wakes, by

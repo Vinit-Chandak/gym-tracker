@@ -1,14 +1,22 @@
 import { expect, it } from "vitest";
 
-import { evenLayouts, foldStyles, rowLengths, scaleLayouts } from "./fold";
+import { evenLayouts, foldStyles, rowLengths, scaleLayouts, segmentLayouts } from "./fold";
 
-it("folds to even rows, never one alone under the rest", () => {
+it("folds to even rows, every row full but the last", () => {
   expect(rowLengths(4)).toEqual([4, 2, 1]);
   expect(rowLengths(5)).toEqual([5, 3, 2, 1]);
   expect(rowLengths(6)).toEqual([6, 3, 2, 1]);
   expect(rowLengths(7)).toEqual([7, 4, 3, 2, 1]);
   expect(rowLengths(2)).toEqual([2, 1]);
   expect(evenLayouts(5)).toEqual([[5], [3, 2], [2, 2, 1], [1, 1, 1, 1, 1]]);
+});
+
+it("never leaves a segment alone under fuller rows: five go three and two, then one a row", () => {
+  expect(segmentLayouts(5)).toEqual([[5], [3, 2], [1, 1, 1, 1, 1]]);
+  expect(segmentLayouts(4)).toEqual([[4], [2, 2], [1, 1, 1, 1]]);
+  expect(segmentLayouts(3)).toEqual([[3], [1, 1, 1]]);
+  expect(segmentLayouts(2)).toEqual([[2], [1, 1]]);
+  expect(segmentLayouts(1)).toEqual([[1]]);
 });
 
 it("keeps a scale's figures on their row and folds only its words", () => {
@@ -91,6 +99,12 @@ it("decides by the widest row, so a wide item never runs a row over", () => {
   const loads = [94, 102, 103, 94, 57];
   expect(rows(loads, 286)).toEqual([2, 2, 1]);
   expect(rows(loads, 320)).toEqual([3, 2]);
+  // As segments, Cardio never stands alone under two rows of two: too narrow for three and
+  // two, the five go one a row.
+  const layouts = segmentLayouts(5);
+  expect(rows(loads, 320, { layouts })).toEqual([3, 2]);
+  expect(rows(loads, 286, { layouts })).toEqual([1, 1, 1, 1, 1]);
+  expect(rows(loads, 120, { layouts })).toEqual([1, 1, 1, 1, 1]);
 });
 
 it("puts Not sure under the five figures, never 4, 5 and Not sure under 1, 2 and 3", () => {

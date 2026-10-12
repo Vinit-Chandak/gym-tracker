@@ -1031,7 +1031,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
   is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds
   before a label would wrap, onto rows as even as fit: four as two and two, five as three and
-  two, never three and one alone. A tray of columns folds sooner, before a segment would keep
+  two, never one alone under the rest (three and one, two and one, two, two and one): a tray that
+  cannot fold evenly goes one a row. A tray of columns folds sooner, before a segment would keep
   less than 12 pt either side of its words ("Prefer not to say" at 360 dp). Only a label wider
   than the whole tray wraps, between its words. A scale's figures
   (1–5, Effort) never fold: they keep one row of equal columns at their 44-pt target, and a word
