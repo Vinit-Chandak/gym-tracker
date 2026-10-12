@@ -42,6 +42,11 @@ export function RankList({
   currentYear?: string;
   className?: string;
 }) {
+  // A day with its year, or how a top weight was worked, is the widest a value gets: such a
+  // board needs a wider row before its values can stand beside the names.
+  const wide = rows.some(
+    (row) => row.detail || (row.occurredOn && row.occurredOn.slice(0, 4) !== currentYear),
+  );
   return (
     <List className={className}>
       {rows.map((row) => {
@@ -55,22 +60,21 @@ export function RankList({
               aria-current={mine ? "true" : undefined}
               className={cn(
                 PRESSABLE_ROW_CLASS,
-                "flex-wrap",
+                "@container flex-wrap",
                 mine && "bg-accent-soft",
                 absent && "text-ink-muted",
               )}
             >
-              {/* The person's basis is what the rank, the avatar and 4.25rem of name need side by
-                  side (1.5 + 0.75 + 2.25 + 0.75 + 4.25rem), so where the name goes never depends
-                  on the value beside it: every row puts it beside the avatar or, at large text,
-                  every row puts it under, with the value under that. */}
-              <span className="flex min-w-0 flex-[1_1_9.5rem] flex-wrap items-center gap-x-3 gap-y-1">
+              {/* The rank, the avatar and the name take what the value leaves. The name goes under
+                  the avatar before it would have less than 6.25rem beside it, which only large
+                  text asks (the value goes under first), and then in every row. */}
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
                 {/* Wide enough for two digits, so names start on one line whatever the rank. */}
                 <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
-                <span className="min-w-0 flex-[1_1_4.25rem]">
+                <span className="min-w-0 flex-[1_1_6.25rem]">
                   <span className="block font-medium [overflow-wrap:break-word]">
                     {mine ? "You" : row.displayName || row.username}
                   </span>
@@ -79,11 +83,22 @@ export function RankList({
                   </span>
                 </span>
               </span>
-              {/* Values get their own line when the name and rank need the available width. The
-                  value is as wide in every row (6.25rem holds "Fri 12 Dec 2025" and "12 reps · 4
-                  sets"), so whether it goes under the name never depends on what it says: at
-                  320 pt every row puts it under, rather than the one with a year in its date. */}
-              <span className="ml-auto max-w-full min-w-0 flex-[0_0_6.25rem] text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums">
+              {/* Beside the name the value is as wide as its longest line, at most a day with its
+                  year (8.75 of the day's em; "Wed 30 Sept 2025" is 8.5), so a day is never broken
+                  and a top weight's work breaks only at its dot. It goes under the name in every
+                  row at once, each row asking only its own width, before the name would have
+                  less than 6.25rem ("Jordan Reyes") beside the board's widest value: the rank,
+                  the avatar and their gaps (5.25rem), the name, a gap, and a value with a year
+                  (7.1rem) or without (5.25rem: "Wed 30 Sept", "123,456 kg"). At 100% text, under
+                  390 pt with a year and under 360 pt without; at 200%, on every phone. */}
+              <span
+                className={cn(
+                  "max-w-full min-w-0 basis-full text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums",
+                  wide
+                    ? "@min-[19.375rem]:max-w-[calc(var(--ov-type-caption)*8.75)] @min-[19.375rem]:shrink-0 @min-[19.375rem]:basis-auto"
+                    : "@min-[17.5rem]:max-w-[calc(var(--ov-type-caption)*8.75)] @min-[17.5rem]:shrink-0 @min-[17.5rem]:basis-auto",
+                )}
+              >
                 {row.value === null ? (
                   <span aria-label="No data">—</span>
                 ) : (

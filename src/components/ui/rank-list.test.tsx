@@ -35,17 +35,83 @@ it("lists rank, name and value, calls your own row You and highlights it", () =>
   expect(links[1]!.getAttribute("aria-current")).toBe("true");
 });
 
-it("gives every row's value the same width, so each row folds as the others do", () => {
-  // A date with its year is wider than one without: the width is the column's, not the date's.
+/** Each row's value, and the classes that set where it goes. */
+function values() {
+  return screen.getAllByRole("link").map((link) => link.lastElementChild as HTMLElement);
+}
+
+it("puts every row's value under its name at one width, wider on a board whose days name a year", () => {
+  // A day with its year is the widest a value gets: the whole board folds for it, not the row.
   const dated = rank([
     { key: "a", username: "aarav", displayName: "Aarav", value: 26.7, occurredOn: "2025-12-12" },
     { key: "m", username: "meera", displayName: "Meera", value: 20, occurredOn: "2026-03-16" },
+    { key: "s", username: "sofia", displayName: "Sofia", value: null, occurredOn: null },
   ]);
   render(<RankList rows={dated} you="m" format={String} currentYear="2026" />);
-  const values = screen.getAllByRole("link").map((link) => link.lastElementChild!.className);
-  expect(values.every((value) => value.includes("flex-[0_0_6.25rem]"))).toBe(true);
+  for (const value of values()) {
+    // Beside the name only from the row that holds the name's few words and a dated value; under
+    // it, the whole row.
+    expect(value.className).toContain("basis-full");
+    expect(value.className).toContain("@min-[19.375rem]:basis-auto");
+    expect(value.className).not.toContain("@min-[17.5rem]");
+  }
+  // The row answers for itself (a container query), so a row with nothing to rank folds too.
+  expect(screen.getAllByRole("link").every((link) => link.className.includes("@container"))).toBe(
+    true,
+  );
   // Its figures in Jost, whose zero is plain.
-  expect(screen.getAllByRole("link")[0]!.querySelector(".figures")?.textContent).toBe("26.7");
+  expect(values()[0]!.querySelector(".figures")?.textContent).toBe("26.7");
+  cleanup();
+
+  // This year's days alone stand beside the names on a narrower row.
+  render(<RankList rows={rows} you="v" format={String} currentYear="2026" />);
+  for (const value of values()) {
+    expect(value.className).toContain("@min-[17.5rem]:basis-auto");
+    expect(value.className).not.toContain("@min-[19.375rem]");
+  }
+  cleanup();
+
+  // So does a board with no days at all (a period's totals).
+  const totals = rank([
+    { key: "v", username: "vinit", displayName: "Vinit", value: 15, occurredOn: null },
+    { key: "p", username: "phani03", displayName: "Phani", value: 13, occurredOn: null },
+  ]);
+  render(<RankList rows={totals} you="v" format={String} />);
+  expect(values().every((value) => value.className.includes("@min-[17.5rem]:basis-auto"))).toBe(
+    true,
+  );
+});
+
+it("folds a top weight's board for its work, as wide as a day with its year", () => {
+  const worked = rank([
+    {
+      key: "v",
+      username: "vinit",
+      displayName: "Vinit",
+      value: 88,
+      occurredOn: "2026-09-08",
+      detail: "4\u00a0sets ·\u00a0best\u00a05\u00a0reps",
+    },
+    { key: "p", username: "phani03", displayName: "Phani", value: 80, occurredOn: "2026-09-01" },
+  ]);
+  render(<RankList rows={worked} you="v" format={String} currentYear="2026" />);
+  expect(values().every((value) => value.className.includes("@min-[19.375rem]:basis-auto"))).toBe(
+    true,
+  );
+});
+
+it("sizes a value to its own lines, never to a column narrower than a day with its year", () => {
+  // A fixed column split "Wed 10 Dec 2025" inside its year: beside the name the value is as wide
+  // as it needs, up to a whole day with its year in the day's own size, and the day is one word.
+  const dated = rank([
+    { key: "l", username: "liam", displayName: "Liam", value: 53.3, occurredOn: "2025-12-10" },
+  ]);
+  render(<RankList rows={dated} you="l" format={String} currentYear="2026" />);
+  const [value] = values();
+  expect(value!.className).not.toMatch(/flex-\[0_0_/);
+  expect(value!.className).toContain("@min-[19.375rem]:shrink-0");
+  expect(value!.className).toContain("@min-[19.375rem]:max-w-[calc(var(--ov-type-caption)*8.75)]");
+  expect(value!.textContent).toContain("Wed\u00a010\u00a0Dec\u00a02025");
 });
 
 it("trails a person with nothing to rank, greyed, with a dash", () => {
