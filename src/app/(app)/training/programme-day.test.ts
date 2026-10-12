@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { PrintedSession } from "@/domain/session-print";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
 import {
@@ -53,6 +54,58 @@ const plan = (
     },
   ],
   status: "pending",
+});
+
+describe("the day being trained", () => {
+  it("inks its open workout's sets and warm-up, as the workout's own print does", () => {
+    // Sun 11 Oct, Squat day (kenji): four squats logged, the warm-up still to mark done.
+    const squat = {
+      ...plan({ name: "Squat day" }),
+      run: null,
+      exercises: [
+        { ...plan({}).exercises[0]!, sets: 4 },
+        { ...plan({}).exercises[0]!, programExerciseId: "pe-2", exerciseId: "e-2", sets: 4 },
+      ],
+    };
+    const session = (warmupCompleted: boolean): PrintedSession => ({
+      drills: 6,
+      warmupCompleted,
+      completed: false,
+      exercises: [
+        {
+          slotId: "pe-1",
+          exerciseId: "e-1",
+          planned: 4,
+          work: 4,
+          warm: 3,
+          skipped: false,
+          supersetGroup: null,
+        },
+      ],
+    });
+    const parts = programmeDayParts(squat, { drills: 6, warmup: true, session: session(false) });
+    expect(parts).toEqual([
+      { kind: "mobility", segments: 6, segmentsDone: 0, state: "todo", modules: 3 },
+      {
+        kind: "strength",
+        columns: [
+          { sets: 4, done: 4, skipped: false, pair: false },
+          { sets: 4, done: 0, skipped: false, pair: false },
+        ],
+      },
+    ]);
+    expect(dayPrintLabel(squat, parts, 6)).toBe(
+      "Squat day: the warm-up, 2 exercises, the sets done inked",
+    );
+    // Marked done in the workout, the fan is full here too.
+    expect(
+      programmeDayParts(squat, { drills: 6, warmup: true, session: session(true) })[0],
+    ).toEqual({ kind: "mobility", segments: 6, segmentsDone: 6, state: "done", modules: 3 });
+    // Training's tile draws no warm-up for a lifting day, open or not.
+    expect(
+      programmeDayParts(squat, { drills: 6, session: session(true) }).map((p) => p.kind),
+    ).toEqual(["strength"]);
+  });
 });
 
 describe("a day that lifts and runs, in the order it is written", () => {

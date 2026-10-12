@@ -1,7 +1,9 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { planColumn } from "@/components/art/session-print";
 import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import { pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
 import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
@@ -60,6 +62,10 @@ const PRINT_SPORT: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "
 
 export type PlanRowModel = {
   key: string;
+  /** The programme's slot it stands for; null for one the coach added. */
+  slotId: string | null;
+  /** The exercise it asks for, which an added one is found by in the workout started from it. */
+  exerciseId: string;
   name: string;
   glyph: GlyphName | null;
   /** The prescription, or the coach's line for it. */
@@ -104,6 +110,8 @@ export function planRows(
 ): PlanRowModel[] {
   const fromSlot = (slot: PlannedExercisePreview): PlanRowModel => ({
     key: slot.programExerciseId,
+    slotId: slot.programExerciseId,
+    exerciseId: slot.exerciseId,
     name: slot.name,
     glyph: modalityGlyph(slot.modality),
     line: rowPrescription(slot, length),
@@ -127,6 +135,8 @@ export function planRows(
       !dropped && entry.equipmentInstanceId ? coach.machines?.[entry.equipmentInstanceId] : null;
     return {
       key: `${entry.slotId ?? "added"}-${index}`,
+      slotId: entry.slotId,
+      exerciseId: entry.exerciseId,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
       glyph:
         machine?.typeCategory === "accessory"
@@ -201,7 +211,9 @@ export function loggedBesides(
 /**
  * The day's plan as a print (DESIGN.md, Prints): its parts in the order of the rows under it.
  * The programme's own endurance first, as the day is written; then the exercises, a column of
- * sets each, a superset's two standing closer; then anything else dated today.
+ * sets each, a superset's two standing closer; then anything else dated today. While the day's
+ * workout is open, each column inks the sets logged for its row, as the workout's own print
+ * does (`planColumn`).
  */
 export function todayParts({
   programme,
@@ -209,6 +221,7 @@ export function todayParts({
   standalone,
   restDrills,
   lifted = false,
+  session = null,
 }: {
   programme: readonly ScheduledOccurrence[];
   rows: readonly PlanRowModel[];
@@ -217,6 +230,8 @@ export function todayParts({
   restDrills?: number;
   /** The day's workout is logged: its columns print full. */
   lifted?: boolean;
+  /** The day's workout, open: what it has logged for each row inks that row's column. */
+  session?: PrintedSession | null;
 }): PrintPart[] {
   // Work a revision withdrew asks for nothing, so it is not drawn as a run still to do; work
   // answered by history the app has no activity for was done.
@@ -234,18 +249,20 @@ export function todayParts({
                 : "todo",
         };
   const columns: StrengthColumn[] = [];
+  const logged = session ? pairBySlot(rows, session.exercises) : [];
   rows.forEach((row, index) => {
     if (row.sets <= 0) return;
     const next = rows[index + 1];
-    columns.push({
-      sets: row.sets,
-      done: lifted && !row.dropped ? row.sets : 0,
-      skipped: row.dropped,
-      pair:
-        row.supersetGroup !== null &&
-        next !== undefined &&
-        next.supersetGroup === row.supersetGroup,
-    });
+    const open = logged[index] ?? null;
+    columns.push(
+      planColumn(row.sets, row.dropped ? 0 : lifted ? row.sets : (open?.work ?? 0), {
+        skipped: row.dropped || (open?.skipped ?? false),
+        pair:
+          row.supersetGroup !== null &&
+          next !== undefined &&
+          next.supersetGroup === row.supersetGroup,
+      }),
+    );
   });
   return [
     ...(restDrills ? [{ kind: "mobility" as const, segments: restDrills, modules: 3 }] : []),
@@ -266,7 +283,8 @@ export function printLabel(dayName: string, parts: readonly PrintPart[]): string
   const said = parts.map((part) => {
     if (part.kind === "strength") {
       const done = part.columns.every((column) => column.skipped || column.done >= column.sets);
-      return `${part.columns.length} ${part.columns.length === 1 ? "exercise" : "exercises"} as columns of their sets, ${done ? "done" : "to do"}`;
+      const begun = part.columns.some((column) => column.done > 0);
+      return `${part.columns.length} ${part.columns.length === 1 ? "exercise" : "exercises"} as columns of their sets, ${done ? "done" : begun ? "the sets done inked" : "to do"}`;
     }
     const name =
       part.kind === "mobility"

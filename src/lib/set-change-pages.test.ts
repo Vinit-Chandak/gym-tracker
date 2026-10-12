@@ -26,11 +26,8 @@ const READS = [
 const SHOWS_NO_SETS: Record<string, string> = {
   "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/page.tsx":
     "the exercise being replaced and the gym",
-  "src/app/(app)/progress/day/[date]/page.tsx": "an open workout as in progress, not its sets",
   "src/components/shell/session-status.tsx": "the open workout's name",
   "src/app/(app)/workouts/start/page.tsx": "nothing of it: an open workout is gone to instead",
-  "src/app/(app)/training/page.tsx": "which day is in progress, and a way to it",
-  "src/app/(app)/training/days/[dayId]/page.tsx": "whether this day is the one in progress",
   "src/app/(app)/today/choose/page.tsx": "which day is in progress, so nothing else starts",
   "src/app/(app)/profile/programme/page.tsx": "which day of the cycle is in progress",
 };

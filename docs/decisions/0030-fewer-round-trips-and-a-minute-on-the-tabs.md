@@ -71,7 +71,9 @@ round trip between the app and the database.
      next render.
    - Today (its count of the open workout's sets, and the discard button it offers only while
      there are none), Progress (which counts the open workout) and the finish screen are never
-     shown from a copy older than the latest set (`FreshAfterSets`). The screen's own loading
+     shown from a copy older than the latest set (`FreshAfterSets`); nor, since their prints ink
+     the open workout's sets as it does (October 2026), are Training, the programme day and the
+     calendar's day. The screen's own loading
      state stands in while it is rendered again, once, through `refreshScreenAction`: a
      refresh like the one every set used to make, which drops the browser's copies of rendered
      screens but keeps its prefetched links. So nothing on an older copy can be read or tapped.

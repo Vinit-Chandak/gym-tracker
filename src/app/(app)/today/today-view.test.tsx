@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { SessionSummary } from "@/server/repositories/sessions";
+import type { OpenSessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 import { writeDraft } from "@/lib/workout-drafts";
 
@@ -132,7 +132,7 @@ const run = (id: string, minutes: [number, number]): ScheduledOccurrence => ({
   loggable: true,
 });
 
-const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
+const session = (patch: Partial<OpenSessionSummary> = {}): OpenSessionSummary =>
   ({
     id: "00000000-0000-4000-8000-000000000004",
     gymId: "g1",
@@ -145,8 +145,9 @@ const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
     exerciseCount: 2,
     setCount: 0,
     workingSetCount: 0,
+    print: { drills: 0, warmupCompleted: false, completed: false, exercises: [] },
     ...patch,
-  }) as SessionSummary;
+  }) as OpenSessionSummary;
 
 function show(patch: Partial<ComponentProps<typeof TodayView>> = {}) {
   return render(

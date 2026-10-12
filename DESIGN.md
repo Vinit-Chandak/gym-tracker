@@ -1112,7 +1112,12 @@ good is the target or the goal, which a rule or the readout says, not a directio
   them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
-  sets in grey at the foot of their columns. A programme's rest day with nothing in it prints its
+  sets in grey at the foot of their columns. One workout is drawn the same on every screen that
+  prints it (year audit, October 2026): while it is open, the plans it is inking (Today's band,
+  Training's tile, the programme day) and its day ink its sets as it does and thin what is still
+  owed; finished, its own page and its day both lead with its warm-up's fan, full or dashed, and
+  the rows under the workout name that warm-up first, with its sets when done and first of what
+  was not done when not. A programme's rest day with nothing in it prints its
   crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
   Today's band is left off on such a day, as before. On the day's page the crescent alone is
   held to a 16 px module, about a third of a working day's print there, so it never fills the

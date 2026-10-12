@@ -31,7 +31,7 @@ import { sessionName } from "@/lib/labels";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { SessionSummary } from "@/server/repositories/sessions";
+import type { OpenSessionSummary, SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
 import { startDayLabel } from "./choose/start-option";
@@ -71,7 +71,7 @@ export type TodayViewProps = {
   now?: Date;
   gyms: SwitcherGym[];
   plan: TodayPlan | null;
-  inProgress: SessionSummary | null;
+  inProgress: OpenSessionSummary | null;
   restProtocol: { name: string; drills: WarmupDrill[] } | null;
   /** The coach's standing for the day's lifting slot; null when the coach is off or it is not a lifting day. */
   coach?: TodayCoachState | null;
@@ -433,6 +433,8 @@ export function TodayView({
           standalone: finishedToday ? [] : standaloneOccurrences,
           restDrills: restDay ? restProtocol?.drills.length : undefined,
           lifted: day.includesLifting && sessionStatus === "completed",
+          // Open, the day's workout inks its columns set by set, as its own print does.
+          session: openHere && inProgress ? inProgress.print : null,
         })
       : [];
   const print = day && plan && plan.suggestion && (

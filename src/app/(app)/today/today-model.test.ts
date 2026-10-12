@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import type { PrintedExercise, PrintedSession } from "@/domain/session-print";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -285,6 +286,74 @@ describe("the day's print", () => {
     expect(printLabel("Easy Run + Arms", parts)).toBe(
       "Easy Run + Arms: a run done, then 1 exercise as columns of their sets, to do.",
     );
+  });
+
+  it("inks what the open workout has logged on each row's column, as its own print does", () => {
+    // Easy Run + Arms under way: four curls (one past the plan, its warm-ups not drawn), one
+    // pushdown, the carry skipped in the workout, the wrist curl still owed.
+    const done = (patch: Partial<PrintedExercise>): PrintedExercise => ({
+      slotId: "e1",
+      exerciseId: "x1",
+      planned: 3,
+      work: 0,
+      warm: 0,
+      skipped: false,
+      supersetGroup: null,
+      ...patch,
+    });
+    const session: PrintedSession = {
+      drills: 0,
+      warmupCompleted: false,
+      completed: false,
+      exercises: [
+        done({ work: 4, warm: 2 }),
+        done({ slotId: "e2", work: 1 }),
+        done({ slotId: "e3", skipped: true }),
+        done({ slotId: "e4", planned: 2 }),
+      ],
+    };
+    const parts = todayParts({
+      programme: [],
+      rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
+      standalone: [],
+      session,
+    });
+    expect(parts).toEqual([
+      {
+        kind: "strength",
+        columns: [
+          { sets: 4, done: 4, skipped: false, pair: false },
+          { sets: 3, done: 1, skipped: false, pair: false },
+          { sets: 3, done: 0, skipped: true, pair: true },
+          { sets: 2, done: 0, skipped: false, pair: false },
+        ],
+      },
+    ]);
+    // Begun, it is never said to be all to do.
+    expect(printLabel("Upper A", parts)).toBe(
+      "Upper A: 4 exercises as columns of their sets, the sets done inked.",
+    );
+
+    // A coach's added exercise is the workout's own of that movement that no slot claims.
+    const added = entry({
+      slotId: null,
+      exerciseId: "x9",
+      exerciseName: "Hammer curl",
+      sets: [set(10, 10, 2), set(10, 10, 2), set(10, 10, 1)],
+    });
+    const coached = planRows([CURL], { exercises: [entry({}), added] }, "kg", "m");
+    const columns = todayParts({
+      programme: [],
+      rows: coached,
+      standalone: [],
+      session: {
+        ...session,
+        exercises: [done({ work: 2 }), done({ slotId: null, exerciseId: "x9", work: 3 })],
+      },
+    });
+    expect(columns[0]?.kind === "strength" && columns[0].columns.map((c) => c.done)).toEqual([
+      2, 3,
+    ]);
   });
 
   it("says a rest day's print as rest, never as a session", () => {

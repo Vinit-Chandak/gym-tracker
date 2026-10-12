@@ -1,5 +1,6 @@
 import { accessoryGlyph, GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
+import { plannedWorkingSets, type PrintedSession } from "@/domain/session-print";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
 import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
@@ -348,11 +349,46 @@ export const isWarmup = (type: SetType) => type === "warmup";
  * else the programme's. Null when nothing says (an exercise added on the spot).
  */
 export function plannedSets(exercise: ExerciseVM): number | null {
-  if (exercise.suggestion?.kind === "coach") {
-    const work = exercise.suggestion.sets.filter((set) => !isWarmup(set.setType)).length;
-    return work > 0 ? work : (exercise.planned?.sets ?? null);
-  }
-  return exercise.planned?.sets ?? null;
+  // The coach's targets stand in the suggestion only for the exercise it wrote them for.
+  return plannedWorkingSets(
+    exercise.suggestion?.kind === "coach"
+      ? { action: "keep", sets: exercise.suggestion.sets }
+      : null,
+    exercise.planned?.sets ?? null,
+  );
+}
+
+/** The warm-up's name: the protocol's, or plain Warm-up for the coach's, which stands in for it. */
+export function warmupName(session: SessionVM): string {
+  return session.coachPlan?.warmup.length ? "Warm-up" : (session.warmup?.name ?? "Warm-up");
+}
+
+/**
+ * The workout as its prints draw it (`PrintedSession`), from the session as this screen holds
+ * it, so its print inks a set the moment it lands. `warmupDone` is the warm-up as its row has it,
+ * ticked here before the session is drawn again.
+ */
+export function printedSession(
+  session: SessionVM,
+  warmupDone = session.warmupCompleted,
+): PrintedSession {
+  return {
+    drills: session.coachPlan?.warmup.length || session.warmup?.drills.length || 0,
+    warmupCompleted: warmupDone,
+    completed: session.completedAt !== null,
+    exercises: session.exercises.map((exercise) => {
+      const warm = exercise.sets.filter((set) => isWarmup(set.setType)).length;
+      return {
+        slotId: exercise.planned?.programExerciseId ?? null,
+        exerciseId: exercise.exercise.id,
+        planned: plannedSets(exercise),
+        work: exercise.sets.length - warm,
+        warm,
+        skipped: exercise.skippedAt !== null,
+        supersetGroup: exercise.supersetGroup,
+      };
+    }),
+  };
 }
 
 /**

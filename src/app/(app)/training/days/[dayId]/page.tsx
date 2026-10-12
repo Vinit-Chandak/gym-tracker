@@ -6,8 +6,10 @@ import { Fact, MetaLine, PlanRows } from "@/app/(app)/today/today-parts";
 import { planRows } from "@/app/(app)/today/today-model";
 import { liftingStartOption } from "@/app/(app)/today/choose/start-option";
 import { Art } from "@/components/art/art";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { BackLink } from "@/components/shell/back-link";
+import { LoadingPage } from "@/components/shell/loading-page";
 import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
@@ -20,6 +22,7 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { resolvePlannedDay } from "@/server/repositories/availability";
 import { listGyms } from "@/server/repositories/gyms";
 import { getProgramOverview, getSchedule } from "@/server/repositories/schedule";
@@ -49,6 +52,9 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   requireUuid(dayId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
+  // The day being trained inks its sets as they are logged: a copy older than the latest set is
+  // drawn again.
+  const seen = await seenSetChanges();
   const [inProgress, data] = await Promise.all([
     // The per-request read the session strip also makes.
     getActiveSession(user.id),
@@ -103,11 +109,16 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
     ...row,
     at: data.atGym.get(row.key) ?? null,
   }));
-  const parts = programmeDayParts(plan, { drills, warmup: true });
+  const open = inProgress !== null && inProgress.programDayId === day.id;
+  // The day being trained is drawn as its workout draws it: its sets and its warm-up inked.
+  const parts = programmeDayParts(plan, {
+    drills,
+    warmup: true,
+    session: open ? inProgress.print : null,
+  });
   const rest = !day.includesLifting && !day.includesRun;
   // A day that lifts and runs puts the run where the day is written to: "Lower + easy run" last.
   const runFirst = !day.includesLifting || runLeads(day);
-  const open = inProgress !== null && inProgress.programDayId === day.id;
 
   const runRow = day.includesRun && (
     <li className={runFirst ? "plan-row" : "plan-row plan-row-last"}>
@@ -123,7 +134,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   );
 
   return (
-    <>
+    <FreshAfterSets seen={seen} loading={<LoadingPage />}>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
           <BackLink fallback="/training" />
@@ -225,6 +236,6 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           </PinnedActions>
         )}
       </div>
-    </>
+    </FreshAfterSets>
   );
 }

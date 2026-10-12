@@ -1,5 +1,7 @@
 import type { FormState, PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { planColumn, warmupFan } from "@/components/art/session-print";
 import type { ActivitySport, EnduranceSport } from "@/domain/activity";
+import { pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { exerciseOnMachine } from "@/lib/labels";
 import type { PlannedDayResolution } from "@/server/repositories/availability";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
@@ -55,34 +57,48 @@ export function runLeads(day: Pick<ScheduleDay, "name" | "focus">): boolean {
  * rows: the run where the day is written to have it (`runLeads`), first or after the lifting; a
  * rest day's routine, or on the day's own page the warm-up, as a fan of its drills; then a
  * column of sets for each exercise, a superset's two standing closer. A rest day with nothing
- * in it is the rest form.
+ * in it is the rest form. While the day's workout is open, its columns ink the sets logged for
+ * each slot and its warm-up once it is marked done, as the workout's own print does.
  */
 export function programmeDayParts(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "status">,
-  { drills = 0, warmup = false }: { drills?: number; warmup?: boolean } = {},
+  {
+    drills = 0,
+    warmup = false,
+    session = null,
+  }: {
+    drills?: number;
+    warmup?: boolean;
+    /** The day's workout, open: what it has done inks the day's plan. */
+    session?: PrintedSession | null;
+  } = {},
 ): PrintPart[] {
   const state = dayState(plan.status);
   const parts: PrintPart[] = [];
   const runFirst = !plan.day.includesLifting || runLeads(plan.day);
   if (plan.day.includesRun && runFirst) parts.push({ kind: "run", state });
   if (drills > 0 && (warmup || !plan.day.includesLifting))
-    parts.push({
-      kind: "mobility",
-      segments: drills,
-      segmentsDone: state === "done" ? drills : 0,
-      state,
-      modules: 3,
-    });
+    parts.push(warmupFan(drills, session?.warmupCompleted ? "done" : state));
   const columns: StrengthColumn[] = [];
+  const logged = session
+    ? pairBySlot(
+        plan.exercises.map((exercise) => ({
+          slotId: exercise.programExerciseId,
+          exerciseId: exercise.exerciseId,
+        })),
+        session.exercises,
+      )
+    : [];
   plan.exercises.forEach((exercise, index) => {
     if (exercise.sets <= 0) return;
     const next = plan.exercises[index + 1];
-    columns.push({
-      sets: exercise.sets,
-      done: state === "done" ? exercise.sets : 0,
-      skipped: state === "skipped",
-      pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
-    });
+    const open = logged[index] ?? null;
+    columns.push(
+      planColumn(exercise.sets, state === "done" ? exercise.sets : (open?.work ?? 0), {
+        skipped: state === "skipped" || (open?.skipped ?? false),
+        pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
+      }),
+    );
   });
   if (columns.length > 0) parts.push({ kind: "strength", columns });
   if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
@@ -109,7 +125,8 @@ export function dayPageMaxModule(parts: readonly PrintPart[]): number | undefine
 
 /**
  * What the day's own print says for a screen reader, its parts in the print's order: "Easy
- * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done".
+ * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done", and while its workout is
+ * open, "Lower: the warm-up, 4 exercises, the sets done inked".
  */
 export function dayPrintLabel(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
@@ -126,7 +143,14 @@ export function dayPrintLabel(
     plan.run && !runFirst ? "the run" : null,
     parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
   ].filter(Boolean);
-  return `${day.name}: ${said.join(", ")}${plan.status === "completed" ? ", done" : ""}`;
+  const begun = parts.some(
+    (part) =>
+      (part.kind === "strength" && part.columns.some((column) => column.done > 0)) ||
+      (part.kind === "mobility" && part.state === "done"),
+  );
+  return `${day.name}: ${said.join(", ")}${
+    plan.status === "completed" ? ", done" : begun ? ", the sets done inked" : ""
+  }`;
 }
 
 /**
