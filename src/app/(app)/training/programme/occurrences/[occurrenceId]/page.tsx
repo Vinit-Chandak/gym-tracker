@@ -133,7 +133,9 @@ export default async function OccurrencePage(
                 </h2>
               )}
               {badge && (
-                <span className="ml-auto">
+                // Wrapped under the headline, it starts the line, as the plan card's badge does
+                // under its words. Every badge here has a headline beside it.
+                <span>
                   <Badge tone={badge.tone}>{badge.label}</Badge>
                 </span>
               )}

@@ -465,8 +465,9 @@ it("names a day that only runs for the day, with its focus, as a lifting day's c
   // The pace note keeps its place beside the focus, and in the plan under the fold.
   expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(2);
   expect(within(tempoCard).getByRole("link", { name: "Log run: 37–47 min" })).toBeTruthy();
-  // Unfolded, the time is one range with its unit said once, as everywhere else.
-  expect(tempoCard.textContent).toContain("37–47\u00a0min");
+  // Unfolded, the time is one range with its unit said once, as everywhere else, held at its
+  // dash where the line wraps.
+  expect(tempoCard.textContent).toContain("37\u2060–\u206047\u00a0min");
   expect(tempoCard.textContent).not.toContain("37 min–47 min");
 });
 

@@ -80,7 +80,8 @@ export function stepLine(
     step.target.kind === "duration"
       ? durationLine(step.target.ms)
       : formatSportDistance(step.target.metres, sport, units);
-  const parts = [ACTION_LABELS[step.action], target];
+  // Held at its dash where the line wraps, as the effort is: never "37–" over "47 min".
+  const parts = [ACTION_LABELS[step.action], holdFigures(target)];
   if (step.effort) parts.push(effortLine(step.effort));
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
   return parts.join(FACT_SEPARATOR);
@@ -89,9 +90,13 @@ export function stepLine(
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
 export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
+  // Each range held at its dash where the line wraps, as the programme's run line holds them
+  // (`runSummary`): never "4.7–6.0 mi · 37–" over "47 min".
   const parts = [
-    distanceMetres ? formatSportDistance(distanceMetres, prescription.sport, units) : null,
-    durationMs ? durationLine(durationMs) : null,
+    distanceMetres
+      ? holdFigures(formatSportDistance(distanceMetres, prescription.sport, units))
+      : null,
+    durationMs ? holdFigures(durationLine(durationMs)) : null,
     effort ? effortLine(effort) : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;

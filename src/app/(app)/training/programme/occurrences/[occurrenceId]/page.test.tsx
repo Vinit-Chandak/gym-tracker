@@ -88,6 +88,9 @@ const tempo = {
   loggable: false,
 } as ProgrammeOccurrence;
 
+/** The session's distance as its line says it, held at its dash. */
+const DISTANCE = "4.2\u2060–\u20605.0\u00a0km";
+
 const props = {
   params: Promise.resolve({ occurrenceId: tempo.id }),
 } as unknown as PageProps<"/training/programme/occurrences/[occurrenceId]">;
@@ -107,13 +110,14 @@ it("is named for its day, and keeps a line of its plan once it is logged", async
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("<h1>Tempo run</h1>");
   expect(html).toContain("Running ·\u00a0Cycle 5 ·\u00a0planned for Thu\u00a023\u00a0Jul");
-  // What was asked for stays beside what was done: how far, how long, how hard, and how.
+  // What was asked for stays beside what was done: how far, how long, how hard, and how, each
+  // range held at its dash.
   expect(html).toContain(
-    "4.2–5.0\u00a0km ·\u00a026–31\u00a0min ·\u00a0Effort 3\u2060–\u20604 of\u00a05",
+    `${DISTANCE} ·\u00a026\u2060–\u206031\u00a0min ·\u00a0Effort 3\u2060–\u20604 of\u00a05`,
   );
   expect(html).toContain("10K effort");
   // Said once: the card is not also headed by the distance the line under it starts with.
-  expect(html.split("4.2–5.0\u00a0km")).toHaveLength(2);
+  expect(html.split(DISTANCE)).toHaveLength(2);
   // A date of this year is said without its year.
   expect(html).toContain("Logged on Thu\u00a06\u00a0Aug.");
   expect(html).not.toContain("2026");
@@ -123,7 +127,7 @@ it("is headed by what its day is for, and the target is said once", async () => 
   mocks.focus = "Threshold";
   const logged = renderToStaticMarkup(await OccurrencePage(props));
   expect(logged).toMatch(/<h2[^>]*>Threshold<\/h2>/);
-  expect(logged.split("4.2–5.0\u00a0km")).toHaveLength(2);
+  expect(logged.split(DISTANCE)).toHaveLength(2);
   // Still to do, the plan's own card says the target; the card over it says what it is for.
   mocks.occurrence.mockResolvedValue({
     ...tempo,
@@ -132,7 +136,7 @@ it("is headed by what its day is for, and the target is said once", async () => 
   });
   const pending = renderToStaticMarkup(await OccurrencePage(props));
   expect(pending).toMatch(/<h2[^>]*>Threshold<\/h2>/);
-  expect(pending.split("4.2–5.0\u00a0km")).toHaveLength(2);
+  expect(pending.split(DISTANCE)).toHaveLength(2);
 });
 
 /**
@@ -177,4 +181,18 @@ it("says before the tap that a run put back is Today's next, once the sequence p
   // Skipped ahead of where the sequence is, it is simply to come again.
   mocks.events = [1, 2, 3].map((cycle) => run(cycle, "completed"));
   expect(renderToStaticMarkup(await OccurrencePage(props))).not.toContain("Today offers it next");
+});
+
+/** Wrapped under the headline at large text, the badge starts the line, as the plan card's does. */
+it("leaves a badge wrapped under its headline at the line's start", async () => {
+  mocks.focus = "Threshold";
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    disposition: "skipped",
+    resolution: { kind: "skipped" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toMatch(/<h2[^>]*>Threshold<\/h2><span><span[^>]*>Skipped<\/span><\/span>/);
+  expect(html).not.toContain("ml-auto");
 });
