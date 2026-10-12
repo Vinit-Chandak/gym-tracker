@@ -415,6 +415,52 @@ describe("endurance answers the day it belongs to", () => {
     );
   });
 
+  /**
+   * Review, 12 October 2026: a run skipped from Today is skipped on its session, which carried
+   * no date, so a programme whose last days were picked up from today said it finished on the
+   * last day trained before them. The day's skip used to carry the date.
+   */
+  it("dates a run half skipped by its last skip, and the programme's finish with it", () => {
+    const skipped = (occurredOn: string): SlotOccurrence => ({
+      ...occurrence(2, 3, "skipped"),
+      occurredOn,
+    });
+    expect(
+      runEventsFromOccurrences([
+        skipped("2026-10-12"),
+        skipped("2026-10-11"),
+        occurrence(2, 3, "cancelled"),
+      ]),
+    ).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped", occurredOn: "2026-10-12" },
+    ]);
+    // Done, it is dated by its log alone: a skip finishes nothing on Today.
+    expect(
+      runEventsFromOccurrences([
+        { ...occurrence(2, 3, "logged"), occurredOn: "2026-10-10" },
+        skipped("2026-10-12"),
+      ])[0]?.occurredOn,
+    ).toBe("2026-10-10");
+
+    // Every day done by 1 October but the last day's run, skipped from Today on the 12th: on
+    // its session, as Today skips a run, so the day records only its workout.
+    const last = { cycleIndex: 8, dayIndex: 6 };
+    const recorded = allSlotsOf(state())
+      .filter((ref) => ref.dayIndex !== 7)
+      .flatMap((ref) =>
+        ref.cycleIndex === last.cycleIndex && ref.dayIndex === last.dayIndex
+          ? [part(8, 6, "session")]
+          : done(ref.cycleIndex, ref.dayIndex),
+      )
+      .map((event) => ({ ...event, occurredOn: "2026-10-01" }));
+    const finished = state(
+      withDerivedRunEvents(recorded, [
+        { ...occurrence(8, 6, "skipped"), occurredOn: "2026-10-12" },
+      ]),
+    );
+    expect(finishedOn(finished)).toBe("2026-10-12");
+  });
+
   it("a run nobody has answered yet leaves the day owing it", () => {
     expect(runEventsFromOccurrences([occurrence(2, 3, "incomplete")])).toEqual([]);
   });

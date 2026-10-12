@@ -18,7 +18,7 @@ import { withUser } from "@/db/with-user";
 import { plannedOrigin } from "@/domain/activity";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sessionStanding } from "@/domain/programme-sessions";
-import { partStatus, pickUpFromToday, type SlotRef } from "@/domain/schedule";
+import { partStatus, pickUpFromToday, type SlotEvent, type SlotRef } from "@/domain/schedule";
 import type { SlotPart } from "@/domain/types";
 
 /*
@@ -278,6 +278,29 @@ describe("the run of a day, skipped from Today", () => {
     // And skipped on its own page, the day reads as a skip from Today would leave it.
     expect(await skipOccurrenceAction(run!.id)).toEqual({ ok: true });
     expect(partStatus((await a.schedule()).state, DAY_3, "run")).toBe("skipped");
+  });
+
+  /**
+   * Review, 12 October 2026: the day's skip carried the date it was skipped on, and the run's
+   * did not, so a programme finished by such skips ended on an earlier day (`finishedOn`).
+   */
+  it("is dated by the day it was skipped, from Today or on its own page", async () => {
+    const a = await athlete("dated@example.test");
+    await skipSlotAction(3, "run", { ok: true }, skipForm());
+    const [run6] = await a.sessions(DAY_6);
+    expect(await skipOccurrenceAction(run6!.id)).toEqual({ ok: true });
+
+    const today = todayInTimeZone(ZONE);
+    const runHalf = (events: readonly SlotEvent[], ref: SlotRef) =>
+      events.find(
+        (event) =>
+          event.part === "run" &&
+          event.cycleIndex === ref.cycleIndex &&
+          event.dayIndex === ref.dayIndex,
+      );
+    const { events } = (await a.schedule()).state;
+    expect(runHalf(events, DAY_3)).toMatchObject({ status: "skipped", occurredOn: today });
+    expect(runHalf(events, DAY_6)).toMatchObject({ status: "skipped", occurredOn: today });
   });
 
   /** A day whose run predates occurrences has nowhere else to keep its skip. */

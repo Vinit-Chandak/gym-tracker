@@ -66,7 +66,10 @@ export type SlotOccurrence = {
   cycleIndex: number;
   dayIndex: number;
   outcome: EnduranceOutcome;
-  /** The athlete's date the activity that answered it happened on; only a logged one has it. */
+  /**
+   * The athlete's date it was answered on: the day the activity that answered a logged one
+   * happened, and the day a skipped one was skipped. Nothing else has one.
+   */
   occurredOn?: string;
 };
 
@@ -88,7 +91,10 @@ export type SlotOccurrence = {
  *
  * A run answered by a log is dated by the last of its logs, as a finished workout is by its
  * session: that is the day the run half was done, and what tells Today a day that only runs
- * was finished this morning rather than still to do.
+ * was finished this morning rather than still to do. One answered by a skip is dated by its
+ * last skip, as a skipped workout is by its skip, so a programme whose last days were skipped
+ * from Today or picked up from today ends on the day they were (`finishedOn`). A skip finishes
+ * nothing on Today (`slotFinishedOn`).
  */
 export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[]): SlotEvent[] {
   const bySlot = new Map<string, SlotOccurrence[]>();
@@ -104,9 +110,12 @@ export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[])
     if (outcomes.includes("incomplete")) continue;
     const [cycleIndex, dayIndex] = slot.split(":").map(Number) as [number, number];
     const done = outcomes.some((outcome) => outcome === "logged" || outcome === "legacy_completed");
-    const loggedOn = answers
+    const status = done || !outcomes.includes("skipped") ? "completed" : "skipped";
+    // Dated by the answer it stands for: the last log of a run done, the last skip of one skipped.
+    const answeredBy = status === "completed" ? "logged" : "skipped";
+    const answeredOn = answers
       .flatMap((answer) =>
-        answer.outcome === "logged" && answer.occurredOn ? [answer.occurredOn] : [],
+        answer.outcome === answeredBy && answer.occurredOn ? [answer.occurredOn] : [],
       )
       .sort()
       .at(-1);
@@ -114,8 +123,8 @@ export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[])
       cycleIndex,
       dayIndex,
       part: "run",
-      status: done || !outcomes.includes("skipped") ? "completed" : "skipped",
-      ...(loggedOn ? { occurredOn: loggedOn } : {}),
+      status,
+      ...(answeredOn ? { occurredOn: answeredOn } : {}),
     });
   }
   return events;

@@ -140,6 +140,10 @@ occurrence and counted the run as not done, and the run's own page offered to sk
    its runs' occurrences by the repair recorded its run skips on its days. Either would
    otherwise read owed once the day's skip gave way to it. Once nothing pending is left to skip
    it writes nothing.
+8. **A skipped run is dated by its skip** (`runEventsFromOccurrences`): its last skip's date, or
+   for one skipped on its page, the athlete's date it was skipped on. The day's skip carried the
+   date; without it a programme whose last days were picked up from today ended on the last day
+   trained before them (`finishedOn`). A skip still finishes nothing on Today.
 
 Consequences:
 
