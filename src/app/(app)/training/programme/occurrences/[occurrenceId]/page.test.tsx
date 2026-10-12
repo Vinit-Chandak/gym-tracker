@@ -9,6 +9,7 @@ import OccurrencePage from "./page";
 
 const mocks = vi.hoisted(() => ({
   occurrence: vi.fn(),
+  closure: vi.fn(),
   focus: null as string | null,
   events: [] as unknown[],
 }));
@@ -23,7 +24,10 @@ vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/db/with-user", () => ({
   withUser: async (_db: unknown, _id: string, work: (tx: unknown) => Promise<unknown>) => work({}),
 }));
-vi.mock("@/server/repositories/occurrences", () => ({ getOccurrence: mocks.occurrence }));
+vi.mock("@/server/repositories/occurrences", () => ({
+  getOccurrence: mocks.occurrence,
+  programmeClosure: mocks.closure,
+}));
 vi.mock("@/server/repositories/coach-plans", () => ({
   activePlanForOccurrence: async () => null,
 }));
@@ -43,8 +47,9 @@ vi.mock("@/server/repositories/schedule", () => ({
   }),
 }));
 vi.mock("@/components/activities/occurrence-actions", () => ({
-  OccurrenceActions: ({ putBackGoesNext }: { putBackGoesNext?: boolean }) =>
-    putBackGoesNext ? <p>Put back, Today offers it next.</p> : null,
+  OccurrenceActions: ({ putBackGoesNext }: { putBackGoesNext?: boolean }) => (
+    <p>{putBackGoesNext ? "Put back, Today offers it next." : "Skip, put back or move."}</p>
+  ),
 }));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => (
@@ -85,6 +90,7 @@ const tempo = {
   cycleIndex: 5,
   cycleDayIndex: 4,
   resolution: { kind: "logged", activityId: "a1", outcome: "logged", occurredOn: "2026-08-06" },
+  closed: false,
   loggable: false,
 } as ProgrammeOccurrence;
 
@@ -99,6 +105,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
   mocks.occurrence.mockResolvedValue(tempo);
+  mocks.closure.mockResolvedValue(null);
   mocks.focus = null;
   mocks.events = [];
 });
@@ -195,4 +202,82 @@ it("leaves a badge wrapped under its headline at the line's start", async () => 
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toMatch(/<h2[^>]*>Threshold<\/h2><span><span[^>]*>Skipped<\/span><\/span>/);
   expect(html).not.toContain("ml-auto");
+});
+
+/**
+ * ADR 0054: a session of a programme the athlete has moved on from reads as it did when that
+ * programme ended — Liam's old block's run, left owed, opened by its URL in October — and says
+ * how the programme ended where Log it, Skip and Move would be.
+ */
+it("reads a replaced programme's session as it was, and offers nothing to do about it", async () => {
+  const owed = {
+    ...tempo,
+    familyId: "old-block",
+    scheduledOn: "2026-06-27",
+    originalScheduledOn: "2026-06-27",
+    resolution: { kind: "incomplete" },
+    closed: true,
+    loggable: false,
+  };
+  mocks.occurrence.mockResolvedValue(owed);
+  mocks.closure.mockResolvedValue({
+    name: "Strength Maintenance + 2 Runs",
+    closedOn: "2026-07-06",
+    replacedBy: "Hybrid Half Marathon",
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  // Not done, as it was when the block ended: it is not offered as still to do.
+  expect(html).toContain(">Not done<");
+  expect(html).not.toContain("still to do");
+  expect(html).toContain(
+    "Strength Maintenance + 2 Runs was replaced by Hybrid Half Marathon on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
+  );
+  expect(html).not.toContain("Log it");
+  expect(html).not.toContain("Skip, put back or move.");
+  // Its plan is still there to read, no longer called the athlete's programme.
+  expect(html).toContain(DISTANCE);
+  expect(html).not.toContain("Your programme");
+
+  // Skipped, it stays skipped, and cannot be put back.
+  mocks.occurrence.mockResolvedValue({
+    ...owed,
+    disposition: "skipped",
+    resolution: { kind: "skipped" },
+  });
+  const skipped = renderToStaticMarkup(await OccurrencePage(props));
+  expect(skipped).toContain(">Skipped<");
+  expect(skipped).not.toContain("Skip, put back or move.");
+  expect(skipped).toContain("so this session can no longer be logged.");
+
+  // Archived with nothing in its place; a block replaced by a new one of the same programme.
+  mocks.closure.mockResolvedValue({
+    name: "Hybrid Half Marathon",
+    closedOn: "2026-07-06",
+    replacedBy: null,
+  });
+  expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
+    "Hybrid Half Marathon was archived on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
+  );
+  mocks.closure.mockResolvedValue({
+    name: "Hybrid Half Marathon",
+    closedOn: "2025-12-01",
+    replacedBy: "Hybrid Half Marathon",
+  });
+  expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
+    "This block of Hybrid Half Marathon was replaced by a new one on Mon\u00a01\u00a0Dec\u00a02025, so this session can no longer be logged.",
+  );
+});
+
+it("offers the running programme's session its actions", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain("Log it");
+  expect(html).toContain("Skip, put back or move.");
+  expect(html).toContain("Your programme");
+  expect(html).not.toContain("can no longer be logged");
+  expect(mocks.closure).not.toHaveBeenCalled();
 });

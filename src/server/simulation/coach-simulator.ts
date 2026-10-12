@@ -1187,12 +1187,15 @@ export class CoachSimulation {
     const today = todayInTimeZone(p.timeZone);
     await this.as(a, async (tx) => {
       const schedule = (await getSchedule(tx, a.userId))!;
+      // The running programme's run: one of a block since replaced is closed (ADR 0054), and a
+      // cycle and day alone would find the old block's as readily as this one's.
       const [occurrence] = await tx
         .select()
         .from(plannedOccurrences)
         .where(
           and(
             eq(plannedOccurrences.userId, a.userId),
+            eq(plannedOccurrences.familyId, schedule.program.familyId),
             eq(plannedOccurrences.sport, "running"),
             eq(plannedOccurrences.cycleIndex, ref.cycleIndex),
             eq(plannedOccurrences.cycleDayIndex, ref.dayIndex),

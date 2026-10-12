@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 
 import {
   activities,
@@ -6,13 +6,16 @@ import {
   occurrenceEvents,
   occurrenceVersions,
   plannedOccurrences,
+  programs,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { ActivitySport } from "@/domain/activity";
 import { CLAIM_MINUTES } from "@/domain/activity-limits";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   canLog,
+  programmeClosed,
   resolveOccurrence,
   splitByDate,
   type OccurrenceDisposition,
@@ -32,6 +35,17 @@ export class OccurrenceNotFoundError extends Error {
   constructor() {
     super("That scheduled session no longer exists.");
     this.name = "OccurrenceNotFoundError";
+  }
+}
+
+/**
+ * A session of a programme the athlete has moved on from (ADR 0054). It keeps what became of
+ * it, and nothing more can: logging, skipping, putting back and moving are all refused.
+ */
+export class OccurrenceClosedError extends Error {
+  constructor() {
+    super("That session's programme is no longer yours, so it can no longer be changed.");
+    this.name = "OccurrenceClosedError";
   }
 }
 
@@ -55,6 +69,11 @@ export type ScheduledOccurrence = {
   originalWeekIndex: number | null;
   originalScheduledOn: string | null;
   resolution: OccurrenceResolution;
+  /**
+   * Its programme is no longer the athlete's: replaced, or archived (ADR 0054). It reads as it
+   * did when the programme ended, and can no longer be logged, skipped, put back or moved.
+   */
+  closed: boolean;
   loggable: boolean;
 };
 
@@ -85,6 +104,8 @@ const columns = {
   activityId: activities.id,
   activityOutcome: activities.outcome,
   activityOccurredOn: activities.occurredOn,
+  /** The family of the athlete's programme now, if they have one, from the left join below. */
+  activeFamilyId: programs.familyId,
 };
 
 type Row = {
@@ -96,6 +117,8 @@ function hydrate(row: Row): ProgrammeOccurrence {
     ? { id: row.activityId, outcome: row.activityOutcome!, occurredOn: row.activityOccurredOn! }
     : null;
   const resolution = resolveOccurrence({ disposition: row.disposition }, activity);
+  const owner = { disposition: row.disposition, programFamilyId: row.familyId };
+  const activeFamilyId = row.activeFamilyId ?? null;
   return {
     id: row.id,
     sport: row.sport,
@@ -111,7 +134,8 @@ function hydrate(row: Row): ProgrammeOccurrence {
     cycleIndex: row.cycleIndex,
     cycleDayIndex: row.cycleDayIndex,
     resolution,
-    loggable: canLog({ disposition: row.disposition }, activity),
+    closed: programmeClosed(owner, activeFamilyId),
+    loggable: canLog(owner, activity, activeFamilyId),
   };
 }
 
@@ -126,7 +150,11 @@ const withinDay = [
   asc(plannedOccurrences.id),
 ];
 
-/** The base query: an occurrence, the revision in force, and the activity that answered it. */
+/**
+ * The base query: an occurrence, the revision in force, the activity that answered it, and the
+ * athlete's programme now — one row at most, as only one programme is ever active — which says
+ * whether the programme it was written for is still theirs.
+ */
 function occurrenceQuery(tx: DbOrTx, userId: string) {
   return tx
     .select(columns)
@@ -144,6 +172,10 @@ function occurrenceQuery(tx: DbOrTx, userId: string) {
         eq(activities.occurrenceId, plannedOccurrences.id),
         eq(activities.userId, plannedOccurrences.userId),
       ),
+    )
+    .leftJoin(
+      programs,
+      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
     )
     .where(eq(plannedOccurrences.userId, userId))
     .$dynamic();
@@ -293,6 +325,21 @@ async function requireOccurrence(
   return occurrence;
 }
 
+/**
+ * The occurrence, refused when its programme is no longer the athlete's (ADR 0054): skipping,
+ * putting back or moving a session of a block they have moved on from would rewrite that
+ * block's record, and putting one back or moving it would owe it again.
+ */
+async function requireOpenOccurrence(
+  tx: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+): Promise<ScheduledOccurrence> {
+  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  if (occurrence.closed) throw new OccurrenceClosedError();
+  return occurrence;
+}
+
 /** Marks one occurrence skipped. Its neighbours, its day and its sport are untouched. */
 export async function skipOccurrence(
   tx: DbOrTx,
@@ -300,7 +347,7 @@ export async function skipOccurrence(
   occurrenceId: string,
   note?: string,
 ): Promise<void> {
-  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  const occurrence = await requireOpenOccurrence(tx, userId, occurrenceId);
   if (!occurrence.loggable) throw new OccurrenceNotFoundError();
   if (occurrence.disposition === "skipped") return;
   await tx
@@ -371,7 +418,7 @@ export async function reopenOccurrence(
   userId: string,
   occurrenceId: string,
 ): Promise<void> {
-  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  const occurrence = await requireOpenOccurrence(tx, userId, occurrenceId);
   if (occurrence.resolution.kind === "incomplete") return;
   if (occurrence.resolution.kind !== "skipped" && occurrence.resolution.kind !== "legacy_completed")
     throw new OccurrenceNotFoundError();
@@ -427,7 +474,7 @@ export async function rescheduleOccurrence(
   scheduledOn: string,
   options: { scheduledLocalTime?: string | null; orderIndex?: number } = {},
 ): Promise<{ revisionId: string }> {
-  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  const occurrence = await requireOpenOccurrence(tx, userId, occurrenceId);
   if (!occurrence.loggable) throw new OccurrenceNotFoundError();
   const [current] = await tx
     .select()
@@ -499,7 +546,7 @@ export async function claimOccurrence(
   occurrenceId: string,
   options: { takeOver?: boolean; now?: Date } = {},
 ): Promise<EditClaim> {
-  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  const occurrence = await requireOpenOccurrence(tx, userId, occurrenceId);
   if (!occurrence.loggable) throw new OccurrenceNotFoundError();
   const now = options.now ?? new Date();
   const [existing] = await tx
@@ -641,4 +688,69 @@ export async function namedOccurrence(
     .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
     .limit(1);
   return row ?? null;
+}
+
+export type ProgrammeClosure = {
+  /** The programme the session was written for, as its last version names it. */
+  name: string;
+  /** The athlete's day it stopped being their programme. */
+  closedOn: string;
+  /** The programme started in its place that day, or null when it was archived alone. */
+  replacedBy: string | null;
+};
+
+/**
+ * How the programme a closed session belongs to stopped being the athlete's (ADR 0054): which
+ * programme replaced it and on what day, or the day it was archived with nothing in its place.
+ * Null while the family is still the athlete's programme, or names nothing they own.
+ *
+ * Read from the programme rows, not stored at the switch. Its last version was archived when it
+ * stopped (`updated_at`, which nothing else writes once a version is archived), and the next
+ * programme of another family started after that version is what followed it. That one replaced
+ * it when it started on the day it was archived, as starting a programme archives the one before;
+ * started on a later day, it followed a programme that had been archived on its own.
+ */
+export async function programmeClosure(
+  tx: DbOrTx,
+  userId: string,
+  familyId: string,
+  timeZone: string,
+): Promise<ProgrammeClosure | null> {
+  const [last] = await tx
+    .select({
+      name: programs.name,
+      status: programs.status,
+      createdAt: programs.createdAt,
+      updatedAt: programs.updatedAt,
+    })
+    .from(programs)
+    .where(
+      and(
+        eq(programs.userId, userId),
+        eq(programs.familyId, familyId),
+        ne(programs.status, "draft"),
+      ),
+    )
+    .orderBy(desc(programs.createdAt), desc(programs.version))
+    .limit(1);
+  if (!last || last.status === "active") return null;
+  const [next] = await tx
+    .select({ name: programs.name, createdAt: programs.createdAt })
+    .from(programs)
+    .where(
+      and(
+        eq(programs.userId, userId),
+        ne(programs.familyId, familyId),
+        ne(programs.status, "draft"),
+        gte(programs.createdAt, last.createdAt),
+      ),
+    )
+    .orderBy(asc(programs.createdAt))
+    .limit(1);
+  const closedOn = todayInTimeZone(timeZone, last.updatedAt);
+  return {
+    name: last.name,
+    closedOn,
+    replacedBy: next && todayInTimeZone(timeZone, next.createdAt) <= closedOn ? next.name : null,
+  };
 }

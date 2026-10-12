@@ -15,6 +15,7 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getTemplateRevision } from "@/server/repositories/activity-templates";
 import {
+  OccurrenceClosedError,
   OccurrenceNotFoundError,
   removeStandaloneOccurrence,
   reopenOccurrence,
@@ -35,7 +36,8 @@ import { formValues, parseForm, type FormState } from "@/server/validation/form"
 export type OccurrenceResult = { ok: true } | { ok: false; error: string };
 
 function describe(error: unknown): string {
-  if (error instanceof OccurrenceNotFoundError) return error.message;
+  if (error instanceof OccurrenceNotFoundError || error instanceof OccurrenceClosedError)
+    return error.message;
   return "Something went wrong. Please try again.";
 }
 

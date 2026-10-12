@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
 import { enduranceNote } from "@/components/activities/endurance-line";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
+import { programmeClosureLine } from "@/components/activities/programme-closure";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
@@ -19,7 +20,7 @@ import { putBackGoesNext, sessionStanding, standingByDate } from "@/domain/progr
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
-import { getOccurrence } from "@/server/repositories/occurrences";
+import { getOccurrence, programmeClosure } from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
@@ -31,7 +32,9 @@ export const metadata: Metadata = { title: "Scheduled session" };
 
 /**
  * One scheduled session: what it asks for, what became of it, and what can be done about it
- * (plan §7). Logging, skipping and moving all act on this session and no other.
+ * (plan §7). Logging, skipping and moving all act on this session and no other. A session of a
+ * programme the athlete has moved on from reads as it did when that programme ended, with one
+ * line saying how it ended in place of what could be done (ADR 0054).
  */
 export default async function OccurrencePage(
   props: PageProps<"/training/programme/occurrences/[occurrenceId]">,
@@ -40,7 +43,7 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan, units, schedule } = await withUser(
+  const { occurrence, plan, units, schedule, closure } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -51,6 +54,11 @@ export default async function OccurrencePage(
         units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
         // The sequence it waits in, when it is the running programme's.
         schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
+        // How its programme stopped being the athlete's, when it has.
+        closure:
+          occurrence?.closed && occurrence.familyId
+            ? await programmeClosure(tx, user.id, occurrence.familyId, profile.timeZone)
+            : null,
       };
     },
     { readOnly: true },
@@ -165,6 +173,7 @@ export default async function OccurrencePage(
             prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
+            showSource={!occurrence.closed}
             units={units}
           />
         )}
@@ -194,6 +203,14 @@ export default async function OccurrencePage(
               {standalone
                 ? "This session was taken off the calendar. It no longer needs to be logged."
                 : "This session was removed from the programme. It no longer needs to be logged."}
+            </p>
+          </Card>
+        ) : occurrence.closed ? (
+          // Owed or skipped when its programme ended, and left so: nothing here can log, skip,
+          // put back or move it, and the server refuses each (ADR 0054).
+          <Card>
+            <p className="text-sm [overflow-wrap:break-word] text-ink-muted">
+              {programmeClosureLine(closure, year)}, so this session can no longer be logged.
             </p>
           </Card>
         ) : (

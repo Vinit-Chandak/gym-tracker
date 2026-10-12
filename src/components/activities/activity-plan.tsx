@@ -110,6 +110,11 @@ export type ActivityPlanProps = {
   preparation?: { summary: string; note: string } | null;
   /** Said out loud rather than left blank when the coach has not prepared this one. */
   preparedByCoach?: boolean;
+  /**
+   * Whose plan it is, said beside it. Off for a session of a programme the athlete has moved on
+   * from (ADR 0054): it is no longer "Your programme", and the line under it names whose it was.
+   */
+  showSource?: boolean;
   /** How the athlete reads this sport's distances. */
   units?: SportUnits;
 };
@@ -119,6 +124,7 @@ export function ActivityPlan({
   prescription,
   preparation = null,
   preparedByCoach = false,
+  showSource = true,
   units = DEFAULT_SPORT_UNITS,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
@@ -143,9 +149,11 @@ export function ActivityPlan({
           )}
           {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
         </div>
-        <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-          {preparedByCoach ? "From your coach" : "Your programme"}
-        </Badge>
+        {showSource && (
+          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
+            {preparedByCoach ? "From your coach" : "Your programme"}
+          </Badge>
+        )}
       </div>
 
       {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}

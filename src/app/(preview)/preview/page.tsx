@@ -180,6 +180,7 @@ const RUN_OCCURRENCE: ScheduledOccurrence = {
   originalWeekIndex: 1,
   originalScheduledOn: "2026-09-11",
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 };
 

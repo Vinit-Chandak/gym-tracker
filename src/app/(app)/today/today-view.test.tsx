@@ -128,6 +128,7 @@ const run = (id: string, minutes: [number, number]): ScheduledOccurrence => ({
   originalWeekIndex: null,
   originalScheduledOn: null,
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 });
 

@@ -10,6 +10,7 @@ import {
   occurrenceVersions,
   plannedOccurrences,
   profiles,
+  programs,
   runningActivityDetails,
   sessionPlans,
   swimmingActivityDetails,
@@ -206,8 +207,9 @@ type OccurrenceTarget = {
 /**
  * The occurrence a planned log names — checked, not assumed.
  *
- * Foreign, missing, already logged, cancelled or a different sport: each is its own refusal.
- * Nothing here falls back to another occurrence, and nothing matches by date (LINK-01).
+ * Foreign, missing, already logged, cancelled, a different sport, or a session of a programme
+ * the athlete has moved on from (ADR 0054): each is its own refusal. Nothing here falls back to
+ * another occurrence, and nothing matches by date (LINK-01).
  *
  * A named preparation is kept only when it is this athlete's plan for this occurrence at this
  * revision. One that has since been superseded is still the one that was shown, so it stands;
@@ -225,7 +227,10 @@ async function resolveTarget(
       occurrenceId: plannedOccurrences.id,
       sport: plannedOccurrences.sport,
       disposition: plannedOccurrences.disposition,
+      familyId: plannedOccurrences.familyId,
       revisionId: occurrenceVersions.id,
+      // The athlete's programme now, if any: one row at most, as only one is ever active.
+      activeFamilyId: programs.familyId,
     })
     .from(plannedOccurrences)
     .innerJoin(
@@ -234,6 +239,10 @@ async function resolveTarget(
         eq(occurrenceVersions.occurrenceId, plannedOccurrences.id),
         eq(occurrenceVersions.id, origin.performedRevisionId),
       ),
+    )
+    .leftJoin(
+      programs,
+      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
     )
     .where(
       and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, origin.occurrenceId)),
@@ -246,7 +255,14 @@ async function resolveTarget(
     .where(and(eq(activities.userId, userId), eq(activities.occurrenceId, row.occurrenceId)))
     .limit(1);
   if (taken) throw new OccurrenceTakenError(taken.id);
-  if (!canLog({ disposition: row.disposition }, null)) throw new OccurrenceNotFoundError();
+  if (
+    !canLog(
+      { disposition: row.disposition, programFamilyId: row.familyId },
+      null,
+      row.activeFamilyId,
+    )
+  )
+    throw new OccurrenceNotFoundError();
   const [plan] = origin.performedPlanId
     ? await tx
         .select({ id: sessionPlans.id })
