@@ -392,8 +392,9 @@ try {
   await page.waitForURL(/\/workouts\/[0-9a-f-]+$/);
   const additionalSessionId = new URL(page.url()).pathname.split("/")[2];
   for (const exercise of [
-    { name: "Plank", label: "seconds", value: 45, load: 0, column: "Seconds" },
-    { name: "Farmer's carry", label: "metres", value: 30, load: 40, column: "Metres" },
+    { name: "Plank", label: "seconds", value: 45, stored: 45, load: 0, column: "Seconds" },
+    // An account in pounds types a carry in yards (ADR 0055); it is kept in metres, to a tenth.
+    { name: "Farmer's carry", label: "yards", value: 30, stored: 27.4, load: 40, column: "Yards" },
   ]) {
     await check(
       `${exercise.name} retains its recorded measure and RPE after completion and reload`,
@@ -437,7 +438,7 @@ try {
         expect(record.reps).toBeNull();
         expect(
           Number(exercise.label === "seconds" ? record.duration_seconds : record.distance_meters),
-        ).toBe(exercise.value);
+        ).toBe(exercise.stored);
         await backToSession();
       },
     );
