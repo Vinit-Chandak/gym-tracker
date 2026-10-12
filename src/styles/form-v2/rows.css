@@ -1046,6 +1046,12 @@ button.activity-card-toggle {
 .activity-card-plan > .activity-card-link {
   margin-top: calc(6 * var(--ov-u));
 }
+/* Ending a card (a session's See what you logged, a gym's Programme fit), the target reaches into
+   the card's padding, so its words stand as far from the card's foot as its first line does from
+   its head, rather than over a band of empty card (year audit, October 2026). */
+.box > .activity-card-link:last-child {
+  margin-bottom: calc((var(--ov-target) - 1lh) / -2);
+}
 /* A quieter way out, led by its glyph, at the card's left edge: Discard empty session. */
 .quiet-action {
   display: inline-flex;

@@ -11,6 +11,7 @@ import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
@@ -192,11 +193,15 @@ export default async function OccurrencePage(
             <p className="text-sm text-ink-muted">
               Logged on {formatIsoDate(occurrence.resolution.occurredOn, year)}.
             </p>
+            {/* The way into the record, as Today's card says it: in ink and bold, led on by its
+                chevron. In plain ink alone it read as a second line of the sentence above it
+                (year audit, October 2026). */}
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
+              className="activity-card-link"
             >
               See what you logged
+              <Glyph name="chevronRight" className="glyph-18" />
             </Link>
           </Card>
         ) : occurrence.resolution.kind === "legacy_completed" ? (

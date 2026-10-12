@@ -54,8 +54,18 @@ vi.mock("@/components/activities/occurrence-actions", () => ({
   ),
 }));
 vi.mock("@/components/ui/app-link", () => ({
-  default: ({ href, children }: { href: string; children: ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    className,
+    children,
+  }: {
+    href: string;
+    className?: string;
+    children: ReactNode;
+  }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
   ),
 }));
 vi.mock("@/components/shell/page-header", () => ({
@@ -148,6 +158,18 @@ it("is headed by what its day is for, and the target is said once", async () => 
   const pending = renderToStaticMarkup(await OccurrencePage(props));
   expect(pending).toMatch(/<h2[^>]*>Threshold<\/h2>/);
   expect(pending.split(DISTANCE)).toHaveLength(2);
+});
+
+/**
+ * Year audit, October 2026: "See what you logged" was ink on ink, read as a second line of the
+ * sentence above it. It is the way into the record, said as Today's card says it: bold, led on by
+ * its chevron, in a target's height.
+ */
+it("leads into what was logged as Today's card does", async () => {
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toMatch(
+    /<a href="\/training\/activities\/a1" class="activity-card-link">See what you logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
+  );
 });
 
 /**
