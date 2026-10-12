@@ -54,7 +54,8 @@ export function runLeads(day: Pick<ScheduleDay, "name" | "focus">): boolean {
  * A programme day as a print (boards Training, Programme day), its parts in the order of its
  * rows: the run where the day is written to have it (`runLeads`), first or after the lifting; a
  * rest day's routine, or on the day's own page the warm-up, as a fan of its drills; then a
- * column of sets for each exercise, a superset's two standing closer.
+ * column of sets for each exercise, a superset's two standing closer. A rest day with nothing
+ * in it is the rest form.
  */
 export function programmeDayParts(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "status">,
@@ -85,6 +86,10 @@ export function programmeDayParts(
   });
   if (columns.length > 0) parts.push({ kind: "strength", columns });
   if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
+  // A rest day with no routine is rest, drawn as rest: a tile among the days' prints is never
+  // blank paper.
+  if (parts.length === 0 && !plan.day.includesLifting && !plan.day.includesRun)
+    parts.push({ kind: "rest", state });
   return parts;
 }
 

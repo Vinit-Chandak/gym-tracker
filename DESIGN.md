@@ -444,11 +444,12 @@ same pigment.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
-  not in the volume.
+  not in the volume, and a rest day's crescent still to come.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
   **Print Dot**: the paper of every print and of the calendar's days, the calendar's dates and
-  today's ring, and (Print Dot, 3:1 on the paper) the edge of a warm-up block. A day with nothing
-  in it is a paler sheet, the paper mixed half and half with the ground. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
+  today's ring, and (Print Dot, 3:1 on the paper) the edge of a warm-up block and of a rest day's
+  crescent, and that crescent done. A day with nothing in it is a paler sheet, the paper mixed half
+  and half with the ground. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
 - **Scrim** (`scrim`; `scrim-dark`): under every sheet.
 
 ### Named Rules
@@ -685,9 +686,14 @@ the knee up, the arms swinging, its head a disc; the same drawing at every size,
 tall in a print; to do, a line of the thinned pigment inside an edge of the full one; skipped,
 that edge dashed with the paper inside), the wheel (a ring as thick as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
-is the day's target) and the triangle. Context reads the same on every form: segments are its
-structure (sets, intervals, laps, drills); size is time or distance in modules. The runner is
-the exception: one fixed drawing, with no segments and no size. Where it
+is the day's target) and the triangle. A rest day with nothing in it is the crescent (owner, 12
+October 2026): a disc with a disc cut from it up and to the right, as the moon glyph cuts it, two
+modules tall like the runner and one drawing at every size. Rest is no sport, so the crescent
+takes no pigment: it is drawn in the greys a warm-up is, Warm-up inside a Print Dot edge to do,
+Print Dot in full done, that edge dashed with the paper inside skipped. Context reads the same
+on every form: segments are its structure (sets, intervals, laps, drills); size is time or
+distance in modules. The runner and the crescent are the exceptions: one fixed drawing each,
+with no segments and no size. Where it
 happened (indoors or out, a treadmill, a pool) is not drawn, since nothing stands under a form:
 the row under the print says it with a glyph. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
@@ -1057,7 +1063,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
-  sets in grey at the foot of their columns.
+  sets in grey at the foot of their columns. A programme's rest day with nothing in it prints its
+  crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
+  Today's band is left off on such a day, as before.
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).

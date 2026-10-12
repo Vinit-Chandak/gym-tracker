@@ -134,6 +134,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
                 drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
                 exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
                 plan.run && !runFirst ? "the run" : null,
+                parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
               ]
                 .filter(Boolean)
                 .join(", ")}${plan.status === "completed" ? ", done" : ""}`}

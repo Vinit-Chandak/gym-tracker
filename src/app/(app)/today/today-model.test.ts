@@ -215,6 +215,10 @@ describe("the day's print", () => {
       "Easy Run + Arms: a run done, then 1 exercise as columns of their sets, to do.",
     );
   });
+
+  it("says a rest day's print as rest, never as a session", () => {
+    expect(printLabel("Rest", [{ kind: "rest", state: "done" }])).toBe("Rest: rest done.");
+  });
 });
 
 describe("what was logged today besides the cards", () => {

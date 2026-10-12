@@ -17,6 +17,8 @@
  *   drills); size is how long, in whole modules. The runner is one fixed drawing.
  * - STATE: thinned pigment with an edge of the full one is to do, full is done, a dashed edge
  *   is skipped. A warm-up is grey.
+ * - REST: a day that asks for nothing is a crescent, in the greys a warm-up is drawn in: it is
+ *   no sport, so it takes no pigment.
  * Every form stands on one baseline, on one module grid, with nothing drawn under it, and the
  * composition sits in the middle of its paper. A print carries no words.
  */
@@ -500,6 +502,67 @@ export function form(
   return out;
 }
 
+// ---------- rest: a day that asks for nothing ----------
+
+/** In a print a rest day is two modules tall, as the runner is: rest is not measured either. */
+const REST_MODULES = 2;
+/** The disc cut from it, as the moon glyph's is: up and to the right, nearly as large. */
+const REST_CUT = { offset: 0.45, radius: 0.9 } as const;
+
+/** A crescent of radius r about (cx, cy), the paper showing where the cut is. */
+function crescent(cx: number, cy: number, r: number): string {
+  const d = REST_CUT.offset * r;
+  const rc = REST_CUT.radius * r;
+  // Where the two circles cross, either side of the line between their centres (up and right).
+  const a = (r * r - rc * rc + d * d) / (2 * d);
+  const h = Math.sqrt(r * r - a * a);
+  const k = Math.SQRT1_2;
+  const mx = cx + a * k;
+  const my = cy - a * k;
+  const east = `${f1(mx + h * k)} ${f1(my + h * k)}`;
+  const north = `${f1(mx - h * k)} ${f1(my - h * k)}`;
+  // The outer edge the long way round, under and behind; the cut's edge back, inside the disc.
+  return `M${east}A${f1(r)} ${f1(r)} 0 1 1 ${north}A${f1(rc)} ${f1(rc)} 0 0 0 ${east}Z`;
+}
+
+/**
+ * A rest day: a crescent, the moon the app says sleep with, standing on the bottom of its box.
+ * It is no sport, so it takes no pigment: it is drawn in the print's greys, as a warm-up is, and
+ * keeps the grammar's states in them. To do is the pale grey inside a 3:1 edge, done is that
+ * edge's grey in full, and skipped is the edge dashed with the paper inside. One fixed drawing,
+ * like the runner: a day of rest has no structure and no length.
+ */
+export function restForm(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  state: FormState = "todo",
+): Shape[] {
+  const S = Math.min(w, h);
+  const r = S / 2;
+  const cx = x + w / 2;
+  const cy = y + h - r;
+  if (state === "done") return [{ kind: "path", d: crescent(cx, cy, r), fill: "dot" }];
+  // An edge stands inside the disc, so nothing is drawn under the baseline.
+  const sw = f1(
+    state === "skipped" ? Math.max(1.5, S * 0.05) : Math.min(1.5, Math.max(1, S * 0.06)),
+  );
+  return [
+    {
+      kind: "path",
+      d: crescent(cx, cy, r - sw / 2),
+      fill: state === "skipped" ? "none" : "warm",
+      stroke: "dot",
+      strokeWidth: sw,
+      linejoin: "round",
+      ...(state === "skipped"
+        ? { dash: [f1(S * 0.09), f1(S * 0.07)] as const, linecap: "butt" as const }
+        : {}),
+    },
+  ];
+}
+
 // ---------- the day: one module grid ----------
 
 /** One exercise: a column of its sets, done from the bottom up, its warm-ups at the foot. */
@@ -515,6 +578,8 @@ export type StrengthColumn = {
 
 export type PrintPart =
   | { kind: "strength"; columns: readonly StrengthColumn[] }
+  /** A rest day with nothing in it: its routine, when it has one, is a fan instead. */
+  | { kind: "rest"; state?: FormState }
   | {
       kind: Exclude<Sport, "strength" | "food">;
       state?: FormState;
@@ -530,6 +595,8 @@ export const GAPS = { set: 0.14, column: 0.34, pair: 0.14, part: 1 } as const;
 type Size = { wm: number; hm: number };
 
 function partModules(part: Exclude<PrintPart, { kind: "strength" }>, cap: number): Size {
+  if (part.kind === "rest")
+    return { hm: REST_MODULES, wm: REST_MODULES + (REST_MODULES - 1) * GAPS.set };
   const family = familyOf(part.kind);
   const hm = family === "run" ? RUNNER_MODULES : Math.max(1, Math.min(cap, part.modules || cap));
   // A runner, a wheel, a fan and a bowl are as wide as they are tall: hm modules and the gaps
@@ -673,12 +740,14 @@ export function dayPrint({
       const fw = q.wm * u;
       const fh = tall(q) * u;
       shapes.push(
-        ...form(part.kind, x, base - fh, fw, fh, {
-          state: part.state ?? "todo",
-          segments: part.segments ?? 0,
-          done: part.segmentsDone ?? 0,
-          fill: true,
-        }),
+        ...(part.kind === "rest"
+          ? restForm(x, base - fh, fw, fh, part.state)
+          : form(part.kind, x, base - fh, fw, fh, {
+              state: part.state ?? "todo",
+              segments: part.segments ?? 0,
+              done: part.segmentsDone ?? 0,
+              fill: true,
+            })),
       );
       x += fw;
     }

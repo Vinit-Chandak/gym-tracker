@@ -252,7 +252,9 @@ export function printLabel(dayName: string, parts: readonly PrintPart[]): string
     const name =
       part.kind === "mobility"
         ? "the mobility"
-        : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
+        : part.kind === "rest"
+          ? "rest"
+          : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
     const state = part.state === "done" ? "done" : part.state === "skipped" ? "skipped" : "to do";
     return `${name} ${state}`;
   });

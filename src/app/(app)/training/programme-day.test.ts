@@ -71,6 +71,27 @@ describe("a day that lifts and runs, in the order it is written", () => {
   });
 });
 
+describe("a rest day", () => {
+  const rest = (status: ProgramDayPlan["status"] = "pending") => ({
+    ...plan({ name: "Rest", includesLifting: false }),
+    exercises: [],
+    status,
+  });
+
+  it("prints as rest, in its state, so its tile is never blank paper", () => {
+    expect(programmeDayParts(rest())).toEqual([{ kind: "rest", state: "todo" }]);
+    expect(programmeDayParts(rest("completed"))).toEqual([{ kind: "rest", state: "done" }]);
+  });
+
+  it("prints its routine instead, when it has one, and a day that trains never as rest", () => {
+    expect(programmeDayParts(rest(), { drills: 5 }).map((p) => p.kind)).toEqual(["mobility"]);
+    expect(programmeDayParts({ ...plan({}), exercises: [] })).toEqual([]);
+    expect(
+      programmeDayParts({ ...plan({ includesLifting: false, includesRun: true }), exercises: [] }),
+    ).toEqual([{ kind: "run", state: "todo" }]);
+  });
+});
+
 it("says a day whose workout is open is in progress, before it is next", () => {
   expect(dayStateWord({ isNext: true, status: "pending" }, true)).toBe("in progress");
   expect(dayStateWord({ isNext: true, status: "pending" })).toBe("next");
