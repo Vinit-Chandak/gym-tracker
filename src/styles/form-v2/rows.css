@@ -835,9 +835,18 @@ html:has(.session-page) .session-fold {
   gap: var(--ov-space-12);
   margin-top: var(--ov-space-14);
 }
-/* "Pick up from today", under the date: the count and its way out on one line while they fit. */
+/* "Pick up from today", under the date: the count and its way out on one line while the count
+   fits whole beside it, else the way out under it (plan-actions.tsx). At large text it is always
+   under, the row's width, as a card's next step is; asked of the row, which spans the page's
+   column, as the pinned actions ask of theirs. */
 .pick-up {
+  container: pick-up / inline-size;
   margin-block: var(--ov-space-4) var(--ov-space-10);
+}
+@container pick-up (width < calc(14rem - 40px)) {
+  .pick-up > button {
+    flex: 1 0 100%;
+  }
 }
 /* A Today with no card to show keeps its way on at a phone's width, not stretched across a
    desktop's; so does Choose a day with a programme complete, which says the same (ADR 0052). */

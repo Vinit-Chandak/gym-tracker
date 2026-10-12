@@ -3,13 +3,14 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { StartAdHocButton, StartPlannedButton } from "./plan-actions";
+import { PickUpFromToday, StartAdHocButton, StartPlannedButton } from "./plan-actions";
 
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));
 vi.mock("@/server/actions/sessions", () => ({
   completeRestSlotAction: vi.fn(),
+  pickUpFromTodayAction: vi.fn(),
   skipSlotAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
@@ -63,4 +64,28 @@ it("holds Start until there is a gym to train at", () => {
     (screen.getByRole("button", { name: "Start workout" }) as HTMLButtonElement).disabled,
   ).toBe(true);
   expect(screen.queryByRole("link")).toBeNull();
+});
+
+/**
+ * Year review, 12 October 2026: from a zero basis the count never asked the row to wrap, so at
+ * 200% text Pick up from today kept its line and "10 sessions behind" was squeezed to a letter
+ * a line beside it. The count asks for its own width: whole beside the button, or the button
+ * under it (rows.css takes it to the row's width at large text).
+ */
+it("keeps the count whole beside Pick up from today, or puts the button under it", () => {
+  const missed = Array.from({ length: 10 }, (_, i) => ({
+    cycleIndex: 13,
+    dayIndex: i + 1,
+    name: `Day ${i + 1}`,
+  }));
+  render(<PickUpFromToday missed={missed} resumeDayName="Upper" />);
+  const count = screen.getByText(
+    (_, element) => element?.tagName === "P" && element.textContent === "10 sessions behind",
+  );
+  const row = count.parentElement!;
+  expect(row.classList).toContain("pick-up");
+  expect(row.classList).toContain("flex-wrap");
+  expect(count.classList).toContain("flex-auto");
+  expect(count.classList).not.toContain("flex-1");
+  expect(row.lastElementChild).toBe(screen.getByRole("button", { name: "Pick up from today" }));
 });

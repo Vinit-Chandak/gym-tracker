@@ -427,8 +427,10 @@ export function PickUpFromToday({
   const listed = missed.slice(0, 6);
   return (
     <>
+      {/* The count's basis is its own width, so the button goes under it before it would
+          squeeze it: from a basis of zero it stood a letter a line beside it at 200% text. */}
       <div className="pick-up flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="min-w-0 flex-1 type-meta [overflow-wrap:break-word] text-ink-2">
+        <p className="min-w-0 flex-auto type-meta [overflow-wrap:break-word] text-ink-2">
           <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
         </p>
         <Button variant="secondary" onClick={() => setOpen(true)} aria-haspopup="dialog">
