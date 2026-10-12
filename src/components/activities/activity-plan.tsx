@@ -123,8 +123,10 @@ export function ActivityPlan({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* Whose plan it is stands beside what it asks for, and goes under it before the words
+          beside it would have less than a few words' room (large text), where it ran over them. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-[1_1_8rem]">
           <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
             {ACTIVITY_SPORT_LABELS[sport]}
             {FACT_SEPARATOR}planned
