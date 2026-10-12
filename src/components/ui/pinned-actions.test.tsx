@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { PinnedActions } from "./pinned-actions";
+import { PinnedActions, usePinnedFold } from "./pinned-actions";
 
 let observed: { callback: ResizeObserverCallback; elements: Element[] }[] = [];
 
@@ -64,4 +64,28 @@ it("lays its actions in a row, or one under another when asked", () => {
   expect(screen.getByRole("button", { name: "Start" }).parentElement?.className).toBe(
     "pinned-actions-stack",
   );
+});
+
+/** Says where the pinned actions keep the folded strip's place, as the strip reads it. */
+function FoldProbe() {
+  const fold = usePinnedFold();
+  return <output>{fold ? fold.className : "none"}</output>;
+}
+
+it("keeps a place for the folded strip at the end of its last line, while it stands", () => {
+  const view = render(
+    <>
+      <PinnedActions stack>
+        <button type="button">Save</button>
+      </PinnedActions>
+      <FoldProbe />
+    </>,
+  );
+  const stack = screen.getByRole("button", { name: "Save" }).parentElement!;
+  // After the actions, adding nothing of its own (rows.css: display: contents).
+  expect(stack.lastElementChild?.className).toBe("pinned-fold");
+  expect(stack.lastElementChild?.childNodes.length).toBe(0);
+  expect(screen.getByRole("status").textContent).toBe("pinned-fold");
+  view.rerender(<FoldProbe />);
+  expect(screen.getByRole("status").textContent).toBe("none");
 });

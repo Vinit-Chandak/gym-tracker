@@ -266,6 +266,13 @@ components:
     rounded: "{rounded.card}"
     padding: "0 4px 0 14px"
     height: "52px"
+  session-strip-folded:
+    backgroundColor: "{colors.surface-control}"
+    textColor: "{colors.ink}"
+    typography: "{typography.tab}"
+    rounded: "{rounded.control}"
+    padding: "6px 4px"
+    size: "44px"
   tab-bar:
     backgroundColor: "{colors.ground}"
     textColor: "{colors.ink-2}"
@@ -555,6 +562,12 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Today** holds two columns at most. A lone card takes the row.
 - **The workout** is the page's column, centred over the ground, never a stretched table.
 
+Large text is a size of its own (ADR 0052): fewer than 14rem across the screen, which is every
+phone at 200% text and a 320-pt phone from 150%, never one at 100%. There a phone folds rather
+than growing past its screen: the logger folds its entry, and the session strip folds into a
+screen's pinned actions. It is read with a container query on the box that folds, never a media
+query, whose rem is the browser's and not the root's that the installed app on an iPhone sets.
+
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
@@ -573,7 +586,8 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
-  to the summary. Minimised, it is the session strip on every screen. The check-in comes before
+  to the summary. Minimised, it is the session strip on every screen; at large text, on a screen
+  that pins its own actions, the strip folds into them (Pinned actions). The check-in comes before
   the session: Save and start, or Skip check-in, is what creates it, so going back from the
   check-in leaves nothing to discard. Its 1–5 scales put their good end on the same side: sleep
   quality, whose 5 is great, is drawn from 5 down, so "great" stands where fatigue's "fresh" and
@@ -606,7 +620,12 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
   ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
-  the screen's foot and come to rest above the bar.
+  the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
+  the session strip folds into them and stands down: its key ends their last line, beside the
+  last action while that action's longest word still fits (its words may wrap), else on a line
+  of its own at the end, and the actions come down to the tab bar. The tab bar, the strip and the
+  actions had held 28 to 50% of a phone's screen at 200% text; folded, 20 to 49%, the most where
+  the action itself is long (Delete everything at 320 × 568, whose key takes its own line).
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -821,6 +840,14 @@ and every control answers a press.
   set is saved it starts again, its dial full.
 - **The session strip:** ink, 52 pt, `card` corners: the session's mark and name, the dial and
   the time, Resume on on-ink. The system's one shadow.
+- **The strip, folded** (large text, on a screen with pinned actions): a key on the control
+  surface, `control` corners, 44 pt wide at least (48 dp on Android, growing with the text) and as
+  tall as the line it ends: the session's mark over Resume, or while a rest runs its dial over the
+  time (Go at zero). Mark and word are held at the tab bar's sizes, as the tab bar holds its own,
+  so the key stays a tab's width beside the action. Its name carries the rest of the strip:
+  "Resume Lower A", with the rest it shows ("Rest, 1:15 left"). The strip and the key read one
+  width, so the workout is one tap away at every size and never twice; a page of the session's
+  own, which has no strip, has no key.
 
 ### Rows and marks
 

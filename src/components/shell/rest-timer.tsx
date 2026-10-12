@@ -175,6 +175,44 @@ export function RestTime({ sessionId }: { sessionId: string }) {
 }
 
 /**
+ * The rest on the strip folded into a screen's pinned actions (DESIGN.md, The session strip):
+ * the dial over the time, or Go's glyph over Go, live as the strip's and as narrow as a tab.
+ * Nothing while no rest runs. Its key is named with the time it shows (restNamed).
+ */
+export function RestFace({
+  sessionId,
+  glyphClassName,
+  timeClassName,
+}: {
+  sessionId: string;
+  glyphClassName?: string;
+  timeClassName?: string;
+}) {
+  const { remaining, total } = useRest(sessionId);
+  if (remaining === null) return null;
+  const go = remaining === 0;
+  const fraction = total ? Math.min(1, (remaining * 1000) / total) : 1;
+  return (
+    <>
+      {go ? (
+        <Glyph name="rest" className={glyphClassName} />
+      ) : (
+        <RestDial fraction={fraction} className={glyphClassName} />
+      )}
+      <span className={timeClassName}>{go ? "Go" : formatDuration(remaining)}</span>
+    </>
+  );
+}
+
+/**
+ * The rest as a control that shows it is named, with the time it shows (WCAG 2.5.3): "Rest,
+ * 0:30 left", or "Rest over: Go".
+ */
+export function restNamed(remaining: number): string {
+  return remaining === 0 ? "Rest over: Go" : `Rest, ${formatDuration(remaining)} left`;
+}
+
+/**
  * The rest as a dial (DESIGN.md, Rest): its outline, and the rest still to run as a wedge from
  * twelve o'clock, emptying as it runs.
  */
@@ -229,11 +267,7 @@ export function RestPill({ sessionId }: { sessionId: string }) {
         type="button"
         aria-haspopup="dialog"
         // The name carries the visible time, as a voice or switch user reads it (WCAG 2.5.3).
-        aria-label={
-          go
-            ? "Rest over: Go. Add 30 seconds or stop"
-            : `Rest, ${time} left. Add 30 seconds or stop`
-        }
+        aria-label={`${restNamed(remaining)}. Add 30 seconds or stop`}
         onClick={() => setOpen(true)}
         className="relative flex min-h-[var(--ov-target-header)] shrink-0 items-center"
       >

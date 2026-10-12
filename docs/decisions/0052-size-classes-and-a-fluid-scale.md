@@ -113,6 +113,38 @@ The owner chose **adaptive + fluid**:
    box and draws its labels at 12 px or more at 100% text, growing with the text. The shape
    shrinks, to a third at most, to leave the labels room.
 
+7. **Large text is a size of its own** (12 October 2026). The reader's text multiplies every
+   length, so a phone at 200% text holds about as many words across as a 160-pt screen would.
+   - It is fewer than 14rem across the screen, the width at which the logger already folded its
+     entry (decision 4): every phone at 200% text (448 pt), a 320-pt phone from 150%, never a
+     phone at 100%, and never a tablet at 200%.
+   - It is read with a container query on the box that changes, never a media query. A media
+     query's rem is the browser's initial size; the installed app on an iPhone gives the
+     reader's text to the root (`platform.ts`), which only a container query sees.
+   - At large text, on a screen that pins its own actions, the session strip folds into them.
+     With a workout open, the tab bar, the strip and a pinned Save held 28 to 42% of a phone's
+     screen at 200% text, and up to half with a longer action (Delete everything at 320 × 568).
+     The strip stands down and its key ends the actions' last line: the session's mark over
+     Resume, or the rest's dial over the time, a target wide, on the control surface. It stands
+     beside the last action while that action's longest word still fits, else on a line of its
+     own at the end. The open workout stays one tap away.
+   - The strip's frame and the pinned actions each ask the question of their own box. Both run
+     between the gutters, so both ask "under 14rem less two 20-pt gutters", and the strip goes
+     exactly where its key comes. Under 360 pt the gutters are 16, so there the fold comes 8 pt
+     sooner than the logger's.
+   - Measured at 200% text with a workout open (tab bar, strip and pinned actions, as a share of
+     the screen), before and after:
+
+     | Screen               | 320 × 568   | 375 × 667   | 390 × 844   |
+     | -------------------- | ----------- | ----------- | ----------- |
+     | Sports (Save)        | 41.5 → 28.9 | 35.7 → 24.9 | 28.2 → 19.7 |
+     | Add machine          | 41.5 → 36.4 | 35.7 → 24.9 | 28.2 → 19.7 |
+     | AI coach (compose)   | 49.3 → 44.4 | 42.3 → 31.5 | 33.4 → 24.9 |
+     | Delete account       | 49.8 → 49.1 | 42.7 → 31.9 | 33.8 → 25.2 |
+     | Training (no action) | 26.4 → 26.4 | 22.5 → 22.5 | 17.8 → 17.8 |
+
+     At 100% text nothing moved: the same screens are pixel for pixel as before.
+
 ## Consequences
 
 - The native apps can take the same three classes and the same tokens. Compose's
@@ -123,3 +155,5 @@ The owner chose **adaptive + fluid**:
   `--ov-target`.
 - The pixel-diff check at 320, 360 and 390 px is how a change to the scale proves a phone did
   not move.
+- A new fold at large text queries its own box against 14rem, less whatever runs beside that box
+  (as the strip and the pinned actions take off the gutters), with a container query.
