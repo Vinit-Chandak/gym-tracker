@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { FACT_SEPARATOR } from "@/lib/facts";
+
 import type { HistoryItem } from "./history-list";
 import { HISTORY_PAGE_SIZE, HistoryView } from "./history-view";
 
@@ -147,7 +149,11 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "";
   const { rerender } = render(<HistoryView {...props} />);
   expect(HISTORY_PAGE_SIZE).toBe(10);
-  expect(screen.getByText(whole("23 entries · page 1 of 3"))).toBeTruthy();
+  // Held whole, so at large text the line wraps at the dot, not "page 1" over "of 3". Read as
+  // it is set: the matcher folds a no-break space into an ordinary one.
+  expect(screen.getByText(whole("23 entries · page 1 of 3")).textContent).toBe(
+    ["23 entries", "page 1 of 3"].join(FACT_SEPARATOR),
+  );
   expect(screen.getByText("Workout 1")).toBeTruthy();
   expect(screen.getByText("Workout 10")).toBeTruthy();
   expect(screen.queryByText("Workout 11")).toBeNull();

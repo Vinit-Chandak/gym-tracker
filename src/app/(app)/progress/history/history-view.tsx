@@ -249,10 +249,11 @@ export function HistoryView({
           </p>
         )}
         <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
+          {/* Each fact held whole, so the line wraps at the dot before "page 1 of 18". */}
           <Figures>
             {joinFacts([
               `${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`,
-              pages > 1 && `page ${page} of ${pages}`,
+              pages > 1 && `page\u00a0${page}\u00a0of\u00a0${pages}`,
             ])}
           </Figures>
         </p>
