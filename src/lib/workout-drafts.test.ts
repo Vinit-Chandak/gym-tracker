@@ -108,6 +108,37 @@ describe("unsaved set drafts", () => {
       ),
     ).toBe(false);
   });
+  it("matches a carry typed in yards against the metres the set was kept in (ADR 0055)", () => {
+    const carry = { ...draft, reps: "", rir: "", distance: "50" };
+    const kept = {
+      setType: "working" as const,
+      weight: 60,
+      reps: null,
+      rir: null,
+      durationSeconds: null,
+      distanceMeters: 45.7,
+    };
+    expect(draftMatchesSet({ ...carry, length: "yd" }, kept)).toBe(true);
+    // The same figure in metres is a different set; a draft from before yards is in metres.
+    expect(draftMatchesSet(carry, kept)).toBe(false);
+    expect(draftMatchesSet({ ...carry, distance: "45.7" }, kept)).toBe(true);
+    // A set kept as 30 m, edited in yards with its 33 yd left alone, keeps its 30 m: the draft
+    // still matches it, and a different figure does not.
+    const metreSet = { ...kept, distanceMeters: 30 };
+    expect(draftMatchesSet({ ...carry, distance: "33", length: "yd" }, metreSet)).toBe(true);
+    expect(draftMatchesSet({ ...carry, distance: "34", length: "yd" }, metreSet)).toBe(false);
+    expect(draftMatchesSet({ ...carry, distance: "", length: "yd" }, metreSet)).toBe(false);
+    // A draft records what it was typed in, and an unknown length is not a draft at all.
+    const s = storage();
+    writeDraft(s, context, { ...carry, length: "yd" });
+    expect(readDrafts(s, context)[0]?.length).toBe("yd");
+    // Removing it after its save compares the length too: a draft retyped in metres stays.
+    writeDraft(s, context, { ...carry, length: "m" });
+    removeDraft(s, context, 1, { ...carry, length: "yd" });
+    expect(readDrafts(s, context)).toHaveLength(1);
+    s.setItem(draftKey(context), JSON.stringify([{ ...carry, length: "ft" }]));
+    expect(readDrafts(s, context)).toEqual([]);
+  });
   it("tolerates malformed and unavailable browser storage", () => {
     const s = storage();
     s.setItem(draftKey(context), "broken");

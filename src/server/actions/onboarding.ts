@@ -10,7 +10,7 @@ import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS } from "@/domain/activity";
 import { BODY_LOAD_UNITS, GYM_KINDS, TRAINING_EXPERIENCES } from "@/domain/types";
-import { DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
+import { chosenSportUnits, DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
 import { SETUP_PLACE_NAMES } from "@/lib/setup-place";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -68,17 +68,15 @@ export async function saveYouStepAction(
       .set({
         trainingExperience,
         preferredUnit,
+        // Kept only where they differ from what the weight unit gives, so distances nobody set
+        // apart go on following it (ADR 0055).
+        ...chosenSportUnits(preferredUnit, { distanceUnit, poolUnit }),
         timeZone: zone,
         ...(lifts ? {} : { onboardedAt: new Date() }),
       })
       .where(eq(profiles.id, user.id));
     for (const sport of ACTIVITY_SPORTS) {
-      await setSportPreference(tx, user.id, sport, {
-        enabled: sports.includes(sport),
-        // Runs and rides share the road's unit; a pool is measured on its own.
-        ...(sport === "running" || sport === "cycling" ? { distanceUnit } : {}),
-        ...(sport === "swimming" ? { poolUnit } : {}),
-      });
+      await setSportPreference(tx, user.id, sport, { enabled: sports.includes(sport) });
     }
     return true;
   });

@@ -164,6 +164,13 @@ export function ChangeDetail(props: ChangeDetailProps) {
       )}
       {open && (
         <PinnedActions stack>
+          {/* Over the actions, as a form's error is, so the last action stays last: at large
+              text the folded session strip shares its line (rows.css). */}
+          {error && (
+            <p role="alert" className="type-meta-small font-semibold">
+              {error}
+            </p>
+          )}
           {coach && revising ? (
             <>
               <SpeechTextarea
@@ -246,11 +253,6 @@ export function ChangeDetail(props: ChangeDetailProps) {
                 </Link>
               )}
             </>
-          )}
-          {error && (
-            <p role="alert" className="type-meta-small font-semibold">
-              {error}
-            </p>
           )}
         </PinnedActions>
       )}

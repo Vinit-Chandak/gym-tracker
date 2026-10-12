@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   equipmentInstances,
+  equipmentTypes,
   exercises,
   foodEntries,
   setLogs,
@@ -239,6 +240,69 @@ describe("strength", () => {
     });
   });
 
+  it("says which series is on an accessory, whose machine is drawn as one", async () => {
+    const erin = await t.createAuthUser("accessory-graphs@example.com");
+    const { benchId, backExtension, legPress, legPressId } = await withUser(
+      t.db,
+      erin.id,
+      async (tx) => {
+        await seedTestUserData(tx, erin);
+        const [type] = await tx
+          .select({ id: equipmentTypes.id })
+          .from(equipmentTypes)
+          .where(eq(equipmentTypes.slug, "back_extension_bench"));
+        const [instance] = await tx
+          .insert(equipmentInstances)
+          .values({
+            userId: erin.id,
+            gymId,
+            equipmentTypeId: type!.id,
+            name: "Back extension bench",
+            resistanceMode: "bodyweight",
+            unit: "kg",
+          })
+          .returning({ id: equipmentInstances.id });
+        const [press] = await tx
+          .select({ id: equipmentInstances.id })
+          .from(equipmentInstances)
+          .where(
+            and(
+              eq(equipmentInstances.userId, erin.id),
+              eq(equipmentInstances.name, "45° leg press"),
+            ),
+          );
+        const ids = await tx
+          .select({ id: exercises.id, slug: exercises.slug })
+          .from(exercises)
+          .where(inArray(exercises.slug, ["back-extension", "leg-press-45"]));
+        const id = (slug: string) => ids.find((row) => row.slug === slug)!.id;
+        return {
+          benchId: instance!.id,
+          backExtension: id("back-extension"),
+          legPress: id("leg-press-45"),
+          legPressId: press!.id,
+        };
+      },
+    );
+    await workout(erin.id, "2026-09-08T18:00:00", [["working", 0, 15]], {
+      exerciseId: backExtension,
+      machineId: benchId,
+    });
+    await workout(erin.id, "2026-09-09T18:00:00", [["working", 120, 10]], {
+      exerciseId: legPress,
+      machineId: legPressId,
+    });
+    const options = await withUser(t.db, erin.id, (tx) =>
+      readExerciseSeriesOptions(tx, erin.id, september),
+    );
+    const on = (exerciseId: string) => options.find((o) => o.exerciseId === exerciseId)!;
+    expect(on(backExtension)).toMatchObject({
+      id: `${backExtension}:${benchId}:kg`,
+      accessory: "back_extension_bench",
+    });
+    expect(on(legPress)).toMatchObject({ id: `${legPress}:${legPressId}:kg`, accessory: null });
+  });
+
   it("offers every series ever logged, counting the workouts in the window apart", async () => {
     const options = await withUser(t.db, alice.id, (tx) =>
       readExerciseSeriesOptions(tx, alice.id, september),
@@ -317,6 +381,7 @@ describe("series ids", () => {
       modality: "barbell",
       group: null,
       assisted: false,
+      accessory: null,
       measure: "reps",
       sessionsInRange: 0,
       sessions: 10,

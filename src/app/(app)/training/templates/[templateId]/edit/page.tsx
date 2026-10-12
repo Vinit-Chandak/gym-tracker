@@ -16,7 +16,7 @@ import {
 import { saveTemplateAction } from "@/server/actions/activity-templates";
 import { requireUser } from "@/server/auth";
 import { getTemplate } from "@/server/repositories/activity-templates";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Edit template" };
@@ -36,7 +36,7 @@ export default async function EditTemplatePage(
     user.id,
     async (tx) => {
       const template = await getTemplate(tx, user.id, templateId);
-      return { template, units: template ? await unitsFor(tx, user.id, template.sport) : null };
+      return { template, units: template ? await readSportUnits(tx, user.id) : null };
     },
     { readOnly: true },
   );

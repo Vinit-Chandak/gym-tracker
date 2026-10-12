@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { measureOf as measureOfSet } from "@/domain/sets";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDay } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
@@ -32,6 +33,7 @@ export function ExerciseHistory({
   unit,
   timeZone,
   measure,
+  length,
   width = 402,
   grow = 1,
 }: {
@@ -46,6 +48,8 @@ export function ExerciseHistory({
   timeZone: string;
   /** What this exercise counts, for a set that says nothing itself. */
   measure?: PrescriptionType;
+  /** What a carry reads in, as the Log tab beside it reads it: metres or yards. */
+  length: SetLengthUnit;
   /** The screen's width and how much larger figures are drawn: the lines fit their columns. */
   width?: number;
   grow?: number;
@@ -147,9 +151,13 @@ export function ExerciseHistory({
                     {warmups.map((set, k) => (
                       <span key={k} className="log-warm-item">
                         <span className="sr-only">
-                          {warmSaid(set, measure ?? measureOfSet(set))}
+                          {warmSaid(set, measure ?? measureOfSet(set), length)}
                         </span>
-                        <WarmNotation set={set} measure={measure ?? measureOfSet(set)} />
+                        <WarmNotation
+                          set={set}
+                          measure={measure ?? measureOfSet(set)}
+                          length={length}
+                        />
                       </span>
                     ))}
                   </span>
@@ -158,9 +166,14 @@ export function ExerciseHistory({
               {work.map((set, k) => (
                 <li key={k} className="log-line">
                   <span className="sr-only">
-                    {setSaid(k + 1, set, measure ?? measureOfSet(set))}
+                    {setSaid(k + 1, set, measure ?? measureOfSet(set), length)}
                   </span>
-                  <SetCells n={k + 1} set={set} measure={measure ?? measureOfSet(set)} />
+                  <SetCells
+                    n={k + 1}
+                    set={set}
+                    measure={measure ?? measureOfSet(set)}
+                    length={length}
+                  />
                 </li>
               ))}
             </ol>

@@ -107,6 +107,28 @@ it("changes the units from the sheet", () => {
   expect(document.querySelector(".units-line-text")!.textContent).toBe("lb · miles · London time");
 });
 
+it("takes the distances along with the weight chosen in the sheet, even ones not asked", () => {
+  // A lifter only: the sheet asks only the weight, and pounds bring miles and yards (ADR 0055).
+  const { sent } = show();
+  fireEvent.click(screen.getByRole("checkbox", { name: /Strength/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Change units and time zone" }));
+  expect(screen.queryByRole("radio", { name: "mi" })).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: "lb" }));
+  expect(sent()).toMatchObject({ preferredUnit: "lb", distanceUnit: "mi", poolUnit: "yd" });
+});
+
+it("leaves a distance set apart where it was when the weight changes", () => {
+  const { sent } = show();
+  fireEvent.click(screen.getByRole("checkbox", { name: /Running/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Change units and time zone" }));
+  fireEvent.click(screen.getByRole("radio", { name: "mi" }));
+  fireEvent.click(screen.getByRole("radio", { name: "lb" }));
+  expect(sent()).toMatchObject({ preferredUnit: "lb", distanceUnit: "mi", poolUnit: "yd" });
+  fireEvent.click(screen.getByRole("radio", { name: "km" }));
+  fireEvent.click(screen.getByRole("radio", { name: "kg" }));
+  expect(sent()).toMatchObject({ preferredUnit: "kg", distanceUnit: "km", poolUnit: "m" });
+});
+
 /** The phone's zone, as the device in India that ICU, as Chrome, says is in Asia/Calcutta. */
 function inIndia(check: () => void) {
   const before = process.env.TZ;

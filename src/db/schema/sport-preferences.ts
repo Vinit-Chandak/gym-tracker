@@ -6,7 +6,8 @@ import { activitySportEnum, lengthUnitEnum } from "./multisport-enums";
 import { profiles } from "./profiles";
 
 /**
- * Which sports this account trains, how it measures them, and what it shares (SPORT-01, SOCIAL-02).
+ * Which sports this account trains and what it shares (SPORT-01, SOCIAL-02). How it measures
+ * them is the profile's (ADR 0055).
  *
  * Turning a sport off is a shortcut preference, not a deletion: history, templates and
  * approved programme commitments all survive it, and removing a sport from a programme is a
@@ -24,8 +25,14 @@ export const userSportPreferences = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     sport: activitySportEnum("sport").notNull(),
     enabled: boolean("enabled").notNull().default(true),
-    /** Road distances in kilometres or miles; pools in metres or yards. */
+    /**
+     * @deprecated Retired by ADR 0055: an account reads every sport's distances in one pair of
+     * units, `profiles.distance_unit` and `pool_unit`. Kept only because the build that moves
+     * them runs while the previous deployment still reads these; a later migration drops them.
+     * Nothing reads or writes them now.
+     */
     distanceUnit: lengthUnitEnum("distance_unit").notNull().default("km"),
+    /** @deprecated See `distanceUnit`. */
     poolUnit: lengthUnitEnum("pool_unit").notNull().default("m"),
     shareStats: boolean("share_stats").notNull().default(false),
     ...timestamps,

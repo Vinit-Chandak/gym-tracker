@@ -74,3 +74,20 @@ it("names a day in progress beside it, instead of Next", () => {
   expect(tile("Upper").textContent).toContain("In progress");
   expect(tile("Upper").textContent).not.toContain("Next");
 });
+
+it("draws a rest day's tile with the rest form, out of the accessibility tree", () => {
+  columns = "200px 200px";
+  const days = tiles(0).map((day) =>
+    day.name === "Rest"
+      ? { ...day, parts: [{ kind: "rest" as const, state: "todo" as const }] }
+      : day,
+  );
+  render(<CycleDays days={days} label="The cycle’s days" />);
+  const restTile = tile("Rest");
+  const print = restTile.querySelector(".cycle-day-print")!;
+  // The link says the day; the art says nothing more.
+  expect(print.getAttribute("aria-hidden")).toBe("true");
+  const crescent = print.querySelector("path")!;
+  expect(crescent.style.fill).toBe("var(--ov-print-warm-up)");
+  expect(crescent.style.stroke).toBe("var(--ov-print-dot)");
+});

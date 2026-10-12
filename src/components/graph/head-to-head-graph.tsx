@@ -12,6 +12,7 @@ import {
   type SharedMetric,
 } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 
 import { Graph, type GraphSide } from "./graph";
 import { bucketLabel, dayLabel, decimal } from "./labels";
@@ -33,6 +34,8 @@ export type HeadToHeadData = {
   /** What the movement is measured by, so a pull-up's top weight reads as its added load. */
   exercise: MetricExercise;
   unit: BodyLoadUnit;
+  /** What a carry's points are already read in: the viewer's metres or yards. */
+  length: SetLengthUnit;
   /** The viewer's name and the friend's, their lines in that order. */
   names: readonly [string, string];
   /** Every metric the movement is measured by, its primary first. */
@@ -157,7 +160,7 @@ function MeasureGraph({
   lines: HeadToHeadMeasure["lines"];
   name: { best: string; point: string };
 }) {
-  const { range, today, unit, names } = data;
+  const { range, today, unit, length, names } = data;
   const counted = METRIC_UNIT[metric];
   const figure = (value: number): Pick<GraphSide, "figure" | "unit"> => {
     switch (counted) {
@@ -169,7 +172,7 @@ function MeasureGraph({
       case "seconds":
         return holdParts(value);
       case "metres":
-        return { figure: decimal(value, 0), unit: "m" };
+        return { figure: decimal(value, 0), unit: length };
     }
   };
 

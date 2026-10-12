@@ -34,7 +34,7 @@ vi.mock("@/server/repositories/coach-plans", () => ({
   activePlanForOccurrence: async () => null,
 }));
 vi.mock("@/server/repositories/sport-preferences", () => ({
-  unitsFor: async () => ({ distanceUnit: "km", poolUnit: "m" }),
+  readSportUnits: async () => ({ distanceUnit: "km", poolUnit: "m" }),
 }));
 vi.mock("@/server/repositories/schedule", () => ({
   getSchedule: async () => ({

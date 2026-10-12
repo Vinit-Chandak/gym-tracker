@@ -1,12 +1,13 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { activities, userSportPreferences } from "@/db/schema";
+import { activities, profiles, userSportPreferences } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
-import type { DistanceUnit, PoolUnit, SportUnits } from "@/lib/distance-units";
+import { DEFAULT_SPORT_UNITS, resolveSportUnits, type SportUnits } from "@/lib/distance-units";
 
 /**
- * Which sports an account trains, how it measures them, and what it shares (SPORT-01).
+ * Which sports an account trains and what it shares (SPORT-01), and the units it reads them in,
+ * which are the profile's (ADR 0055).
  *
  * Turning a sport off is a shortcut preference and nothing more. History stays, templates
  * stay, and a programme that includes the sport keeps including it — removing it from a
@@ -16,8 +17,6 @@ import type { DistanceUnit, PoolUnit, SportUnits } from "@/lib/distance-units";
 export type SportPreference = {
   sport: ActivitySport;
   enabled: boolean;
-  distanceUnit: DistanceUnit;
-  poolUnit: PoolUnit;
   shareStats: boolean;
 };
 
@@ -31,7 +30,11 @@ const DEFAULTS: Record<ActivitySport, { enabled: boolean }> = {
 
 export async function listSportPreferences(tx: DbOrTx, userId: string): Promise<SportPreference[]> {
   const rows = await tx
-    .select()
+    .select({
+      sport: userSportPreferences.sport,
+      enabled: userSportPreferences.enabled,
+      shareStats: userSportPreferences.shareStats,
+    })
     .from(userSportPreferences)
     .where(eq(userSportPreferences.userId, userId))
     .orderBy(asc(userSportPreferences.sport));
@@ -41,8 +44,6 @@ export async function listSportPreferences(tx: DbOrTx, userId: string): Promise<
     return {
       sport,
       enabled: row?.enabled ?? DEFAULTS[sport].enabled,
-      distanceUnit: (row?.distanceUnit ?? "km") as DistanceUnit,
-      poolUnit: (row?.poolUnit ?? "m") as PoolUnit,
       // Sharing is never opened by a default: an account that has not chosen shares nothing new.
       shareStats: row?.shareStats ?? false,
     };
@@ -118,8 +119,6 @@ export async function setSportPreference(
       userId,
       sport,
       enabled: changes.enabled ?? DEFAULTS[sport].enabled,
-      distanceUnit: changes.distanceUnit ?? "km",
-      poolUnit: changes.poolUnit ?? "m",
       shareStats: changes.shareStats ?? false,
     })
     .onConflictDoUpdate({
@@ -128,33 +127,33 @@ export async function setSportPreference(
     });
 }
 
-/** Every sport's units at once, for a page that lists more than one sport's sessions. */
+/**
+ * How this athlete reads distances, every sport alike (ADR 0055): a road in kilometres or miles,
+ * a pool in metres or yards, and a carry in metres or yards beside them. What the profile chose,
+ * and where it chose nothing, what its weight unit gives. An account with no profile yet reads
+ * the defaults.
+ */
+export async function readSportUnits(tx: DbOrTx, userId: string): Promise<SportUnits> {
+  const [row] = await tx
+    .select({
+      preferredUnit: profiles.preferredUnit,
+      distanceUnit: profiles.distanceUnit,
+      poolUnit: profiles.poolUnit,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return row ? resolveSportUnits(row.preferredUnit, row) : DEFAULT_SPORT_UNITS;
+}
+
+/** The same units keyed by sport, for a page that lists more than one sport's sessions. */
 export async function unitsBySport(
   tx: DbOrTx,
   userId: string,
 ): Promise<Record<ActivitySport, SportUnits>> {
-  const preferences = await listSportPreferences(tx, userId);
-  return Object.fromEntries(
-    preferences.map(({ sport, distanceUnit, poolUnit }) => [sport, { distanceUnit, poolUnit }]),
-  ) as Record<ActivitySport, SportUnits>;
-}
-
-/** The units a form should open in, and a page should read in, for this athlete and sport. */
-export async function unitsFor(
-  tx: DbOrTx,
-  userId: string,
-  sport: ActivitySport,
-): Promise<SportUnits> {
-  const [row] = await tx
-    .select({
-      distanceUnit: userSportPreferences.distanceUnit,
-      poolUnit: userSportPreferences.poolUnit,
-    })
-    .from(userSportPreferences)
-    .where(and(eq(userSportPreferences.userId, userId), eq(userSportPreferences.sport, sport)))
-    .limit(1);
-  return {
-    distanceUnit: (row?.distanceUnit ?? "km") as DistanceUnit,
-    poolUnit: (row?.poolUnit ?? "m") as PoolUnit,
-  };
+  const units = await readSportUnits(tx, userId);
+  return Object.fromEntries(ACTIVITY_SPORTS.map((sport) => [sport, units])) as Record<
+    ActivitySport,
+    SportUnits
+  >;
 }

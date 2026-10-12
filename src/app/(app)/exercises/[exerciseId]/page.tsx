@@ -26,6 +26,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { earliestOf, exerciseSessions } from "@/domain/progress-graphs";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
 import { showsDrafts } from "@/lib/drafts";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { formatLoadStep } from "@/lib/format";
@@ -37,8 +38,9 @@ import {
   exerciseOnMachine,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
-  MEASURE_COLUMN_LABELS,
-  MEASURE_UNIT_SUFFIX,
+  lengthRangeLabel,
+  measureColumnLabel,
+  measureUnitSuffix,
   MUSCLE_LABELS,
   rangeLabel,
   restLabel,
@@ -90,14 +92,15 @@ function equipmentWayLabel(way: ExerciseEquipmentWay): string {
 
 /**
  * "3 × 10–12 per side @ 1–2 RIR · rest 90 s", as the page shows it: each range held at its dash,
- * RIR and the rest to their figures, and the dot to the rest after it.
+ * RIR and the rest to their figures, and the dot to the rest after it. A carry's range reads in
+ * the athlete's length.
  */
-function prescription(usage: ExerciseProgramUsage): string {
+function prescription(usage: ExerciseProgramUsage, length: SetLengthUnit): string {
   const range =
     usage.prescriptionType === "duration"
       ? rangeLabel(usage.durationMinSeconds, usage.durationMaxSeconds, " s")
       : usage.prescriptionType === "distance"
-        ? rangeLabel(usage.distanceMinMeters, usage.distanceMaxMeters, " m")
+        ? lengthRangeLabel(usage.distanceMinMeters, usage.distanceMaxMeters, length)
         : rangeLabel(usage.repMin, usage.repMax);
   const volume = `${usage.sets} × ${range}`;
   const side = usage.perSide ? " per side" : "";
@@ -223,8 +226,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         life,
         programmeComplete: schedule !== null && scheduleComplete(schedule),
         machineName: machine ? (latest.scoped[0]?.equipmentInstanceName ?? null) : null,
+        accessory: machine ? (selected?.accessory ?? null) : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+        length: setLengthFor(profile),
       };
     },
     { readOnly: true },
@@ -244,8 +249,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     sessions,
     timeZone,
     unit,
+    length,
     life,
     machineName,
+    accessory,
     programmeComplete,
   } = data;
   // A finished programme's days are still worth reading (repeating the block asks for them), but
@@ -283,8 +290,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           exercise={exercise}
           life={life}
           machineName={machineName}
+          accessory={accessory}
           bests={bests}
           unit={unit}
+          length={length}
           timeZone={timeZone}
           today={today}
           graph={
@@ -297,6 +306,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               <ExerciseGraph
                 today={today}
                 origin={null}
+                length={length}
                 data={{
                   range: graphRange,
                   options: options.map(({ id, name, machine, unit: loadUnit, group }) => ({
@@ -369,8 +379,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           <StatTileRow>
             {/* Whatever this movement is actually counted in. A carry has no reps to show. */}
             <StatTile
-              label={MEASURE_COLUMN_LABELS[measure]}
-              value={rangeLabel(measureRange[0], measureRange[1], MEASURE_UNIT_SUFFIX[measure])}
+              label={measureColumnLabel(measure, length)}
+              value={
+                measure === "distance"
+                  ? lengthRangeLabel(measureRange[0], measureRange[1], length)
+                  : rangeLabel(measureRange[0], measureRange[1], measureUnitSuffix(measure, length))
+              }
             />
             <StatTile
               label="RIR"
@@ -436,7 +450,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
                   <p className="text-sm font-medium [overflow-wrap:break-word]">{usage.dayName}</p>
                   <p className="text-sm text-ink-muted tabular-nums">
-                    <Figures>{prescription(usage)}</Figures>
+                    <Figures>{prescription(usage, length)}</Figures>
                   </p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
                     <p className="text-xs [overflow-wrap:break-word] text-ink-subtle">
@@ -458,6 +472,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             rows={board}
             you={user.id}
             unit={unit}
+            length={length}
             currentYear={today.slice(0, 4)}
           />
         )}

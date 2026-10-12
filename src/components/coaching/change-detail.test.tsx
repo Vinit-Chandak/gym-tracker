@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { summariseProgramDiff } from "@/domain/program-change-summary";
 import { diffPrograms } from "@/domain/program-diff";
+
+import { declineProgramChangeAction } from "@/server/actions/coaching-workflow";
 
 import { ChangeDetail, type ChangeDetailProps } from "./change-detail";
 
@@ -208,4 +210,22 @@ it("carries an ask's words onto a change to the programme itself", () => {
   expect(screen.getByText("“make it ten weeks”")).toBeTruthy();
   // It was asked for, so there is no reasoning to offer for it.
   expect(screen.queryByText("Why")).toBeNull();
+});
+
+it("says what went wrong over the actions, so the last action still ends their last line", async () => {
+  vi.mocked(declineProgramChangeAction).mockResolvedValue({
+    ok: false,
+    error: "Could not save this change. Please retry.",
+  });
+  render(<ChangeDetail {...props()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toBe("Could not save this change. Please retry.");
+  // At large text the folded session strip shares the last action's line (rows.css), which must
+  // be Ask for changes, not the error.
+  const stack = alert.parentElement!;
+  expect(stack.className).toBe("pinned-actions-stack");
+  expect(stack.firstElementChild).toBe(alert);
+  expect(stack.lastElementChild?.className).toBe("pinned-fold");
+  expect(stack.lastElementChild?.previousElementSibling?.textContent).toBe("Ask for changes");
 });

@@ -17,8 +17,8 @@ export const metadata: Metadata = { title: "Preview · The alphabet" };
  * The art component drawing the Alphabet board
  * (docs/ui-redesign/revamp/form-v2/screenshots/Alphabet.png): the families, one cut per sport,
  * the states, context, a day, a month and the bowl, with the board's own figures, so the two
- * can be compared section by section. The runner, the month's tiles and its icons came after
- * the board (DESIGN.md, Shapes and Layout).
+ * can be compared section by section. The runner, the month's tiles and its icons, and rest,
+ * came after the board (DESIGN.md, Shapes and Layout).
  */
 const HOLDS: Record<(typeof FAMILIES)[number], string> = {
   strength: "Lifting",
@@ -138,6 +138,12 @@ const COLUMN_STATES: [PrintPart, string][] = [
   [{ kind: "strength", columns: [{ sets: 3, done: 0, skipped: true }] }, "Skipped: a dashed edge"],
 ];
 
+const REST_STATES: [FormState, string][] = [
+  ["todo", "Rest to do: pale grey, inside a 3:1 edge"],
+  ["done", "Rest done: that grey in full"],
+  ["skipped", "Rest skipped: a dashed edge"],
+];
+
 function Swatch({
   sport,
   size,
@@ -255,6 +261,26 @@ export default function ArtPreviewPage() {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-4">
           <Swatch sport="ride" size={44} label="Intervals" segments={4} />
           <Swatch sport="swim" size={44} label="Laps" segments={4} />
+        </ul>
+      </Section>
+
+      <Section
+        title="Rest"
+        note="A day that asks for nothing is a crescent, the moon the app says sleep with. It is no sport, so it takes no pigment: it is drawn in the greys a warm-up is, and keeps the states in them. One drawing, two modules tall, like the runner: rest has no structure and no length."
+      >
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-4">
+          {REST_STATES.map(([state, label]) => (
+            <li key={state} className="flex flex-col gap-2">
+              <Art
+                kind="print"
+                parts={[{ kind: "rest", state }]}
+                module={18}
+                className="aspect-square"
+                fallback={{ width: 104, height: 104 }}
+              />
+              <span className="type-meta-small text-ink-2">{label}</span>
+            </li>
+          ))}
         </ul>
       </Section>
 

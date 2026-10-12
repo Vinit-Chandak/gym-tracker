@@ -54,6 +54,7 @@ it("says a friend's distance with its unit, in the reader's own", () => {
       activity={activity({})}
       name="Kenji"
       unit="kg"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );
@@ -66,6 +67,7 @@ it("says a friend's distance with its unit, in the reader's own", () => {
       activity={activity({})}
       name="Kenji"
       unit="kg"
+      length="m"
       distanceUnits={{ ...DEFAULT_DISTANCE_UNITS, run: "mi" }}
     />,
   );
@@ -79,6 +81,7 @@ it("says a ride in road units and a swim in pool units", () => {
       activity={activity({ sport: "cycle", title: "Ride", distanceMeters: 18200 })}
       name="Kenji"
       unit="kg"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );
@@ -91,6 +94,7 @@ it("says a ride in road units and a swim in pool units", () => {
       activity={activity({ sport: "swim", title: "Swim", distanceMeters: 1500 })}
       name="Kenji"
       unit="kg"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );
@@ -142,6 +146,7 @@ it("words a workout as its owner's record does, and lists what it was made of", 
       ]}
       name="Kenji"
       unit="lb"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );
@@ -172,6 +177,7 @@ it("says so when none of a workout's movements is shared", () => {
       activity={activity({ sport: "workout", title: "Workout", workingSets: 1, volumeKg: 0 })}
       name="Kenji"
       unit="kg"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );
@@ -193,6 +199,7 @@ it("says a friend's workout volume whole, in the reader's unit", () => {
       activity={workout}
       name="Kenji"
       unit="lb"
+      length="m"
       distanceUnits={DEFAULT_DISTANCE_UNITS}
     />,
   );

@@ -7,7 +7,9 @@ import { getDb } from "@/db/client";
 import { gyms, exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 
+import { setLengthFor } from "@/lib/distance-units";
 import { requireProfiledUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { suggestion } from "@/domain/schedule";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
 import { getSchedule } from "@/server/repositories/schedule";
@@ -16,6 +18,8 @@ export const metadata: Metadata = { title: "Routines" };
 
 export default async function Page() {
   const user = await requireProfiledUser();
+  // The cached read `requireProfiledUser` made: what a carry's range reads in.
+  const length = setLengthFor(await getRequestProfile(user.id, user.email));
   const [routines, locations, library, schedule] = await withUser(
     getDb(),
     user.id,
@@ -48,6 +52,7 @@ export default async function Page() {
           gyms={locations}
           library={library}
           programme={programme}
+          length={length}
         />
       </PageContent>
     </>

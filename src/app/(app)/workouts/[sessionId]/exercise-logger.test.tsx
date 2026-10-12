@@ -117,6 +117,7 @@ const session: SessionVM = {
   warnings: [],
   timeZone: "Asia/Kolkata",
   preferredUnit: "kg" as const,
+  length: "m" as const,
   today: "2026-09-08",
   exercises: [exercise],
 };
@@ -128,6 +129,8 @@ function renderLogger(
     /** A finished workout opened for changes (ADR 0049). */
     amending?: boolean;
     preferredUnit?: "kg" | "lb";
+    /** What a carry is typed in (ADR 0055). */
+    length?: "m" | "yd";
     onLogged?: (seconds: number) => void;
     /** The saved routine's name the workout was started from. */
     title?: string;
@@ -142,6 +145,7 @@ function renderLogger(
         completedAt: overrides.amending ? "2026-09-08T12:30:00.000Z" : session.completedAt,
         preferredUnit: overrides.preferredUnit ?? "kg",
         title: overrides.title ?? session.title,
+        length: overrides.length ?? "m",
         exercises: [merged],
       }}
       userId="user"
@@ -183,7 +187,9 @@ function fill(values: Record<string, string>) {
   const [first] = Object.keys(values);
   if (!screen.queryByRole("textbox", { name: first }))
     fireEvent.click(
-      screen.getAllByRole("button", { name: /\. Type (a load|reps|RIR|RPE|metres|seconds)$/ })[0]!,
+      screen.getAllByRole("button", {
+        name: /\. Type (a load|reps|RIR|RPE|metres|yards|seconds)$/,
+      })[0]!,
     );
   for (const [label, value] of Object.entries(values))
     fireEvent.change(screen.getByRole("textbox", { name: label }), { target: { value } });
@@ -351,11 +357,113 @@ it("preserves decimal metres in the entry and in the set it saved", async () => 
   expect(field("Metres").value).toBe("26.5");
 });
 
+it("takes a carry in whole yards beside miles, keeps its metres, and reads it back as typed", async () => {
+  // 50 yd is 45.72 m, kept to the tenth the set's column holds (ADR 0055).
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 45.7 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  fill({ Yards: "50", RPE: "7" });
+  // Whole yards, on a keypad with no point.
+  expect(field("Yards").getAttribute("inputmode")).toBe("numeric");
+  expect(screen.queryByRole("textbox", { name: "Metres" })).toBeNull();
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 45.7 })),
+  );
+  press(/^Set 1: 20 kilograms, 50 yards, RPE 7\. Edit$/);
+  expect(field("Yards").value).toBe("50");
+});
+
+it("refuses a point in yards rather than running its figures together", () => {
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  // A keyboard or a paste brings the point the keypad does not have: 27.5, never 275.
+  fill({ Yards: "27.5", RPE: "7" });
+  expect(field("Yards").value).toBe("27.5");
+  press("Save");
+  expect(screen.getByRole("alert").textContent).toContain("Enter the distance in whole yards.");
+  expect(actions.log).not.toHaveBeenCalled();
+});
+
+it("keeps a carry's own metres when an edit leaves its yards as they read", async () => {
+  // Logged as 30 m before yards, it reads 33 yd, which would be kept as 30.2 m.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 8, distanceMeters: 30 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      sets: [{ ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 30 }],
+    },
+  });
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 7\. Edit$/);
+  fireEvent.change(field("RPE"), { target: { value: "8" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ rpe: 8, distanceMeters: 30 }),
+    ),
+  );
+  // A figure that was changed is the athlete's, and is kept as what it says.
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 8\. Edit$/);
+  fireEvent.change(field("Yards"), { target: { value: "35" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMeters: 32 })),
+  );
+});
+
+it("prefills a metre target in yards that, saved, reaches it", async () => {
+  // 15 m reads 16 yd, which is kept as 14.6 m and falls short: the prefill asks for 17 yd.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 15.5 },
+  });
+  const target = { ...saved, weight: 20, reps: null, rir: null, distanceMeters: 15 };
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      suggestion: {
+        kind: "hold",
+        basis: "exercise",
+        reason: "Repeat the target until two comparable sessions meet it with reported effort.",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [target, { ...target, setIndex: 2 }],
+      },
+    },
+  });
+  fill({ RPE: "7" });
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 15.5 })),
+  );
+});
+
 it("picks up a set carried here by a machine answer as the row it was, whenever it arrives", async () => {
   // The machine answer lands after the exercise reopened on its machine: the carried row is
   // the one being typed, not a recovered draft, so it carries no warning.
   renderLogger({
-    exercise: { equipment: { id: "m1", name: "Hack squat", unit: "kg", ladder: null } },
+    exercise: {
+      equipment: {
+        id: "m1",
+        name: "Hack squat",
+        unit: "kg",
+        typeCategory: "machine",
+        typeSlug: "hack_squat",
+        ladder: null,
+      },
+    },
   });
   const there = { ...context, equipmentId: "m1" };
   act(() => {
@@ -646,7 +754,16 @@ it("writes History's free-weight loads in the Log tab's unit, so a lift reads th
   // A barbell registered in kilograms, on an account that has since switched to pounds.
   renderLogger({
     preferredUnit: "lb",
-    exercise: { equipment: { id: "bar", name: "Barbell", unit: "kg", ladder: null } },
+    exercise: {
+      equipment: {
+        id: "bar",
+        name: "Barbell",
+        unit: "kg",
+        typeCategory: "free_weight",
+        typeSlug: "barbell",
+        ladder: null,
+      },
+    },
   });
   fireEvent.click(screen.getByRole("tab", { name: "History" }));
   await screen.findByText("Home gym · Barbell");
@@ -682,7 +799,16 @@ it("takes in a set typed before the exercise's machine changed, to save or disca
   // The answer moved it, so it is the set being typed, here, as it was.
   writeDraft(localStorage, context, typed);
   const onRack = { ...context, equipmentId: "rack-1" };
-  const rack = { equipment: { id: "rack-1", name: "Rack 1", unit: "kg" as const, ladder: null } };
+  const rack = {
+    equipment: {
+      id: "rack-1",
+      name: "Rack 1",
+      unit: "kg" as const,
+      typeCategory: "accessory" as const,
+      typeSlug: "power_rack",
+      ladder: null,
+    },
+  };
   renderLogger({ exercise: rack });
   expect(await screen.findByRole("button", { name: "60 kilograms. Type a load" })).toBeTruthy();
   expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
@@ -1289,7 +1415,14 @@ it("still takes the answer once a set is typed, so Save is never stuck behind it
 it("does not hold Save for a question about what an attached machine is used with", () => {
   renderLogger({
     exercise: {
-      equipment: { id: "smith", name: "Garage Smith", unit: "kg", ladder: null },
+      equipment: {
+        id: "smith",
+        name: "Garage Smith",
+        unit: "kg",
+        typeCategory: "machine",
+        typeSlug: "smith_machine",
+        ladder: null,
+      },
       decision: asking("unknown"),
     },
   });

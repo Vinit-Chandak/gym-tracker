@@ -3,6 +3,7 @@ import type { PlanWarning } from "@/domain/coach-review";
 import { warningsForSport } from "@/domain/sport-scope";
 import { DetailList } from "@/components/ui/detail-list";
 import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/session-plan";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview, RunTarget } from "@/server/repositories/schedule";
 
@@ -38,11 +39,14 @@ export function CoachPlanList({
   entries,
   planned,
   unit,
+  length,
   warnings = [],
 }: {
   entries: readonly StoredPlanExercise[];
   planned: readonly PlannedExercisePreview[];
   unit: string;
+  /** What the programme's carries read in; the coach's own line keeps its metres. */
+  length: SetLengthUnit;
   /** What the app noticed about the plan. Advice, under the plan it is about. */
   warnings?: readonly PlanWarning[];
 }) {
@@ -61,7 +65,7 @@ export function CoachPlanList({
           const line = planLine(entry, unit, entry.perSide ?? slot?.perSide ?? false);
           const targets = dropped
             ? "Skipped today"
-            : (line ?? (slot ? prescription(slot) : "By the rule"));
+            : (line ?? (slot ? prescription(slot, length) : "By the rule"));
           return (
             <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
               <p
@@ -83,7 +87,9 @@ export function CoachPlanList({
           .map((slot) => (
             <li key={slot.programExerciseId} className="min-w-0">
               <p className="text-sm [overflow-wrap:break-word]">{slot.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(slot)}</p>
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">
+                {prescription(slot, length)}
+              </p>
             </li>
           ))}
       </ul>

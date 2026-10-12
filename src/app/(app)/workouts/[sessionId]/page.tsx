@@ -8,6 +8,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
+import { setLengthFor } from "@/lib/distance-units";
 import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath } from "@/lib/nav";
 import { sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -56,6 +57,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
           profile.timeZone,
           profile.preferredUnit === "lb" ? "lb" : "kg",
           todayInTimeZone(profile.timeZone),
+          setLengthFor(profile),
         ),
         records,
       };
@@ -84,7 +86,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     // started and finished. A finished one is a page with a header, whose Back goes wherever it
     // was opened from when that said so. An exercise in focus is a layer of its own.
     <WorkoutView
-      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
+      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}:${data.length}`}
       session={data}
       seenSetChanges={seen}
       userId={user.id}
@@ -92,7 +94,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       backHref={backHref}
       header={<PageHeader title={title} meta={data.gym.name} backHref={backHref} />}
       justFinished={justFinished}
-      records={<SessionRecordsCard records={records} unit={data.preferredUnit} />}
+      records={
+        <SessionRecordsCard records={records} unit={data.preferredUnit} length={data.length} />
+      }
       routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
       editUntil={editUntil}
       addExerciseHref={`/workouts/${sessionId}/add-exercise${originQuery(origin)}` as Route}

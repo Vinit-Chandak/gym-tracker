@@ -365,6 +365,14 @@ describe("a session that starts from a plan", () => {
     );
     expect(today.plan?.id).toBe(plan?.id);
     expect(today.failure).toBeNull();
+    // Each machine the plan names, as what it is, for the glyph that leads its row on Today.
+    expect(today.plan?.machines).toEqual({
+      [machineOf(ctx, "Horizontal leg press")]: {
+        typeSlug: "leg_press_horizontal",
+        typeCategory: "machine",
+      },
+      [machineOf(ctx, "Cable station")]: { typeSlug: "cable_station", typeCategory: "cable" },
+    });
 
     // An empty session gives the plan back; the next start at the same gym uses it again.
     await withUser(t.db, alice.id, (tx) => discardSession(tx, alice.id, sessionId));

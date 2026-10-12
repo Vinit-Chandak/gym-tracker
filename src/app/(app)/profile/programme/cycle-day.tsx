@@ -5,7 +5,7 @@ import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-pla
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
 import { Figures } from "@/components/ui/figures";
-import type { SportUnits } from "@/lib/distance-units";
+import { setLengthUnit, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -106,7 +106,12 @@ export function CycleDay({
         {head}
       </summary>
       <div className="space-y-4 border-t border-line px-4 pt-3 pb-4">
-        {plan.exercises.length > 0 && <PlannedExerciseList exercises={plan.exercises} />}
+        {plan.exercises.length > 0 && (
+          <PlannedExerciseList
+            exercises={plan.exercises}
+            length={setLengthUnit(units.distanceUnit)}
+          />
+        )}
         {plan.run && hasRunGuidance(plan.run) && <RunPlanDetails run={plan.run} />}
         <DetailList
           entries={[

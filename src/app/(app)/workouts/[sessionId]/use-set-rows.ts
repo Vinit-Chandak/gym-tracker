@@ -6,10 +6,18 @@ import { recordSetChange } from "@/components/set-changes";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { EFFORT_INPUT_VERSION, effortError } from "@/domain/effort";
 import { WORKING_SET_TYPES } from "@/domain/progression";
+import {
+  setLengthIn,
+  setLengthToMetres,
+  setTargetIn,
+  SET_LENGTH_WORDS,
+  type SetLengthUnit,
+} from "@/lib/distance-units";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
   adoptDrafts,
   draftMatchesSet,
+  draftMetres,
   DRAFT_VALUE_FIELDS,
   moveDrafts,
   readDrafts,
@@ -28,11 +36,16 @@ import type { ExerciseVM, SetVM } from "./view-model";
 const MAX_SETS = 50;
 
 /** What is missing when a row is saved with nothing in the column it is counted in. */
-const MISSING_VALUE: Record<PrescriptionType, string> = {
-  reps: "Enter the reps.",
-  duration: "Enter the seconds held.",
-  distance: "Enter the distance in metres.",
-};
+function missingValue(measure: PrescriptionType, length: SetLengthUnit): string {
+  switch (measure) {
+    case "duration":
+      return "Enter the seconds held.";
+    case "distance":
+      return `Enter the distance in ${SET_LENGTH_WORDS[length]}.`;
+    default:
+      return "Enter the reps.";
+  }
+}
 
 export type RowState = {
   unit?: LoadUnit;
@@ -44,7 +57,10 @@ export type RowState = {
   rpe: string;
   effortVersion?: typeof EFFORT_INPUT_VERSION;
   duration: string;
-  /** Metres, for exercises measured by ground covered rather than by reps. */
+  /**
+   * Ground covered, for exercises measured by it rather than by reps: in the session's length,
+   * metres or yards, as typed. Converted to the metres a set keeps only when it is saved.
+   */
   distance: string;
   /** Values the user has set, so a cleared field stays cleared instead of taking a ghost. */
   touched: Set<DraftValueField>;
@@ -64,7 +80,18 @@ export type Ghost = Partial<Record<DraftValueField, string>>;
 const str = (value: number | null | undefined): string | undefined =>
   value === null || value === undefined ? undefined : String(value);
 
-function rowFromSet(set: SetVM): RowState {
+/** A set's metres as a row holds them: in the session's length. */
+const lengthText = (metres: number | null | undefined, length: SetLengthUnit) =>
+  str(metres === null || metres === undefined ? metres : setLengthIn(metres, length));
+
+/**
+ * The metres a prefill asks for, in the session's length: the least figure that, saved, reaches
+ * them (`setTargetIn`), so a set saved on its suggestion is never short of it (15 m is 17 yd).
+ */
+const targetText = (metres: number | null | undefined, length: SetLengthUnit) =>
+  str(metres === null || metres === undefined ? metres : setTargetIn(metres, length));
+
+function rowFromSet(set: SetVM, length: SetLengthUnit): RowState {
   return {
     unit: set.unit,
     setIndex: set.setIndex,
@@ -75,7 +102,7 @@ function rowFromSet(set: SetVM): RowState {
     rpe: str(set.rpe) ?? "",
     effortVersion: set.effortReported === true ? EFFORT_INPUT_VERSION : undefined,
     duration: str(set.durationSeconds) ?? "",
-    distance: str(set.distanceMeters) ?? "",
+    distance: lengthText(set.distanceMeters, length) ?? "",
     // A recorded set is the truth about itself. Editing one must never let a suggestion
     // creep back into a field the record says is empty.
     touched: new Set(DRAFT_VALUE_FIELDS),
@@ -104,8 +131,8 @@ function emptyRow(setIndex: number): RowState {
   };
 }
 
-function initialRows(exercise: ExerciseVM, amending: boolean): RowState[] {
-  const saved = exercise.sets.map(rowFromSet);
+function initialRows(exercise: ExerciseVM, amending: boolean, length: SetLengthUnit): RowState[] {
+  const saved = exercise.sets.map((set) => rowFromSet(set, length));
   // A finished workout amended (ADR 0049) shows what was done: its sets, and no row asking for
   // the next one, which Add set offers instead. One with nothing done offers its plan as a
   // workout would.
@@ -168,13 +195,13 @@ type GhostSource = {
   distanceMeters: number | null;
 };
 
-function toGhost(set: GhostSource): Ghost {
+function toGhost(set: GhostSource, length: SetLengthUnit): Ghost {
   return {
     weight: str(set.weight),
     reps: str(set.reps),
     rir: str(set.rir),
     duration: str(set.durationSeconds),
-    distance: str(set.distanceMeters),
+    distance: targetText(set.distanceMeters, length),
   };
 }
 
@@ -194,6 +221,7 @@ function ghostFor(
   exercise: ExerciseVM,
   rows: readonly RowState[],
   index: number,
+  length: SetLengthUnit,
   amending = false,
 ): Ghost {
   const row = rows.find((r) => r.setIndex === index) ?? { setIndex: index, setType: "working" };
@@ -203,13 +231,13 @@ function ghostFor(
     .pop()?.logged;
   // A set put into a finished workout (ADR 0049) was done beside the ones before it, not at the
   // day's target: it starts from the last of its kind there.
-  if (amending && last) return toGhost(last);
+  if (amending && last) return toGhost(last, length);
   const targets = prefillTargets(exercise);
   const target = placedSet(targets, rows, row);
-  if (target) return toGhost(target);
-  if (last) return toGhost(last);
+  if (target) return toGhost(target, length);
+  if (last) return toGhost(last, length);
   const tail = targets.filter((set) => isWarmup(set.setType) === warm).at(-1);
-  return tail ? toGhost(tail) : {};
+  return tail ? toGhost(tail, length) : {};
 }
 
 /**
@@ -244,6 +272,8 @@ type Options = {
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
   unit: LoadUnit;
+  /** What a distance is typed in: metres, or yards beside miles (ADR 0055). */
+  length: SetLengthUnit;
   /** A finished workout's sets, amended (ADR 0049): no next set is asked for after a save. */
   amending?: boolean;
   /** A new set is on the server: rest starts again from here, never before. */
@@ -265,12 +295,13 @@ export function useSetRows({
   sessionId,
   measure,
   unit,
+  length,
   amending = false,
   onLogged,
   onSaved,
 }: Options) {
   const actions = useLoggerActions();
-  const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise, amending));
+  const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise, amending, length));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
   const [draftContext] = useState<DraftContext>(() => ({
@@ -358,13 +389,20 @@ export function useSetRows({
                 ? String(convertLoad(Number(draft.weight.replace(",", ".")), from, unit))
                 : draft.weight;
           const changedElsewhere = (row.logged?.completedAt ?? null) !== draft.baseCompletedAt;
-          const { carried, ...fields } = draft;
+          // A distance typed in the other length is read in this one, as a load is read here.
+          const metres = draftMetres(draft);
+          const distance =
+            (draft.length ?? "m") === length || metres === null || Number.isNaN(metres)
+              ? draft.distance
+              : String(setLengthIn(metres, length));
+          const { carried, length: _length, ...fields } = draft;
           byIndex.set(draft.setIndex, {
             ...row,
             ...fields,
             rpe: draft.rpe ?? "",
             effortVersion: draft.effortVersion,
             weight,
+            distance,
             unit: convertible ? unit : from,
             touched: touchedFields(draft),
             dirty: true,
@@ -386,7 +424,7 @@ export function useSetRows({
     } catch {
       setStorageError(true);
     }
-  }, [draftContext, exercise.sets, unit, draftsSeen]);
+  }, [draftContext, exercise.sets, unit, length, draftsSeen]);
 
   const update = (index: number, patch: Partial<RowState>) =>
     setRows((current) =>
@@ -407,6 +445,7 @@ export function useSetRows({
           effortVersion: row.effortVersion,
           duration: row.duration,
           distance: row.distance,
+          length,
           touched: [...row.touched],
           baseCompletedAt: row.logged?.completedAt ?? null,
         })
@@ -443,22 +482,38 @@ export function useSetRows({
 
   const restore = (row: RowState) => {
     forget(row.setIndex);
-    update(row.setIndex, row.logged ? rowFromSet(row.logged) : emptyRow(row.setIndex));
+    update(row.setIndex, row.logged ? rowFromSet(row.logged, length) : emptyRow(row.setIndex));
   };
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex, amending);
+    const ghost = ghostFor(exercise, rows, row.setIndex, length, amending);
     const weight = resolve(row, "weight", ghost);
     // Exactly the measure this exercise is counted in. A carry has no reps to save, and
     // saving a zero for one would be a number nobody entered.
     const reps = measure === "reps" ? resolve(row, "reps", ghost) : null;
     const duration = measure === "duration" ? resolve(row, "duration", ghost) : null;
     const distance = measure === "distance" ? resolve(row, "distance", ghost) : null;
+    // Kept in metres whatever it was typed in: 50 yd is 45.7 m, and reads back as 50 yd. A saved
+    // set whose figure was left as it reads keeps its own metres, so an edit to its RPE does not
+    // move a carry kept as 30 m to the 30.2 m its 33 yd would keep.
+    const kept = row.logged?.distanceMeters ?? null;
+    const distanceMeters =
+      distance === null
+        ? null
+        : kept !== null && distance === setLengthIn(kept, length)
+          ? kept
+          : setLengthToMetres(distance, length);
     // Effort must be entered for this set, never copied from the planned or previous effort.
     const rir = measure === "reps" ? resolve(row, "rir", {}) : null;
     const rpe = measure !== "reps" ? resolve(row, "rpe", {}) : null;
     if (reps === null && duration === null && distance === null) {
-      update(row.setIndex, { error: MISSING_VALUE[measure] });
+      update(row.setIndex, { error: missingValue(measure, length) });
+      return;
+    }
+    // Yards are whole, which is what makes a set read back as it was typed (ADR 0055). The pad
+    // has no point, but a keyboard or a paste can bring one: it is refused, never rounded away.
+    if (distance !== null && length === "yd" && !Number.isInteger(distance)) {
+      update(row.setIndex, { error: "Enter the distance in whole yards." });
       return;
     }
     // A set well under today's working load, saved with no RIR before any of the work, is the
@@ -493,7 +548,7 @@ export function useSetRows({
       setType,
       reps,
       durationSeconds: duration,
-      distanceMeters: distance,
+      distanceMeters,
       rir,
       rpe,
     });
@@ -546,7 +601,7 @@ export function useSetRows({
             rir,
             rpe,
             durationSeconds: duration === null ? null : Math.round(duration),
-            distanceMeters: distance,
+            distanceMeters,
           }),
         ),
       );
@@ -557,7 +612,7 @@ export function useSetRows({
       setRows((current) => {
         const next = current.map((r) =>
           r.setIndex === row.setIndex
-            ? { ...rowFromSet(setInUnit(result.set, unit)), saving: false, autoWarmup }
+            ? { ...rowFromSet(setInUnit(result.set, unit), length), saving: false, autoWarmup }
             : r,
         );
         const highest = Math.max(...next.map((r) => r.setIndex));
@@ -568,6 +623,7 @@ export function useSetRows({
       try {
         removeDraft(localStorage, draftContext, row.setIndex, {
           ...submitted,
+          length,
           touched: [...submitted.touched],
         });
       } catch {
@@ -642,7 +698,7 @@ export function useSetRows({
     editing: rows.some((row) => row.dirty && !row.saving),
     settled,
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
-    ghost: (index: number) => ghostFor(exercise, rows, index, amending),
+    ghost: (index: number) => ghostFor(exercise, rows, index, length, amending),
     /** The suggested set a row stands for, which the entry shows and explains; null for none. */
     target: (index: number) => {
       const row = rows.find((r) => r.setIndex === index);

@@ -15,6 +15,7 @@ import { Sheet } from "@/components/ui/sheet";
 import type { OpeningPlan } from "@/domain/coaching-workflow";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import type { BlueprintDay, ProgramBlueprint } from "@/domain/program-blueprint";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatIsoWeekdayDay } from "@/lib/format";
 import { WEEKDAY_SHORT } from "@/lib/labels";
 import {
@@ -80,12 +81,15 @@ export function ReadyProgramme({
   names,
   needsCheck,
   today,
+  length,
 }: {
   draft: Draft;
   names: Record<string, string>;
   /** Written before the athlete's latest data: checked against it as the programme starts. */
   needsCheck: boolean;
   today: string;
+  /** What a carry's targets read in: the units step's metres, or yards beside miles. */
+  length: SetLengthUnit;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -209,7 +213,7 @@ export function ReadyProgramme({
                           {names[exercise.exerciseSlug] ?? exercise.exerciseSlug}
                         </p>
                         <p className="type-meta-small text-ink-2 tabular-nums">
-                          {exerciseTargets(exercise)}
+                          {exerciseTargets(exercise, length)}
                         </p>
                       </li>
                     ))}

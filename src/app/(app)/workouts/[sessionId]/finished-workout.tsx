@@ -14,6 +14,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatIsoDate, formatSleep } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
@@ -114,13 +115,15 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
 
 /**
  * An exercise's sets as the app lists a past session's: its working sets, each with its unit,
- * a bodyweight movement's and an assisted machine's read as the logger reads them.
+ * a bodyweight movement's and an assisted machine's read as the logger reads them, and a carry
+ * in the session's length.
  */
-function setsLine(exercise: ExerciseVM): string {
+function setsLine(exercise: ExerciseVM, length: SetLengthUnit): string {
   return formatSets(
     exercise.sets,
     (unit) => LOAD_UNIT_LABELS[unit],
     loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+    length,
   );
 }
 
@@ -325,7 +328,7 @@ export function FinishedWorkout({
                           <span className="record-row-name">{exercise.exercise.name}</span>
                           {exercise.sets.length > 0 ? (
                             <span className="record-row-sets">
-                              <Figures>{setsLine(exercise)}</Figures>
+                              <Figures>{setsLine(exercise, session.length)}</Figures>
                             </span>
                           ) : (
                             <span className="record-row-sets text-ink-2">
@@ -366,7 +369,7 @@ export function FinishedWorkout({
                   >
                     <span className="record-row-name">{exercise.exercise.name}</span>{" "}
                     <span className="record-row-sets">
-                      <Figures>{setsLine(exercise)}</Figures>
+                      <Figures>{setsLine(exercise, session.length)}</Figures>
                     </span>
                   </button>
                 </li>

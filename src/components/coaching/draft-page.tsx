@@ -12,6 +12,7 @@ import { summariseProgramDiff } from "@/domain/program-change-summary";
 import { diffPrograms } from "@/domain/program-diff";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { progress } from "@/domain/schedule";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatDay } from "@/lib/format";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -122,6 +123,7 @@ export async function ProgrammeDraftPage({
             stale={data.stale}
             today={today}
             preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
+            length={setLengthFor(profile)}
           />
         </PageContent>
       </>

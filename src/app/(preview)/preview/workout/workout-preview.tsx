@@ -41,6 +41,7 @@ type Slot = {
   state?: "done" | "skipped";
   superset?: string;
   instead?: string;
+  /** A cable station: the only machines the preview names. */
   machine?: string;
   coach?: { note?: string; targets?: TargetSet[]; added?: boolean };
 };
@@ -82,7 +83,14 @@ function exercise(slot: Slot, index: number): ExerciseVM {
       },
     },
     equipment: slot.machine
-      ? { id: `${slug}-machine`, name: slot.machine, unit: "kg", ladder: null }
+      ? {
+          id: `${slug}-machine`,
+          name: slot.machine,
+          unit: "kg",
+          typeCategory: "cable",
+          typeSlug: "cable_station",
+          ladder: null,
+        }
       : null,
     planned: slot.coach?.added
       ? null
@@ -337,6 +345,7 @@ function sessionFor(scenario: Scenario): { session: SessionVM; title: string } {
         : null,
     timeZone: "Asia/Kolkata",
     preferredUnit: "kg",
+    length: "m",
     today: STARTED.slice(0, 10),
     exercises: slots.map(exercise),
   };

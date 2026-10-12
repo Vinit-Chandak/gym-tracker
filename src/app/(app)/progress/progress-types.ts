@@ -9,6 +9,7 @@ import type {
   StrengthGraph,
 } from "@/domain/progress-graphs";
 import type { BodyLoadUnit } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 
 import type { HistoryItem } from "./history/history-list";
 
@@ -35,8 +36,8 @@ export type ProgressData = {
    * past the month's first day when it holds fewer (ADR 0045).
    */
   overview: { latest: readonly HistoryItem[] };
-  /** Volume by muscle group, read in the account's own unit. */
-  strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit };
+  /** Volume by muscle group, read in the account's own unit; a carry in its own length. */
+  strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit; length: SetLengthUnit };
   exercise: ExerciseGraphData;
   /** `truncated`: more runs than a graph reads, so the oldest are left out (and said so). */
   running: {

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
-import { Glyph } from "@/components/ui/glyphs";
+import { Glyph, machineGlyph, type MachineKind } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
 import type { LikeExercise } from "@/lib/exercise-search";
@@ -12,7 +12,8 @@ import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
-type Machine = { id: string; name: string };
+/** A machine of this gym, and what it is, for its glyph. */
+type Machine = { id: string; name: string } & MachineKind;
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
@@ -101,7 +102,7 @@ export function PickExerciseForm({
           ) : applicable.length === 1 ? (
             <p className="pinned-fact">
               <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
-              <Glyph name="machine" className="glyph-18" />
+              <Glyph name={machineGlyph(applicable[0]!)} className="glyph-18" />
               <span className="min-w-0 [overflow-wrap:break-word]">On {applicable[0]!.name}</span>
             </p>
           ) : (

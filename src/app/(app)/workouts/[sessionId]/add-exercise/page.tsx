@@ -84,7 +84,13 @@ export default async function AddExercisePage(
       <AddExercisesForm
         action={addExercisesAction.bind(null, sessionId, finished ? origin : null)}
         exercises={data.exercises}
-        machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+        machines={data.machines.map((m) => ({
+          id: m.id,
+          name: m.name,
+          typeSlug: m.typeSlug,
+          typeCategory: m.typeCategory,
+          resistanceMode: m.resistanceMode,
+        }))}
         machinesByExercise={data.machinesByExercise}
         preferredMachines={data.preferredMachines}
         inWorkout={data.inWorkout}

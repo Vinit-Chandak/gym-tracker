@@ -266,6 +266,13 @@ components:
     rounded: "{rounded.card}"
     padding: "0 4px 0 14px"
     height: "52px"
+  session-strip-folded:
+    backgroundColor: "{colors.surface-control}"
+    textColor: "{colors.ink}"
+    typography: "{typography.tab}"
+    rounded: "{rounded.control}"
+    padding: "6px 4px"
+    size: "44px"
   tab-bar:
     backgroundColor: "{colors.ground}"
     textColor: "{colors.ink-2}"
@@ -444,11 +451,12 @@ same pigment.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
-  not in the volume.
+  not in the volume, and a rest day's crescent still to come.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
   **Print Dot**: the paper of every print and of the calendar's days, the calendar's dates and
-  today's ring, and (Print Dot, 3:1 on the paper) the edge of a warm-up block. A day with nothing
-  in it is a paler sheet, the paper mixed half and half with the ground. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
+  today's ring, and (Print Dot, 3:1 on the paper) the edge of a warm-up block and of a rest day's
+  crescent, and that crescent done. A day with nothing in it is a paler sheet, the paper mixed half
+  and half with the ground. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
 - **Scrim** (`scrim`; `scrim-dark`): under every sheet.
 
 ### Named Rules
@@ -559,6 +567,14 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Today** holds two columns at most. A lone card takes the row.
 - **The workout** is the page's column, centred over the ground, never a stretched table.
 
+Large text is a size of its own (ADR 0052): fewer than 14rem across the screen, which is every
+phone at 200% text and a 320-pt phone from 150%, never one at 100%. There a phone folds rather
+than growing past its screen: the logger folds its entry, and the session strip folds into a
+screen's pinned actions. It is read with a container query on the box that folds, never a media
+query, whose rem is the browser's and not the root's that the installed app on an iPhone sets.
+What a fold stands in for follows the fold rather than asking again: the strip stands down while
+its key is shown, so two readings of one width can never leave the workout without a way back.
+
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
@@ -577,7 +593,8 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
-  to the summary. Minimised, it is the session strip on every screen. The check-in comes before
+  to the summary. Minimised, it is the session strip on every screen; at large text, on a screen
+  that pins its own actions, the strip folds into them (Pinned actions). The check-in comes before
   the session: Save and start, or Skip check-in, is what creates it, so going back from the
   check-in leaves nothing to discard. Its 1–5 scales put their good end on the same side: sleep
   quality, whose 5 is great, is drawn from 5 down, so "great" stands where fatigue's "fresh" and
@@ -610,7 +627,16 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
   ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
-  the screen's foot and come to rest above the bar.
+  the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
+  the session strip folds into them and stands down: its key ends their last line, beside the
+  last action while that action's longest word still fits (its words may wrap), else on a line
+  of its own at the end, and always on its own after a field, which keeps its width (AI coach's
+  note); the actions come down to the tab bar. A multi-step form's actions, kept on screen as a
+  card (Create a programme), are pinned actions too: at large text Back has a line to itself,
+  and the key takes the rest of it, so the card grows by nothing. The tab bar, the strip and the
+  actions had held 28 to 63% of a phone's screen at 200% text; folded, 20 to 50%, the most where
+  the action is long (Delete everything at 320 × 568), a field keeps its line (AI coach), or a
+  step keeps two actions on screen (Create a programme).
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -690,9 +716,14 @@ the knee up, the arms swinging, its head a disc; the same drawing at every size,
 tall in a print; to do, a line of the thinned pigment inside an edge of the full one; skipped,
 that edge dashed with the paper inside), the wheel (a ring as thick as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
-is the day's target) and the triangle. Context reads the same on every form: segments are its
-structure (sets, intervals, laps, drills); size is time or distance in modules. The runner is
-the exception: one fixed drawing, with no segments and no size. Where it
+is the day's target) and the triangle. A rest day with nothing in it is the crescent (owner, 12
+October 2026): a disc with a disc cut from it up and to the right, as the moon glyph cuts it, two
+modules tall like the runner and one drawing at every size. Rest is no sport, so the crescent
+takes no pigment: it is drawn in the greys a warm-up is, Warm-up inside a Print Dot edge to do,
+Print Dot in full done, that edge dashed with the paper inside skipped. Context reads the same
+on every form: segments are its structure (sets, intervals, laps, drills); size is time or
+distance in modules. The runner and the crescent are the exceptions: one fixed drawing each,
+with no segments and no size. Where it
 happened (indoors or out, a treadmill, a pool) is not drawn, since nothing stands under a form:
 the row under the print says it with a glyph. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
@@ -703,10 +734,17 @@ for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment an
 (2.3 to 2.9), told apart by their shape so the month never asks a reader to tell pigments apart.
 Everywhere else a sport is its mark, the form itself. The five
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
-(free weights as a dumbbell, machine, cable, Smith machine, bodyweight) and where (outdoors,
-treadmill, indoor bike, pool, open water, home) are glyphs, each with its name for screen
-readers. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark,
-kept from the first alphabet; it is not a print); the app icon is
+(free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
+bench, the ab wheel front on) and where (outdoors, treadmill, indoor bike, pool, open water,
+home) are glyphs, each with its name for screen readers. A machine named is drawn as what it
+is, however it is loaded (owner, 12 October 2026): the ab wheel as itself, and every other
+accessory (a bench, a rack, a rope, a sled) as the bench, which stands for them as the dumbbell
+stands for every free weight. That holds wherever a machine is named: a gym's list, an
+exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the machine
+an added exercise will be done on. An exercise with no machine named is drawn by what loads it,
+as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab wheel
+under Equipment. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's
+mark, kept from the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
 stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
 ground at the gutter, never in a box; their links are ink and underlined.
@@ -788,7 +826,7 @@ and every control answers a press.
 - A figure with its unit under it (and its hint on a line of its own, so every column's buttons
   line up) and two round buttons, 44 pt (48 dp on Android) and 8 apart; under 375 pt, + over the
   figure and − under it. Load steps by the machine's real increment (2.5 kg, 5 lb), reps by 1,
-  metres by 5.
+  metres (or yards, beside miles; ADR 0055) by 5.
 - **The figure is a button:** a tap types it, on the decimal pad; its name says its value, that
   it is suggested, and what a tap does ("62.5 kilograms, suggested. Type a load").
 - **Suggested until touched:** ink 2 with a dotted underline; then ink, because it is what Save
@@ -814,6 +852,16 @@ and every control answers a press.
   set is saved it starts again, its dial full.
 - **The session strip:** ink, 52 pt, `card` corners: the session's mark and name, the dial and
   the time, Resume on on-ink. The system's one shadow.
+- **The strip, folded** (large text, on a screen with pinned actions): a key on the control
+  surface, `control` corners, 44 pt wide at least (48 dp on Android, growing with the text) and as
+  tall as the line it ends: the session's mark over Resume, or while a rest runs its dial and
+  time over Resume (Go's glyph and Go at zero), so it always says where it goes and is never
+  taken for the rest pill. Mark, time and word are held at the tab bar's sizes, as the tab bar
+  holds its own, so the key stays about a tab's width beside the action. Its name carries the
+  rest of the strip: "Resume Lower A", with the rest it shows ("Rest, 1:15 left"), read with the
+  time on its face, so the two never say different seconds. The strip stands down only while the
+  key is shown, so the workout is one tap away at every size and never twice; a page of the
+  session's own, which has no strip, has no key.
 
 ### Rows and marks
 
@@ -1060,7 +1108,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
   them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
-  sets in grey at the foot of their columns.
+  sets in grey at the foot of their columns. A programme's rest day with nothing in it prints its
+  crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
+  Today's band is left off on such a day, as before. On the day's page the crescent alone is
+  held to a 16 px module, about a third of a working day's print there, so it never fills the
+  band or outweighs the day's name on a page that asks for nothing.
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).

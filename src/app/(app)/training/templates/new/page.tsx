@@ -14,7 +14,7 @@ import { withUser } from "@/db/with-user";
 import { readingUnit } from "@/lib/distance-units";
 import { saveTemplateAction } from "@/server/actions/activity-templates";
 import { requireUser } from "@/server/auth";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "New template" };
 
@@ -27,7 +27,7 @@ export default async function NewTemplatePage(props: PageProps<"/training/templa
   // A distance is first offered in the unit the athlete reads this sport in.
   const unit = readingUnit(
     sport,
-    await withUser(getDb(), user.id, (tx) => unitsFor(tx, user.id, sport), { readOnly: true }),
+    await withUser(getDb(), user.id, (tx) => readSportUnits(tx, user.id), { readOnly: true }),
   );
 
   return (

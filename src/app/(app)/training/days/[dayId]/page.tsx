@@ -14,6 +14,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { setLengthFor } from "@/lib/distance-units";
 import { holdFigures } from "@/lib/facts";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -22,10 +23,16 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { resolvePlannedDay } from "@/server/repositories/availability";
 import { listGyms } from "@/server/repositories/gyms";
 import { getProgramOverview, getSchedule } from "@/server/repositories/schedule";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
-import { atGymLines, programmeDayParts, runLeads } from "../../programme-day";
+import {
+  atGymLines,
+  dayPageMaxModule,
+  dayPrintLabel,
+  programmeDayParts,
+  runLeads,
+} from "../../programme-day";
 
 export const metadata: Metadata = { title: "Programme day" };
 
@@ -53,7 +60,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           getProgramOverview(tx, user.id, profile.timeZone),
           getSchedule(tx, user.id),
           listGyms(tx, user.id),
-          unitsFor(tx, user.id, "running"),
+          readSportUnits(tx, user.id),
         ]);
         const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
         const gym = gyms.find((each) => each.isActive && each.isDefault) ?? null;
@@ -92,12 +99,11 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   const drills = warmup?.drills.length ?? 0;
   // The programme's own rows carry no load, so no unit is written into them. Each says what it
   // becomes at the default gym where that is not itself.
-  const rows = planRows(plan.exercises, null, "").map((row) => ({
+  const rows = planRows(plan.exercises, null, "", setLengthFor(profile)).map((row) => ({
     ...row,
     at: data.atGym.get(row.key) ?? null,
   }));
   const parts = programmeDayParts(plan, { drills, warmup: true });
-  const exercises = plan.exercises.length;
   const rest = !day.includesLifting && !day.includesRun;
   // A day that lifts and runs puts the run where the day is written to: "Lower + easy run" last.
   const runFirst = !day.includesLifting || runLeads(day);
@@ -129,14 +135,9 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
             <Art
               kind="print"
               parts={parts}
-              label={`${day.name}: ${[
-                plan.run && runFirst ? "the run" : null,
-                drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
-                exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
-                plan.run && !runFirst ? "the run" : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}${plan.status === "completed" ? ", done" : ""}`}
+              label={dayPrintLabel(plan, parts, drills)}
+              // A rest day's crescent alone stands quiet, not as tall as the band.
+              maxModule={dayPageMaxModule(parts)}
               className="size-full"
             />
           </figure>

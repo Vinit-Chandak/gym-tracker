@@ -54,7 +54,8 @@ export function runLeads(day: Pick<ScheduleDay, "name" | "focus">): boolean {
  * A programme day as a print (boards Training, Programme day), its parts in the order of its
  * rows: the run where the day is written to have it (`runLeads`), first or after the lifting; a
  * rest day's routine, or on the day's own page the warm-up, as a fan of its drills; then a
- * column of sets for each exercise, a superset's two standing closer.
+ * column of sets for each exercise, a superset's two standing closer. A rest day with nothing
+ * in it is the rest form.
  */
 export function programmeDayParts(
   plan: Pick<ProgramDayPlan, "day" | "exercises" | "status">,
@@ -85,7 +86,47 @@ export function programmeDayParts(
   });
   if (columns.length > 0) parts.push({ kind: "strength", columns });
   if (plan.day.includesRun && !runFirst) parts.push({ kind: "run", state });
+  // A rest day with no routine is rest, drawn as rest: a tile among the days' prints is never
+  // blank paper.
+  if (parts.length === 0 && !plan.day.includesLifting && !plan.day.includesRun)
+    parts.push({ kind: "rest", state });
   return parts;
+}
+
+/**
+ * The largest module the day's own page draws a rest day's crescent at. Left to fill its band it
+ * stood as tall as the band, the largest thing on a page that asks for nothing; at this it is
+ * about a third of a working day's print there, and still more than Training's tile gives it.
+ */
+export const REST_PAGE_MODULE = 16;
+
+/** The module the day's own page caps its print at: a print of rest alone stays quiet. */
+export function dayPageMaxModule(parts: readonly PrintPart[]): number | undefined {
+  return parts.length > 0 && parts.every((part) => part.kind === "rest")
+    ? REST_PAGE_MODULE
+    : undefined;
+}
+
+/**
+ * What the day's own print says for a screen reader, its parts in the print's order: "Easy
+ * Run + Arms: the run, 4 exercises", "Rest: nothing to train, done".
+ */
+export function dayPrintLabel(
+  plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
+  parts: readonly PrintPart[],
+  drills: number,
+): string {
+  const { day } = plan;
+  const runFirst = !day.includesLifting || runLeads(day);
+  const exercises = plan.exercises.length;
+  const said = [
+    plan.run && runFirst ? "the run" : null,
+    drills > 0 ? (day.includesLifting ? "the warm-up" : "the routine") : null,
+    exercises > 0 ? `${exercises} ${exercises === 1 ? "exercise" : "exercises"}` : null,
+    plan.run && !runFirst ? "the run" : null,
+    parts.some((part) => part.kind === "rest") ? "nothing to train" : null,
+  ].filter(Boolean);
+  return `${day.name}: ${said.join(", ")}${plan.status === "completed" ? ", done" : ""}`;
 }
 
 /**

@@ -1,10 +1,12 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
+import type { PlanMachineType } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
 
@@ -76,24 +78,35 @@ export type PlanRowModel = {
 /**
  * A slot's prescription as a row says it: "3 × 8–12 @ 1–2 RIR". RIR is written for sets counted
  * in reps; a carry or a hold is rated by RPE as it is logged, so its line is the work alone
- * ("3 × 20–40 m").
+ * ("3 × 20–40 m", or "3 × 22–44 yd" for an athlete in yards).
  */
-export function rowPrescription(slot: PlannedExercisePreview): string {
-  if (slot.prescriptionType === "reps") return prescription(slot);
-  return `${slot.sets} × ${volumeRange(slot)}${slot.perSide ? " per side" : ""}`;
+export function rowPrescription(slot: PlannedExercisePreview, length: SetLengthUnit): string {
+  if (slot.prescriptionType === "reps") return prescription(slot, length);
+  return `${slot.sets} × ${volumeRange(slot, length)}${slot.perSide ? " per side" : ""}`;
 }
 
-/** The programme's exercises, or the coach's plan for them, in the programme's order. */
+/**
+ * The programme's exercises, or the coach's plan for them, in the programme's order. A coach's
+ * row names its machine when it chose one, and is led by that machine's glyph where the machine
+ * is an accessory, as the workout's row will be (`equipmentGlyph`); otherwise by what loads the
+ * movement.
+ */
 export function planRows(
   planned: readonly PlannedExercisePreview[],
-  coach: { exercises: readonly StoredPlanExercise[] } | null,
+  coach: {
+    exercises: readonly StoredPlanExercise[];
+    /** The type of each machine the plan names, keyed by the machine. */
+    machines?: Readonly<Record<string, PlanMachineType>>;
+  } | null,
   unit: string,
+  /** What a carry reads in: the athlete's metres or yards. */
+  length: SetLengthUnit,
 ): PlanRowModel[] {
   const fromSlot = (slot: PlannedExercisePreview): PlanRowModel => ({
     key: slot.programExerciseId,
     name: slot.name,
     glyph: modalityGlyph(slot.modality),
-    line: rowPrescription(slot),
+    line: rowPrescription(slot, length),
     note: null,
     dropped: false,
     sets: slot.sets,
@@ -106,18 +119,24 @@ export function planRows(
     const line = targetsLine(
       entry.sets,
       entry.unit ?? unit,
+      length,
       entry.perSide ?? slot?.perSide ?? false,
     );
     const working = entry.sets.filter((set) => set.setType !== "warmup").length;
+    const machine =
+      !dropped && entry.equipmentInstanceId ? coach.machines?.[entry.equipmentInstanceId] : null;
     return {
       key: `${entry.slotId ?? "added"}-${index}`,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
-      glyph: modalityGlyph(slot?.modality),
+      glyph:
+        machine?.typeCategory === "accessory"
+          ? accessoryGlyph(machine.typeSlug)
+          : modalityGlyph(slot?.modality),
       line: dropped
         ? slot
-          ? prescription(slot)
+          ? prescription(slot, length)
           : ""
-        : `${line ?? (slot ? prescription(slot) : "By the rule")}${
+        : `${line ?? (slot ? prescription(slot, length) : "By the rule")}${
             entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
           }`,
       note: entry.note || null,
@@ -252,7 +271,9 @@ export function printLabel(dayName: string, parts: readonly PrintPart[]): string
     const name =
       part.kind === "mobility"
         ? "the mobility"
-        : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
+        : part.kind === "rest"
+          ? "rest"
+          : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
     const state = part.state === "done" ? "done" : part.state === "skipped" ? "skipped" : "to do";
     return `${name} ${state}`;
   });

@@ -22,6 +22,7 @@ afterEach(cleanup);
 it("leaves the page's title to its header and heads each routine under it", () => {
   render(
     <RoutineLibrary
+      length="m"
       routines={[
         {
           id: "r1",
@@ -49,6 +50,7 @@ it("starts at the default gym, and speaks of a programme only while one is under
   // It read "Choose a location" to athletes with a default gym.
   render(
     <RoutineLibrary
+      length="m"
       routines={[routine]}
       gyms={[
         { id: "g1", name: "Garage gym", isDefault: false },
@@ -69,6 +71,7 @@ it("starts at the default gym, and speaks of a programme only while one is under
   // No default to start at: the choice is asked. A finished programme has nothing to change.
   render(
     <RoutineLibrary
+      length="m"
       routines={[routine]}
       gyms={[
         { id: "g1", name: "Home" },

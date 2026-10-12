@@ -8,6 +8,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -101,6 +102,7 @@ export default async function SharedActivityPage(
           exercises={found.exercises}
           name={name}
           unit={bodyLoadUnit(profile.preferredUnit)}
+          length={setLengthFor(profile)}
           distanceUnits={found.distanceUnits}
         />
       </div>

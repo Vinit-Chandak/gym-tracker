@@ -21,6 +21,7 @@ import {
   type StrengthGroup,
 } from "@/domain/progress-graphs";
 import type { ExerciseModality, LoadUnit } from "@/domain/types";
+import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import type { NavOrigin } from "@/lib/nav";
@@ -78,11 +79,14 @@ export function ExerciseGraph({
   data,
   today,
   origin,
+  length,
 }: {
   data: ExerciseGraphData;
   today: string;
   /** Where an opened workout goes back to. */
   origin: NavOrigin | null;
+  /** What a carry's distance reads in: the athlete's metres or yards (ADR 0055). */
+  length: SetLengthUnit;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -92,7 +96,12 @@ export function ExerciseGraph({
   const assisted = selected?.assisted ?? false;
   const named = (m: ExerciseMeasure) => (assisted && m === "maxWeight" ? ASSISTANCE : MEASURES[m]);
 
-  const sessions = selected?.sessions ?? [];
+  // A carry's longest set read in the athlete's length, from the first point to the summary.
+  const sessions = (selected?.sessions ?? []).map((session) =>
+    session.maxMetres === null || length === "m"
+      ? session
+      : { ...session, maxMetres: setLengthIn(session.maxMetres, length) },
+  );
   const available = measuresWithData(sessions);
   const [measure, setMeasure] = useUrlChoice<ExerciseMeasure>(
     "measure",
@@ -115,7 +124,7 @@ export function ExerciseGraph({
   const figure = (value: number): { figure: string; unit?: string } => {
     if (measure === "maxReps") return { figure: String(value), unit: value === 1 ? "rep" : "reps" };
     if (measure === "maxSeconds") return holdParts(value);
-    if (measure === "maxMetres") return { figure: decimal(value, 0), unit: "m" };
+    if (measure === "maxMetres") return { figure: decimal(value, 0), unit: length };
     return { figure: decimal(value), unit };
   };
   const setOf = (weight: number | null, reps: number | null) =>

@@ -11,6 +11,7 @@ import { isLeftOpen } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
 import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
@@ -95,6 +96,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                         ),
                         (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
                         loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                        setLengthFor(profile),
                       )}
                     </Figures>
                   </span>

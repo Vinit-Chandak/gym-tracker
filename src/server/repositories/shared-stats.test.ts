@@ -25,6 +25,7 @@ import { deleteActivity, getActivity, updateActivity } from "./activities";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { performanceSeries } from "@/domain/analytics";
 import { LIFTING_METRICS, RUNNING_METRICS, type ActivityMetric } from "@/domain/leaderboard";
+import { setLengthToMetres } from "@/lib/distance-units";
 import { convertLoad } from "@/lib/units";
 import { loadCircle, rankCircle, rankExercise } from "@/server/queries/leaderboard";
 import { loadHeadToHead } from "@/server/queries/head-to-head";
@@ -1197,5 +1198,50 @@ describe("a span's best lifts", () => {
     // Once the span holds a set of ten or fewer, the estimate is the lift's best again.
     await train([{ exercise: bench, sets: [{ weight: 30, reps: 10 }] }], lifter, home);
     expect((await best()).map((r) => [r.metric, r.value])).toEqual([["e1rm", 40]]);
+  });
+});
+
+describe("a carry's record, in the length its athlete reads (ADR 0055)", () => {
+  it("is one only when the yards an athlete in pounds reads are longer", async () => {
+    const dave = await account("dave@example.com", "dave");
+    // Pounds, with nothing set apart: a carry reads in yards.
+    await t.client.query("update profiles set preferred_unit = 'lb' where id = $1", [dave]);
+    await as(dave)((tx) => seedTestUserData(tx, { id: dave, email: "dave@example.com" }));
+    const [gym] = await as(dave)((tx) => listGyms(tx, dave));
+    const carry = await exerciseId("farmers-carry");
+    const carried = (distanceMeters: number) =>
+      as(dave)(async (tx) => {
+        const { sessionId } = await startAdHocSession(tx, dave, { gymId: gym!.id });
+        const { workoutExerciseId } = await addExerciseToSession(tx, dave, sessionId, {
+          exerciseId: carry,
+          equipmentInstanceId: null,
+        });
+        await logSet(tx, dave, {
+          workoutExerciseId,
+          setIndex: 1,
+          setType: "working",
+          weight: 70,
+          unit: "lb",
+          reps: null,
+          rir: null,
+          rpe: 7,
+          durationSeconds: null,
+          distanceMeters,
+        });
+        await finishSession(tx, dave, sessionId, { notes: "", bodyWeightKg: null });
+        return sessionId;
+      });
+    const records = async (sessionId: string) =>
+      (await as(dave)((tx) => readSessionRecords(tx, dave, sessionId))).map((r) => [
+        r.metric,
+        r.value,
+        r.previous,
+      ]);
+    // Kept as 50 m before yards, it reads 55 yd; 55 yd logged is 50.3 m, and no record.
+    await carried(50);
+    expect(await records(await carried(setLengthToMetres(55, "yd")))).toEqual([]);
+    expect(await records(await carried(setLengthToMetres(56, "yd")))).toEqual([
+      ["longest_carry", 51.2, 50.3],
+    ]);
   });
 });

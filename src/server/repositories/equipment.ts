@@ -53,6 +53,8 @@ export type EquipmentListItem = {
   model: string | null;
   typeId: string;
   typeName: string;
+  /** The display type's slug: an accessory is drawn as what it is (an ab wheel, a bench). */
+  typeSlug: string;
   typeCategory: typeof equipmentTypes.$inferSelect.category;
   /** Every type the machine is, its display type included. */
   typeIds: string[];
@@ -76,6 +78,7 @@ export async function listEquipmentForGym(
       model: equipmentInstances.model,
       typeId: equipmentTypes.id,
       typeName: equipmentTypes.name,
+      typeSlug: equipmentTypes.slug,
       typeCategory: equipmentTypes.category,
       typeIds: instanceTypeIds,
     })

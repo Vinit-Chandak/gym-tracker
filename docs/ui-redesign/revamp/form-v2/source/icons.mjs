@@ -67,6 +67,10 @@ const GLYPHS = {
   cable: `<path d="M4 4h16"/><circle cx="12" cy="7.5" r="2.4"/><path d="M12 9.9v7"/><path d="M8.5 17.5h7"/>`,
   smith: `<path d="M5.5 3.5v17M18.5 3.5v17"/><path d="M3 11h18"/><path d="M8.2 8.5v5M15.8 8.5v5"/>`,
   bodyweight: `<path d="M4 3.5h16"/><path d="M8 3.5l2.4 5.2M16 3.5l-2.4 5.2"/><circle cx="12" cy="9.6" r="1.9"/><path d="M12 11.5v5.5M12 17l-2.2 3.7M12 17l2.2 3.7"/>`,
+  // an accessory: a flat bench, side on, for every accessory without a glyph of its own (added in the app, October 2026)
+  accessory: `<rect x="3" y="6.5" width="18" height="4.5" rx="2.25"/><path d="M6.5 11v8M17.5 11v8"/><path d="M4.5 19h4M15.5 19h4"/>`,
+  // the ab wheel, front on: the wheel, its handle out each side to a grip (added in the app, October 2026)
+  abWheel: `<rect x="8.5" y="4" width="7" height="16" rx="3.5"/><path d="M3.5 12h5M15.5 12h5"/><path d="M3.5 10.3v3.4M20.5 10.3v3.4"/>`,
   // context: where a run, ride or swim happened
   outdoor: `<path d="M3 18h18"/><path d="M7.4 18a4.6 4.6 0 0 1 9.2 0"/><path d="M12 9.6V7.4M7.6 12.2L6.1 10.7M16.4 12.2l1.5-1.5"/>`,
   treadmill: `<path d="M3.5 19.5h12.8a1.7 1.7 0 0 0 0-3.4H3.5a1.7 1.7 0 0 0 0 3.4z"/><path d="M17.2 16.2L19.4 6.5h-4.2"/>`,
@@ -157,6 +161,8 @@ export const LABELS = {
   cable: "Cable",
   smith: "Smith machine",
   bodyweight: "Bodyweight",
+  accessory: "Accessory",
+  abWheel: "Ab wheel",
   outdoor: "Outdoors",
   treadmill: "Treadmill",
   trainer: "Indoor bike",
@@ -174,7 +180,7 @@ export const LABELS = {
 // The order the system sheet shows them in.
 export const ICON_ORDER = {
   destinations: ["today", "training", "food", "progress", "profile"],
-  equipment: ["dumbbell", "machine", "cable", "smith", "bodyweight"],
+  equipment: ["dumbbell", "machine", "cable", "smith", "bodyweight", "accessory", "abWheel"],
   context: ["outdoor", "treadmill", "trainer", "pool", "openwater", "indoor"],
   actions: [
     "play",
