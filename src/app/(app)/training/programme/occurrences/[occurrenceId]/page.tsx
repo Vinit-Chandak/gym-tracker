@@ -29,7 +29,7 @@ import { getSchedule } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
-import { joinFacts } from "@/lib/facts";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
@@ -119,7 +119,7 @@ export default async function OccurrencePage(
   // under it already says the target, and saying it twice was the audit's "2.6–3.1 km" over
   // "2.6–3.1 km · 18–22 min" (October 2026).
   const headline =
-    day?.focus ??
+    (day?.focus && holdFigures(day.focus)) ??
     (!target ? "No targets set" : logged ? null : describePrescription(target, units));
   // A date of this year is said without it, as the programme's list says it.
   const year = today.slice(0, 4);

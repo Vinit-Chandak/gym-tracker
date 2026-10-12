@@ -9,7 +9,7 @@ import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -199,7 +199,7 @@ export function EnduranceCard({
       facts={
         (focus || note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
           <>
-            {focus && <Fact glyph="target">{focus}</Fact>}
+            {focus && <Fact glyph="target">{holdFigures(focus)}</Fact>}
             {note && <Fact glyph="pace">{note}</Fact>}
             {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
             {time && (

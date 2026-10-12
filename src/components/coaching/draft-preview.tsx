@@ -17,7 +17,7 @@ import { EFFORT } from "@/domain/activity-limits";
 import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
-import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 
@@ -139,8 +139,8 @@ export function DraftPreview({
           </h2>
           <p className="text-sm text-ink-muted">
             {WEEKDAY_NAMES[day.dayOfWeek]}
-            {day.focus ? `${FACT_SEPARATOR}${day.focus}` : ""}
-            {day.timeNote ? `${FACT_SEPARATOR}${day.timeNote}` : ""}
+            {day.focus ? `${FACT_SEPARATOR}${holdFigures(day.focus)}` : ""}
+            {day.timeNote ? `${FACT_SEPARATOR}${holdFigures(day.timeNote)}` : ""}
           </p>
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (

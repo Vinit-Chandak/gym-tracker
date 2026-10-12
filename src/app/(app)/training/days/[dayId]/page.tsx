@@ -184,7 +184,12 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
         <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-3">
           {day.name}
         </FitTitle>
-        {day.focus && <p className="mt-0.5 type-meta text-ink-2">{day.focus}</p>}
+        {/* What the coach wrote, its figures held to their units ("then 20 min easy"). */}
+        {day.focus && (
+          <p className="mt-0.5 type-meta text-ink-2">
+            <Figures>{holdFigures(day.focus)}</Figures>
+          </p>
+        )}
         {(day.timeNote || day.effortNote || open) && (
           <MetaLine className="mt-0.5">
             {open && <Fact glyph="play">In progress</Fact>}

@@ -11,9 +11,15 @@ import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
-/** What the day is, on one line under its name, its time held whole ("60–75 min"). */
+/**
+ * What the day is, on one line under its name, its figures held to their units ("then 20 min
+ * easy", "60–75 min").
+ */
 function subtitle(day: ScheduleDay): string | null {
-  return joinFacts([day.focus, day.timeNote && holdFigures(day.timeNote)]) || null;
+  return (
+    joinFacts([day.focus && holdFigures(day.focus), day.timeNote && holdFigures(day.timeNote)]) ||
+    null
+  );
 }
 
 /**

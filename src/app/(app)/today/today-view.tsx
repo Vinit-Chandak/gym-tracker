@@ -25,7 +25,7 @@ import {
   type SetLengthUnit,
   type SportUnits,
 } from "@/lib/distance-units";
-import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { sessionName } from "@/lib/labels";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
@@ -559,10 +559,10 @@ export function TodayView({
             )}
             {day.timeNote && (
               <Fact glyph="rest">
-                <Figures>{day.timeNote}</Figures>
+                <Figures>{holdFigures(day.timeNote)}</Figures>
               </Fact>
             )}
-            {day.focus && <Fact glyph="target">{day.focus}</Fact>}
+            {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
             {coachPlan && <Fact glyph="coach">Planned by the coach</Fact>}
           </>
         }
@@ -667,10 +667,10 @@ export function TodayView({
             <>
               {day.timeNote && (
                 <Fact glyph="rest">
-                  <Figures>{day.timeNote}</Figures>
+                  <Figures>{holdFigures(day.timeNote)}</Figures>
                 </Fact>
               )}
-              {day.focus && <Fact glyph="target">{day.focus}</Fact>}
+              {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
             </>
           )
         }

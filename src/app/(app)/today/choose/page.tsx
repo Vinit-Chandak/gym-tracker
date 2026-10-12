@@ -12,6 +12,7 @@ import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setLengthFor } from "@/lib/distance-units";
+import { holdFigures } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -156,7 +157,9 @@ export default async function ChooseDayPage() {
                           next && <Badge tone="accent">Next</Badge>
                         )}
                       </div>
-                      {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
+                      {day.focus && (
+                        <p className="text-sm text-ink-muted">{holdFigures(day.focus)}</p>
+                      )}
                     </div>
 
                     {day.includesLifting ? (
