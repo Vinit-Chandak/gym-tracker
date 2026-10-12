@@ -7,7 +7,7 @@ import {
   sessionStanding,
   type ProgrammeSession,
 } from "./programme-sessions";
-import type { ScheduleState, SlotEvent } from "./schedule";
+import { withDerivedRunEvents, type ScheduleState, type SlotEvent } from "./schedule";
 
 /** Liam's half-marathon week: three lifts, three runs, a rest day, each on its own weekday. */
 const SLOTS = [
@@ -73,10 +73,32 @@ describe("where a programme's run stands", () => {
     );
   });
 
-  /** Skipping the run from Today, or picking up from today, answers the day, not the row. */
-  it("reads as skipped when its day's run was skipped on the sequence", () => {
-    const skipped = state([{ cycleIndex: 3, dayIndex: 4, part: "run", status: "skipped" }]);
-    expect(sessionStanding(skipped, run(3, 4, "2026-09-17"), TODAY)).toBe("skipped");
+  /**
+   * Skipping the run from Today, or picking up from today, skips the run itself (owner, 12
+   * October 2026), so the programme says what the coach's adherence says.
+   */
+  it("reads as skipped when its run was skipped from Today, and the sequence moves past it", () => {
+    const skipped = state(
+      withDerivedRunEvents([], [{ cycleIndex: 3, dayIndex: 4, outcome: "skipped" }]),
+    );
+    expect(sessionStanding(skipped, run(3, 4, "2026-09-17", { kind: "skipped" }), TODAY)).toBe(
+      "skipped",
+    );
+    expect(sessionStanding(skipped, run(3, 6, "2026-09-19"), TODAY)).toBe("to_come");
+  });
+
+  /**
+   * A skip the day recorded before then, its run since put back: owed, as the coach is told,
+   * and the sequence waits for it again, rather than "Skipped" here and "not done" there.
+   */
+  it("is owed once its run is owed again, whatever the day recorded before", () => {
+    const putBack = state(
+      withDerivedRunEvents(
+        [{ cycleIndex: 3, dayIndex: 4, part: "run", status: "skipped" }],
+        [{ cycleIndex: 3, dayIndex: 4, outcome: "incomplete" }],
+      ),
+    );
+    expect(sessionStanding(putBack, run(3, 4, "2026-09-17"), TODAY)).toBe("next");
   });
 
   it("reads a run completed on the sequence with no activity behind it as completed earlier", () => {

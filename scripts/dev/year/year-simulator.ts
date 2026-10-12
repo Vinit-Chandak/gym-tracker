@@ -53,7 +53,6 @@ import {
   saveNutritionTargets,
   submitFoodOnce,
 } from "@/server/repositories/nutrition";
-import { skipOccurrence } from "@/server/repositories/occurrences";
 import {
   activateProgramDraft,
   refreshProgramDraft,
@@ -67,6 +66,7 @@ import {
   pendingCycleForDay,
   recordSlotEvent,
   reopenSkippedSession,
+  skipSlotPart,
   type Schedule,
 } from "@/server/repositories/schedule";
 import {
@@ -571,26 +571,12 @@ export class YearSimulation {
         const fresh = (await getSchedule(tx, a.userId))!;
         const cycleIndex = pendingCycleForDay(fresh.state, ref.dayIndex, part);
         if (cycleIndex === null) return;
-        if (part === "run") {
-          const occurrence = await this.occurrenceFor(
-            tx,
-            a,
-            fresh.program.familyId,
-            cycleIndex,
-            ref.dayIndex,
-          );
-          if (occurrence) {
-            await skipOccurrence(tx, a.userId, occurrence.id, reason);
-            return;
-          }
-        }
-        await recordSlotEvent(
+        await skipSlotPart(
           tx,
           a.userId,
-          fresh.program.id,
+          fresh.program,
           { cycleIndex, dayIndex: ref.dayIndex },
           part,
-          "skipped",
           {
             occurredOn: this.local(a),
             note: reason,

@@ -72,9 +72,10 @@ export function standingByDate(
 /**
  * Where one session stands.
  *
- * An answer on the occurrence is the answer. Without one, the day's run half may still have
- * been answered on the sequence itself — skipped from Today, or by "Pick up from today", both
- * of which skip the day rather than the occurrence — and then it reads as that day does.
+ * An answer on the occurrence is the answer. A run skipped from Today, or by "Pick up from
+ * today", is skipped on the occurrence itself (`skipSlotPart`), so it reads skipped here as it
+ * does in the coach's adherence; one still owed is owed, whatever the day says. It used to be
+ * read from the day, which said "Skipped" here of a run the coach was told was not done.
  * `position` is the slot the sequence has reached (`nextPendingSlot`), worked out once by a
  * caller reading many sessions.
  */
@@ -86,11 +87,9 @@ export function sessionStanding(
 ): SessionStanding {
   const ref = sessionSlot(state, session);
   if (session.resolution.kind !== "incomplete" || !ref) return standingByDate(session, today);
-  const day = partStatus(state, ref, "run");
-  if (day === "skipped") return "skipped";
   // A completion recorded on the day with no activity behind it is history from before
   // occurrences answered for runs: completed, with nothing invented.
-  if (day === "completed") return "legacy_completed";
+  if (partStatus(state, ref, "run") === "completed") return "legacy_completed";
   if (position && sameSlot(ref, position)) return "next";
   if (position === null || slotBefore(ref, position)) return "not_done";
   return "to_come";

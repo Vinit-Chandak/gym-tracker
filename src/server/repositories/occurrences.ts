@@ -316,6 +316,55 @@ export async function skipOccurrence(
   });
 }
 
+/**
+ * Skips the run half of one day of the programme: each of the day's sessions still owed, as
+ * Today's skip and "Pick up from today" skip a day (ADR 0051). One that was logged, skipped or
+ * withdrawn already keeps its answer. Each stays loggable, and logging it replaces the skip.
+ *
+ * Null when the day has no occurrence at all, which only a day whose runs predate occurrences
+ * can be: then the day itself is the only place its skip can be recorded (`skipSlotPart`).
+ */
+export async function skipSlotOccurrences(
+  tx: DbOrTx,
+  userId: string,
+  slot: { familyId: string; cycleIndex: number; cycleDayIndex: number },
+  details: { occurredOn: string; note?: string | null },
+): Promise<number | null> {
+  const owned = (await occurrencesForSlot(tx, userId, slot)).filter(
+    (occurrence) => occurrence.sport !== "strength",
+  );
+  if (owned.length === 0) return null;
+  const owed = owned
+    .filter((occurrence) => occurrence.resolution.kind === "incomplete")
+    .map((occurrence) => occurrence.id);
+  if (owed.length === 0) return 0;
+  const skipped = await tx
+    .update(plannedOccurrences)
+    .set({ disposition: "skipped", updatedAt: new Date() })
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        inArray(plannedOccurrences.id, owed),
+        eq(plannedOccurrences.disposition, "pending"),
+      ),
+    )
+    .returning({ id: plannedOccurrences.id });
+  if (skipped.length === 0) return 0;
+  // Said where it came from, so the session's own history tells this skip from one made on
+  // its page: the day was skipped, with the reason given for the day.
+  await tx.insert(occurrenceEvents).values(
+    skipped.map(({ id }) => ({
+      userId,
+      occurrenceId: id,
+      kind: "skipped" as const,
+      actor: "athlete",
+      occurredOn: details.occurredOn,
+      detail: { via: "today", ...(details.note ? { note: details.note } : {}) },
+    })),
+  );
+  return skipped.length;
+}
+
 /** Undoing a skip restores that same occurrence; it never creates a second one. */
 export async function reopenOccurrence(
   tx: DbOrTx,

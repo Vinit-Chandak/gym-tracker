@@ -78,8 +78,8 @@ export default async function OccurrencePage(
       ? { label: "Next", tone: "accent" as const }
       : standing === "not_done"
         ? { label: "Not done", tone: "neutral" as const }
-        : // Skipped on the day itself, from Today, while the session was left as it was.
-          standing === "skipped" && occurrence.resolution.kind === "incomplete"
+        : // As the programme's list says it, whether it was skipped here or from Today.
+          standing === "skipped"
           ? { label: "Skipped", tone: "neutral" as const }
           : null;
   const waited = (standing === "next" || standing === "to_come") && occurrence.scheduledOn < today;
@@ -124,9 +124,11 @@ export default async function OccurrencePage(
       <PageContent>
         <Card>
           {(headline || badge) && (
-            <div className="flex items-start justify-between gap-3">
+            // The badge stands at the headline's end while the headline keeps a few words' room
+            // beside it, and goes under it rather than break "Threshold" in two (large text).
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               {headline && (
-                <h2 className="min-w-0 text-lg font-medium [overflow-wrap:break-word]">
+                <h2 className="min-w-0 flex-[1_1_8rem] text-lg font-medium [overflow-wrap:break-word]">
                   {headline}
                 </h2>
               )}

@@ -16,7 +16,6 @@ import {
   pickUpFromToday,
   progress,
   projectedEndDate,
-  runEventsFromOccurrences,
   sessionsBehind,
   slotFinishedOn,
   slotFor,
@@ -34,6 +33,8 @@ import {
 } from "@/domain/schedule";
 import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
+
+import { skipSlotOccurrences } from "./occurrences";
 
 export type ActiveProgram = {
   id: string;
@@ -193,10 +194,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       cycles: program.cycles,
       repeats: program.repeats,
       startDayIndex: program.startDayIndex,
-      events: withDerivedRunEvents(
-        row.events,
-        runEventsFromOccurrences(slotOccurrences(row.days, row.enduranceOccurrences)),
-      ),
+      events: withDerivedRunEvents(row.events, slotOccurrences(row.days, row.enduranceOccurrences)),
     },
   };
 }
@@ -302,6 +300,37 @@ export async function recordSlotEvent(
       : insert.onConflictDoNothing({ target: SLOT_PART })
   ).returning({ id: programSlotEvents.id });
   return written.length > 0;
+}
+
+/**
+ * Skips one half of a slot on purpose, from Today or "Pick up from today": the workout, or the
+ * run (owner, 12 October 2026).
+ *
+ * A day's run is answered on its occurrences, not beside them (`withDerivedRunEvents`), so
+ * skipping it skips each of its sessions still owed: Skipped on Today, on the programme and in
+ * the coach's adherence alike, never owed in one and skipped in another. Each can still be
+ * logged, which replaces the skip on the day too. Only a day whose run has no occurrence at
+ * all, from before occurrences, records the skip on the day itself. The workout half has no
+ * occurrence, and skipping it never touches the day's run.
+ */
+export async function skipSlotPart(
+  db: DbOrTx,
+  userId: string,
+  program: Pick<ActiveProgram, "id" | "familyId">,
+  ref: SlotRef,
+  part: SlotPart,
+  details: { occurredOn: string; note?: string | null },
+): Promise<void> {
+  if (part === "run") {
+    const skipped = await skipSlotOccurrences(
+      db,
+      userId,
+      { familyId: program.familyId, cycleIndex: ref.cycleIndex, cycleDayIndex: ref.dayIndex },
+      details,
+    );
+    if (skipped !== null) return;
+  }
+  await recordSlotEvent(db, userId, program.id, ref, part, "skipped", details);
 }
 
 /**

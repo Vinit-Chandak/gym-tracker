@@ -379,6 +379,13 @@
       "when": 1791784765762,
       "tag": "0053_shared_exercises_in_the_workouts_order",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791788741262,
+      "tag": "0054_runs_skipped_from_today",
+      "breakpoints": true
     }
   ]
 }

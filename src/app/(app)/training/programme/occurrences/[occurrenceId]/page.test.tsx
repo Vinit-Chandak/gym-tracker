@@ -126,3 +126,19 @@ it("is headed by what its day is for, and the target is said once", async () => 
   expect(pending).toMatch(/<h2[^>]*>Threshold<\/h2>/);
   expect(pending.split("4.2–5.0\u00a0km")).toHaveLength(2);
 });
+
+/**
+ * Skipped from Today or on this page, a run is skipped on the session itself (owner, 12 October
+ * 2026), and its page says so as the programme's list does.
+ */
+it("says a skipped run is skipped, whichever way it was skipped", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    disposition: "skipped",
+    resolution: { kind: "skipped" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain(">Skipped<");
+  expect(html).not.toContain(">Not done<");
+});

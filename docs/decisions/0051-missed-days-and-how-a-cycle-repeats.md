@@ -91,3 +91,50 @@ rest days it ends on read done in every list, not only in progress (`slotStatus`
 sequence waits, its end is the day its last day was answered (`finishedOn`), and the card shows
 that, or the projected end while it is under way; the end it was written with stays under "How
 it is meant to go" as Planned end.
+
+## Amendment, 12 October 2026: a run skipped from Today is skipped everywhere
+
+Decided by the owner (12 October 2026: settled as skipped). Decisions 1 and 2 stand; this says
+what their skips write.
+
+Skipping a day's run from Today, and "Pick up from today" over a day that runs, answered the run
+half on the day alone (a `run` row in `program_slot_events`) and left the run's own occurrences
+pending. The programme read the day and said Skipped. The coach's adherence (`readAdherence`,
+sent by `/api/coach/v2/summary`) and its programme (`/api/coach/v2/program/current`) read the
+occurrence and counted the run as not done, and the run's own page offered to skip it again.
+
+1. **Skipping a day's run skips its sessions** (`skipSlotPart`). Each of the day's sessions
+   still owed is set to skipped, in the same transaction, with an event that says it came from
+   Today and gives the reason. A day with two sessions skips both. A session already logged,
+   skipped or withdrawn keeps its answer, and skipping a day's workout never touches its run.
+   Only a day whose run has no occurrence at all, from before occurrences, records the skip on
+   the day, the one place it can go.
+2. **The run's answer is the day's.** The day's run half is read from its sessions
+   (`runEventsFromOccurrences`), so the two cannot disagree. A skip a day recorded before this
+   gives way to its sessions once one of them is logged or owed again (`withDerivedRunEvents`),
+   as a skipped workout gives way to the workout finished after all. A completion a day
+   recorded, from before occurrences answered for runs, stands.
+3. **A skipped run is no longer owed and is never counted as missed.** It reads Skipped on
+   Today, Training, the programme, its own page and in the coach's adherence alike, and the
+   sequence moves past it as before.
+4. **Logging it still replaces the skip**, on the session and on the day: logged after its day
+   was skipped, it is Logged everywhere and the day's run half is done. Put back from its page,
+   it is owed everywhere again, and the sequence waits for it again (decision 1).
+5. **Skipping one session from its own page writes nothing on the day.** It already left the
+   sequence where a skip from Today leaves it, through the same derivation; a day with two
+   sessions is answered once both are. Recording it on the day as well would be a second answer
+   to keep in step, which is how the two came apart.
+6. **Migration `0054_runs_skipped_from_today`** carries the skips already recorded onto the
+   runs: a pending occurrence with no activity whose day (family, cycle and day of the cycle, as
+   the occurrence names them) has a run skip on a version whose day runs becomes skipped, with
+   an event from the migration naming the row, its date and its reason. Nothing logged,
+   skipped, cancelled or completed before occurrences is touched, nor a run the athlete put
+   back, logged and deleted, or moved after its day was skipped: that one stays owed, and the
+   day's skip gives way to it. A revision's copies of a day's rows are read from the first.
+
+Consequences:
+
+- The programme's adherence line and the coach's adherence count the same skipped runs.
+- A run put back after "Pick up from today" sends the sequence back to its day, as putting back
+  a run skipped on its page always did.
+- Lifting has no occurrences; a skipped workout is recorded on the day, as before.

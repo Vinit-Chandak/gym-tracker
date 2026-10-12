@@ -36,6 +36,7 @@ import {
   pendingCycleForDay,
   recordSlotEvent,
   returnRestDaysPassedBy,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   addExercisesToSession,
@@ -268,7 +269,8 @@ const skipSlotSchema = z.object({
 
 /**
  * Marks one half of the pending occurrence of a day as skipped on purpose: the workout, or
- * the run. A day that does both keeps the other half, which is still owed.
+ * the run. A day that does both keeps the other half, which is still owed. The run is skipped
+ * on its sessions, so it reads skipped everywhere it is shown (`skipSlotPart`).
  */
 export async function skipSlotAction(
   dayIndex: number,
@@ -287,15 +289,10 @@ export async function skipSlotAction(
     if (!schedule) return { ok: false, error: "No active programme." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, part);
     if (cycleIndex === null) return { ok: false, error: "That day has nothing left to skip." };
-    await recordSlotEvent(
-      tx,
-      user.id,
-      schedule.program.id,
-      { cycleIndex, dayIndex },
-      part,
-      "skipped",
-      { occurredOn: todayInTimeZone(profile.timeZone), note: parsed.data.reason },
-    );
+    await skipSlotPart(tx, user.id, schedule.program, { cycleIndex, dayIndex }, part, {
+      occurredOn: todayInTimeZone(profile.timeZone),
+      note: parsed.data.reason,
+    });
     // Nobody will train what is left of this slot, so the coach's plan for it goes with it.
     if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === part)) {
       await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
@@ -988,8 +985,10 @@ export async function pickUpFromTodayAction(
     const today = todayInTimeZone(profile.timeZone);
     const startDate = schedule.program.startDate ?? today;
     const { skip, rest } = pickUpFromToday(schedule.state, startDate, today);
+    // A day's run is skipped on its sessions, so the programme and the coach's adherence both
+    // read it skipped rather than one skipped and the other still owed (`skipSlotPart`).
     for (const { ref, part } of skip)
-      await recordSlotEvent(tx, user.id, schedule.program.id, ref, part, "skipped", {
+      await skipSlotPart(tx, user.id, schedule.program, ref, part, {
         occurredOn: today,
         note: "Picked up from today",
       });

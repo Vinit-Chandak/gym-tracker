@@ -68,6 +68,7 @@ import {
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   finishSession,
@@ -941,7 +942,7 @@ export class CoachSimulation {
     if (p.skipEvery && a.trainingDays % p.skipEvery === 0) {
       await this.as(a, async (tx) => {
         for (const part of pendingParts(schedule.state, ref))
-          await recordSlotEvent(tx, a.userId, schedule.program.id, ref, part, "skipped", {
+          await skipSlotPart(tx, a.userId, schedule.program, ref, part, {
             occurredOn: today,
             note: "Busy day.",
           });
