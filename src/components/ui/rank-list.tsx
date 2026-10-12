@@ -1,8 +1,10 @@
 import type { Route } from "next";
+import type { CSSProperties } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Figures } from "@/components/ui/figures";
+import { textEmWidth } from "@/components/ui/fit";
 import { List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import type { Ranked } from "@/domain/leaderboard";
 import { formatIsoDate } from "@/lib/format";
@@ -18,6 +20,57 @@ export type RankRow = Ranked<{
   /** How a top weight was worked — "4 sets · best 12 reps" — between the value and its day. */
   detail?: string | null;
 }>;
+
+/** The name a row reads: your own is "You". */
+function shownName(row: RankRow, you: string): string {
+  return row.key === you ? "You" : row.displayName || row.username;
+}
+
+/**
+ * Where a board's values go under the names: in every ranked row at once, wherever the row is
+ * narrower than the rank, the avatar and their gaps (5.25rem), the board's longest name, a gap
+ * and its widest value need side by side.
+ * - The name's room is the longest name or handle, at least the 6.25rem a name keeps beside the
+ *   avatar and at most 8rem, a first name and a surname of about fifteen letters ("Kenji
+ *   Watanabe" is 7.1). A longer name wraps between its words beside the value rather than fold
+ *   the board on every phone.
+ * - The value's is its widest line, at most a day with its year.
+ * Each is its words' own width in the size they are set in (fit.ts), known before the page has
+ * measured anything, so a year's "211 h 50 min" beside "Kenji Watanabe" goes under the names on
+ * a 360-dp phone and stands beside them from 375 pt, and a period's "15" stands beside them even
+ * at 320. The stylesheet compares the row with their sum, as a tray folds (fold.ts): a ranked
+ * value's least width is the whole row where the row is narrower, and nothing where it is not.
+ */
+function foldUnder(
+  rows: readonly RankRow[],
+  you: string,
+  format: (value: number) => string,
+  currentYear?: string,
+): string {
+  const ranked = rows.flatMap((row) => (row.value === null ? [] : [{ row, value: row.value }]));
+  // In em of the size each is set in, with a hundredth to spare.
+  const widest = (lines: string[], figures = false) =>
+    (Math.max(0, ...lines.map((line) => textEmWidth(line, figures))) * 1.01).toFixed(3);
+  const name = widest(ranked.map(({ row }) => shownName(row, you)));
+  const handle = widest(ranked.map(({ row }) => `@${row.username}`));
+  const value = widest(
+    ranked.map(({ value }) => format(value)),
+    true,
+  );
+  const under = widest(
+    ranked.flatMap(({ row }) => [
+      row.detail ?? "",
+      row.occurredOn ? formatIsoDate(row.occurredOn, currentYear) : "",
+    ]),
+    true,
+  );
+  const room = [
+    "var(--spacing) * 24",
+    `clamp(6.25rem, max(${name} * var(--ov-type-body), ${handle} * var(--ov-type-meta-small)), 8rem)`,
+    `min(max(${value} * var(--ov-type-meta-small), ${under} * var(--ov-type-caption)), 8.75 * var(--ov-type-caption))`,
+  ].join(" + ");
+  return `min(100%, max(0px, (${room} - 100%) * 9999))`;
+}
 
 /**
  * Leaderboard rows (plan §3.12): rank, avatar, name, value. Your own row reads "You" and is
@@ -42,11 +95,7 @@ export function RankList({
   currentYear?: string;
   className?: string;
 }) {
-  // A day with its year, or how a top weight was worked, is the widest a value gets: such a
-  // board needs a wider row before its values can stand beside the names.
-  const wide = rows.some(
-    (row) => row.detail || (row.occurredOn && row.occurredOn.slice(0, 4) !== currentYear),
-  );
+  const fold = foldUnder(rows, you, format, currentYear);
   return (
     <List className={className}>
       {rows.map((row) => {
@@ -60,7 +109,7 @@ export function RankList({
               aria-current={mine ? "true" : undefined}
               className={cn(
                 PRESSABLE_ROW_CLASS,
-                "@container flex-wrap",
+                "flex-wrap",
                 mine && "bg-accent-soft",
                 absent && "text-ink-muted",
               )}
@@ -76,7 +125,7 @@ export function RankList({
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
                 <span className="min-w-0 flex-[1_1_6.25rem]">
                   <span className="block font-medium [overflow-wrap:break-word]">
-                    {mine ? "You" : row.displayName || row.username}
+                    {shownName(row, you)}
                   </span>
                   <span className="block text-sm [overflow-wrap:break-word] text-ink-muted">
                     @{row.username}
@@ -85,19 +134,15 @@ export function RankList({
               </span>
               {/* Beside the name the value is as wide as its longest line, at most a day with its
                   year (8.75 of the day's em; "Wed 30 Sept 2025" is 8.5), so a day is never broken
-                  and a top weight's work breaks only at its dot. It goes under the name in every
-                  row at once, each row asking only its own width, before the name would have
-                  less than 6.25rem ("Jordan Reyes") beside the board's widest value: the rank,
-                  the avatar and their gaps (5.25rem), the name, a gap, and a value with a year
-                  (7.1rem) or without (5.25rem: "Wed 30 Sept", "123,456 kg"). At 100% text, under
-                  390 pt with a year and under 360 pt without; at 200%, on every phone. */}
+                  and a top weight's work breaks only at its dot. Where the row is narrower than
+                  the board needs (`foldUnder`), every ranked value is the row's width, under its
+                  name. A dash stays beside the name: it takes none of the name's room. */}
               <span
                 className={cn(
-                  "max-w-full min-w-0 basis-full text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums",
-                  wide
-                    ? "@min-[19.375rem]:max-w-[calc(var(--ov-type-caption)*8.75)] @min-[19.375rem]:shrink-0 @min-[19.375rem]:basis-auto"
-                    : "@min-[17.5rem]:max-w-[calc(var(--ov-type-caption)*8.75)] @min-[17.5rem]:shrink-0 @min-[17.5rem]:basis-auto",
+                  "max-w-[min(100%,calc(var(--ov-type-caption)*8.75))] shrink-0 basis-auto text-right text-sm leading-tight [overflow-wrap:break-word] tabular-nums",
+                  !absent && "min-w-(--rank-fold)",
                 )}
+                style={absent ? undefined : ({ "--rank-fold": fold } as CSSProperties)}
               >
                 {row.value === null ? (
                   <span aria-label="No data">—</span>

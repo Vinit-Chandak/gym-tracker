@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-const RUN = /(\d+(?:[.,:]\d+)*)/;
+import { FIGURE_RUN } from "./fit";
 
 /**
  * A fact's figures in Jost's tabular digits, whose zero is plain (Atkinson's is slashed, and
@@ -12,7 +12,7 @@ export function Figures({ children }: { children: string }) {
   // item of its own, the gap between them opening "70–90" to "70 – 90".
   return (
     <span>
-      {children.split(RUN).map((part, index) =>
+      {children.split(FIGURE_RUN).map((part, index) =>
         index % 2 === 1 ? (
           <span key={index} className="figures">
             {part}

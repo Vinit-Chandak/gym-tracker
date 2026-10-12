@@ -51,6 +51,42 @@ export function boldEmWidth(text: string): number {
   return em;
 }
 
+/**
+ * Atkinson Hyperlegible Next's advance widths at the body's weight, 500, as `BOLD_WIDTHS`, glyph
+ * by glyph in the order of `TEXT_GLYPHS` (the bold's, and a dot between facts, an at and an
+ * underscore): how wide a line of a list's words is, a name, a handle, a value or its day.
+ */
+const TEXT_GLYPHS = `${BOLD_GLYPHS}·@_`;
+const TEXT_WIDTHS = [
+  536, 578, 495, 577, 548, 335, 572, 559, 271, 251, 518, 285, 860, 559, 559, 578, 584, 360, 486,
+  346, 551, 489, 707, 505, 478, 478, 647, 625, 650, 677, 580, 558, 704, 697, 405, 532, 644, 545,
+  838, 703, 727, 607, 737, 628, 599, 578, 688, 614, 868, 648, 605, 612, 653, 420, 560, 586, 618,
+  596, 609, 521, 619, 585, 293, 293, 366, 235, 235, 235, 697, 313, 313, 180, 249, 534, 408, 601,
+  939, 503, 827, 715, 262, 779, 383,
+];
+
+/** A run of figures, which `Figures` sets in Jost: "3,113,528", "27.5", "4:32". */
+export const FIGURE_RUN = /(\d+(?:[.,:]\d+)*)/;
+
+/**
+ * How wide `text` is in the body's Atkinson Hyperlegible Next, in em, with its figures in Jost's
+ * tabular digits (0.6 em, 0.314 the point, comma or colon between two) where `figures` says
+ * `Figures` sets them; an unlisted glyph counts 0.9.
+ */
+export function textEmWidth(text: string, figures = false): number {
+  let em = 0;
+  (figures ? text.split(FIGURE_RUN) : [text]).forEach((part, index) => {
+    for (const ch of part) {
+      if (index % 2 === 1) em += /\d/.test(ch) ? 0.6 : 0.314;
+      else {
+        const at = TEXT_GLYPHS.indexOf(ch);
+        em += at < 0 ? 0.9 : TEXT_WIDTHS[at]! / 1000;
+      }
+    }
+  });
+  return em;
+}
+
 /** The ramp step at which the widest of `texts` fits `available` points, between min and max. */
 export function fitFigure(
   texts: readonly string[],
