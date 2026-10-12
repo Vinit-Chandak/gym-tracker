@@ -117,7 +117,9 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
 /**
  * The room a check-in reading needs on one line, as a CSS length: its name or its figure,
  * whichever is wider ("Sleep quality", "10 h 45 min"), each figure in Jost and its unit at the
- * caption's size.
+ * caption's size. A figure also stands 0.4 of its size clear of the next reading's beyond the
+ * row's gap (twice the room a name has, at the default text size), so "7 h 15 min" is never read
+ * on into "2 / 5" as one run.
  */
 function readingWidth({ label, parts }: { label: string; parts: string[][] }): string {
   const at = (em: number, size: "figure" | "caption") =>
@@ -128,7 +130,7 @@ function readingWidth({ label, parts }: { label: string; parts: string[][] }): s
         `${at(emWidth(value), "figure")} + ${at(boldEmWidth(` ${unit}`), "caption")}`,
     )
     .join(` + ${textEmWidth(" ").toFixed(3)}em + `);
-  return `max(${at(textEmWidth(label), "caption")}, ${figure})`;
+  return `max(${at(textEmWidth(label), "caption")}, ${figure} + ${at(0.4, "figure")})`;
 }
 
 /**

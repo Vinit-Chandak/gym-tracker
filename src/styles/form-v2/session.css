@@ -1128,9 +1128,10 @@ html:has(.session-page) .pinned-actions {
   min-width: min-content;
 }
 /* Four check-in readings to a row while the widest of them, its name and its figure each on one
-   line (--check-in-cell, from the page), has a quarter of it; where they do not all fit, two and
-   two rather than three and one left alone under them, every track half the row; and where two
-   do not, one a row. A sleep's hours and minutes never part to make four fit. */
+   line and the figure clear of the next (--check-in-cell, from the page), has a quarter of it;
+   where they do not all fit, two and two rather than three and one left alone under them, every
+   track half the row; and where two do not, one a row. A sleep's hours and minutes never part to
+   make four fit. */
 .finished-check-in {
   --check-in-gap: calc(8 * var(--ov-u));
   --check-in-row: calc(

@@ -177,6 +177,39 @@ it("holds a night's sleep on one line, the readings folding by the widest of the
   expect(cell).toContain(`${textEmWidth("Sleep quality").toFixed(3)} * var(--ov-type-caption)`);
 });
 
+/**
+ * The check-in's widest reading (--check-in-cell) in px at the default text size: figures at 20,
+ * captions at 13 and the body at 16.
+ */
+function cellPx(): number {
+  const cell = screen
+    .getByText("Sleep", { selector: "dt" })
+    .closest("dl")!
+    .style.getPropertyValue("--check-in-cell")
+    .replaceAll("var(--ov-type-figure)", "20")
+    .replaceAll("var(--ov-type-caption)", "13")
+    .replace(/([\d.]+)em\b/g, "$1 * 16")
+    .replaceAll("max(", "Math.max(");
+  // All that is left is arithmetic: figures, + and * in Math.max.
+  return new Function(`return ${cell}`)() as number;
+}
+
+it("stands four readings across only where a sleep's figure stays clear of the next", () => {
+  // A 390-pt iPhone's 350-pt column read "7 h 15 min 2 / 5" as one run, the sleep ending 10 pt
+  // before the next figure: four stand across only where each figure has room to stand clear.
+  const fourAcross = (sleepHours: number, column: number) => {
+    cleanup();
+    show({ sleepHours, sleepQuality: 2, fatigue: 4, soreness: 4 });
+    return 4 * cellPx() + 3 * 8 <= column;
+  };
+  expect(fourAcross(7.25, 350)).toBe(false);
+  expect(fourAcross(7.25, 362)).toBe(false);
+  // A 440-pt phone's 400 leaves it 23 pt clear.
+  expect(fourAcross(7.25, 400)).toBe(true);
+  // A whole night's figure is narrower than "Sleep quality": the iPhone keeps four across.
+  expect(fourAcross(8, 350)).toBe(true);
+});
+
 it("names the year of a workout from another, as a friend's copy of it does", () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-11T08:00:00.000Z"));
