@@ -43,6 +43,10 @@ it("is the strip on other screens: the name, the rest and Resume", () => {
   expect(screen.getByRole("link", { name: "Resume" }).getAttribute("href")).toBe(
     "/workouts/active",
   );
+  // The time and Resume stand together, so they go under the name together (rows.css).
+  const end = strip.querySelector(".session-strip-end")!;
+  expect(end.contains(screen.getByRole("timer"))).toBe(true);
+  expect(end.contains(screen.getByRole("link", { name: "Resume" }))).toBe(true);
 });
 
 it("leaves Resume to Today unless a rest is running", () => {

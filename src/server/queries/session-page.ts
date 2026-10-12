@@ -1,11 +1,12 @@
 import { getActiveSession } from "./active-session";
 import { getRequestProfile } from "./request-profile";
-import { sessionName, UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionChromeName, sessionName, UNPLANNED_SESSION } from "@/lib/labels";
 
 /**
  * What a page of the session's own shows in its header (boards Check-in, Add exercise): the
- * session's name, which its way back names, and whether the account keeps a rest timer, whose
- * pill stands beside it. Both reads are the shell's own, cached for the request.
+ * session's name as its way back says it ("Workout" for a long one), and whether the account
+ * keeps a rest timer, whose pill stands beside it. Both reads are the shell's own, cached for
+ * the request.
  */
 export async function sessionPageHeader(
   user: { id: string; email?: string | null },
@@ -16,7 +17,10 @@ export async function sessionPageHeader(
     getActiveSession(user.id),
   ]);
   return {
-    name: active?.id === sessionId ? sessionName(active.dayName, active.title) : UNPLANNED_SESSION,
+    name:
+      active?.id === sessionId
+        ? sessionChromeName(sessionName(active.dayName, active.title))
+        : UNPLANNED_SESSION,
     restTimerEnabled: profile.restTimerEnabled,
   };
 }

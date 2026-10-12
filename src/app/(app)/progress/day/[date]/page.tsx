@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
-import { ART_SPORT, dayParts, type DayPiece } from "@/components/progress/calendar";
+import { ART_SPORT, dayParts, dayPrintLabel, type DayPiece } from "@/components/progress/calendar";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
@@ -155,9 +155,10 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
             <Art
               kind="print"
               parts={parts}
-              label={`${formatIsoDate(date)} in full ink, in the day's order: ${entries
-                .map((entry) => entry.title)
-                .join(", ")}`}
+              label={dayPrintLabel(
+                formatIsoDate(date),
+                entries.map((entry) => entry.title),
+              )}
               className="size-full"
             />
           </figure>

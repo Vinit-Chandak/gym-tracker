@@ -31,7 +31,13 @@ import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
-import { LOAD_UNIT_LABELS, sessionName, SUGGESTION_KIND_LABELS } from "@/lib/labels";
+import {
+  backToSession,
+  LOAD_UNIT_LABELS,
+  sessionChromeName,
+  sessionName,
+  SUGGESTION_KIND_LABELS,
+} from "@/lib/labels";
 import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
@@ -1154,21 +1160,23 @@ export function ExerciseLogger({
       <header ref={header} className="session-header">
         <button type="button" onClick={onBack} className="session-back">
           <Glyph name="chevronLeft" className="glyph-22" />
-          <span>{workoutName}</span>
+          <span>{sessionChromeName(workoutName)}</span>
         </button>
-        <span className="flex-1" />
-        {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
-        {more.length > 0 && (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-label="Complete, skip, superset, substitute"
-            className="session-icon-button -mr-[10px]"
-            onClick={() => setSheet({ kind: "more" })}
-          >
-            <Glyph name="more" className="glyph-24" />
-          </button>
-        )}
+        {/* Under the way back, at the end, when it would have too little room (session.css). */}
+        <span className="session-header-end">
+          {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
+          {more.length > 0 && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-label="Complete, skip, superset, substitute"
+              className="session-icon-button -mr-[10px]"
+              onClick={() => setSheet({ kind: "more" })}
+            >
+              <Glyph name="more" className="glyph-24" />
+            </button>
+          )}
+        </span>
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
@@ -1430,10 +1438,11 @@ export function ExerciseLogger({
                     Completing…
                   </Button>
                 ) : (
-                  // Finished with, the exercise hands back to the list; Reopen and Unskip are
-                  // in More, where a change of mind goes.
+                  // Finished with, the exercise hands back to the list, by the workout's name
+                  // while it is short, so the dock stays on screen whole at 200% text; Reopen
+                  // and Unskip are in More, where a change of mind goes.
                   <Button size="lg" className="w-full" onClick={onBack}>
-                    Back to {workoutName}
+                    {backToSession(workoutName)}
                   </Button>
                 )}
               </div>

@@ -528,7 +528,12 @@ the name would have less than a few words' room, and a table of figures stacks b
 split. A button at large text sizes grows and wraps. A chosen option wraps in its field rather than
 being cut; a one-line field's hint ends in an ellipsis. The one exception is a food row's name and
 the line under it, wherever food is listed, which keep one line each and end in an ellipsis so every
-row stands the same height; a food's or a saved meal's own sheet says them whole.
+row stands the same height; a food's or a saved meal's own sheet says them whole. A way back names
+its page whole too, wrapping, with the rest pill or the action beside it going under it first. The
+session's chrome (the strip, a way back to the workout, the logger's Back to) stays a line or two
+at any text size, so it says a workout's name whole only up to 20 characters; a longer one, as a
+saved routine's may be, is "Workout" there ("Back to the workout") and whole as the workout's title
+(12 October 2026).
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
 
@@ -775,7 +780,8 @@ and every control answers a press.
   name, Log another set the tonal one under it; another set brings the entry back, and Complete
   returns once it lands. A set already under way in the entry (typed, saving, failed or just
   Saved) is never hidden for it. Done or Skipped, the dock's button is Back to the day ("Back to
-  Lower A"); Reopen and Unskip are in More, where a change of mind goes.
+  Lower A"), or Back to the workout for a name over 20 characters, so the dock stays whole on a
+  320-pt screen at 200% text; Reopen and Unskip are in More, where a change of mind goes.
 
 ### Steppers
 

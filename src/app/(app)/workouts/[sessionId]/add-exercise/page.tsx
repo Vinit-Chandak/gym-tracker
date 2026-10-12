@@ -5,7 +5,7 @@ import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { canEditWorkout } from "@/domain/workout-edits";
-import { sessionName } from "@/lib/labels";
+import { sessionChromeName, sessionName } from "@/lib/labels";
 import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin } from "@/lib/nav";
 import { addExercisesAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
@@ -70,7 +70,7 @@ export default async function AddExercisePage(
   const back = finished
     ? {
         href: `/workouts/${sessionId}?${origin ? `${ORIGIN_PARAM}=${origin}&` : ""}${EDIT_PARAM}=1` as Route,
-        label: sessionName(data.names?.dayName, data.names?.title),
+        label: sessionChromeName(sessionName(data.names?.dayName, data.names?.title)),
       }
     : { href: `/workouts/${sessionId}` as Route, label: name };
 

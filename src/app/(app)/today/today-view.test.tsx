@@ -550,6 +550,32 @@ it("keeps what was logged today with no card of its own on the day, inked done",
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
 
+it("names a run, ride or swim logged today by its own title, as History does", () => {
+  const ride = {
+    id: "ride-1",
+    sport: "cycling" as const,
+    startedAt: new Date("2026-09-11T04:18:00.000Z"),
+    durationMs: 3_092_000,
+    distanceMetres: null,
+    environment: "indoor" as const,
+    occurrenceId: null,
+    sessionId: null,
+    programDayId: null,
+    dayName: null,
+    gymName: null,
+  };
+  show({
+    programmeOccurrences: [],
+    logged: [
+      { ...ride, title: "Sunday spin with the club" },
+      { ...ride, id: "ride-2", title: null },
+    ],
+  });
+  expect(card("Sunday spin with the club").textContent).toContain("51:32");
+  // Untitled, it is its sport.
+  expect(card("Ride")).toBeTruthy();
+});
+
 it("draws no run in the print for one a revision withdrew", () => {
   const withdrawn: ScheduledOccurrence = {
     ...run("run-cancelled", [25, 30]),

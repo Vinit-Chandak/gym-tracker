@@ -152,7 +152,15 @@ From the year audit of the friends' screens:
   back from their exercises would be a guess. A follower still reads the programme day's name or
   "Workout", as listed above: a routine's name is the athlete's own label, as a run's title is, and
   the shared copy is generated, never the athlete's words. The coach's read of a workout carries
-  it, as it carries the athlete's notes. A long name wraps wherever it is a title or a row's name;
-  a day's row now puts its time under the name when the two no longer fit, as History's figure
-  does. A way back that names the workout, and the session strip, keep their one line and end in
-  an ellipsis, as they do for any name.
+  it, as it carries the athlete's notes: the API, the review's context and the preparation's. A
+  long name wraps wherever it is a title or a row's name; a day's row now puts its time under the
+  name when the two no longer fit, as History's figure does, and Choose a day names the workout in
+  progress by it. No name ends in an ellipsis. The session's chrome (the strip, a way back to the
+  workout on Check-in, Add exercise and an exercise, and the logger's "Back to …" once an exercise
+  is done) must stay a line or two at any text size, where at 200% text on a 320-pt phone a line
+  holds about ten letters: there a name of up to 20 characters is said whole and wraps (as a
+  programme day's usually is, and "Unplanned session" is), and a longer one is "Workout" ("Back to
+  the workout"), whole on the workout's own screens. Said whole, a routine's name of 95 characters
+  made the dock's button 464 pt tall and put it below a 568-pt screen. What stands beside the name
+  in the strip and the two headers (the rest's time and Resume, the rest pill, More) goes under it
+  before it would have less than a few words' room (DESIGN.md, Text Never Runs Off).

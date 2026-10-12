@@ -57,30 +57,43 @@ html:has(.session-layer) body {
   }
 }
 
+/* The way back, then the rest pill and More at the end. They go under it, at the end, before its
+   name would have less than a few words' room (DESIGN.md, Text Never Runs Off): at 200% text
+   while a rest runs, never at 100%. */
 .session-header {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: calc(8 * var(--ov-u));
   min-height: max(calc(48 * var(--ov-u)), var(--ov-target-header));
   padding: 0 var(--ov-gutter);
 }
 
-/* A nested screen's back link names where it goes. */
+/* A nested screen's back link names where it goes, wrapping between its words. */
 .session-back {
   display: flex;
   min-width: 0;
+  max-width: max-content;
   min-height: var(--ov-target-header);
-  flex-shrink: 1;
+  flex: 1 1 7rem;
   align-items: center;
   gap: 2px;
   margin-left: calc(-10 * var(--ov-u));
   padding-right: calc(6 * var(--ov-u));
 }
 .session-back > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  text-align: left;
+}
+.session-header-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(8 * var(--ov-u));
+  margin-left: auto;
 }
 
 .session-icon-button {

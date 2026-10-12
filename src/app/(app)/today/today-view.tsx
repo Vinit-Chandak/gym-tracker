@@ -216,7 +216,11 @@ function LoggedCard({
     : seconds === null
       ? null
       : formatDuration(seconds);
-  const name = strength ? sessionName(logged.dayName, logged.title) : enduranceName(logged.sport);
+  // As History and the calendar's day name it: a workout by its day or routine, a run, ride
+  // or swim by its own title, else by its sport.
+  const name = strength
+    ? sessionName(logged.dayName, logged.title)
+    : (logged.title ?? enduranceName(logged.sport));
   return (
     <ActivityCard
       mark={

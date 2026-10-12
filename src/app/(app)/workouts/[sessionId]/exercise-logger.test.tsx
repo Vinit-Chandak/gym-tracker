@@ -1010,9 +1010,25 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
 });
 
 it("names its way back for the routine the workout was started from", () => {
-  renderLogger({ title: "Push day at the hotel gym" });
-  expect(screen.getByRole("button", { name: "Push day at the hotel gym" })).toBeTruthy();
+  renderLogger({ title: "Push day at home" });
+  expect(screen.getByRole("button", { name: "Push day at home" })).toBeTruthy();
   expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
+it("says a routine's long name as the workout, so the dock stays whole on screen", async () => {
+  // As long as a routine's name may be: the workout's own screens say it, as their title.
+  const name = "Hotel gym push day: dumbbell bench, overhead press, slow tempo dips, ".padEnd(
+    120,
+    "and the band finisher ",
+  );
+  expect(name).toHaveLength(120);
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  renderLogger({ title: name, exercise: { sets: [saved] } });
+  expect(screen.getByRole("button", { name: "Workout" })).toBeTruthy();
+  more("Complete");
+  await screen.findByText("Done");
+  expect(screen.getByRole("button", { name: "Back to the workout" })).toBeTruthy();
+  expect(screen.queryByText(name, { exact: false })).toBeNull();
 });
 
 it("makes Complete the dock's button once the planned sets are in, another set a tap away", async () => {

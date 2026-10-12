@@ -83,6 +83,8 @@ export default async function ChooseDayPage() {
   ]);
   const complete = plan !== null && plan.suggestion === null;
   const openDay = plan?.cycleDays.find(({ day }) => day.id === inProgress?.programDayId)?.day;
+  // The open workout by its day, else by the routine it was started from (ADR 0026).
+  const openName = openDay?.name ?? inProgress?.title ?? null;
 
   return (
     <>
@@ -122,8 +124,8 @@ export default async function ChooseDayPage() {
           <>
             {inProgress && (
               <p className="text-sm [overflow-wrap:break-word] text-ink-muted">
-                {openDay ? `${openDay.name} is in progress.` : "A workout is in progress."} Finish
-                or discard it to start another day.
+                {openName ? `${openName} is in progress.` : "A workout is in progress."} Finish or
+                discard it to start another day.
               </p>
             )}
             <List>

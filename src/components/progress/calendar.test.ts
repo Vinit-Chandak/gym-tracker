@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   dayParts,
+  dayPrintLabel,
   monthDays,
   monthEnd,
   monthsBetween,
@@ -111,6 +112,21 @@ describe("a day's print", () => {
         ],
       },
     ]);
+  });
+
+  it("says what it holds in the day's order, telling one name from the next", () => {
+    expect(
+      dayPrintLabel("Mon 12 Oct 2026", [
+        "Hotel gym push day: dumbbell bench, overhead press and dips",
+        "Run",
+      ]),
+    ).toBe(
+      "Mon 12 Oct 2026 in full ink, in the day's order: Hotel gym push day: dumbbell bench, " +
+        "overhead press and dips, then Run",
+    );
+    expect(dayPrintLabel("Mon 12 Oct 2026", ["Lower A"])).toBe(
+      "Mon 12 Oct 2026 in full ink, in the day's order: Lower A",
+    );
   });
 });
 
