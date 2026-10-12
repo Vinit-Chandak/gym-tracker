@@ -101,7 +101,7 @@ function volumeOf(session: SessionVM): number {
 
 function Stat({ figure, unit, label }: { figure: string; unit?: string; label: string }) {
   return (
-    <div className="min-w-0">
+    <div>
       <dt className="sr-only">{label}</dt>
       <dd className="whitespace-nowrap">
         <span className="type-figure-l">{figure}</span>

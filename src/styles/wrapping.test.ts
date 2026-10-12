@@ -90,3 +90,12 @@ it("folds a finished workout's check-in by its widest reading before a figure wo
   expect(readings).toMatch(/var\(--check-in-cell/);
   expect(readings).toMatch(/var\(--check-in-count/);
 });
+
+it("widens a finished workout's stat for its figure rather than run it past the gutter", () => {
+  // "11,078 lb" ran past a 320-pt phone's gutter in an even third of the row: a stat is never
+  // narrower than its figure, and the row wraps by what its figures need.
+  expect(rule("session.css", ".finished-stats")).toMatch(/flex-wrap:\s*wrap/);
+  const stat = rule("session.css", ".finished-stats > div");
+  expect(stat).toMatch(/flex:\s*1 1 [\d.]+rem/);
+  expect(stat).toMatch(/min-width:\s*min-content/);
+});

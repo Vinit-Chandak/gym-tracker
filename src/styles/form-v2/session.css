@@ -1113,13 +1113,19 @@ html:has(.session-page) .pinned-actions {
 .finished-print[data-past="true"] {
   height: calc(calc(90 * var(--ov-u)) + 1.875rem);
 }
-/* Three across; fewer, never squeezed, as the text grows. Each row spreads across the column
-   (auto-fit), so a tablet's leaves no empty tracks after its last cell. */
+/* Three stats across, the row shared evenly while each figure fits its share; a wider one (a
+   five-digit volume, "11,078 lb") widens its own column rather than running past the gutter.
+   Fewer, never squeezed under 4.5rem, as the text grows. Each row spreads across the column,
+   so a tablet's leaves no empty room after its last stat. */
 .finished-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: calc(10 * var(--ov-u));
   margin-top: calc(14 * var(--ov-u));
+}
+.finished-stats > div {
+  flex: 1 1 4.5rem;
+  min-width: min-content;
 }
 /* Four check-in readings to a row while the widest of them, its name and its figure each on one
    line (--check-in-cell, from the page), has a quarter of it; where they do not all fit, two and
