@@ -69,14 +69,19 @@ function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
 }
 
 /**
- * "Sleep 7 h 15 min · Fatigue 2": each reading kept to its name, its figure to its unit. A night's
- * sleep is said as every other time is, not "7.25 h", and may break between its hours and minutes.
+ * "Sleep 7 h 15 min · Fatigue 2": each reading held whole, its name, its figure and its unit, so
+ * a line that wraps breaks before the next reading's dot ("· Sleep 7 h 15 min") rather than
+ * leaving "15 min" alone on a line, where it reads as the session's length. A night's sleep is
+ * said as every other time is, not "7.25 h".
  */
 function readings(values: [string, number | string | null, string?][]) {
   return joinFacts(
     values
       .filter(([, value]) => value !== null)
-      .map(([label, value, unit]) => `${label}\u00a0${value}${unit ? `\u00a0${unit}` : ""}`),
+      .map(
+        ([label, value, unit]) =>
+          `${label}\u00a0${String(value).replaceAll(" ", "\u00a0")}${unit ? `\u00a0${unit}` : ""}`,
+      ),
   );
 }
 
