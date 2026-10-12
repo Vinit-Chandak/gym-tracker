@@ -267,6 +267,7 @@ function sessionFor(scenario: Scenario): { session: SessionVM; title: string } {
       includesRun: scenario === "arms",
       timeNote: scenario === "arms" ? "70–100 min" : "70–90 min",
     },
+    title: null,
     cycleIndex: 3,
     startedAt: STARTED,
     completedAt: null,

@@ -7,6 +7,7 @@ import {
   programmeLabel,
   rangeLabel,
   restLabel,
+  sessionName,
 } from "./labels";
 
 describe("labels", () => {
@@ -15,6 +16,14 @@ describe("labels", () => {
     expect(rangeLabel(5, 5)).toBe("5");
     expect(rangeLabel(20, 45, " s")).toBe("20–45 s");
     expect(rangeLabel(null, null)).toBe("—");
+  });
+
+  it("names a workout by its programme day, else by the routine it was started from", () => {
+    expect(sessionName("Upper A", null)).toBe("Upper A");
+    expect(sessionName(null, "Push day at home")).toBe("Push day at home");
+    expect(sessionName(undefined, undefined)).toBe("Unplanned session");
+    // A programme day keeps its own name, whatever else the workout carries.
+    expect(sessionName("Upper A", "Push day at home")).toBe("Upper A");
   });
 
   it("says a finished programme is complete wherever it is named", () => {

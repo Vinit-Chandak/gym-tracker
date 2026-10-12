@@ -876,11 +876,15 @@ export async function activityTotals(
  * Only ever called where canonical writes are switched on. The legacy path continues to write
  * a session with no parent, which is what keeps the bridge release safe to deploy before the
  * cutover (§10.4).
+ *
+ * `title` is the name of the saved routine the session starts from, as the routine is named
+ * now: the workout keeps it whatever later becomes of the routine. The athlete's own label, as a
+ * run's title is, so the shared copy never carries it (ADR 0026).
  */
 export async function openStrengthParent(
   tx: DbOrTx,
   userId: string,
-  session: { id: string; startedAt: Date },
+  session: { id: string; startedAt: Date; title?: string | null },
   timeZone?: string,
 ): Promise<void> {
   const zone = timeZone ?? (await ownerTimeZone(tx, userId));
@@ -902,6 +906,7 @@ export async function openStrengthParent(
     occurredOn: localDate(session.startedAt, zone),
     // Strength effort lives on its sets. The parent adds no second question (LOG-18).
     effortStatus: "unknown",
+    title: session.title ?? null,
     sourceKind: "manual",
   });
   await tx

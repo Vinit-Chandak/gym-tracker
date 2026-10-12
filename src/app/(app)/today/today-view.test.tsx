@@ -313,6 +313,44 @@ it("puts another open session first, and says why the day cannot start", () => {
   expect(within(card("Easy Run + Arms")).getByText("Anytime Fitness")).toBeTruthy();
 });
 
+it("names a workout started from a saved routine after the routine, open and finished", () => {
+  const name = "Push day at the hotel gym, with the long band finisher";
+  const { unmount } = show({
+    inProgress: session({ programDayId: null, dayName: null, title: name }),
+  });
+  const [first] = screen.getAllByRole("article");
+  expect(within(first!).getByRole("heading").textContent).toBe(name);
+  expect(within(first!).getByRole("link", { name: `Resume session: ${name}` })).toBeTruthy();
+  unmount();
+
+  show({
+    logged: [
+      {
+        id: "lift-1",
+        sport: "strength",
+        startedAt: new Date("2026-09-11T04:18:00.000Z"),
+        durationMs: 2_880_000,
+        distanceMetres: null,
+        environment: null,
+        occurrenceId: null,
+        sessionId: "lift-1",
+        programDayId: null,
+        dayName: null,
+        title: name,
+        gymName: "Anytime Fitness",
+      },
+    ],
+  });
+  const lift = card(name);
+  expect(lift.textContent).toContain("Workout logged.");
+  expect(
+    within(lift)
+      .getByRole("link", { name: /See what you logged/ })
+      .getAttribute("href"),
+  ).toBe("/workouts/lift-1");
+  expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
 it("says once that an empty session was discarded, and drops it from the address", async () => {
   window.history.replaceState(null, "", "/today?discarded=1");
   show({ discarded: true });
@@ -494,6 +532,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
         sessionId: null,
         programDayId: null,
         dayName: null,
+        title: null,
         gymName: null,
       },
     ],

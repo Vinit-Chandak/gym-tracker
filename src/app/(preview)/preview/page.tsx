@@ -191,6 +191,7 @@ const OPEN_SESSION = {
   gymName: "Anytime Fitness",
   programDayId: DAY.id,
   dayName: DAY.name,
+  title: null,
   cycleIndex: 1,
   startedAt: new Date("2026-09-11T07:05:00.000Z"),
   completedAt: null,
@@ -295,6 +296,7 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
                   sessionId: null,
                   programDayId: null,
                   dayName: null,
+                  title: null,
                   gymName: null,
                 },
               ]

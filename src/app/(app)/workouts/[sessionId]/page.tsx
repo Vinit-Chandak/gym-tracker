@@ -9,7 +9,7 @@ import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
 import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath } from "@/lib/nav";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -65,7 +65,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   if (!found) notFound();
   const { session: data, records } = found;
 
-  const title = data.day?.name ?? UNPLANNED_SESSION;
+  const title = sessionName(data.day?.name, data.title);
   // A finished workout can be changed for a week after its day (ADR 0049).
   const startedAt = new Date(data.startedAt);
   const editUntil =

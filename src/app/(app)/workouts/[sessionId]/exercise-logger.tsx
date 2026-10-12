@@ -31,7 +31,7 @@ import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
-import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, sessionName, SUGGESTION_KIND_LABELS } from "@/lib/labels";
 import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
@@ -566,7 +566,7 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const dayName = session.day?.name ?? UNPLANNED_SESSION;
+  const workoutName = sessionName(session.day?.name, session.title);
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
@@ -1154,7 +1154,7 @@ export function ExerciseLogger({
       <header ref={header} className="session-header">
         <button type="button" onClick={onBack} className="session-back">
           <Glyph name="chevronLeft" className="glyph-22" />
-          <span>{dayName}</span>
+          <span>{workoutName}</span>
         </button>
         <span className="flex-1" />
         {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
@@ -1433,7 +1433,7 @@ export function ExerciseLogger({
                   // Finished with, the exercise hands back to the list; Reopen and Unskip are
                   // in More, where a change of mind goes.
                   <Button size="lg" className="w-full" onClick={onBack}>
-                    Back to {dayName}
+                    Back to {workoutName}
                   </Button>
                 )}
               </div>

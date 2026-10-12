@@ -70,6 +70,7 @@ export async function readWorkouts(
       session: workoutSessions,
       gym: { id: gyms.id, name: gyms.name },
       day: { id: programDays.id, name: programDays.name },
+      title: activities.title,
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
@@ -171,6 +172,10 @@ export async function readWorkouts(
       ...row.session,
       gym: row.gym,
       day: row.day,
+      // The saved routine's name it was started from, as it was then: the athlete's own label
+      // (`sessionName`). The shared stats made from this read the day's name, never this one
+      // (ADR 0026).
+      title: row.title,
       exercises: slotsBySession.get(row.session.id) ?? [],
     })),
   };

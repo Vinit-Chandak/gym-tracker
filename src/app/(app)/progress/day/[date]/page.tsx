@@ -17,7 +17,7 @@ import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
-import { ENDURANCE_PLACE_LABELS, SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, sessionName, SWIM_STROKE_LABELS } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -118,7 +118,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: workout.id,
         sport: "strength",
         at: workout.startedAt,
-        title: workout.day?.name ?? UNPLANNED_SESSION,
+        title: sessionName(workout.day?.name, workout.title),
         // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps.
         meta: joinFacts([
           workout.gym.name,
@@ -173,16 +173,22 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
                     <Art kind="mark" sport={ART_SPORT[entry.sport]} size={18} />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="plan-row-name tabular-nums">{entry.title}</span>
+                    {/* The time stands beside the name while both fit and under it when not, as
+                        History's figure does: a routine's long name keeps a few words a line. */}
+                    <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
+                      <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:break-word] tabular-nums">
+                        {entry.title}
+                      </span>
+                      <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
+                        {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
+                        <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
+                      </span>
+                    </span>
                     {entry.meta && (
                       <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
                         <Figures>{entry.meta}</Figures>
                       </span>
                     )}
-                  </span>
-                  <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
-                    {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
-                    <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
                   </span>
                 </Link>
               </li>

@@ -442,6 +442,7 @@ function sessionFor(
     id: SESSION_ID,
     gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
     day: { id: "day", name: day } as SessionVM["day"],
+    title: null,
     cycleIndex: 3,
     startedAt: STARTED,
     completedAt: null,

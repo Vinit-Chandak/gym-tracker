@@ -1,7 +1,7 @@
 import { requireOnboardedUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionName } from "@/lib/labels";
 
 import { SessionChrome } from "./session-chrome";
 
@@ -23,7 +23,7 @@ export async function SessionStatus() {
     <SessionChrome
       session={{
         id: session.id,
-        name: session.dayName ?? UNPLANNED_SESSION,
+        name: sessionName(session.dayName, session.title),
         restTimerEnabled: profile.restTimerEnabled,
       }}
     />

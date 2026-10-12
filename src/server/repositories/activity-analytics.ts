@@ -421,6 +421,11 @@ export type LoggedActivity = {
   sessionId: string | null;
   programDayId: string | null;
   dayName: string | null;
+  /**
+   * Its own title: for a workout, the saved routine's name it was started from, as it was then
+   * (`sessionName`); for a run, a ride or a swim, the one it was logged with.
+   */
+  title: string | null;
   gymName: string | null;
 };
 
@@ -450,6 +455,7 @@ export async function readLoggedOn(
       sessionId: workoutSessions.id,
       programDayId: workoutSessions.programDayId,
       dayName: programDays.name,
+      title: activities.title,
       gymName: gyms.name,
     })
     .from(activities)

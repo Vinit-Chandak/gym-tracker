@@ -141,3 +141,18 @@ From the year audit of the friends' screens:
   the end. Places that tie, as a workout finished by the deployment before the column has, read
   by name; `npm run db:backfill:shared-stats`, run once the deployment that adds the column is
   serving, and again after a rollback and roll-forward, puts them back in order.
+- **A workout started from a saved routine is named after the routine** on the athlete's own
+  screens, where it read "Unplanned session": Today's open and finished boxes, the session strip,
+  the workout, its exercises and Finish, the summary, History, Overview's latest and a day of the
+  calendar (the owner left it to us, 12 October 2026). The name is the routine's as it stood when
+  Start was pressed, kept as the workout's own title (its activity's `title`, which no workout had
+  used), so renaming or deleting the routine later rewrites no workout. A programme day's workout
+  keeps the day's name, and an ad hoc one stays "Unplanned session" (`sessionName`). Workouts
+  started from a routine before this recorded no routine and keep "Unplanned session": a name read
+  back from their exercises would be a guess. A follower still reads the programme day's name or
+  "Workout", as listed above: a routine's name is the athlete's own label, as a run's title is, and
+  the shared copy is generated, never the athlete's words. The coach's read of a workout carries
+  it, as it carries the athlete's notes. A long name wraps wherever it is a title or a row's name;
+  a day's row now puts its time under the name when the two no longer fit, as History's figure
+  does. A way back that names the workout, and the session strip, keep their one line and end in
+  an ellipsis, as they do for any name.

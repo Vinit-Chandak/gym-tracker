@@ -90,6 +90,7 @@ const session = (patch: Partial<SessionVM> = {}): SessionVM => ({
   id: "session",
   gym: { id: "gym", name: "Test gym", kind: "gym" },
   day: null,
+  title: null,
   cycleIndex: null,
   startedAt: "2026-09-08T11:00:00.000Z",
   completedAt: "2026-09-08T12:09:00.000Z",

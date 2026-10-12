@@ -379,6 +379,18 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
 export const UNPLANNED_SESSION = "Unplanned session";
 
 /**
+ * A workout's name on the athlete's own screens: its programme day's; else the saved routine's
+ * it was started from, as the routine was named that day (its title); else UNPLANNED_SESSION.
+ * A friend reads the day's name or "Workout", never a routine's (ADR 0026).
+ */
+export function sessionName(
+  dayName: string | null | undefined,
+  title: string | null | undefined,
+): string {
+  return dayName ?? title ?? UNPLANNED_SESSION;
+}
+
+/**
  * The active programme by its name, said to be complete once nothing but rest is left in it
  * (ADR 0051), as Today says "Programme complete": its fit at a gym is still read, for repeating
  * the block, but not as though it were still being trained.

@@ -22,7 +22,7 @@ import type { WarmupDrill } from "@/domain/types";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionName } from "@/lib/labels";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -216,7 +216,7 @@ function LoggedCard({
     : seconds === null
       ? null
       : formatDuration(seconds);
-  const name = strength ? (logged.dayName ?? UNPLANNED_SESSION) : enduranceName(logged.sport);
+  const name = strength ? sessionName(logged.dayName, logged.title) : enduranceName(logged.sport);
   return (
     <ActivityCard
       mark={
@@ -464,7 +464,7 @@ export function TodayView({
     <li>
       <ActivityCard
         mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
-        title={inProgress.dayName ?? UNPLANNED_SESSION}
+        title={sessionName(inProgress.dayName, inProgress.title)}
         facts={
           <Fact glyph="pin" label="Gym">
             {inProgress.gymName}
@@ -483,7 +483,7 @@ export function TodayView({
             prefetch
             size="lg"
             className="w-full"
-            aria-label={`Resume session: ${inProgress.dayName ?? UNPLANNED_SESSION}`}
+            aria-label={`Resume session: ${sessionName(inProgress.dayName, inProgress.title)}`}
           >
             <Glyph name="play" className="glyph-20" />
             Resume
