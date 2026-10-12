@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 
 import { PROGRAM_TEMPLATES, type ProgramTemplate } from "@/db/seed/data/templates";
 
-import { blueprintSports, templateOffer } from "./next-block";
+import { blueprintSports, closedByNextBlock, templateOffer } from "./next-block";
 
 const HYBRID = PROGRAM_TEMPLATES[0]!;
 /** The hybrid with its runs taken out: a template that lifts and nothing else. */
@@ -38,4 +38,24 @@ it("puts the templates that fit the athlete's sports first, and suggests them", 
   expect(offer.heading).toBe("Or use a suggested template");
   // None fits: the catalogue's order, and nothing called suggested.
   expect(templateOffer([HYBRID, LIFTING], ["running"]).heading).toBe("Or start from a template");
+});
+
+/**
+ * ADR 0054: starting the next block closes what the programme now left owed or skipped, and
+ * "Replace my programme" asks nothing first, so it is said under the button (review of 12
+ * October). A finished block with nothing skipped closes nothing, and is not told it does.
+ */
+it("says what starting the next block closes, only when it closes something", () => {
+  expect(
+    closedByNextBlock({ name: "Strength Maintenance + 2 Runs", complete: false, skipped: 0 }),
+  ).toBe(
+    "Sessions of Strength Maintenance + 2 Runs still owed or skipped can then only be logged on their own.",
+  );
+  expect(closedByNextBlock({ name: "Hybrid Half Marathon", complete: true, skipped: 5 })).toBe(
+    "Sessions of Hybrid Half Marathon still owed or skipped can then only be logged on their own.",
+  );
+  expect(
+    closedByNextBlock({ name: "Hybrid Half Marathon", complete: true, skipped: 0 }),
+  ).toBeNull();
+  expect(closedByNextBlock(null)).toBeNull();
 });

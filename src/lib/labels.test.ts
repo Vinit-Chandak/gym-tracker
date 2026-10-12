@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  backToSession,
   equipmentLoadLabel,
   exerciseOnMachine,
   nameSaysEquipment,
   programmeLabel,
   rangeLabel,
   restLabel,
+  SESSION_CHROME_NAME_LIMIT,
+  sessionChromeName,
+  sessionName,
 } from "./labels";
 
 describe("labels", () => {
@@ -15,6 +19,27 @@ describe("labels", () => {
     expect(rangeLabel(5, 5)).toBe("5");
     expect(rangeLabel(20, 45, " s")).toBe("20–45 s");
     expect(rangeLabel(null, null)).toBe("—");
+  });
+
+  it("names a workout by its programme day, else by the routine it was started from", () => {
+    expect(sessionName("Upper A", null)).toBe("Upper A");
+    expect(sessionName(null, "Push day at home")).toBe("Push day at home");
+    expect(sessionName(undefined, undefined)).toBe("Unplanned session");
+    // A programme day keeps its own name, whatever else the workout carries.
+    expect(sessionName("Upper A", "Push day at home")).toBe("Upper A");
+  });
+
+  it("says a workout's name whole in the session's chrome only while it is short", () => {
+    expect(sessionChromeName("Upper A")).toBe("Upper A");
+    expect(sessionChromeName("Unplanned session")).toBe("Unplanned session");
+    expect(sessionChromeName("Push day at the hotel")).toBe("Workout");
+    expect(sessionChromeName("Hotel gym push day: ".padEnd(120, "and more "))).toBe("Workout");
+    expect(sessionChromeName("A".repeat(SESSION_CHROME_NAME_LIMIT))).toBe(
+      "A".repeat(SESSION_CHROME_NAME_LIMIT),
+    );
+    expect(backToSession("Lower A")).toBe("Back to Lower A");
+    expect(backToSession("Unplanned session")).toBe("Back to Unplanned session");
+    expect(backToSession("Push day at the hotel")).toBe("Back to the workout");
   });
 
   it("says a finished programme is complete wherever it is named", () => {

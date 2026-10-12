@@ -34,6 +34,7 @@ function occurrence(
     cycleIndex,
     cycleDayIndex: 2,
     resolution,
+    closed: false,
     loggable: resolution.kind === "incomplete",
   };
 }

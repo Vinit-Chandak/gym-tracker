@@ -19,6 +19,7 @@ const lift = (id: string, startedAt: string, occurredOn: string | null = null): 
   gymId: "gym",
   gymName: "Test gym",
   dayName: null,
+  title: null,
   sleepHours: null,
   setCount: 3,
   exercises: [],
@@ -69,6 +70,18 @@ describe("History's order", () => {
     expect(
       workoutItem(lift("legacy", "2026-09-30T21:30:00Z"), historyClock("Asia/Kolkata")).day,
     ).toBe("2026-10-01");
+  });
+});
+
+describe("a workout in History", () => {
+  it("is named for its programme day, else the routine it was started from", () => {
+    const clock = historyClock("Asia/Kolkata");
+    const at = "2026-10-11T03:00:00Z";
+    expect(workoutItem({ ...lift("day", at), dayName: "Upper A" }, clock).title).toBe("Upper A");
+    expect(workoutItem({ ...lift("routine", at), title: "Push day at home" }, clock).title).toBe(
+      "Push day at home",
+    );
+    expect(workoutItem(lift("ad-hoc", at), clock).title).toBe("Unplanned session");
   });
 });
 

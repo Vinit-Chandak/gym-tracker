@@ -84,6 +84,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     id,
     gym: { id: "gym", name: "Test gym", kind: "gym" },
     day: null,
+    title: null,
     cycleIndex: null,
     startedAt: "2026-09-08T11:00:00.000Z",
     completedAt: null,

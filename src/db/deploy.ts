@@ -15,6 +15,7 @@ import {
 } from "./backfill-shared-stats";
 import { materialiseMissingOccurrences } from "../server/repositories/program-occurrences";
 import { createMigrationClient, describeTarget, runMigrations } from "./migrate";
+import { carryDaySkipsOntoRuns } from "./runs-skipped-from-today";
 import * as schema from "./schema";
 import { seedReferenceData } from "./seed/reference";
 
@@ -102,6 +103,10 @@ async function main(): Promise<void> {
     }
     await deployMultisportBackfill(db);
     await repairProgrammeOccurrences(db);
+    // After the repair, so a programme it has just given runs has its days' skips carried too.
+    const carried = await carryDaySkipsOntoRuns(db);
+    if (carried > 0)
+      console.log(`  ${carried} run(s) skipped from Today carried from their day onto the run`);
   } finally {
     await client.end();
   }

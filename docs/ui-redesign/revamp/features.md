@@ -52,9 +52,9 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **The date** and the app's name.
 - **Where:** the gym the next session will use, with Change. Without any gym, a prompt to add
   one replaces it.
-- **An unfinished session** that is not today's offered day (an unplanned session, or a day
-  started early): its name, gym, start time and number of sets, with Resume. Only one Resume
-  ever appears on Today.
+- **An unfinished session** that is not today's offered day (an unplanned session, one started
+  from a saved routine, or a day started early): its name (a routine's is the routine's), gym,
+  start time and number of sets, with Resume. Only one Resume ever appears on Today.
 - **The offered lifting day:**
   - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
@@ -162,7 +162,10 @@ than adding, and keep the RIR honest").
 
 ### The workout
 
-- **Header:** the day's name or "Unplanned session", and the gym, said once for the whole session.
+- **Header:** the day's name, the name of the saved routine it was started from, or "Unplanned
+  session", and the gym, said once for the whole session. The session strip, a way back to the
+  workout and an exercise's "Back to Lower A" say a name of more than 20 characters (a routine's
+  may run to 120) as "Workout" and "Back to the workout", so each stays a line or two.
 - The recovery check and the coach's summary, when present.
 - **Warm-up**, when the day has one: the number of drills or the coach's lines, each drill
   with its dose, and Mark done.

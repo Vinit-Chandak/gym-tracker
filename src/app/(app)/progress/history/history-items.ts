@@ -10,7 +10,7 @@ import {
 } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatSleep, formatTime } from "@/lib/format";
-import { ENDURANCE_PLACE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, sessionName } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
 import type { readHistoryWorkouts, readLatestActivities } from "@/server/repositories/history";
@@ -101,7 +101,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     kind: "workout",
     date: w.startedAt.toISOString(),
     day: w.occurredOn ?? clock.dayOf(w.startedAt),
-    title: w.dayName ?? UNPLANNED_SESSION,
+    title: sessionName(w.dayName, w.title),
     subtitle: joinFacts([clock.timeOf(w.startedAt), w.gymName]),
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.

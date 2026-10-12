@@ -31,7 +31,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSet, loadReadingOf } from "@/domain/sets";
 import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 import { formatTimeOrDateTime } from "@/lib/format";
-import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
@@ -369,7 +369,7 @@ type OverviewProps = {
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
   onEditSuperset: (group: string | null) => void;
-  /** The day's name, or UNPLANNED_SESSION. */
+  /** The session's name (`sessionName`): its day's, its routine's, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising goes: Today, or wherever the session was opened from. */
   backHref?: Route;
@@ -404,7 +404,7 @@ export function WorkoutOverview({
   onOpenExercise,
   onOpenDetails,
   onEditSuperset,
-  title = session.day?.name ?? UNPLANNED_SESSION,
+  title = sessionName(session.day?.name, session.title),
   backHref = "/today",
   layer = false,
   listScrollRef,

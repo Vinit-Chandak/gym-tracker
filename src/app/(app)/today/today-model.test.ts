@@ -229,6 +229,7 @@ describe("what was logged today besides the cards", () => {
     sessionId: null,
     programDayId: null,
     dayName: null,
+    title: null,
     gymName: null,
     ...patch,
   });

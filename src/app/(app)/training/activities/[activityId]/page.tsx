@@ -32,6 +32,7 @@ import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
 import { AnsweredSession } from "./answered-session";
+import type { AnsweredOnDelete } from "./delete-button";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
 import { startedAtLine } from "./started-at";
 
@@ -138,6 +139,10 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   // A session's name, as History and its day name it: "Ride", not the sport's "Cycling".
   const title = activity.title ?? enduranceName(activity.sport);
   const where = actual ? WHERE[actual.environment] : undefined;
+  // What deleting it does to the session it answered: gives it back to be logged, unless its
+  // programme has ended, when nothing can be logged against it again (ADR 0054).
+  const onDelete: AnsweredOnDelete =
+    activity.origin.kind !== "planned" ? null : answered?.closed ? "closed" : "reopens";
 
   return (
     <>
@@ -150,7 +155,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
               title={title}
               editHref={`/training/activities/${activity.id}/edit${originQuery(origin)}` as Route}
               activityId={activity.id}
-              settlesOccurrence={activity.origin.kind === "planned"}
+              answered={onDelete}
             />
           </div>
         </div>

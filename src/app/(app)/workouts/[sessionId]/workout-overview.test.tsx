@@ -107,6 +107,7 @@ const SESSION: SessionVM = {
   id: "00000000-0000-4000-8000-00000000c0de",
   gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
   day: { id: "day", name: "Upper A", focus: null, includesRun: false, timeNote: "70–90 min" },
+  title: null,
   cycleIndex: 3,
   startedAt: "2026-09-29T07:30:00.000Z",
   completedAt: null,
@@ -219,6 +220,15 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getAllByRole("link", { name: "Add exercise" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Superset" })).toHaveLength(1);
   expect(screen.getByText(whole("70–90 min"))).toBeTruthy();
+});
+
+it("is named for the saved routine it was started from, with no programme day", () => {
+  show({
+    session: { ...SESSION, day: null, cycleIndex: null, title: "Push day at the hotel gym" },
+    title: undefined,
+  });
+  expect(screen.getByRole("heading", { level: 1, name: "Push day at the hotel gym" })).toBeTruthy();
+  expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
 it("holds Finish back while a set draft is unsaved, and says where", () => {

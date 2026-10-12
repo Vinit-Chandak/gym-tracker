@@ -4,10 +4,11 @@ import type { OccurrenceResolution } from "./occurrences";
 import {
   enduranceAdherence,
   liftingAdherence,
+  putBackGoesNext,
   sessionStanding,
   type ProgrammeSession,
 } from "./programme-sessions";
-import type { ScheduleState, SlotEvent } from "./schedule";
+import { withDerivedRunEvents, type ScheduleState, type SlotEvent } from "./schedule";
 
 /** Liam's half-marathon week: three lifts, three runs, a rest day, each on its own weekday. */
 const SLOTS = [
@@ -73,10 +74,32 @@ describe("where a programme's run stands", () => {
     );
   });
 
-  /** Skipping the run from Today, or picking up from today, answers the day, not the row. */
-  it("reads as skipped when its day's run was skipped on the sequence", () => {
-    const skipped = state([{ cycleIndex: 3, dayIndex: 4, part: "run", status: "skipped" }]);
-    expect(sessionStanding(skipped, run(3, 4, "2026-09-17"), TODAY)).toBe("skipped");
+  /**
+   * Skipping the run from Today, or picking up from today, skips the run itself (owner, 12
+   * October 2026), so the programme says what the coach's adherence says.
+   */
+  it("reads as skipped when its run was skipped from Today, and the sequence moves past it", () => {
+    const skipped = state(
+      withDerivedRunEvents([], [{ cycleIndex: 3, dayIndex: 4, outcome: "skipped" }]),
+    );
+    expect(sessionStanding(skipped, run(3, 4, "2026-09-17", { kind: "skipped" }), TODAY)).toBe(
+      "skipped",
+    );
+    expect(sessionStanding(skipped, run(3, 6, "2026-09-19"), TODAY)).toBe("to_come");
+  });
+
+  /**
+   * A skip the day recorded before then, its run since put back: owed, as the coach is told,
+   * and the sequence waits for it again, rather than "Skipped" here and "not done" there.
+   */
+  it("is owed once its run is owed again, whatever the day recorded before", () => {
+    const putBack = state(
+      withDerivedRunEvents(
+        [{ cycleIndex: 3, dayIndex: 4, part: "run", status: "skipped" }],
+        [{ cycleIndex: 3, dayIndex: 4, outcome: "incomplete" }],
+      ),
+    );
+    expect(sessionStanding(putBack, run(3, 4, "2026-09-17"), TODAY)).toBe("next");
   });
 
   it("reads a run completed on the sequence with no activity behind it as completed earlier", () => {
@@ -92,6 +115,30 @@ describe("where a programme's run stands", () => {
     const revised = state([], lifting);
     expect(sessionStanding(revised, run(3, 4, "2026-09-17"), TODAY)).toBe("next");
     expect(sessionStanding(revised, run(3, 2, "2026-09-15"), TODAY)).toBe("not_done");
+  });
+
+  /**
+   * Review, 12 October 2026: "Pick up from today" skips every run it passes, and each one's
+   * page offers to put it back. Put back, a run the sequence went past is owed before anything
+   * after it, and Today offers it next; the page says so before the tap.
+   */
+  it("is Today's next once put back, when the sequence has reached or passed it", () => {
+    // Cycle 3's Thursday tempo run skipped, the sequence at its Saturday long run.
+    const skipped = state([
+      ...withDerivedRunEvents([], [{ cycleIndex: 3, dayIndex: 4, outcome: "skipped" }]),
+      { cycleIndex: 3, dayIndex: 5, part: "session", status: "completed" },
+    ]);
+    const tempo = run(3, 4, "2026-09-17", { kind: "skipped" });
+    expect(putBackGoesNext(skipped, tempo)).toBe(true);
+    expect(putBackGoesNext(skipped, run(2, 2, "2026-09-08", { kind: "skipped" }))).toBe(true);
+    // One of two sessions on the day the sequence is at, the other still owed: still Today's.
+    expect(putBackGoesNext(skipped, run(3, 6, "2026-09-19", { kind: "skipped" }))).toBe(true);
+    // Skipped ahead of time, further along: put back, it is simply to come again.
+    expect(putBackGoesNext(skipped, run(4, 2, "2026-09-22", { kind: "skipped" }))).toBe(false);
+    // Work no slot owns waits in no sequence.
+    expect(putBackGoesNext(skipped, run(null, null, "2026-09-17", { kind: "skipped" }))).toBe(
+      false,
+    );
   });
 
   it("goes by its date when it belongs to no slot the programme has", () => {

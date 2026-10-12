@@ -68,6 +68,7 @@ import {
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   finishSession,
@@ -941,7 +942,7 @@ export class CoachSimulation {
     if (p.skipEvery && a.trainingDays % p.skipEvery === 0) {
       await this.as(a, async (tx) => {
         for (const part of pendingParts(schedule.state, ref))
-          await recordSlotEvent(tx, a.userId, schedule.program.id, ref, part, "skipped", {
+          await skipSlotPart(tx, a.userId, schedule.program, ref, part, {
             occurredOn: today,
             note: "Busy day.",
           });
@@ -1186,12 +1187,15 @@ export class CoachSimulation {
     const today = todayInTimeZone(p.timeZone);
     await this.as(a, async (tx) => {
       const schedule = (await getSchedule(tx, a.userId))!;
+      // The running programme's run: one of a block since replaced is closed (ADR 0054), and a
+      // cycle and day alone would find the old block's as readily as this one's.
       const [occurrence] = await tx
         .select()
         .from(plannedOccurrences)
         .where(
           and(
             eq(plannedOccurrences.userId, a.userId),
+            eq(plannedOccurrences.familyId, schedule.program.familyId),
             eq(plannedOccurrences.sport, "running"),
             eq(plannedOccurrences.cycleIndex, ref.cycleIndex),
             eq(plannedOccurrences.cycleDayIndex, ref.dayIndex),

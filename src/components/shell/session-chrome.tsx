@@ -27,7 +27,8 @@ function insideSession(pathname: string, sessionId: string): boolean {
 /**
  * The session strip (DESIGN.md, The session): a workout minimised is this strip over the tab
  * bar on every screen, ink with card corners, the session's mark and name, the rest's dial and
- * time while one runs, and Resume.
+ * time while one runs, and Resume. The name wraps rather than running off, and the time and
+ * Resume go under it, at the end, before it would have less than a few words' room (rows.css).
  *
  * Today offers Resume itself, as its one action, so there the strip stands only while a rest
  * runs: two ways back to one session on one screen is the duplication the hierarchy rules out,
@@ -75,13 +76,18 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
         style={{ bottom: "var(--nav-reserve)" }}
       >
         <aside aria-label="Workout in progress" className="session-strip">
-          <Art kind="mark" sport="strength" size={16} className="session-strip-mark" />
-          <span className="session-strip-name">{session.name}</span>
-          {session.restTimerEnabled && <RestTime sessionId={session.id} />}
-          {/* The whole workout, prefetched, as Today's Resume is (ADR 0050). */}
-          <Link href={`/workouts/${session.id}`} prefetch className="session-strip-resume">
-            Resume
-          </Link>
+          <span className="session-strip-title">
+            <Art kind="mark" sport="strength" size={16} className="session-strip-mark" />
+            <span className="session-strip-name">{session.name}</span>
+          </span>
+          {/* The time and Resume go under the name together, when it has too little room. */}
+          <span className="session-strip-end">
+            {session.restTimerEnabled && <RestTime sessionId={session.id} />}
+            {/* The whole workout, prefetched, as Today's Resume is (ADR 0050). */}
+            <Link href={`/workouts/${session.id}`} prefetch className="session-strip-resume">
+              Resume
+            </Link>
+          </span>
         </aside>
       </div>
     </div>

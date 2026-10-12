@@ -343,6 +343,9 @@ describe("what is on a day", () => {
       familyId: wednesday.familyId,
       cycleIndex: 1,
       dayName: "Upper A",
+      dayFocus: null,
+      // Its programme is still the athlete's.
+      closed: false,
     });
     // Work no day owns keeps its date and its sport, and no day's name is borrowed for it.
     expect(named.saturday).toMatchObject({ id: saturday.id, dayName: null });

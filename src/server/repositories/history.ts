@@ -34,6 +34,8 @@ export async function readHistoryWorkouts(
       gymId: workoutSessions.gymId,
       gymName: gyms.name,
       dayName: programDays.name,
+      /** The saved routine's name it was started from, as it was then (`sessionName`). */
+      title: activities.title,
       sleepHours: workoutSessions.sleepHours,
       // Explicit qualifiers keep correlated columns intact in Drizzle's select list. The sets
       // are counted as the workout lists them, warm-ups aside (`workingSetCount`).

@@ -204,3 +204,12 @@ export function dayParts(pieces: readonly DayPiece[]): PrintPart[] {
   }
   return parts.filter((part) => part.kind !== "strength" || part.columns.length > 0);
 }
+
+/**
+ * The day's print said for a screen reader: the date, then what it holds by name in the day's
+ * order, "then" between them, as Today's print says its parts. A name may hold commas of its
+ * own (a routine's often does), so a comma alone would not say where one ends.
+ */
+export function dayPrintLabel(date: string, names: readonly string[]): string {
+  return `${date} in full ink, in the day's order: ${names.join(", then ")}`;
+}

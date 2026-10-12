@@ -117,6 +117,7 @@ describe("history projection", () => {
           gymId: w.gymId,
           gymName: w.gym.name,
           dayName: w.day?.name ?? null,
+          title: w.title,
           sleepHours: w.sleepHours,
           setCount: w.exercises.reduce((n, e) => n + workingSetCount(e.sets), 0),
           exercises: w.exercises.map((e) => ({

@@ -48,10 +48,13 @@
 .page-header-top > .page-header-action:has(> button:only-child, > a:only-child) {
   margin-right: calc(-10 * var(--ov-u));
 }
-/* A nested screen: the way back, named, on a 48-pt bar, then the title under it. */
+/* A nested screen: the way back, named, on a 48-pt bar, then the title under it. The action
+   beside the way back (the rest pill) goes under it, at the end, before its name would have
+   less than a few words' room (DESIGN.md, Text Never Runs Off): at 200% text, not at 100%. */
 .page-header-bar {
   display: flex;
   min-height: calc(48 * var(--ov-u));
+  flex-wrap: wrap;
   align-items: center;
   gap: calc(6 * var(--ov-u));
   margin: 0 calc(-12 * var(--ov-u));
@@ -68,8 +71,9 @@
 .back-link {
   display: flex;
   min-width: 0;
+  max-width: max-content;
   min-height: var(--ov-target-header);
-  flex-shrink: 1;
+  flex: 1 1 7rem;
   align-items: center;
   gap: 2px;
   padding: 0 calc(8 * var(--ov-u)) 0 calc(4 * var(--ov-u));
@@ -80,10 +84,12 @@
 .back-link > svg {
   flex-shrink: 0;
 }
+/* A long name wraps between its words beside the chevron (DESIGN.md, Text Never Runs Off). */
 .back-link-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  text-align: left;
 }
 
 /* ---------- a screen's sections, its filters, a sheet's rows ---------- */
@@ -574,27 +580,51 @@ li:last-child > .sheet-row {
 .session-strip {
   display: flex;
   min-height: calc(calc(52 * var(--ov-u)) + var(--ov-grow) * 0.6);
+  flex-wrap: wrap;
   align-items: center;
-  gap: calc(10 * var(--ov-u));
+  gap: calc(4 * var(--ov-u)) calc(10 * var(--ov-u));
   /* Between the gutters, and beyond a phone over the page's column (ADR 0052). */
   --strip-side: max(var(--ov-gutter), (100% - var(--content-width)) / 2 + var(--ov-gutter));
   margin: 0 max(var(--strip-side), env(safe-area-inset-right)) calc(8 * var(--ov-u))
     max(var(--strip-side), env(safe-area-inset-left));
-  padding: 0 calc(4 * var(--ov-u)) 0 calc(14 * var(--ov-u));
+  /* Resume stands 4 pt inside the strip's edges, under the name as beside it. */
+  padding: calc(4 * var(--ov-u));
+  padding-left: calc(14 * var(--ov-u));
   border-radius: var(--ov-radius-card);
   background: var(--ov-ink);
   box-shadow: var(--ov-shadow-floating, none);
   color: var(--ov-on-ink);
   --ov-print-strength: var(--ov-light-print-strength);
 }
-.session-strip-name {
+/* The name wraps between its words, never ending in an ellipsis. One that fits beside the time
+   and Resume keeps the strip one line; else they go under it, at the end, before it would have
+   less than a few words' room (DESIGN.md, Text Never Runs Off). */
+.session-strip-title {
+  display: flex;
   min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
+  max-width: max-content;
+  flex: 1 1 9rem;
+  align-items: flex-start;
+  gap: calc(10 * var(--ov-u));
   font-size: var(--ov-type-body);
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+}
+/* On the name's first line, however many it takes. */
+.session-strip-mark {
+  flex-shrink: 0;
+  margin-top: calc((1lh - 16px) / 2);
+}
+.session-strip-name {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.session-strip-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(10 * var(--ov-u));
+  margin-left: auto;
 }
 .session-strip-resume {
   display: inline-flex;

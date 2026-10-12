@@ -99,6 +99,7 @@ const session: SessionVM = {
   id: "session",
   gym: { id: "gym", name: "Test gym", kind: "gym" },
   day: null,
+  title: null,
   cycleIndex: null,
   startedAt: "2026-09-08T11:00:00.000Z",
   completedAt: null,
@@ -128,6 +129,8 @@ function renderLogger(
     amending?: boolean;
     preferredUnit?: "kg" | "lb";
     onLogged?: (seconds: number) => void;
+    /** The saved routine's name the workout was started from. */
+    title?: string;
   } = {},
 ) {
   const merged = { ...exercise, ...overrides.exercise };
@@ -138,6 +141,7 @@ function renderLogger(
         ...session,
         completedAt: overrides.amending ? "2026-09-08T12:30:00.000Z" : session.completedAt,
         preferredUnit: overrides.preferredUnit ?? "kg",
+        title: overrides.title ?? session.title,
         exercises: [merged],
       }}
       userId="user"
@@ -1003,6 +1007,28 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
   expect(screen.queryByRole("button", { name: "Reopen" })).toBeNull();
   press("Complete, skip, superset, substitute");
   expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
+});
+
+it("names its way back for the routine the workout was started from", () => {
+  renderLogger({ title: "Push day at home" });
+  expect(screen.getByRole("button", { name: "Push day at home" })).toBeTruthy();
+  expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
+it("says a routine's long name as the workout, so the dock stays whole on screen", async () => {
+  // As long as a routine's name may be: the workout's own screens say it, as their title.
+  const name = "Hotel gym push day: dumbbell bench, overhead press, slow tempo dips, ".padEnd(
+    120,
+    "and the band finisher ",
+  );
+  expect(name).toHaveLength(120);
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  renderLogger({ title: name, exercise: { sets: [saved] } });
+  expect(screen.getByRole("button", { name: "Workout" })).toBeTruthy();
+  more("Complete");
+  await screen.findByText("Done");
+  expect(screen.getByRole("button", { name: "Back to the workout" })).toBeTruthy();
+  expect(screen.queryByText(name, { exact: false })).toBeNull();
 });
 
 it("makes Complete the dock's button once the planned sets are in, another set a tap away", async () => {

@@ -358,7 +358,7 @@ describe("the day finished today", () => {
       startDayIndex: 1,
       events: withDerivedRunEvents(
         [on(part(1, 1, "session"), "2026-09-24")],
-        runEventsFromOccurrences([{ cycleIndex: 1, dayIndex: 2, outcome: "logged", occurredOn }]),
+        [{ cycleIndex: 1, dayIndex: 2, outcome: "logged", occurredOn }],
       ),
     });
     expect(slotFinishedOn(ran("2026-09-25"), "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 2 });
@@ -415,6 +415,52 @@ describe("endurance answers the day it belongs to", () => {
     );
   });
 
+  /**
+   * Review, 12 October 2026: a run skipped from Today is skipped on its session, which carried
+   * no date, so a programme whose last days were picked up from today said it finished on the
+   * last day trained before them. The day's skip used to carry the date.
+   */
+  it("dates a run half skipped by its last skip, and the programme's finish with it", () => {
+    const skipped = (occurredOn: string): SlotOccurrence => ({
+      ...occurrence(2, 3, "skipped"),
+      occurredOn,
+    });
+    expect(
+      runEventsFromOccurrences([
+        skipped("2026-10-12"),
+        skipped("2026-10-11"),
+        occurrence(2, 3, "cancelled"),
+      ]),
+    ).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped", occurredOn: "2026-10-12" },
+    ]);
+    // Done, it is dated by its log alone: a skip finishes nothing on Today.
+    expect(
+      runEventsFromOccurrences([
+        { ...occurrence(2, 3, "logged"), occurredOn: "2026-10-10" },
+        skipped("2026-10-12"),
+      ])[0]?.occurredOn,
+    ).toBe("2026-10-10");
+
+    // Every day done by 1 October but the last day's run, skipped from Today on the 12th: on
+    // its session, as Today skips a run, so the day records only its workout.
+    const last = { cycleIndex: 8, dayIndex: 6 };
+    const recorded = allSlotsOf(state())
+      .filter((ref) => ref.dayIndex !== 7)
+      .flatMap((ref) =>
+        ref.cycleIndex === last.cycleIndex && ref.dayIndex === last.dayIndex
+          ? [part(8, 6, "session")]
+          : done(ref.cycleIndex, ref.dayIndex),
+      )
+      .map((event) => ({ ...event, occurredOn: "2026-10-01" }));
+    const finished = state(
+      withDerivedRunEvents(recorded, [
+        { ...occurrence(8, 6, "skipped"), occurredOn: "2026-10-12" },
+      ]),
+    );
+    expect(finishedOn(finished)).toBe("2026-10-12");
+  });
+
   it("a run nobody has answered yet leaves the day owing it", () => {
     expect(runEventsFromOccurrences([occurrence(2, 3, "incomplete")])).toEqual([]);
   });
@@ -440,15 +486,47 @@ describe("endurance answers the day it belongs to", () => {
   });
 
   it("keeps the answer somebody gave by hand", () => {
-    const recorded: SlotEvent[] = [{ cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped" }];
-    const derived: SlotEvent[] = [
+    const recorded: SlotEvent[] = [
       { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
-      { cycleIndex: 2, dayIndex: 6, part: "run", status: "completed" },
+      { cycleIndex: 2, dayIndex: 4, part: "run", status: "skipped" },
     ];
-    expect(withDerivedRunEvents(recorded, derived)).toEqual([
-      { cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped" },
+    // A completion recorded on the day stands, whatever its run says; so does a skip its runs
+    // agree with, or that only work the programme withdrew stands beside.
+    expect(
+      withDerivedRunEvents(recorded, [
+        occurrence(2, 3, "incomplete"),
+        occurrence(2, 4, "cancelled"),
+        occurrence(2, 6, "logged"),
+      ]),
+    ).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
+      { cycleIndex: 2, dayIndex: 4, part: "run", status: "skipped" },
       { cycleIndex: 2, dayIndex: 6, part: "run", status: "completed" },
     ]);
+  });
+
+  /**
+   * A skip recorded on the day, from before Today skipped the runs themselves, gives way to
+   * them as a skipped workout gives way to one finished after all (owner, 12 October 2026).
+   */
+  it("lets a skip recorded on the day give way to its run logged, or owed again", () => {
+    const skipped: SlotEvent[] = [{ cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped" }];
+    expect(withDerivedRunEvents(skipped, [occurrence(2, 3, "logged")])).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
+    ]);
+    expect(withDerivedRunEvents(skipped, [occurrence(2, 3, "legacy_completed")])).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
+    ]);
+    // Put back, or its log deleted: owed, so the day is owed and the sequence waits for it.
+    expect(withDerivedRunEvents(skipped, [occurrence(2, 3, "incomplete")])).toEqual([]);
+    // One of two put back is still one owed.
+    expect(
+      withDerivedRunEvents(skipped, [occurrence(2, 3, "skipped"), occurrence(2, 3, "incomplete")]),
+    ).toEqual([]);
+    // Skipped on the runs too, as the migration left it: one answer, said once.
+    expect(withDerivedRunEvents(skipped, [occurrence(2, 3, "skipped")])).toEqual(skipped);
+    // A day with no runs of its own keeps the skip it recorded.
+    expect(withDerivedRunEvents(skipped, [])).toEqual(skipped);
   });
 
   /**
@@ -464,10 +542,7 @@ describe("endurance answers the day it belongs to", () => {
     expect(nextPendingSlot(stalled)).toEqual({ cycleIndex: 1, dayIndex: 3 });
 
     const ran = state(
-      withDerivedRunEvents(
-        [...done(1, 2), ...lifted],
-        runEventsFromOccurrences([occurrence(1, 3, "logged")]),
-      ),
+      withDerivedRunEvents([...done(1, 2), ...lifted], [occurrence(1, 3, "logged")]),
     );
     expect(slotStatus(ran, { cycleIndex: 1, dayIndex: 3 })).toBe("completed");
     expect(nextPendingSlot(ran)).toEqual({ cycleIndex: 1, dayIndex: 4 });

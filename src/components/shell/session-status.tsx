@@ -1,7 +1,7 @@
 import { requireOnboardedUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionChromeName, sessionName } from "@/lib/labels";
 
 import { SessionChrome } from "./session-chrome";
 
@@ -23,7 +23,9 @@ export async function SessionStatus() {
     <SessionChrome
       session={{
         id: session.id,
-        name: session.dayName ?? UNPLANNED_SESSION,
+        // A routine's long name is the workout's title on its own screens; the strip says
+        // "Workout" for it, so it stays a line or two at any text size.
+        name: sessionChromeName(sessionName(session.dayName, session.title)),
         restTimerEnabled: profile.restTimerEnabled,
       }}
     />

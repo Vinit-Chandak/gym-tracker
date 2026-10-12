@@ -379,6 +379,36 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
 export const UNPLANNED_SESSION = "Unplanned session";
 
 /**
+ * A workout's name on the athlete's own screens: its programme day's; else the saved routine's
+ * it was started from, as the routine was named that day (its title); else UNPLANNED_SESSION.
+ * A friend reads the day's name or "Workout", never a routine's (ADR 0026).
+ */
+export function sessionName(
+  dayName: string | null | undefined,
+  title: string | null | undefined,
+): string {
+  return dayName ?? title ?? UNPLANNED_SESSION;
+}
+
+/**
+ * The longest workout name the session's chrome says whole (DESIGN.md, The session): the strip,
+ * a way back to the workout and the logger's Back to. Each stays a line or two at 200% text on a
+ * 320-pt phone, where a line holds about ten letters. A programme day's name and
+ * UNPLANNED_SESSION are inside it; a routine's name may run to 120 characters.
+ */
+export const SESSION_CHROME_NAME_LIMIT = 20;
+
+/** A workout's name in the session's chrome: whole while it is short, else "Workout". */
+export function sessionChromeName(name: string): string {
+  return name.length <= SESSION_CHROME_NAME_LIMIT ? name : "Workout";
+}
+
+/** The logger's way back to the list, once an exercise is done: "Back to Lower A". */
+export function backToSession(name: string): string {
+  return name.length <= SESSION_CHROME_NAME_LIMIT ? `Back to ${name}` : "Back to the workout";
+}
+
+/**
  * The active programme by its name, said to be complete once nothing but rest is left in it
  * (ADR 0051), as Today says "Programme complete": its fit at a gym is still read, for repeating
  * the block, but not as though it were still being trained.

@@ -977,6 +977,8 @@ export async function planningContext(
         startedAt: w.startedAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
         day: w.day?.name ?? null,
+        // The saved routine's name it was started from, the athlete's own label (ADR 0026).
+        title: w.title,
         gym: w.gym.name,
         checkIn: {
           sleepHours: w.sleepHours,

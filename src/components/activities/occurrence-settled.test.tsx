@@ -26,6 +26,7 @@ const occurrence = (overrides: Partial<ScheduledOccurrence>): ScheduledOccurrenc
     originalWeekIndex: null,
     originalScheduledOn: null,
     resolution: { kind: "incomplete" },
+    closed: false,
     loggable: false,
     ...overrides,
   }) as ScheduledOccurrence;
@@ -66,4 +67,71 @@ it("says a cancelled session was cancelled, and still offers the sport", () => {
   expect(screen.getByRole("link", { name: "Log a ride anyway" }).getAttribute("href")).toBe(
     "/training/new?sport=cycling",
   );
+});
+
+/**
+ * ADR 0054: a session of a programme the athlete has moved on from is not logged by its URL.
+ * The log page says how its programme ended, and offers the sport on its own.
+ */
+it("says a replaced programme's session can no longer be logged, and offers the sport", () => {
+  render(
+    <OccurrenceSettled
+      occurrence={occurrence({ familyId: "old-block", scheduledOn: "2026-06-27", closed: true })}
+      closure={{
+        name: "Strength Maintenance + 2 Runs",
+        closedOn: "2026-07-06",
+        followedBy: "Hybrid Half Marathon",
+      }}
+    />,
+  );
+  // Nothing was done about it, so the screen does not say it was.
+  expect(screen.queryByText("Already done")).toBeNull();
+  // Ended, not replaced: the block it was may have finished long before the next began.
+  expect(screen.getByText("Its programme has ended")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026, so the run scheduled for Sat 27 Jun 2026 can no longer be logged. You can still log a run on its own.",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log a run anyway" }).getAttribute("href")).toBe(
+    "/training/new?sport=running",
+  );
+});
+
+it("says when an archived programme's session stopped being loggable", () => {
+  render(
+    <OccurrenceSettled
+      occurrence={occurrence({
+        familyId: "old-block",
+        disposition: "skipped",
+        resolution: { kind: "skipped" },
+        closed: true,
+      })}
+      closure={{ name: "Hybrid Half Marathon", closedOn: "2026-07-06", followedBy: null }}
+    />,
+  );
+  expect(screen.getByText("Its programme was archived")).toBeTruthy();
+  expect(
+    screen.getByText(/^Hybrid Half Marathon was archived on Mon 6 Jul 2026, so the run/),
+  ).toBeTruthy();
+});
+
+/**
+ * Completed before the record was kept, a closed session is settled: it was done, so the screen
+ * neither says its programme ended over it nor offers to log it a second time.
+ */
+it("says a closed session completed before the record was kept is already settled", () => {
+  render(
+    <OccurrenceSettled
+      occurrence={occurrence({
+        familyId: "old-block",
+        disposition: "legacy_completed",
+        resolution: { kind: "legacy_completed" },
+        closed: true,
+      })}
+    />,
+  );
+  expect(screen.getByText("This session is already settled")).toBeTruthy();
+  expect(screen.queryByText(/can no longer be logged/)).toBeNull();
+  expect(screen.queryByRole("link", { name: "Log a run anyway" })).toBeNull();
 });

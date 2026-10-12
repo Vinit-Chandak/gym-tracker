@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   plan: vi.fn(),
   schedule: vi.fn(),
   occurrences: vi.fn(),
+  active: vi.fn(),
 }));
 
 vi.mock("@/server/auth", () => ({
@@ -20,7 +21,7 @@ vi.mock("@/server/auth", () => ({
 vi.mock("@/server/queries/request-profile", () => ({
   getRequestProfile: async () => ({ timeZone: "UTC" }),
 }));
-vi.mock("@/server/queries/active-session", () => ({ getActiveSession: async () => null }));
+vi.mock("@/server/queries/active-session", () => ({ getActiveSession: mocks.active }));
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/db/with-user", () => ({
   withUser: async (_db: unknown, _id: string, work: (tx: unknown) => Promise<unknown>) => work({}),
@@ -154,6 +155,7 @@ const tempo = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.occurrences.mockResolvedValue([tempo]);
+  mocks.active.mockResolvedValue(null);
 });
 
 it("marks the run Today offers as next, and logs it here as Today would", async () => {
@@ -185,4 +187,18 @@ it("names the day a start begins the next cycle with", async () => {
   expect(html).not.toContain("Start next cycle");
   // Said once: the label names the day, so the button's name does not repeat it.
   expect(html).not.toContain("Start cycle 2 with Upper: Upper");
+});
+
+it("says which workout is in progress: its day's, else the routine's it was started from", async () => {
+  mocks.schedule.mockResolvedValue({ state: schedule(3), days: DAYS });
+  mocks.plan.mockResolvedValue(plan(4, 3));
+  const open = { id: "s1", programDayId: null, dayName: null, title: null };
+  mocks.active.mockResolvedValue({ ...open, title: "Hotel gym push, with the band finisher" });
+  expect(renderToStaticMarkup(await ChooseDayPage())).toContain(
+    "Hotel gym push, with the band finisher is in progress.",
+  );
+  mocks.active.mockResolvedValue({ ...open, programDayId: "day-3", dayName: "Lower" });
+  expect(renderToStaticMarkup(await ChooseDayPage())).toContain("Lower is in progress.");
+  mocks.active.mockResolvedValue(open);
+  expect(renderToStaticMarkup(await ChooseDayPage())).toContain("A workout is in progress.");
 });

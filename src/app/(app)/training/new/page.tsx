@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
+import { showsClosure } from "@/components/activities/programme-closure";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -12,7 +13,7 @@ import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { getOccurrence } from "@/server/repositories/occurrences";
+import { getOccurrence, programmeClosure } from "@/server/repositories/occurrences";
 import { withPreparedTargets } from "@/server/repositories/coach-plans";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
@@ -29,8 +30,9 @@ function single(value: string | string[] | undefined): string | null {
  *
  * The sport comes from the entry point and is fixed from there. `?occurrence=` logs exactly
  * that scheduled session — never the next unlogged one, never one matched by date — and an
- * occurrence that is missing, foreign, already logged or cancelled is refused rather than
- * swapped for something plausible. With no sport at all, this is the chooser.
+ * occurrence that is missing, foreign, already logged, cancelled or of a programme the athlete
+ * has moved on from is refused rather than swapped for something plausible. With no sport at
+ * all, this is the chooser.
  */
 export default async function NewActivityPage(props: PageProps<"/training/new">) {
   const search = await props.searchParams;
@@ -40,23 +42,32 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   const occurrenceId = single(search.occurrence);
   if (search.occurrence !== undefined && !occurrenceId) notFound();
   if (occurrenceId) requireUuid(occurrenceId);
-  const occurrence = occurrenceId
+  const { occurrence, closure } = occurrenceId
     ? await withUser(
         getDb(),
         user.id,
         async (tx) => {
           const found = await getOccurrence(tx, user.id, occurrenceId);
-          // Logged against what the coach prepared for today, where it prepared something.
-          return found ? (await withPreparedTargets(tx, user.id, [found]))[0]! : null;
+          return {
+            // Logged against what the coach prepared for today, where it prepared something.
+            occurrence: found ? (await withPreparedTargets(tx, user.id, [found]))[0]! : null,
+            // How its programme stopped being the athlete's, where it is refused for that
+            // (ADR 0054) rather than for having been logged or cancelled.
+            closure:
+              found && showsClosure(found)
+                ? await programmeClosure(tx, user.id, found.familyId, profile.timeZone)
+                : null,
+          };
         },
         { readOnly: true },
       )
-    : null;
+    : { occurrence: null, closure: null };
   // Missing or foreign is genuinely "no such thing". An occurrence this account owns that
-  // is already logged or cancelled is refused too, but saying it does not exist would be a
-  // lie about their own session; it is told what became of it instead.
+  // is already logged, cancelled or closed with its programme is refused too, but saying it
+  // does not exist would be a lie about their own session; it is told what became of it.
   if (occurrenceId && !occurrence) notFound();
-  if (occurrence && !occurrence.loggable) return <OccurrenceSettled occurrence={occurrence} />;
+  if (occurrence && !occurrence.loggable)
+    return <OccurrenceSettled occurrence={occurrence} closure={closure} />;
 
   const requested = single(search.sport);
   if (requested && !(isActivitySport(requested) && isEnduranceSport(requested))) notFound();

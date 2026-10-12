@@ -20,9 +20,38 @@ it("gives a session's effort out of five", () => {
     sport: "running",
     sessionTargets: { durationMs: [25 * MINUTE, 30 * MINUTE], effort: [1, 2] },
   });
-  // The range says its unit once, as the card's figure and the programme day do.
+  // The range says its unit once, as the card's figure and the programme day do, and is held
+  // at its dash where the line wraps.
   expect(sessionLine(prescription, DEFAULT_SPORT_UNITS)).toBe(
-    "25–30\u00a0min ·\u00a0Effort 1\u2060–\u20602 of\u00a05",
+    "25\u2060–\u206030\u00a0min ·\u00a0Effort 1\u2060–\u20602 of\u00a05",
+  );
+});
+
+/**
+ * Review, 12 October 2026: at 320 pt the session's line broke at a range's dash, "4.7–6.0 mi ·
+ * 37–" over "47 min", against the rule that a range is held at its dash.
+ */
+it("holds a session's distance and duration ranges at their dashes, and a step's", () => {
+  const prescription = endurancePrescriptionSchema.parse({
+    prescriptionVersion: 1,
+    sport: "running",
+    sessionTargets: { distanceMetres: [7500, 9600], durationMs: [37 * MINUTE, 47 * MINUTE] },
+    nodes: [
+      {
+        kind: "step",
+        id: "steady",
+        phase: "work",
+        action: "run",
+        target: { kind: "duration", ms: [20 * MINUTE, 25 * MINUTE] },
+      },
+    ],
+  });
+  expect(sessionLine(prescription, { distanceUnit: "mi", poolUnit: "yd" })).toBe(
+    "4.7\u2060–\u20606.0\u00a0mi ·\u00a037\u2060–\u206047\u00a0min",
+  );
+  const [step] = expandSteps(prescription);
+  expect(stepLine(step!, "running", DEFAULT_SPORT_UNITS)).toBe(
+    "Run ·\u00a020\u2060–\u206025\u00a0min",
   );
 });
 

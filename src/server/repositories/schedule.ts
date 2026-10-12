@@ -16,7 +16,6 @@ import {
   pickUpFromToday,
   progress,
   projectedEndDate,
-  runEventsFromOccurrences,
   sessionsBehind,
   slotFinishedOn,
   slotFor,
@@ -34,6 +33,8 @@ import {
 } from "@/domain/schedule";
 import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
+
+import { skipSlotOccurrences } from "./occurrences";
 
 export type ActiveProgram = {
   id: string;
@@ -142,16 +143,30 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
       // The programme's own endurance work, as the sequence needs to read it: which slot of
-      // the cycle it belongs to, whether anything still owes an answer, and the day a logged one
-      // was done on. Joined here rather than fetched after, so the day a running slot completes
-      // costs no extra round trip.
+      // the cycle it belongs to, whether anything still owes an answer, the day a logged one
+      // was done on, and the day a skipped one was skipped: its last skip's date, or, for a
+      // skip made on its page, which carries none, the athlete's date it was made on. Joined
+      // here rather than fetched after, so the day a running slot completes costs no extra
+      // round trip.
       enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
         select json_agg(json_build_object(
           'cycleIndex', o.cycle_index,
           'cycleDayIndex', o.cycle_day_index,
           'disposition', o.disposition,
           'logged', (a.id is not null),
-          'occurredOn', a.occurred_on
+          'occurredOn', a.occurred_on,
+          'skippedOn', case when o.disposition = 'skipped' then (
+            select coalesce(
+              e.occurred_on,
+              (e.created_at at time zone (
+                select p.time_zone from profiles p where p.id = o.user_id
+              ))::date
+            )
+            from occurrence_events e
+            where e.user_id = o.user_id and e.occurrence_id = o.id and e.kind = 'skipped'
+            order by e.created_at desc
+            limit 1
+          ) end
         ))
         from planned_occurrences o
         left join activities a
@@ -193,10 +208,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       cycles: program.cycles,
       repeats: program.repeats,
       startDayIndex: program.startDayIndex,
-      events: withDerivedRunEvents(
-        row.events,
-        runEventsFromOccurrences(slotOccurrences(row.days, row.enduranceOccurrences)),
-      ),
+      events: withDerivedRunEvents(row.events, slotOccurrences(row.days, row.enduranceOccurrences)),
     },
   };
 }
@@ -209,6 +221,8 @@ type EnduranceRow = {
   logged: boolean;
   /** The local date of the activity that answered it; null until one has. */
   occurredOn: string | null;
+  /** The athlete's date it was last skipped on, while it is skipped; null otherwise. */
+  skippedOn: string | null;
 };
 
 /**
@@ -238,7 +252,11 @@ function slotOccurrences(
           : row.disposition === "pending"
             ? ("incomplete" as const)
             : row.disposition,
-        ...(row.logged && row.occurredOn ? { occurredOn: row.occurredOn } : {}),
+        ...(row.logged && row.occurredOn
+          ? { occurredOn: row.occurredOn }
+          : !row.logged && row.disposition === "skipped" && row.skippedOn
+            ? { occurredOn: row.skippedOn }
+            : {}),
       },
     ];
   });
@@ -302,6 +320,37 @@ export async function recordSlotEvent(
       : insert.onConflictDoNothing({ target: SLOT_PART })
   ).returning({ id: programSlotEvents.id });
   return written.length > 0;
+}
+
+/**
+ * Skips one half of a slot on purpose, from Today or "Pick up from today": the workout, or the
+ * run (owner, 12 October 2026).
+ *
+ * A day's run is answered on its occurrences, not beside them (`withDerivedRunEvents`), so
+ * skipping it skips each of its sessions still owed: Skipped on Today, on the programme and in
+ * the coach's adherence alike, never owed in one and skipped in another. Each can still be
+ * logged, which replaces the skip on the day too. Only a day whose run has no occurrence at
+ * all, from before occurrences, records the skip on the day itself. The workout half has no
+ * occurrence, and skipping it never touches the day's run.
+ */
+export async function skipSlotPart(
+  db: DbOrTx,
+  userId: string,
+  program: Pick<ActiveProgram, "id" | "familyId">,
+  ref: SlotRef,
+  part: SlotPart,
+  details: { occurredOn: string; note?: string | null },
+): Promise<void> {
+  if (part === "run") {
+    const skipped = await skipSlotOccurrences(
+      db,
+      userId,
+      { familyId: program.familyId, cycleIndex: ref.cycleIndex, cycleDayIndex: ref.dayIndex },
+      details,
+    );
+    if (skipped !== null) return;
+  }
+  await recordSlotEvent(db, userId, program.id, ref, part, "skipped", details);
 }
 
 /**

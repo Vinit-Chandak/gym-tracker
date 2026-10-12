@@ -302,6 +302,26 @@ describe("sessionStats", () => {
     expect(again.exercises).toHaveLength(1);
     expect(again.exercises[0]).toMatchObject({ workingSets: 1, topWeightKg: 60 });
   });
+  it("lists the movements in the order the workout first worked them", () => {
+    const { exercises } = sessionStats(
+      workout([
+        // Left undone in the first slot and worked in the last: it comes where it was worked.
+        { exerciseId: "pull-up", exercise: pullUp, sets: [] },
+        { exerciseId: "leg-press", exercise: legPress, sets: [set({ weight: 120, reps: 10 })] },
+        {
+          exerciseId: "mine",
+          exercise: { ...bench, userId: "alice" },
+          sets: [set({ weight: 20, reps: 10 })],
+        },
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+        // A second slot of a movement already listed keeps it in its first place.
+        { exerciseId: "leg-press", exercise: legPress, sets: [set({ weight: 130, reps: 8 })] },
+        { exerciseId: "pull-up", exercise: pullUp, sets: [set({ weight: 0, reps: 8 })] },
+      ]),
+      "UTC",
+    );
+    expect(exercises.map((e) => e.exerciseId)).toEqual(["leg-press", "bench", "pull-up"]);
+  });
   it("refuses an unfinished workout", () => {
     expect(() => sessionStats(workout([], { completedAt: null }), "UTC")).toThrow();
   });

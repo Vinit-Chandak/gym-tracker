@@ -47,3 +47,39 @@ it("breaks a word only where it cannot fit a line of its own", () => {
   });
   expect(offenders).toEqual([]);
 });
+
+/** The declarations of the first rule written for exactly this selector, comments aside. */
+function rule(file: string, selector: string): string {
+  const css = readFileSync(join(SRC, "styles/form-v2", file), "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+  for (const [, name, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+    if (name!.trim() === selector) return body!;
+  throw new Error(`No rule for ${selector} in ${file}`);
+}
+
+it("says a workout's name in the session's chrome whole, wrapping, never in an ellipsis", () => {
+  // The strip, a session's way back and a page's way back carry a routine's name.
+  for (const [file, selector] of [
+    ["rows.css", ".session-strip-name"],
+    ["rows.css", ".back-link-label"],
+    ["session.css", ".session-back > span"],
+  ] as const) {
+    const body = rule(file, selector);
+    expect(body).toMatch(/overflow-wrap:\s*break-word/);
+    expect(body).not.toMatch(/text-overflow|white-space:\s*nowrap/);
+  }
+  // What stands beside the name (the time and Resume, the rest pill, More) goes under it, at
+  // the end, before the name would have less than a few words' room.
+  for (const [file, row, name, end] of [
+    ["rows.css", ".session-strip", ".session-strip-title", ".session-strip-end"],
+    ["session.css", ".session-header", ".session-back", ".session-header-end"],
+    ["rows.css", ".page-header-bar", ".back-link", ".page-header-bar > .page-header-action"],
+  ] as const) {
+    expect(rule(file, row)).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule(file, name)).toMatch(/flex:\s*1 1 \d+rem/);
+    expect(rule(file, name)).toMatch(/max-width:\s*max-content/);
+    expect(rule(file, end)).toMatch(/margin-left:\s*auto/);
+  }
+});
