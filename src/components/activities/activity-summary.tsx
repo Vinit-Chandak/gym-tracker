@@ -19,7 +19,10 @@ import type {
 /**
  * What a follower sees of one session (plan §9.2), laid out as its owner's own record is: a
  * workout's time, sets and volume three across, as the finished workout says them, then its
- * movements; a run's, a ride's or a swim's figures two by two, as the activity's page does.
+ * movements; a run's, a ride's or a swim's figures two by two, as the activity's page does. A
+ * figure nobody recorded is left out here, where the owner's page says it as a dash ("Distance —"
+ * on an indoor ride): the owner is shown what a correction could still add, a follower only what
+ * was recorded.
  *
  * The shape of this component is the privacy rule made visible: it takes shared rows and
  * nothing else. There is no activity here to accidentally read a note, an effort, a heart
