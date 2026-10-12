@@ -94,10 +94,24 @@ it("says a run's minutes once, under a day's time that already says them", () =>
   expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime: "40–50 min" })).toBe(
     "4.3\u2060–\u20605.6\u00a0mi ·\u00a0Effort 2 of\u00a05",
   );
-  // A time that says something else leaves the run's own minutes said.
-  expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime: "50–60 min" })).toBe(
-    "4.3\u2060–\u20605.6\u00a0mi ·\u00a040\u2060–\u206050\u00a0min ·\u00a0Effort 2 of\u00a05",
+  // The note is the coach's own writing: read for its minutes, not matched to the letter.
+  for (const dayTime of [
+    "40-50 min",
+    "40 – 50 minutes",
+    "40–50 mins",
+    "40\u2060–\u206050\u00a0min",
+  ])
+    expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime })).toBe(
+      "4.3\u2060–\u20605.6\u00a0mi ·\u00a0Effort 2 of\u00a05",
+    );
+  expect(runSummary({ ...run, durationMaxMinutes: 40 }, miles, { dayTime: "40 min" })).toBe(
+    "4.3\u2060–\u20605.6\u00a0mi ·\u00a0Effort 2 of\u00a05",
   );
+  // A time that says something else, or more than the minutes, leaves the run's own said.
+  for (const dayTime of ["50–60 min", "About 40–50 min", "40–50 min + strides"])
+    expect(runSummary({ ...run, durationMaxMinutes: 50 }, miles, { dayTime })).toBe(
+      "4.3\u2060–\u20605.6\u00a0mi ·\u00a040\u2060–\u206050\u00a0min ·\u00a0Effort 2 of\u00a05",
+    );
 });
 
 it("gives a programme run's distance in the athlete's road unit, as Today does", () => {
