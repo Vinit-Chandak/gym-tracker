@@ -1,5 +1,5 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { accessoryGlyph, modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { modalityGlyph, typeGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
@@ -87,9 +87,9 @@ export function rowPrescription(slot: PlannedExercisePreview, length: SetLengthU
 
 /**
  * The programme's exercises, or the coach's plan for them, in the programme's order. A coach's
- * row names its machine when it chose one, and is led by that machine's glyph where the machine
- * is an accessory, as the workout's row will be (`equipmentGlyph`); otherwise by what loads the
- * movement.
+ * row names its machine when it chose one, and is led by that machine's glyph where its type has
+ * one of its own (`typeGlyph`: an accessory, a cardio machine, the Smith machine), as the
+ * workout's row will be (`equipmentGlyph`); otherwise by what loads the movement.
  */
 export function planRows(
   planned: readonly PlannedExercisePreview[],
@@ -128,10 +128,7 @@ export function planRows(
     return {
       key: `${entry.slotId ?? "added"}-${index}`,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
-      glyph:
-        machine?.typeCategory === "accessory"
-          ? accessoryGlyph(machine.typeSlug)
-          : modalityGlyph(slot?.modality),
+      glyph: (machine ? typeGlyph(machine) : null) ?? modalityGlyph(slot?.modality),
       line: dropped
         ? slot
           ? prescription(slot, length)

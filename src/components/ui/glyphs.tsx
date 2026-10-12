@@ -220,7 +220,8 @@ const GLYPHS = {
     <path key="a" d="M3.5 19.5h12.8a1.7 1.7 0 0 0 0-3.4H3.5a1.7 1.7 0 0 0 0 3.4z" />,
     <path key="b" d="M17.2 16.2L19.4 6.5h-4.2" />,
   ],
-  // An indoor bike: a wheel held up by a stand from its hub, on the floor.
+  // An indoor bike: a wheel held up by a stand from its hub, on the floor. It stands for every
+  // bike, and for any cardio machine without a glyph of its own.
   trainer: [
     <path key="a" d="M3.5 20.5h17" />,
     <path key="b" d="M7 20.5L9.6 8.2" />,
@@ -228,6 +229,33 @@ const GLYPHS = {
     <path key="d" d="M8.9 12.4h7.4" />,
     <path key="e" d="M16.3 20.5V5.2h3.2" />,
     <circle key="f" cx="16.3" cy="15.6" r="2.9" />,
+  ],
+  // The other cardio machines, each as itself. A rowing machine, side on: its rail on two feet,
+  // the seat on it, the footplate, and the flywheel at the front, where the rower faces.
+  rower: [
+    <path key="a" d="M3.5 18.5h10.5M4.5 18.5v2M16.5 19v1.5" />,
+    <circle key="b" cx="16.5" cy="14.5" r="4.5" />,
+    <path key="c" d="M6 16.5h3.5" />,
+    <path key="d" d="M12.5 18.5l-1.3-4.5" />,
+  ],
+  // A ski erg, front on: the tower on its foot, a rope out from the top each side to a handle.
+  skiErg: [
+    <rect key="a" x="10" y="3.5" width="4" height="17" rx="2" />,
+    <path key="b" d="M6.5 20.5h11" />,
+    <path key="c" d="M10 6.5L5.5 10v4M14 6.5l4.5 3.5v4" />,
+  ],
+  // A stair climber, side on: its steps rising to the front, and the treadmill's upright.
+  stairClimber: [
+    <path key="a" d="M3.5 20.5V17H7v-3.5h3.5V10H14v10.5" />,
+    <path key="b" d="M3.5 20.5h14.7L19.4 6.5h-4.2" />,
+  ],
+  // An elliptical, side on: the flywheel at the back, the pedal arm to the front, where the
+  // handle swings on its upright.
+  elliptical: [
+    <path key="a" d="M3.5 20.5h17" />,
+    <circle key="b" cx="7" cy="15.5" r="3" />,
+    <path key="c" d="M9.8 14.6l5.4-2.2" />,
+    <path key="d" d="M15.2 12.4l1.6 8.1M15.2 12.4L18 4" />,
   ],
   pool: [
     <path key="a" d="M3.5 6.5h17M3.5 17.5h17" />,
@@ -361,21 +389,57 @@ export type MachineKind = {
 };
 
 /**
- * A machine as its glyph, from what it is (DESIGN.md, Shapes): an accessory as itself
- * (`accessoryGlyph`), a cable station its cable, a cardio machine the indoor bike, and anything
- * else what loads it.
+ * A cardio machine as its glyph (DESIGN.md, Shapes), from its equipment type: the treadmill, the
+ * rowing machine, the ski erg, the stair climber and the elliptical as themselves, and every bike
+ * as the indoor bike, which stands for any other as the bench stands for every accessory.
  */
-export function machineGlyph({ typeSlug, typeCategory, resistanceMode }: MachineKind): GlyphName {
+export function cardioGlyph(typeSlug: string): GlyphName {
+  switch (typeSlug) {
+    case "treadmill":
+      return "treadmill";
+    case "rowing_machine":
+      return "rower";
+    case "ski_erg":
+      return "skiErg";
+    case "stair_climber":
+      return "stairClimber";
+    case "elliptical":
+      return "elliptical";
+    default:
+      return "trainer";
+  }
+}
+
+/**
+ * The glyph a machine's type has of its own, however the machine is loaded (DESIGN.md, Shapes):
+ * an accessory's (`accessoryGlyph`), a cardio machine's (`cardioGlyph`) and the Smith machine's.
+ * Null for any other, which is drawn by what loads it.
+ */
+export function typeGlyph({
+  typeSlug,
+  typeCategory,
+}: Pick<MachineKind, "typeSlug" | "typeCategory">): GlyphName | null {
   if (typeCategory === "accessory") return accessoryGlyph(typeSlug);
-  if (typeCategory === "cable") return "cable";
-  switch (resistanceMode) {
+  if (typeCategory === "cardio") return cardioGlyph(typeSlug);
+  return typeSlug === "smith_machine" ? "smith" : null;
+}
+
+/**
+ * A machine as its glyph, from what it is (DESIGN.md, Shapes): its type's own glyph where it has
+ * one (`typeGlyph`), a cable station its cable, and anything else what loads it.
+ */
+export function machineGlyph(kind: MachineKind): GlyphName {
+  const own = typeGlyph(kind);
+  if (own) return own;
+  if (kind.typeCategory === "cable") return "cable";
+  switch (kind.resistanceMode) {
     case "plate_loaded":
     case "selectorized":
       return "machine";
     case "bodyweight":
       return "bodyweight";
     case "cardio":
-      return "trainer";
+      return cardioGlyph(kind.typeSlug);
     default:
       return "dumbbell";
   }
@@ -451,6 +515,10 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   outdoor: "Outdoors",
   treadmill: "Treadmill",
   trainer: "Indoor bike",
+  rower: "Rowing machine",
+  skiErg: "Ski erg",
+  stairClimber: "Stair climber",
+  elliptical: "Elliptical",
   pool: "Pool",
   openwater: "Open water",
   indoor: "Indoors",

@@ -1,4 +1,4 @@
-import { accessoryGlyph, GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, typeGlyph, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
@@ -296,14 +296,14 @@ export function equipmentLabel(exercise: ExerciseVM): string {
 
 /**
  * The equipment's glyph (DESIGN.md, Shapes): free weights as a dumbbell, a machine, a cable,
- * a Smith machine, bodyweight. Cardio stands on a machine when it needs one. Done on an
- * accessory, it is the accessory (`accessoryGlyph`: the ab wheel, otherwise the bench): the
- * glyph stands for the machine the row names, and a back extension bench is neither a pull-up
- * bar nor a dumbbell.
+ * a Smith machine, bodyweight. Cardio stands on a machine when it needs one. Done on a machine
+ * whose type has a glyph of its own (`typeGlyph`: an accessory, a cardio machine, the Smith
+ * machine), it is that machine: the glyph stands for the machine the row names, so a back
+ * extension bench is neither a pull-up bar nor a dumbbell, and a treadmill is no weight stack.
  */
 export function equipmentGlyph(exercise: ExerciseVM): GlyphName {
-  if (exercise.equipment?.typeCategory === "accessory")
-    return accessoryGlyph(exercise.equipment.typeSlug);
+  const own = exercise.equipment ? typeGlyph(exercise.equipment) : null;
+  if (own) return own;
   switch (exercise.exercise.modality) {
     case "barbell":
     case "dumbbell":

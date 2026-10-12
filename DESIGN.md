@@ -770,16 +770,19 @@ for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment an
 Everywhere else a sport is its mark, the form itself. The five
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
-bench, the ab wheel front on) and where (outdoors, treadmill, indoor bike, pool, open water,
-home) are glyphs, each with its name for screen readers. A machine named is drawn as what it
-is, however it is loaded (owner, 12 October 2026): the ab wheel as itself, and every other
-accessory (a bench, a rack, a rope, a sled) as the bench, which stands for them as the dumbbell
-stands for every free weight. That holds wherever a machine is named: a gym's list, an
-exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the machine
-an added exercise will be done on. An exercise with no machine named is drawn by what loads it,
-as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab wheel
-under Equipment. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's
-mark, kept from the first alphabet; it is not a print); the app icon is
+bench, the ab wheel front on, a rowing machine, a stair climber and an elliptical side on, a ski
+erg front on) and where (outdoors, treadmill, indoor bike, pool, open water, home) are glyphs,
+each with its name for screen readers. A machine named is drawn as what it is, however it is
+loaded (owner, 12 October 2026): the Smith machine as itself, never the stack; the ab wheel as
+itself, and every other accessory (a bench, a rack, a rope, a sled) as the bench, which stands
+for them as the dumbbell stands for every free weight; each cardio machine as itself (the
+treadmill, the rowing machine, the ski erg, the stair climber, the elliptical), and every bike
+as the indoor bike, which stands for any other. That holds wherever a machine is named: a gym's
+list, an exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the
+machine an added exercise will be done on. An exercise with no machine named is drawn by what
+loads it, as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab
+wheel under Equipment. The mark is an ultramarine slab and a vermilion disc on an ink line (the
+name's mark, kept from the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
 stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
 ground at the gutter, never in a box; their links are ink and underlined.

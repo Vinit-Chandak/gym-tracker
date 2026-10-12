@@ -4,7 +4,14 @@ import { afterEach, expect, it } from "vitest";
 
 import type { EquipmentCategory, ResistanceMode } from "@/domain/types";
 
-import { GLYPH_LABELS, Glyph, accessoryGlyph, machineGlyph } from "./glyphs";
+import {
+  GLYPH_LABELS,
+  Glyph,
+  accessoryGlyph,
+  cardioGlyph,
+  machineGlyph,
+  typeGlyph,
+} from "./glyphs";
 
 afterEach(cleanup);
 
@@ -23,6 +30,30 @@ it("draws a machine as what it is: an accessory as itself, however it is loaded"
   expect(kind("pull_up_bar", "bodyweight", "bodyweight")).toBe("bodyweight");
   expect(kind("air_bike", "cardio", "cardio")).toBe("trainer");
   expect(kind("dumbbells", "free_weight", "free_weight")).toBe("dumbbell");
+});
+
+it("draws the Smith machine and every cardio machine with a glyph of its own as itself", () => {
+  // A gym's list drew the Smith machine as a weight stack and a treadmill as a bike.
+  expect(kind("smith_machine", "machine", "plate_loaded")).toBe("smith");
+  expect(kind("treadmill", "cardio", "cardio")).toBe("treadmill");
+  expect(kind("rowing_machine", "cardio", "cardio")).toBe("rower");
+  expect(kind("ski_erg", "cardio", "cardio")).toBe("skiErg");
+  expect(kind("stair_climber", "cardio", "cardio")).toBe("stairClimber");
+  expect(kind("elliptical", "cardio", "cardio")).toBe("elliptical");
+  // Every bike is the indoor bike, which stands for a cardio machine with no glyph of its own.
+  for (const slug of ["bike", "spin_bike", "air_bike", "vertical_climber"])
+    expect(cardioGlyph(slug)).toBe("trainer");
+});
+
+it("has a glyph of its own for a machine's type only where the type is drawn as itself", () => {
+  expect(typeGlyph({ typeSlug: "ab_wheel", typeCategory: "accessory" })).toBe("abWheel");
+  expect(typeGlyph({ typeSlug: "flat_bench", typeCategory: "accessory" })).toBe("accessory");
+  expect(typeGlyph({ typeSlug: "smith_machine", typeCategory: "machine" })).toBe("smith");
+  expect(typeGlyph({ typeSlug: "rowing_machine", typeCategory: "cardio" })).toBe("rower");
+  // Anything else is drawn by what loads it, where it is named.
+  expect(typeGlyph({ typeSlug: "leg_press_45", typeCategory: "machine" })).toBeNull();
+  expect(typeGlyph({ typeSlug: "cable_station", typeCategory: "cable" })).toBeNull();
+  expect(typeGlyph({ typeSlug: "barbell", typeCategory: "free_weight" })).toBeNull();
 });
 
 it("draws the ab wheel as itself and every other accessory as the bench", () => {
@@ -48,4 +79,28 @@ it("names the accessories' glyphs where they say something, and hides them where
   expect(container.querySelectorAll("svg rect, svg path")).toHaveLength(3);
   rerender(<Glyph name="abWheel" label={GLYPH_LABELS.abWheel} />);
   expect(screen.getByRole("img", { name: "Ab wheel" })).toBeTruthy();
+});
+
+it("draws the cardio machines on the glyphs' grid, each named where it says something", () => {
+  const { container, rerender } = render(<Glyph name="rower" />);
+  for (const [name, label] of [
+    ["rower", "Rowing machine"],
+    ["skiErg", "Ski erg"],
+    ["stairClimber", "Stair climber"],
+    ["elliptical", "Elliptical"],
+  ] as const) {
+    rerender(<Glyph name={name} />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(svg.getAttribute("stroke")).toBe("currentColor");
+    expect(svg.getAttribute("stroke-width")).toBe("2");
+    // Drawn in strokes alone, as every glyph of the set is: nothing filled, no stroke of its own.
+    for (const part of svg.querySelectorAll("path, rect, circle")) {
+      expect(part.getAttribute("fill")).toBeNull();
+      expect(part.getAttribute("stroke-width")).toBeNull();
+    }
+    rerender(<Glyph name={name} label={GLYPH_LABELS[name]} />);
+    expect(screen.getByRole("img", { name: label })).toBeTruthy();
+  }
 });
