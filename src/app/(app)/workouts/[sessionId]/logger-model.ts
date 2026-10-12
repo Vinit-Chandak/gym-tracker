@@ -266,9 +266,12 @@ export function equipmentLabel(exercise: ExerciseVM): string {
 
 /**
  * The equipment's glyph (DESIGN.md, Shapes): free weights as a dumbbell, a machine, a cable,
- * a Smith machine, bodyweight. Cardio stands on a machine when it needs one.
+ * a Smith machine, bodyweight. Cardio stands on a machine when it needs one. Done on an
+ * accessory (a bench, a rack, a calf block), it is the accessory's bench: the glyph stands for
+ * the machine the row names, and a back extension bench is neither a pull-up bar nor a dumbbell.
  */
 export function equipmentGlyph(exercise: ExerciseVM): GlyphName {
+  if (exercise.equipment?.typeCategory === "accessory") return "accessory";
   switch (exercise.exercise.modality) {
     case "barbell":
     case "dumbbell":

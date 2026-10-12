@@ -120,6 +120,31 @@ it("leads the machine's name with its kind's glyph, never beside the kind's name
   expect(screen.queryByText("Machine")).toBeNull();
 });
 
+it("leads an accessory with its own glyph, not the movement's", () => {
+  const backExtension = {
+    ...assistedPullUp,
+    name: "Back extension",
+    modality: "bodyweight",
+    loadPortability: "context_dependent",
+  } as const;
+  const { rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={backExtension}
+      machineName="Back extension bench"
+      onAccessory
+    />,
+  );
+  // The bench was led by the pull-up bar's glyph, read as "Bodyweight".
+  const fact = screen.getByRole("img", { name: "Accessory" }).parentElement!;
+  expect(fact.textContent).toBe("Back extension bench");
+  expect(screen.queryByRole("img", { name: "Bodyweight" })).toBeNull();
+  // With no machine named, the movement's own kind stands, in words.
+  rerender(<ExerciseLife {...props(false)} exercise={backExtension} machineName={null} />);
+  expect(screen.getByText("Bodyweight")).toBeTruthy();
+  expect(screen.queryByRole("img", { name: "Accessory" })).toBeNull();
+});
+
 it("names a machine called after its kind once", () => {
   const smithBench = { ...assistedPullUp, modality: "smith_machine" } as const;
   render(<ExerciseLife {...props(false)} exercise={smithBench} machineName="Smith machine" />);

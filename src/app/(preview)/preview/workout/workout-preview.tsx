@@ -41,6 +41,7 @@ type Slot = {
   state?: "done" | "skipped";
   superset?: string;
   instead?: string;
+  /** A cable station: the only machines the preview names. */
   machine?: string;
   coach?: { note?: string; targets?: TargetSet[]; added?: boolean };
 };
@@ -82,7 +83,13 @@ function exercise(slot: Slot, index: number): ExerciseVM {
       },
     },
     equipment: slot.machine
-      ? { id: `${slug}-machine`, name: slot.machine, unit: "kg", ladder: null }
+      ? {
+          id: `${slug}-machine`,
+          name: slot.machine,
+          unit: "kg",
+          typeCategory: "cable",
+          ladder: null,
+        }
       : null,
     planned: slot.coach?.added
       ? null

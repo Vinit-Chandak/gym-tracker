@@ -286,6 +286,31 @@ it("says where a row stands only when that is news", () => {
   expect(open).toHaveBeenCalledWith("barbell-bench-press");
 });
 
+it("leads a row done on an accessory with the accessory's glyph, named for its machine", () => {
+  show({
+    session: {
+      ...SESSION,
+      exercises: [
+        exercise("Back extension", {
+          exercise: { ...exercise("Back extension").exercise, modality: "bodyweight" },
+          equipment: {
+            id: "bench",
+            name: "Back extension bench",
+            unit: "kg",
+            typeCategory: "accessory",
+            ladder: null,
+          },
+        }),
+      ],
+    },
+  });
+  const row = screen.getByRole("button", { name: /Back extension/ });
+  const glyph = within(row).getByRole("img", { name: "Back extension bench" });
+  // The bench: a pad on two legs (the pull-up bar's glyph has a figure's head, a circle).
+  expect(glyph.querySelector("rect")).not.toBeNull();
+  expect(glyph.querySelector("circle")).toBeNull();
+});
+
 it("gives the recovery check its own note", () => {
   show();
   const note = screen.getByRole("complementary", { name: "Recovery check" });
@@ -380,7 +405,13 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
       exercises: [
         // Planned by the coach on a machine that counts in pounds: the coach's sets, its unit.
         exercise("Leg press", {
-          equipment: { id: "lp", name: "Leg press 2", unit: "lb", ladder: null },
+          equipment: {
+            id: "lp",
+            name: "Leg press 2",
+            unit: "lb",
+            typeCategory: "machine",
+            ladder: null,
+          },
           suggestion: coached,
           coachRestSeconds: 150,
         }),

@@ -698,10 +698,13 @@ for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment an
 (2.3 to 2.9), told apart by their shape so the month never asks a reader to tell pigments apart.
 Everywhere else a sport is its mark, the form itself. The five
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
-(free weights as a dumbbell, machine, cable, Smith machine, bodyweight) and where (outdoors,
-treadmill, indoor bike, pool, open water, home) are glyphs, each with its name for screen
-readers. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark,
-kept from the first alphabet; it is not a print); the app icon is
+(free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
+bench) and where (outdoors, treadmill, indoor bike, pool, open water, home) are glyphs, each
+with its name for screen readers. A machine named is drawn as what it is: an accessory (a bench,
+a rack, an ab wheel) is the bench however it is loaded, in a gym's list, on an exercise's page
+and on a workout's row (owner, 12 October 2026); an exercise with no machine named is drawn by
+what loads it. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's
+mark, kept from the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
 stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
 ground at the gutter, never in a box; their links are ink and underlined.

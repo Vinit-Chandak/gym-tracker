@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { SubmitButton } from "@/components/ui/form";
-import { Glyph, gymKindGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { Glyph, gymKindGlyph, machineGlyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { NavRow } from "@/components/ui/nav-row";
 import { Select } from "@/components/ui/select";
@@ -36,21 +36,6 @@ export type GymDetailData = {
   types: Awaited<ReturnType<typeof listEquipmentTypes>>;
   availability: Awaited<ReturnType<typeof gymAvailability>>;
 };
-/** A machine's glyph: a cable station its cable; otherwise what loads it. */
-function machineGlyph(item: EquipmentListItem): GlyphName {
-  if (item.typeCategory === "cable") return "cable";
-  switch (item.resistanceMode) {
-    case "plate_loaded":
-    case "selectorized":
-      return "machine";
-    case "bodyweight":
-      return "bodyweight";
-    case "cardio":
-      return "trainer";
-    default:
-      return "dumbbell";
-  }
-}
 
 const loadLabel = (item: EquipmentListItem) =>
   equipmentLoadLabel(item.typeCategory, item.resistanceMode);
@@ -69,7 +54,10 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
               <span className="nav-row-label nav-row-label-bold">{item.name}</span>
               <span className="meta-line">
                 <span className="meta-fact">
-                  <Glyph name={machineGlyph(item)} className="glyph-16" />
+                  <Glyph
+                    name={machineGlyph(item.typeCategory, item.resistanceMode)}
+                    className="glyph-16"
+                  />
                   {/* Machines are usually named after their type, so only add it when it
                       differs. */}
                   {item.typeName === item.name

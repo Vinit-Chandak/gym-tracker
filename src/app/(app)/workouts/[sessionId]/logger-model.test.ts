@@ -183,6 +183,41 @@ describe("what the header says", () => {
     expect(as("cardio")).toBe("machine");
     expect(as("cardio", false)).toBe("bodyweight");
   });
+
+  it("draws a machine that is an accessory as one, whatever loads the movement", () => {
+    const on = (
+      name: string,
+      modality: ExerciseVM["exercise"]["modality"],
+      machine: string,
+      typeCategory: NonNullable<ExerciseVM["equipment"]>["typeCategory"],
+    ) => {
+      const done = exercise({
+        exercise: { ...exercise().exercise, name, modality },
+        equipment: { id: machine, name: machine, unit: "kg", typeCategory, ladder: null },
+      });
+      return [equipmentGlyph(done), equipmentLabel(done)];
+    };
+    // A back extension bench was drawn as the pull-up bar, a calf block as a dumbbell.
+    expect(on("Back extension", "bodyweight", "Back extension bench", "accessory")).toEqual([
+      "accessory",
+      "Back extension bench",
+    ]);
+    expect(on("Single-leg calf raise", "dumbbell", "Calf raise block", "accessory")).toEqual([
+      "accessory",
+      "Calf raise block",
+    ]);
+    // Named by the exercise, the ab wheel is said by its kind.
+    expect(on("Ab wheel rollout", "bodyweight", "Ab wheel", "accessory")).toEqual([
+      "accessory",
+      "Accessory",
+    ]);
+    // Any other machine is still drawn by what loads the movement.
+    expect(on("Pull-up", "bodyweight", "Pull-up bar", "bodyweight")).toEqual([
+      "bodyweight",
+      "Pull-up bar",
+    ]);
+    expect(on("Barbell bench press", "barbell", "Barbell", "free_weight")[0]).toBe("dumbbell");
+  });
 });
 
 /** The coach's sets for today, as a coach-planned session carries them. */

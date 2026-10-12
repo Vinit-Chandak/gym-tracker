@@ -6,6 +6,7 @@ import { manualPrescription } from "@/domain/manual-prescription";
 
 import {
   equipmentInstances,
+  equipmentTypes,
   exercises,
   gyms,
   profiles,
@@ -29,7 +30,7 @@ import {
   type RecoveryWarning,
 } from "@/domain/recovery";
 import type { LoadLadder } from "@/domain/load-steps";
-import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
+import type { EquipmentCategory, LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { guidanceByExercise, getWarmupProtocol } from "@/server/queries/reference";
 
@@ -379,6 +380,8 @@ export type SessionExercise = {
     id: string;
     name: string;
     unit: LoadUnit;
+    /** What kind of machine it is: an accessory (a bench, a rack) is drawn as one. */
+    typeCategory: EquipmentCategory;
     /** What is known about this machine's loads, for the Next up box (ADR 0028). */
     ladder: LoadLadder | null;
     /**
@@ -609,12 +612,16 @@ export async function getSessionDetail(
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
         },
+        // Beside the machine, not in it: a field from another joined table would make every
+        // one of the machine's nullable.
+        equipmentCategory: equipmentTypes.category,
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
       })
       .from(workoutExercises)
       .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
       .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
       .leftJoin(
         programExercises,
         eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
@@ -843,6 +850,8 @@ export async function getSessionDetail(
             id: row.equipment.id,
             name: row.equipment.name,
             unit: row.equipment.unit,
+            // Joined with its machine: an instance always has a type.
+            typeCategory: row.equipmentCategory!,
             ladder: ladders.get(row.equipment.id) ?? null,
             best: (() => {
               const lifted = best.get(`${row.equipment.id}:${row.exercise.id}`);

@@ -152,6 +152,9 @@ describe("planned session lifecycle", () => {
     expect(exerciseRow(detail, "barbell-bench-press").decision).toBeNull();
     expect(exerciseRow(detail, "seated-cable-row").equipment?.name).toBe("Cable station");
     expect(exerciseRow(detail, "reverse-pec-deck").equipment?.name).toBe("Pec deck");
+    // Each machine says what kind it is, which its glyph draws (an accessory as the bench).
+    expect(exerciseRow(detail, "seated-cable-row").equipment?.typeCategory).toBe("cable");
+    expect(exerciseRow(detail, "reverse-pec-deck").equipment?.typeCategory).toBe("machine");
     expect(exerciseRow(detail, "barbell-bench-press").planned?.sets).toBe(4);
     expect(exerciseRow(detail, "barbell-bench-press").weightStep).toBe(2.5);
     expect(detail.warmup?.name).toBe("Upper-body warm-up");

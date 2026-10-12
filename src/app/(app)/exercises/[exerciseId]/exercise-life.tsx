@@ -88,6 +88,7 @@ export function ExerciseLife({
   exercise,
   life,
   machineName,
+  onAccessory = false,
   loadUnit,
   bests,
   unit,
@@ -102,6 +103,8 @@ export function ExerciseLife({
   life: { months: ExerciseMonth[]; sessions: number; assisted: boolean };
   /** The machine the graph, the figures and Latest are read on, for a movement bound to one. */
   machineName: string | null;
+  /** That machine is an accessory (a bench, a rack): its glyph is the accessory's. */
+  onAccessory?: boolean;
   /** The unit of the series the graph draws: a machine's loads are in its own. */
   loadUnit?: LoadUnit | null;
   bests: readonly ExerciseBest[];
@@ -116,7 +119,9 @@ export function ExerciseLife({
   /** The latest on any other machine, listed apart: not this machine's history. */
   elsewhere?: readonly LatestPerformance[];
 }) {
-  const glyph = glyphFor(exercise.modality);
+  // The glyph says the kind of the machine named beside it: an accessory is its own kind, never
+  // the movement's (a back extension bench is no pull-up bar).
+  const glyph = machineName && onAccessory ? "accessory" : glyphFor(exercise.modality);
   const machine = machineName && !sameName(machineName, GLYPH_LABELS[glyph]) ? machineName : null;
   const global = exercise.loadPortability === "global";
   const where = performances[0]?.gymName ?? null;

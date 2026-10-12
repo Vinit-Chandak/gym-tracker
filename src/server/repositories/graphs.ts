@@ -129,6 +129,8 @@ export type ExerciseSeriesOption = {
   group: StrengthGroup | null;
   /** On an assisted machine: its number is help given, so less is stronger (ADR 0048). */
   assisted: boolean;
+  /** On an accessory (a bench, a rack): its machine is drawn as one. */
+  accessory: boolean;
   /** Counted in reps, seconds or metres. */
   measure: PrescriptionType;
   /** Finished workouts it was in inside the window being drawn, and ever. */
@@ -162,6 +164,7 @@ export async function readExerciseSeriesOptions(
       gymName: sql<string | null>`max(${gyms.name})`,
       // A series is one machine, or a load that means the same everywhere, which is never help.
       assisted: sql<boolean>`coalesce(bool_or(${ASSISTED_SLOT}), false)`,
+      accessory: sql<boolean>`coalesce(bool_or(${equipmentTypes.category} = 'accessory'), false)`,
       sessionsInRange: sql<number>`count(distinct ${workoutSessions.id}) filter (where ${strengthOnDays(window)})::int`,
       sessions: sql<number>`count(distinct ${workoutSessions.id})::int`,
       lastAt: sql<string>`max(${workoutSessions.startedAt})`,
@@ -209,6 +212,7 @@ export async function readExerciseSeriesOptions(
       modality: row.modality,
       group: strengthGroupOf(row.primaryMuscles),
       assisted: row.assisted === true,
+      accessory: row.accessory === true,
       measure: row.measure,
       sessionsInRange: Number(row.sessionsInRange),
       sessions: Number(row.sessions),

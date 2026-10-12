@@ -351,7 +351,15 @@ it("picks up a set carried here by a machine answer as the row it was, whenever 
   // The machine answer lands after the exercise reopened on its machine: the carried row is
   // the one being typed, not a recovered draft, so it carries no warning.
   renderLogger({
-    exercise: { equipment: { id: "m1", name: "Hack squat", unit: "kg", ladder: null } },
+    exercise: {
+      equipment: {
+        id: "m1",
+        name: "Hack squat",
+        unit: "kg",
+        typeCategory: "machine",
+        ladder: null,
+      },
+    },
   });
   const there = { ...context, equipmentId: "m1" };
   act(() => {
@@ -642,7 +650,15 @@ it("writes History's free-weight loads in the Log tab's unit, so a lift reads th
   // A barbell registered in kilograms, on an account that has since switched to pounds.
   renderLogger({
     preferredUnit: "lb",
-    exercise: { equipment: { id: "bar", name: "Barbell", unit: "kg", ladder: null } },
+    exercise: {
+      equipment: {
+        id: "bar",
+        name: "Barbell",
+        unit: "kg",
+        typeCategory: "free_weight",
+        ladder: null,
+      },
+    },
   });
   fireEvent.click(screen.getByRole("tab", { name: "History" }));
   await screen.findByText("Home gym · Barbell");
@@ -678,7 +694,15 @@ it("takes in a set typed before the exercise's machine changed, to save or disca
   // The answer moved it, so it is the set being typed, here, as it was.
   writeDraft(localStorage, context, typed);
   const onRack = { ...context, equipmentId: "rack-1" };
-  const rack = { equipment: { id: "rack-1", name: "Rack 1", unit: "kg" as const, ladder: null } };
+  const rack = {
+    equipment: {
+      id: "rack-1",
+      name: "Rack 1",
+      unit: "kg" as const,
+      typeCategory: "accessory" as const,
+      ladder: null,
+    },
+  };
   renderLogger({ exercise: rack });
   expect(await screen.findByRole("button", { name: "60 kilograms. Type a load" })).toBeTruthy();
   expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
@@ -1263,7 +1287,13 @@ it("still takes the answer once a set is typed, so Save is never stuck behind it
 it("does not hold Save for a question about what an attached machine is used with", () => {
   renderLogger({
     exercise: {
-      equipment: { id: "smith", name: "Garage Smith", unit: "kg", ladder: null },
+      equipment: {
+        id: "smith",
+        name: "Garage Smith",
+        unit: "kg",
+        typeCategory: "machine",
+        ladder: null,
+      },
       decision: asking("unknown"),
     },
   });

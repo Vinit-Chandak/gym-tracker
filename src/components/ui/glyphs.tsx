@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode, SVGProps } from "react";
 
-import type { ExerciseModality, GymKind } from "@/domain/types";
+import type { EquipmentCategory, ExerciseModality, GymKind, ResistanceMode } from "@/domain/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -195,6 +195,13 @@ const GLYPHS = {
     <circle key="c" cx="12" cy="9.6" r="1.9" />,
     <path key="d" d="M12 11.5v5.5M12 17l-2.2 3.7M12 17l2.2 3.7" />,
   ],
+  // An accessory (a bench, a rack, an ab wheel): a flat bench, side on, as its drawing stands,
+  // its pad on two legs and their feet.
+  accessory: [
+    <rect key="a" x="3" y="6.5" width="18" height="4.5" rx="2.25" />,
+    <path key="b" d="M6.5 11v8M17.5 11v8" />,
+    <path key="c" d="M4.5 19h4M15.5 19h4" />,
+  ],
   // Where a run, ride or swim happened.
   outdoor: [
     <path key="a" d="M3 18h18" />,
@@ -330,6 +337,27 @@ export function modalityGlyph(modality: ExerciseModality | null | undefined): Gl
   }
 }
 
+/**
+ * A machine as its glyph, from what it is (DESIGN.md, Shapes): an accessory (a bench, a rack,
+ * an ab wheel) is the bench however it is loaded, a cable station its cable, a cardio machine
+ * the indoor bike, and anything else what loads it.
+ */
+export function machineGlyph(category: EquipmentCategory, mode: ResistanceMode): GlyphName {
+  if (category === "accessory") return "accessory";
+  if (category === "cable") return "cable";
+  switch (mode) {
+    case "plate_loaded":
+    case "selectorized":
+      return "machine";
+    case "bodyweight":
+      return "bodyweight";
+    case "cardio":
+      return "trainer";
+    default:
+      return "dumbbell";
+  }
+}
+
 /** What each glyph means, for a glyph that carries meaning on its own (DESIGN.md, Shapes). */
 export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   today: "Today",
@@ -395,6 +423,7 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   cable: "Cable",
   smith: "Smith machine",
   bodyweight: "Bodyweight",
+  accessory: "Accessory",
   outdoor: "Outdoors",
   treadmill: "Treadmill",
   trainer: "Indoor bike",
