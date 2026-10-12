@@ -95,6 +95,23 @@ export function sessionStanding(
   return "to_come";
 }
 
+/**
+ * Whether a skipped session, put back, is the one Today offers next: the sequence has reached
+ * its slot or gone past it, and it waits for what is owed (ADR 0051, decision 1), so owing it
+ * again sends the programme back to it, cycles back if it was skipped that long ago. Said
+ * before "Put it back" is tapped, not found out after. One the sequence has still to reach is
+ * simply to come again.
+ */
+export function putBackGoesNext(
+  state: ScheduleState,
+  session: ProgrammeSession,
+  position: SlotRef | null = nextPendingSlot(state),
+): boolean {
+  const ref = sessionSlot(state, session);
+  if (!ref) return false;
+  return position === null || !slotBefore(position, ref);
+}
+
 /** Still owed, and not yet left behind: what the programme view lists first. */
 export function isAhead(standing: SessionStanding): boolean {
   return standing === "next" || standing === "to_come";

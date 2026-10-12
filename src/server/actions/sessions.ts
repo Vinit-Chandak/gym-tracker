@@ -966,8 +966,8 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
  * "Pick up from today" (owner, 11 October 2026): every training day the calendar has passed
  * without an answer is skipped, part by part, and the rest days among them are passed, so the
  * sequence resumes at the day the programme has for today. Nothing from today on is touched, and
- * every skip stays in History as one. Refused while a workout is open, since that workout is
- * answering one of those days.
+ * every skip stays in the programme as one; History lists only what was done. Refused while a
+ * workout is open, since that workout is answering one of those days.
  */
 export async function pickUpFromTodayAction(
   _previous: ActionResult,

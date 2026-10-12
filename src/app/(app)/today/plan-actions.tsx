@@ -440,7 +440,7 @@ export function PickUpFromToday({
           <p className="type-body [overflow-wrap:break-word]">
             Skip the {sessions} you missed and carry on from{" "}
             {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
-            stay in History as skipped.
+            stay in the programme as skipped.
           </p>
           <ul className="type-meta ruled-list">
             {listed.map((day) => (

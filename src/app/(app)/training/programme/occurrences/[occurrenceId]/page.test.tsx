@@ -7,7 +7,11 @@ import type { ProgrammeOccurrence } from "@/server/repositories/occurrences";
 
 import OccurrencePage from "./page";
 
-const mocks = vi.hoisted(() => ({ occurrence: vi.fn(), focus: null as string | null }));
+const mocks = vi.hoisted(() => ({
+  occurrence: vi.fn(),
+  focus: null as string | null,
+  events: [] as unknown[],
+}));
 
 vi.mock("@/server/auth", () => ({
   requireUser: async () => ({ id: "me", email: "meera@example.test" }),
@@ -34,11 +38,14 @@ vi.mock("@/server/repositories/schedule", () => ({
       slots: [{ dayIndex: 4, name: "Tempo run", includesLifting: false, includesRun: true }],
       cycles: 10,
       startDayIndex: 4,
-      events: [],
+      events: mocks.events,
     },
   }),
 }));
-vi.mock("@/components/activities/occurrence-actions", () => ({ OccurrenceActions: () => null }));
+vi.mock("@/components/activities/occurrence-actions", () => ({
+  OccurrenceActions: ({ putBackGoesNext }: { putBackGoesNext?: boolean }) =>
+    putBackGoesNext ? <p>Put back, Today offers it next.</p> : null,
+}));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => (
     <a href={href}>{children}</a>
@@ -90,6 +97,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
   mocks.occurrence.mockResolvedValue(tempo);
   mocks.focus = null;
+  mocks.events = [];
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -141,4 +149,32 @@ it("says a skipped run is skipped, whichever way it was skipped", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain(">Skipped<");
   expect(html).not.toContain(">Not done<");
+});
+
+/**
+ * Review, 12 October 2026: "Put it back" on a run the sequence went past sends the programme
+ * back to it, and nothing said so until after the tap. The page tells its actions when it does.
+ */
+it("says before the tap that a run put back is Today's next, once the sequence passed it", async () => {
+  const skipped = {
+    ...tempo,
+    disposition: "skipped",
+    resolution: { kind: "skipped" },
+    loggable: true,
+  };
+  mocks.occurrence.mockResolvedValue(skipped);
+  const run = (cycleIndex: number, status: "completed" | "skipped") => ({
+    cycleIndex,
+    dayIndex: 4,
+    part: "run",
+    status,
+  });
+  // Cycles 1 to 4 run, cycle 5's tempo run skipped: the sequence is at cycle 6.
+  mocks.events = [1, 2, 3, 4].map((cycle) => run(cycle, "completed")).concat(run(5, "skipped"));
+  expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
+    "Put back, Today offers it next.",
+  );
+  // Skipped ahead of where the sequence is, it is simply to come again.
+  mocks.events = [1, 2, 3].map((cycle) => run(cycle, "completed"));
+  expect(renderToStaticMarkup(await OccurrencePage(props))).not.toContain("Today offers it next");
 });

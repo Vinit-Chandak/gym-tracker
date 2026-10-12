@@ -94,8 +94,13 @@ it is meant to go" as Planned end.
 
 ## Amendment, 12 October 2026: a run skipped from Today is skipped everywhere
 
-Decided by the owner (12 October 2026: settled as skipped). Decisions 1 and 2 stand; this says
-what their skips write.
+Asked "a run skipped from Today can still be logged, but adherence counts it as not done.
+Should those two agree?", the owner answered (12 October 2026): "Mark it as done." That is read
+here as: make them agree by settling the skip, so the run is no longer owed and is never
+counted as not done. It is counted as skipped, not as done: adherence counts what was run, and
+the run was not; logging it later counts it done. Counting a skipped run as done would be a
+different change, to how adherence is counted, and this reading waits on the owner's
+confirmation. Decisions 1 and 2 stand; this says what their skips write.
 
 Skipping a day's run from Today, and "Pick up from today" over a day that runs, answered the run
 half on the day alone (a `run` row in `program_slot_events`) and left the run's own occurrences
@@ -116,10 +121,17 @@ occurrence and counted the run as not done, and the run's own page offered to sk
    recorded, from before occurrences answered for runs, stands.
 3. **A skipped run is no longer owed and is never counted as missed.** It reads Skipped on
    Today, Training, the programme, its own page and in the coach's adherence alike, and the
-   sequence moves past it as before.
+   sequence moves past it as before. History is not among them: it lists what was done,
+   workouts finished and activities logged (DESIGN.md, "History lists every session"), and
+   lists nothing skipped, workout or run. "Pick up from today" says its skips stay in the
+   programme, where they are listed, rather than in History.
 4. **Logging it still replaces the skip**, on the session and on the day: logged after its day
    was skipped, it is Logged everywhere and the day's run half is done. Put back from its page,
-   it is owed everywhere again, and the sequence waits for it again (decision 1).
+   it is owed everywhere again, and the sequence waits for it again (decision 1). For a run the
+   sequence has reached or passed, that sends the programme back to it, cycles back for one an
+   old gap was picked up over, so its page says so under "Put it back" before it is tapped
+   (`putBackGoesNext`): owed again, the programme goes back to it, and Today offers it next.
+   Moving a skipped run to another date leaves it skipped.
 5. **Skipping one session from its own page writes nothing on the day.** It already left the
    sequence where a skip from Today leaves it, through the same derivation; a day with two
    sessions is answered once both are. Recording it on the day as well would be a second answer
@@ -149,5 +161,5 @@ Consequences:
 
 - The programme's adherence line and the coach's adherence count the same skipped runs.
 - A run put back after "Pick up from today" sends the sequence back to its day, as putting back
-  a run skipped on its page always did.
+  a run skipped on its page always did, and its page says so before the tap.
 - Lifting has no occurrences; a skipped workout is recorded on the day, as before.

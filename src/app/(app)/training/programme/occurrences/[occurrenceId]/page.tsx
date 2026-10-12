@@ -15,7 +15,7 @@ import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { sessionStanding, standingByDate } from "@/domain/programme-sessions";
+import { putBackGoesNext, sessionStanding, standingByDate } from "@/domain/programme-sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
@@ -207,6 +207,11 @@ export default async function OccurrencePage(
               scheduledOn={occurrence.scheduledOn}
               today={today}
               standalone={standalone}
+              putBackGoesNext={
+                running !== null &&
+                occurrence.disposition === "skipped" &&
+                putBackGoesNext(running.state, occurrence)
+              }
             />
           </>
         )}
