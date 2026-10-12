@@ -76,21 +76,31 @@
     height: calc(92 * var(--ov-u));
   }
 }
-/* The day's word (Next, In progress) stands at the name's end while both fit a line, and goes
-   under the name rather than squeeze it to a word a line (a half tile at large text). */
+/* The day's word (Next, In progress) stands after the name while both fit a line, and goes
+   under the name rather than squeeze it to a word a line (a half tile at large text). It stands
+   beside the name, not at the tile's far edge: there it was nearer the name of the tile after it
+   than its own, and a desktop read "Lower … Next Tempo run" (year audit, October 2026). Only the
+   next day on a phone, which has its row to itself, puts it at the edge, as the board draws it. */
 .cycle-day-name {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
   margin-top: calc(6 * var(--ov-u));
   gap: 0 calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
   line-height: 1.25;
 }
+@media (width < 600px) {
+  .cycle-day-next .cycle-day-name {
+    justify-content: space-between;
+  }
+}
+/* A caption (13, 700, ink 2), so beside the name it reads as where the day stands, not as more
+   of its name ("Lower Next"). */
 .cycle-day-next-word {
   flex-shrink: 0;
+  color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   white-space: nowrap;
 }
