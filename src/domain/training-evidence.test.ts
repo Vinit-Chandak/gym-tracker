@@ -10,6 +10,8 @@ import {
 } from "./training-evidence";
 import { suggestNext, type Prescription } from "./progression";
 import { effortError } from "./effort";
+import { setLengthToMetres, setTargetIn } from "@/lib/distance-units";
+import { lengthRangeLabel } from "@/lib/labels";
 
 const p: Prescription = {
   sets: 2,
@@ -862,5 +864,58 @@ describe("a bounded coarse step, a lighter day and a heavier attempt (ADR 0048)"
       ),
     );
     expect(back.setAside).toEqual([]);
+  });
+});
+
+describe("a carry logged in the yards it was shown in (ADR 0056)", () => {
+  const carry: Prescription = {
+    ...p,
+    prescriptionType: "distance",
+    repMin: null,
+    repMax: null,
+    distanceMinMeters: 15,
+    distanceMaxMeters: 45,
+    rirMin: null,
+    rirMax: null,
+  };
+  /** Two sessions of two carries, each logged as `yards` and kept in metres as the logger does. */
+  const carried = (yards: number): EvidencePerformance[] =>
+    [0, 1].map((index) => ({
+      workoutExerciseId: `c${index}`,
+      workoutSessionId: `cw${index}`,
+      performedAt: new Date(Date.UTC(2026, 8, 14 - index * 3)),
+      sets: [1, 2].map((setIndex) => ({
+        setIndex,
+        setType: "working" as const,
+        reps: null,
+        rir: null,
+        rpe: 7,
+        weight: 20,
+        unit: "kg" as const,
+        durationSeconds: null,
+        distanceMeters: setLengthToMetres(yards, "yd"),
+      })),
+    }));
+
+  it("meets the bottom and reaches the top at the figures it was shown", () => {
+    // 16 yd would be kept as 14.6 m and 49 yd as 44.8 m, each short of its bound.
+    expect(lengthRangeLabel(15, 45, "yd")).toBe("17–50 yd");
+    const bottom = carried(17);
+    expect(summarizeExerciseEvidence(carry, bottom)).toMatchObject({
+      repeatedCompletion: true,
+      progressionReady: false,
+    });
+    expect(suggestNext(carry, bottom[0]!.sets, "exercise", bottom).kind).toBe("lengthen");
+    expect(summarizeExerciseEvidence(carry, carried(50)).progressionReady).toBe(true);
+  });
+
+  it("holds for every whole-metre range a programme can ask for", () => {
+    for (let metres = 5; metres <= 150; metres++) {
+      const range = { ...carry, distanceMinMeters: metres, distanceMaxMeters: metres + 10 };
+      const shownBottom = setTargetIn(metres, "yd");
+      const shownTop = setTargetIn(metres + 10, "yd");
+      expect(summarizeExerciseEvidence(range, carried(shownBottom)).repeatedCompletion).toBe(true);
+      expect(summarizeExerciseEvidence(range, carried(shownTop)).progressionReady).toBe(true);
+    }
   });
 });

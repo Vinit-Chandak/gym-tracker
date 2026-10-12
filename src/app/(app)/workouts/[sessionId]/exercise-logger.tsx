@@ -28,7 +28,12 @@ import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
 import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
-import { setLengthIn, SET_LENGTH_WORDS, type SetLengthUnit } from "@/lib/distance-units";
+import {
+  setLengthIn,
+  setTargetIn,
+  SET_LENGTH_WORDS,
+  type SetLengthUnit,
+} from "@/lib/distance-units";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
@@ -174,7 +179,7 @@ function fieldsFor(
   // at large text the line breaks after the word, never at the range's dash.
   const countTarget = countTargetLabel(exercise, target, length);
   // Yards are typed whole, which is what makes 50 yd read back as 50 yd (ADR 0056); metres
-  // keep their tenth.
+  // keep their tenth. A point that reaches the yards anyway is kept for Save to refuse.
   const lengthWords = SET_LENGTH_WORDS[length];
   const Lengths = `${lengthWords[0]!.toUpperCase()}${lengthWords.slice(1)}`;
   const count: EntryField =
@@ -206,6 +211,7 @@ function fieldsFor(
             foldHint: countTarget ? `target ${countTarget}` : null,
             inputLabel: Lengths,
             inputMode: length === "yd" ? "numeric" : "decimal",
+            keeps: "decimal",
             max: setLengthIn(SET_LIMITS.distanceMeters, length),
             min: 0,
             step: 5,
@@ -633,7 +639,7 @@ export function ExerciseLogger({
       : measure === "distance"
         ? entryTarget?.distanceMeters == null
           ? null
-          : setLengthIn(entryTarget.distanceMeters, session.length)
+          : setTargetIn(entryTarget.distanceMeters, session.length)
         : entryTarget?.reps;
   const whyLoad =
     entryTarget?.weight != null && !(bodyweight && entryTarget.weight === 0)

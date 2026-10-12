@@ -16,6 +16,7 @@ import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { EFFORT } from "@/domain/activity-limits";
 import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
@@ -62,6 +63,7 @@ export function DraftPreview({
   stale,
   machines,
   preferredUnit,
+  length,
 }: {
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
@@ -70,6 +72,8 @@ export function DraftPreview({
   stale: boolean;
   machines: { id: string; unit: string }[];
   preferredUnit: "kg" | "lb";
+  /** What a carry's targets read in: metres, or yards beside miles (ADR 0056). */
+  length: SetLengthUnit;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -144,7 +148,7 @@ export function DraftPreview({
                 <p className="font-medium [overflow-wrap:break-word]">
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
-                <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>
+                <p className="text-sm text-ink-muted">{exerciseTargets(e, length)}</p>
                 {e.supersetGroup && (
                   <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
                 )}
@@ -205,7 +209,7 @@ export function DraftPreview({
                     : entry.sets
                         .map(
                           (s) =>
-                            `${s.reps !== null ? `${s.reps} reps` : s.durationSeconds !== null ? `${s.durationSeconds} s` : s.distanceMeters !== null ? `${s.distanceMeters} m` : "Target to calibrate"}${s.weight === null ? " · load to calibrate" : ` @ ${s.weight} ${machines.find((machine) => machine.id === entry.equipmentInstanceId)?.unit ?? preferredUnit}`}${s.rir === null ? "" : ` · RIR ${s.rir}`}`,
+                            `${s.reps !== null ? `${s.reps} reps` : s.durationSeconds !== null ? `${s.durationSeconds} s` : s.distanceMeters !== null ? `${setTargetIn(s.distanceMeters, length)} ${length}` : "Target to calibrate"}${s.weight === null ? " · load to calibrate" : ` @ ${s.weight} ${machines.find((machine) => machine.id === entry.equipmentInstanceId)?.unit ?? preferredUnit}`}${s.rir === null ? "" : ` · RIR ${s.rir}`}`,
                         )
                         .join("; ")}
                 </p>

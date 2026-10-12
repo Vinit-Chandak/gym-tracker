@@ -402,7 +402,11 @@ function SetEditor({
                     onChange={(event) =>
                       set(
                         field.field,
-                        sanitizeNumberEntry(event.target.value, field.inputMode, field.max),
+                        sanitizeNumberEntry(
+                          event.target.value,
+                          field.keeps ?? field.inputMode,
+                          field.max,
+                        ),
                         effort,
                       )
                     }

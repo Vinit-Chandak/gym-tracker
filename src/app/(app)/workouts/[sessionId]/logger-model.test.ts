@@ -134,6 +134,13 @@ describe("what the header says", () => {
     expect(perSetLabel(carry, "yd")).toBe("22–44 yd");
     expect(prescriptionLabel(carry, "", "yd")).toBe("3 × 22–44 yd");
     expect(countTargetLabel(carry, null, "yd")).toBe("22–44 yd");
+    // Each end is the least whole yard that, logged, reaches it: 16 yd is kept as 14.6 m, short
+    // of 15 m, and 49 yd as 44.8 m, short of 45 m.
+    const longer = exercise({
+      planned: { ...carry.planned!, distanceMinMeters: 15, distanceMaxMeters: 45 },
+    });
+    expect(perSetLabel(longer, "yd")).toBe("17–50 yd");
+    expect(perSetLabel(longer, "m")).toBe("15–45 m");
   });
 
   it("says the coach's carry in the athlete's length, its metres underneath unchanged", () => {
@@ -169,6 +176,16 @@ describe("what the header says", () => {
     expect(perSetLabel(carried, "yd")).toBe("33 yd");
     expect(countTargetLabel(carried, null, "yd")).toBe("33 yd");
     expect(prescriptionLabel(carried, "kg", "yd")).toBe("32 kg ·\u00a02 × 33 yd ·\u00a0RPE 7");
+    // A coach's 15 m is 16.4 yd, and 16 yd falls short of it: the figure asked for is 17.
+    const short = exercise({
+      ...carried,
+      suggestion: {
+        ...carried.suggestion!,
+        sets: carried.suggestion!.sets.map((set) => ({ ...set, distanceMeters: 15 })),
+      },
+    });
+    expect(countTargetLabel(short, null, "yd")).toBe("17 yd");
+    expect(prescriptionLabel(short, "kg", "yd")).toBe("32 kg ·\u00a02 × 17 yd ·\u00a0RPE 7");
   });
 
   it("says nothing it does not know: an exercise with no plan and no defaults has no range", () => {

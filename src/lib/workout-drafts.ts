@@ -1,6 +1,6 @@
 import type { LoadUnit, SetType } from "@/domain/types";
 import { LOAD_UNITS, SET_TYPES } from "@/domain/types";
-import { setLengthToMetres, type SetLengthUnit } from "./distance-units";
+import { setLengthIn, setLengthToMetres, type SetLengthUnit } from "./distance-units";
 import { canConvertLoad, convertLoad } from "./units";
 
 /** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
@@ -223,6 +223,18 @@ export function draftMetres(draft: Pick<DraftFields, "distance" | "length">): nu
   return draft.length === "yd" ? setLengthToMetres(typed, "yd") : typed;
 }
 
+/**
+ * Whether a draft's distance is the set's. In yards, it is when the set reads as the figure
+ * typed: a set kept in metres keeps them through an edit that leaves its figure alone (30 m under
+ * 33 yd), so the metres 33 yd would keep are not the test.
+ */
+function sameDistance(draft: Pick<DraftFields, "distance" | "length">, metres: number | null) {
+  const typed = draftMetres(draft);
+  if (draft.length !== "yd" || typed === null || Number.isNaN(typed) || metres === null)
+    return typed === metres;
+  return Number(draft.distance.replace(",", ".")) === setLengthIn(metres, "yd");
+}
+
 /** A lost response may have committed successfully. Clear that draft only after matching server values. */
 export function draftMatchesSet(
   draft: DraftFields,
@@ -249,7 +261,7 @@ export function draftMatchesSet(
     numeric(draft.rir) === set.rir &&
     numeric(draft.rpe ?? "") === (set.rpe ?? null) &&
     numeric(draft.duration) === set.durationSeconds &&
-    draftMetres(draft) === set.distanceMeters
+    sameDistance(draft, set.distanceMeters)
   );
 }
 

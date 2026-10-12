@@ -246,6 +246,20 @@ export function setLengthToMetres(value: number, unit: SetLengthUnit): number {
   return roundTo(toMetres(value, unit), SET_METRE_PLACES);
 }
 
+/**
+ * A distance to reach, read in `unit`: the least figure that, typed, is kept at `metres` or
+ * more. A target is something to log, and the progression engine judges a set by its metres,
+ * so the figure shown must reach them: 15 m is 16.4 yd, but 16 yd is kept as 14.6 m and falls
+ * short, so 15 m reads 17 yd (`setLengthIn` would say 16). A figure that was typed comes back
+ * as typed: 45.7 m, kept from 50 yd, reads 50 yd either way. Metres are their tenth.
+ */
+export function setTargetIn(metres: number, unit: SetLengthUnit): number {
+  const nearest = setLengthIn(metres, unit);
+  if (setLengthToMetres(nearest, unit) >= metres) return nearest;
+  // The nearest whole yard (or tenth) is under half a step short, so the next one up reaches.
+  return unit === "yd" ? nearest + 1 : roundTo(nearest + 0.1, SET_METRE_PLACES);
+}
+
 /** "40 m", "44 yd": a set's distance, held to its unit. */
 export function formatSetLength(metres: number, unit: SetLengthUnit): string {
   return `${setLengthIn(metres, unit)} ${unit}`;

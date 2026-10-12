@@ -255,13 +255,19 @@ export function ProfileFields({
         <SegmentedControl
           name="preferredUnit"
           aria-labelledby="profile-weight-unit"
+          aria-describedby="profile-weight-unit-says"
           options={UNIT_OPTIONS}
           value={unit}
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
-        <span className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2">
-          {imperial ? "Height in feet and inches." : "Height in centimetres."}
+        <span
+          id="profile-weight-unit-says"
+          className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
+        >
+          {imperial
+            ? "Loads and body weight in pounds, height in feet and inches."
+            : "Loads and body weight in kilograms, height in centimetres."}
         </span>
         {errors?.preferredUnit && (
           <span role="alert" className="block type-meta-small font-semibold">
@@ -312,11 +318,18 @@ export function ProfileFields({
           <SegmentedControl
             name="poolUnit"
             aria-labelledby="profile-pool-unit"
+            aria-describedby="profile-pool-unit-says"
             options={POOL_OPTIONS}
             value={distances.poolUnit}
             onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
             columns={2}
           />
+          <span
+            id="profile-pool-unit-says"
+            className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
+          >
+            {`Swims and pool lengths in ${distances.poolUnit === "yd" ? "yards" : "metres"}.`}
+          </span>
           {errors?.poolUnit && (
             <span role="alert" className="block type-meta-small font-semibold">
               {errors.poolUnit}

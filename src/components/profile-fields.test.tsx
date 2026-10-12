@@ -154,16 +154,21 @@ describe("profile fields", () => {
       </form>,
     );
     const posted = (name: string) => new FormData(container.querySelector("form")!).get(name);
-    const distance = screen.getByRole("radiogroup", { name: "Distance" });
-    expect(distance.getAttribute("aria-describedby")).toBeTruthy();
-    expect(
-      screen.getByText("Runs and rides in kilometres, carries and sleds in metres."),
-    ).toBeTruthy();
+    // Each control is described by the line under it, which says what it decides.
+    const says = (name: string) =>
+      document.getElementById(
+        screen.getByRole("radiogroup", { name }).getAttribute("aria-describedby")!,
+      )?.textContent;
+    expect(says("Weight")).toBe("Loads and body weight in kilograms, height in centimetres.");
+    expect(says("Distance")).toBe("Runs and rides in kilometres, carries and sleds in metres.");
+    expect(says("Pools")).toBe("Swims and pool lengths in metres.");
 
     // Pounds read miles and yard pools (ADR 0056), and the line says what that means for a carry.
     chooseUnit(/pounds/);
     expect([posted("distanceUnit"), posted("poolUnit")]).toEqual(["mi", "yd"]);
-    expect(screen.getByText("Runs and rides in miles, carries and sleds in yards.")).toBeTruthy();
+    expect(says("Weight")).toBe("Loads and body weight in pounds, height in feet and inches.");
+    expect(says("Distance")).toBe("Runs and rides in miles, carries and sleds in yards.");
+    expect(says("Pools")).toBe("Swims and pool lengths in yards.");
 
     // Kilometres chosen by hand beside pounds stay, whatever the weight unit does next.
     fireEvent.click(screen.getByRole("radio", { name: "km (kilometres)" }));

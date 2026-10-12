@@ -19,6 +19,7 @@ import {
   setLengthIn,
   setLengthToMetres,
   setLengthUnit,
+  setTargetIn,
   sportDistanceParts,
   toMetres,
   unitsForWeight,
@@ -243,6 +244,27 @@ describe("a set's distance in metres or yards", () => {
       expect(setLengthIn(setLengthToMetres(yards, "yd"), "yd")).toBe(yards);
     for (const yards of [10_000, 54_321, 109_361])
       expect(setLengthIn(setLengthToMetres(yards, "yd"), "yd")).toBe(yards);
+  });
+
+  it("shows a metre target as the least figure that, typed, still reaches it", () => {
+    // 15 m reads 16 yd, but 16 yd is kept as 14.6 m: a target says 17 yd, which keeps 15.5 m.
+    expect(setLengthIn(15, "yd")).toBe(16);
+    expect(setTargetIn(15, "yd")).toBe(17);
+    expect(setTargetIn(45, "yd")).toBe(50);
+    expect(setTargetIn(30, "yd")).toBe(33);
+    for (let metres = 1; metres <= 500; metres++) {
+      const shown = setTargetIn(metres, "yd");
+      expect(setLengthToMetres(shown, "yd")).toBeGreaterThanOrEqual(metres);
+      // And no fewer yards would do: the target asks for nothing past the bound.
+      expect(setLengthToMetres(shown - 1, "yd")).toBeLessThan(metres);
+    }
+    // A target kept from yards that were typed reads back as typed, as a logged set does.
+    for (let yards = 1; yards <= 600; yards++)
+      expect(setTargetIn(setLengthToMetres(yards, "yd"), "yd")).toBe(yards);
+    // Metres are kept to the tenth they are shown in; a finer bound takes the tenth above it.
+    expect(setTargetIn(15, "m")).toBe(15);
+    expect(setTargetIn(25.5, "m")).toBe(25.5);
+    expect(setTargetIn(14.94, "m")).toBe(15);
   });
 
   it("reads metres as kept and yards whole, each held to its unit", () => {

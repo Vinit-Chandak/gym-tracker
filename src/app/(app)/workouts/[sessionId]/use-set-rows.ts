@@ -9,6 +9,7 @@ import { WORKING_SET_TYPES } from "@/domain/progression";
 import {
   setLengthIn,
   setLengthToMetres,
+  setTargetIn,
   SET_LENGTH_WORDS,
   type SetLengthUnit,
 } from "@/lib/distance-units";
@@ -82,6 +83,13 @@ const str = (value: number | null | undefined): string | undefined =>
 /** A set's metres as a row holds them: in the session's length. */
 const lengthText = (metres: number | null | undefined, length: SetLengthUnit) =>
   str(metres === null || metres === undefined ? metres : setLengthIn(metres, length));
+
+/**
+ * The metres a prefill asks for, in the session's length: the least figure that, saved, reaches
+ * them (`setTargetIn`), so a set saved on its suggestion is never short of it (15 m is 17 yd).
+ */
+const targetText = (metres: number | null | undefined, length: SetLengthUnit) =>
+  str(metres === null || metres === undefined ? metres : setTargetIn(metres, length));
 
 function rowFromSet(set: SetVM, length: SetLengthUnit): RowState {
   return {
@@ -193,7 +201,7 @@ function toGhost(set: GhostSource, length: SetLengthUnit): Ghost {
     reps: str(set.reps),
     rir: str(set.rir),
     duration: str(set.durationSeconds),
-    distance: lengthText(set.distanceMeters, length),
+    distance: targetText(set.distanceMeters, length),
   };
 }
 
@@ -485,13 +493,27 @@ export function useSetRows({
     const reps = measure === "reps" ? resolve(row, "reps", ghost) : null;
     const duration = measure === "duration" ? resolve(row, "duration", ghost) : null;
     const distance = measure === "distance" ? resolve(row, "distance", ghost) : null;
-    // Kept in metres whatever it was typed in: 50 yd is 45.7 m, and reads back as 50 yd.
-    const distanceMeters = distance === null ? null : setLengthToMetres(distance, length);
+    // Kept in metres whatever it was typed in: 50 yd is 45.7 m, and reads back as 50 yd. A saved
+    // set whose figure was left as it reads keeps its own metres, so an edit to its RPE does not
+    // move a carry kept as 30 m to the 30.2 m its 33 yd would keep.
+    const kept = row.logged?.distanceMeters ?? null;
+    const distanceMeters =
+      distance === null
+        ? null
+        : kept !== null && distance === setLengthIn(kept, length)
+          ? kept
+          : setLengthToMetres(distance, length);
     // Effort must be entered for this set, never copied from the planned or previous effort.
     const rir = measure === "reps" ? resolve(row, "rir", {}) : null;
     const rpe = measure !== "reps" ? resolve(row, "rpe", {}) : null;
     if (reps === null && duration === null && distance === null) {
       update(row.setIndex, { error: missingValue(measure, length) });
+      return;
+    }
+    // Yards are whole, which is what makes a set read back as it was typed (ADR 0056). The pad
+    // has no point, but a keyboard or a paste can bring one: it is refused, never rounded away.
+    if (distance !== null && length === "yd" && !Number.isInteger(distance)) {
+      update(row.setIndex, { error: "Enter the distance in whole yards." });
       return;
     }
     // A set well under today's working load, saved with no RIR before any of the work, is the

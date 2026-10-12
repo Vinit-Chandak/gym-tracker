@@ -1,3 +1,5 @@
+import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+
 import { metricValue, type ExerciseStats, type SharedMetric } from "./shared-stats";
 
 /** One record: a comparable exercise's metric beating every earlier finished session. */
@@ -23,10 +25,16 @@ export type PreviousMaxima = ReadonlyMap<string, Partial<Record<SharedMetric, nu
  * An estimated 1RM is kept to the hundredth now and was kept to the tenth before, so the same
  * lift can read 16.33 against an older row's 16.3: an estimate has to beat the best by more
  * than that rounding (`ESTIMATE_TIE`) to be a record.
+ *
+ * A carry has to be longer in the figures its athlete reads, `length` (ADR 0056). In yards a
+ * best kept as 50 m reads 55 yd, and 55 yd logged is kept as 50.3 m: longer in metres, but the
+ * same carry as far as the athlete can tell, never "55 yd · was 55 yd". In metres, kept to the
+ * tenth they are read in, any longer carry is one.
  */
 export function detectRecords(
   previous: PreviousMaxima,
   exercises: readonly ExerciseStats[],
+  length: SetLengthUnit,
 ): TrainingRecord[] {
   const records: TrainingRecord[] = [];
   for (const stats of exercises) {
@@ -36,8 +44,12 @@ export function detectRecords(
     for (const metric of stats.metrics) {
       const value = metricValue(stats, metric);
       const before = earlier[metric];
-      const tie = metric === "e1rm" ? ESTIMATE_TIE : 0;
-      if (value === null || before === undefined || !(value > before + tie)) continue;
+      if (value === null || before === undefined) continue;
+      const beats =
+        metric === "longest_carry"
+          ? setLengthIn(value, length) > setLengthIn(before, length)
+          : value > before + (metric === "e1rm" ? ESTIMATE_TIE : 0);
+      if (!beats) continue;
       records.push({ exerciseId: stats.exerciseId, metric, value, previous: before });
     }
   }

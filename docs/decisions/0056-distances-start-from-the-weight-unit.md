@@ -34,9 +34,13 @@ yards beside miles.
    account that never set its distances apart goes on following its weight unit when it changes.
 3. **The setting is in Edit profile, beside the weight.** The units control is now three, one
    under the other, each a segmented control with its label and what it decides said under it:
-   - **Weight**: kg or lb, as before, with the height line under it;
+   - **Weight**: kg or lb, as before, "Loads and body weight in pounds, height in feet and
+     inches.";
    - **Distance**: km or mi, "Runs and rides in miles, carries and sleds in yards.";
-   - **Pools**: m or yd, asked only of an account that swims, as setup asks.
+   - **Pools**: m or yd, "Swims and pool lengths in yards.", asked only of an account that
+     swims, as setup asks.
+
+   Each line is the control's description to a screen reader.
 
    Switching the weight carries a distance along while it follows the weight unit. One chosen
    by hand stays where it was, whatever the weight does next in the same form. A pool that is
@@ -44,7 +48,7 @@ yards beside miles.
 
 4. **Setup's weight seeds the distances.** The sheet's design is unchanged. Choosing a weight
    there now moves a distance that was the old weight's to the new one, and the save stores
-   only what was set apart (decision 2).
+   only what was set apart (decision 2). Its Distance row's hint says "Runs, rides and carries".
 5. **Carries and sleds read in yards beside miles.** Storage stays metres
    (`set_logs.distance_meters`, `numeric(8, 1)`, and every programme range). Affected:
    - **What follows the setting.** Everything that shows a set's distance, or a target for one:
@@ -53,12 +57,29 @@ yards beside miles.
      - the exercise page: Latest, its records, its graph, its defaults and its programme lines;
      - Progress's exercise graph and Today's rows;
      - the programme's days, Train another day and the routines list;
+     - a first programme read before it starts: setup's Your programme is ready and Review
+       programme, its targets and its opening session;
      - a friend's shared session, records, boards and head to head.
    - **Yards are whole.** A whole number of yards kept to a tenth of a metre is never more than
      0.06 yd from itself, so 50 yd is kept as 45.7 m and reads back as 50 yd. The entry is typed
-     on the number pad with no point. Metres keep their tenth, as before. A target reads each
-     end as a logged set would ("20–40 m" is "22–44 yd"), so the target and the set that meets
-     it say the same figure.
+     on the number pad with no point. A point that reaches it anyway, from a keyboard or a
+     paste, stays in the field and Save refuses it ("Enter the distance in whole yards."):
+     it is never rounded away, nor dropped to run the figures together. Metres keep their
+     tenth, as before.
+   - **A logged set reads to the nearest yard; a target to the yard that reaches it.** The
+     progression engine judges a set by its metres against the programme's, so a target in
+     yards is the least whole yard that, logged, is kept at the bound or more (`setTargetIn`):
+     "20–40 m" is "22–44 yd", and "15–45 m" is "17–50 yd", because 16 yd is kept as 14.6 m and
+     49 yd as 44.8 m. The same goes for a coach's set, the entry's prefill and Why. A set
+     logged at the figure shown always meets the bound it was shown for; one typed in yards
+     reads back as typed either way.
+   - **An edit moves no metres it was not asked to.** A set kept in metres before yards reads
+     to the nearest yard (30 m is 33 yd). Saved again with that figure left alone, after an
+     edit to its RPE or its type, it keeps its own metres, not the 30.2 m 33 yd would keep.
+   - **A record is one the athlete can read.** A carry is a record only when it is longer in
+     the figure its athlete reads (`detectRecords` takes the owner's length when the workout
+     is finished): a best of 50 m reads 55 yd, and 55 yd logged (50.3 m) is no record, never
+     "55 yd · was 55 yd". In metres, any longer carry is one, as before.
    - **No feet.** A carry is ground covered, and turf is marked in yards. Feet stay for a climb
      beside miles (`climbUnit`) and for a height.
    - **Drafts.** A set draft records the length its distance was typed in, as it records a
@@ -66,9 +87,9 @@ yards beside miles.
      other length if the setting changed under it.
 6. **The coach's words keep their metres.** Lines that feed change signatures or the coach stay
    in metres: the coach's plan line (`planLine`), a set as the coach reads it (`formatSet`'s
-   default), a programme change's diff text (`program-diff`, `program-patch`), and the coach's
-   draft preview, which shows those same targets. Setup's split builder and the programme builder
-   still author a carry's range in metres, as they author a run in kilometres.
+   default), and a programme change's diff text (`program-diff`, `program-patch`, which pass
+   metres to `exerciseTargets`). Setup's split builder and the programme builder still author a
+   carry's range in metres, as they author a run in kilometres.
 7. **Migration 0053** adds the two columns and fills them:
    - kilometres and metres were defaults nobody chose, and miles or yards beside pounds are
      what pounds now give, so all of those become null and follow the weight unit;
@@ -87,8 +108,12 @@ yards beside miles.
   would read kilometres again on going back to kilograms. Saving a distance equal to what the
   weight gives is, by decision 2, the same as not choosing one.
 - `formatSharedMetric`, the measure labels (`measureColumnLabel`, `measureUnitSuffix`,
-  `lengthRangeLabel`) and every component that shows a carry take the length as a required
-  argument, so a new display has to say which length it reads in before it compiles.
+  `lengthRangeLabel`), `exerciseTargets`, `detectRecords` and every component that shows a
+  carry take the length as a required argument, so a new display has to say which length it
+  reads in before it compiles. A display of a target reads it with `setTargetIn`, and of a set
+  done with `setLengthIn`.
+- A carry kept in metres before yards can read one yard more as a prefill than in the log: a
+  15 m set reads 16 yd in History and asks for 17 yd when it is the one to repeat.
   `formatSet` and `formatSets` default to metres, for the coach's lines; every display passes
   the athlete's length.
 - An open workout reads the length its page was drawn with. Changing the setting mid-workout

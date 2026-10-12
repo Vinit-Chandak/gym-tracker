@@ -122,6 +122,12 @@ describe("unsaved set drafts", () => {
     // The same figure in metres is a different set; a draft from before yards is in metres.
     expect(draftMatchesSet(carry, kept)).toBe(false);
     expect(draftMatchesSet({ ...carry, distance: "45.7" }, kept)).toBe(true);
+    // A set kept as 30 m, edited in yards with its 33 yd left alone, keeps its 30 m: the draft
+    // still matches it, and a different figure does not.
+    const metreSet = { ...kept, distanceMeters: 30 };
+    expect(draftMatchesSet({ ...carry, distance: "33", length: "yd" }, metreSet)).toBe(true);
+    expect(draftMatchesSet({ ...carry, distance: "34", length: "yd" }, metreSet)).toBe(false);
+    expect(draftMatchesSet({ ...carry, distance: "", length: "yd" }, metreSet)).toBe(false);
     // A draft records what it was typed in, and an unknown length is not a draft at all.
     const s = storage();
     writeDraft(s, context, { ...carry, length: "yd" });

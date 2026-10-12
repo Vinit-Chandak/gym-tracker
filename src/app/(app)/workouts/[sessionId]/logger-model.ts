@@ -2,7 +2,7 @@ import { accessoryGlyph, GLYPH_LABELS, type GlyphName } from "@/components/ui/gl
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
-import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import {
   lengthRangeLabel,
   measureUnitSuffix,
@@ -73,7 +73,10 @@ function coachMeasure(set: TargetSet): PrescriptionType {
   return "reps";
 }
 
-/** What a coach's set asks for in its measure, a carry in the athlete's `length`. */
+/**
+ * What a coach's set asks for in its measure, a carry in the athlete's `length` as the least
+ * figure that reaches it (`setTargetIn`).
+ */
 function coachCount(
   set: TargetSet,
   measure: PrescriptionType,
@@ -82,7 +85,7 @@ function coachCount(
   return measure === "distance"
     ? set.distanceMeters === null
       ? null
-      : setLengthIn(set.distanceMeters, length)
+      : setTargetIn(set.distanceMeters, length)
     : measure === "duration"
       ? set.durationSeconds
       : set.reps;

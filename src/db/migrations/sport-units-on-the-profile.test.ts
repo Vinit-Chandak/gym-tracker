@@ -88,7 +88,9 @@ it("lets every default follow the weight unit, and keeps only what neither expla
   for (const [name, userId] of Object.entries(accounts))
     expect(await unitsOf(userId)).toEqual(expected[name as keyof typeof expected]);
 
-  // Safe to run twice, and a unit chosen since is never overwritten.
+  // Safe to run twice, and a unit stored since is never overwritten. One chosen to match the
+  // weight unit is stored as null (ADR 0056, decision 2), so a rerun can fill it again from a
+  // per-sport row; nothing reruns a migration Drizzle has recorded as applied.
   await t.db
     .update(profiles)
     .set({ distanceUnit: "km" })

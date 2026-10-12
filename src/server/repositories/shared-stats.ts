@@ -45,6 +45,7 @@ import {
   type StatsWorkout,
 } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
 import type { SharedDistanceUnits } from "@/lib/format";
 import type { DateRange } from "@/server/validation/date-range";
 
@@ -66,6 +67,20 @@ async function ownerTimeZone(tx: DbOrTx, userId: string): Promise<string> {
     .where(eq(profiles.id, userId))
     .limit(1);
   return row?.timeZone ?? "UTC";
+}
+
+/** What the account reads a carry in, which decides whether a longer one is a record. */
+async function ownerLength(tx: DbOrTx, userId: string): Promise<SetLengthUnit> {
+  const [row] = await tx
+    .select({
+      preferredUnit: profiles.preferredUnit,
+      distanceUnit: profiles.distanceUnit,
+      poolUnit: profiles.poolUnit,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return row ? setLengthFor(row) : "m";
 }
 
 /** The best the owner had done per exercise and metric before `startedAt`. */
@@ -130,7 +145,7 @@ export async function writeSessionStats(
     stats.exercises.map((e) => e.exerciseId),
     workout.startedAt,
   );
-  const records = detectRecords(previous, stats.exercises);
+  const records = detectRecords(previous, stats.exercises, await ownerLength(tx, userId));
   const { session } = stats;
   await tx
     .insert(sharedSessionStats)

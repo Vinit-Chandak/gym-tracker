@@ -364,7 +364,7 @@ it("takes a carry in whole yards beside miles, keeps its metres, and reads it ba
     exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
   });
   fill({ Yards: "50", RPE: "7" });
-  // Whole yards: the keypad has no point, and a typed one is dropped.
+  // Whole yards, on a keypad with no point.
   expect(field("Yards").getAttribute("inputmode")).toBe("numeric");
   expect(screen.queryByRole("textbox", { name: "Metres" })).toBeNull();
   press("Save");
@@ -373,6 +373,77 @@ it("takes a carry in whole yards beside miles, keeps its metres, and reads it ba
   );
   press(/^Set 1: 20 kilograms, 50 yards, RPE 7\. Edit$/);
   expect(field("Yards").value).toBe("50");
+});
+
+it("refuses a point in yards rather than running its figures together", () => {
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  // A keyboard or a paste brings the point the keypad does not have: 27.5, never 275.
+  fill({ Yards: "27.5", RPE: "7" });
+  expect(field("Yards").value).toBe("27.5");
+  press("Save");
+  expect(screen.getByRole("alert").textContent).toContain("Enter the distance in whole yards.");
+  expect(actions.log).not.toHaveBeenCalled();
+});
+
+it("keeps a carry's own metres when an edit leaves its yards as they read", async () => {
+  // Logged as 30 m before yards, it reads 33 yd, which would be kept as 30.2 m.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 8, distanceMeters: 30 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      sets: [{ ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 30 }],
+    },
+  });
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 7\. Edit$/);
+  fireEvent.change(field("RPE"), { target: { value: "8" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ rpe: 8, distanceMeters: 30 }),
+    ),
+  );
+  // A figure that was changed is the athlete's, and is kept as what it says.
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 8\. Edit$/);
+  fireEvent.change(field("Yards"), { target: { value: "35" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMeters: 32 })),
+  );
+});
+
+it("prefills a metre target in yards that, saved, reaches it", async () => {
+  // 15 m reads 16 yd, which is kept as 14.6 m and falls short: the prefill asks for 17 yd.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 15.5 },
+  });
+  const target = { ...saved, weight: 20, reps: null, rir: null, distanceMeters: 15 };
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      suggestion: {
+        kind: "hold",
+        basis: "exercise",
+        reason: "Repeat the target until two comparable sessions meet it with reported effort.",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [target, { ...target, setIndex: 2 }],
+      },
+    },
+  });
+  fill({ RPE: "7" });
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 15.5 })),
+  );
 });
 
 it("picks up a set carried here by a machine answer as the row it was, whenever it arrives", async () => {

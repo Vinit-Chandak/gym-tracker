@@ -29,6 +29,12 @@ export type EntryField = {
   /** The field's name while it is typed into. */
   inputLabel: string;
   inputMode: "decimal" | "numeric";
+  /**
+   * What typing keeps, where it is more than the keypad offers. Yards are typed on a pad with no
+   * point, but a point brought by a keyboard or a paste stays, for Save to refuse, rather than
+   * being dropped to run the figures together: 27.5 is never 275.
+   */
+  keeps?: "decimal";
   max: number;
   min: number;
   step: number;
@@ -179,7 +185,7 @@ export function Entry({
                   {
                     [field.field]: sanitizeNumberEntry(
                       event.target.value,
-                      field.inputMode,
+                      field.keeps ?? field.inputMode,
                       field.max,
                     ),
                   },

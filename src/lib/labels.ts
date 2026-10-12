@@ -1,5 +1,5 @@
 import type { AvailabilityStatus } from "@/domain/equipment-resolution";
-import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import type { BodyRegion } from "@/domain/muscles";
 import type { FoodUnit, Meal } from "@/domain/nutrition";
 import type { SuggestionKind } from "@/domain/progression";
@@ -95,15 +95,16 @@ export function measureUnitSuffix(measure: PrescriptionType, length: SetLengthUn
 
 /**
  * A range of a set's metres in the athlete's length: "20–40 m", or "22–44 yd" beside miles.
- * Each end is read as a logged set is (`setLengthIn`), so a target and the set that meets it
- * say the same figure.
+ * Each end is the least figure that, logged, reaches it (`setTargetIn`): 15–45 m is "17–50 yd",
+ * since 16 yd is kept as 14.6 m and 49 yd as 44.8 m, and a set logged at the figure shown meets
+ * the bound the progression engine judges it by.
  */
 export function lengthRangeLabel(
   minMetres: number | null,
   maxMetres: number | null,
   length: SetLengthUnit,
 ): string {
-  const read = (metres: number | null) => (metres === null ? null : setLengthIn(metres, length));
+  const read = (metres: number | null) => (metres === null ? null : setTargetIn(metres, length));
   return rangeLabel(read(minMetres), read(maxMetres), measureUnitSuffix("distance", length));
 }
 

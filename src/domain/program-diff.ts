@@ -322,7 +322,8 @@ function reference(slot: Slot): DiffExercise {
     exerciseSlug: slot.exercise.exerciseSlug,
     lineageId: slot.exercise.lineageId ?? null,
     position: slot.position,
-    targets: exerciseTargets(slot.exercise),
+    // A change's text keeps the metres the programme was written in (ADR 0056, decision 6).
+    targets: exerciseTargets(slot.exercise, "m"),
   };
 }
 

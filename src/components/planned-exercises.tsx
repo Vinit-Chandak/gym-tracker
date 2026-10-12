@@ -1,5 +1,5 @@
 import { Figures } from "@/components/ui/figures";
-import { setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { lengthRangeLabel, measureUnitSuffix, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
@@ -120,8 +120,8 @@ type TargetLike = {
 /**
  * Targets a coach wrote, as a row says them: the load leads, then the sets, and "@" is RIR
  * alone ("60 kg · 3 × 5 @ 2, 2, 1 RIR"); a set rated by effort says RPE ("32 kg · 3 × 30 m ·
- * RPE 7"), its distance in the athlete's length. Warm-ups are left out unless they are all
- * there is. Null when nothing is set.
+ * RPE 7"), its distance in the athlete's length, as the least figure that reaches it
+ * (`setTargetIn`). Warm-ups are left out unless they are all there is. Null when nothing is set.
  */
 export function targetsLine(
   sets: readonly TargetLike[],
@@ -140,7 +140,7 @@ export function targetsLine(
     first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit}${FACT_SEPARATOR}`;
   const volume =
     first.reps === null && first.distanceMeters !== null
-      ? `${list((set) => (set.distanceMeters === null ? null : setLengthIn(set.distanceMeters, length)), "/")} ${length}`
+      ? `${list((set) => (set.distanceMeters === null ? null : setTargetIn(set.distanceMeters, length)), "/")} ${length}`
       : first.reps === null && first.durationSeconds !== null
         ? `${list((set) => set.durationSeconds, "/")} s`
         : list((set) => set.reps, "/");

@@ -7,6 +7,7 @@ import { getDb } from "@/db/client";
 import { exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { setLengthFor } from "@/lib/distance-units";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readSetupState, setupStepsOf } from "@/server/queries/setup-state";
@@ -74,6 +75,7 @@ export default async function SetupDraftPage({ params }: { params: Promise<{ id:
         names={Object.fromEntries(data.library.map((exercise) => [exercise.slug, exercise.name]))}
         needsCheck={data.stale || draft.status === "editing"}
         today={todayInTimeZone(profile.timeZone)}
+        length={setLengthFor(profile)}
       />
     </OnboardingFrame>
   );
