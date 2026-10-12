@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
@@ -9,6 +9,7 @@ import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
 import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
+import { boldEmWidth, emWidth, textEmWidth } from "@/components/ui/fit";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -111,6 +112,23 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
       </dd>
     </div>
   );
+}
+
+/**
+ * The room a check-in reading needs on one line, as a CSS length: its name or its figure,
+ * whichever is wider ("Sleep quality", "10 h 45 min"), each figure in Jost and its unit at the
+ * caption's size.
+ */
+function readingWidth({ label, parts }: { label: string; parts: string[][] }): string {
+  const at = (em: number, size: "figure" | "caption") =>
+    `${em.toFixed(3)} * var(--ov-type-${size})`;
+  const figure = parts
+    .map(
+      ([value = "", unit = ""]) =>
+        `${at(emWidth(value), "figure")} + ${at(boldEmWidth(` ${unit}`), "caption")}`,
+    )
+    .join(` + ${textEmWidth(" ").toFixed(3)}em + `);
+  return `max(${at(textEmWidth(label), "caption")}, ${figure})`;
 }
 
 /**
@@ -410,25 +428,30 @@ export function FinishedWorkout({
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
+          <section aria-labelledby="finished-check-in">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>
-            <dl className="finished-check-in">
-              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
-                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+            {/* Four to a row while the widest reading, its name or its figure, has a quarter of
+                it; else two and two (session.css). A figure keeps one line ("7 h 15 min"). */}
+            <dl
+              className="finished-check-in"
+              style={
+                {
+                  "--check-in-cell": `max(${checkIn.map(readingWidth).join(", ")})`,
+                  "--check-in-count": checkIn.length,
+                } as CSSProperties
+              }
+            >
               {checkIn.map(({ label, parts }) => (
                 <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  {/* A sleep's hours and minutes may part in a narrow cell, each whole. */}
-                  <dd className="mt-0.5">
+                  <dd className="mt-0.5 whitespace-nowrap">
                     {parts.map(([figure, unit], index) => (
                       <Fragment key={index}>
                         {index > 0 && " "}
-                        <span className="whitespace-nowrap">
-                          <span className="type-figure">{figure}</span>
-                          <span className="figure-row-unit"> {unit}</span>
-                        </span>
+                        <span className="type-figure">{figure}</span>
+                        <span className="figure-row-unit"> {unit}</span>
                       </Fragment>
                     ))}
                   </dd>

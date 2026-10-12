@@ -3,6 +3,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { emWidth, textEmWidth } from "@/components/ui/fit";
+
 import { FinishedWorkout } from "./finished-workout";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
@@ -160,6 +162,19 @@ it("says each check-in reading on its own scale, as the check-in asked it", () =
   expect(stat("Soreness")).toBe("1 / 5");
   // Energy is no longer asked, and a check-in without it says nothing of it.
   expect(screen.queryByText("Energy")).toBeNull();
+});
+
+it("holds a night's sleep on one line, the readings folding by the widest of them instead", () => {
+  show({ sleepHours: 10.75, sleepQuality: 2, fatigue: 4, soreness: 1 });
+  // A 360-dp phone read "7 h" over "15 min", and "Sleep quality" over two lines beside it.
+  const sleep = screen.getByText("Sleep", { selector: "dt" }).nextElementSibling as HTMLElement;
+  expect(sleep.className).toContain("whitespace-nowrap");
+  const readings = sleep.closest("dl")!;
+  expect(readings.style.getPropertyValue("--check-in-count")).toBe("4");
+  // Four to a row only where a quarter of it holds the widest name and the widest figure.
+  const cell = readings.style.getPropertyValue("--check-in-cell");
+  expect(cell).toContain(`${emWidth("10").toFixed(3)} * var(--ov-type-figure)`);
+  expect(cell).toContain(`${textEmWidth("Sleep quality").toFixed(3)} * var(--ov-type-caption)`);
 });
 
 it("names the year of a workout from another, as a friend's copy of it does", () => {

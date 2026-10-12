@@ -83,3 +83,10 @@ it("says a workout's name in the session's chrome whole, wrapping, never in an e
     expect(rule(file, end)).toMatch(/margin-left:\s*auto/);
   }
 });
+
+it("folds a finished workout's check-in by its widest reading before a figure would part", () => {
+  // Four readings a row only where the widest has a quarter of it (the page says how wide).
+  const readings = rule("session.css", ".finished-check-in");
+  expect(readings).toMatch(/var\(--check-in-cell/);
+  expect(readings).toMatch(/var\(--check-in-count/);
+});
