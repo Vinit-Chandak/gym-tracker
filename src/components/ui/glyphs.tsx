@@ -230,13 +230,15 @@ const GLYPHS = {
     <path key="e" d="M16.3 20.5V5.2h3.2" />,
     <circle key="f" cx="16.3" cy="15.6" r="2.9" />,
   ],
-  // The other cardio machines, each as itself. A rowing machine, side on: its rail on two feet,
-  // the seat on it, the footplate, and the flywheel at the front, where the rower faces.
+  // The other cardio machines, each as itself. A rowing machine, side on: its rail on a foot and
+  // the flywheel's stand, the seat on the rail, and the handle drawn out of the flywheel toward
+  // it. It stands as tall as the treadmill and the stair climber, so a meta line's glyphs share
+  // a middle; a footplate between seat and flywheel ran into the wheel at 16 px.
   rower: [
-    <path key="a" d="M3.5 18.5h10.5M4.5 18.5v2M16.5 19v1.5" />,
-    <circle key="b" cx="16.5" cy="14.5" r="4.5" />,
-    <path key="c" d="M6 16.5h3.5" />,
-    <path key="d" d="M12.5 18.5l-1.3-4.5" />,
+    <path key="a" d="M3.5 18h13M4.5 18v2.5M16.5 15.5v5" />,
+    <circle key="b" cx="16.5" cy="11" r="4.5" />,
+    <path key="c" d="M5.5 18v-2.5H9V18" />,
+    <path key="d" d="M12.5 9H7" />,
   ],
   // A ski erg, front on: the tower on its foot, a rope out from the top each side to a handle.
   skiErg: [

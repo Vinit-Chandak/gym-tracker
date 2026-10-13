@@ -77,8 +77,9 @@ const GLYPHS = {
   // an indoor bike: a wheel held up by a stand from its hub, on the floor
   trainer: `<path d="M3.5 20.5h17"/><path d="M7 20.5L9.6 8.2"/><path d="M6.8 7.6h5.4"/><path d="M8.9 12.4h7.4"/><path d="M16.3 20.5V5.2h3.2"/><circle cx="16.3" cy="15.6" r="2.9"/>`,
   // the other cardio machines, each as itself (added in the app, October 2026): a rowing machine,
-  // side on, its rail on two feet, the seat on it, the footplate and the flywheel at the front
-  rower: `<path d="M3.5 18.5h10.5M4.5 18.5v2M16.5 19v1.5"/><circle cx="16.5" cy="14.5" r="4.5"/><path d="M6 16.5h3.5"/><path d="M12.5 18.5l-1.3-4.5"/>`,
+  // side on, its rail on a foot and the flywheel's stand, the seat on the rail, and the handle
+  // drawn out of the flywheel toward it, as tall as the treadmill and the stair climber
+  rower: `<path d="M3.5 18h13M4.5 18v2.5M16.5 15.5v5"/><circle cx="16.5" cy="11" r="4.5"/><path d="M5.5 18v-2.5H9V18"/><path d="M12.5 9H7"/>`,
   // a ski erg, front on: the tower on its foot, a rope out from the top each side to a handle
   skiErg: `<rect x="10" y="3.5" width="4" height="17" rx="2"/><path d="M6.5 20.5h11"/><path d="M10 6.5L5.5 10v4M14 6.5l4.5 3.5v4"/>`,
   // a stair climber, side on: its steps rising to the front, and the treadmill's upright
