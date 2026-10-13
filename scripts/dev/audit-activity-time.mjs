@@ -65,7 +65,8 @@ async function run(engine) {
   };
   const saveActivity = async (label = "Save activity") => {
     await page.getByRole("button", { name: label, exact: true }).click();
-    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+$/);
+    // A run logged from Training opens on Training (?from=training), as its Back leads there.
+    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
     await page.waitForLoadState("networkidle");
     return new URL(page.url()).pathname.split("/").at(-1);
   };
