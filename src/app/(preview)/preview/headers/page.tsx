@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Wordmark } from "@/components/shell/wordmark";
+import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageContent } from "@/components/shell/page-content";
@@ -40,9 +41,9 @@ export default function PreviewHeadersPage() {
           backHref="/gyms"
           backLabel="All gyms"
           action={
-            <LinkButton href="/preview/headers" variant="secondary" size="sm">
+            <Link href="/preview/headers" className="header-text-action">
               Edit
-            </LinkButton>
+            </Link>
           }
         />
       </div>
@@ -51,8 +52,9 @@ export default function PreviewHeadersPage() {
           <Card>
             <p className="text-sm text-ink-muted">
               The meta hangs off the far end of the title&apos;s own baseline rather than stacking
-              above it in uppercase. One level down the title is centred between the way back and
-              whatever the screen offers, so a nested page never reads like a top-level one.
+              above it in uppercase. One level down, the way back names where it goes on a bar of
+              its own, with the screen&apos;s one action as a word at its end, and the title stands
+              under it, so a nested page never reads like a top-level one.
             </p>
           </Card>
         </Section>

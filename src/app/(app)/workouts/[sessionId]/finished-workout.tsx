@@ -7,7 +7,7 @@ import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
 import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
-import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
 import { boldEmWidth, emWidth, textEmWidth } from "@/components/ui/fit";
 import { FitTitle } from "@/components/ui/fit-title";
@@ -252,23 +252,22 @@ export function FinishedWorkout({
               <BackLink fallback={backHref} />
               {edit && (
                 <div className="page-header-action">
-                  {/* A filled button stands on the content's edge, where the bar's glyphs reach
-                      past it into the gutter. */}
+                  {/* Edit and Done are words at the end of the bar, as a gym's Edit is, on the
+                      content's edge at every text size: a fill as tall as the bar (Android, large
+                      text) ran from the screen's top edge to the print. */}
                   {editing ? (
-                    <Button size="sm" className="mr-2.5" onClick={edit.onDone}>
+                    <button type="button" className="header-text-action" onClick={edit.onDone}>
                       Done
-                    </Button>
+                    </button>
                   ) : (
-                    <Button
-                      variant="tonal"
-                      size="sm"
-                      className="mr-2.5"
+                    <button
+                      type="button"
+                      className="header-text-action"
                       aria-label="Edit workout"
                       onClick={edit.onEdit}
                     >
-                      <Glyph name="edit" className="glyph-18" />
                       Edit
-                    </Button>
+                    </button>
                   )}
                 </div>
               )}

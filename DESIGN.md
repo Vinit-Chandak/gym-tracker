@@ -1080,11 +1080,13 @@ good is the target or the goal, which a rule or the readout says, not a directio
   are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
   sliders.
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
-  link that names where it goes; a session screen has its back or minimise, the rest pill, and
-  at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "25 days behind" stands beside the squares. The
-  squares are 9 pt and grow with the reader's text by half, as glyphs do (13.5 at 200%): days done
-  in ink, today ringed, a skipped day dashed, the rest a hairline.
+  link that names where it goes, and at most one action at the end of its bar, a word (Edit,
+  Done) or a glyph (Filters, More) on the content's edge, never a filled button, which would
+  fill the bar from the screen's top edge; a session screen has its back or minimise, the rest
+  pill, and at most Finish and More. Today's head is the date and the cycle as seven squares,
+  wordless while the programme is on track; behind is news, so "25 days behind" stands beside
+  the squares. The squares are 9 pt and grow with the reader's text by half, as glyphs do (13.5
+  at 200%): days done in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
