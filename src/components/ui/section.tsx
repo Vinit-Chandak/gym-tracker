@@ -5,16 +5,16 @@ import { cn } from "@/lib/utils";
 import { InfoTip } from "./info-tip";
 
 /**
- * A small label above a box. Quiet on purpose: the box beneath carries the group, so
- * several of these on one screen read as one page rather than a stack of headings, and
- * nothing is drawn under the label.
+ * A section's name above its box or list, in the Caption every section's name takes (DESIGN.md,
+ * Typography), at the gutter with the box's edge and the names under it (The One Left Edge
+ * Rule). Quiet on purpose: the box beneath carries the group, so several of these on one screen
+ * read as one page rather than a stack of headings, and nothing is drawn under the label.
  */
 export function Section({
   title,
   action,
   info,
   description,
-  flush = false,
   className,
   children,
 }: {
@@ -23,31 +23,19 @@ export function Section({
   /** An explanation of the section, kept behind a tip beside the label rather than under it. */
   info?: ReactNode;
   description?: string;
-  /**
-   * Over a list in no box, its names at the gutter: the label at the gutter too, rather than
-   * inset to the box's edge (DESIGN.md, The One Left Edge Rule).
-   */
-  flush?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <section className={cn("min-w-0", className)}>
-      <div
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1.5",
-          !flush && "px-1",
-        )}
-      >
-        <h2 className="flex items-center gap-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1.5">
+        <h2 className="caption-head flex items-center gap-1">
           {title}
           {info && <InfoTip label={`About ${title.toLowerCase()}`}>{info}</InfoTip>}
         </h2>
         {action}
       </div>
-      {description && (
-        <p className={cn("pb-2 text-sm text-ink-muted", !flush && "px-1")}>{description}</p>
-      )}
+      {description && <p className="pb-2 text-sm text-ink-muted">{description}</p>}
       <div className="min-w-0 space-y-3">{children}</div>
     </section>
   );

@@ -144,7 +144,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <p className="text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
         ) : (
           <>
             <GraphRangeProvider preset={preset}>
@@ -201,7 +201,6 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
               <Section
                 title="Exercises in common"
                 info="Movements from the shared library whose load means the same everywhere, that you both logged in the span. Each opens the head to head for that movement."
-                flush
               >
                 {found.lifting.common.comparable.length > 0 ? (
                   // A list to choose from, its names at the gutter with nothing boxing them, so
