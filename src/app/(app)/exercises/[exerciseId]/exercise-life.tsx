@@ -7,8 +7,8 @@ import { Figures } from "@/components/ui/figures";
 import {
   GLYPH_LABELS,
   Glyph,
+  exerciseGlyph,
   typeGlyph,
-  type GlyphName,
   type MachineKind,
 } from "@/components/ui/glyphs";
 import { formatSet, formatSets, loadReadingOf, type LoadReading } from "@/domain/sets";
@@ -18,29 +18,11 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
-import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { EXERCISE_MODALITY_LABELS, LOAD_UNIT_LABELS } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import { fromKilograms } from "@/lib/units";
 import type { ExerciseMonth } from "@/server/repositories/exercise-life";
 import type { ExerciseBest } from "@/server/repositories/shared-stats";
-
-/** Equipment as its glyph (DESIGN.md, Shapes). */
-function glyphFor(modality: ExerciseModality): GlyphName {
-  switch (modality) {
-    case "barbell":
-    case "dumbbell":
-      return "dumbbell";
-    case "cable":
-      return "cable";
-    case "machine":
-    case "cardio":
-      return "machine";
-    case "smith_machine":
-      return "smith";
-    default:
-      return "bodyweight";
-  }
-}
 
 type Set = {
   setIndex: number;
@@ -111,7 +93,12 @@ export function ExerciseLife({
   performances,
   elsewhere = [],
 }: {
-  exercise: MetricExercise & { modality: ExerciseModality; loadPortability: string };
+  exercise: MetricExercise & {
+    modality: ExerciseModality;
+    loadPortability: string;
+    /** The cardio machine it is done on, drawn where no machine is named (`exerciseGlyph`). */
+    cardioMachine?: string | null;
+  };
   /** `assisted`: the machine's number is help given, so its best is the least of it. */
   life: { months: ExerciseMonth[]; sessions: number; assisted: boolean };
   /** The machine the graph, the figures and Latest are read on, for a movement bound to one. */
@@ -137,10 +124,12 @@ export function ExerciseLife({
   // The glyph says the kind of the machine named beside it, where its type has a glyph of its own
   // (`typeGlyph`), never the movement's: a back extension bench is no pull-up bar, and a rowing
   // machine no weight stack. Otherwise it says what loads the movement, as the page's badge
-  // further down says it.
+  // further down says it: cardio the machine it is done on, and on none, Cardio in words.
   const glyph =
-    (machineName && machineType ? typeGlyph(machineType) : null) ?? glyphFor(exercise.modality);
-  const machine = machineName && !sameName(machineName, GLYPH_LABELS[glyph]) ? machineName : null;
+    (machineName && machineType ? typeGlyph(machineType) : null) ??
+    exerciseGlyph({ modality: exercise.modality, cardioMachine: exercise.cardioMachine ?? null });
+  const kind = glyph ? GLYPH_LABELS[glyph] : EXERCISE_MODALITY_LABELS[exercise.modality];
+  const machine = machineName && !sameName(machineName, kind) ? machineName : null;
   const global = exercise.loadPortability === "global";
   const where = performances[0]?.gymName ?? null;
   // A machine's loads are in its own unit; anything else in the account's.
@@ -241,12 +230,8 @@ export function ExerciseLife({
             them: "Machine" and "Lat pulldown" side by side read as one name. A machine named
             after its kind ("Smith machine") is said once either way. */}
         <span className="meta-fact">
-          <Glyph
-            name={glyph}
-            label={machine ? GLYPH_LABELS[glyph] : undefined}
-            className="glyph-16"
-          />
-          {machine ?? GLYPH_LABELS[glyph]}
+          {glyph && <Glyph name={glyph} label={machine ? kind : undefined} className="glyph-16" />}
+          {machine ?? kind}
         </span>
         {where && (
           <span className="meta-fact">

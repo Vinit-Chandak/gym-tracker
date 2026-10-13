@@ -781,8 +781,11 @@ as the indoor bike, which stands for any other. That holds wherever a machine is
 list, an exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the
 machine an added exercise will be done on. An exercise with no machine named is drawn by what
 loads it, as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab
-wheel under Equipment. The mark is an ultramarine slab and a vermilion disc on an ink line (the
-name's mark, kept from the first alphabet; it is not a print); the app icon is
+wheel under Equipment. Cardio is loaded by the machine it is done on, so it is drawn as that
+machine, never the stack: the rowing machine's as the rowing machine, the stationary bike as the
+indoor bike; cardio done on none (battle ropes, a sled) has no glyph, and says Cardio in words.
+The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark, kept from
+the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
 stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
 ground at the gutter, never in a box; their links are ink and underlined.

@@ -3,7 +3,7 @@
 import { Search } from "@/components/ui/icons";
 import { useId, useMemo, useState } from "react";
 
-import { Glyph, modalityGlyph } from "@/components/ui/glyphs";
+import { Glyph, exerciseGlyph } from "@/components/ui/glyphs";
 import { Input } from "@/components/ui/input";
 import { NavRow } from "@/components/ui/nav-row";
 import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
@@ -14,10 +14,12 @@ import type { ExerciseListItem } from "@/server/repositories/exercises";
 /**
  * "[dumbbell] Barbell · Chest, Triceps": the equipment's glyph leads the line, as it leads every
  * exercise row's, and the equipment is still said, since the search finds it and the glyph draws
- * a barbell and a dumbbell alike. A wrapped line breaks before the dot, never after it.
+ * a barbell and a dumbbell alike. Cardio is drawn as the machine it is done on, the rowing
+ * machine's as the rowing machine, and done on none (battle ropes) it is said in words alone. A
+ * wrapped line breaks before the dot, never after it.
  */
 function Equipment({ exercise }: { exercise: ExerciseListItem }) {
-  const glyph = modalityGlyph(exercise.modality);
+  const glyph = exerciseGlyph(exercise);
   const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ");
   return (
     <span className="meta-fact">

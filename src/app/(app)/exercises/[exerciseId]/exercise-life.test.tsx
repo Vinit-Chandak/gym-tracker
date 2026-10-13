@@ -217,6 +217,33 @@ it("leads a cardio machine and the Smith machine with their own glyphs, never th
   expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
 });
 
+it("draws cardio with no machine named as the machine it is done on, and on none in words", () => {
+  const rowing = {
+    ...assistedPullUp,
+    name: "Rowing machine",
+    modality: "cardio",
+    loadPortability: "context_dependent",
+    cardioMachine: "rowing_machine",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife {...props(false)} exercise={rowing} machineName={null} />,
+  );
+  // Its page led with the weight stack and said "Machine", where the library draws the rower.
+  const fact = () => container.querySelector(".meta-line .meta-fact")!;
+  expect(fact().textContent).toBe("Rowing machine");
+  expect(fact().querySelector("svg circle")).not.toBeNull();
+  expect(screen.queryByText("Machine")).toBeNull();
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{ ...rowing, cardioMachine: null }}
+      machineName={null}
+    />,
+  );
+  expect(fact().textContent).toBe("Cardio");
+  expect(fact().querySelector("svg")).toBeNull();
+});
+
 it("names a machine called after its kind once", () => {
   const smithBench = { ...assistedPullUp, modality: "smith_machine" } as const;
   render(<ExerciseLife {...props(false)} exercise={smithBench} machineName="Smith machine" />);

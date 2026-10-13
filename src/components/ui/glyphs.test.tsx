@@ -9,7 +9,9 @@ import {
   Glyph,
   accessoryGlyph,
   cardioGlyph,
+  exerciseGlyph,
   machineGlyph,
+  modalityGlyph,
   typeGlyph,
 } from "./glyphs";
 
@@ -54,6 +56,23 @@ it("has a glyph of its own for a machine's type only where the type is drawn as 
   expect(typeGlyph({ typeSlug: "leg_press_45", typeCategory: "machine" })).toBeNull();
   expect(typeGlyph({ typeSlug: "cable_station", typeCategory: "cable" })).toBeNull();
   expect(typeGlyph({ typeSlug: "barbell", typeCategory: "free_weight" })).toBeNull();
+});
+
+it("draws cardio as the machine it is done on, never as the weight stack", () => {
+  // The library led every cardio row with the stack: Elliptical, Rowing machine, Battle ropes.
+  expect(modalityGlyph("cardio")).toBeNull();
+  expect(modalityGlyph("machine")).toBe("machine");
+  const cardio = (cardioMachine: string | null) =>
+    exerciseGlyph({ modality: "cardio", cardioMachine });
+  expect(cardio("rowing_machine")).toBe("rower");
+  expect(cardio("treadmill")).toBe("treadmill");
+  expect(cardio("elliptical")).toBe("elliptical");
+  expect(cardio("bike")).toBe("trainer");
+  // Done on no machine (battle ropes, a sled), its words say it.
+  expect(cardio(null)).toBeNull();
+  // Anything else is drawn by what loads it, whatever it is done on.
+  expect(exerciseGlyph({ modality: "barbell", cardioMachine: null })).toBe("dumbbell");
+  expect(exerciseGlyph({ modality: "bodyweight", cardioMachine: null })).toBe("bodyweight");
 });
 
 it("draws the ab wheel as itself and every other accessory as the bench", () => {

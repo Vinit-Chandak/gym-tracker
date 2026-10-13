@@ -354,7 +354,10 @@ export function gymKindGlyph(kind: GymKind): GlyphName {
   return kind === "outdoor" ? "outdoor" : kind === "home" ? "indoor" : "pin";
 }
 
-/** Equipment as its glyph, from what the movement is done with (DESIGN.md, Shapes). */
+/**
+ * Equipment as its glyph, from what the movement is done with (DESIGN.md, Shapes). Cardio has
+ * none: it is no weight stack, and what it is done on is a machine of its own (`exerciseGlyph`).
+ */
 export function modalityGlyph(modality: ExerciseModality | null | undefined): GlyphName | null {
   switch (modality) {
     case "barbell":
@@ -363,7 +366,6 @@ export function modalityGlyph(modality: ExerciseModality | null | undefined): Gl
     case "cable":
       return "cable";
     case "machine":
-    case "cardio":
       return "machine";
     case "smith_machine":
       return "smith";
@@ -410,6 +412,21 @@ export function cardioGlyph(typeSlug: string): GlyphName {
     default:
       return "trainer";
   }
+}
+
+/**
+ * An exercise as its glyph where no machine is named (DESIGN.md, Shapes): by what loads it, as
+ * its badge says (`modalityGlyph`). Cardio is loaded by the machine it is done on, so it is drawn
+ * as that machine (`cardioGlyph`), the rowing machine's as the rowing machine; cardio done on
+ * none (battle ropes, a sled) has no glyph, and its words say it.
+ */
+export function exerciseGlyph(exercise: {
+  modality: ExerciseModality;
+  /** The type of cardio machine it is done on, by slug: "rowing_machine". */
+  cardioMachine: string | null;
+}): GlyphName | null {
+  if (exercise.modality !== "cardio") return modalityGlyph(exercise.modality);
+  return exercise.cardioMachine ? cardioGlyph(exercise.cardioMachine) : null;
 }
 
 /**

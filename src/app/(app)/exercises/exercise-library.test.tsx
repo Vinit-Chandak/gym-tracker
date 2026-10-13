@@ -73,3 +73,32 @@ it("leads each row's second line with the equipment's glyph, the equipment still
   expect(container.querySelector(".box-rows")).toBeNull();
   expect(row("Archer push-up").className).toContain("nav-row");
 });
+
+it("draws a cardio row as the machine it is done on, and one done on none in words alone", () => {
+  render(
+    <ExerciseLibrary
+      exercises={[
+        listItem("1", "Rowing machine", {
+          modality: "cardio",
+          cardioMachine: "rowing_machine",
+          primaryMuscles: ["lats"],
+        }),
+        listItem("2", "Battle ropes", {
+          modality: "cardio",
+          cardioMachine: null,
+          primaryMuscles: ["front_delts"],
+        }),
+      ]}
+    />,
+  );
+  const fact = (name: string) =>
+    screen.getByText(holdHyphens(name)).closest("a")!.querySelector(".meta-fact")!;
+  // Both were led by the weight stack, though the badge says Cardio and a gym's list draws the
+  // rowing machine as itself.
+  const rower = fact("Rowing machine").querySelector("svg")!;
+  const { container: alone } = render(<Glyph name="rower" />);
+  expect(rower.innerHTML).toBe(alone.querySelector("svg")!.innerHTML);
+  expect(fact("Rowing machine").textContent).toBe(joinFacts(["Cardio", "Lats"]));
+  expect(fact("Battle ropes").querySelector("svg")).toBeNull();
+  expect(fact("Battle ropes").textContent).toBe(joinFacts(["Cardio", "Front delts"]));
+});
