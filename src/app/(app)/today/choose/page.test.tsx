@@ -165,7 +165,7 @@ it("marks the run Today offers as next, and logs it here as Today would", async 
   // The Tempo run's row, from its name to the next day's.
   const row = html.slice(html.indexOf("Tempo run"), html.indexOf("Full body"));
   expect(row).toContain("Next");
-  expect(row).toContain(`href="/training/new?occurrence=tempo-13"`);
+  expect(row).toContain(`href="/training/new?occurrence=tempo-13&amp;from=today"`);
   expect(row).toContain("Log run");
   expect(mocks.occurrences).toHaveBeenCalledWith(expect.anything(), "me", {
     familyId: "family",

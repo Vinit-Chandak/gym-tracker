@@ -9,7 +9,7 @@ import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
 import { setLengthFor } from "@/lib/distance-units";
-import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath } from "@/lib/nav";
+import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath, workoutOrigin } from "@/lib/nav";
 import { sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -75,6 +75,8 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
       : null;
   const backHref = workoutBackPath(origin, data.completedAt !== null) as Route;
+  // Where it was opened from, carried on to its own pages so they keep the tab it lit.
+  const carried = originQuery(workoutOrigin(origin, data.completedAt !== null));
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
     .map((e) => `${e.id}:${e.exercise.id}:${e.equipment?.id ?? ""}:${e.skippedAt ?? ""}`)
@@ -99,7 +101,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       }
       routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
       editUntil={editUntil}
-      addExerciseHref={`/workouts/${sessionId}/add-exercise${originQuery(origin)}` as Route}
+      addExerciseHref={`/workouts/${sessionId}/add-exercise${carried}` as Route}
     />
   );
 }

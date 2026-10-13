@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { SessionSummary } from "@/server/repositories/sessions";
+import type { OpenSessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 import { writeDraft } from "@/lib/workout-drafts";
 
@@ -101,6 +101,7 @@ function plan(): TodayPlan {
     suggestedExercises: [slot("e1", "Barbell curl", 3), slot("e2", "Rope triceps pushdown", 3)],
     nextTrainingDay: null,
     sessionStatus: "pending",
+    sessionPrint: null,
     finishedToday: null,
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
       day: { ...DAY, id: `day-${index + 1}`, dayIndex: index + 1 },
@@ -132,7 +133,7 @@ const run = (id: string, minutes: [number, number]): ScheduledOccurrence => ({
   loggable: true,
 });
 
-const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
+const session = (patch: Partial<OpenSessionSummary> = {}): OpenSessionSummary =>
   ({
     id: "00000000-0000-4000-8000-000000000004",
     gymId: "g1",
@@ -145,8 +146,9 @@ const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
     exerciseCount: 2,
     setCount: 0,
     workingSetCount: 0,
+    print: { drills: 0, warmupCompleted: false, completed: false, exercises: [] },
     ...patch,
-  }) as SessionSummary;
+  }) as OpenSessionSummary;
 
 function show(patch: Partial<ComponentProps<typeof TodayView>> = {}) {
   return render(
@@ -178,9 +180,11 @@ it("gives the workout and each run a card of its own, each with its own next ste
   expect(
     workout.getByRole("link", { name: "Start workout: Easy Run + Arms" }).getAttribute("href"),
   ).toBe(`/workouts/start?gym=g1&day=${DAY.id}&index=3`);
-  // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs.
+  // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs, held at its
+  // dash and to its unit where the line wraps.
   expect(
-    workout.getAllByText((_, element) => element?.textContent === "70–100 min").length,
+    workout.getAllByText((_, element) => element?.textContent === "70\u2060–\u2060100\u00a0min")
+      .length,
   ).toBeGreaterThan(0);
   expect(workout.getByText("Aerobic + arms/forearms")).toBeTruthy();
   // Two runs on one day are told apart by what each asks for.
@@ -347,7 +351,7 @@ it("names a workout started from a saved routine after the routine, open and fin
     within(lift)
       .getByRole("link", { name: /See what you logged/ })
       .getAttribute("href"),
-  ).toBe("/workouts/lift-1");
+  ).toBe("/workouts/lift-1?from=today");
   expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
@@ -545,7 +549,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
     within(ride)
       .getByRole("link", { name: /See what you logged/ })
       .getAttribute("href"),
-  ).toBe("/training/activities/ride-1");
+  ).toBe("/training/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
@@ -615,10 +619,10 @@ it("never asks someone who does not lift for a gym, and offers their own sports 
   expect(screen.queryByText("Add a gym to start training")).toBeNull();
   expect(screen.getByText("Nothing planned")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Log a run" }).getAttribute("href")).toBe(
-    "/training/new?sport=running",
+    "/training/new?sport=running&from=today",
   );
   expect(screen.getByRole("link", { name: "Log a swim" }).getAttribute("href")).toBe(
-    "/training/new?sport=swimming",
+    "/training/new?sport=swimming&from=today",
   );
   expect(screen.queryByRole("link", { name: "Log a ride" })).toBeNull();
 });

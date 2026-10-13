@@ -76,9 +76,17 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/page-header", () => ({
-  PageHeader: ({ title, backHref }: { title: string; backHref: string }) => (
+  PageHeader: ({
+    title,
+    backHref,
+    backLabel,
+  }: {
+    title: string;
+    backHref: string;
+    backLabel?: string;
+  }) => (
     <header>
-      <a href={backHref}>Back</a>
+      <a href={backHref}>{backLabel ?? "Back"}</a>
       <h1>{title}</h1>
     </header>
   ),
@@ -180,8 +188,8 @@ it.each([
     storedSport,
     expect.anything(),
   );
-  // Back to the person in the same sport; the span is the one every graph shares.
-  expect(html).toContain(`href="/u/friend?sport=${storedSport}"`);
+  // Back to the person, by name, in the same sport; the span is the one every graph shares.
+  expect(html).toContain(`href="/u/friend?sport=${storedSport}">Friend</a>`);
 });
 
 it("lifting still renders the muscle split and exercises in common", async () => {

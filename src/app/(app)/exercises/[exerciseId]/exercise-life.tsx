@@ -185,8 +185,9 @@ export function ExerciseLife({
         return (
           <li key={performance.id}>
             <Link
-              // A past workout is History's, whichever page it is opened from.
-              href={`/workouts/${performance.sessionId}${originQuery("history")}`}
+              // Opened from the exercise's page, a past workout keeps its tab, Profile, and goes
+              // back to it (NAV-03).
+              href={`/workouts/${performance.sessionId}${originQuery("exercises")}`}
               className={index === list.length - 1 ? "latest-row plan-row-last" : "latest-row"}
             >
               <span className="flex flex-wrap items-baseline justify-between gap-x-2">

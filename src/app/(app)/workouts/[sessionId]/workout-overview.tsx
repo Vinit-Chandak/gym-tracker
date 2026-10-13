@@ -14,7 +14,7 @@ import {
 } from "react";
 
 import { Art } from "@/components/art/art";
-import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { sessionParts } from "@/components/art/session-print";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { RestPill } from "@/components/shell/rest-timer";
@@ -43,6 +43,8 @@ import {
   isWarmup,
   plannedSets,
   prescriptionLabel,
+  printedSession,
+  warmupName,
 } from "./logger-model";
 import type { ExerciseVM, SessionVM } from "./view-model";
 
@@ -124,35 +126,6 @@ function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): s
     : line;
 }
 
-/** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */
-function workoutParts(session: SessionVM, warmupDone: boolean): PrintPart[] {
-  const parts: PrintPart[] = [];
-  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
-  if (blades > 0)
-    parts.push({
-      kind: "mobility",
-      segments: blades,
-      segmentsDone: warmupDone ? blades : 0,
-      state: warmupDone ? "done" : "todo",
-      modules: 3,
-    });
-  const columns: StrengthColumn[] = [];
-  session.exercises.forEach((exercise, index) => {
-    const done = workDone(exercise).length;
-    const sets = Math.max(plannedSets(exercise) ?? 0, done);
-    if (sets === 0) return;
-    const next = session.exercises[index + 1];
-    columns.push({
-      sets,
-      done,
-      skipped: exercise.skippedAt !== null,
-      pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
-    });
-  });
-  if (columns.length > 0) parts.push({ kind: "strength", columns });
-  return parts;
-}
-
 /**
  * Marking the warm-up done, or not done again: one save the row and the sheet share, so either
  * can tick it and both show it. The tick lands when the server has it, as a set does.
@@ -201,11 +174,7 @@ function WarmupSheet({
   const { toggle: toggleDone, pending, error } = useWarmupDone(session.id, done, onDone);
 
   return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title={coachLines.length > 0 ? "Warm-up" : (session.warmup?.name ?? "Warm-up")}
-    >
+    <Sheet open={open} onClose={onClose} title={warmupName(session)}>
       {open && (
         <div className="mt-1">
           <ol>
@@ -483,15 +452,13 @@ export function WorkoutOverview({
   const [sheet, setSheet] = useState<"warmup" | null>(null);
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
-  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
+  // Its plan, its sets inked as they land, as every screen that prints it draws it.
+  const printed = printedSession(session, warmupDone);
+  const blades = printed.drills;
   const hasWarmup = session.warmup !== null || (session.coachPlan?.warmup.length ?? 0) > 0;
-  const parts = workoutParts(session, warmupDone);
+  const parts = sessionParts(printed);
   const strength = parts.find((part) => part.kind === "strength");
   const columns = strength?.kind === "strength" ? strength.columns.length : 0;
-  // The coach's warm-up stands in for the protocol, so it does not take the protocol's name.
-  const warmupName = session.coachPlan?.warmup.length
-    ? "Warm-up"
-    : (session.warmup?.name ?? "Warm-up");
   const groups = session.exercises.reduce<ExerciseVM[][]>((all, exercise) => {
     const last = all.at(-1);
     if (exercise.supersetGroup && last?.[0]?.supersetGroup === exercise.supersetGroup)
@@ -692,7 +659,7 @@ export function WorkoutOverview({
           {!readOnly && hasWarmup && (
             <WarmupRow
               session={session}
-              name={warmupName}
+              name={warmupName(session)}
               blades={blades}
               done={warmupDone}
               onDone={setWarmupDone}

@@ -816,6 +816,14 @@ async function finishAndRecord(
   });
 }
 
+/**
+ * The summary, once (board Summary). A workout is finished in Today's layer over the tabs, so the
+ * summary names Today as where it was opened, and the past workout its Edit becomes is Today's
+ * and goes back there, not to History (NAV-03).
+ */
+const summaryPath = (sessionId: string) =>
+  `/workouts/${sessionId}?${ORIGIN_PARAM}=today&finished=1` as const;
+
 export async function finishSessionAction(
   sessionId: string,
   _previous: FormState,
@@ -839,7 +847,7 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
-  redirect(`/workouts/${sessionId}?finished=1`);
+  redirect(summaryPath(sessionId));
 }
 
 /**
@@ -855,7 +863,7 @@ export async function finishLeftOpenAction(sessionId: string): Promise<ActionRes
     if (!(error instanceof SessionFinishedError)) return { ok: false, error: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}?finished=1`);
+  redirect(summaryPath(sessionId));
 }
 
 const supersetSchema = z.object({

@@ -83,3 +83,26 @@ it("says a workout's name in the session's chrome whole, wrapping, never in an e
     expect(rule(file, end)).toMatch(/margin-left:\s*auto/);
   }
 });
+
+it("gives Pick up from today the row's width under its count at large text", () => {
+  // The count asks for its own width (plan-actions.tsx), so the button goes under it once they
+  // no longer fit; at large text it is always under, as wide as the row, as a card's next step
+  // is. Asked of the row by a container query, never a media query, whose rem is the browser's.
+  const rows = readFileSync(join(SRC, "styles/form-v2/rows.css"), "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+  expect(rule("rows.css", ".pick-up")).toMatch(/container:\s*pick-up \/ inline-size/);
+  const query =
+    /@container pick-up \(width < calc\(([\d.]+)rem - ([\d.]+)px\)\)\s*\{\s*\.pick-up > button\s*\{\s*flex:\s*1 0 100%;\s*\}/.exec(
+      rows,
+    );
+  expect(query).not.toBeNull();
+  const threshold = (root: number) => Number(query![1]) * root - Number(query![2]);
+  // The row spans the page's column: the screen less its gutters, 16 under 360 pt, else 20.
+  for (const phone of [320, 360, 375, 390, 402, 440]) {
+    const row = phone - 2 * (phone < 360 ? 16 : 20);
+    expect(row, `${phone} at 200%`).toBeLessThan(threshold(32));
+    expect(row, `${phone} at 100%`).toBeGreaterThanOrEqual(threshold(16));
+  }
+});

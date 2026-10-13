@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
@@ -9,6 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
+import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -125,12 +126,17 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     units,
   };
 
+  // Where it was opened from: Today says so, and anywhere else is Training's. The activity it
+  // saves opens under that tab and goes back to it, as this page does (NAV-03).
+  const origin = parseOrigin(search[ORIGIN_PARAM]) ?? "training";
+
   // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was
   // opened from (Today for the day's run, Training otherwise), Save pinned at its foot.
   return (
-    <SessionPage title={`Log a ${sportNoun(sport)}`} back={{ href: "/training" }}>
+    <SessionPage title={`Log a ${sportNoun(sport)}`} back={{ href: originPath(origin) as Route }}>
       <ActivityEditor
         {...shared}
+        origin={origin}
         userId={user.id}
         sport={sport}
         initial={{

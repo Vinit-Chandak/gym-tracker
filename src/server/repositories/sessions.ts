@@ -21,6 +21,7 @@ import {
 import type { DbOrTx } from "@/db/types";
 import type { ProgressionSuggestion } from "@/domain/progression";
 import { COACH_DROP_NOTE, planTargets } from "@/domain/session-plan";
+import { ownEntry, pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { parseRamp, withRamp } from "@/domain/warmup-ramp";
 import { canEditWorkout, EDIT_WINDOW_DAYS } from "@/domain/workout-edits";
 import { finishedAsOf } from "@/domain/left-open";
@@ -49,6 +50,7 @@ import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
 import { strengthParent } from "./strength-day";
+import { printedSessionOf, sessionPrintColumns } from "./session-prints";
 import { readWorkouts } from "./training-data";
 
 export class SessionNotFoundError extends Error {
@@ -143,13 +145,16 @@ function summarySelection() {
   };
 }
 
+/** The open workout, and what its prints draw: every plan it is inking draws its sets from this. */
+export type OpenSessionSummary = SessionSummary & { print: PrintedSession };
+
 /** The one session started but not finished, if any. */
 export async function getInProgressSession(
   db: DbOrTx,
   userId: string,
-): Promise<SessionSummary | null> {
+): Promise<OpenSessionSummary | null> {
   const [row] = await db
-    .select(summarySelection())
+    .select({ ...summarySelection(), print: sessionPrintColumns() })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
@@ -157,7 +162,7 @@ export async function getInProgressSession(
     .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
     .orderBy(desc(workoutSessions.startedAt))
     .limit(1);
-  return row ?? null;
+  return row ? { ...row, print: printedSessionOf(row.print) } : null;
 }
 
 /** Finished sessions, newest first. */
@@ -685,10 +690,10 @@ export async function getSessionDetail(
   ]);
   // Plan entries by the slot they were written for; entries without a slot are the plan's
   // additions and are matched to the session's extra rows by exercise, in order.
-  const planBySlot = new Map(
-    (coachPlan?.exercises ?? []).filter((e) => e.slotId).map((e) => [e.slotId!, e]),
+  const planEntries = pairBySlot(
+    rows.map((row) => ({ slotId: row.we.plannedProgramExerciseId, exerciseId: row.exercise.id })),
+    coachPlan?.exercises ?? [],
   );
-  const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
   // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
   // needs equipment and has no machine is asked about, and so is one on a machine before its
@@ -785,21 +790,14 @@ export async function getSessionDetail(
     });
     const { weightStep, previous, basisPerformance } = rule;
     const decision = decisions.get(row.we.id) ?? null;
-    const entryIndex = row.we.plannedProgramExerciseId
-      ? -1
-      : planAdditions.findIndex((e) => e.exerciseId === row.exercise.id);
-    const entry = row.we.plannedProgramExerciseId
-      ? (planBySlot.get(row.we.plannedProgramExerciseId) ?? null)
-      : entryIndex >= 0
-        ? planAdditions.splice(entryIndex, 1)[0]!
-        : null;
+    const entry = planEntries[index] ?? null;
     const unit =
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
     // What the coach wrote applies while the row does the exercise it was written for: a swap in
     // the workout takes the new exercise's own numbers, rest and notes, not the coach's.
-    const own = entry && entry.exerciseId === row.exercise.id ? entry : null;
+    const own = ownEntry(entry, row.exercise.id);
     // The coach's targets replace the rule's prefill; the rule's basis and history stay visible,
     // so the athlete can still see what the numbers were judged against.
     const targets: ProgressionSuggestion | null =

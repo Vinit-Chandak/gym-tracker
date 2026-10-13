@@ -159,6 +159,14 @@ The owner chose **adaptive + fluid**:
 
      At 100% text nothing moved: the same screens are pixel for pixel as before.
 
+   - At large text Today's Pick up from today goes under its count, the row's width, as a card's
+     next step is. The row runs between the gutters, so it asks what the pinned actions ask:
+     under 14rem less two 20-pt gutters. Below that the button stands beside the count while the
+     count fits whole, else under it at the end, as a name's button goes. From a basis of zero
+     the count never asked the row to wrap, and at 200% text "10 sessions behind" stood a letter
+     a line beside the button, sixteen lines tall. At 100% a 320-pt phone now puts the button
+     under the count, 29 pt taller, where beside it the count had 106 pt and took two lines.
+
 ## Consequences
 
 - The native apps can take the same three classes and the same tokens. Compose's

@@ -1,7 +1,7 @@
 import { Art } from "@/components/art/art";
-import Link from "@/components/ui/app-link";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
@@ -9,7 +9,8 @@ import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -104,13 +105,9 @@ function EnduranceDetails({
           ))}
         </dl>
       )}
-      <Link
-        href={`/training/programme/occurrences/${occurrence.id}`}
-        className="activity-card-link"
-      >
+      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>
         {occurrence.disposition === "skipped" ? "Undo skip or move" : "Skip or move"}
-        <Glyph name="chevronRight" className="glyph-18" />
-      </Link>
+      </CardLink>
     </div>
   );
 }
@@ -199,7 +196,7 @@ export function EnduranceCard({
       facts={
         (focus || note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
           <>
-            {focus && <Fact glyph="target">{focus}</Fact>}
+            {focus && <Fact glyph="target">{holdFigures(focus)}</Fact>}
             {note && <Fact glyph="pace">{note}</Fact>}
             {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
             {time && (
@@ -234,16 +231,15 @@ export function EnduranceCard({
       }
       actions={
         logged && occurrence.resolution.kind === "logged" ? (
-          <Link
-            href={`/training/activities/${occurrence.resolution.activityId}`}
-            className="activity-card-link"
+          // Opened from Today, it keeps Today selected and goes back to it (NAV-03).
+          <CardLink
+            href={`/training/activities/${occurrence.resolution.activityId}${originQuery("today")}`}
           >
             See what you logged
-            <Glyph name="chevronRight" className="glyph-18" />
-          </Link>
+          </CardLink>
         ) : occurrence.loggable && !skipped ? (
           <LinkButton
-            href={`/training/new?occurrence=${occurrence.id}`}
+            href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
             variant="tonal"
             className="w-full"
             aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}

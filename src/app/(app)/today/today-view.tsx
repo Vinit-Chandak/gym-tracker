@@ -7,8 +7,8 @@ import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activitie
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { ActivityCard } from "@/components/ui/activity-card";
-import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { FitTitle } from "@/components/ui/fit-title";
@@ -25,13 +25,14 @@ import {
   type SetLengthUnit,
   type SportUnits,
 } from "@/lib/distance-units";
-import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { sessionName } from "@/lib/labels";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { SessionSummary } from "@/server/repositories/sessions";
+import type { OpenSessionSummary, SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
 import { startDayLabel } from "./choose/start-option";
@@ -71,7 +72,7 @@ export type TodayViewProps = {
   now?: Date;
   gyms: SwitcherGym[];
   plan: TodayPlan | null;
-  inProgress: SessionSummary | null;
+  inProgress: OpenSessionSummary | null;
   restProtocol: { name: string; drills: WarmupDrill[] } | null;
   /** The coach's standing for the day's lifting slot; null when the coach is off or it is not a lifting day. */
   coach?: TodayCoachState | null;
@@ -273,17 +274,17 @@ function LoggedCard({
       }
       status={<State glyph="check">{strength ? "Workout logged." : "Logged"}</State>}
       actions={
-        <Link
+        // Opened from Today, it keeps Today selected and goes back to it (NAV-03): with no origin
+        // a finished record is History's.
+        <CardLink
           href={
             strength && logged.sessionId
-              ? `/workouts/${logged.sessionId}`
-              : `/training/activities/${logged.id}`
+              ? `/workouts/${logged.sessionId}${originQuery("today")}`
+              : `/training/activities/${logged.id}${originQuery("today")}`
           }
-          className="activity-card-link"
         >
           See what you logged
-          <Glyph name="chevronRight" className="glyph-18" />
-        </Link>
+        </CardLink>
       }
     />
   );
@@ -428,11 +429,15 @@ export function TodayView({
   const parts =
     day && plan
       ? todayParts({
+          day,
           programme: programmeOnOffer,
           rows,
           standalone: finishedToday ? [] : standaloneOccurrences,
           restDrills: restDay ? restProtocol?.drills.length : undefined,
           lifted: day.includesLifting && sessionStatus === "completed",
+          // The day's workout draws its columns as its own print does: open, set by set as they
+          // are logged; finished (its run still owed), as the record.
+          session: openHere && inProgress ? inProgress.print : plan.sessionPrint,
         })
       : [];
   const print = day && plan && plan.suggestion && (
@@ -556,10 +561,10 @@ export function TodayView({
             )}
             {day.timeNote && (
               <Fact glyph="rest">
-                <Figures>{day.timeNote}</Figures>
+                <Figures>{holdFigures(day.timeNote)}</Figures>
               </Fact>
             )}
-            {day.focus && <Fact glyph="target">{day.focus}</Fact>}
+            {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
             {coachPlan && <Fact glyph="coach">Planned by the coach</Fact>}
           </>
         }
@@ -664,10 +669,10 @@ export function TodayView({
             <>
               {day.timeNote && (
                 <Fact glyph="rest">
-                  <Figures>{day.timeNote}</Figures>
+                  <Figures>{holdFigures(day.timeNote)}</Figures>
                 </Fact>
               )}
-              {day.focus && <Fact glyph="target">{day.focus}</Fact>}
+              {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
             </>
           )
         }
@@ -884,7 +889,7 @@ export function TodayView({
                 {logSports.map((entry, i) => (
                   <LinkButton
                     key={entry.sport}
-                    href={`/training/new?sport=${entry.query}` as Route}
+                    href={`/training/new?sport=${entry.query}&${ORIGIN_PARAM}=today` as Route}
                     size="lg"
                     variant={i === 0 ? "primary" : "secondary"}
                     className="w-full"

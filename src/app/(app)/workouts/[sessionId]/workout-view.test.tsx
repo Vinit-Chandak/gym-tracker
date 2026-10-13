@@ -315,6 +315,33 @@ it("opens a finished workout for changes within its week, and closes the edit in
   expect(screen.queryByRole("button", { name: "Add set" })).toBeNull();
 });
 
+/**
+ * Year audit, October 2026: Edit on the summary of a workout just finished opened it under
+ * Progress, going back to History. Finish names Today, where a workout is finished, and the
+ * past workout the summary's Edit becomes keeps it.
+ */
+it("opens the summary's Edit from where the summary was, without the summary's mark", () => {
+  const finished: SessionVM = {
+    ...workout(crypto.randomUUID(), [saved]),
+    completedAt: "2026-09-08T12:00:00.000Z",
+  };
+  window.history.replaceState(null, "", `/workouts/${finished.id}?from=today&finished=1`);
+  render(
+    <WorkoutView
+      session={finished}
+      seenSetChanges={setChangesMade()}
+      userId="user"
+      title="Upper A"
+      backHref="/today"
+      justFinished
+      editUntil="2026-09-15"
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Edit workout" }).getAttribute("href")).toBe(
+    `/workouts/${finished.id}?from=today&edit=1`,
+  );
+});
+
 it("names the year of a finished workout from another year, not of one from this year", () => {
   const record = (startedAt: string, today: string): SessionVM => ({
     ...workout(crypto.randomUUID(), [saved]),

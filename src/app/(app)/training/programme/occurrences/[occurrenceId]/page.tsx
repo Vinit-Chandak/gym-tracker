@@ -7,10 +7,10 @@ import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { programmeClosureLine, showsClosure } from "@/components/activities/programme-closure";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
@@ -29,8 +29,9 @@ import { getSchedule } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
-import { joinFacts } from "@/lib/facts";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Scheduled session" };
 
@@ -119,7 +120,7 @@ export default async function OccurrencePage(
   // under it already says the target, and saying it twice was the audit's "2.6–3.1 km" over
   // "2.6–3.1 km · 18–22 min" (October 2026).
   const headline =
-    day?.focus ??
+    (day?.focus && holdFigures(day.focus)) ??
     (!target ? "No targets set" : logged ? null : describePrescription(target, units));
   // A date of this year is said without it, as the programme's list says it.
   const year = today.slice(0, 4);
@@ -192,12 +193,17 @@ export default async function OccurrencePage(
             <p className="text-sm text-ink-muted">
               Logged on {formatIsoDate(occurrence.resolution.occurredOn, year)}.
             </p>
-            <Link
-              href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
+            {/* The way into the record, as Today's card says it: in ink and bold, led on by its
+                chevron. In plain ink alone it read as a second line of the sentence above it
+                (year audit, October 2026). It names the programme, or Training for a session of
+                none, as this page's Back does, so Training stays selected (NAV-03). */}
+            <CardLink
+              href={`/training/activities/${occurrence.resolution.activityId}${originQuery(
+                standalone ? "training" : "programme",
+              )}`}
             >
               See what you logged
-            </Link>
+            </CardLink>
           </Card>
         ) : occurrence.resolution.kind === "legacy_completed" ? (
           <Card>

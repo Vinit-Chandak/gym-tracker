@@ -569,9 +569,10 @@ Beyond a phone the same screens are drawn larger, not stretched (ADR 0052):
 
 Large text is a size of its own (ADR 0052): fewer than 14rem across the screen, which is every
 phone at 200% text and a 320-pt phone from 150%, never one at 100%. There a phone folds rather
-than growing past its screen: the logger folds its entry, and the session strip folds into a
-screen's pinned actions. It is read with a container query on the box that folds, never a media
-query, whose rem is the browser's and not the root's that the installed app on an iPhone sets.
+than growing past its screen: the logger folds its entry, the session strip folds into a
+screen's pinned actions, and Today's Pick up from today goes under its count, the row's width.
+It is read with a container query on the box that folds, never a media query, whose rem is the
+browser's and not the root's that the installed app on an iPhone sets.
 What a fold stands in for follows the fold rather than asking again: the strip stands down while
 its key is shown, so two readings of one width can never leave the workout without a way back.
 
@@ -1034,13 +1035,20 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Tab bar:** Today, Training, Food, Progress, Profile on ground under a `hair` rule; 24-pt
   icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
   are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
-  sliders.
+  sliders. Where you are is the tab the way back leads into (NAV-03): a workout, run, ride or
+  swim keeps the tab its link names (Profile, from an exercise's page), and with none is
+  History's, so Progress; the open workout and the summary Finish lands on are Today's, layers
+  over the tabs, and the summary's Edit stays Today's (October 2026).
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
-  link that names where it goes; a session screen has its back or minimise, the rest pill, and
-  at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "25 days behind" stands beside the squares. The
-  squares are 9 pt and grow with the reader's text by half, as glyphs do (13.5 at 200%): days done
-  in ink, today ringed, a skipped day dashed, the rest a hairline.
+  link that names where it goes, a person's page by their name (never "People", which is the list
+  of them); a session screen has its back or minimise, the rest pill, and at most Finish and More.
+  Today's head is the date and the cycle as seven squares, wordless while
+  the programme is on track; behind is news, so "1 session behind" stands beside the squares.
+  From two behind, with no workout open, the count stands under the date with its way out, Pick
+  up from today (ADR 0051): beside the count while the count fits whole, else under it at the
+  end, and at large text under it at the row's width. The squares are 9 pt and grow with the
+  reader's text by half, as glyphs do (13.5 at 200%): days done in ink, today ringed, a skipped
+  day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
@@ -1108,11 +1116,27 @@ good is the target or the goal, which a rule or the readout says, not a directio
   them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
-  sets in grey at the foot of their columns. A programme's rest day with nothing in it prints its
+  sets in grey at the foot of their columns. One workout is drawn the same on every screen that
+  prints it (year audit, October 2026), open or finished, whatever its day's state says: the
+  plans its day stands on (Today's band, Training's tile, the programme day) draw each row's
+  column as the workout draws that exercise, and the programme day's fan as its warm-up stands.
+  While it is open they and its day ink its sets as it does and thin what is still owed; once it
+  is finished they, its own page and its day all draw what it did, and what it did not do dashed,
+  its warm-up's fan included. Only a record adds its warm-up sets in grey: no plan asks for them,
+  and on Training a tile's tall record would shrink every tile's module. A day done again is
+  drawn from the workout under way, and a day done with no workout to read, all in ink. The rows under a finished workout name its warm-up first,
+  as the fan leads its print: its drills when done, "Not done" when not. A programme's rest day
+  with nothing in it prints its
   crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
   Today's band is left off on such a day, as before. On the day's page the crescent alone is
   held to a 16 px module, about a third of a working day's print there, so it never fills the
-  band or outweighs the day's name on a page that asks for nothing.
+  band or outweighs the day's name on a page that asks for nothing. A programme day's parts stand
+  in the order they are done, in its print, its rows and Training's tile alike: the warm-up before
+  what it warms up for, so a day that only runs draws its fan, then its runner, and lists its
+  run's warm-up before the run (year audit, October 2026); a day that lifts and runs keeps its
+  warm-up with the lifting, and the run where the day is written to have it, on Today's band as
+  well ("Lower + easy run" draws its lifting, then its runner). Today's cards keep their own
+  order, the workout first (see Layout).
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).

@@ -175,3 +175,51 @@ it("names the year of a workout from another, as a friend's copy of it does", ()
     vi.useRealTimers();
   }
 });
+
+it("names the warm-up's fan first under the print, as the programme day does", () => {
+  const warmup = {
+    name: "Upper-body warm-up",
+    drills: [1, 2, 3, 4].map((order) => ({
+      order,
+      name: `Drill ${order}`,
+      dose: "10",
+      cue: "",
+      purpose: "",
+    })),
+  };
+  show({ warmup, warmupCompleted: true });
+  const rows = [...document.querySelectorAll("#finished-sets ~ ul > li")].map((row) =>
+    // Spaces closed up, the no-break space that holds a count to its noun kept.
+    row.textContent?.replace(/[ \n\t]+/g, " ").trim(),
+  );
+  // The fan leads the print, so its row leads the rows: then each exercise in the print's order.
+  expect(rows[0]).toBe("Upper-body warm-up 4\u00a0drills");
+  expect(rows[1]).toMatch(/^Bench press/);
+  expect(
+    screen.getByRole("img", {
+      name: "Unplanned session as it ended: the warm-up done, then 2 exercises done, 1 not done, dashed",
+    }),
+  ).toBeTruthy();
+  cleanup();
+
+  // Never marked done, its fan is dashed and its row still leads, saying so, as the Edit list's
+  // does: named once, not again among what was not done.
+  show({ warmup, warmupCompleted: false });
+  const first = document.querySelector("#finished-sets ~ ul > li");
+  expect(first?.textContent?.replace(/\s+/g, " ")).toBe("Upper-body warm-up Not done");
+  expect(first?.querySelector(".text-ink-2")?.textContent).toBe("Not done");
+  expect(document.querySelectorAll("#finished-sets ~ ul > li")[1]?.textContent).toMatch(
+    /^Bench press/,
+  );
+  expect(document.querySelector(".not-done")?.textContent).toBe("Curl");
+
+  // A coach's warm-up stands in for the protocol: its lines are the drills, its name Warm-up.
+  cleanup();
+  show({
+    warmup,
+    warmupCompleted: true,
+    coachPlan: { summary: null, warmup: ["Bike 5 min", "Band pull-aparts"], generatedAt: "" },
+  });
+  expect(screen.getByText("Warm-up")).toBeTruthy();
+  expect(screen.getByText("2 drills")).toBeTruthy();
+});

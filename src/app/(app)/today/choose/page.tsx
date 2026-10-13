@@ -12,7 +12,9 @@ import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setLengthFor } from "@/lib/distance-units";
+import { holdFigures } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
+import { ORIGIN_PARAM } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -156,7 +158,9 @@ export default async function ChooseDayPage() {
                           next && <Badge tone="accent">Next</Badge>
                         )}
                       </div>
-                      {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
+                      {day.focus && (
+                        <p className="text-sm text-ink-muted">{holdFigures(day.focus)}</p>
+                      )}
                     </div>
 
                     {day.includesLifting ? (
@@ -199,7 +203,7 @@ export default async function ChooseDayPage() {
                       occurrence.sport === "strength" ? null : (
                         <LinkButton
                           key={occurrence.id}
-                          href={`/training/new?occurrence=${occurrence.id}`}
+                          href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
                           variant="secondary"
                           className="w-full"
                           aria-label={`${LOG_LABEL[occurrence.sport]}: ${day.name}`}

@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { getInProgressSession, type SessionSummary } from "@/server/repositories/sessions";
+import { getInProgressSession, type OpenSessionSummary } from "@/server/repositories/sessions";
 
 /**
  * The one unfinished workout, if there is one.
@@ -15,6 +15,6 @@ import { getInProgressSession, type SessionSummary } from "@/server/repositories
  * Read-only, so it takes no athlete lock: Today and Training run it beside their own
  * transaction, and with the lock the two queued behind each other on the same profile row.
  */
-export const getActiveSession = cache(async (userId: string): Promise<SessionSummary | null> =>
+export const getActiveSession = cache(async (userId: string): Promise<OpenSessionSummary | null> =>
   withUser(getDb(), userId, (tx) => getInProgressSession(tx, userId), { readOnly: true }),
 );

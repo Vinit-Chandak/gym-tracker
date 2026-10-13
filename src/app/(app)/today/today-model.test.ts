@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import type { PrintedExercise, PrintedSession } from "@/domain/session-print";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -39,6 +40,18 @@ const slot = (patch: Partial<PlannedExercisePreview>): PlannedExercisePreview =>
 });
 
 const CURL = slot({});
+
+/** The days the band is drawn for: one that runs first, one that lifts first. */
+const EASY_RUN_ARMS = {
+  name: "Easy Run + Arms",
+  focus: "Aerobic + arms/forearms",
+  includesLifting: true,
+};
+const LOWER_EASY_RUN = {
+  name: "Lower + easy run",
+  focus: "Squat + hinge, then 20 min easy",
+  includesLifting: true,
+};
 const PUSHDOWN = slot({
   programExerciseId: "e2",
   name: "Rope triceps pushdown",
@@ -250,6 +263,7 @@ describe("the day's print", () => {
       prescription: null,
     } as unknown as ScheduledOccurrence;
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [run],
       rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
       standalone: [],
@@ -264,6 +278,39 @@ describe("the day's print", () => {
     ]);
   });
 
+  it("draws the run after the lifting on a day written to lift first, as its tile does", () => {
+    // Meera's Lower + easy run: the band drew the runner first, where Training's tile, the day's
+    // page and Today's own cards all put the lifting first.
+    const run = {
+      sport: "running",
+      disposition: "pending",
+      resolution: { kind: "incomplete" },
+      prescription: null,
+    } as unknown as ScheduledOccurrence;
+    const ride = { ...run, sport: "cycling" } as ScheduledOccurrence;
+    const parts = todayParts({
+      day: LOWER_EASY_RUN,
+      programme: [run],
+      rows: planRows([CURL, PUSHDOWN], null, "kg", "m"),
+      standalone: [ride],
+    });
+    // Anything else dated today still comes after the day.
+    expect(parts.map((part) => part.kind)).toEqual(["strength", "run", "ride"]);
+    expect(printLabel("Lower + easy run", parts)).toBe(
+      "Lower + easy run: 2 exercises as columns of their sets, to do, then a run to do, then a ride to do.",
+    );
+    // A rest day's routine leads whatever else is dated on it.
+    expect(
+      todayParts({
+        day: { name: "Rest", focus: null, includesLifting: false },
+        programme: [],
+        rows: [],
+        standalone: [ride],
+        restDrills: 5,
+      }).map((part) => part.kind),
+    ).toEqual(["mobility", "ride"]);
+  });
+
   it("draws no run a revision withdrew, and a run history answered as done", () => {
     const run = (resolution: ScheduledOccurrence["resolution"]["kind"]) =>
       ({
@@ -273,6 +320,7 @@ describe("the day's print", () => {
         prescription: null,
       }) as unknown as ScheduledOccurrence;
     const parts = todayParts({
+      day: EASY_RUN_ARMS,
       programme: [run("cancelled"), run("legacy_completed")],
       rows: planRows([CURL], null, "kg", "m"),
       standalone: [],
@@ -284,6 +332,119 @@ describe("the day's print", () => {
     ]);
     expect(printLabel("Easy Run + Arms", parts)).toBe(
       "Easy Run + Arms: a run done, then 1 exercise as columns of their sets, to do.",
+    );
+  });
+
+  it("inks what the open workout has logged on each row's column, as its own print does", () => {
+    // Easy Run + Arms under way: four curls (one past the plan, its warm-ups not drawn), one
+    // pushdown, the carry skipped in the workout, the wrist curl still owed.
+    const done = (patch: Partial<PrintedExercise>): PrintedExercise => ({
+      slotId: "e1",
+      exerciseId: "x1",
+      planned: 3,
+      work: 0,
+      warm: 0,
+      skipped: false,
+      supersetGroup: null,
+      ...patch,
+    });
+    const session: PrintedSession = {
+      drills: 0,
+      warmupCompleted: false,
+      completed: false,
+      exercises: [
+        done({ work: 4, warm: 2 }),
+        done({ slotId: "e2", work: 1 }),
+        done({ slotId: "e3", skipped: true }),
+        done({ slotId: "e4", planned: 2 }),
+      ],
+    };
+    const parts = todayParts({
+      day: EASY_RUN_ARMS,
+      programme: [],
+      rows: planRows([CURL, PUSHDOWN, CARRY, WRIST], null, "kg", "m"),
+      standalone: [],
+      session,
+    });
+    expect(parts).toEqual([
+      {
+        kind: "strength",
+        columns: [
+          { sets: 4, done: 4, skipped: false, pair: false },
+          { sets: 3, done: 1, skipped: false, pair: false },
+          { sets: 3, done: 0, skipped: true, pair: true },
+          { sets: 2, done: 0, skipped: false, pair: false },
+        ],
+      },
+    ]);
+    // Begun, it is never said to be all to do.
+    expect(printLabel("Upper A", parts)).toBe(
+      "Upper A: 4 exercises as columns of their sets, the sets done inked.",
+    );
+
+    // A coach's added exercise is the workout's own of that movement that no slot claims.
+    const added = entry({
+      slotId: null,
+      exerciseId: "x9",
+      exerciseName: "Hammer curl",
+      sets: [set(10, 10, 2), set(10, 10, 2), set(10, 10, 1)],
+    });
+    const coached = planRows([CURL], { exercises: [entry({}), added] }, "kg", "m");
+    const columns = todayParts({
+      day: EASY_RUN_ARMS,
+      programme: [],
+      rows: coached,
+      standalone: [],
+      session: {
+        ...session,
+        exercises: [done({ work: 2 }), done({ slotId: null, exerciseId: "x9", work: 3 })],
+      },
+    });
+    expect(columns[0]?.kind === "strength" && columns[0].columns.map((c) => c.done)).toEqual([
+      2, 3,
+    ]);
+  });
+
+  it("draws the day's finished workout as its record while its run is still owed", () => {
+    // Easy Run + Arms, its workout finished: three curls after a warm-up set, the pushdown
+    // never done, the run still to come.
+    const record: PrintedSession = {
+      drills: 0,
+      warmupCompleted: false,
+      completed: true,
+      exercises: [
+        {
+          slotId: "e1",
+          exerciseId: "x1",
+          planned: 3,
+          work: 3,
+          warm: 1,
+          skipped: false,
+          supersetGroup: null,
+        },
+      ],
+    };
+    const parts = todayParts({
+      day: EASY_RUN_ARMS,
+      programme: [],
+      rows: planRows([CURL, PUSHDOWN], null, "kg", "m"),
+      standalone: [],
+      lifted: true,
+      session: record,
+    });
+    // As its own page draws it, not every planned set inked: the curls done (a plan's print
+    // draws no warm-up sets), the pushdown dashed.
+    expect(parts).toEqual([
+      {
+        kind: "strength",
+        columns: [
+          { sets: 3, done: 3, pair: false },
+          { sets: 3, done: 0, skipped: true, pair: false },
+        ],
+      },
+    ]);
+    expect(printLabel("Easy Run + Arms", parts)).toBe(
+      "Easy Run + Arms: 2 exercises as columns of their sets, done.",
     );
   });
 

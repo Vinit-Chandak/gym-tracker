@@ -10,10 +10,9 @@ import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { Figures } from "@/components/ui/figures";
-import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -305,7 +304,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               )}
               <ExerciseGraph
                 today={today}
-                origin={null}
+                // A past workout opened here keeps the exercise's tab, Profile, and goes back to
+                // it, as the exercise's latest sessions do (NAV-03).
+                origin="exercises"
                 length={length}
                 data={{
                   range: graphRange,
@@ -525,10 +526,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               )}
               {/* A link inside a card, at the card's text edge and led on by its chevron, as
                   Today's cards say theirs; a button's padding set it in from the lines above. */}
-              <Link href={`/gyms/${entry.gym.id}/programme`} className="activity-card-link">
-                Programme fit
-                <Glyph name="chevronRight" className="glyph-18" />
-              </Link>
+              <CardLink href={`/gyms/${entry.gym.id}/programme`}>Programme fit</CardLink>
             </Card>
           ))}
         </Section>

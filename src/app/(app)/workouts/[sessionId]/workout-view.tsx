@@ -24,6 +24,9 @@ const EXERCISE_PARAM = "exercise";
 /** How many exercises Add exercise just added, said once on arrival and then dropped. */
 const ADDED_PARAM = "added";
 
+/** The summary, straight after Finish session (board Summary). */
+const FINISHED_PARAM = "finished";
+
 /**
  * The workout: a list of exercises, and one of them in focus.
  *
@@ -115,6 +118,10 @@ export function WorkoutView({
     const query = params.toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   };
+  // The summary's Edit becomes the past workout in its place, from where the summary was opened.
+  const summaryEdit = new URLSearchParams(searchParams.toString());
+  summaryEdit.delete(FINISHED_PARAM);
+  summaryEdit.set(EDIT_PARAM, "1");
   useEffect(() => {
     if (!searchParams.has(ADDED_PARAM)) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -175,6 +182,7 @@ export function WorkoutView({
                   editing,
                   onEdit: () => setEditing(true),
                   onDone: () => setEditing(false),
+                  editHref: `/workouts/${session.id}?${summaryEdit.toString()}` as Route,
                   addHref: addExerciseHref ?? (`/workouts/${session.id}/add-exercise` as Route),
                   added: editing ? added : 0,
                   drafts,

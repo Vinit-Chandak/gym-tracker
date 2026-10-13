@@ -4,6 +4,7 @@ import { exercises, programExercises, programRuns, programSlotEvents, programs }
 import type { DbOrTx } from "@/db/types";
 import { cycleCount } from "@/domain/cycle-repeat";
 import type { OccurrenceDisposition } from "@/domain/occurrences";
+import type { PrintedSession } from "@/domain/session-print";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
@@ -35,6 +36,7 @@ import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 import { skipSlotOccurrences } from "./occurrences";
+import { readSlotPrints } from "./session-prints";
 
 export type ActiveProgram = {
   id: string;
@@ -653,6 +655,11 @@ export type TodayPlan = {
    */
   sessionStatus: SlotStatus | "pending";
   /**
+   * The workout that did the offered day's lifting, once it has and the day still owes its run:
+   * the day's print draws it as the workout does (`readSlotPrints`). Null until then.
+   */
+  sessionPrint: PrintedSession | null;
+  /**
    * The programme day finished today, when there is one: the day offered is then the next one,
    * not today's. With its cycle, so Today can still show the endurance it logged.
    */
@@ -683,7 +690,13 @@ export async function getTodayPlan(
   const suggestedDay = next
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
-  const suggestedExercises = suggestedDay ? await listDayExercises(db, suggestedDay.id) : [];
+  const sessionStatus = next ? partStatus(state, next.slot, "session") : "pending";
+  const [suggestedExercises, printed] = await Promise.all([
+    suggestedDay ? listDayExercises(db, suggestedDay.id) : [],
+    next && suggestedDay?.includesLifting && sessionStatus === "completed"
+      ? readSlotPrints(db, userId, schedule.program.id, next.slot.cycleIndex, next.slot.dayIndex)
+      : null,
+  ]);
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
@@ -725,7 +738,8 @@ export async function getTodayPlan(
       nextTrainingDay && nextTrainingRef
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
-    sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
+    sessionStatus,
+    sessionPrint: next ? (printed?.get(next.slot.dayIndex) ?? null) : null,
     finishedToday:
       finishedRef && finishedDay ? { ...finishedDay, cycleIndex: finishedRef.cycleIndex } : null,
     cycleDays,
@@ -746,6 +760,11 @@ export type ProgramDayPlan = {
   status: SlotStatus | "pending" | "not_in_programme";
   /** The day Today is offering. */
   isNext: boolean;
+  /**
+   * The workout that did this day of the cycle, as every screen that prints it draws it
+   * (`readSlotPrints`); null until one has, and when the prints were not asked for.
+   */
+  print: PrintedSession | null;
 };
 
 export type ProgramOverview = {
@@ -765,29 +784,45 @@ export type ProgramOverview = {
 
 /**
  * The whole active programme: every day of the cycle with its exercises, warm-up and run,
- * and where the sequence has got to.
+ * and where the sequence has got to. Asked for its prints (Training and its days, which draw
+ * them), each day the cycle has trained comes with its workout's (`readSlotPrints`).
  *
  * Three statements for any number of days — the schedule, then every day's exercises and
  * the cycle's runs together — plus the warm-up names, which come from the library already
- * in memory. Reading a seven-day cycle costs the same as reading a one-day one.
+ * in memory, and the prints when asked for and the cycle has trained a day. Reading a
+ * seven-day cycle costs the same as reading a one-day one.
  */
 export async function getProgramOverview(
   db: DbOrTx,
   userId: string,
   timeZone: string,
+  { prints = false }: { prints?: boolean } = {},
 ): Promise<ProgramOverview | null> {
   const schedule = await getSchedule(db, userId);
   if (!schedule) return null;
   const state = schedule.state;
   const next = suggestion(state);
   const currentCycle = next?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
-  const [exercisesByDay, runs, warmups] = await Promise.all([
+  const lifting = new Set(
+    schedule.days.filter((day) => day.includesLifting).map((day) => day.dayIndex),
+  );
+  const trained = state.events.some(
+    (event) =>
+      event.cycleIndex === currentCycle &&
+      event.part === "session" &&
+      event.status === "completed" &&
+      lifting.has(event.dayIndex),
+  );
+  const [exercisesByDay, runs, warmups, printed] = await Promise.all([
     listExercisesByDay(
       db,
       schedule.days.map((day) => day.id),
     ),
     listRunTargets(db, schedule.program.id, currentCycle),
     sharedWarmupProtocols(db),
+    prints && trained
+      ? readSlotPrints(db, userId, schedule.program.id, currentCycle)
+      : new Map<number, PrintedSession>(),
   ]);
   const warmupNames = new Map(warmups.map((warmup) => [warmup.id, warmup.name]));
   const slots = allSlots(state);
@@ -806,6 +841,7 @@ export async function getProgramOverview(
         next !== null &&
         next.slot.cycleIndex === currentCycle &&
         next.slot.dayIndex === day.dayIndex,
+      print: printed.get(day.dayIndex) ?? null,
     };
   });
   return {

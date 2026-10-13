@@ -17,6 +17,9 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { nextPendingSlot, partStatus, slotFinishedOn, suggestion } from "@/domain/schedule";
 
+import { printedSession } from "@/app/(app)/workouts/[sessionId]/logger-model";
+import { toSessionVM } from "@/app/(app)/workouts/[sessionId]/view-model";
+
 import { createEquipment } from "./equipment";
 import { listGyms } from "./gyms";
 import {
@@ -52,6 +55,7 @@ import {
   SupersetGroupError,
   type SessionDetail,
 } from "./sessions";
+import { readWorkouts } from "./training-data";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -213,6 +217,41 @@ describe("planned session lifecycle", () => {
     expect(
       exerciseRow(after as SessionDetail, "barbell-bench-press").sets.map((s) => s.weight),
     ).toEqual([62.5]);
+  });
+
+  it("reads the open workout's print as the workout itself draws it", async () => {
+    // A warm-up on the row: the open workout's print leaves it out, the record greys it.
+    const before = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const row = exerciseRow(before as SessionDetail, "seated-cable-row");
+    await withUser(t.db, user.id, (tx) =>
+      logSet(tx, user.id, {
+        workoutExerciseId: row.id,
+        setIndex: 1,
+        setType: "warmup",
+        weight: 30,
+        reps: 8,
+        rir: null,
+        durationSeconds: null,
+      }),
+    );
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    if (!detail) throw new Error("no detail");
+    const drawn = printedSession(toSessionVM(detail, TZ, "kg", "2026-09-08"));
+    const open = await withUser(t.db, user.id, (tx) => getInProgressSession(tx, user.id));
+    // Today, Training and the day's page ink their prints from this, the workout from its own.
+    expect(open?.print).toEqual(drawn);
+    expect(open?.print).toMatchObject({ drills: detail.warmup?.drills.length, completed: false });
+    expect(open?.print.exercises.slice(0, 2)).toMatchObject([
+      { planned: 4, work: 1, warm: 0 },
+      { work: 0 },
+    ]);
+    expect(open?.print.exercises.find((e) => e.warm === 1)).toMatchObject({ work: 0 });
+    // The calendar's day reads it with the day's workouts, in the same statement.
+    const { prints } = await withUser(t.db, user.id, (tx) =>
+      readWorkouts(tx, user.id, null, 0, 1, { sessionId, prints: true }),
+    );
+    expect(prints?.get(sessionId)).toEqual(drawn);
+    await withUser(t.db, user.id, (tx) => deleteSet(tx, user.id, row.id, 1));
     await expect(
       withUser(t.db, user.id, (tx) => discardSession(tx, user.id, sessionId)),
     ).rejects.toBeInstanceOf(SessionHasSetsError);

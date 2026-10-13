@@ -144,6 +144,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     suggestedExercises: EXERCISES,
     nextTrainingDay: null,
     sessionStatus: "completed",
+    sessionPrint: null,
     finishedToday: null,
     // The board's week: two days done, this one offered, four to come.
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
@@ -199,6 +200,21 @@ const OPEN_SESSION = {
   setCount: 5,
   workingSetCount: 5,
   lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
+  // The curls done and two pushdowns in: the band inks them as the workout's print does.
+  print: {
+    drills: 0,
+    warmupCompleted: false,
+    completed: false,
+    exercises: EXERCISES.map((exercise, index) => ({
+      slotId: exercise.programExerciseId,
+      exerciseId: exercise.exerciseId,
+      planned: exercise.sets,
+      work: [3, 2][index] ?? 0,
+      warm: 0,
+      skipped: false,
+      supersetGroup: exercise.supersetGroup,
+    })),
+  },
 };
 
 /** A day that only runs, named for itself on its card: `?state=run`. */
