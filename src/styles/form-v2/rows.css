@@ -348,16 +348,21 @@ li:last-child > .sheet-row {
 /* The name, and what marks it out beside it (a badge, a tag). The name keeps room for a word
    (6rem, so it grows with the text) and the mark folds under it rather than take that room:
    "PureGym Shoreditch" wraps between its words at 320 pt, and its Default tag goes under it at
-   200% text rather than leaving the name a letter or two a line. */
-.nav-row-main {
+   200% text rather than leaving the name a letter or two a line. With a second line the mark
+   stands beside the name alone (its head), and the line under both keeps the row's width. */
+.nav-row-main,
+.nav-row-head {
   display: flex;
   min-width: 0;
-  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
 }
+.nav-row-main {
+  flex: 1 1 auto;
+}
 .nav-row-main > .nav-row-label,
+.nav-row-head > .nav-row-label,
 .nav-row-text {
   min-width: min(100%, 6rem);
   flex: 1 1 0;

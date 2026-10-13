@@ -44,6 +44,12 @@ export function NavRow<T extends string>({
   prefetch?: "intent";
   className?: string;
 }) {
+  const marks = (
+    <>
+      {badge && <span className="nav-row-badge">{badge}</span>}
+      {tag && <span className="nav-row-tag">{tag}</span>}
+    </>
+  );
   const content = (
     <>
       {(glyph || lead) && (
@@ -56,7 +62,12 @@ export function NavRow<T extends string>({
       <span className="nav-row-main">
         {sub ? (
           <span className="nav-row-text">
-            <span className="nav-row-label nav-row-label-bold">{label}</span>
+            {/* The mark stands beside the name alone: the line under it keeps the row's
+                width, so "Machine · Chest, Front delts" is not broken for a Per machine tag. */}
+            <span className="nav-row-head">
+              <span className="nav-row-label nav-row-label-bold">{label}</span>
+              {marks}
+            </span>
             {/* "101 machines": its figures in Jost, whose zero is plain (DESIGN.md, The Two
                 Voices Rule); a sentence has none, and is left as it is. */}
             <span className="nav-row-sub">
@@ -64,10 +75,11 @@ export function NavRow<T extends string>({
             </span>
           </span>
         ) : (
-          <span className="nav-row-label">{label}</span>
+          <>
+            <span className="nav-row-label">{label}</span>
+            {marks}
+          </>
         )}
-        {badge && <span className="nav-row-badge">{badge}</span>}
-        {tag && <span className="nav-row-tag">{tag}</span>}
       </span>
       {value && <span className="nav-row-value">{value}</span>}
       {trailing ??
