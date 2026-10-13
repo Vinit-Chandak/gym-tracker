@@ -83,7 +83,7 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
       <div className="viewport-chrome viewport-chrome-session">
         <div
           ref={ref}
-          className="session-chrome fixed inset-x-0 z-[var(--ov-z-timer)] lg:left-48"
+          className="session-chrome fixed inset-x-0 z-[var(--ov-z-timer)]"
           style={{ bottom: "var(--nav-reserve)" }}
           data-folded={folded ? "" : undefined}
         >

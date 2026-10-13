@@ -911,8 +911,12 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
   .navigation-progress {
     left: 12rem;
   }
-  /* Pinned actions stand over the content, beside the rail rather than under it. */
-  .pinned-actions {
+  /* Pinned actions and the session strip stand over the content, beside the rail rather than
+     under it, from the rail's own 12rem, so both share the page's column. Not Tailwind's
+     left-48, which grows with its scale on a wide screen (ADR 0052): it stood the strip 12 px
+     right of the actions over it. */
+  .pinned-actions,
+  .session-chrome {
     left: 12rem;
   }
 }

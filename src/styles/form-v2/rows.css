@@ -317,12 +317,6 @@ li:last-child > .sheet-row {
       calc(32 * var(--ov-u))
   );
 }
-@media (min-width: 64rem) {
-  .pinned-actions {
-    left: 12rem;
-  }
-}
-
 /* ---------- a row that opens a page or holds a setting (boards Training, Profile) ---------- */
 /* Its glyph in the mark column, its name, what it is set to, a chevron; 50 pt, a hairline
    between rows and none after the last. */
