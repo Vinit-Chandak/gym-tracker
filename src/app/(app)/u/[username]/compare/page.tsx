@@ -201,6 +201,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
               <Section
                 title="Exercises in common"
                 info="Movements from the shared library whose load means the same everywhere, that you both logged in the span. Each opens the head to head for that movement."
+                flush
               >
                 {found.lifting.common.comparable.length > 0 ? (
                   // A list to choose from, its names at the gutter with nothing boxing them, so
@@ -217,16 +218,15 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                     ))}
                   </ul>
                 ) : (
-                  <Card>
-                    <p className="text-sm text-ink-muted">
-                      {preset === "all"
-                        ? "No comparable exercises in common yet."
-                        : `No comparable exercises in common in ${RANGE_PRESET_WORDS[preset]}.`}
-                    </p>
-                  </Card>
+                  <p className="text-sm text-ink-muted">
+                    {preset === "all"
+                      ? "No comparable exercises in common yet."
+                      : `No comparable exercises in common in ${RANGE_PRESET_WORDS[preset]}.`}
+                  </p>
                 )}
+                {/* At the names' edge, as the label over them is. */}
                 {found.lifting.common.notComparable > 0 && (
-                  <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+                  <p className="flex items-center gap-1 text-sm text-ink-muted">
                     {found.lifting.common.notComparable === 1
                       ? "1 machine exercise in common is not compared: loads differ per machine."
                       : `${found.lifting.common.notComparable} machine exercises in common are not compared: loads differ per machine.`}

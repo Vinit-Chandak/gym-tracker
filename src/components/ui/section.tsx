@@ -14,6 +14,7 @@ export function Section({
   action,
   info,
   description,
+  flush = false,
   className,
   children,
 }: {
@@ -22,19 +23,31 @@ export function Section({
   /** An explanation of the section, kept behind a tip beside the label rather than under it. */
   info?: ReactNode;
   description?: string;
+  /**
+   * Over a list in no box, its names at the gutter: the label at the gutter too, rather than
+   * inset to the box's edge (DESIGN.md, The One Left Edge Rule).
+   */
+  flush?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <section className={cn("min-w-0", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-1.5">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1.5",
+          !flush && "px-1",
+        )}
+      >
         <h2 className="flex items-center gap-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
           {title}
           {info && <InfoTip label={`About ${title.toLowerCase()}`}>{info}</InfoTip>}
         </h2>
         {action}
       </div>
-      {description && <p className="px-1 pb-2 text-sm text-ink-muted">{description}</p>}
+      {description && (
+        <p className={cn("pb-2 text-sm text-ink-muted", !flush && "px-1")}>{description}</p>
+      )}
       <div className="min-w-0 space-y-3">{children}</div>
     </section>
   );

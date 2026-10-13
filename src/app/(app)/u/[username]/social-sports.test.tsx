@@ -206,6 +206,19 @@ it("lists the exercises in common at the gutter, unboxed, each name held at its 
   expect(html).toContain(holdHyphens("Archer push-up"));
 });
 
+it("keeps the exercises in common's label and note at their names' edge", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Bulgarian split squat", region: "quads" }],
+    notComparable: 1,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  const start = html.lastIndexOf("<section", html.indexOf("Exercises in common"));
+  const section = html.slice(start, html.indexOf("</section>", start));
+  expect(section).toContain("1 machine exercise in common is not compared");
+  // The label and the note stood a quarter rem in from the names under them (One Left Edge).
+  expect(section).not.toContain("px-1");
+});
+
 it.each([
   ["cycling", "cycle"],
   ["swimming", "swim"],
