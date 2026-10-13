@@ -45,3 +45,13 @@ it("starts the page, its pinned actions and the session strip at the rail's widt
   expect(chrome).toMatch(/className="session-chrome /);
   expect(chrome).not.toMatch(/\b(?:lg|xl):(?:left|inset-x|ml|pl)-/);
 });
+
+it("centres the session strip in the page's column in one rule, at every width", () => {
+  // Its own margin stands it in the column beside the rail as on a phone. A second rule, wide
+  // only, centred it again another way, left over from merging two changes to the strip.
+  const rows = read("form-v2/rows.css");
+  expect(wideRules(rows).has(".session-strip")).toBe(false);
+  const strip = /\.session-strip\s*\{([^}]*)\}/.exec(rows)?.[1];
+  expect(value(strip, "--strip-side")).toContain("var(--content-width)");
+  expect(value(strip, "margin")).toContain("var(--strip-side)");
+});

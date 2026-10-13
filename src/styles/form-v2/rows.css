@@ -640,13 +640,6 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-meta);
   font-weight: 700;
 }
-@media (min-width: 64rem) {
-  .session-strip {
-    max-width: calc(var(--content-width) - 2 * var(--ov-gutter));
-    margin-inline: auto;
-  }
-}
-
 /* ---------- the strip folded into a screen's pinned actions, at large text ---------- */
 /* Large text (ADR 0052) is fewer than 14rem across the screen, where the logger folds its entry:
    every phone at 200%, a 320-pt phone from 150%, never at 100%. There, on a screen that pins its
