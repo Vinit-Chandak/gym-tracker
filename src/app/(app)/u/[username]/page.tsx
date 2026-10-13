@@ -21,6 +21,7 @@ import { RANGE_PRESET_WORDS, readWindowOf } from "@/domain/graph-range";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatActivityMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -159,7 +160,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
         {training ? (
           <>
             {!relation && (
-              <p className="px-1 text-sm text-ink-muted">
+              <p className="text-sm text-ink-muted">
                 {sharing
                   ? "This is what a follower sees of your training. Change it under Profile › Privacy."
                   : "Sharing is off: followers see only your profile card. Change it under Profile › Privacy."}
@@ -224,6 +225,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                     <PeriodRecordsList
                       records={training.records}
                       unit={unit}
+                      length={setLengthFor(viewer)}
                       currentYear={today.slice(0, 4)}
                     />
                   ) : (
@@ -247,7 +249,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
             )}
           </>
         ) : (
-          <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+          <p className="flex items-center gap-1 text-sm text-ink-muted">
             {hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
             <InfoTip label="About seeing someone's training">
               Their training appears here once they have accepted you as a follower and while they

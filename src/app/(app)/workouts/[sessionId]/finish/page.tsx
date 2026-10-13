@@ -11,9 +11,10 @@ import { isLeftOpen } from "@/domain/left-open";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
+import { setLengthFor } from "@/lib/distance-units";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
-import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -59,7 +60,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
       ? formatTimeOrDateTime(lastSetAt, profile.timeZone, todayInTimeZone(profile.timeZone, now))
       : null;
 
-  const title = session.day?.name ?? UNPLANNED_SESSION;
+  const title = sessionName(session.day?.name, session.title);
 
   // Board Finish: what the session recorded and what it did not, then the notes and the day's
   // body weight. A page that ends the session closes back to it rather than going back.
@@ -95,6 +96,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                         ),
                         (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
                         loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                        setLengthFor(profile),
                       )}
                     </Figures>
                   </span>

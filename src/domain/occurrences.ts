@@ -96,15 +96,35 @@ export function isOverdue(
 }
 
 /**
+ * Whether the programme an occurrence was written for has closed it (ADR 0054): the athlete's
+ * programme is now another one, or none, because it was replaced or archived.
+ *
+ * Derived, as late is, from what is true now rather than a state written at the switch: a
+ * session is open while its family is the athlete's active programme, through every revision
+ * of it (a revision keeps the family) and after the programme is finished, until another takes
+ * its place. Standalone work belongs to no programme and never closes.
+ */
+export function programmeClosed(
+  occurrence: Pick<Occurrence, "programFamilyId">,
+  activeFamilyId: string | null,
+): boolean {
+  return occurrence.programFamilyId !== null && occurrence.programFamilyId !== activeFamilyId;
+}
+
+/**
  * Whether an activity may still be logged against this occurrence. A skip can be undone by
  * logging it; a cancelled occurrence cannot, because a programme change removed the
- * obligation, and a legacy resolution has to be reopened explicitly first.
+ * obligation, and a legacy resolution has to be reopened explicitly first. Nothing of a
+ * programme the athlete has moved on from can be: what became of its sessions is the record of
+ * that block, kept as it was when it ended (`programmeClosed`).
  */
 export function canLog(
-  occurrence: Pick<Occurrence, "disposition">,
+  occurrence: Pick<Occurrence, "disposition" | "programFamilyId">,
   activity: LinkedActivity | null,
+  activeFamilyId: string | null,
 ): boolean {
   if (activity) return false;
+  if (programmeClosed(occurrence, activeFamilyId)) return false;
   return occurrence.disposition === "pending" || occurrence.disposition === "skipped";
 }
 

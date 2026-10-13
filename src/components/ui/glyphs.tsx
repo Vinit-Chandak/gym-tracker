@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode, SVGProps } from "react";
 
-import type { ExerciseModality, GymKind } from "@/domain/types";
+import type { EquipmentCategory, ExerciseModality, GymKind, ResistanceMode } from "@/domain/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -195,6 +195,21 @@ const GLYPHS = {
     <circle key="c" cx="12" cy="9.6" r="1.9" />,
     <path key="d" d="M12 11.5v5.5M12 17l-2.2 3.7M12 17l2.2 3.7" />,
   ],
+  // An accessory: a flat bench, side on, as its drawing stands, its pad on two legs and their
+  // feet. It stands for every accessory without a glyph of its own, as the dumbbell stands for
+  // every free weight.
+  accessory: [
+    <rect key="a" x="3" y="6.5" width="18" height="4.5" rx="2.25" />,
+    <path key="b" d="M6.5 11v8M17.5 11v8" />,
+    <path key="c" d="M4.5 19h4M15.5 19h4" />,
+  ],
+  // The ab wheel, front on: the wheel as tall as the machine's stack, its handle out each side
+  // to a grip, so it is never the dumbbell's two plates.
+  abWheel: [
+    <rect key="a" x="8.5" y="4" width="7" height="16" rx="3.5" />,
+    <path key="b" d="M3.5 12h5M15.5 12h5" />,
+    <path key="c" d="M3.5 10.3v3.4M20.5 10.3v3.4" />,
+  ],
   // Where a run, ride or swim happened.
   outdoor: [
     <path key="a" d="M3 18h18" />,
@@ -205,7 +220,8 @@ const GLYPHS = {
     <path key="a" d="M3.5 19.5h12.8a1.7 1.7 0 0 0 0-3.4H3.5a1.7 1.7 0 0 0 0 3.4z" />,
     <path key="b" d="M17.2 16.2L19.4 6.5h-4.2" />,
   ],
-  // An indoor bike: a wheel held up by a stand from its hub, on the floor.
+  // An indoor bike: a wheel held up by a stand from its hub, on the floor. It stands for every
+  // bike, and for any cardio machine without a glyph of its own.
   trainer: [
     <path key="a" d="M3.5 20.5h17" />,
     <path key="b" d="M7 20.5L9.6 8.2" />,
@@ -213,6 +229,35 @@ const GLYPHS = {
     <path key="d" d="M8.9 12.4h7.4" />,
     <path key="e" d="M16.3 20.5V5.2h3.2" />,
     <circle key="f" cx="16.3" cy="15.6" r="2.9" />,
+  ],
+  // The other cardio machines, each as itself. A rowing machine, side on: its rail on a foot and
+  // the flywheel's stand, the seat on the rail, and the handle drawn out of the flywheel toward
+  // it. It stands as tall as the treadmill and the stair climber, so a meta line's glyphs share
+  // a middle; a footplate between seat and flywheel ran into the wheel at 16 px.
+  rower: [
+    <path key="a" d="M3.5 18h13M4.5 18v2.5M16.5 15.5v5" />,
+    <circle key="b" cx="16.5" cy="11" r="4.5" />,
+    <path key="c" d="M5.5 18v-2.5H9V18" />,
+    <path key="d" d="M12.5 9H7" />,
+  ],
+  // A ski erg, front on: the tower on its foot, a rope out from the top each side to a handle.
+  skiErg: [
+    <rect key="a" x="10" y="3.5" width="4" height="17" rx="2" />,
+    <path key="b" d="M6.5 20.5h11" />,
+    <path key="c" d="M10 6.5L5.5 10v4M14 6.5l4.5 3.5v4" />,
+  ],
+  // A stair climber, side on: its steps rising to the front, and the treadmill's upright.
+  stairClimber: [
+    <path key="a" d="M3.5 20.5V17H7v-3.5h3.5V10H14v10.5" />,
+    <path key="b" d="M3.5 20.5h14.7L19.4 6.5h-4.2" />,
+  ],
+  // An elliptical, side on: the flywheel at the back, the pedal arm to the front, where the
+  // handle swings on its upright.
+  elliptical: [
+    <path key="a" d="M3.5 20.5h17" />,
+    <circle key="b" cx="7" cy="15.5" r="3" />,
+    <path key="c" d="M9.8 14.6l5.4-2.2" />,
+    <path key="d" d="M15.2 12.4l1.6 8.1M15.2 12.4L18 4" />,
   ],
   pool: [
     <path key="a" d="M3.5 6.5h17M3.5 17.5h17" />,
@@ -309,7 +354,10 @@ export function gymKindGlyph(kind: GymKind): GlyphName {
   return kind === "outdoor" ? "outdoor" : kind === "home" ? "indoor" : "pin";
 }
 
-/** Equipment as its glyph, from what the movement is done with (DESIGN.md, Shapes). */
+/**
+ * Equipment as its glyph, from what the movement is done with (DESIGN.md, Shapes). Cardio has
+ * none: it is no weight stack, and what it is done on is a machine of its own (`exerciseGlyph`).
+ */
 export function modalityGlyph(modality: ExerciseModality | null | undefined): GlyphName | null {
   switch (modality) {
     case "barbell":
@@ -318,7 +366,6 @@ export function modalityGlyph(modality: ExerciseModality | null | undefined): Gl
     case "cable":
       return "cable";
     case "machine":
-    case "cardio":
       return "machine";
     case "smith_machine":
       return "smith";
@@ -327,6 +374,93 @@ export function modalityGlyph(modality: ExerciseModality | null | undefined): Gl
       return "bodyweight";
     default:
       return null;
+  }
+}
+
+/**
+ * An accessory as its glyph (DESIGN.md, Shapes), from its equipment type: the ab wheel as
+ * itself, and every other (a bench, a rack, a rope) as the bench, however it is loaded.
+ */
+export function accessoryGlyph(typeSlug: string): GlyphName {
+  return typeSlug === "ab_wheel" ? "abWheel" : "accessory";
+}
+
+/** What a machine is, as far as its glyph goes: its type, the type's kind, and what loads it. */
+export type MachineKind = {
+  typeSlug: string;
+  typeCategory: EquipmentCategory;
+  resistanceMode: ResistanceMode;
+};
+
+/**
+ * A cardio machine as its glyph (DESIGN.md, Shapes), from its equipment type: the treadmill, the
+ * rowing machine, the ski erg, the stair climber and the elliptical as themselves, and every bike
+ * as the indoor bike, which stands for any other as the bench stands for every accessory.
+ */
+export function cardioGlyph(typeSlug: string): GlyphName {
+  switch (typeSlug) {
+    case "treadmill":
+      return "treadmill";
+    case "rowing_machine":
+      return "rower";
+    case "ski_erg":
+      return "skiErg";
+    case "stair_climber":
+      return "stairClimber";
+    case "elliptical":
+      return "elliptical";
+    default:
+      return "trainer";
+  }
+}
+
+/**
+ * An exercise as its glyph where no machine is named (DESIGN.md, Shapes): by what loads it, as
+ * its badge says (`modalityGlyph`). Cardio is loaded by the machine it is done on, so it is drawn
+ * as that machine (`cardioGlyph`), the rowing machine's as the rowing machine; cardio done on
+ * none (battle ropes, a sled) has no glyph, and its words say it.
+ */
+export function exerciseGlyph(exercise: {
+  modality: ExerciseModality;
+  /** The type of cardio machine it is done on, by slug: "rowing_machine". */
+  cardioMachine: string | null;
+}): GlyphName | null {
+  if (exercise.modality !== "cardio") return modalityGlyph(exercise.modality);
+  return exercise.cardioMachine ? cardioGlyph(exercise.cardioMachine) : null;
+}
+
+/**
+ * The glyph a machine's type has of its own, however the machine is loaded (DESIGN.md, Shapes):
+ * an accessory's (`accessoryGlyph`), a cardio machine's (`cardioGlyph`) and the Smith machine's.
+ * Null for any other, which is drawn by what loads it.
+ */
+export function typeGlyph({
+  typeSlug,
+  typeCategory,
+}: Pick<MachineKind, "typeSlug" | "typeCategory">): GlyphName | null {
+  if (typeCategory === "accessory") return accessoryGlyph(typeSlug);
+  if (typeCategory === "cardio") return cardioGlyph(typeSlug);
+  return typeSlug === "smith_machine" ? "smith" : null;
+}
+
+/**
+ * A machine as its glyph, from what it is (DESIGN.md, Shapes): its type's own glyph where it has
+ * one (`typeGlyph`), a cable station its cable, and anything else what loads it.
+ */
+export function machineGlyph(kind: MachineKind): GlyphName {
+  const own = typeGlyph(kind);
+  if (own) return own;
+  if (kind.typeCategory === "cable") return "cable";
+  switch (kind.resistanceMode) {
+    case "plate_loaded":
+    case "selectorized":
+      return "machine";
+    case "bodyweight":
+      return "bodyweight";
+    case "cardio":
+      return cardioGlyph(kind.typeSlug);
+    default:
+      return "dumbbell";
   }
 }
 
@@ -395,9 +529,15 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   cable: "Cable",
   smith: "Smith machine",
   bodyweight: "Bodyweight",
+  accessory: "Accessory",
+  abWheel: "Ab wheel",
   outdoor: "Outdoors",
   treadmill: "Treadmill",
   trainer: "Indoor bike",
+  rower: "Rowing machine",
+  skiErg: "Ski erg",
+  stairClimber: "Stair climber",
+  elliptical: "Elliptical",
   pool: "Pool",
   openwater: "Open water",
   indoor: "Indoors",

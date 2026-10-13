@@ -5,7 +5,9 @@ import { cycleCount } from "@/domain/cycle-repeat";
 import { manualPrescription } from "@/domain/manual-prescription";
 
 import {
+  activities,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   gyms,
   profiles,
@@ -19,6 +21,7 @@ import {
 import type { DbOrTx } from "@/db/types";
 import type { ProgressionSuggestion } from "@/domain/progression";
 import { COACH_DROP_NOTE, planTargets } from "@/domain/session-plan";
+import { ownEntry, pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { parseRamp, withRamp } from "@/domain/warmup-ramp";
 import { canEditWorkout, EDIT_WINDOW_DAYS } from "@/domain/workout-edits";
 import { finishedAsOf } from "@/domain/left-open";
@@ -29,7 +32,7 @@ import {
   type RecoveryWarning,
 } from "@/domain/recovery";
 import type { LoadLadder } from "@/domain/load-steps";
-import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
+import type { EquipmentCategory, LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { guidanceByExercise, getWarmupProtocol } from "@/server/queries/reference";
 
@@ -46,6 +49,8 @@ import { bestLoads, loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
+import { strengthParent } from "./strength-day";
+import { printedSessionOf, sessionPrintColumns } from "./session-prints";
 import { readWorkouts } from "./training-data";
 
 export class SessionNotFoundError extends Error {
@@ -94,6 +99,8 @@ export type SessionSummary = {
   gymName: string;
   programDayId: string | null;
   dayName: string | null;
+  /** The saved routine's name it was started from, as it was then; null for any other. */
+  title: string | null;
   cycleIndex: number | null;
   startedAt: Date;
   completedAt: Date | null;
@@ -113,6 +120,7 @@ function summarySelection() {
     gymName: gyms.name,
     programDayId: workoutSessions.programDayId,
     dayName: programDays.name,
+    title: activities.title,
     cycleIndex: workoutSessions.cycleIndex,
     startedAt: workoutSessions.startedAt,
     completedAt: workoutSessions.completedAt,
@@ -137,20 +145,24 @@ function summarySelection() {
   };
 }
 
+/** The open workout, and what its prints draw: every plan it is inking draws its sets from this. */
+export type OpenSessionSummary = SessionSummary & { print: PrintedSession };
+
 /** The one session started but not finished, if any. */
 export async function getInProgressSession(
   db: DbOrTx,
   userId: string,
-): Promise<SessionSummary | null> {
+): Promise<OpenSessionSummary | null> {
   const [row] = await db
-    .select(summarySelection())
+    .select({ ...summarySelection(), print: sessionPrintColumns() })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
     .orderBy(desc(workoutSessions.startedAt))
     .limit(1);
-  return row ?? null;
+  return row ? { ...row, print: printedSessionOf(row.print) } : null;
 }
 
 /** Finished sessions, newest first. */
@@ -164,6 +176,7 @@ export async function listSessions(
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)))
     .orderBy(desc(workoutSessions.startedAt))
     .limit(limit);
@@ -304,10 +317,14 @@ export async function startPlannedSession(
   return { sessionId: session.id };
 }
 
+/**
+ * A session at a gym with no programme day. `title` names it after the saved routine it starts
+ * from (`openStrengthParent`); without one it is an unplanned session.
+ */
 export async function startAdHocSession(
   db: DbOrTx,
   userId: string,
-  input: { gymId: string },
+  input: { gymId: string; title?: string | null },
 ): Promise<{ sessionId: string }> {
   const gym = await getGym(db, userId, input.gymId);
   if (!gym || !gym.isActive) throw new SessionNotFoundError();
@@ -316,7 +333,7 @@ export async function startAdHocSession(
     .values({ userId, gymId: input.gymId })
     .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt });
   if (!session) throw new Error("Session insert returned no row");
-  await openStrengthParent(db, userId, session);
+  await openStrengthParent(db, userId, { ...session, title: input.title ?? null });
   return { sessionId: session.id };
 }
 
@@ -379,6 +396,10 @@ export type SessionExercise = {
     id: string;
     name: string;
     unit: LoadUnit;
+    /** What kind of machine it is: an accessory (a bench, a rack) is drawn as one. */
+    typeCategory: EquipmentCategory;
+    /** Its type, so an accessory is drawn as what it is (an ab wheel, a bench). */
+    typeSlug: string;
     /** What is known about this machine's loads, for the Next up box (ADR 0028). */
     ladder: LoadLadder | null;
     /**
@@ -461,6 +482,8 @@ export type SessionDetail = {
     /** How long the day takes, as the programme says it ("70–90 min"). */
     timeNote: string | null;
   } | null;
+  /** The saved routine's name it was started from, as it was then; null for any other. */
+  title: string | null;
   cycleIndex: number | null;
   /** How many cycles the session's programme runs, for "Cycle 1 of 8"; null when it has none. */
   cycles?: number | null;
@@ -494,19 +517,23 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
   return row ?? null;
 }
 
-/** The name of the programme day a session was started for; null for an unplanned one. */
-export async function sessionDayName(
+/**
+ * What a session goes by (`sessionName`): the programme day it was started for, and the saved
+ * routine's name it was started from. Both null for an unplanned one.
+ */
+export async function sessionNameParts(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-): Promise<string | null> {
+): Promise<{ dayName: string | null; title: string | null }> {
   const [row] = await db
-    .select({ name: programDays.name })
+    .select({ dayName: programDays.name, title: activities.title })
     .from(workoutSessions)
-    .innerJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
-  return row?.name ?? null;
+  return { dayName: row?.dayName ?? null, title: row?.title ?? null };
 }
 
 /** The exercises a session already holds, in its order: Add exercise says which are in it. */
@@ -550,6 +577,7 @@ export async function getSessionDetail(
         timeNote: programDays.timeNote,
         warmupProtocolId: programDays.warmupProtocolId,
       },
+      title: activities.title,
       programWeeks: programs.weeks,
       programRepeats: programs.repeats,
       // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
@@ -559,6 +587,7 @@ export async function getSessionDetail(
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
     .leftJoin(programs, eq(programs.id, workoutSessions.programId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   if (!session) return null;
@@ -609,12 +638,17 @@ export async function getSessionDetail(
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
         },
+        // Beside the machine, not in it: a field from another joined table would make every
+        // one of the machine's nullable.
+        equipmentCategory: equipmentTypes.category,
+        equipmentTypeSlug: equipmentTypes.slug,
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
       })
       .from(workoutExercises)
       .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
       .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
       .leftJoin(
         programExercises,
         eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
@@ -656,10 +690,10 @@ export async function getSessionDetail(
   ]);
   // Plan entries by the slot they were written for; entries without a slot are the plan's
   // additions and are matched to the session's extra rows by exercise, in order.
-  const planBySlot = new Map(
-    (coachPlan?.exercises ?? []).filter((e) => e.slotId).map((e) => [e.slotId!, e]),
+  const planEntries = pairBySlot(
+    rows.map((row) => ({ slotId: row.we.plannedProgramExerciseId, exerciseId: row.exercise.id })),
+    coachPlan?.exercises ?? [],
   );
-  const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
   // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
   // needs equipment and has no machine is asked about, and so is one on a machine before its
@@ -756,21 +790,14 @@ export async function getSessionDetail(
     });
     const { weightStep, previous, basisPerformance } = rule;
     const decision = decisions.get(row.we.id) ?? null;
-    const entryIndex = row.we.plannedProgramExerciseId
-      ? -1
-      : planAdditions.findIndex((e) => e.exerciseId === row.exercise.id);
-    const entry = row.we.plannedProgramExerciseId
-      ? (planBySlot.get(row.we.plannedProgramExerciseId) ?? null)
-      : entryIndex >= 0
-        ? planAdditions.splice(entryIndex, 1)[0]!
-        : null;
+    const entry = planEntries[index] ?? null;
     const unit =
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
     // What the coach wrote applies while the row does the exercise it was written for: a swap in
     // the workout takes the new exercise's own numbers, rest and notes, not the coach's.
-    const own = entry && entry.exerciseId === row.exercise.id ? entry : null;
+    const own = ownEntry(entry, row.exercise.id);
     // The coach's targets replace the rule's prefill; the rule's basis and history stay visible,
     // so the athlete can still see what the numbers were judged against.
     const targets: ProgressionSuggestion | null =
@@ -843,6 +870,9 @@ export async function getSessionDetail(
             id: row.equipment.id,
             name: row.equipment.name,
             unit: row.equipment.unit,
+            // Joined with its machine: an instance always has a type.
+            typeCategory: row.equipmentCategory!,
+            typeSlug: row.equipmentTypeSlug!,
             ladder: ladders.get(row.equipment.id) ?? null,
             best: (() => {
               const lifted = best.get(`${row.equipment.id}:${row.exercise.id}`);
@@ -916,6 +946,7 @@ export async function getSessionDetail(
           timeNote: session.day.timeNote,
         }
       : null,
+    title: session.title,
     cycleIndex: session.session.cycleIndex,
     // A programme without a length runs 8 weeks, as Today's squares count them (schedule.ts).
     cycles: session.session.programId

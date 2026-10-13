@@ -22,6 +22,10 @@ import { attempted, keepsFormOnDisconnect, OFFLINE_SUBMIT_MESSAGE } from "@/lib/
  * Each acts on this session alone. Undoing a skip restores the same session rather than
  * creating a second one, and moving it changes its date without moving the day around it or
  * touching another sport. A session moves to a day still to come, never into the past.
+ *
+ * Putting back a programme run the sequence has gone past sends the programme back to it
+ * (ADR 0051), which can be cycles back for a run "Pick up from today" skipped; that is said
+ * under the button, before it is tapped.
  */
 export function OccurrenceActions({
   occurrenceId,
@@ -29,6 +33,7 @@ export function OccurrenceActions({
   scheduledOn,
   today,
   standalone,
+  putBackGoesNext = false,
 }: {
   occurrenceId: string;
   skipped: boolean;
@@ -37,6 +42,8 @@ export function OccurrenceActions({
   today: string;
   /** Scheduled by the athlete rather than the programme: no week to count against, and removable. */
   standalone: boolean;
+  /** Put back, it is owed before what the programme has reached, and Today offers it next. */
+  putBackGoesNext?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -82,7 +89,9 @@ export function OccurrenceActions({
           <p className="text-sm text-ink-muted">
             {standalone
               ? "Logging it anyway puts it back by itself."
-              : "Skipped sessions stay in the programme. Logging one puts it back by itself."}
+              : putBackGoesNext
+                ? "Putting it back makes it owed again: the programme goes back to it, and Today offers it next. Logging it counts it as done instead."
+                : "Skipped sessions stay in the programme. Logging one puts it back by itself."}
           </p>
         )}
         {error && (

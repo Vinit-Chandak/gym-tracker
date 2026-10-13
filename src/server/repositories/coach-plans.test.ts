@@ -13,6 +13,8 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
+import { printedSession } from "@/app/(app)/workouts/[sessionId]/logger-model";
+import { toSessionVM } from "@/app/(app)/workouts/[sessionId]/view-model";
 import { parseProgramBlueprint } from "@/domain/program-blueprint";
 import { handleCoachServiceRequest } from "@/server/coach-service";
 
@@ -41,7 +43,13 @@ import { listGyms } from "./gyms";
 import { logTestRun } from "@/db/test/fixtures";
 import { createProgramFromBlueprint } from "./programs";
 import { getSchedule, recordSlotEvent } from "./schedule";
-import { discardSession, finishSession, getSessionDetail, startPlannedSession } from "./sessions";
+import {
+  discardSession,
+  finishSession,
+  getInProgressSession,
+  getSessionDetail,
+  startPlannedSession,
+} from "./sessions";
 
 const TZ = "Asia/Kolkata";
 const TOKEN = "test-service-token-0123456789";
@@ -349,6 +357,14 @@ describe("a session that starts from a plan", () => {
     expect(added.substitutionReason).toBe("Added by the coach's plan");
     expect(added.suggestion?.kind).toBe("coach");
 
+    // Every other screen that prints the open workout reads the plan it does: the coach's
+    // warm-up and sets, the crunch it dropped, the face pull it added.
+    const open = await withUser(t.db, alice.id, (tx) => getInProgressSession(tx, alice.id));
+    expect(open?.print).toEqual(printedSession(toSessionVM(detail, TZ, "kg", "2026-09-08")));
+    expect(open?.print.drills).toBe(2);
+    expect(open?.print.exercises[0]?.planned).toBe(3);
+    expect(open?.print.exercises.find((e) => e.skipped)).toBeTruthy();
+
     const [plan] = await withUser(t.db, alice.id, (tx) =>
       tx.select().from(sessionPlans).where(eq(sessionPlans.workoutSessionId, sessionId)),
     );
@@ -365,6 +381,14 @@ describe("a session that starts from a plan", () => {
     );
     expect(today.plan?.id).toBe(plan?.id);
     expect(today.failure).toBeNull();
+    // Each machine the plan names, as what it is, for the glyph that leads its row on Today.
+    expect(today.plan?.machines).toEqual({
+      [machineOf(ctx, "Horizontal leg press")]: {
+        typeSlug: "leg_press_horizontal",
+        typeCategory: "machine",
+      },
+      [machineOf(ctx, "Cable station")]: { typeSlug: "cable_station", typeCategory: "cable" },
+    });
 
     // An empty session gives the plan back; the next start at the same gym uses it again.
     await withUser(t.db, alice.id, (tx) => discardSession(tx, alice.id, sessionId));

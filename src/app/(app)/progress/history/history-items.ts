@@ -10,7 +10,7 @@ import {
 } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatSleep, formatTime } from "@/lib/format";
-import { ENDURANCE_PLACE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, sessionName } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
 import type { readHistoryWorkouts, readLatestActivities } from "@/server/repositories/history";
@@ -69,14 +69,19 @@ function paceIn(secondsPerKm: number | null, clock: HistoryClock): string {
 }
 
 /**
- * "Sleep 7 h 15 min · Fatigue 2": each reading kept to its name, its figure to its unit. A night's
- * sleep is said as every other time is, not "7.25 h", and may break between its hours and minutes.
+ * "Sleep 7 h 15 min · Fatigue 2": each reading held whole, its name, its figure and its unit, so
+ * a line that wraps breaks before the next reading's dot ("· Sleep 7 h 15 min") rather than
+ * leaving "15 min" alone on a line, where it reads as the session's length. A night's sleep is
+ * said as every other time is, not "7.25 h".
  */
 function readings(values: [string, number | string | null, string?][]) {
   return joinFacts(
     values
       .filter(([, value]) => value !== null)
-      .map(([label, value, unit]) => `${label}\u00a0${value}${unit ? `\u00a0${unit}` : ""}`),
+      .map(
+        ([label, value, unit]) =>
+          `${label}\u00a0${String(value).replaceAll(" ", "\u00a0")}${unit ? `\u00a0${unit}` : ""}`,
+      ),
   );
 }
 
@@ -101,7 +106,7 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     kind: "workout",
     date: w.startedAt.toISOString(),
     day: w.occurredOn ?? clock.dayOf(w.startedAt),
-    title: w.dayName ?? UNPLANNED_SESSION,
+    title: sessionName(w.dayName, w.title),
     subtitle: joinFacts([clock.timeOf(w.startedAt), w.gymName]),
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.

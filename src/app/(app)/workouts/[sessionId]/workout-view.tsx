@@ -8,7 +8,7 @@ import { useSetChanges } from "@/components/set-changes";
 import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDraftExercises, useSessionDrafts } from "@/components/use-session-drafts";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionName } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 
 import { ExerciseLogger } from "./exercise-logger";
@@ -23,6 +23,9 @@ const EXERCISE_PARAM = "exercise";
 
 /** How many exercises Add exercise just added, said once on arrival and then dropped. */
 const ADDED_PARAM = "added";
+
+/** The summary, straight after Finish session (board Summary). */
+const FINISHED_PARAM = "finished";
 
 /**
  * The workout: a list of exercises, and one of them in focus.
@@ -65,7 +68,7 @@ export function WorkoutView({
   header?: ReactNode;
   /** What stands above the list once the workout is finished: its records, Save as routine. */
   intro?: ReactNode;
-  /** The day's name, or UNPLANNED_SESSION. */
+  /** The session's name (`sessionName`): its day's, its routine's, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising the open workout goes, or Back from a finished one. */
   backHref?: Route;
@@ -115,6 +118,10 @@ export function WorkoutView({
     const query = params.toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   };
+  // The summary's Edit becomes the past workout in its place, from where the summary was opened.
+  const summaryEdit = new URLSearchParams(searchParams.toString());
+  summaryEdit.delete(FINISHED_PARAM);
+  summaryEdit.set(EDIT_PARAM, "1");
   useEffect(() => {
     if (!searchParams.has(ADDED_PARAM)) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -160,7 +167,7 @@ export function WorkoutView({
       <>
         <FinishedWorkout
           session={session}
-          title={title ?? UNPLANNED_SESSION}
+          title={title ?? sessionName(session.day?.name, session.title)}
           justFinished={justFinished}
           backHref={backHref ?? "/today"}
           records={records}
@@ -175,6 +182,7 @@ export function WorkoutView({
                   editing,
                   onEdit: () => setEditing(true),
                   onDone: () => setEditing(false),
+                  editHref: `/workouts/${session.id}?${summaryEdit.toString()}` as Route,
                   addHref: addExerciseHref ?? (`/workouts/${session.id}/add-exercise` as Route),
                   added: editing ? added : 0,
                   drafts,

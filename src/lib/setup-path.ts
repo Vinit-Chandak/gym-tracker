@@ -1,6 +1,11 @@
 import type { ActivitySport } from "@/domain/activity";
 import type { BodyLoadUnit, GymKind, TrainingExperience } from "@/domain/types";
-import type { DistanceUnit, PoolUnit } from "@/lib/distance-units";
+import {
+  followsWeight,
+  followWeight,
+  type DistanceUnit,
+  type PoolUnit,
+} from "@/lib/distance-units";
 
 /**
  * The steps of setup an athlete is actually asked, in order (board set "Overload onboarding
@@ -67,6 +72,21 @@ export function unitsForLocale(locale: string | null | undefined): MeasureUnits 
   return region && IMPERIAL_REGIONS.has(region)
     ? { weight: "lb", distance: "mi", pool: "yd" }
     : { weight: "kg", distance: "km", pool: "m" };
+}
+
+/**
+ * The units with the weight changed to `weight`: a road or a pool unit that was the old weight
+ * unit's goes with it, so choosing pounds on a phone that proposed kilograms reads miles too
+ * (ADR 0055); one changed apart from the weight stays as it was.
+ */
+export function withWeight(units: MeasureUnits, weight: BodyLoadUnit): MeasureUnits {
+  const distances = { distanceUnit: units.distance, poolUnit: units.pool };
+  const { distanceUnit, poolUnit } = followWeight(
+    distances,
+    weight,
+    followsWeight(units.weight, distances),
+  );
+  return { weight, distance: distanceUnit, pool: poolUnit };
 }
 
 /** The first language an `Accept-Language` header asks for, or null. */

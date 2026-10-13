@@ -84,6 +84,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     id,
     gym: { id: "gym", name: "Test gym", kind: "gym" },
     day: null,
+    title: null,
     cycleIndex: null,
     startedAt: "2026-09-08T11:00:00.000Z",
     completedAt: null,
@@ -101,6 +102,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     warnings: [],
     timeZone: "UTC",
     preferredUnit: "kg",
+    length: "m",
     today: "2026-09-08",
     exercises: [{ ...exercise, sets }],
   };
@@ -136,23 +138,35 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-/** Types set 1's load, reps and RIR into the entry and presses Save. */
-function enterFirstSet() {
+/** Types set 1's load, reps and RIR into the entry. */
+function typeFirstSet() {
   fireEvent.click(screen.getByRole("button", { name: /Type a load$/ }));
   fireEvent.change(screen.getByRole("textbox", { name: "Load in kilograms" }), {
     target: { value: "60" },
   });
   fireEvent.change(screen.getByRole("textbox", { name: "Reps" }), { target: { value: "5" } });
   fireEvent.change(screen.getByRole("textbox", { name: "RIR" }), { target: { value: "2" } });
+}
+
+/** Types set 1 and presses Save, leaving the save on its way. */
+function enterFirstSet() {
+  typeFirstSet();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 }
 const LINE = "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit";
 /** Back to the workout: the logger's back link names it (an unplanned session here). */
 const BACK = "Unplanned session";
 
+/**
+ * Saves set 1 and lets all of the save land before the test goes on. Waiting only for its line
+ * is not enough: the end of the save's transition can still be waiting in React's scheduler
+ * then, and on a busy machine the next step's act renders it, stops there, and leaves the
+ * step's own update unrendered.
+ */
 async function saveFirstSet() {
-  enterFirstSet();
-  await screen.findByRole("button", { name: LINE });
+  typeFirstSet();
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save" })));
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
 }
 
 it("shows a saved set in the list, in the reopened exercise and on Back, without a new render", async () => {
@@ -214,9 +228,10 @@ it("drops a deleted set from the list", async () => {
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   fireEvent.click(screen.getByRole("button", { name: LINE }));
   fireEvent.click(screen.getByRole("button", { name: "Delete this set" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete it" }));
-  await vi.waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
-  await vi.waitFor(() => expect(setChangesMade()).toBeGreaterThan(seen));
+  // All of the deletion lands before Back, as a save does in saveFirstSet.
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Delete it" })));
+  expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt);
+  expect(setChangesMade()).toBeGreaterThan(seen);
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
@@ -268,9 +283,19 @@ it("opens a finished workout for changes within its week, and closes the edit in
   expect(screen.queryByRole("button", { name: "Edit workout" })).toBeNull();
 
   page.rerender(view("2026-09-15"));
-  fireEvent.click(screen.getByRole("button", { name: "Edit workout" }));
+  // Edit and Done are words at the end of the bar, as a gym's Edit is: no fill as tall as the bar
+  // to run from the screen's top edge to the print.
+  const bar = (name: string) => {
+    const action = screen.getByRole("button", { name });
+    expect(action.closest(".page-header-bar")).toBeTruthy();
+    expect(action.className).toBe("header-text-action");
+    return action;
+  };
+  expect(bar("Edit workout").textContent).toBe("Edit");
+  fireEvent.click(bar("Edit workout"));
   expect(window.location.search).toBe("?from=history&edit=1");
   page.rerender(view("2026-09-15"));
+  expect(bar("Done").textContent).toBe("Done");
   expect(screen.getByText(/Each change saves as you make it, until Tue 15 Sept/)).toBeTruthy();
   // Every exercise opens, the one not done as well, and more can be added.
   expect(screen.getByRole("button", { name: /Cable row\s*No sets/ })).toBeTruthy();
@@ -298,6 +323,33 @@ it("opens a finished workout for changes within its week, and closes the edit in
   page.rerender(view("2026-09-15"));
   expect(screen.queryByRole("button", { name: LINE })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add set" })).toBeNull();
+});
+
+/**
+ * Year audit, October 2026: Edit on the summary of a workout just finished opened it under
+ * Progress, going back to History. Finish names Today, where a workout is finished, and the
+ * past workout the summary's Edit becomes keeps it.
+ */
+it("opens the summary's Edit from where the summary was, without the summary's mark", () => {
+  const finished: SessionVM = {
+    ...workout(crypto.randomUUID(), [saved]),
+    completedAt: "2026-09-08T12:00:00.000Z",
+  };
+  window.history.replaceState(null, "", `/workouts/${finished.id}?from=today&finished=1`);
+  render(
+    <WorkoutView
+      session={finished}
+      seenSetChanges={setChangesMade()}
+      userId="user"
+      title="Upper A"
+      backHref="/today"
+      justFinished
+      editUntil="2026-09-15"
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Edit workout" }).getAttribute("href")).toBe(
+    `/workouts/${finished.id}?from=today&edit=1`,
+  );
 });
 
 it("names the year of a finished workout from another year, not of one from this year", () => {

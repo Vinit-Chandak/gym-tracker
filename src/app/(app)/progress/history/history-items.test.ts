@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { FACT_SEPARATOR } from "@/lib/facts";
+
 import {
   enduranceItem,
   historyClock,
@@ -19,6 +21,7 @@ const lift = (id: string, startedAt: string, occurredOn: string | null = null): 
   gymId: "gym",
   gymName: "Test gym",
   dayName: null,
+  title: null,
   sleepHours: null,
   setCount: 3,
   exercises: [],
@@ -69,6 +72,18 @@ describe("History's order", () => {
     expect(
       workoutItem(lift("legacy", "2026-09-30T21:30:00Z"), historyClock("Asia/Kolkata")).day,
     ).toBe("2026-10-01");
+  });
+});
+
+describe("a workout in History", () => {
+  it("is named for its programme day, else the routine it was started from", () => {
+    const clock = historyClock("Asia/Kolkata");
+    const at = "2026-10-11T03:00:00Z";
+    expect(workoutItem({ ...lift("day", at), dayName: "Upper A" }, clock).title).toBe("Upper A");
+    expect(workoutItem({ ...lift("routine", at), title: "Push day at home" }, clock).title).toBe(
+      "Push day at home",
+    );
+    expect(workoutItem(lift("ad-hoc", at), clock).title).toBe("Unplanned session");
   });
 });
 
@@ -141,10 +156,23 @@ describe("sleep in History", () => {
     // Sofia's 6.25 h read "Sleep 6.25 h" beside workouts of "1 h 3 min".
     expect(
       workoutItem({ ...lift("night", "2026-10-11T08:00:00Z"), sleepHours: 6.25 }, clock).recovery,
-    ).toBe("Sleep 6 h 15 min");
+    ).toBe("Sleep 6 h 15 min");
     expect(recoveryItem({ ...reading("whole", "2026-10-10"), sleepHours: 8 }).subtitle).toBe(
       "Sleep 8 h",
     );
     expect(workoutItem(lift("none", "2026-10-11T08:00:00Z"), clock).recovery).toBe("");
+  });
+
+  it("holds each reading whole, so a line breaks before its dot and not inside the night", () => {
+    // "19:35 · Gold's Gym Andheri · Sleep 8 h" stood over "30 min", read as the session's length.
+    const line = recoveryItem({
+      ...reading("split", "2026-10-09"),
+      sleepHours: 8.5,
+      fatigue: 2,
+    }).subtitle;
+    expect(line.split(FACT_SEPARATOR)).toEqual([
+      "Sleep\u00a08\u00a0h\u00a030\u00a0min",
+      "Fatigue\u00a02",
+    ]);
   });
 });

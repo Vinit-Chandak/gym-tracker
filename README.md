@@ -133,6 +133,7 @@ need the Supabase values from `SETUP.md`.
 | `npm run db:seed`                  | Seed the shared library (no gyms, machines or programmes)                        |
 | `npm run db:setup`                 | `db:migrate` followed by `db:seed`                                               |
 | `npm run db:deploy`                | What a production deploy runs: migrate, then seed the library                    |
+| `npm run db:deploy:after-build`    | What a production deploy runs after the build: carry Today's run skips onto runs |
 | `npm run db:backfill:shared-stats` | Rewrite friends' shared stats from history (idempotent; `db:deploy` ran it once) |
 | `npm run db:studio`                | Drizzle Studio against the configured database                                   |
 

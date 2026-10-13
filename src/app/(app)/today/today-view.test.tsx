@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { SessionSummary } from "@/server/repositories/sessions";
+import type { OpenSessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 import { writeDraft } from "@/lib/workout-drafts";
 
@@ -101,6 +101,7 @@ function plan(): TodayPlan {
     suggestedExercises: [slot("e1", "Barbell curl", 3), slot("e2", "Rope triceps pushdown", 3)],
     nextTrainingDay: null,
     sessionStatus: "pending",
+    sessionPrint: null,
     finishedToday: null,
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
       day: { ...DAY, id: `day-${index + 1}`, dayIndex: index + 1 },
@@ -128,10 +129,11 @@ const run = (id: string, minutes: [number, number]): ScheduledOccurrence => ({
   originalWeekIndex: null,
   originalScheduledOn: null,
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 });
 
-const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
+const session = (patch: Partial<OpenSessionSummary> = {}): OpenSessionSummary =>
   ({
     id: "00000000-0000-4000-8000-000000000004",
     gymId: "g1",
@@ -144,8 +146,9 @@ const session = (patch: Partial<SessionSummary> = {}): SessionSummary =>
     exerciseCount: 2,
     setCount: 0,
     workingSetCount: 0,
+    print: { drills: 0, warmupCompleted: false, completed: false, exercises: [] },
     ...patch,
-  }) as SessionSummary;
+  }) as OpenSessionSummary;
 
 function show(patch: Partial<ComponentProps<typeof TodayView>> = {}) {
   return render(
@@ -177,9 +180,11 @@ it("gives the workout and each run a card of its own, each with its own next ste
   expect(
     workout.getByRole("link", { name: "Start workout: Easy Run + Arms" }).getAttribute("href"),
   ).toBe(`/workouts/start?gym=g1&day=${DAY.id}&index=3`);
-  // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs.
+  // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs, held at its
+  // dash and to its unit where the line wraps.
   expect(
-    workout.getAllByText((_, element) => element?.textContent === "70–100 min").length,
+    workout.getAllByText((_, element) => element?.textContent === "70\u2060–\u2060100\u00a0min")
+      .length,
   ).toBeGreaterThan(0);
   expect(workout.getByText("Aerobic + arms/forearms")).toBeTruthy();
   // Two runs on one day are told apart by what each asks for.
@@ -310,6 +315,44 @@ it("puts another open session first, and says why the day cannot start", () => {
   // Nothing on the day's card can start, so its gym is a fact, not a choice.
   expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();
   expect(within(card("Easy Run + Arms")).getByText("Anytime Fitness")).toBeTruthy();
+});
+
+it("names a workout started from a saved routine after the routine, open and finished", () => {
+  const name = "Push day at the hotel gym, with the long band finisher";
+  const { unmount } = show({
+    inProgress: session({ programDayId: null, dayName: null, title: name }),
+  });
+  const [first] = screen.getAllByRole("article");
+  expect(within(first!).getByRole("heading").textContent).toBe(name);
+  expect(within(first!).getByRole("link", { name: `Resume session: ${name}` })).toBeTruthy();
+  unmount();
+
+  show({
+    logged: [
+      {
+        id: "lift-1",
+        sport: "strength",
+        startedAt: new Date("2026-09-11T04:18:00.000Z"),
+        durationMs: 2_880_000,
+        distanceMetres: null,
+        environment: null,
+        occurrenceId: null,
+        sessionId: "lift-1",
+        programDayId: null,
+        dayName: null,
+        title: name,
+        gymName: "Anytime Fitness",
+      },
+    ],
+  });
+  const lift = card(name);
+  expect(lift.textContent).toContain("Workout logged.");
+  expect(
+    within(lift)
+      .getByRole("link", { name: /See what you logged/ })
+      .getAttribute("href"),
+  ).toBe("/workouts/lift-1?from=today");
+  expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
 it("says once that an empty session was discarded, and drops it from the address", async () => {
@@ -465,8 +508,9 @@ it("names a day that only runs for the day, with its focus, as a lifting day's c
   // The pace note keeps its place beside the focus, and in the plan under the fold.
   expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(2);
   expect(within(tempoCard).getByRole("link", { name: "Log run: 37–47 min" })).toBeTruthy();
-  // Unfolded, the time is one range with its unit said once, as everywhere else.
-  expect(tempoCard.textContent).toContain("37–47\u00a0min");
+  // Unfolded, the time is one range with its unit said once, as everywhere else, held at its
+  // dash where the line wraps.
+  expect(tempoCard.textContent).toContain("37\u2060–\u206047\u00a0min");
   expect(tempoCard.textContent).not.toContain("37 min–47 min");
 });
 
@@ -492,6 +536,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
         sessionId: null,
         programDayId: null,
         dayName: null,
+        title: null,
         gymName: null,
       },
     ],
@@ -504,9 +549,35 @@ it("keeps what was logged today with no card of its own on the day, inked done",
     within(ride)
       .getByRole("link", { name: /See what you logged/ })
       .getAttribute("href"),
-  ).toBe("/training/activities/ride-1");
+  ).toBe("/training/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
+});
+
+it("names a run, ride or swim logged today by its own title, as History does", () => {
+  const ride = {
+    id: "ride-1",
+    sport: "cycling" as const,
+    startedAt: new Date("2026-09-11T04:18:00.000Z"),
+    durationMs: 3_092_000,
+    distanceMetres: null,
+    environment: "indoor" as const,
+    occurrenceId: null,
+    sessionId: null,
+    programDayId: null,
+    dayName: null,
+    gymName: null,
+  };
+  show({
+    programmeOccurrences: [],
+    logged: [
+      { ...ride, title: "Sunday spin with the club" },
+      { ...ride, id: "ride-2", title: null },
+    ],
+  });
+  expect(card("Sunday spin with the club").textContent).toContain("51:32");
+  // Untitled, it is its sport.
+  expect(card("Ride")).toBeTruthy();
 });
 
 it("draws no run in the print for one a revision withdrew", () => {
@@ -548,10 +619,10 @@ it("never asks someone who does not lift for a gym, and offers their own sports 
   expect(screen.queryByText("Add a gym to start training")).toBeNull();
   expect(screen.getByText("Nothing planned")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Log a run" }).getAttribute("href")).toBe(
-    "/training/new?sport=running",
+    "/training/new?sport=running&from=today",
   );
   expect(screen.getByRole("link", { name: "Log a swim" }).getAttribute("href")).toBe(
-    "/training/new?sport=swimming",
+    "/training/new?sport=swimming&from=today",
   );
   expect(screen.queryByRole("link", { name: "Log a ride" })).toBeNull();
 });

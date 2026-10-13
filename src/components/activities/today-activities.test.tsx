@@ -40,6 +40,7 @@ const swim = (yards: number): ScheduledOccurrence => ({
   originalWeekIndex: null,
   originalScheduledOn: null,
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 });
 

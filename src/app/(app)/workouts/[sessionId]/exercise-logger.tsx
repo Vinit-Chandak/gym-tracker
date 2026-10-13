@@ -28,10 +28,23 @@ import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
 import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import {
+  setLengthIn,
+  setTargetIn,
+  SET_LENGTH_WORDS,
+  type SetLengthUnit,
+} from "@/lib/distance-units";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
-import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import {
+  backToSession,
+  LOAD_UNIT_LABELS,
+  measureUnitSuffix,
+  sessionChromeName,
+  sessionName,
+  SUGGESTION_KIND_LABELS,
+} from "@/lib/labels";
 import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
@@ -135,6 +148,8 @@ function fieldsFor(
   unit: LoadUnit,
   /** The row's own suggested set (`targetFor`): what its targets are read from. */
   target: NonNullable<ExerciseVM["suggestion"]>["sets"][number] | null,
+  /** What a distance is typed in: metres, or yards beside miles (ADR 0055). */
+  length: SetLengthUnit,
 ): [EntryField, EntryField, EntryField] {
   const loadUnit = row?.unit ?? unit;
   const bodyweight = exercise.exercise.modality === "bodyweight";
@@ -162,14 +177,20 @@ function fieldsFor(
     target: null,
     info: null,
   };
-  const countTarget = countTargetLabel(exercise, target);
+  // Said under a folded column as "target" and then the range, which the entry holds whole:
+  // at large text the line breaks after the word, never at the range's dash.
+  const countTarget = countTargetLabel(exercise, target, length);
+  // Yards are typed whole, which is what makes 50 yd read back as 50 yd (ADR 0055); metres
+  // keep their tenth. A point that reaches the yards anyway is kept for Save to refuse.
+  const lengthWords = SET_LENGTH_WORDS[length];
+  const Lengths = `${lengthWords[0]!.toUpperCase()}${lengthWords.slice(1)}`;
   const count: EntryField =
     measure === "duration"
       ? {
           field: "duration",
           unit: "s",
           hint: null,
-          foldHint: countTarget ? `target ${countTarget}` : null,
+          foldHint: countTarget ? `target ${countTarget}` : null,
           inputLabel: "Seconds",
           inputMode: "numeric",
           max: SET_LIMITS.durationSeconds,
@@ -187,20 +208,21 @@ function fieldsFor(
       : measure === "distance"
         ? {
             field: "distance",
-            unit: "m",
+            unit: length,
             hint: null,
-            foldHint: countTarget ? `target ${countTarget}` : null,
-            inputLabel: "Metres",
-            inputMode: "decimal",
-            max: SET_LIMITS.distanceMeters,
+            foldHint: countTarget ? `target ${countTarget}` : null,
+            inputLabel: Lengths,
+            inputMode: length === "yd" ? "numeric" : "decimal",
+            keeps: "decimal",
+            max: setLengthIn(SET_LIMITS.distanceMeters, length),
             min: 0,
             step: 5,
-            less: "5 metres less",
-            more: "5 metres more",
+            less: `5 ${lengthWords} less`,
+            more: `5 ${lengthWords} more`,
             name: (value, state) =>
               state === "empty"
-                ? "Metres not set. Type metres"
-                : `${value} metres${suggested(state)}. Type metres`,
+                ? `${Lengths} not set. Type ${lengthWords}`
+                : `${value} ${lengthWords}${suggested(state)}. Type ${lengthWords}`,
             target: null,
             info: null,
           }
@@ -208,7 +230,7 @@ function fieldsFor(
             field: "reps",
             unit: "reps",
             hint: null,
-            foldHint: countTarget ? `target ${countTarget}` : null,
+            foldHint: countTarget ? `target ${countTarget}` : null,
             inputLabel: "Reps",
             inputMode: "numeric",
             max: SET_LIMITS.reps,
@@ -375,6 +397,7 @@ export function ExerciseLogger({
     sessionId: session.id,
     measure,
     unit,
+    length: session.length,
     amending,
     onLogged,
     onSaved: (setIndex, added, saved) => {
@@ -445,7 +468,7 @@ export function ExerciseLogger({
   const ghost = entryRow ? sets.ghost(entryRow.setIndex) : {};
   // The suggested set this row stands for: the same kind of set in the same place.
   const entryTarget = entryRow ? sets.target(entryRow.setIndex) : null;
-  const fields = fieldsFor(exercise, measure, entryRow, unit, entryTarget);
+  const fields = fieldsFor(exercise, measure, entryRow, unit, entryTarget, session.length);
 
   // The log's soft top edge shows once its earlier lines pass under the tabs.
   const [overflow, setOverflow] = useState(false);
@@ -566,12 +589,15 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const dayName = session.day?.name ?? UNPLANNED_SESSION;
+  const workoutName = sessionName(session.day?.name, session.title);
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
   const equipment = equipmentLine(exercise);
-  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise, unitLabel);
+  const range =
+    tab === "log"
+      ? perSetLabel(exercise, session.length)
+      : prescriptionLabel(exercise, unitLabel, session.length);
   const rest = restText(exercise);
   const facts: ReactNode[] = [
     <>
@@ -613,16 +639,16 @@ export function ExerciseLogger({
     measure === "duration"
       ? entryTarget?.durationSeconds
       : measure === "distance"
-        ? entryTarget?.distanceMeters
+        ? entryTarget?.distanceMeters == null
+          ? null
+          : setTargetIn(entryTarget.distanceMeters, session.length)
         : entryTarget?.reps;
   const whyLoad =
     entryTarget?.weight != null && !(bodyweight && entryTarget.weight === 0)
       ? String(entryTarget.weight)
       : null;
   const whyCount =
-    targetCount != null
-      ? `${targetCount}${measure === "duration" ? " s" : measure === "distance" ? " m" : ""}`
-      : null;
+    targetCount != null ? `${targetCount}${measureUnitSuffix(measure, session.length)}` : null;
   const whyEffort =
     entryRow && effort === "rir" && !entryWarm ? rirTargetLabel(exercise, entryTarget) : null;
   // A warm-up the app ramped to the first working set says so; the rule's reason is the work's.
@@ -660,6 +686,7 @@ export function ExerciseLogger({
                         exercise.basis.sets.map((set) => setInUnit(set, unit)),
                         (load) => LOAD_UNIT_LABELS[load],
                         loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                        session.length,
                       )}`
                     : ""
                 }.`
@@ -861,10 +888,10 @@ export function ExerciseLogger({
     if (!added) return warm ? "Warm-up updated." : `Set ${n} updated.`;
     const said = saved.autoWarmup
       ? AUTO_WARMUP
-      : `${(warm ? warmSaid(saved.set, measure) : setSaid(n, saved.set, measure)).replace(
-          ":",
-          " saved:",
-        )}.`;
+      : `${(warm
+          ? warmSaid(saved.set, measure, session.length)
+          : setSaid(n, saved.set, measure, session.length)
+        ).replace(":", " saved:")}.`;
     const work = after.filter((r) => r.logged && !isWarmup(r.logged.setType)).length;
     // The entry turns to the first set not yet done, or to a working set after the last one, as
     // use-set-rows adds it on the same answer.
@@ -898,7 +925,11 @@ export function ExerciseLogger({
         ) ?? null);
   const partner = supersetNext(session, exercise);
   const partnerLine = partner
-    ? prescriptionLabel(partner, LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit])
+    ? prescriptionLabel(
+        partner,
+        LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit],
+        session.length,
+      )
     : null;
 
   // The one message slot, at the head of the entry: every message about Save stands here, and
@@ -1154,21 +1185,23 @@ export function ExerciseLogger({
       <header ref={header} className="session-header">
         <button type="button" onClick={onBack} className="session-back">
           <Glyph name="chevronLeft" className="glyph-22" />
-          <span>{dayName}</span>
+          <span>{sessionChromeName(workoutName)}</span>
         </button>
-        <span className="flex-1" />
-        {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
-        {more.length > 0 && (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-label="Complete, skip, superset, substitute"
-            className="session-icon-button -mr-[10px]"
-            onClick={() => setSheet({ kind: "more" })}
-          >
-            <Glyph name="more" className="glyph-24" />
-          </button>
-        )}
+        {/* Under the way back, at the end, when it would have too little room (session.css). */}
+        <span className="session-header-end">
+          {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
+          {more.length > 0 && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-label="Complete, skip, superset, substitute"
+              className="session-icon-button -mr-[10px]"
+              onClick={() => setSheet({ kind: "more" })}
+            >
+              <Glyph name="more" className="glyph-24" />
+            </button>
+          )}
+        </span>
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
@@ -1259,7 +1292,7 @@ export function ExerciseLogger({
                           measure === "duration"
                             ? `${row.duration || "—"}\u00a0s`
                             : measure === "distance"
-                              ? `${row.distance || "—"}\u00a0m`
+                              ? `${row.distance || "—"}\u00a0${session.length}`
                               : `${row.reps || "—"}\u00a0reps`,
                           effort === "rir"
                             ? `RIR\u00a0${row.rir || "—"}`
@@ -1284,6 +1317,7 @@ export function ExerciseLogger({
                 <Log
                   rows={sets.rows}
                   measure={measure}
+                  length={session.length}
                   size={lineSize}
                   landed={landed}
                   onOpen={
@@ -1341,6 +1375,7 @@ export function ExerciseLogger({
                 unit={unit === "kg" || unit === "lb" ? unit : session.preferredUnit}
                 timeZone={session.timeZone}
                 measure={measure}
+                length={session.length}
                 width={box.width}
                 grow={logGrow}
               />
@@ -1430,10 +1465,11 @@ export function ExerciseLogger({
                     Completing…
                   </Button>
                 ) : (
-                  // Finished with, the exercise hands back to the list; Reopen and Unskip are
-                  // in More, where a change of mind goes.
+                  // Finished with, the exercise hands back to the list, by the workout's name
+                  // while it is short, so the dock stays on screen whole at 200% text; Reopen
+                  // and Unskip are in More, where a change of mind goes.
                   <Button size="lg" className="w-full" onClick={onBack}>
-                    Back to {dayName}
+                    {backToSession(workoutName)}
                   </Button>
                 )}
               </div>
@@ -1491,6 +1527,7 @@ export function ExerciseLogger({
                 editShown,
                 unit,
                 targetFor(exercise, sets.rows, editShown),
+                session.length,
               )
             : []
         }

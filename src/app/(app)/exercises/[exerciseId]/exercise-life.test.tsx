@@ -52,6 +52,7 @@ const props = (assisted: boolean) => ({
   machineName: "Assisted pull-up machine",
   bests: [],
   unit: "kg" as const,
+  length: "m" as const,
   timeZone: "UTC",
   today: "2026-10-11",
   performances: [
@@ -71,6 +72,17 @@ it("shows an assisted machine's least help as its best, and leads each session w
   // as the help it is, as the workout reads it.
   expect(screen.getByText("15 kg assistance × 8")).toBeTruthy();
   expect(screen.queryByText("Top weight")).toBeNull();
+});
+
+/**
+ * Year audit, October 2026: a session opened from here lit Progress while its Back came here,
+ * a page of Profile's. Its link names the exercise's page, so Profile stays lit (NAV-03).
+ */
+it("opens a latest session as opened from the exercise's page", () => {
+  render(<ExerciseLife {...props(false)} />);
+  expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+    "/workouts/session-september?from=exercises",
+  ]);
 });
 
 it("shows any other machine's heaviest", () => {
@@ -118,6 +130,129 @@ it("leads the machine's name with its kind's glyph, never beside the kind's name
   const fact = screen.getByRole("img", { name: "Machine" }).parentElement!;
   expect(fact.textContent).toBe("Lat pulldown");
   expect(screen.queryByText("Machine")).toBeNull();
+});
+
+it("leads an accessory with its own glyph, not the movement's", () => {
+  const backExtension = {
+    ...assistedPullUp,
+    name: "Back extension",
+    modality: "bodyweight",
+    loadPortability: "context_dependent",
+  } as const;
+  const { rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={backExtension}
+      machineName="Back extension bench"
+      machineType={{ typeSlug: "back_extension_bench", typeCategory: "accessory" }}
+    />,
+  );
+  // The bench was led by the pull-up bar's glyph, read as "Bodyweight".
+  const fact = screen.getByRole("img", { name: "Accessory" }).parentElement!;
+  expect(fact.textContent).toBe("Back extension bench");
+  expect(screen.queryByRole("img", { name: "Bodyweight" })).toBeNull();
+  // With no machine named, the movement's own kind stands, in words.
+  rerender(<ExerciseLife {...props(false)} exercise={backExtension} machineName={null} />);
+  expect(screen.getByText("Bodyweight")).toBeTruthy();
+  expect(screen.queryByRole("img", { name: "Accessory" })).toBeNull();
+});
+
+it("leads an ab wheel with the ab wheel, said once when it is named after it", () => {
+  const rollout = {
+    ...assistedPullUp,
+    name: "Kneeling rollout",
+    modality: "bodyweight",
+    loadPortability: "context_dependent",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rollout}
+      machineName="Ab roller"
+      machineType={{ typeSlug: "ab_wheel", typeCategory: "accessory" }}
+    />,
+  );
+  const fact = screen.getByRole("img", { name: "Ab wheel" }).parentElement!;
+  expect(fact.textContent).toBe("Ab roller");
+  // Named after its kind, it is said once, and the glyph is left unnamed beside the word.
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rollout}
+      machineName="Ab wheel"
+      machineType={{ typeSlug: "ab_wheel", typeCategory: "accessory" }}
+    />,
+  );
+  expect(screen.queryByRole("img", { name: "Ab wheel" })).toBeNull();
+  expect(screen.getByText("Ab wheel")).toBeTruthy();
+  // The wheel, front on: its tread and the handle out each side (the bench has two legs).
+  expect(container.querySelector("svg rect")?.getAttribute("height")).toBe("16");
+});
+
+it("leads a cardio machine and the Smith machine with their own glyphs, never the stack", () => {
+  const rowing = {
+    ...assistedPullUp,
+    name: "Rowing machine",
+    modality: "cardio",
+    loadPortability: "context_dependent",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rowing}
+      machineName="Concept2 rower"
+      machineType={{ typeSlug: "rowing_machine", typeCategory: "cardio" }}
+    />,
+  );
+  // A rowing machine was led by the weight stack, read as "Machine".
+  const fact = screen.getByRole("img", { name: "Rowing machine" }).parentElement!;
+  expect(fact.textContent).toBe("Concept2 rower");
+  expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
+  // The rower, side on: its flywheel at the front (the stack has no circle).
+  expect(container.querySelector("svg circle")).not.toBeNull();
+  const press = {
+    ...assistedPullUp,
+    name: "Smith machine bench press",
+    modality: "smith_machine",
+  } as const;
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={press}
+      machineName="Smith machine"
+      machineType={{ typeSlug: "smith_machine", typeCategory: "machine" }}
+    />,
+  );
+  // Named after its kind, it is said once.
+  expect(screen.getByText("Smith machine")).toBeTruthy();
+  expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
+});
+
+it("draws cardio with no machine named as the machine it is done on, and on none in words", () => {
+  const rowing = {
+    ...assistedPullUp,
+    name: "Rowing machine",
+    modality: "cardio",
+    loadPortability: "context_dependent",
+    cardioMachine: "rowing_machine",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife {...props(false)} exercise={rowing} machineName={null} />,
+  );
+  // Its page led with the weight stack and said "Machine", where the library draws the rower.
+  const fact = () => container.querySelector(".meta-line .meta-fact")!;
+  expect(fact().textContent).toBe("Rowing machine");
+  expect(fact().querySelector("svg circle")).not.toBeNull();
+  expect(screen.queryByText("Machine")).toBeNull();
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{ ...rowing, cardioMachine: null }}
+      machineName={null}
+    />,
+  );
+  expect(fact().textContent).toBe("Cardio");
+  expect(fact().querySelector("svg")).toBeNull();
 });
 
 it("names a machine called after its kind once", () => {
@@ -169,4 +304,42 @@ it("says a bodyweight set as the body, not as nothing lifted", () => {
   );
   expect(screen.getByText("Bodyweight × 14")).toBeTruthy();
   expect(screen.queryByText(/0 kg/)).toBeNull();
+});
+
+it("reads a carry in the athlete's length: its sets, its best and its longest", () => {
+  const carry = {
+    ...assistedPullUp,
+    name: "Farmer's carry",
+    modality: "dumbbell",
+    defaultPrescriptionType: "distance",
+    loadPortability: "global",
+  } as const;
+  const carried = {
+    ...performance("carry", "2026-09-10T08:00:00Z", [[32, 0]]),
+    sets: [40, 45.7].map((metres, index) => ({
+      setIndex: index + 1,
+      setType: "working" as const,
+      weight: 32,
+      unit: "kg" as const,
+      reps: null,
+      rir: null,
+      durationSeconds: null,
+      distanceMeters: metres,
+    })),
+  };
+  const { container } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={carry}
+      machineName={null}
+      length="yd"
+      bests={[{ metric: "longest_carry", value: 45.7, occurredOn: "2026-09-10", work: null }]}
+      performances={[carried]}
+    />,
+  );
+  const text = container.textContent!.replaceAll("\u00a0", " ");
+  // 45.7 m was typed as 50 yd, and reads back as it was typed (ADR 0055); 40 m is 44 yd.
+  expect(text).toContain("32 kg × 44 yd, 32 kg × 50 yd");
+  expect(text).toContain("Longest carry50 yd");
+  expect(text).not.toMatch(/\d m\b/);
 });

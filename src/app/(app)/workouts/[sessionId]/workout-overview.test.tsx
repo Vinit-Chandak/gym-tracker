@@ -107,6 +107,7 @@ const SESSION: SessionVM = {
   id: "00000000-0000-4000-8000-00000000c0de",
   gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
   day: { id: "day", name: "Upper A", focus: null, includesRun: false, timeNote: "70–90 min" },
+  title: null,
   cycleIndex: 3,
   startedAt: "2026-09-29T07:30:00.000Z",
   completedAt: null,
@@ -142,6 +143,7 @@ const SESSION: SessionVM = {
   coachPlan: null,
   timeZone: "UTC",
   preferredUnit: "kg",
+  length: "m",
   today: "2026-09-29",
   exercises: [
     exercise("Barbell bench press", { sets: [set(1, 60, 4), set(2, 60, 4)] }),
@@ -221,6 +223,15 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getByText(whole("70–90 min"))).toBeTruthy();
 });
 
+it("is named for the saved routine it was started from, with no programme day", () => {
+  show({
+    session: { ...SESSION, day: null, cycleIndex: null, title: "Push day at the hotel gym" },
+    title: undefined,
+  });
+  expect(screen.getByRole("heading", { level: 1, name: "Push day at the hotel gym" })).toBeTruthy();
+  expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
 it("holds Finish back while a set draft is unsaved, and says where", () => {
   show({ drafts: { count: 1, names: ["Barbell bench press"] } });
   expect(screen.queryByRole("link", { name: "Finish" })).toBeNull();
@@ -284,6 +295,32 @@ it("says where a row stands only when that is news", () => {
 
   fireEvent.click(bench);
   expect(open).toHaveBeenCalledWith("barbell-bench-press");
+});
+
+it("leads a row done on an accessory with the accessory's glyph, named for its machine", () => {
+  show({
+    session: {
+      ...SESSION,
+      exercises: [
+        exercise("Back extension", {
+          exercise: { ...exercise("Back extension").exercise, modality: "bodyweight" },
+          equipment: {
+            id: "bench",
+            name: "Back extension bench",
+            unit: "kg",
+            typeCategory: "accessory",
+            typeSlug: "back_extension_bench",
+            ladder: null,
+          },
+        }),
+      ],
+    },
+  });
+  const row = screen.getByRole("button", { name: /Back extension/ });
+  const glyph = within(row).getByRole("img", { name: "Back extension bench" });
+  // The bench: a pad on two legs (the pull-up bar's glyph has a figure's head, a circle).
+  expect(glyph.querySelector("rect")).not.toBeNull();
+  expect(glyph.querySelector("circle")).toBeNull();
 });
 
 it("gives the recovery check its own note", () => {
@@ -380,7 +417,14 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
       exercises: [
         // Planned by the coach on a machine that counts in pounds: the coach's sets, its unit.
         exercise("Leg press", {
-          equipment: { id: "lp", name: "Leg press 2", unit: "lb", ladder: null },
+          equipment: {
+            id: "lp",
+            name: "Leg press 2",
+            unit: "lb",
+            typeCategory: "machine",
+            typeSlug: "leg_press_45",
+            ladder: null,
+          },
           suggestion: coached,
           coachRestSeconds: 150,
         }),

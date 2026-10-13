@@ -26,6 +26,9 @@
   --color-surface-2: var(--ov-surface-2);
   --color-surface-control: var(--ov-surface-control);
   --color-surface-control-pressed: var(--ov-surface-control-pressed);
+  --color-surface-control-on-surface: var(--ov-surface-control-on-surface);
+  --color-tray: var(--ov-tray);
+  --color-waiting: var(--ov-waiting);
   --color-ink-2: var(--ov-ink-2);
   --color-control: var(--ov-control);
   --color-hair: var(--ov-hair);
@@ -575,6 +578,11 @@
   background: var(--ov-surface);
   padding: var(--ov-space-3);
   box-shadow: var(--ov-nav-shadow);
+  /* On a surface, as in a box: Back keeps its shape beside Next, and Next while it waits. */
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
 }
 
 /*
@@ -591,12 +599,22 @@
 /*
  * A box: the grouping for anything that belongs together. A shared hairline keeps its
  * boundary visible in both palettes, including when it sits on another surface.
+ *
+ * What stands on it steps a tone off it (DESIGN.md, Neutral), or it would be the box's own
+ * fill: in light a tonal button is the surface, so Save under a select read as a stray word,
+ * a segmented tray left its unchosen words bare, and Saving… lost its button. A tray and a
+ * waiting button take surface 2, and a tonal or round button its on-surface fill (surface 2 in
+ * light; in dark it is lifted already).
  */
 @utility box {
   min-width: 0;
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
 }
 
 /* Icon dimensions follow the viewport and text size independently of the hit target. */
@@ -635,6 +653,11 @@
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+  /* What stands on it steps a tone off it, as in a box. */
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
   :where(& > * + *) {
     border-top: 1px solid var(--ov-line);
   }
@@ -888,8 +911,12 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
   .navigation-progress {
     left: 12rem;
   }
-  /* Pinned actions stand over the content, beside the rail rather than under it. */
-  .pinned-actions {
+  /* Pinned actions and the session strip stand over the content, beside the rail rather than
+     under it, from the rail's own 12rem, so both share the page's column. Not Tailwind's
+     left-48, which grows with its scale on a wide screen (ADR 0052): it stood the strip 12 px
+     right of the actions over it. */
+  .pinned-actions,
+  .session-chrome {
     left: 12rem;
   }
 }

@@ -4,34 +4,42 @@ import { notFound } from "next/navigation";
 import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
 import { enduranceNote } from "@/components/activities/endurance-line";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
+import { programmeClosureLine, showsClosure } from "@/components/activities/programme-closure";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { sessionStanding, standingByDate } from "@/domain/programme-sessions";
+import { putBackGoesNext, sessionStanding, standingByDate } from "@/domain/programme-sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
-import { getOccurrence } from "@/server/repositories/occurrences";
+import {
+  getOccurrence,
+  namedOccurrence,
+  programmeClosure,
+} from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
-import { joinFacts } from "@/lib/facts";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Scheduled session" };
 
 /**
  * One scheduled session: what it asks for, what became of it, and what can be done about it
- * (plan §7). Logging, skipping and moving all act on this session and no other.
+ * (plan §7). Logging, skipping and moving all act on this session and no other. A session of a
+ * programme the athlete has moved on from reads as it did when that programme ended, with one
+ * line saying how it ended in place of what could be done (ADR 0054).
  */
 export default async function OccurrencePage(
   props: PageProps<"/training/programme/occurrences/[occurrenceId]">,
@@ -40,7 +48,7 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan, units, schedule } = await withUser(
+  const { occurrence, plan, units, schedule, named, closure } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -48,9 +56,17 @@ export default async function OccurrencePage(
       return {
         occurrence,
         plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
-        units: occurrence ? await unitsFor(tx, user.id, occurrence.sport) : DEFAULT_SPORT_UNITS,
+        units: occurrence ? await readSportUnits(tx, user.id) : DEFAULT_SPORT_UNITS,
         // The sequence it waits in, when it is the running programme's.
         schedule: occurrence?.familyId ? await getSchedule(tx, user.id) : null,
+        // A closed session's day, which the running programme's days do not have: named as the
+        // version that wrote it named it, as the activity that answered it names it.
+        named: occurrence?.closed ? await namedOccurrence(tx, user.id, occurrenceId) : null,
+        // How its programme stopped being the athlete's, where the page says so.
+        closure:
+          occurrence && showsClosure(occurrence)
+            ? await programmeClosure(tx, user.id, occurrence.familyId, profile.timeZone)
+            : null,
       };
     },
     { readOnly: true },
@@ -71,15 +87,17 @@ export default async function OccurrencePage(
   const day =
     running && occurrence.cycleDayIndex !== null
       ? (running.days.find((entry) => entry.dayIndex === occurrence.cycleDayIndex) ?? null)
-      : null;
+      : named?.dayName
+        ? { name: named.dayName, focus: named.dayFocus }
+        : null;
   const dayName = day?.name ?? null;
   const badge =
     standing === "next"
       ? { label: "Next", tone: "accent" as const }
       : standing === "not_done"
         ? { label: "Not done", tone: "neutral" as const }
-        : // Skipped on the day itself, from Today, while the session was left as it was.
-          standing === "skipped" && occurrence.resolution.kind === "incomplete"
+        : // As the programme's list says it, whether it was skipped here or from Today.
+          standing === "skipped"
           ? { label: "Skipped", tone: "neutral" as const }
           : null;
   const waited = (standing === "next" || standing === "to_come") && occurrence.scheduledOn < today;
@@ -102,7 +120,7 @@ export default async function OccurrencePage(
   // under it already says the target, and saying it twice was the audit's "2.6–3.1 km" over
   // "2.6–3.1 km · 18–22 min" (October 2026).
   const headline =
-    day?.focus ??
+    (day?.focus && holdFigures(day.focus)) ??
     (!target ? "No targets set" : logged ? null : describePrescription(target, units));
   // A date of this year is said without it, as the programme's list says it.
   const year = today.slice(0, 4);
@@ -124,14 +142,18 @@ export default async function OccurrencePage(
       <PageContent>
         <Card>
           {(headline || badge) && (
-            <div className="flex items-start justify-between gap-3">
+            // The badge stands at the headline's end while the headline keeps a few words' room
+            // beside it, and goes under it rather than break "Threshold" in two (large text).
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               {headline && (
-                <h2 className="min-w-0 text-lg font-medium [overflow-wrap:break-word]">
+                <h2 className="min-w-0 flex-[1_1_8rem] text-lg font-medium [overflow-wrap:break-word]">
                   {headline}
                 </h2>
               )}
               {badge && (
-                <span className="ml-auto">
+                // Wrapped under the headline, it starts the line, as the plan card's badge does
+                // under its words. Every badge here has a headline beside it.
+                <span>
                   <Badge tone={badge.tone}>{badge.label}</Badge>
                 </span>
               )}
@@ -161,6 +183,7 @@ export default async function OccurrencePage(
             prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
+            showSource={!occurrence.closed}
             units={units}
           />
         )}
@@ -170,12 +193,17 @@ export default async function OccurrencePage(
             <p className="text-sm text-ink-muted">
               Logged on {formatIsoDate(occurrence.resolution.occurredOn, year)}.
             </p>
-            <Link
-              href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="inline-flex min-h-[var(--ov-target)] items-center text-sm text-accent"
+            {/* The way into the record, as Today's card says it: in ink and bold, led on by its
+                chevron. In plain ink alone it read as a second line of the sentence above it
+                (year audit, October 2026). It names the programme, or Training for a session of
+                none, as this page's Back does, so Training stays selected (NAV-03). */}
+            <CardLink
+              href={`/training/activities/${occurrence.resolution.activityId}${originQuery(
+                standalone ? "training" : "programme",
+              )}`}
             >
               See what you logged
-            </Link>
+            </CardLink>
           </Card>
         ) : occurrence.resolution.kind === "legacy_completed" ? (
           <Card>
@@ -192,6 +220,14 @@ export default async function OccurrencePage(
                 : "This session was removed from the programme. It no longer needs to be logged."}
             </p>
           </Card>
+        ) : occurrence.closed ? (
+          // Owed or skipped when its programme ended, and left so: nothing here can log, skip,
+          // put back or move it, and the server refuses each (ADR 0054).
+          <Card>
+            <p className="text-sm [overflow-wrap:break-word] text-ink-muted">
+              {programmeClosureLine(closure, year)}, so this session can no longer be logged.
+            </p>
+          </Card>
         ) : (
           <>
             {occurrence.loggable && (
@@ -205,6 +241,11 @@ export default async function OccurrencePage(
               scheduledOn={occurrence.scheduledOn}
               today={today}
               standalone={standalone}
+              putBackGoesNext={
+                running !== null &&
+                occurrence.disposition === "skipped" &&
+                putBackGoesNext(running.state, occurrence)
+              }
             />
           </>
         )}

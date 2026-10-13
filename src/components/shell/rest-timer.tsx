@@ -140,9 +140,17 @@ function useRest(sessionId: string) {
   return { remaining, total, stop, extend };
 }
 
-/** Seconds of rest left (0 while it says Go), or null when no rest runs. */
-export function useRestRemaining(sessionId: string): number | null {
-  return useRest(sessionId).remaining;
+/**
+ * The running rest as one reading: seconds left (0 while it says Go, null when no rest runs) and
+ * the whole of it. Whatever shows the time and whatever names it read this once, so the two
+ * never say different seconds.
+ */
+export function useRestReading(sessionId: string): {
+  remaining: number | null;
+  total: number | null;
+} {
+  const { remaining, total } = useRest(sessionId);
+  return { remaining, total };
 }
 
 /**
@@ -172,6 +180,44 @@ export function RestTime({ sessionId }: { sessionId: string }) {
       </span>
     </span>
   );
+}
+
+/**
+ * The rest on the strip folded into a screen's pinned actions (DESIGN.md, The session strip):
+ * the dial and the time, or Go's glyph and Go, as the strip shows them. It draws the reading it
+ * is given, so the key that holds it is named from the same second (restNamed).
+ */
+export function RestFace({
+  remaining,
+  total,
+  glyphClassName,
+  timeClassName,
+}: {
+  remaining: number;
+  total: number | null;
+  glyphClassName?: string;
+  timeClassName?: string;
+}) {
+  const go = remaining === 0;
+  const fraction = total ? Math.min(1, (remaining * 1000) / total) : 1;
+  return (
+    <>
+      {go ? (
+        <Glyph name="rest" className={glyphClassName} />
+      ) : (
+        <RestDial fraction={fraction} className={glyphClassName} />
+      )}
+      <span className={timeClassName}>{go ? "Go" : formatDuration(remaining)}</span>
+    </>
+  );
+}
+
+/**
+ * The rest as a control that shows it is named, with the time it shows (WCAG 2.5.3): "Rest,
+ * 0:30 left", or "Rest over: Go".
+ */
+export function restNamed(remaining: number): string {
+  return remaining === 0 ? "Rest over: Go" : `Rest, ${formatDuration(remaining)} left`;
 }
 
 /**
@@ -229,11 +275,7 @@ export function RestPill({ sessionId }: { sessionId: string }) {
         type="button"
         aria-haspopup="dialog"
         // The name carries the visible time, as a voice or switch user reads it (WCAG 2.5.3).
-        aria-label={
-          go
-            ? "Rest over: Go. Add 30 seconds or stop"
-            : `Rest, ${time} left. Add 30 seconds or stop`
-        }
+        aria-label={`${restNamed(remaining)}. Add 30 seconds or stop`}
         onClick={() => setOpen(true)}
         className="relative flex min-h-[var(--ov-target-header)] shrink-0 items-center"
       >

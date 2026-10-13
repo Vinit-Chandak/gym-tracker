@@ -5,7 +5,7 @@ import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { canEditWorkout } from "@/domain/workout-edits";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { sessionChromeName, sessionName } from "@/lib/labels";
 import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin } from "@/lib/nav";
 import { addExercisesAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
@@ -15,8 +15,8 @@ import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositor
 import { listExercises, preferredMachinesAtGym } from "@/server/repositories/exercises";
 import {
   getSessionRecord,
-  sessionDayName,
   sessionExerciseIds,
+  sessionNameParts,
 } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
@@ -39,18 +39,18 @@ export default async function AddExercisePage(
     async (tx) => {
       const session = await getSessionRecord(tx, user.id, sessionId);
       if (!session) return null;
-      const [exercises, machines, machinesByExercise, preferredMachines, inWorkout, dayName] =
+      const [exercises, machines, machinesByExercise, preferredMachines, inWorkout, names] =
         await Promise.all([
           listExercises(tx),
           listEquipmentForGym(tx, user.id, session.gymId),
           machinesByExerciseAtGym(tx, user.id, session.gymId),
           preferredMachinesAtGym(tx, user.id, session.gymId),
           sessionExerciseIds(tx, user.id, sessionId),
-          session.completedAt ? sessionDayName(tx, user.id, sessionId) : null,
+          session.completedAt ? sessionNameParts(tx, user.id, sessionId) : null,
         ]);
       return {
         session,
-        dayName,
+        names,
         exercises: exercises.filter((e) => e.isActive),
         machines: machines.filter((m) => m.isActive),
         machinesByExercise,
@@ -70,7 +70,7 @@ export default async function AddExercisePage(
   const back = finished
     ? {
         href: `/workouts/${sessionId}?${origin ? `${ORIGIN_PARAM}=${origin}&` : ""}${EDIT_PARAM}=1` as Route,
-        label: data.dayName ?? UNPLANNED_SESSION,
+        label: sessionChromeName(sessionName(data.names?.dayName, data.names?.title)),
       }
     : { href: `/workouts/${sessionId}` as Route, label: name };
 
@@ -84,7 +84,13 @@ export default async function AddExercisePage(
       <AddExercisesForm
         action={addExercisesAction.bind(null, sessionId, finished ? origin : null)}
         exercises={data.exercises}
-        machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+        machines={data.machines.map((m) => ({
+          id: m.id,
+          name: m.name,
+          typeSlug: m.typeSlug,
+          typeCategory: m.typeCategory,
+          resistanceMode: m.resistanceMode,
+        }))}
         machinesByExercise={data.machinesByExercise}
         preferredMachines={data.preferredMachines}
         inWorkout={data.inWorkout}

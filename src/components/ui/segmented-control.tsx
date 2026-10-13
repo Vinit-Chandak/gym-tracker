@@ -68,16 +68,18 @@ function figureWidth(label: string): string {
 const FIGURE = /^\d+$/;
 
 /**
- * A segmented choice (DESIGN.md, Components): two to four words on a surface, the chosen one in
- * ink. A radio group, so it works without JavaScript; the label is the tap target.
+ * A segmented choice (DESIGN.md, Components): two to four words in a tray, the chosen one in
+ * ink. The tray is the surface on the ground and surface 2 in a box (`--ov-tray`), so it is
+ * never the fill of the card it sits in. A radio group, so it works without JavaScript; the
+ * label is the tap target.
  *
  * A label is never broken: a segment is never narrower than its words on one line ("30 days",
  * "Free weight") or a touch target. With columns, the segments share one row, the space beyond
  * their words split evenly; unspecified columns start each from a label-sized minimum instead.
  * Where they cannot all fit (a 320-pt phone, 200% text) the tray folds onto even rows (Fold,
- * Never Drop; fold.ts): four as two and two, five as three and two, never one alone under three.
- * Only a label wider than the whole tray wraps, between its words. A scale never folds its
- * figures: only its words go under them.
+ * Never Drop; fold.ts): four as two and two, never three and one alone; five as three and two,
+ * or two, two and one where three cannot share a row. Only a label wider than the whole tray
+ * wraps, between its words. A scale never folds its figures: only its words go under them.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -106,7 +108,7 @@ export function SegmentedControl<V extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-surface p-[3px] text-[length:var(--ov-type-meta)]"
+      className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-tray p-[3px] text-[length:var(--ov-type-meta)]"
       style={fold.tray}
     >
       {options.map((option, index) => (

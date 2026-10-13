@@ -26,6 +26,7 @@ import {
 } from "@/server/queries/comparable";
 import { parseDateRange } from "@/server/validation/date-range";
 
+import { closeStrengthParent, openStrengthParent } from "./activities";
 import { planningContext } from "./coach-plans";
 import { readMuscleVolume } from "./muscle-volume";
 import { createProgramFromBlueprint } from "./programs";
@@ -368,9 +369,13 @@ describe("coaching evidence cutoff", () => {
         .insert(workoutSessions)
         .values(dates.map((date) => ({ userId, gymId: gym!.id, ...date })))
         .returning();
-      pastId = sessions.find(
+      const past = sessions.find(
         (session) => session.startedAt.getTime() === dates[0]!.startedAt.getTime(),
-      )!.id;
+      )!;
+      pastId = past.id;
+      // Started from a saved routine: its activity keeps the routine's name (ADR 0026).
+      await openStrengthParent(tx, userId, { ...past, title: "Hotel gym push" }, TZ);
+      await closeStrengthParent(tx, userId, past.id, past.completedAt!);
       const performed = await tx
         .insert(workoutExercises)
         .values(
@@ -409,6 +414,8 @@ describe("coaching evidence cutoff", () => {
     const ctx = await context(userId);
     expect(ctx.recent.workouts).toHaveLength(1);
     expect(ctx.recent.workouts[0]?.startedAt).toBe("2026-09-11T06:00:00.000Z");
+    // The coach reads a routine's workout by the routine's name, as it reads the notes.
+    expect(ctx.recent.workouts[0]?.title).toBe("Hotel gym push");
     expect(ctx.volume[0]?.totalSets).toBe(1);
     expect(ctx.volumeCoverage[0]).toMatchObject({ completedWorkouts: 1, incompleteWorkouts: 1 });
     const raw = await withUser(t.db, userId, (tx) =>

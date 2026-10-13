@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { setLengthToMetres } from "@/lib/distance-units";
+
 import { detectRecords } from "./records";
 import {
   isComparable,
@@ -302,6 +304,26 @@ describe("sessionStats", () => {
     expect(again.exercises).toHaveLength(1);
     expect(again.exercises[0]).toMatchObject({ workingSets: 1, topWeightKg: 60 });
   });
+  it("lists the movements in the order the workout first worked them", () => {
+    const { exercises } = sessionStats(
+      workout([
+        // Left undone in the first slot and worked in the last: it comes where it was worked.
+        { exerciseId: "pull-up", exercise: pullUp, sets: [] },
+        { exerciseId: "leg-press", exercise: legPress, sets: [set({ weight: 120, reps: 10 })] },
+        {
+          exerciseId: "mine",
+          exercise: { ...bench, userId: "alice" },
+          sets: [set({ weight: 20, reps: 10 })],
+        },
+        { exerciseId: "bench", exercise: bench, sets: [set({ weight: 60, reps: 5 })] },
+        // A second slot of a movement already listed keeps it in its first place.
+        { exerciseId: "leg-press", exercise: legPress, sets: [set({ weight: 130, reps: 8 })] },
+        { exerciseId: "pull-up", exercise: pullUp, sets: [set({ weight: 0, reps: 8 })] },
+      ]),
+      "UTC",
+    );
+    expect(exercises.map((e) => e.exerciseId)).toEqual(["leg-press", "bench", "pull-up"]);
+  });
   it("refuses an unfinished workout", () => {
     expect(() => sessionStats(workout([], { completedAt: null }), "UTC")).toThrow();
   });
@@ -367,7 +389,7 @@ describe("detectRecords", () => {
       ["bench", { e1rm: 80, top_weight: 70, best_set_volume: 300, most_reps: 8 }],
       ["pull-up", { most_reps: 10, top_weight: 0 }],
     ]);
-    expect(detectRecords(previous, stats)).toEqual([
+    expect(detectRecords(previous, stats, "m")).toEqual([
       // 70 × (1 + 5/30) = 81.67 beats 80; top weight ties at 70; 350 beats 300; 5 reps does not beat 8.
       { exerciseId: "bench", metric: "e1rm", value: 81.67, previous: 80 },
       { exerciseId: "bench", metric: "best_set_volume", value: 350, previous: 300 },
@@ -387,17 +409,49 @@ describe("detectRecords", () => {
     ).exercises;
     expect(press!.bestE1rmKg).toBe(16.33);
     // The same lift against an older row kept to the tenth is a tie, not a record...
-    expect(detectRecords(new Map([["bench", { e1rm: 16.3 }]]), [press!])).toEqual([]);
+    expect(detectRecords(new Map([["bench", { e1rm: 16.3 }]]), [press!], "m")).toEqual([]);
     // ...while a real step up still is.
-    expect(detectRecords(new Map([["bench", { e1rm: 16.2 }]]), [press!])).toHaveLength(1);
+    expect(detectRecords(new Map([["bench", { e1rm: 16.2 }]]), [press!], "m")).toHaveLength(1);
   });
   it("never announces a first performance, nor a machine's number", () => {
-    expect(detectRecords(new Map(), stats)).toEqual([]);
+    expect(detectRecords(new Map(), stats, "m")).toEqual([]);
     const previous = new Map([["leg-press", { most_reps: 5, top_weight: 50 }]]);
-    expect(detectRecords(previous, stats)).toEqual([]);
+    expect(detectRecords(previous, stats, "m")).toEqual([]);
+  });
+  it("counts a longer carry only when the figure its athlete reads is longer (ADR 0055)", () => {
+    const carry = { ...plank, defaultPrescriptionType: "distance" as const };
+    const carried = (yards: number) =>
+      sessionStats(
+        workout([
+          {
+            exerciseId: "carry",
+            exercise: carry,
+            sets: [set({ weight: 32, distanceMeters: setLengthToMetres(yards, "yd") })],
+          },
+        ]),
+        "UTC",
+      ).exercises;
+    // A best kept as 50 m reads 55 yd, and 55 yd logged is kept as 50.3 m: the same carry to
+    // an athlete in yards, never "55 yd · was 55 yd". 56 yd is longer, and a record.
+    const best = new Map([["carry", { longest_carry: 50 }]]);
+    expect(detectRecords(best, carried(55), "yd")).toEqual([]);
+    expect(detectRecords(best, carried(56), "yd")).toEqual([
+      { exerciseId: "carry", metric: "longest_carry", value: 51.2, previous: 50 },
+    ]);
+    // In metres, kept to the tenth they are read in, 50.3 m beats 50 m.
+    expect(detectRecords(best, carried(55), "m")).toHaveLength(1);
+    // A yard more than a yard-typed best is always a record.
+    for (let yards = 10; yards <= 200; yards++)
+      expect(
+        detectRecords(
+          new Map([["carry", { longest_carry: setLengthToMetres(yards - 1, "yd") }]]),
+          carried(yards),
+          "yd",
+        ),
+      ).toHaveLength(1);
   });
   it("ignores a metric the movement is not measured by", () => {
     const previous = new Map([["pull-up", { e1rm: 1, longest_hold: 1, most_reps: 12 }]]);
-    expect(detectRecords(previous, stats)).toEqual([]);
+    expect(detectRecords(previous, stats, "m")).toEqual([]);
   });
 });

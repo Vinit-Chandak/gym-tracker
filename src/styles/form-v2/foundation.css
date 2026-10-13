@@ -148,6 +148,8 @@
   --ov-surface-2: var(--ov-light-surface-2);
   --ov-surface-control: var(--ov-light-surface-control);
   --ov-surface-control-pressed: var(--ov-light-surface-control-pressed);
+  --ov-surface-control-on-surface: var(--ov-light-surface-control-on-surface);
+  --ov-surface-control-on-surface-pressed: var(--ov-light-surface-control-on-surface-pressed);
   --ov-ink: var(--ov-light-ink);
   --ov-ink-2: var(--ov-light-ink-2);
   --ov-control: var(--ov-light-control);
@@ -180,6 +182,12 @@
   --ov-grain-blend: var(--ov-light-grain-blend);
   --ov-grain-multiply: var(--ov-light-grain-multiply);
   --ov-grain-screen: var(--ov-light-grain-screen);
+
+  /* A tray (a segmented choice, page tabs) and a waiting button are the surface; on a surface
+     they step to surface 2, as the control surface steps to its own on-surface fill
+     (globals.css, the box). */
+  --ov-tray: var(--ov-surface);
+  --ov-waiting: var(--ov-surface);
 
   /*
    * Form's names, still read by the screens that have no Form v2 board, now resolved from
@@ -303,6 +311,8 @@
     --ov-surface-2: var(--ov-dark-surface-2);
     --ov-surface-control: var(--ov-dark-surface-control);
     --ov-surface-control-pressed: var(--ov-dark-surface-control-pressed);
+    --ov-surface-control-on-surface: var(--ov-dark-surface-control-on-surface);
+    --ov-surface-control-on-surface-pressed: var(--ov-dark-surface-control-on-surface-pressed);
     --ov-ink: var(--ov-dark-ink);
     --ov-ink-2: var(--ov-dark-ink-2);
     --ov-control: var(--ov-dark-control);
@@ -348,6 +358,8 @@
   --ov-surface-2: var(--ov-dark-surface-2);
   --ov-surface-control: var(--ov-dark-surface-control);
   --ov-surface-control-pressed: var(--ov-dark-surface-control-pressed);
+  --ov-surface-control-on-surface: var(--ov-dark-surface-control-on-surface);
+  --ov-surface-control-on-surface-pressed: var(--ov-dark-surface-control-on-surface-pressed);
   --ov-ink: var(--ov-dark-ink);
   --ov-ink-2: var(--ov-dark-ink-2);
   --ov-control: var(--ov-dark-control);
@@ -407,6 +419,8 @@
     --ov-surface-2: Canvas;
     --ov-surface-control: ButtonFace;
     --ov-surface-control-pressed: ButtonFace;
+    --ov-surface-control-on-surface: ButtonFace;
+    --ov-surface-control-on-surface-pressed: ButtonFace;
     --ov-ink: CanvasText;
     --ov-ink-2: CanvasText;
     --ov-control: ButtonText;

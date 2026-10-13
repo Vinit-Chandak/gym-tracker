@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { holdHyphens } from "@/lib/facts";
 import LeaderboardPage from "@/app/(app)/profile/friends/leaderboard/page";
 import ComparePage from "./compare/page";
 import PersonPage from "./page";
@@ -76,9 +77,17 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/page-header", () => ({
-  PageHeader: ({ title, backHref }: { title: string; backHref: string }) => (
+  PageHeader: ({
+    title,
+    backHref,
+    backLabel,
+  }: {
+    title: string;
+    backHref: string;
+    backLabel?: string;
+  }) => (
     <header>
-      <a href={backHref}>Back</a>
+      <a href={backHref}>{backLabel ?? "Back"}</a>
       <h1>{title}</h1>
     </header>
   ),
@@ -180,8 +189,8 @@ it.each([
     storedSport,
     expect.anything(),
   );
-  // Back to the person in the same sport; the span is the one every graph shares.
-  expect(html).toContain(`href="/u/friend?sport=${storedSport}"`);
+  // Back to the person, by name, in the same sport; the span is the one every graph shares.
+  expect(html).toContain(`href="/u/friend?sport=${storedSport}">Friend</a>`);
 });
 
 it("lifting still renders the muscle split and exercises in common", async () => {
@@ -190,6 +199,32 @@ it("lifting still renders the muscle split and exercises in common", async () =>
   expect(html).toContain("Exercises in common");
   expect(mocks.muscles).toHaveBeenCalledTimes(2);
   expect(mocks.common).toHaveBeenCalledOnce();
+});
+
+it("lists the exercises in common at the gutter, unboxed, each name held at its hyphens", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Archer push-up", region: "chest" }],
+    notComparable: 0,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  // In a box, its rows inset a rem each side, "Seated dumbbell shoulder press" took three lines
+  // at 200% text: a list to choose from puts its names at the gutter (DESIGN.md, One Left Edge).
+  expect(html).not.toContain("box-rows");
+  expect(html).toContain('<li class="nav-row-item"><a href="/u/friend/compare/e1">');
+  expect(html).toContain(holdHyphens("Archer push-up"));
+});
+
+it("keeps the exercises in common's label and note at their names' edge", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Bulgarian split squat", region: "quads" }],
+    notComparable: 1,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  const start = html.lastIndexOf("<section", html.indexOf("Exercises in common"));
+  const section = html.slice(start, html.indexOf("</section>", start));
+  expect(section).toContain("1 machine exercise in common is not compared");
+  // The label and the note stood a quarter rem in from the names under them (One Left Edge).
+  expect(section).not.toContain("px-1");
 });
 
 it.each([

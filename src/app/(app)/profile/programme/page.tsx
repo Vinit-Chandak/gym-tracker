@@ -26,11 +26,11 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview } from "@/server/repositories/schedule";
-import { enabledSportsFor, unitsFor } from "@/server/repositories/sport-preferences";
+import { enabledSportsFor, readSportUnits } from "@/server/repositories/sport-preferences";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
-import { templateOffer } from "./next-block";
+import { closedByNextBlock, templateOffer } from "./next-block";
 import { ProgrammeTabs } from "./programme-tabs";
 import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 
@@ -97,7 +97,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
             .orderBy(desc(programs.updatedAt))
             .limit(20),
-          unitsFor(tx, user.id, "running"),
+          readSportUnits(tx, user.id),
           enabledSportsFor(tx, user.id),
         ]);
         return { overview, changes, archived, runUnits, enabled };
@@ -119,6 +119,14 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const start = overview?.program.startDate;
   const spanYear =
     start && end && start.slice(0, 4) !== end.slice(0, 4) ? undefined : today.slice(0, 4);
+  // What starting another closes of this one, said under the button that starts it.
+  const closes = closedByNextBlock(
+    overview && {
+      name: overview.program.name,
+      complete,
+      skipped: overview.progress.skipped,
+    },
+  );
   // Starting over: rarely why anyone comes here, so folded at the foot of the cycle — until the
   // programme is finished, when it is the next thing to do and opens under the card.
   const nextBlock = (
@@ -131,6 +139,9 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
           today={today}
           // A finished programme is not replaced: the next one starts after it.
           submitLabel={complete ? "Start this programme" : "Replace my programme"}
+          extra={
+            closes && <p className="type-meta [overflow-wrap:break-word] text-ink-2">{closes}</p>
+          }
         />
       </div>
     </div>

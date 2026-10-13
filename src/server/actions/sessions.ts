@@ -36,6 +36,7 @@ import {
   pendingCycleForDay,
   recordSlotEvent,
   returnRestDaysPassedBy,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   addExercisesToSession,
@@ -268,7 +269,8 @@ const skipSlotSchema = z.object({
 
 /**
  * Marks one half of the pending occurrence of a day as skipped on purpose: the workout, or
- * the run. A day that does both keeps the other half, which is still owed.
+ * the run. A day that does both keeps the other half, which is still owed. The run is skipped
+ * on its sessions, so it reads skipped everywhere it is shown (`skipSlotPart`).
  */
 export async function skipSlotAction(
   dayIndex: number,
@@ -287,15 +289,10 @@ export async function skipSlotAction(
     if (!schedule) return { ok: false, error: "No active programme." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, part);
     if (cycleIndex === null) return { ok: false, error: "That day has nothing left to skip." };
-    await recordSlotEvent(
-      tx,
-      user.id,
-      schedule.program.id,
-      { cycleIndex, dayIndex },
-      part,
-      "skipped",
-      { occurredOn: todayInTimeZone(profile.timeZone), note: parsed.data.reason },
-    );
+    await skipSlotPart(tx, user.id, schedule.program, { cycleIndex, dayIndex }, part, {
+      occurredOn: todayInTimeZone(profile.timeZone),
+      note: parsed.data.reason,
+    });
     // Nobody will train what is left of this slot, so the coach's plan for it goes with it.
     if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === part)) {
       await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
@@ -819,6 +816,14 @@ async function finishAndRecord(
   });
 }
 
+/**
+ * The summary, once (board Summary). A workout is finished in Today's layer over the tabs, so the
+ * summary names Today as where it was opened, and the past workout its Edit becomes is Today's
+ * and goes back there, not to History (NAV-03).
+ */
+const summaryPath = (sessionId: string) =>
+  `/workouts/${sessionId}?${ORIGIN_PARAM}=today&finished=1` as const;
+
 export async function finishSessionAction(
   sessionId: string,
   _previous: FormState,
@@ -842,7 +847,7 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
-  redirect(`/workouts/${sessionId}?finished=1`);
+  redirect(summaryPath(sessionId));
 }
 
 /**
@@ -858,7 +863,7 @@ export async function finishLeftOpenAction(sessionId: string): Promise<ActionRes
     if (!(error instanceof SessionFinishedError)) return { ok: false, error: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}?finished=1`);
+  redirect(summaryPath(sessionId));
 }
 
 const supersetSchema = z.object({
@@ -969,8 +974,8 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
  * "Pick up from today" (owner, 11 October 2026): every training day the calendar has passed
  * without an answer is skipped, part by part, and the rest days among them are passed, so the
  * sequence resumes at the day the programme has for today. Nothing from today on is touched, and
- * every skip stays in History as one. Refused while a workout is open, since that workout is
- * answering one of those days.
+ * every skip stays in the programme as one; History lists only what was done. Refused while a
+ * workout is open, since that workout is answering one of those days.
  */
 export async function pickUpFromTodayAction(
   _previous: ActionResult,
@@ -988,8 +993,10 @@ export async function pickUpFromTodayAction(
     const today = todayInTimeZone(profile.timeZone);
     const startDate = schedule.program.startDate ?? today;
     const { skip, rest } = pickUpFromToday(schedule.state, startDate, today);
+    // A day's run is skipped on its sessions, so the programme and the coach's adherence both
+    // read it skipped rather than one skipped and the other still owed (`skipSlotPart`).
     for (const { ref, part } of skip)
-      await recordSlotEvent(tx, user.id, schedule.program.id, ref, part, "skipped", {
+      await skipSlotPart(tx, user.id, schedule.program, ref, part, {
         occurredOn: today,
         note: "Picked up from today",
       });

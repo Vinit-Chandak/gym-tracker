@@ -4,6 +4,7 @@ import { exercises, programExercises, programRuns, programSlotEvents, programs }
 import type { DbOrTx } from "@/db/types";
 import { cycleCount } from "@/domain/cycle-repeat";
 import type { OccurrenceDisposition } from "@/domain/occurrences";
+import type { PrintedSession } from "@/domain/session-print";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
@@ -16,7 +17,6 @@ import {
   pickUpFromToday,
   progress,
   projectedEndDate,
-  runEventsFromOccurrences,
   sessionsBehind,
   slotFinishedOn,
   slotFor,
@@ -34,6 +34,9 @@ import {
 } from "@/domain/schedule";
 import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
+
+import { skipSlotOccurrences } from "./occurrences";
+import { readSlotPrints } from "./session-prints";
 
 export type ActiveProgram = {
   id: string;
@@ -142,16 +145,30 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
       // The programme's own endurance work, as the sequence needs to read it: which slot of
-      // the cycle it belongs to, whether anything still owes an answer, and the day a logged one
-      // was done on. Joined here rather than fetched after, so the day a running slot completes
-      // costs no extra round trip.
+      // the cycle it belongs to, whether anything still owes an answer, the day a logged one
+      // was done on, and the day a skipped one was skipped: its last skip's date, or, for a
+      // skip made on its page, which carries none, the athlete's date it was made on. Joined
+      // here rather than fetched after, so the day a running slot completes costs no extra
+      // round trip.
       enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
         select json_agg(json_build_object(
           'cycleIndex', o.cycle_index,
           'cycleDayIndex', o.cycle_day_index,
           'disposition', o.disposition,
           'logged', (a.id is not null),
-          'occurredOn', a.occurred_on
+          'occurredOn', a.occurred_on,
+          'skippedOn', case when o.disposition = 'skipped' then (
+            select coalesce(
+              e.occurred_on,
+              (e.created_at at time zone (
+                select p.time_zone from profiles p where p.id = o.user_id
+              ))::date
+            )
+            from occurrence_events e
+            where e.user_id = o.user_id and e.occurrence_id = o.id and e.kind = 'skipped'
+            order by e.created_at desc
+            limit 1
+          ) end
         ))
         from planned_occurrences o
         left join activities a
@@ -193,10 +210,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       cycles: program.cycles,
       repeats: program.repeats,
       startDayIndex: program.startDayIndex,
-      events: withDerivedRunEvents(
-        row.events,
-        runEventsFromOccurrences(slotOccurrences(row.days, row.enduranceOccurrences)),
-      ),
+      events: withDerivedRunEvents(row.events, slotOccurrences(row.days, row.enduranceOccurrences)),
     },
   };
 }
@@ -209,6 +223,8 @@ type EnduranceRow = {
   logged: boolean;
   /** The local date of the activity that answered it; null until one has. */
   occurredOn: string | null;
+  /** The athlete's date it was last skipped on, while it is skipped; null otherwise. */
+  skippedOn: string | null;
 };
 
 /**
@@ -238,7 +254,11 @@ function slotOccurrences(
           : row.disposition === "pending"
             ? ("incomplete" as const)
             : row.disposition,
-        ...(row.logged && row.occurredOn ? { occurredOn: row.occurredOn } : {}),
+        ...(row.logged && row.occurredOn
+          ? { occurredOn: row.occurredOn }
+          : !row.logged && row.disposition === "skipped" && row.skippedOn
+            ? { occurredOn: row.skippedOn }
+            : {}),
       },
     ];
   });
@@ -302,6 +322,37 @@ export async function recordSlotEvent(
       : insert.onConflictDoNothing({ target: SLOT_PART })
   ).returning({ id: programSlotEvents.id });
   return written.length > 0;
+}
+
+/**
+ * Skips one half of a slot on purpose, from Today or "Pick up from today": the workout, or the
+ * run (owner, 12 October 2026).
+ *
+ * A day's run is answered on its occurrences, not beside them (`withDerivedRunEvents`), so
+ * skipping it skips each of its sessions still owed: Skipped on Today, on the programme and in
+ * the coach's adherence alike, never owed in one and skipped in another. Each can still be
+ * logged, which replaces the skip on the day too. Only a day whose run has no occurrence at
+ * all, from before occurrences, records the skip on the day itself. The workout half has no
+ * occurrence, and skipping it never touches the day's run.
+ */
+export async function skipSlotPart(
+  db: DbOrTx,
+  userId: string,
+  program: Pick<ActiveProgram, "id" | "familyId">,
+  ref: SlotRef,
+  part: SlotPart,
+  details: { occurredOn: string; note?: string | null },
+): Promise<void> {
+  if (part === "run") {
+    const skipped = await skipSlotOccurrences(
+      db,
+      userId,
+      { familyId: program.familyId, cycleIndex: ref.cycleIndex, cycleDayIndex: ref.dayIndex },
+      details,
+    );
+    if (skipped !== null) return;
+  }
+  await recordSlotEvent(db, userId, program.id, ref, part, "skipped", details);
 }
 
 /**
@@ -604,6 +655,11 @@ export type TodayPlan = {
    */
   sessionStatus: SlotStatus | "pending";
   /**
+   * The workout that did the offered day's lifting, once it has and the day still owes its run:
+   * the day's print draws it as the workout does (`readSlotPrints`). Null until then.
+   */
+  sessionPrint: PrintedSession | null;
+  /**
    * The programme day finished today, when there is one: the day offered is then the next one,
    * not today's. With its cycle, so Today can still show the endurance it logged.
    */
@@ -634,7 +690,13 @@ export async function getTodayPlan(
   const suggestedDay = next
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
-  const suggestedExercises = suggestedDay ? await listDayExercises(db, suggestedDay.id) : [];
+  const sessionStatus = next ? partStatus(state, next.slot, "session") : "pending";
+  const [suggestedExercises, printed] = await Promise.all([
+    suggestedDay ? listDayExercises(db, suggestedDay.id) : [],
+    next && suggestedDay?.includesLifting && sessionStatus === "completed"
+      ? readSlotPrints(db, userId, schedule.program.id, next.slot.cycleIndex, next.slot.dayIndex)
+      : null,
+  ]);
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
@@ -676,7 +738,8 @@ export async function getTodayPlan(
       nextTrainingDay && nextTrainingRef
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
-    sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
+    sessionStatus,
+    sessionPrint: next ? (printed?.get(next.slot.dayIndex) ?? null) : null,
     finishedToday:
       finishedRef && finishedDay ? { ...finishedDay, cycleIndex: finishedRef.cycleIndex } : null,
     cycleDays,
@@ -697,6 +760,11 @@ export type ProgramDayPlan = {
   status: SlotStatus | "pending" | "not_in_programme";
   /** The day Today is offering. */
   isNext: boolean;
+  /**
+   * The workout that did this day of the cycle, as every screen that prints it draws it
+   * (`readSlotPrints`); null until one has, and when the prints were not asked for.
+   */
+  print: PrintedSession | null;
 };
 
 export type ProgramOverview = {
@@ -716,29 +784,45 @@ export type ProgramOverview = {
 
 /**
  * The whole active programme: every day of the cycle with its exercises, warm-up and run,
- * and where the sequence has got to.
+ * and where the sequence has got to. Asked for its prints (Training and its days, which draw
+ * them), each day the cycle has trained comes with its workout's (`readSlotPrints`).
  *
  * Three statements for any number of days — the schedule, then every day's exercises and
  * the cycle's runs together — plus the warm-up names, which come from the library already
- * in memory. Reading a seven-day cycle costs the same as reading a one-day one.
+ * in memory, and the prints when asked for and the cycle has trained a day. Reading a
+ * seven-day cycle costs the same as reading a one-day one.
  */
 export async function getProgramOverview(
   db: DbOrTx,
   userId: string,
   timeZone: string,
+  { prints = false }: { prints?: boolean } = {},
 ): Promise<ProgramOverview | null> {
   const schedule = await getSchedule(db, userId);
   if (!schedule) return null;
   const state = schedule.state;
   const next = suggestion(state);
   const currentCycle = next?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
-  const [exercisesByDay, runs, warmups] = await Promise.all([
+  const lifting = new Set(
+    schedule.days.filter((day) => day.includesLifting).map((day) => day.dayIndex),
+  );
+  const trained = state.events.some(
+    (event) =>
+      event.cycleIndex === currentCycle &&
+      event.part === "session" &&
+      event.status === "completed" &&
+      lifting.has(event.dayIndex),
+  );
+  const [exercisesByDay, runs, warmups, printed] = await Promise.all([
     listExercisesByDay(
       db,
       schedule.days.map((day) => day.id),
     ),
     listRunTargets(db, schedule.program.id, currentCycle),
     sharedWarmupProtocols(db),
+    prints && trained
+      ? readSlotPrints(db, userId, schedule.program.id, currentCycle)
+      : new Map<number, PrintedSession>(),
   ]);
   const warmupNames = new Map(warmups.map((warmup) => [warmup.id, warmup.name]));
   const slots = allSlots(state);
@@ -757,6 +841,7 @@ export async function getProgramOverview(
         next !== null &&
         next.slot.cycleIndex === currentCycle &&
         next.slot.dayIndex === day.dayIndex,
+      print: printed.get(day.dayIndex) ?? null,
     };
   });
   return {

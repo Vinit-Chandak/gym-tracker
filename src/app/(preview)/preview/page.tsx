@@ -144,6 +144,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     suggestedExercises: EXERCISES,
     nextTrainingDay: null,
     sessionStatus: "completed",
+    sessionPrint: null,
     finishedToday: null,
     // The board's week: two days done, this one offered, four to come.
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
@@ -180,6 +181,7 @@ const RUN_OCCURRENCE: ScheduledOccurrence = {
   originalWeekIndex: 1,
   originalScheduledOn: "2026-09-11",
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 };
 
@@ -190,6 +192,7 @@ const OPEN_SESSION = {
   gymName: "Anytime Fitness",
   programDayId: DAY.id,
   dayName: DAY.name,
+  title: null,
   cycleIndex: 1,
   startedAt: new Date("2026-09-11T07:05:00.000Z"),
   completedAt: null,
@@ -197,6 +200,21 @@ const OPEN_SESSION = {
   setCount: 5,
   workingSetCount: 5,
   lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
+  // The curls done and two pushdowns in: the band inks them as the workout's print does.
+  print: {
+    drills: 0,
+    warmupCompleted: false,
+    completed: false,
+    exercises: EXERCISES.map((exercise, index) => ({
+      slotId: exercise.programExerciseId,
+      exerciseId: exercise.exerciseId,
+      planned: exercise.sets,
+      work: [3, 2][index] ?? 0,
+      warm: 0,
+      skipped: false,
+      supersetGroup: exercise.supersetGroup,
+    })),
+  },
 };
 
 /** A day that only runs, named for itself on its card: `?state=run`. */
@@ -294,6 +312,7 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
                   sessionId: null,
                   programDayId: null,
                   dayName: null,
+                  title: null,
                   gymName: null,
                 },
               ]

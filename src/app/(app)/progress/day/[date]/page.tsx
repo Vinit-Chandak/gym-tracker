@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
-import { ART_SPORT, dayParts, type DayPiece } from "@/components/progress/calendar";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
+import { ART_SPORT, dayParts, dayPrintLabel, type DayPiece } from "@/components/progress/calendar";
+import { LoadingPage } from "@/components/shell/loading-page";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
@@ -13,14 +15,16 @@ import { withUser } from "@/db/with-user";
 import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import type { PrintedSession } from "@/domain/session-print";
 import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
-import { ENDURANCE_PLACE_LABELS, SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { ENDURANCE_PLACE_LABELS, sessionName, SWIM_STROKE_LABELS } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
 import { unitsBySport } from "@/server/repositories/sport-preferences";
 import { readWorkouts } from "@/server/repositories/training-data";
@@ -36,11 +40,15 @@ type Entry = {
   meta: string;
   href: Route;
   piece: DayPiece;
+  /** The workout still open: its mark drawn to do, its print inked as far as it is done. */
+  open: boolean;
 };
 
 /**
  * A day (board Day): its record as a print, in full ink, in the day's order, then each thing
- * done: its mark, what it was and how far or how much, and the time it began.
+ * done: its mark, what it was and how far or how much, and the time it began. A workout is
+ * printed as its own page prints it, its warm-up's fan and all; the one still open is the plan
+ * it is inking, its mark to do, as the month draws it.
  */
 export default async function DayPage(props: PageProps<"/progress/day/[date]">) {
   const { date } = await props.params;
@@ -50,8 +58,10 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   const today = todayInTimeZone(profile.timeZone);
   if (date > today) notFound();
   const range = parseDateRange({ from: date, to: date }, profile.timeZone);
+  // The open workout's sets are inked here: a copy older than the latest set is drawn again.
+  const seen = await seenSetChanges();
 
-  const { endurance, workouts, units } = await withUser(
+  const { endurance, workouts, prints, units } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -60,12 +70,14 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
       // on its day as well, in progress, rather than leaving the day "nothing logged".
       const [days, lifted, units] = await Promise.all([
         readActivityDays(tx, user.id, { from: date, to: date }),
-        readWorkouts(tx, user.id, range, 0, 20, { onDays: true }),
+        // Each workout with its print, as every screen that prints it draws it.
+        readWorkouts(tx, user.id, range, 0, 20, { onDays: true, prints: true }),
         unitsBySport(tx, user.id),
       ]);
       return {
         endurance: days.items.filter((item) => item.sport !== "strength"),
         workouts: lifted.workouts,
+        prints: lifted.prints ?? new Map<string, PrintedSession>(),
         units,
       };
     },
@@ -105,8 +117,10 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         at: item.startedAt,
         title: joinFacts([name, distance]),
         meta: joinFacts([place, seconds === null ? null : formatDuration(seconds), pace, stroke]),
-        href: `/training/activities/${item.id}` as Route,
+        // A logged activity is History's, as the day is Progress's (NAV-03).
+        href: `/training/activities/${item.id}${originQuery("history")}` as Route,
         piece: { sport: item.sport as Exclude<ActivitySport, "strength"> },
+        open: false,
       };
     }),
     ...workouts.map((workout): Entry => {
@@ -118,11 +132,12 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: workout.id,
         sport: "strength",
         at: workout.startedAt,
-        title: workout.day?.name ?? UNPLANNED_SESSION,
-        // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps.
+        title: sessionName(workout.day?.name, workout.title),
+        // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps, and
+        // the open one's state whole, as Today says it ("In progress", never "In / progress").
         meta: joinFacts([
           workout.gym.name,
-          minutes === null ? "In progress" : `${minutes}\u00a0min`,
+          minutes === null ? "In\u00a0progress" : `${minutes}\u00a0min`,
           // The open workout's sets are its own page's to count: this one can be held on Back.
           minutes === null ? null : `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
         ]),
@@ -130,14 +145,14 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         href: `/workouts/${workout.id}${workout.completedAt ? originQuery("history") : ""}` as Route,
         piece: {
           sport: "strength",
-          columns: workout.exercises
-            .filter((exercise) => exercise.sets.length > 0)
-            .map((exercise) => ({
-              sets: exercise.sets.length,
-              done: exercise.sets.length,
-              warm: exercise.sets.filter((set) => set.setType === "warmup").length,
-            })),
+          session: prints.get(workout.id) ?? {
+            drills: 0,
+            warmupCompleted: false,
+            completed: workout.completedAt !== null,
+            exercises: [],
+          },
         },
+        open: workout.completedAt === null,
       };
     }),
   ].sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -147,7 +162,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   const parts = dayParts(entries.map((entry) => entry.piece));
 
   return (
-    <>
+    <FreshAfterSets seen={seen} loading={<LoadingPage title={title} rows={2} />}>
       <PageHeader title={title} backHref="/progress/calendar" />
       <PageContent className="!pt-3">
         {parts.length > 0 && (
@@ -155,9 +170,11 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
             <Art
               kind="print"
               parts={parts}
-              label={`${formatIsoDate(date)} in full ink, in the day's order: ${entries
-                .map((entry) => entry.title)
-                .join(", ")}`}
+              label={dayPrintLabel(
+                formatIsoDate(date),
+                entries.map((entry) => entry.title),
+                entries.some((entry) => entry.open),
+              )}
               className="size-full"
             />
           </figure>
@@ -170,19 +187,30 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
               <li key={entry.key}>
                 <Link href={entry.href} className="day-row">
                   <span className="mark-cell">
-                    <Art kind="mark" sport={ART_SPORT[entry.sport]} size={18} />
+                    <Art
+                      kind="mark"
+                      sport={ART_SPORT[entry.sport]}
+                      size={18}
+                      state={entry.open ? "todo" : "done"}
+                    />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="plan-row-name tabular-nums">{entry.title}</span>
+                    {/* The time stands beside the name while both fit and under it when not, as
+                        History's figure does: a routine's long name keeps a few words a line. */}
+                    <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
+                      <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:break-word] tabular-nums">
+                        {entry.title}
+                      </span>
+                      <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
+                        {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
+                        <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
+                      </span>
+                    </span>
                     {entry.meta && (
                       <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
                         <Figures>{entry.meta}</Figures>
                       </span>
                     )}
-                  </span>
-                  <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
-                    {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
-                    <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
                   </span>
                 </Link>
               </li>
@@ -190,6 +218,6 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           </ul>
         )}
       </PageContent>
-    </>
+    </FreshAfterSets>
   );
 }

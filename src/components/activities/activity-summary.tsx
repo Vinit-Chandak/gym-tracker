@@ -1,5 +1,6 @@
 import { formatDuration, formatHold } from "@/domain/pace";
 import { metricLabel, type SharedMetric } from "@/domain/shared-stats";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import {
   formatSharedDistance,
@@ -18,7 +19,10 @@ import type {
 /**
  * What a follower sees of one session (plan §9.2), laid out as its owner's own record is: a
  * workout's time, sets and volume three across, as the finished workout says them, then its
- * movements; a run's, a ride's or a swim's figures two by two, as the activity's page does.
+ * movements; a run's, a ride's or a swim's figures two by two, as the activity's page does. A
+ * figure nobody recorded is left out here, where the owner's page says it as a dash ("Distance —"
+ * on an indoor ride): the owner is shown what a correction could still add, a follower only what
+ * was recorded.
  *
  * The shape of this component is the privacy rule made visible: it takes shared rows and
  * nothing else. There is no activity here to accidentally read a note, an effort, a heart
@@ -39,6 +43,7 @@ export function ActivitySummary({
   exercises = [],
   name,
   unit,
+  length,
   distanceUnits,
 }: {
   activity: SharedActivityDetail;
@@ -47,6 +52,8 @@ export function ActivitySummary({
   /** Whose session it is, as the page names them. */
   name: string;
   unit: BodyLoadUnit;
+  /** What a carry reads in: the reader's metres or yards. */
+  length: SetLengthUnit;
   distanceUnits: SharedDistanceUnits;
 }) {
   if (activity.sport !== "workout")
@@ -71,7 +78,7 @@ export function ActivitySummary({
     <>
       <dl className="finished-stats">
         {workout(activity, unit).map((stat) => (
-          <div key={stat.label} className="min-w-0">
+          <div key={stat.label}>
             <dt className="sr-only">{stat.label}</dt>
             <dd className="whitespace-nowrap">
               <span className="type-figure-l">{stat.figure}</span>
@@ -93,7 +100,7 @@ export function ActivitySummary({
               {exercises.map((exercise) => (
                 <li key={exercise.id} className="record-row">
                   <span className="record-row-name">{exercise.name}</span>{" "}
-                  <span className="record-row-sets">{exerciseLine(exercise, unit)}</span>
+                  <span className="record-row-sets">{exerciseLine(exercise, unit, length)}</span>
                 </li>
               ))}
             </ul>
@@ -162,7 +169,11 @@ function endurance(activity: SharedActivityDetail, distanceUnits: SharedDistance
  * hold or the longest carry. The figure keeps its unit and its reps on its line. A machine's load
  * is its own, as on the leaderboard, so a machine movement says its sets alone.
  */
-function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): string {
+function exerciseLine(
+  exercise: SharedSessionExercise,
+  unit: BodyLoadUnit,
+  length: SetLengthUnit,
+): string {
   const count = sets(exercise.workingSets);
   if (!exercise.comparable) return count;
   const best = ((): [SharedMetric, string] | null => {
@@ -176,7 +187,7 @@ function exerciseLine(exercise: SharedSessionExercise, unit: BodyLoadUnit): stri
           ? null
           : [
               "longest_carry",
-              formatSharedMetric("longest_carry", exercise.longestDistanceMeters, unit),
+              formatSharedMetric("longest_carry", exercise.longestDistanceMeters, unit, length),
             ];
       case "reps":
         if (exercise.topWeightKg !== null && exercise.topWeightKg > 0)

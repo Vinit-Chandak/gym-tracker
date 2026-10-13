@@ -26,6 +26,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
 import { formatActivityMetric, formatSharedMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { loadCircle, perKgAvailable, rankCircle, rankExercise } from "@/server/queries/leaderboard";
@@ -78,11 +79,19 @@ function boardMetricLabel(metric: BoardMetric, exercise: MetricExercise): string
     : metricLabel(metric, exercise);
 }
 
-/** A load reads in the viewer's unit; a per-kg value is a multiple of body weight. */
-function formatBoardMetric(metric: BoardMetric, value: number, unit: BodyLoadUnit): string {
+/**
+ * A load reads in the viewer's unit and a carry in their length; a per-kg value is a multiple
+ * of body weight.
+ */
+function formatBoardMetric(
+  metric: BoardMetric,
+  value: number,
+  unit: BodyLoadUnit,
+  length: SetLengthUnit,
+): string {
   return isPerKgMetric(metric)
     ? `${value.toLocaleString("en-GB", { minimumFractionDigits: 2 })}×`
-    : formatSharedMetric(metric, value, unit);
+    : formatSharedMetric(metric, value, unit, length);
 }
 
 /**
@@ -242,7 +251,9 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                 <RankList
                   rows={board.rows}
                   you={user.id}
-                  format={(value) => formatBoardMetric(board.metric, value, unit)}
+                  format={(value) =>
+                    formatBoardMetric(board.metric, value, unit, setLengthFor(viewer))
+                  }
                   currentYear={todayInTimeZone(viewer.timeZone).slice(0, 4)}
                 />
               </Section>

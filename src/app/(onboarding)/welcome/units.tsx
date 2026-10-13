@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
 import type { ActivitySport } from "@/domain/activity";
 import type { MeasureUnits } from "@/lib/setup-path";
-import { zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
+import { withWeight, zoneCity, zoneLine, zoneOffset } from "@/lib/setup-path";
 import {
   listedTimeZones,
   preferredTimeZone,
@@ -30,7 +30,10 @@ const POOL = [
   { value: "yd", label: "Yards" },
 ] as const;
 
-/** Runs and rides go by the road's unit, swims by the pool's; lifting only by weight. */
+/**
+ * Runs and rides go by the road's unit, swims by the pool's; lifting by weight, and a carry by
+ * the road's unit too, which follows the weight for an athlete who is not asked (ADR 0055).
+ */
 function distanceMatters(sports: readonly ActivitySport[]): boolean {
   return sports.includes("running") || sports.includes("cycling");
 }
@@ -167,7 +170,7 @@ export function UnitsSheet({
                 aria-labelledby="units-weight"
                 options={WEIGHT}
                 value={units.weight}
-                onChange={(weight) => onUnits({ ...units, weight })}
+                onChange={(weight) => onUnits(withWeight(units, weight))}
                 columns={2}
               />
             </div>
@@ -176,7 +179,7 @@ export function UnitsSheet({
             <div className="units-row">
               <span id="units-distance" className="units-row-label">
                 Distance
-                <span className="units-row-hint">Runs and rides</span>
+                <span className="units-row-hint">Runs, rides and carries</span>
               </span>
               <div className="units-row-control">
                 <SegmentedControl

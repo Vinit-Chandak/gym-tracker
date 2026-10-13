@@ -29,3 +29,35 @@ it("sets a second line's figures in Jost and leaves its words in Atkinson", () =
     null,
   ]);
 });
+
+it("stands a tag or a badge beside the name alone, the second line under both at full width", () => {
+  const { container } = render(
+    <ul>
+      <NavRow
+        href="/exercises"
+        label="Chest dip machine (wide)"
+        sub="Machine · Chest, Front delts"
+        tag="Per machine"
+      />
+      <NavRow href="/profile" label="Programme request" sub="Waiting" badge="Needs your answer" />
+      <NavRow href="/gyms" label="Gyms and machines" tag="Default" />
+    </ul>,
+  );
+  const [tagged, badged, plain] = [...container.querySelectorAll(".nav-row-main")];
+  // Beside the whole two-line block, a Per machine tag took the meta line's room too, and broke
+  // "Chest, Front delts" where it had fit: the mark shares the name's line, its head, alone.
+  const head = tagged!.querySelector(".nav-row-head")!;
+  expect(head.querySelector(".nav-row-label")?.textContent).toBe("Chest dip machine (wide)");
+  expect(head.querySelector(".nav-row-tag")?.textContent).toBe("Per machine");
+  expect(head.querySelector(".nav-row-sub")).toBeNull();
+  expect(head.nextElementSibling?.className).toBe("nav-row-sub");
+  expect(badged!.querySelector(".nav-row-head .nav-row-badge")?.textContent).toBe(
+    "Needs your answer",
+  );
+  // A row of one line has no head: its name and its mark share the row as before.
+  expect(plain!.querySelector(".nav-row-head")).toBeNull();
+  expect([...plain!.children].map((child) => child.className)).toEqual([
+    "nav-row-label",
+    "nav-row-tag",
+  ]);
+});

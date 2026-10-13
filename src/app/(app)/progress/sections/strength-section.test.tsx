@@ -75,7 +75,7 @@ function draw(selected: "squat" | null = null) {
   );
   const data: Pick<ProgressData, "strength" | "exercise" | "today"> = {
     today: TODAY,
-    strength: { range: MONTH, graph: strengthGraph(rows, MONTH, TODAY), unit: "kg" },
+    strength: { range: MONTH, graph: strengthGraph(rows, MONTH, TODAY), unit: "kg", length: "m" },
     exercise: {
       range: MONTH,
       options: options.map((option) => ({ ...option })),

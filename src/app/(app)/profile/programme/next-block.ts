@@ -2,6 +2,7 @@ import type { TemplateOption } from "@/components/program-template-picker";
 import type { ProgramTemplate } from "@/db/seed/data/templates";
 import type { ActivitySport } from "@/domain/activity";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { holdHyphens } from "@/lib/facts";
 
 /** The sports a programme asks for: lifting where a day lifts, running where a day runs. */
 export function blueprintSports(blueprint: ProgramBlueprint): ActivitySport[] {
@@ -54,4 +55,16 @@ export function templateOffer(
         : "Or start from a template",
     options: ranked.map((o) => o.option),
   };
+}
+
+/**
+ * What starting the next block closes of the programme now (ADR 0054): its sessions still owed
+ * or skipped can then only be logged on their own. Said under the button that starts it, since
+ * nothing asks again before it does. A finished programme with nothing skipped closes nothing.
+ */
+export function closedByNextBlock(
+  current: { name: string; complete: boolean; skipped: number } | null,
+): string | null {
+  if (!current || (current.complete && current.skipped === 0)) return null;
+  return `Sessions of ${holdHyphens(current.name)} still owed or skipped can then only be logged on their own.`;
 }

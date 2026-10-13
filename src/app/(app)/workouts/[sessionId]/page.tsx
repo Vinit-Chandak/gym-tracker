@@ -8,8 +8,9 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
-import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath } from "@/lib/nav";
-import { UNPLANNED_SESSION } from "@/lib/labels";
+import { setLengthFor } from "@/lib/distance-units";
+import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath, workoutOrigin } from "@/lib/nav";
+import { sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -56,6 +57,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
           profile.timeZone,
           profile.preferredUnit === "lb" ? "lb" : "kg",
           todayInTimeZone(profile.timeZone),
+          setLengthFor(profile),
         ),
         records,
       };
@@ -65,7 +67,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   if (!found) notFound();
   const { session: data, records } = found;
 
-  const title = data.day?.name ?? UNPLANNED_SESSION;
+  const title = sessionName(data.day?.name, data.title);
   // A finished workout can be changed for a week after its day (ADR 0049).
   const startedAt = new Date(data.startedAt);
   const editUntil =
@@ -73,6 +75,8 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
       : null;
   const backHref = workoutBackPath(origin, data.completedAt !== null) as Route;
+  // Where it was opened from, carried on to its own pages so they keep the tab it lit.
+  const carried = originQuery(workoutOrigin(origin, data.completedAt !== null));
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
     .map((e) => `${e.id}:${e.exercise.id}:${e.equipment?.id ?? ""}:${e.skippedAt ?? ""}`)
@@ -84,7 +88,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     // started and finished. A finished one is a page with a header, whose Back goes wherever it
     // was opened from when that said so. An exercise in focus is a layer of its own.
     <WorkoutView
-      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
+      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}:${data.length}`}
       session={data}
       seenSetChanges={seen}
       userId={user.id}
@@ -92,10 +96,12 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       backHref={backHref}
       header={<PageHeader title={title} meta={data.gym.name} backHref={backHref} />}
       justFinished={justFinished}
-      records={<SessionRecordsCard records={records} unit={data.preferredUnit} />}
+      records={
+        <SessionRecordsCard records={records} unit={data.preferredUnit} length={data.length} />
+      }
       routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
       editUntil={editUntil}
-      addExerciseHref={`/workouts/${sessionId}/add-exercise${originQuery(origin)}` as Route}
+      addExerciseHref={`/workouts/${sessionId}/add-exercise${carried}` as Route}
     />
   );
 }

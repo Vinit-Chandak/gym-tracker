@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Privacy" };
 const VISIBLE = [
   "Your name, username, join month, and follower and following counts.",
   "Per finished workout: date, the day's name, duration, working sets, volume, sets per muscle group, records set.",
-  "Per exercise from the shared library: working sets, reps, top weight, best estimated 1RM, best set volume, most reps, longest hold, longest carry.",
+  "Per exercise from the shared library: its place in the workout, working sets, reps, top weight, best estimated 1RM, best set volume, most reps, longest hold, longest carry.",
   "Per run: date, distance, duration, pace.",
   "Per ride or swim, if you enable sharing for that sport: date, duration and distance when known.",
   "Your latest body weight, only if you both switch that on.",

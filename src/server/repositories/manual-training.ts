@@ -124,7 +124,9 @@ export async function startSavedRoutine(db: DbOrTx, userId: string, id: string, 
       "An exercise needs equipment marked as not at this gym. Update its equipment or choose another gym before starting.",
       422,
     );
-  const session = await startAdHocSession(db, userId, { gymId });
+  // The workout goes by the routine's name as it is now, on the athlete's own screens; a later
+  // rename or delete of the routine leaves it as it was (ADR 0026, note of 12 October 2026).
+  const session = await startAdHocSession(db, userId, { gymId, title: routine.name });
   await db.insert(workoutExercises).values(
     chosen.map(({ entry, exercise }, i) => ({
       userId,

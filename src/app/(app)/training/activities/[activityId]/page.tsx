@@ -22,16 +22,17 @@ import {
 import { formatDuration } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
-import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
+import { ORIGIN_PARAM, originPath, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
 import { namedOccurrence } from "@/server/repositories/occurrences";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
 import { AnsweredSession } from "./answered-session";
+import type { AnsweredOnDelete } from "./delete-button";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
 import { startedAtLine } from "./started-at";
 
@@ -67,7 +68,8 @@ function split(text: string): { figure: string; unit?: string } {
 export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
   const { activityId } = await props.params;
   requireUuid(activityId);
-  // Passed on to the correction, so the tab it was opened from stays selected through it.
+  // Passed on to the correction, so the tab it was opened from stays selected through it, and
+  // where Back goes without a page before it: that tab, or History with none (NAV-03).
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
@@ -78,7 +80,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       const activity = await getActivity(tx, user.id, activityId);
       return {
         activity,
-        units: activity ? await unitsFor(tx, user.id, activity.sport) : DEFAULT_SPORT_UNITS,
+        units: activity ? await readSportUnits(tx, user.id) : DEFAULT_SPORT_UNITS,
         answered: activity?.origin.occurrenceId
           ? await namedOccurrence(tx, user.id, activity.origin.occurrenceId)
           : null,
@@ -115,7 +117,9 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       ),
       unit: `/${units.distanceUnit}`,
     });
-  if (actual?.sport === "cycling")
+  // A ride's speed is its distance over its time: one with no distance (an indoor ride, as a
+  // rule) has none to show, not a second dash beside the distance's (AT-LOG-03).
+  if (actual?.sport === "cycling" && metres !== null)
     stats.push({
       label: "Speed",
       ...split(formatSpeed(speedMetresPerSecond(metres, actual.durationMs), units.distanceUnit)),
@@ -138,19 +142,23 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   // A session's name, as History and its day name it: "Ride", not the sport's "Cycling".
   const title = activity.title ?? enduranceName(activity.sport);
   const where = actual ? WHERE[actual.environment] : undefined;
+  // What deleting it does to the session it answered: gives it back to be logged, unless its
+  // programme has ended, when nothing can be logged against it again (ADR 0054).
+  const onDelete: AnsweredOnDelete =
+    activity.origin.kind !== "planned" ? null : answered?.closed ? "closed" : "reopens";
 
   return (
     <>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
-          <BackLink fallback="/progress/history" />
+          <BackLink fallback={originPath(origin)} />
           <div className="page-header-action">
             <ActivityMore
               label={`Correct or delete this ${sport ? NOUN[sport] : "activity"}`}
               title={title}
               editHref={`/training/activities/${activity.id}/edit${originQuery(origin)}` as Route}
               activityId={activity.id}
-              settlesOccurrence={activity.origin.kind === "planned"}
+              answered={onDelete}
             />
           </div>
         </div>

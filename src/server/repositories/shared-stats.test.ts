@@ -25,6 +25,7 @@ import { deleteActivity, getActivity, updateActivity } from "./activities";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { performanceSeries } from "@/domain/analytics";
 import { LIFTING_METRICS, RUNNING_METRICS, type ActivityMetric } from "@/domain/leaderboard";
+import { setLengthToMetres } from "@/lib/distance-units";
 import { convertLoad } from "@/lib/units";
 import { loadCircle, rankCircle, rankExercise } from "@/server/queries/leaderboard";
 import { loadHeadToHead } from "@/server/queries/head-to-head";
@@ -966,7 +967,6 @@ describe("a shared workout's movements", () => {
           { weight: 60, reps: 6 },
         ],
       },
-      { exercise: legPress, sets: [{ weight: 150, reps: 10 }] },
       {
         exercise: own.id,
         sets: [
@@ -974,6 +974,7 @@ describe("a shared workout's movements", () => {
           { weight: 10, reps: 12 },
         ],
       },
+      { exercise: legPress, sets: [{ weight: 150, reps: 10 }] },
     ]);
     const [row] = await t.db
       .select({ id: sharedSessionStats.id, workingSets: sharedSessionStats.workingSets })
@@ -982,20 +983,111 @@ describe("a shared workout's movements", () => {
     const read = (viewer: string, owner = alice, id = row!.id) =>
       as(viewer)((tx) => readSharedSessionExercises(tx, owner, id));
 
+    // In the workout's order, not by name.
     const seen = await read(bob);
     expect(
       seen.map((e) => [e.name, e.comparable, e.workingSets, e.topWeightKg, e.topWeightReps]),
     ).toEqual([
-      ["45° leg press", false, 1, 150, 10],
       ["Barbell bench press", true, 3, 70, 3],
+      ["45° leg press", false, 1, 150, 10],
     ]);
     // The movement alice created has no shared row: the session's sets say there were more.
     expect(row!.workingSets).toBe(6);
+    // Nor a place: read from the table itself, as bob's own token could, the two rows are 0 and
+    // 1, with no gap to say something came between them.
+    expect(
+      await as(bob)((tx) =>
+        tx
+          .select({ place: sharedExerciseStats.orderIndex })
+          .from(sharedExerciseStats)
+          .where(eq(sharedExerciseStats.workoutSessionId, session))
+          .orderBy(sharedExerciseStats.orderIndex),
+      ),
+    ).toEqual([{ place: 0 }, { place: 1 }]);
     expect(await read(alice)).toEqual(seen);
     // Not a follower, the id read as someone else's, or no such row: nothing at all.
     expect(await read(carol)).toEqual([]);
     expect(await read(bob, bob)).toEqual([]);
     expect(await read(bob, alice, crypto.randomUUID())).toEqual([]);
+  });
+
+  it("keeps the order through a change after Finish and a rebuild, and ties by name", async () => {
+    const slots: string[] = [];
+    const session = await as(alice)(async (tx) => {
+      const { sessionId } = await startAdHocSession(tx, alice, { gymId });
+      for (const exercise of [legPress, pullUp, bench]) {
+        const { workoutExerciseId } = await addExerciseToSession(tx, alice, sessionId, {
+          exerciseId: exercise,
+          equipmentInstanceId: null,
+        });
+        slots.push(workoutExerciseId);
+      }
+      const log = (slot: string, weight: number, reps: number) =>
+        logSet(tx, alice, {
+          workoutExerciseId: slot,
+          setIndex: 1,
+          setType: "working",
+          weight,
+          unit: "kg",
+          reps,
+          rir: null,
+          durationSeconds: null,
+        });
+      // The pull-ups are left undone at Finish.
+      await log(slots[0]!, 140, 10);
+      await log(slots[2]!, 60, 5);
+      await finishSession(tx, alice, sessionId, { notes: null, bodyWeightKg: null });
+      return sessionId;
+    });
+    const [row] = await t.db
+      .select({ id: sharedSessionStats.id })
+      .from(sharedSessionStats)
+      .where(eq(sharedSessionStats.sourceId, session));
+    const names = async () =>
+      (await as(bob)((tx) => readSharedSessionExercises(tx, alice, row!.id))).map((e) => e.name);
+    expect(await names()).toEqual(["45° leg press", "Barbell bench press"]);
+
+    // Done later the same day and logged on the finished workout (ADR 0049): they take their
+    // slot's place, before the bench press, as alice's own finished workout lists them.
+    await as(alice)((tx) =>
+      logSet(tx, alice, {
+        workoutExerciseId: slots[1]!,
+        setIndex: 1,
+        setType: "working",
+        weight: 0,
+        unit: "kg",
+        reps: 8,
+        rir: null,
+        durationSeconds: null,
+      }),
+    );
+    const inOrder = ["45° leg press", "Pull-up", "Barbell bench press"];
+    expect(await names()).toEqual(inOrder);
+    // Not by the sets' times, which say when a set was last saved: mending the leg press's one
+    // set leaves it first.
+    await as(alice)((tx) =>
+      logSet(tx, alice, {
+        workoutExerciseId: slots[0]!,
+        setIndex: 1,
+        setType: "working",
+        weight: 145,
+        unit: "kg",
+        reps: 10,
+        rir: null,
+        durationSeconds: null,
+      }),
+    );
+    expect(await names()).toEqual(inOrder);
+
+    // Rows the deployment before the column wrote all sit at 0: they read by name, as before...
+    await t.db
+      .update(sharedExerciseStats)
+      .set({ orderIndex: 0 })
+      .where(eq(sharedExerciseStats.workoutSessionId, session));
+    expect(await names()).toEqual(["45° leg press", "Barbell bench press", "Pull-up"]);
+    // ...until the rebuild writes them again from the workout.
+    await backfillSharedStats(t.db);
+    expect(await names()).toEqual(inOrder);
   });
 });
 
@@ -1106,5 +1198,50 @@ describe("a span's best lifts", () => {
     // Once the span holds a set of ten or fewer, the estimate is the lift's best again.
     await train([{ exercise: bench, sets: [{ weight: 30, reps: 10 }] }], lifter, home);
     expect((await best()).map((r) => [r.metric, r.value])).toEqual([["e1rm", 40]]);
+  });
+});
+
+describe("a carry's record, in the length its athlete reads (ADR 0055)", () => {
+  it("is one only when the yards an athlete in pounds reads are longer", async () => {
+    const dave = await account("dave@example.com", "dave");
+    // Pounds, with nothing set apart: a carry reads in yards.
+    await t.client.query("update profiles set preferred_unit = 'lb' where id = $1", [dave]);
+    await as(dave)((tx) => seedTestUserData(tx, { id: dave, email: "dave@example.com" }));
+    const [gym] = await as(dave)((tx) => listGyms(tx, dave));
+    const carry = await exerciseId("farmers-carry");
+    const carried = (distanceMeters: number) =>
+      as(dave)(async (tx) => {
+        const { sessionId } = await startAdHocSession(tx, dave, { gymId: gym!.id });
+        const { workoutExerciseId } = await addExerciseToSession(tx, dave, sessionId, {
+          exerciseId: carry,
+          equipmentInstanceId: null,
+        });
+        await logSet(tx, dave, {
+          workoutExerciseId,
+          setIndex: 1,
+          setType: "working",
+          weight: 70,
+          unit: "lb",
+          reps: null,
+          rir: null,
+          rpe: 7,
+          durationSeconds: null,
+          distanceMeters,
+        });
+        await finishSession(tx, dave, sessionId, { notes: "", bodyWeightKg: null });
+        return sessionId;
+      });
+    const records = async (sessionId: string) =>
+      (await as(dave)((tx) => readSessionRecords(tx, dave, sessionId))).map((r) => [
+        r.metric,
+        r.value,
+        r.previous,
+      ]);
+    // Kept as 50 m before yards, it reads 55 yd; 55 yd logged is 50.3 m, and no record.
+    await carried(50);
+    expect(await records(await carried(setLengthToMetres(55, "yd")))).toEqual([]);
+    expect(await records(await carried(setLengthToMetres(56, "yd")))).toEqual([
+      ["longest_carry", 51.2, 50.3],
+    ]);
   });
 });

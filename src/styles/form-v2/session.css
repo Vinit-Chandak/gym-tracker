@@ -57,30 +57,43 @@ html:has(.session-layer) body {
   }
 }
 
+/* The way back, then the rest pill and More at the end. They go under it, at the end, before its
+   name would have less than a few words' room (DESIGN.md, Text Never Runs Off): at 200% text
+   while a rest runs, never at 100%. */
 .session-header {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: calc(8 * var(--ov-u));
   min-height: max(calc(48 * var(--ov-u)), var(--ov-target-header));
   padding: 0 var(--ov-gutter);
 }
 
-/* A nested screen's back link names where it goes. */
+/* A nested screen's back link names where it goes, wrapping between its words. */
 .session-back {
   display: flex;
   min-width: 0;
+  max-width: max-content;
   min-height: var(--ov-target-header);
-  flex-shrink: 1;
+  flex: 1 1 7rem;
   align-items: center;
   gap: 2px;
   margin-left: calc(-10 * var(--ov-u));
   padding-right: calc(6 * var(--ov-u));
 }
 .session-back > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  text-align: left;
+}
+.session-header-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(8 * var(--ov-u));
+  margin-left: auto;
 }
 
 .session-icon-button {
@@ -1100,32 +1113,45 @@ html:has(.session-page) .pinned-actions {
 .finished-print[data-past="true"] {
   height: calc(calc(90 * var(--ov-u)) + 1.875rem);
 }
-/* Three across, and four check-in readings; fewer, never squeezed, as the text grows. Each row
-   spreads across the column (auto-fit), so a tablet's leaves no empty tracks after its last
-   cell, nor "Sleep quality" an 80-pt column to wrap in. */
+/* Three stats across, the row shared evenly while each figure fits its share; a wider one (a
+   five-digit volume, "11,078 lb") widens its own column rather than running past the gutter.
+   Fewer, never squeezed under 4.5rem, as the text grows. Each row spreads across the column,
+   so a tablet's leaves no empty room after its last stat. */
 .finished-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: calc(10 * var(--ov-u));
   margin-top: calc(14 * var(--ov-u));
 }
-.finished-check-in-section {
-  container: check-in / inline-size;
+.finished-stats > div {
+  flex: 1 1 4.5rem;
+  min-width: min-content;
 }
+/* Four check-in readings to a row while the widest of them, its name and its figure each on one
+   line and the figure clear of the next (--check-in-cell, from the page), has a quarter of it;
+   where they do not all fit, two and two rather than three and one left alone under them, every
+   track half the row; and where two do not, one a row. A sleep's hours and minutes never part to
+   make four fit. */
 .finished-check-in {
+  --check-in-gap: calc(8 * var(--ov-u));
+  --check-in-row: calc(
+    var(--check-in-count, 4) * (var(--check-in-cell, 4.25rem) + var(--check-in-gap)) -
+      var(--check-in-gap)
+  );
+  /* Half the row, a hair under, where the readings need more than it has; else nothing. */
+  --check-in-half: min(
+    50% - var(--check-in-gap) / 2 - 0.05px,
+    max((var(--check-in-row) - 100%) * 9999, 0px)
+  );
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.25rem), 1fr));
-  gap: calc(8 * var(--ov-u));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(var(--check-in-cell, 4.25rem), var(--check-in-half))), 1fr)
+  );
+  gap: var(--check-in-gap);
 }
-/* Four readings to a row while each has its 4.25rem; where four do not fit (320 pt), two and
-   two rather than three and one left alone under them. */
-@container check-in (width < 18.5rem) {
-  .finished-check-in {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-/* A name that wraps ("Sleep quality" in a narrow column) stands on its figure like the others:
-   each name sits just over its figure, and the figures of a row share one line. */
+/* Each name sits just over its figure, so the figures of a row share one line even where a name
+   would still wrap. */
 .finished-check-in > div {
   display: flex;
   flex-direction: column;

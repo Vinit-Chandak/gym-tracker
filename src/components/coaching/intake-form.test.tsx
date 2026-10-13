@@ -213,3 +213,28 @@ it("starts from the answer given at setup, and still offers both routes from Bac
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(await screen.findByText("Which sounds like you?")).toBeTruthy();
 });
+
+it("keeps the folded session strip's place beside Back, on every step and on either route", () => {
+  const view = render(<CoachIntakeForm {...props} />);
+  // The step's actions are this screen's pinned actions: at large text, while a workout is open,
+  // the strip folds into them (rows.css), on the line Back has to itself, before Continue.
+  const back = screen.getByRole("button", { name: "Back" });
+  const kept = back.parentElement!;
+  expect(kept.classList.contains("sticky-actions")).toBe(true);
+  expect(back.nextElementSibling?.className).toBe("pinned-fold");
+  expect(back.nextElementSibling?.nextElementSibling).toBe(
+    screen.getByRole("button", { name: "Continue" }),
+  );
+  view.unmount();
+
+  render(
+    <CoachIntakeForm
+      {...props}
+      initial={null}
+      prefill={coachIntakeSchema.parse({ track: "guided" })}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Back" }).nextElementSibling?.className).toBe(
+    "pinned-fold",
+  );
+});

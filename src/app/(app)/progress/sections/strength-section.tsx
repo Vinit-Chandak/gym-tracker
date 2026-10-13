@@ -123,7 +123,12 @@ export function StrengthSection({
         }
       >
         {shown ? (
-          <ExerciseGraph data={{ ...exercise, selected: shown }} today={today} origin="history" />
+          <ExerciseGraph
+            data={{ ...exercise, selected: shown }}
+            today={today}
+            origin="history"
+            length={strength.length}
+          />
         ) : (
           <GroupVolume strength={strength} group={group} today={today} />
         )}

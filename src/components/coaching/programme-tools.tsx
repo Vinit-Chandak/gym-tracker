@@ -14,7 +14,9 @@ import { copyProgramAction, archiveProgramAction } from "@/server/actions/coachi
  * row becomes two full-width buttons rather than two ragged ones. Archiving is the only one
  * that takes something away, so it sits under them and is replaced — not joined — by the
  * question it asks, which keeps one decision on screen at a time. A finished programme has no
- * future to edit, so it keeps only its copy, to train again, and the archive.
+ * future to edit, so it keeps only its copy, to train again, and the archive. The question says
+ * what archiving closes as well as what it stops (ADR 0054): a session it still owes, or one
+ * skipped, is logged on its own from then on, and neither a copy nor anything else reopens it.
  */
 export function ProgrammeTools({
   id,
@@ -60,7 +62,8 @@ export function ProgrammeTools({
           <div className="space-y-3 rounded-control bg-surface-raised p-3 text-sm">
             <p>
               Archive this programme and stop scheduling its future sessions? Your completed
-              workouts remain in history. You can duplicate the archived programme later.
+              workouts remain in history. Its sessions still owed or skipped can then only be logged
+              on their own. You can duplicate the archived programme later.
             </p>
             <div className="grid gap-2 min-[420px]:grid-cols-2">
               <Button

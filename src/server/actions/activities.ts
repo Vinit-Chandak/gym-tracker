@@ -49,6 +49,7 @@ import {
   updateActivity,
   type SaveActivityInput,
 } from "@/server/repositories/activities";
+import { OccurrenceClosedError } from "@/server/repositories/occurrences";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 /**
@@ -358,7 +359,12 @@ function confirmationNeeded(sport: EnduranceSport, actual: EnduranceActual): str
   return null;
 }
 
-function describe(error: unknown): string {
+const NOUN: Record<EnduranceSport, string> = { running: "run", cycling: "ride", swimming: "swim" };
+
+function describe(error: unknown, sport?: EnduranceSport): string {
+  // A log form opened before a switch: its way on is the activity on its own (ADR 0054).
+  if (error instanceof OccurrenceClosedError && sport)
+    return `This session's programme has ended, so it can no longer be logged. You can still log the ${NOUN[sport]} on its own.`;
   if (
     error instanceof ActivityNotFoundError ||
     error instanceof OccurrenceNotFoundError ||
@@ -481,7 +487,7 @@ export async function saveActivityAction(
     });
   } catch (error) {
     return {
-      formError: describe(error),
+      formError: describe(error, form.sport),
       fieldErrors: fieldErrorsOf(error),
       values: formValues(formData),
     };

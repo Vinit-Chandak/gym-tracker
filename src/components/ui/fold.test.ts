@@ -2,13 +2,14 @@ import { expect, it } from "vitest";
 
 import { evenLayouts, foldStyles, rowLengths, scaleLayouts } from "./fold";
 
-it("folds to even rows, never one alone under the rest", () => {
+it("folds to even rows, every row full but the last", () => {
   expect(rowLengths(4)).toEqual([4, 2, 1]);
   expect(rowLengths(5)).toEqual([5, 3, 2, 1]);
   expect(rowLengths(6)).toEqual([6, 3, 2, 1]);
   expect(rowLengths(7)).toEqual([7, 4, 3, 2, 1]);
   expect(rowLengths(2)).toEqual([2, 1]);
   expect(evenLayouts(5)).toEqual([[5], [3, 2], [2, 2, 1], [1, 1, 1, 1, 1]]);
+  expect(evenLayouts(3)).toEqual([[3], [2, 1], [1, 1, 1]]);
 });
 
 it("keeps a scale's figures on their row and folds only its words", () => {
@@ -89,8 +90,18 @@ it("folds five as three and two, then two a row with the last alone", () => {
 it("decides by the widest row, so a wide item never runs a row over", () => {
   // Free weight, Plate-loaded, Weight stack, Bodyweight, Cardio on a 360-dp phone.
   const loads = [94, 102, 103, 94, 57];
+  // Three of them need more than the tray: two, two and Cardio, the rows as even as fit, not
+  // five rows of one beside a Unit tray on one.
   expect(rows(loads, 286)).toEqual([2, 2, 1]);
   expect(rows(loads, 320)).toEqual([3, 2]);
+});
+
+it("folds three that cannot share a row as two and one before one a row", () => {
+  // Weight, Reps, Volume at 200% text on a 390-pt phone, with their padding.
+  const measures = [120, 100, 130];
+  expect(rows(measures, 360)).toEqual([3]);
+  expect(rows(measures, 300)).toEqual([2, 1]);
+  expect(rows(measures, 200)).toEqual([1, 1, 1]);
 });
 
 it("puts Not sure under the five figures, never 4, 5 and Not sure under 1, 2 and 3", () => {

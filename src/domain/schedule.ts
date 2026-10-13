@@ -66,7 +66,10 @@ export type SlotOccurrence = {
   cycleIndex: number;
   dayIndex: number;
   outcome: EnduranceOutcome;
-  /** The athlete's date the activity that answered it happened on; only a logged one has it. */
+  /**
+   * The athlete's date it was answered on: the day the activity that answered a logged one
+   * happened, and the day a skipped one was skipped. Nothing else has one.
+   */
   occurredOn?: string;
 };
 
@@ -88,7 +91,10 @@ export type SlotOccurrence = {
  *
  * A run answered by a log is dated by the last of its logs, as a finished workout is by its
  * session: that is the day the run half was done, and what tells Today a day that only runs
- * was finished this morning rather than still to do.
+ * was finished this morning rather than still to do. One answered by a skip is dated by its
+ * last skip, as a skipped workout is by its skip, so a programme whose last days were skipped
+ * from Today or picked up from today ends on the day they were (`finishedOn`). A skip finishes
+ * nothing on Today (`slotFinishedOn`).
  */
 export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[]): SlotEvent[] {
   const bySlot = new Map<string, SlotOccurrence[]>();
@@ -104,9 +110,12 @@ export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[])
     if (outcomes.includes("incomplete")) continue;
     const [cycleIndex, dayIndex] = slot.split(":").map(Number) as [number, number];
     const done = outcomes.some((outcome) => outcome === "logged" || outcome === "legacy_completed");
-    const loggedOn = answers
+    const status = done || !outcomes.includes("skipped") ? "completed" : "skipped";
+    // Dated by the answer it stands for: the last log of a run done, the last skip of one skipped.
+    const answeredBy = status === "completed" ? "logged" : "skipped";
+    const answeredOn = answers
       .flatMap((answer) =>
-        answer.outcome === "logged" && answer.occurredOn ? [answer.occurredOn] : [],
+        answer.outcome === answeredBy && answer.occurredOn ? [answer.occurredOn] : [],
       )
       .sort()
       .at(-1);
@@ -114,28 +123,44 @@ export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[])
       cycleIndex,
       dayIndex,
       part: "run",
-      status: done || !outcomes.includes("skipped") ? "completed" : "skipped",
-      ...(loggedOn ? { occurredOn: loggedOn } : {}),
+      status,
+      ...(answeredOn ? { occurredOn: answeredOn } : {}),
     });
   }
   return events;
 }
 
 /**
- * The events of a programme, with the derived endurance answers filled in behind the recorded
- * ones. A slot somebody answered by hand — skipping the run from Today, say — keeps that
- * answer: what was decided outranks what can be worked out.
+ * The events of a programme, with the answers its endurance occurrences imply filled in behind
+ * the recorded ones (`runEventsFromOccurrences`). A run half answered on the day by hand keeps
+ * that answer — what was decided outranks what can be worked out — with one exception.
+ *
+ * A run skipped from Today is skipped on its occurrences (ADR 0051), so a skip recorded on a
+ * day that has them is from before then, when the day was skipped and its runs left owed; the
+ * migration `runs_skipped_from_today` carried those skips onto the runs. Such a skip gives way
+ * to the runs as a skipped workout gives way to the workout finished after all
+ * (`recordSlotEvent`): to one of them logged, and to one of them owed again, put back or its
+ * log deleted. Kept, it called a run logged since "skipped" on the day, and a run put back was
+ * skipped on the programme and owed in the coach's adherence. A completion recorded on the day
+ * is history from before occurrences answered for runs, and stands.
  */
 export function withDerivedRunEvents(
   recorded: readonly SlotEvent[],
-  derived: readonly SlotEvent[],
+  occurrences: readonly SlotOccurrence[],
 ): SlotEvent[] {
-  const answered = new Set(
-    recorded.filter((event) => event.part === "run").map((e) => `${e.cycleIndex}:${e.dayIndex}`),
+  const slotKey = (ref: SlotRef) => `${ref.cycleIndex}:${ref.dayIndex}`;
+  const reopened = new Set(
+    occurrences
+      .filter(({ outcome }) => outcome !== "skipped" && outcome !== "cancelled")
+      .map(slotKey),
   );
+  const kept = recorded.filter(
+    (event) => event.part !== "run" || event.status !== "skipped" || !reopened.has(slotKey(event)),
+  );
+  const answered = new Set(kept.filter((event) => event.part === "run").map(slotKey));
   return [
-    ...recorded,
-    ...derived.filter((event) => !answered.has(`${event.cycleIndex}:${event.dayIndex}`)),
+    ...kept,
+    ...runEventsFromOccurrences(occurrences).filter((event) => !answered.has(slotKey(event))),
   ];
 }
 

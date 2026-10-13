@@ -1,5 +1,6 @@
 import type { LoadUnit, SetType } from "@/domain/types";
 import { LOAD_UNITS, SET_TYPES } from "@/domain/types";
+import { setLengthIn, setLengthToMetres, type SetLengthUnit } from "./distance-units";
 import { canConvertLoad, convertLoad } from "./units";
 
 /** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
@@ -19,6 +20,8 @@ export type DraftFields = {
   effortVersion?: 2;
   duration: string;
   distance: string;
+  /** What `distance` was typed in; metres where a draft predates yards (ADR 0055). */
+  length?: SetLengthUnit;
   /**
    * Which values the user actually set. An empty field that was never touched still takes
    * its row's suggestion when the set is saved; one the user deliberately cleared stays
@@ -69,6 +72,7 @@ function readKey(storage: StorageLike, key: string): Draft[] {
           row.setIndex <= 50 &&
           SET_TYPES.includes(row.setType) &&
           (row.unit === undefined || LOAD_UNITS.includes(row.unit)) &&
+          (row.length === undefined || row.length === "m" || row.length === "yd") &&
           (row.effortVersion === undefined || row.effortVersion === 2) &&
           [row.weight, row.reps, row.rir, row.rpe ?? "", row.duration, row.distance ?? ""].every(
             (v) => typeof v === "string" && v.length <= 24,
@@ -122,6 +126,7 @@ export function removeDraft(
           "effortVersion",
           "duration",
           "distance",
+          "length",
         ].some(
           (field) => current[field as keyof DraftFields] !== expected[field as keyof DraftFields],
         )
@@ -210,6 +215,26 @@ export function touchedFields(draft: DraftFields): Set<DraftValueField> {
   return new Set(DRAFT_VALUE_FIELDS.filter((field) => (draft[field] ?? "").trim() !== ""));
 }
 
+/** A draft's distance as the metres a set keeps, whatever it was typed in; null when blank. */
+export function draftMetres(draft: Pick<DraftFields, "distance" | "length">): number | null {
+  if (draft.distance.trim() === "") return null;
+  const typed = Number(draft.distance.replace(",", "."));
+  if (!Number.isFinite(typed)) return Number.NaN;
+  return draft.length === "yd" ? setLengthToMetres(typed, "yd") : typed;
+}
+
+/**
+ * Whether a draft's distance is the set's. In yards, it is when the set reads as the figure
+ * typed: a set kept in metres keeps them through an edit that leaves its figure alone (30 m under
+ * 33 yd), so the metres 33 yd would keep are not the test.
+ */
+function sameDistance(draft: Pick<DraftFields, "distance" | "length">, metres: number | null) {
+  const typed = draftMetres(draft);
+  if (draft.length !== "yd" || typed === null || Number.isNaN(typed) || metres === null)
+    return typed === metres;
+  return Number(draft.distance.replace(",", ".")) === setLengthIn(metres, "yd");
+}
+
 /** A lost response may have committed successfully. Clear that draft only after matching server values. */
 export function draftMatchesSet(
   draft: DraftFields,
@@ -236,7 +261,7 @@ export function draftMatchesSet(
     numeric(draft.rir) === set.rir &&
     numeric(draft.rpe ?? "") === (set.rpe ?? null) &&
     numeric(draft.duration) === set.durationSeconds &&
-    numeric(draft.distance) === set.distanceMeters
+    sameDistance(draft, set.distanceMeters)
   );
 }
 

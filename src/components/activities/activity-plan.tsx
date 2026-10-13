@@ -80,7 +80,8 @@ export function stepLine(
     step.target.kind === "duration"
       ? durationLine(step.target.ms)
       : formatSportDistance(step.target.metres, sport, units);
-  const parts = [ACTION_LABELS[step.action], target];
+  // Held at its dash where the line wraps, as the effort is: never "37–" over "47 min".
+  const parts = [ACTION_LABELS[step.action], holdFigures(target)];
   if (step.effort) parts.push(effortLine(step.effort));
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
   return parts.join(FACT_SEPARATOR);
@@ -89,9 +90,13 @@ export function stepLine(
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
 export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
+  // Each range held at its dash where the line wraps, as the programme's run line holds them
+  // (`runSummary`): never "4.7–6.0 mi · 37–" over "47 min".
   const parts = [
-    distanceMetres ? formatSportDistance(distanceMetres, prescription.sport, units) : null,
-    durationMs ? durationLine(durationMs) : null,
+    distanceMetres
+      ? holdFigures(formatSportDistance(distanceMetres, prescription.sport, units))
+      : null,
+    durationMs ? holdFigures(durationLine(durationMs)) : null,
     effort ? effortLine(effort) : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
@@ -105,6 +110,11 @@ export type ActivityPlanProps = {
   preparation?: { summary: string; note: string } | null;
   /** Said out loud rather than left blank when the coach has not prepared this one. */
   preparedByCoach?: boolean;
+  /**
+   * Whose plan it is, said beside it. Off for a session of a programme the athlete has moved on
+   * from (ADR 0054): it is no longer "Your programme", and the line under it names whose it was.
+   */
+  showSource?: boolean;
   /** How the athlete reads this sport's distances. */
   units?: SportUnits;
 };
@@ -114,6 +124,7 @@ export function ActivityPlan({
   prescription,
   preparation = null,
   preparedByCoach = false,
+  showSource = true,
   units = DEFAULT_SPORT_UNITS,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
@@ -123,9 +134,11 @@ export function ActivityPlan({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
+      {/* Whose plan it is stands beside what it asks for, and goes under it before the words
+          beside it would have less than a few words' room (large text), where it ran over them. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-[1_1_8rem]">
+          <p className="type-meta-small text-ink-2">
             {ACTIVITY_SPORT_LABELS[sport]}
             {FACT_SEPARATOR}planned
           </p>
@@ -136,9 +149,11 @@ export function ActivityPlan({
           )}
           {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
         </div>
-        <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-          {preparedByCoach ? "From your coach" : "Your programme"}
-        </Badge>
+        {showSource && (
+          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
+            {preparedByCoach ? "From your coach" : "Your programme"}
+          </Badge>
+        )}
       </div>
 
       {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}

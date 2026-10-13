@@ -92,6 +92,7 @@ export type Persona = {
   sports: readonly ActivitySport[];
   /** Cycling and swimming are shared only when chosen. */
   shareSports?: readonly ("cycling" | "swimming")[];
+  /** Set apart from the weight unit; left out, distances follow it (ADR 0055). */
   distanceUnit?: "km" | "mi";
   poolUnit?: "m" | "yd";
   gyms: readonly GymSpec[];

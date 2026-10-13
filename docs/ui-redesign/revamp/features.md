@@ -24,7 +24,9 @@ Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
   "History", "My foods") and returns to the previous in-app page, or to that destination when
   there is none.
 - **The session strip:** while a workout is unfinished, every screen except Today and the
-  workout itself shows "In progress · {session name}" with Resume.
+  workout itself shows "In progress · {session name}" with Resume. At large text, on a screen
+  with its own pinned actions, the strip folds into them as a key that keeps one-tap Resume and
+  the rest's time, with the session's name in its accessible name.
 - **The rest timer** (only when turned on in Profile): "Rest" and an m:ss countdown, +30 s and
   Stop, then "Go", which clears after 60 s. It survives navigation and reloads and stays in
   step across tabs, and shows on every screen including Today.
@@ -52,9 +54,9 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **The date** and the app's name.
 - **Where:** the gym the next session will use, with Change. Without any gym, a prompt to add
   one replaces it.
-- **An unfinished session** that is not today's offered day (an unplanned session, or a day
-  started early): its name, gym, start time and number of sets, with Resume. Only one Resume
-  ever appears on Today.
+- **An unfinished session** that is not today's offered day (an unplanned session, one started
+  from a saved routine, or a day started early): its name (a routine's is the routine's), gym,
+  start time and number of sets, with Resume. Only one Resume ever appears on Today.
 - **The offered lifting day:**
   - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
@@ -63,8 +65,8 @@ anything scheduled), where they will train, and one tap to start or resume it.
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
-    prescription ("3 × 8–12 @ 1–2 RIR", or metres or seconds for carries and holds), with
-    supersets grouped. When the coach planned the day, each exercise also shows its machine,
+    prescription ("3 × 8–12 @ 1–2 RIR", or metres (yards beside miles) or seconds for carries
+    and holds), with supersets grouped. When the coach planned the day, each exercise also shows its machine,
     loads in the account's unit, the coach's notes, exercises dropped for today, and any
     warnings.
 - **The coach's status**, when the coach is on: planning (the screen updates itself), could
@@ -162,7 +164,10 @@ than adding, and keep the RIR honest").
 
 ### The workout
 
-- **Header:** the day's name or "Unplanned session", and the gym, said once for the whole session.
+- **Header:** the day's name, the name of the saved routine it was started from, or "Unplanned
+  session", and the gym, said once for the whole session. The session strip, a way back to the
+  workout and an exercise's "Back to Lower A" say a name of more than 20 characters (a routine's
+  may run to 120) as "Workout" and "Back to the workout", so each stays a line or two.
 - The recovery check and the coach's summary, when present.
 - **Warm-up**, when the day has one: the number of drills or the coach's lines, each drill
   with its dose, and Mark done.
@@ -188,13 +193,15 @@ than adding, and keep the RIR honest").
   - the set number and type: Warm-up, Working, Back-off, Drop, AMRAP or To failure;
   - load: kg or lb for free weights (the account's unit), added load for bodyweight moves (0
     means bodyweight), or the machine's own unit (plates or stack number), never converted;
-  - reps, seconds or metres, depending on how the exercise is counted;
+  - reps, seconds or a distance (metres, or yards for an account that reads miles; ADR 0055),
+    depending on how the exercise is counted;
   - effort: RIR for reps, RPE 1–10 for time and distance; required on working sets, optional
     on warm-ups, and never pre-filled;
   - Save, then a confirmed check. Untouched load and reps take the suggested value, shown
     faintly until saved; effort never does.
 - **Set options** for a row: its type, steppers for load (in the machine's real increments),
-  reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
+  reps (1), seconds (5), metres or yards (5) and effort (1), and remove the row or delete the
+  set.
 - **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
   coach's rest, else the plan's, else the exercise's own default, else 90 s. A light first set saved without effort before any
   working set becomes a warm-up, with Undo.

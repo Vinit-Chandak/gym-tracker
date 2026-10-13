@@ -147,6 +147,7 @@ export type StatsWorkout = {
   startedAt: Date;
   completedAt: Date | null;
   day: { name: string } | null;
+  /** In the workout's own order (`workout_exercises.order_index`), which its shared rows keep. */
   exercises: readonly StatsSlot[];
 };
 
@@ -226,7 +227,8 @@ function weightKg(set: StatsSet): number | null {
  * One finished workout's shared numbers: the session row and one exercise row per library
  * exercise with a working set, a movement done in two slots of one session counting once.
  * Sets that are not warm-ups are working sets, as on Progress; only kg and lb sets weigh
- * anything.
+ * anything. The exercise rows come in the order the workout's slots first worked each movement,
+ * which is the order a follower reads them in.
  */
 export function sessionStats(
   workout: StatsWorkout,

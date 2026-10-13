@@ -27,6 +27,7 @@ import {
   type SharedMetric,
 } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import { setLengthFor, setLengthIn, type SetLengthUnit } from "@/lib/distance-units";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
@@ -58,6 +59,7 @@ function side(
   reading: SharedReading | undefined,
   ratio: boolean,
   unit: BodyLoadUnit,
+  length: SetLengthUnit,
   currentYear: string,
 ): CompareSide {
   const best = bests?.find((b) => b.metric === metric);
@@ -71,7 +73,7 @@ function side(
   // Of the latest weight, not the weight on the day of a lift long ago: only the latest reading
   // is shared (plan §3.8), so neither side can be read against an older one, and says so.
   if (times !== null) sub.push(`${times}×\u00a0latest\u00a0BW`);
-  return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
+  return { value: best.value, text: formatSharedMetric(metric, best.value, unit, length), sub };
 }
 
 /**
@@ -91,6 +93,7 @@ export default async function CompareExercisePage(
   const user = await requireUser();
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
+  const length = setLengthFor(viewer);
   // The span every graph shares, remembered from wherever it was last chosen.
   const preset = await rememberedRange();
   const today = todayInTimeZone(viewer.timeZone);
@@ -147,7 +150,7 @@ export default async function CompareExercisePage(
         <PageHeader title={exercise.name} meta={region} backHref={`/u/${them.username}/compare`} />
         <PageContent>
           <CompareHeader a={me} b={them} />
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <p className="text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
         </PageContent>
       </>
     );
@@ -162,8 +165,8 @@ export default async function CompareExercisePage(
     mine?.find((b) => b.metric === metric)?.value ?? null,
     theirs?.find((b) => b.metric === metric)?.value ?? null,
   );
-  // Loads are stored in kilograms and drawn in the reader's unit, as every number here. Your
-  // own point opens your workout; theirs, the session they shared.
+  // Loads are stored in kilograms and carries in metres, and drawn in the reader's units, as
+  // every number here. Your own point opens your workout; theirs, the session they shared.
   const line = (
     measure: SharedMetric,
     points: readonly TrendPoint[],
@@ -171,7 +174,12 @@ export default async function CompareExercisePage(
   ) =>
     points.map((point) => ({
       date: point.date,
-      value: METRIC_UNIT[measure] === "kg" ? fromKilograms(point.value, unit) : point.value,
+      value:
+        METRIC_UNIT[measure] === "kg"
+          ? fromKilograms(point.value, unit)
+          : METRIC_UNIT[measure] === "metres"
+            ? setLengthIn(point.value, length)
+            : point.value,
       href: href(point),
     }));
   const measures = metricsForExercise(exercise).map((measure) => {
@@ -205,8 +213,8 @@ export default async function CompareExercisePage(
               rows={metricsForExercise(exercise).map((m) => ({
                 key: m,
                 label: metricLabel(m, exercise),
-                a: side(m, mine, readings.get(me.id), ratio, unit, today.slice(0, 4)),
-                b: side(m, theirs, readings.get(them.id), ratio, unit, today.slice(0, 4)),
+                a: side(m, mine, readings.get(me.id), ratio, unit, length, today.slice(0, 4)),
+                b: side(m, theirs, readings.get(them.id), ratio, unit, length, today.slice(0, 4)),
               }))}
             />
           </Card>
@@ -226,6 +234,7 @@ export default async function CompareExercisePage(
                 today,
                 exercise,
                 unit,
+                length,
                 // As the bests above name the two columns.
                 names: ["You", names[1]],
                 measures,
@@ -240,6 +249,7 @@ export default async function CompareExercisePage(
           rows={board}
           you={me.id}
           unit={unit}
+          length={length}
           currentYear={today.slice(0, 4)}
         />
       </PageContent>

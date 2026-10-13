@@ -37,6 +37,7 @@ import {
   type SlotRef,
 } from "@/domain/schedule";
 import type { SetType } from "@/domain/types";
+import { chosenSportUnits, resolveSportUnits, type SportUnits } from "@/lib/distance-units";
 import { fromDateTimeLocal } from "@/lib/time";
 import { ensureProfile } from "@/server/queries/profile";
 import { createActivity } from "@/server/repositories/activities";
@@ -53,7 +54,6 @@ import {
   saveNutritionTargets,
   submitFoodOnce,
 } from "@/server/repositories/nutrition";
-import { skipOccurrence } from "@/server/repositories/occurrences";
 import {
   activateProgramDraft,
   refreshProgramDraft,
@@ -67,6 +67,7 @@ import {
   pendingCycleForDay,
   recordSlotEvent,
   reopenSkippedSession,
+  skipSlotPart,
   type Schedule,
 } from "@/server/repositories/schedule";
 import {
@@ -97,6 +98,14 @@ import {
 import { FOLLOWS, isoWeekdayOf, YEAR_END, YEAR_START, type Block, type Persona } from "./personas";
 
 export type Clock = { set(at: Date): void };
+
+/** How a persona reads distances: as it says, or as its weight unit gives (ADR 0055). */
+function personaUnits(p: Persona): SportUnits {
+  return resolveSportUnits(p.unit, {
+    distanceUnit: p.distanceUnit ?? null,
+    poolUnit: p.poolUnit ?? null,
+  });
+}
 
 export type Finding = {
   persona: string;
@@ -274,6 +283,7 @@ export class YearSimulation {
           displayName: p.name,
           timeZone: p.timeZone,
           preferredUnit: p.unit,
+          ...chosenSportUnits(p.unit, personaUnits(p)),
           heightCm: p.heightCm,
           dateOfBirth: p.dateOfBirth,
           sex: p.sex,
@@ -290,8 +300,6 @@ export class YearSimulation {
       for (const sport of ["strength", "running", "cycling", "swimming"] as const) {
         await setSportPreference(tx, id, sport, {
           enabled: p.sports.includes(sport),
-          distanceUnit: p.distanceUnit ?? "km",
-          poolUnit: p.poolUnit ?? "m",
           shareStats:
             sport === "cycling" || sport === "swimming"
               ? (p.shareSports ?? []).includes(sport)
@@ -571,26 +579,12 @@ export class YearSimulation {
         const fresh = (await getSchedule(tx, a.userId))!;
         const cycleIndex = pendingCycleForDay(fresh.state, ref.dayIndex, part);
         if (cycleIndex === null) return;
-        if (part === "run") {
-          const occurrence = await this.occurrenceFor(
-            tx,
-            a,
-            fresh.program.familyId,
-            cycleIndex,
-            ref.dayIndex,
-          );
-          if (occurrence) {
-            await skipOccurrence(tx, a.userId, occurrence.id, reason);
-            return;
-          }
-        }
-        await recordSlotEvent(
+        await skipSlotPart(
           tx,
           a.userId,
-          fresh.program.id,
+          fresh.program,
           { cycleIndex, dayIndex: ref.dayIndex },
           part,
-          "skipped",
           {
             occurredOn: this.local(a),
             note: reason,
@@ -1331,7 +1325,7 @@ export class YearSimulation {
     extra: { pool?: boolean; distanceKnown?: boolean } = {},
   ) {
     const durationMs = Math.round((metres / 1000) * secondsPerKm * 1000);
-    const unit = a.p.distanceUnit ?? "km";
+    const unit = personaUnits(a.p).distanceUnit;
     let actual: EnduranceActual;
     if (sport === "running")
       actual = {
@@ -1368,7 +1362,7 @@ export class YearSimulation {
       };
     else {
       const pool = extra.pool ?? true;
-      const poolLength = nativeDistance(25, a.p.poolUnit ?? "m");
+      const poolLength = nativeDistance(25, personaUnits(a.p).poolUnit);
       const lengths = Math.round(metres / poolLength.metres);
       actual = {
         sport,

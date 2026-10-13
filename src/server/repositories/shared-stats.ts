@@ -45,11 +45,12 @@ import {
   type StatsWorkout,
 } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
-import { DEFAULT_DISTANCE_UNITS, type SharedDistanceUnits } from "@/lib/format";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
+import type { SharedDistanceUnits } from "@/lib/format";
 import type { DateRange } from "@/server/validation/date-range";
 
 import type { BodyWeightReading } from "./body-weight";
-import { listSportPreferences } from "./sport-preferences";
+import { readSportUnits } from "./sport-preferences";
 
 /**
  * The shared tables (ADR 0026). Every function names the user ids it reads; the policies —
@@ -66,6 +67,20 @@ async function ownerTimeZone(tx: DbOrTx, userId: string): Promise<string> {
     .where(eq(profiles.id, userId))
     .limit(1);
   return row?.timeZone ?? "UTC";
+}
+
+/** What the account reads a carry in, which decides whether a longer one is a record. */
+async function ownerLength(tx: DbOrTx, userId: string): Promise<SetLengthUnit> {
+  const [row] = await tx
+    .select({
+      preferredUnit: profiles.preferredUnit,
+      distanceUnit: profiles.distanceUnit,
+      poolUnit: profiles.poolUnit,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return row ? setLengthFor(row) : "m";
 }
 
 /** The best the owner had done per exercise and metric before `startedAt`. */
@@ -114,7 +129,9 @@ async function previousMaxima(
 /**
  * Writes a finished workout's shared rows and returns the records it set. Upserts on the
  * unique keys, so the backfill can run over history that already has rows; an exercise row
- * the recomputation no longer produces is removed.
+ * the recomputation no longer produces is removed. Each exercise row takes its place in the
+ * order `sessionStats` gives, the order the workout first worked them, and every write sets
+ * them all again: a set logged after Finish in a movement left undone moves the rest along.
  */
 export async function writeSessionStats(
   tx: DbOrTx,
@@ -130,7 +147,7 @@ export async function writeSessionStats(
     stats.exercises.map((e) => e.exerciseId),
     workout.startedAt,
   );
-  const records = detectRecords(previous, stats.exercises);
+  const records = detectRecords(previous, stats.exercises, await ownerLength(tx, userId));
   const { session } = stats;
   await tx
     .insert(sharedSessionStats)
@@ -177,10 +194,11 @@ export async function writeSessionStats(
     await tx
       .insert(sharedExerciseStats)
       .values(
-        stats.exercises.map((e) => ({
+        stats.exercises.map((e, orderIndex) => ({
           userId,
           workoutSessionId: workout.id,
           exerciseId: e.exerciseId,
+          orderIndex,
           occurredOn: session.occurredOn,
           startedAt: session.startedAt,
           comparable: e.comparable,
@@ -203,6 +221,7 @@ export async function writeSessionStats(
           sharedExerciseStats.exerciseId,
         ],
         set: {
+          orderIndex: sql`excluded.order_index`,
           occurredOn: sql`excluded.occurred_on`,
           startedAt: sql`excluded.started_at`,
           comparable: sql`excluded.comparable`,
@@ -448,13 +467,8 @@ export async function writeBodyWeight(
  * metres or yards, which is what a swim is measured in, never kilometres.
  */
 export async function readDistanceUnits(tx: DbOrTx, userId: string): Promise<SharedDistanceUnits> {
-  const preferences = await listSportPreferences(tx, userId);
-  const of = (sport: ActivitySport) => preferences.find((p) => p.sport === sport);
-  return {
-    run: of("running")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.run,
-    cycle: of("cycling")?.distanceUnit ?? DEFAULT_DISTANCE_UNITS.cycle,
-    swim: of("swimming")?.poolUnit ?? DEFAULT_DISTANCE_UNITS.swim,
-  };
+  const { distanceUnit, poolUnit } = await readSportUnits(tx, userId);
+  return { run: distanceUnit, cycle: distanceUnit, swim: poolUnit };
 }
 
 /** Whether the signed-in user may see `ownerId`'s training, as the policies decide it. */
@@ -937,8 +951,9 @@ export type SharedSessionExercise = MetricExercise & {
  * What a shared workout was made of (ADR 0026): its shared-library movements, each with the
  * numbers its shared row carries, read through the session's own shared row by that row's id,
  * so the workout's own id is never asked for. A movement someone created themselves has no
- * shared row, which is why these sets can add up to fewer than the session's. By name: the
- * rows keep no order of their own.
+ * shared row, which is why these sets can add up to fewer than the session's. In the workout's
+ * order, as its owner's finished workout lists them (migration 0053); by name where two share a
+ * place, as the rows of a workout the deployment before it finished all do, at 0.
  */
 export async function readSharedSessionExercises(
   tx: DbOrTx,
@@ -974,7 +989,7 @@ export async function readSharedSessionExercises(
         gt(sharedExerciseStats.workingSets, 0),
       ),
     )
-    .orderBy(asc(exercises.name));
+    .orderBy(asc(sharedExerciseStats.orderIndex), asc(exercises.name), asc(exercises.id));
 }
 
 export type ComparableExerciseRow = MetricExercise & {

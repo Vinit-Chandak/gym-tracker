@@ -30,6 +30,7 @@ export function listItem(
     rirNote: null,
     aliases: [],
     isCustom: false,
+    cardioMachine: null,
     ...patch,
   };
 }

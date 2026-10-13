@@ -1,6 +1,8 @@
 import type { CalendarEntry } from "@/components/art/art";
 import type { PrintPart, Sport, StrengthColumn } from "@/components/art/geometry";
+import { sessionParts } from "@/components/art/session-print";
 import type { ActivitySport } from "@/domain/activity";
+import type { PrintedSession } from "@/domain/session-print";
 import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
 
 /** The units an athlete reads each sport's distances in; kilometres and metres where unset. */
@@ -178,29 +180,48 @@ export function monthEnd(month: string): string {
   return `${month}-${String(last).padStart(2, "0")}`;
 }
 
-/** One thing done on a day, as its print draws it. */
+/** One thing done on a day, as its print draws it: a workout as every screen draws it. */
 export type DayPiece =
-  | { sport: Exclude<ActivitySport, "strength"> }
-  | { sport: "strength"; columns: readonly StrengthColumn[] };
+  { sport: Exclude<ActivitySport, "strength"> } | { sport: "strength"; session: PrintedSession };
 
 /**
  * A day's record as a print (DESIGN.md, Prints: a record's print draws what was done), its parts
- * in the day's order. A day with two workouts draws their exercises as one block of columns, in
- * the first one's place: a print has one strength part.
+ * in the day's order. A workout is drawn as it is on its own page (`sessionParts`): its warm-up's
+ * fan, then its columns, and one still open as the plan it is inking. A day with two workouts
+ * draws their exercises as one block of columns, in the first one's place, each fan before it: a
+ * print has one strength part.
  */
 export function dayParts(pieces: readonly DayPiece[]): PrintPart[] {
   const parts: PrintPart[] = [];
   let strength: StrengthColumn[] | null = null;
   for (const piece of pieces) {
-    if (piece.sport === "strength") {
-      if (strength) strength.push(...piece.columns);
-      else {
-        strength = [...piece.columns];
-        parts.push({ kind: "strength", columns: strength });
-      }
+    if (piece.sport !== "strength") {
+      parts.push({ kind: ART_SPORT[piece.sport] as "run" | "ride" | "swim", state: "done" });
       continue;
     }
-    parts.push({ kind: ART_SPORT[piece.sport] as "run" | "ride" | "swim", state: "done" });
+    for (const part of sessionParts(piece.session)) {
+      if (part.kind !== "strength")
+        parts.splice(
+          strength ? parts.findIndex((each) => each.kind === "strength") : parts.length,
+          0,
+          part,
+        );
+      else if (strength) strength.push(...part.columns);
+      else {
+        strength = [...part.columns];
+        parts.push({ kind: "strength", columns: strength });
+      }
+    }
   }
-  return parts.filter((part) => part.kind !== "strength" || part.columns.length > 0);
+  return parts;
+}
+
+/**
+ * The day's print said for a screen reader: the date, then what it holds by name in the day's
+ * order, "then" between them, as Today's print says its parts. A name may hold commas of its
+ * own (a routine's often does), so a comma alone would not say where one ends. A workout still
+ * open is inked only as far as it is done, so the day is not said to be in full ink.
+ */
+export function dayPrintLabel(date: string, names: readonly string[], open = false): string {
+  return `${date} ${open ? "with a workout in progress" : "in full ink"}, in the day's order: ${names.join(", then ")}`;
 }

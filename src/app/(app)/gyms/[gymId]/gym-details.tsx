@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { SubmitButton } from "@/components/ui/form";
-import { Glyph, gymKindGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { Glyph, gymKindGlyph, machineGlyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { NavRow } from "@/components/ui/nav-row";
 import { Select } from "@/components/ui/select";
@@ -36,21 +36,6 @@ export type GymDetailData = {
   types: Awaited<ReturnType<typeof listEquipmentTypes>>;
   availability: Awaited<ReturnType<typeof gymAvailability>>;
 };
-/** A machine's glyph: a cable station its cable; otherwise what loads it. */
-function machineGlyph(item: EquipmentListItem): GlyphName {
-  if (item.typeCategory === "cable") return "cable";
-  switch (item.resistanceMode) {
-    case "plate_loaded":
-    case "selectorized":
-      return "machine";
-    case "bodyweight":
-      return "bodyweight";
-    case "cardio":
-      return "trainer";
-    default:
-      return "dumbbell";
-  }
-}
 
 const loadLabel = (item: EquipmentListItem) =>
   equipmentLoadLabel(item.typeCategory, item.resistanceMode);
@@ -102,9 +87,10 @@ export function GymDetails({ data }: { data: GymDetailData }) {
       ? [
           // A finished programme is named as one, so its fit is not read as the current block's.
           ...(availability.program.complete ? [programmeLabel(availability.program)] : []),
+          // Each count held to its noun ("31 available"), so a line wraps before its dot.
           (["direct", "fallback", "unknown", "unavailable"] as const)
             .filter((status) => summary[status] > 0)
-            .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
+            .map((status) => `${summary[status]}\u00a0${AVAILABILITY_LABELS[status].toLowerCase()}`)
             .join(FACT_SEPARATOR) || "Nothing to lift in it",
         ].join(FACT_SEPARATOR)
       : "No active programme";

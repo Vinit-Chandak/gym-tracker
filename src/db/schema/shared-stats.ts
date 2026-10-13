@@ -148,6 +148,12 @@ export const sharedExerciseStats = pgTable(
       scale: 1,
       mode: "number",
     }),
+    /**
+     * Where the movement came in the workout, from 0, counted among the session's shared rows
+     * alone: the order a follower reads them in. A movement the owner created, or one never
+     * worked, has no row and leaves no gap, so the place says nothing the rows do not.
+     */
+    orderIndex: integer("order_index").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -156,6 +162,7 @@ export const sharedExerciseStats = pgTable(
       t.workoutSessionId,
       t.exerciseId,
     ),
+    check("shared_exercise_stats_order_chk", sql`order_index >= 0`),
     index("shared_exercise_stats_user_exercise_day_idx").on(
       t.userId,
       t.exerciseId,

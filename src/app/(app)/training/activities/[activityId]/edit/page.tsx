@@ -14,7 +14,7 @@ import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { startedAtLine } from "../started-at";
@@ -39,7 +39,7 @@ export default async function EditActivityPage(
         activity: found,
         // How the athlete reads the sport: the distance opens in it, whatever it was entered
         // in, and a swim's lengths also say their distance in it.
-        units: found?.actual ? await unitsFor(tx, user.id, found.actual.sport) : null,
+        units: found?.actual ? await readSportUnits(tx, user.id) : null,
       };
     },
     { readOnly: true },

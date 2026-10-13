@@ -221,6 +221,8 @@ its CPU. A deploy starts new instances, so the minute after one is cold whatever
 `vercel.json` runs `npm run db:deploy` before the build. It applies any migration the database
 has not seen, then re-seeds the shared library, so the schema and the exercise catalogue can
 never lag behind the code that is about to be served. Neither step touches a row a user owns.
+After the build, `npm run db:deploy:after-build` carries any run skipped from Today while the
+build ran onto the run itself (ADR 0051); it writes nothing when there is none.
 
 If it cannot do that — the database is unreachable, a migration fails — **the build stops and
 nothing is deployed**. The previous deployment keeps serving, which is the right outcome:

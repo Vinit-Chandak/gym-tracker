@@ -4,6 +4,7 @@ import { Figures } from "@/components/ui/figures";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import type {
@@ -21,9 +22,12 @@ import type {
 export function SessionRecordsCard({
   records,
   unit,
+  length,
 }: {
   records: readonly RecordWithExercise[];
   unit: BodyLoadUnit;
+  /** What a carry reads in: the reader's metres or yards. */
+  length: SetLengthUnit;
 }) {
   if (records.length === 0) return null;
   return (
@@ -33,9 +37,12 @@ export function SessionRecordsCard({
       </h2>
       <ul>
         {records.map((record) => {
-          const [figure, ...rest] = formatSharedMetric(record.metric, record.value, unit).split(
-            /\s/,
-          );
+          const [figure, ...rest] = formatSharedMetric(
+            record.metric,
+            record.value,
+            unit,
+            length,
+          ).split(/\s/);
           return (
             <li key={`${record.exerciseId}:${record.metric}`} className="figure-row">
               <span className="figure-row-text">
@@ -48,7 +55,7 @@ export function SessionRecordsCard({
                 <span className="figure-row-meta">
                   {joinFacts([
                     metricLabel(record.metric, record.exercise),
-                    `was ${formatSharedMetric(record.metric, record.previous, unit)}`,
+                    `was ${formatSharedMetric(record.metric, record.previous, unit, length)}`,
                   ])}
                 </span>
               </span>{" "}
@@ -74,11 +81,13 @@ export function ExerciseBestsTiles({
   exercise,
   bests,
   unit,
+  length,
   currentYear,
 }: {
   exercise: MetricExercise;
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
+  length: SetLengthUnit;
   /** The year it is in the reader's zone, "2026". */
   currentYear?: string;
 }) {
@@ -93,7 +102,7 @@ export function ExerciseBestsTiles({
             label={metricLabel(best.metric, exercise)}
             value={
               <>
-                <Figures>{formatSharedMetric(best.metric, best.value, unit)}</Figures>
+                <Figures>{formatSharedMetric(best.metric, best.value, unit, length)}</Figures>
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
                   {joinFacts([
                     best.work && topWeightWorkLabel(best.work),
@@ -120,10 +129,12 @@ export function ExerciseBestsTiles({
 export function PeriodRecordsList({
   records,
   unit,
+  length,
   currentYear,
 }: {
   records: readonly PeriodRecord[];
   unit: BodyLoadUnit;
+  length: SetLengthUnit;
   /** The year it is in the reader's zone, "2026". */
   currentYear?: string;
 }) {
@@ -149,7 +160,7 @@ export function PeriodRecordsList({
             </span>
           </span>
           <span className="ml-auto text-right font-medium whitespace-nowrap tabular-nums">
-            <Figures>{formatSharedMetric(record.metric, record.value, unit)}</Figures>
+            <Figures>{formatSharedMetric(record.metric, record.value, unit, length)}</Figures>
           </span>
         </li>
       ))}

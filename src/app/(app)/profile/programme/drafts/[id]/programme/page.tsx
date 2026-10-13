@@ -16,7 +16,7 @@ import { requireUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { getSchedule, type ProgramDayPlan } from "@/server/repositories/schedule";
-import { unitsFor } from "@/server/repositories/sport-preferences";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 
 import { CycleDay } from "../../../cycle-day";
 
@@ -93,6 +93,8 @@ function daysOf(
           : null,
         status: "pending" as const,
         isNext: false,
+        // A change not yet made has trained nothing.
+        print: null,
       };
     });
 }
@@ -114,7 +116,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
           .where(or(isNull(exercises.userId), eq(exercises.userId, user.id))),
         sharedWarmupProtocols(tx),
         getSchedule(tx, user.id),
-        unitsFor(tx, user.id, "running"),
+        readSportUnits(tx, user.id),
       ]);
       const week =
         schedule && schedule.program.id === draft.baseProgramId

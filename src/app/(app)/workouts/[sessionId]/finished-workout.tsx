@@ -1,26 +1,27 @@
 "use client";
 
 import type { Route } from "next";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
-import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { sessionParts } from "@/components/art/session-print";
 import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
-import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
+import { boldEmWidth, emWidth, textEmWidth } from "@/components/ui/fit";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatIsoDate, formatSleep } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
-import { EDIT_PARAM } from "@/lib/nav";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
-import { isWarmup, plannedSets } from "./logger-model";
+import { isWarmup, printedSession, warmupName } from "./logger-model";
 import { CHECK_IN_LABELS } from "./session-details";
 import type { ExerciseVM, SessionVM } from "./view-model";
 import { addedLine, type Drafts } from "./workout-overview";
@@ -35,6 +36,11 @@ export type FinishedEdit = {
   editing: boolean;
   onEdit: () => void;
   onDone: () => void;
+  /**
+   * The summary's Edit, which puts the past workout it becomes in its place, opened from where
+   * the summary was: Today, where it was finished (NAV-03).
+   */
+  editHref: Route;
   addHref: Route;
   /** How many exercises Add exercise just put at the end of the list, to say so once. */
   added: number;
@@ -48,38 +54,6 @@ function draftsLine({ count, names }: Drafts): string {
   return count === 1
     ? `A set ${where} is not saved yet. Open it to save or remove it.`
     : `Sets ${where} are not saved yet. Open them to save or remove them.`;
-}
-
-/**
- * The record as a print (boards Summary, Past workout): the warm-up's fan as it ended, then a
- * column for each exercise of what was done, its warm-ups grey at the foot; an exercise with
- * nothing done stands dashed at its planned size.
- */
-export function finishedParts(session: SessionVM): PrintPart[] {
-  const parts: PrintPart[] = [];
-  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
-  if (blades > 0)
-    parts.push({
-      kind: "mobility",
-      segments: blades,
-      segmentsDone: session.warmupCompleted ? blades : 0,
-      state: session.warmupCompleted ? "done" : "skipped",
-      modules: 3,
-    });
-  const columns: StrengthColumn[] = [];
-  session.exercises.forEach((exercise, index) => {
-    const warm = exercise.sets.filter((set) => isWarmup(set.setType)).length;
-    const work = exercise.sets.length - warm;
-    const next = session.exercises[index + 1];
-    const pair = exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup;
-    if (work + warm > 0) columns.push({ sets: warm + work, done: warm + work, warm, pair });
-    else {
-      const planned = plannedSets(exercise) ?? 0;
-      if (planned > 0) columns.push({ sets: planned, done: 0, skipped: true, pair });
-    }
-  });
-  if (columns.length > 0) parts.push({ kind: "strength", columns });
-  return parts;
 }
 
 /** Load moved, the app's rule (working sets, load × reps), in the reader's unit. */
@@ -99,7 +73,7 @@ function volumeOf(session: SessionVM): number {
 
 function Stat({ figure, unit, label }: { figure: string; unit?: string; label: string }) {
   return (
-    <div className="min-w-0">
+    <div>
       <dt className="sr-only">{label}</dt>
       <dd className="whitespace-nowrap">
         <span className="type-figure-l">{figure}</span>
@@ -113,14 +87,35 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
 }
 
 /**
- * An exercise's sets as the app lists a past session's: its working sets, each with its unit,
- * a bodyweight movement's and an assisted machine's read as the logger reads them.
+ * The room a check-in reading needs on one line, as a CSS length: its name or its figure,
+ * whichever is wider ("Sleep quality", "10 h 45 min"), each figure in Jost and its unit at the
+ * caption's size. A figure also stands 0.4 of its size clear of the next reading's beyond the
+ * row's gap (twice the room a name has, at the default text size), so "7 h 15 min" is never read
+ * on into "2 / 5" as one run.
  */
-function setsLine(exercise: ExerciseVM): string {
+function readingWidth({ label, parts }: { label: string; parts: string[][] }): string {
+  const at = (em: number, size: "figure" | "caption") =>
+    `${em.toFixed(3)} * var(--ov-type-${size})`;
+  const figure = parts
+    .map(
+      ([value = "", unit = ""]) =>
+        `${at(emWidth(value), "figure")} + ${at(boldEmWidth(` ${unit}`), "caption")}`,
+    )
+    .join(` + ${textEmWidth(" ").toFixed(3)}em + `);
+  return `max(${at(textEmWidth(label), "caption")}, ${figure} + ${at(0.4, "figure")})`;
+}
+
+/**
+ * An exercise's sets as the app lists a past session's: its working sets, each with its unit,
+ * a bodyweight movement's and an assisted machine's read as the logger reads them, and a carry
+ * in the session's length.
+ */
+function setsLine(exercise: ExerciseVM, length: SetLengthUnit): string {
   return formatSets(
     exercise.sets,
     (unit) => LOAD_UNIT_LABELS[unit],
     loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+    length,
   );
 }
 
@@ -166,6 +161,13 @@ export function FinishedWorkout({
   const editing = edit?.editing === true && !justFinished;
   const done = session.exercises.filter((exercise) => exercise.sets.length > 0);
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
+  // The record as a print, drawn as the day it was done on draws it: the warm-up's fan as it
+  // ended, then a column for each exercise. The rows under it name the fan first, as the
+  // programme day's do, done or not, as the Edit list does.
+  const printed = printedSession(session);
+  const drills = printed.drills;
+  const warmup = drills > 0 ? warmupName(session) : null;
+  const warmupLine = `${drills}\u00a0${drills === 1 ? "drill" : "drills"}`;
   // The sets listed under it, warm-ups aside: the print draws those, grey, and counts nothing.
   const sets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
   const volume = volumeOf(session);
@@ -229,23 +231,22 @@ export function FinishedWorkout({
               <BackLink fallback={backHref} />
               {edit && (
                 <div className="page-header-action">
-                  {/* A filled button stands on the content's edge, where the bar's glyphs reach
-                      past it into the gutter. */}
+                  {/* Edit and Done are words at the end of the bar, as a gym's Edit is, on the
+                      content's edge at every text size: a fill as tall as the bar (Android, large
+                      text) ran from the screen's top edge to the print. */}
                   {editing ? (
-                    <Button size="sm" className="mr-2.5" onClick={edit.onDone}>
+                    <button type="button" className="header-text-action" onClick={edit.onDone}>
                       Done
-                    </Button>
+                    </button>
                   ) : (
-                    <Button
-                      variant="tonal"
-                      size="sm"
-                      className="mr-2.5"
+                    <button
+                      type="button"
+                      className="header-text-action"
                       aria-label="Edit workout"
                       onClick={edit.onEdit}
                     >
-                      <Glyph name="edit" className="glyph-18" />
                       Edit
-                    </Button>
+                    </button>
                   )}
                 </div>
               )}
@@ -258,10 +259,17 @@ export function FinishedWorkout({
         <figure className="finished-print" data-past={!justFinished}>
           <Art
             kind="print"
-            parts={finishedParts(session)}
-            label={`${title} as it ended: ${done.length} ${
-              done.length === 1 ? "exercise" : "exercises"
-            } done${notDone.length > 0 ? `, ${notDone.length} not done, dashed` : ""}`}
+            parts={sessionParts(printed)}
+            label={`${title} as it ended: ${[
+              warmup
+                ? `the warm-up ${session.warmupCompleted ? "done" : "not done, dashed"}`
+                : null,
+              `${done.length} ${done.length === 1 ? "exercise" : "exercises"} done${
+                notDone.length > 0 ? `, ${notDone.length} not done, dashed` : ""
+              }`,
+            ]
+              .filter(Boolean)
+              .join(", then ")}`}
             className="size-full"
           />
         </figure>
@@ -311,8 +319,18 @@ export function FinishedWorkout({
           </h2>
           {editing && edit ? (
             <>
-              {session.exercises.length > 0 && (
+              {(warmup || session.exercises.length > 0) && (
                 <ul ref={listRef}>
+                  {warmup && (
+                    <li className="record-row">
+                      <span className="record-row-name">{warmup}</span>
+                      <span
+                        className={cn("record-row-sets", !session.warmupCompleted && "text-ink-2")}
+                      >
+                        {session.warmupCompleted ? warmupLine : "Not done"}
+                      </span>
+                    </li>
+                  )}
                   {session.exercises.map((exercise) => (
                     <li key={exercise.id}>
                       <button
@@ -325,7 +343,7 @@ export function FinishedWorkout({
                           <span className="record-row-name">{exercise.exercise.name}</span>
                           {exercise.sets.length > 0 ? (
                             <span className="record-row-sets">
-                              <Figures>{setsLine(exercise)}</Figures>
+                              <Figures>{setsLine(exercise, session.length)}</Figures>
                             </span>
                           ) : (
                             <span className="record-row-sets text-ink-2">
@@ -355,28 +373,44 @@ export function FinishedWorkout({
                 Add exercise
               </LinkButton>
             </>
-          ) : done.length > 0 ? (
-            <ul>
-              {done.map((exercise) => (
-                <li key={exercise.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpenExercise(exercise.id)}
-                    className="record-row w-full text-left"
-                  >
-                    <span className="record-row-name">{exercise.exercise.name}</span>{" "}
-                    <span className="record-row-sets">
-                      <Figures>{setsLine(exercise)}</Figures>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
           ) : (
-            <p className="record-row type-meta text-ink-2">No sets logged.</p>
+            <>
+              {(done.length > 0 || warmup) && (
+                <ul>
+                  {warmup && (
+                    <li className="record-row">
+                      <span className="record-row-name">{warmup}</span>{" "}
+                      <span
+                        className={cn("record-row-sets", !session.warmupCompleted && "text-ink-2")}
+                      >
+                        {session.warmupCompleted ? warmupLine : "Not done"}
+                      </span>
+                    </li>
+                  )}
+                  {done.map((exercise) => (
+                    <li key={exercise.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenExercise(exercise.id)}
+                        className="record-row w-full text-left"
+                      >
+                        <span className="record-row-name">{exercise.exercise.name}</span>{" "}
+                        <span className="record-row-sets">
+                          <Figures>{setsLine(exercise, session.length)}</Figures>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {done.length === 0 && (
+                <p className="record-row type-meta text-ink-2">No sets logged.</p>
+              )}
+            </>
           )}
         </section>
 
+        {/* The warm-up is named once, on its row above. */}
         {!editing && notDone.length > 0 && (
           <section aria-labelledby="finished-not-done">
             <h2 id="finished-not-done" className="caption-head mt-3.5">
@@ -396,36 +430,37 @@ export function FinishedWorkout({
         {justFinished && edit && (
           // Something missed is mended where it is noticed: the summary becomes the past workout,
           // open for changes, in place of itself.
-          <Link
-            href={`/workouts/${session.id}?${EDIT_PARAM}=1` as Route}
-            replace
-            className={buttonClassName("tonal", "sm", "mt-2.5")}
-          >
+          <Link href={edit.editHref} replace className={buttonClassName("tonal", "sm", "mt-2.5")}>
             <Glyph name="edit" className="glyph-18" />
             Edit workout
           </Link>
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
+          <section aria-labelledby="finished-check-in">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>
-            <dl className="finished-check-in">
-              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
-                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+            {/* Four to a row while the widest reading, its name or its figure, has a quarter of
+                it; else two and two (session.css). A figure keeps one line ("7 h 15 min"). */}
+            <dl
+              className="finished-check-in"
+              style={
+                {
+                  "--check-in-cell": `max(${checkIn.map(readingWidth).join(", ")})`,
+                  "--check-in-count": checkIn.length,
+                } as CSSProperties
+              }
+            >
               {checkIn.map(({ label, parts }) => (
                 <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  {/* A sleep's hours and minutes may part in a narrow cell, each whole. */}
-                  <dd className="mt-0.5">
+                  <dd className="mt-0.5 whitespace-nowrap">
                     {parts.map(([figure, unit], index) => (
                       <Fragment key={index}>
                         {index > 0 && " "}
-                        <span className="whitespace-nowrap">
-                          <span className="type-figure">{figure}</span>
-                          <span className="figure-row-unit"> {unit}</span>
-                        </span>
+                        <span className="type-figure">{figure}</span>
+                        <span className="figure-row-unit"> {unit}</span>
                       </Fragment>
                     ))}
                   </dd>

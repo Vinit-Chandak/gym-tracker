@@ -5,24 +5,24 @@ import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-pla
 import { Badge } from "@/components/ui/badge";
 import { DetailList } from "@/components/ui/detail-list";
 import { Figures } from "@/components/ui/figures";
-import type { SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
+import { setLengthUnit, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
-import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
+import type { ProgramDayPlan } from "@/server/repositories/schedule";
 
-/** What the day is, on one line under its name, its time held whole ("60–75 min"). */
-function subtitle(day: ScheduleDay): string | null {
-  return joinFacts([day.focus, day.timeNote && holdFigures(day.timeNote)]) || null;
-}
-
-/** What it asks for: the sets, or the run in the athlete's road unit, or neither. */
+/**
+ * What it asks for: the sets, or the run in the athlete's road unit, or neither. On a day that
+ * only runs, minutes its time already says over it are not said again.
+ */
 function cost(plan: ProgramDayPlan, units: SportUnits): string {
+  const dayTime = plan.day.includesLifting ? null : plan.day.timeNote;
+  const run = plan.run && runSummary(plan.run, units, { dayTime });
   if (plan.exercises.length > 0)
-    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run, units)}` : null]
+    return [planSummary(plan.exercises), run ? `Run: ${run}` : null]
       .filter(Boolean)
       .join(FACT_SEPARATOR);
-  if (plan.run) return runSummary(plan.run, units);
+  if (run !== null) return run;
   return "Rest day";
 }
 
@@ -51,7 +51,7 @@ export function CycleDay({
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
   const extras = Boolean(plan.warmupName || day.effortNote || day.notes);
   const expandable = plan.exercises.length > 0 || guidance || extras;
-  const about = subtitle(day);
+  const asks = cost(plan, units);
 
   const head = (
     <>
@@ -78,15 +78,22 @@ export function CycleDay({
           aria-hidden
         />
       )}
-      {about && (
+      {/* What the day is, under its name, its figures held to their units: the coach's focus in
+          its words' voice ("then 20 min easy"), as the day's page and Today say it, and its time
+          a fact in Jost ("60–75 min"). */}
+      {(day.focus || day.timeNote) && (
         <p className="col-span-full mt-0.5 text-sm text-ink-muted">
-          <Figures>{about}</Figures>
+          {day.focus && holdFigures(day.focus)}
+          {day.focus && day.timeNote && FACT_SEPARATOR}
+          {day.timeNote && <Figures>{holdFigures(day.timeNote)}</Figures>}
         </p>
       )}
       {/* Its time and its counts in Jost, whose zero is plain: "60–75 min", "13 sets". */}
-      <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
-        <Figures>{cost(plan, units)}</Figures>
-      </p>
+      {asks && (
+        <p className="col-span-full mt-1 text-xs text-ink-muted tabular-nums">
+          <Figures>{asks}</Figures>
+        </p>
+      )}
     </>
   );
 
@@ -106,7 +113,12 @@ export function CycleDay({
         {head}
       </summary>
       <div className="space-y-4 border-t border-line px-4 pt-3 pb-4">
-        {plan.exercises.length > 0 && <PlannedExerciseList exercises={plan.exercises} />}
+        {plan.exercises.length > 0 && (
+          <PlannedExerciseList
+            exercises={plan.exercises}
+            length={setLengthUnit(units.distanceUnit)}
+          />
+        )}
         {plan.run && hasRunGuidance(plan.run) && <RunPlanDetails run={plan.run} />}
         <DetailList
           entries={[

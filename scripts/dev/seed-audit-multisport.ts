@@ -31,9 +31,8 @@ export async function seedAuditMultisport(db: Db) {
       if (already) return;
       for (const sport of ["strength", "running", "cycling", "swimming"] as const) {
         await setSportPreference(tx, person.id, sport, {
+          // Distances follow each person's weight unit: miles and yards for pounds (ADR 0055).
           enabled: person.username !== "shreyash" || sport === "strength" || sport === "running",
-          distanceUnit: person.preferredUnit === "lb" ? "mi" : "km",
-          poolUnit: person.preferredUnit === "lb" ? "yd" : "m",
           shareStats: person.username !== "alex",
         });
       }

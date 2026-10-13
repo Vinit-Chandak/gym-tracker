@@ -1,4 +1,5 @@
 import type { AvailabilityStatus } from "@/domain/equipment-resolution";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import type { BodyRegion } from "@/domain/muscles";
 import type { FoodUnit, Meal } from "@/domain/nutrition";
 import type { SuggestionKind } from "@/domain/progression";
@@ -65,19 +66,47 @@ export const PRESCRIPTION_TYPE_LABELS: Record<PrescriptionType, string> = {
   distance: "Distance",
 };
 
-/** The set grid's third column: what one set of this exercise is actually counted in. */
-export const MEASURE_COLUMN_LABELS: Record<PrescriptionType, string> = {
-  reps: "Reps",
-  duration: "Seconds",
-  distance: "Metres",
-};
+/**
+ * The set grid's third column: what one set of this exercise is actually counted in, a carry
+ * in the athlete's own length ("Yards" beside miles, ADR 0055).
+ */
+export function measureColumnLabel(measure: PrescriptionType, length: SetLengthUnit): string {
+  switch (measure) {
+    case "duration":
+      return "Seconds";
+    case "distance":
+      return length === "yd" ? "Yards" : "Metres";
+    default:
+      return "Reps";
+  }
+}
 
-/** The unit that follows a number of this measure, e.g. "25 m". */
-export const MEASURE_UNIT_SUFFIX: Record<PrescriptionType, string> = {
-  reps: "",
-  duration: " s",
-  distance: " m",
-};
+/** The unit that follows a number of this measure, e.g. "25 m", "27 yd". */
+export function measureUnitSuffix(measure: PrescriptionType, length: SetLengthUnit): string {
+  switch (measure) {
+    case "duration":
+      return " s";
+    case "distance":
+      return ` ${length}`;
+    default:
+      return "";
+  }
+}
+
+/**
+ * A range of a set's metres in the athlete's length: "20–40 m", or "22–44 yd" beside miles.
+ * Each end is the least figure that, logged, reaches it (`setTargetIn`): 15–45 m is "17–50 yd",
+ * since 16 yd is kept as 14.6 m and 49 yd as 44.8 m, and a set logged at the figure shown meets
+ * the bound the progression engine judges it by.
+ */
+export function lengthRangeLabel(
+  minMetres: number | null,
+  maxMetres: number | null,
+  length: SetLengthUnit,
+): string {
+  const read = (metres: number | null) => (metres === null ? null : setTargetIn(metres, length));
+  return rangeLabel(read(minMetres), read(maxMetres), measureUnitSuffix("distance", length));
+}
 
 /**
  * What one exercise's RIR target means, in the words of that exercise.
@@ -377,6 +406,36 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
 
 /** A workout that is not a programme day: its name wherever a day's name would stand. */
 export const UNPLANNED_SESSION = "Unplanned session";
+
+/**
+ * A workout's name on the athlete's own screens: its programme day's; else the saved routine's
+ * it was started from, as the routine was named that day (its title); else UNPLANNED_SESSION.
+ * A friend reads the day's name or "Workout", never a routine's (ADR 0026).
+ */
+export function sessionName(
+  dayName: string | null | undefined,
+  title: string | null | undefined,
+): string {
+  return dayName ?? title ?? UNPLANNED_SESSION;
+}
+
+/**
+ * The longest workout name the session's chrome says whole (DESIGN.md, The session): the strip,
+ * a way back to the workout and the logger's Back to. Each stays a line or two at 200% text on a
+ * 320-pt phone, where a line holds about ten letters. UNPLANNED_SESSION and the templates'
+ * day names are inside it; a day named by hand may run to 80 characters, a routine's to 120.
+ */
+export const SESSION_CHROME_NAME_LIMIT = 20;
+
+/** A workout's name in the session's chrome: whole while it is short, else "Workout". */
+export function sessionChromeName(name: string): string {
+  return name.length <= SESSION_CHROME_NAME_LIMIT ? name : "Workout";
+}
+
+/** The logger's way back to the list, once an exercise is done: "Back to Lower A". */
+export function backToSession(name: string): string {
+  return name.length <= SESSION_CHROME_NAME_LIMIT ? `Back to ${name}` : "Back to the workout";
+}
 
 /**
  * The active programme by its name, said to be complete once nothing but rest is left in it

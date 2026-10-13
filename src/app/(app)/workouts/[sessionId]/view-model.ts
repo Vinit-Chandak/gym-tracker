@@ -1,6 +1,7 @@
 import { knownLoads } from "@/domain/load-steps";
 import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { BodyLoadUnit } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import type { SetChange } from "@/lib/set-changes";
 import type { ComparablePerformance } from "@/server/queries/comparable";
 import type { SessionDetail, SessionExercise, SessionSet } from "@/server/repositories/sessions";
@@ -55,6 +56,11 @@ export type SessionVM = Omit<SessionDetail, "exercises" | "startedAt" | "complet
   timeZone: string;
   /** Unit for loads no machine decides — free weights and added bodyweight load. */
   preferredUnit: BodyLoadUnit;
+  /**
+   * What a carry or a sled is entered and read in (ADR 0055). Sets keep their metres; only the
+   * entry and what is said of them convert.
+   */
+  length: SetLengthUnit;
   /** The account's day as the page was drawn ("2026-10-11"): a day in another year names it. */
   today: string;
 };
@@ -64,11 +70,13 @@ export function toSessionVM(
   timeZone: string,
   preferredUnit: BodyLoadUnit,
   today: string,
+  length: SetLengthUnit = "m",
 ): SessionVM {
   return {
     ...detail,
     timeZone,
     preferredUnit,
+    length,
     today,
     startedAt: detail.startedAt.toISOString(),
     completedAt: detail.completedAt?.toISOString() ?? null,

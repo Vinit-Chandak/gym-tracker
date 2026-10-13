@@ -12,8 +12,10 @@ import {
   METRES_PER_KM,
   METRES_PER_MILE,
   roundTo,
+  setLengthIn,
   UNIT_LABELS,
   type LengthUnit,
+  type SetLengthUnit,
 } from "./distance-units";
 import { FACT_SEPARATOR, joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
@@ -258,12 +260,14 @@ export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
 
 /**
  * A shared metric's value as a reader in `unit` should see it (ADR 0026): loads in their
- * unit, reps as a count, holds as a set list says them ("45 s", "1:12"), carries in metres.
+ * unit, reps as a count, holds as a set list says them ("45 s", "1:12"), carries in their
+ * length, metres or yards (ADR 0055).
  */
 export function formatSharedMetric(
   metric: SharedMetric,
   value: number,
   unit: BodyLoadUnit,
+  length: SetLengthUnit,
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
@@ -277,7 +281,7 @@ export function formatSharedMetric(
     case "seconds":
       return formatHold(value);
     case "metres":
-      return `${value.toLocaleString("en-GB")}\u00a0m`;
+      return `${setLengthIn(value, length).toLocaleString("en-GB")}\u00a0${length}`;
   }
 }
 
