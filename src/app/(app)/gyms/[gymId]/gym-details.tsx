@@ -87,9 +87,10 @@ export function GymDetails({ data }: { data: GymDetailData }) {
       ? [
           // A finished programme is named as one, so its fit is not read as the current block's.
           ...(availability.program.complete ? [programmeLabel(availability.program)] : []),
+          // Each count held to its noun ("31 available"), so a line wraps before its dot.
           (["direct", "fallback", "unknown", "unavailable"] as const)
             .filter((status) => summary[status] > 0)
-            .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
+            .map((status) => `${summary[status]}\u00a0${AVAILABILITY_LABELS[status].toLowerCase()}`)
             .join(FACT_SEPARATOR) || "Nothing to lift in it",
         ].join(FACT_SEPARATOR)
       : "No active programme";

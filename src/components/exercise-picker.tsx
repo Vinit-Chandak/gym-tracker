@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useRef, useState } from "react";
 
-import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, Glyph, exerciseGlyph } from "@/components/ui/glyphs";
 import { exerciseSections, type LikeExercise } from "@/lib/exercise-search";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { MUSCLE_LABELS } from "@/lib/labels";
@@ -140,7 +140,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
             </h2>
             <ul>
               {group.items.map((exercise) => {
-                const glyph = modalityGlyph(exercise.modality);
+                const glyph = exerciseGlyph(exercise);
                 const place = several ? props.selected.indexOf(exercise.id) + 1 : 0;
                 const chosen = several ? place > 0 : props.value === exercise.id;
                 const note = several ? (props.note?.(exercise) ?? null) : null;

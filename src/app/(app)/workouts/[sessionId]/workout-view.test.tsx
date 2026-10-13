@@ -283,9 +283,19 @@ it("opens a finished workout for changes within its week, and closes the edit in
   expect(screen.queryByRole("button", { name: "Edit workout" })).toBeNull();
 
   page.rerender(view("2026-09-15"));
-  fireEvent.click(screen.getByRole("button", { name: "Edit workout" }));
+  // Edit and Done are words at the end of the bar, as a gym's Edit is: no fill as tall as the bar
+  // to run from the screen's top edge to the print.
+  const bar = (name: string) => {
+    const action = screen.getByRole("button", { name });
+    expect(action.closest(".page-header-bar")).toBeTruthy();
+    expect(action.className).toBe("header-text-action");
+    return action;
+  };
+  expect(bar("Edit workout").textContent).toBe("Edit");
+  fireEvent.click(bar("Edit workout"));
   expect(window.location.search).toBe("?from=history&edit=1");
   page.rerender(view("2026-09-15"));
+  expect(bar("Done").textContent).toBe("Done");
   expect(screen.getByText(/Each change saves as you make it, until Tue 15 Sept/)).toBeTruthy();
   // Every exercise opens, the one not done as well, and more can be added.
   expect(screen.getByRole("button", { name: /Cable row\s*No sets/ })).toBeTruthy();

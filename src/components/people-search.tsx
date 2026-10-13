@@ -96,7 +96,7 @@ export function PeopleSearch({
         </div>
       )}
       {results && results.length === 0 && (
-        <p className="px-1 text-sm text-ink-muted">
+        <p className="text-sm text-ink-muted">
           Nobody called that.
           {isEmailQuery(trimmed) ? " An email has to match exactly." : ""}
         </p>

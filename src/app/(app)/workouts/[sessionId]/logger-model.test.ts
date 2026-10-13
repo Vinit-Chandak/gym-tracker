@@ -240,7 +240,7 @@ describe("what the header says", () => {
     expect(as("cardio", false)).toBe("bodyweight");
   });
 
-  it("draws a machine that is an accessory as one, whatever loads the movement", () => {
+  it("draws a machine with a glyph of its own as itself, whatever loads the movement", () => {
     const on = (
       name: string,
       modality: ExerciseVM["exercise"]["modality"],
@@ -276,6 +276,18 @@ describe("what the header says", () => {
       "abWheel",
       "Ab roller",
     ]);
+    // So is a cardio machine or the Smith machine: a rowing machine was drawn as a weight stack.
+    expect(on("Rowing machine", "cardio", "Rowing machine", "cardio", "rowing_machine")).toEqual([
+      "rower",
+      "Rowing machine",
+    ]);
+    expect(on("Treadmill walk", "cardio", "Treadmill 2", "cardio", "treadmill")).toEqual([
+      "treadmill",
+      "Treadmill 2",
+    ]);
+    expect(
+      on("Smith machine squat", "smith_machine", "Smith machine", "machine", "smith_machine")[0],
+    ).toBe("smith");
     // Any other machine is still drawn by what loads the movement.
     expect(on("Pull-up", "bodyweight", "Pull-up bar", "bodyweight", "pull_up_bar")).toEqual([
       "bodyweight",

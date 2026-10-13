@@ -7,6 +7,8 @@ colors:
   surface-2: "#e9e9ec"
   surface-control: "#f4f4f5"
   surface-control-pressed: "#e9e9ec"
+  surface-control-on-surface: "#e9e9ec"
+  surface-control-on-surface-pressed: "#dedee3"
   ink: "#16171b"
   ink-2: "#5b5d64"
   control: "#85878e"
@@ -19,6 +21,8 @@ colors:
   surface-2-dark: "#26272c"
   surface-control-dark: "#2b2c32"
   surface-control-pressed-dark: "#35363c"
+  surface-control-on-surface-dark: "#2b2c32"
+  surface-control-on-surface-pressed-dark: "#35363c"
   ink-dark: "#edeef0"
   ink-2-dark: "#a3a6ae"
   control-dark: "#73767e"
@@ -216,8 +220,22 @@ components:
     rounded: "{rounded.control}"
     padding: "0 20px"
     height: "56px"
+  button-tonal-on-surface:
+    backgroundColor: "{colors.surface-control-on-surface}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "0 20px"
+    height: "56px"
   button-waiting:
     backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink-2}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "0 20px"
+    height: "56px"
+  button-waiting-on-surface:
+    backgroundColor: "{colors.surface-2}"
     textColor: "{colors.ink-2}"
     typography: "{typography.button}"
     rounded: "{rounded.control}"
@@ -236,6 +254,11 @@ components:
     height: "44px"
   round-button:
     backgroundColor: "{colors.surface-control}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.full}"
+    size: "44px"
+  round-button-on-surface:
+    backgroundColor: "{colors.surface-control-on-surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
     size: "44px"
@@ -296,6 +319,11 @@ components:
     height: "52px"
   segmented:
     backgroundColor: "{colors.surface}"
+    rounded: "{rounded.control}"
+    padding: "3px"
+    height: "50px"
+  segmented-on-surface:
+    backgroundColor: "{colors.surface-2}"
     rounded: "{rounded.control}"
     padding: "3px"
     height: "50px"
@@ -445,7 +473,14 @@ same pigment.
   notes, a waiting button. **Control surface** (`surface-control`): round and tonal buttons; the
   surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
   ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
-  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground).
+  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground),
+  and a tray or a waiting button on a surface.
+- **On a surface** (a card, a list's box, kept actions), what stands on it steps a tone off it,
+  or it would be the card's own fill: in light a tonal Save under a select read as a stray word,
+  a tray left its unchosen words bare, and Saving… lost its button. A tray and a waiting button
+  take surface 2; a tonal or round button takes the **control surface on a surface**
+  (`surface-control-on-surface`): surface 2 in light, pressed `#dedee3`, and in dark the lifted
+  control surface, which already reads there.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
   that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
@@ -506,7 +541,8 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 - **Heading** (700, 16 to 17 px): "Set 3 of 4", a row's name, the coach's question.
 - **Body** (500, 15 to 16 px, 1.45): coach text and everything read; two lines inline, then More.
 - **Meta** (500, 15 px, ink 2): a meta line, each fact led by its glyph; **Meta small** (14 px)
-  for a row's second line.
+  for a row's second line and the facts over a card's name ("Running · planned"), said as
+  written: no role is uppercase or letterspaced.
 - **Caption** (700, 13 px, ink 2): a section's name ("Waiting for you").
 - **Tab** (600, 13 px; 12 under 360 pt; 700 where you are). **Print label** (700, 12 px).
 
@@ -736,16 +772,22 @@ for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment an
 Everywhere else a sport is its mark, the form itself. The five
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
-bench, the ab wheel front on) and where (outdoors, treadmill, indoor bike, pool, open water,
-home) are glyphs, each with its name for screen readers. A machine named is drawn as what it
-is, however it is loaded (owner, 12 October 2026): the ab wheel as itself, and every other
-accessory (a bench, a rack, a rope, a sled) as the bench, which stands for them as the dumbbell
-stands for every free weight. That holds wherever a machine is named: a gym's list, an
-exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the machine
-an added exercise will be done on. An exercise with no machine named is drawn by what loads it,
-as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab wheel
-under Equipment. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's
-mark, kept from the first alphabet; it is not a print); the app icon is
+bench, the ab wheel front on, a rowing machine, a stair climber and an elliptical side on, a ski
+erg front on) and where (outdoors, treadmill, indoor bike, pool, open water, home) are glyphs,
+each with its name for screen readers. A machine named is drawn as what it is, however it is
+loaded (owner, 12 October 2026): the Smith machine as itself, never the stack; the ab wheel as
+itself, and every other accessory (a bench, a rack, a rope, a sled) as the bench, which stands
+for them as the dumbbell stands for every free weight; each cardio machine as itself (the
+treadmill, the rowing machine, the ski erg, the stair climber, the elliptical), and every bike
+as the indoor bike, which stands for any other. That holds wherever a machine is named: a gym's
+list, an exercise's page, a workout's rows, Today's rows the coach chose a machine for, and the
+machine an added exercise will be done on. An exercise with no machine named is drawn by what
+loads it, as its badge says: the ab wheel rollout's page leads with Bodyweight and names the ab
+wheel under Equipment. Cardio is loaded by the machine it is done on, so it is drawn as that
+machine, never the stack: the rowing machine's as the rowing machine, the stationary bike as the
+indoor bike; cardio done on none (battle ropes, a sled) has no glyph, and says Cardio in words.
+The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark, kept from
+the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
 stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
 ground at the gutter, never in a box; their links are ink and underlined.
@@ -776,11 +818,13 @@ and every control answers a press.
 
 - **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it).
-  **Waiting:** surface with ink 2, for a button waiting on something (Save while RIR is empty,
-  Saving…, Send answer with no answer, Try again offline). **Outline:** a 1.5-px control border
-  (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt (48 dp on Android),
-  the control surface, a glyph (− and +).
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it);
+  on a card, the control surface on a surface (Do again, Save under a select).
+  **Waiting:** surface with ink 2, surface 2 on a card, for a button waiting on something (Save
+  while RIR is empty, Saving…, Send answer with no answer, Try again offline). **Outline:** a
+  1.5-px control border (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt
+  (48 dp on Android), the control surface (on a card, the control surface on a surface), a
+  glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
   confirmed, never in the primary place. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
@@ -1011,12 +1055,13 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
-- **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
-  than its label on one line ("30 days", "Free weight"), and the tray folds before a label would
-  wrap, onto rows as even as fit: four as two and two, five as three and two, never three and
-  one alone. A tray of columns folds sooner, before a segment would keep less than 12 pt either
-  side of its words ("Prefer not to say" at 360 dp). Only a label wider than the whole tray
-  wraps, between its words. A scale's figures
+- **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
+  is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds
+  before a label would wrap, onto rows as even as fit: four as two and two, never three and one
+  alone; three as two and one; five as three and two, or two, two and one where three cannot
+  share a row (Load on a phone). A tray of columns folds sooner, before a segment would keep
+  less than 12 pt either side of its words ("Prefer not to say" at 360 dp). Only a label wider
+  than the whole tray wraps, between its words. A scale's figures
   (1–5, Effort) never fold: they keep one row of equal columns at their 44-pt target, and a word
   beside them (Not sure) goes under them when it does not fit. Page tabs fold into columns of
   one width, a gap as wide as a page.
@@ -1041,14 +1086,16 @@ good is the target or the goal, which a rule or the readout says, not a directio
   over the tabs, and the summary's Edit stays Today's (October 2026).
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes, a person's page by their name (never "People", which is the list
-  of them); a session screen has its back or minimise, the rest pill, and at most Finish and More.
-  Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "1 session behind" stands beside the squares.
-  From two behind, with no workout open, the count stands under the date with its way out, Pick
-  up from today (ADR 0051): beside the count while the count fits whole, else under it at the
-  end, and at large text under it at the row's width. The squares are 9 pt and grow with the
-  reader's text by half, as glyphs do (13.5 at 200%): days done in ink, today ringed, a skipped
-  day dashed, the rest a hairline.
+  of them), and at most one action at the end of its bar, a word (Edit, Done) or a glyph (Filters,
+  More) on the content's edge, never a filled button, which would fill the bar from the screen's
+  top edge; a session screen has its back or minimise, the rest pill, and at most Finish and More.
+  Today's head is the date and the cycle as seven squares, wordless while the programme is on
+  track; behind is news, so "1 session behind" stands beside the squares. From two behind, with
+  no workout open, the count stands under the date with its way out, Pick up from today (ADR
+  0051): beside the count while the count fits whole, else under it at the end, and at large text
+  under it at the row's width. The squares are 9 pt and grow with the reader's text by half, as
+  glyphs do (13.5 at 200%): days done in ink, today ringed, a skipped day dashed, the rest a
+  hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five

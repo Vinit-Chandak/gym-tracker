@@ -131,3 +131,24 @@ it("opens a swap on the movement being replaced, the rest by region under it", (
   // Each once: the row is not listed again under its region.
   expect(screen.getAllByRole("radio", { name: /Seated cable row/ })).toHaveLength(1);
 });
+
+it("names a cardio exercise's machine by its glyph, and draws no weight stack for one on none", () => {
+  render(
+    <ExercisePicker
+      name="exerciseId"
+      exercises={[
+        listItem("row", "Rowing machine", { modality: "cardio", cardioMachine: "rowing_machine" }),
+        listItem("ropes", "Battle ropes", { modality: "cardio", cardioMachine: null }),
+      ]}
+      value=""
+      onChange={vi.fn()}
+    />,
+  );
+  // Each was drawn as the weight stack and said "Machine".
+  const row = (name: string) => screen.getByRole("radio", { name: new RegExp(name) });
+  expect(
+    within(row("Rowing machine").closest("label")!).getByRole("img").getAttribute("aria-label"),
+  ).toBe("Rowing machine");
+  expect(within(row("Battle ropes").closest("label")!).queryByRole("img")).toBeNull();
+  expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
+});

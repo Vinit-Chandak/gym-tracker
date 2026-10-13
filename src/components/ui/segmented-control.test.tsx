@@ -96,3 +96,45 @@ it("leaves an ordinary group alone", () => {
   fireEvent.click(one);
   expect(one.checked).toBe(true);
 });
+
+it("draws its tray off the card it sits in", () => {
+  render(
+    <SegmentedControl
+      name="resistanceMode"
+      aria-label="Load"
+      columns={3}
+      options={["Free weight", "Plate-loaded", "Weight stack", "Bodyweight", "Cardio"].map(
+        (label) => ({ value: label, label }),
+      )}
+    />,
+  );
+  const tray = screen.getByRole("radiogroup", { name: "Load" });
+  // The tray token: the surface on the ground, surface 2 in a box (globals.css).
+  expect(tray.className).toContain("bg-tray");
+  expect(tray.className).not.toMatch(/\bbg-surface\b/);
+});
+
+it("folds five as three and two, else two, two and one, before one a row", () => {
+  render(
+    <SegmentedControl
+      name="resistanceMode"
+      aria-label="Load"
+      columns={3}
+      options={["Free weight", "Plate-loaded", "Weight stack", "Bodyweight", "Cardio"].map(
+        (label) => ({ value: label, label }),
+      )}
+    />,
+  );
+  const tray = screen.getByRole("radiogroup", { name: "Load" });
+  // Every even layout is tried: on a 360-dp phone three loads cannot share a row, and Load
+  // takes three rows (two, two and Cardio), not five.
+  expect(
+    ["--fold-r0", "--fold-r1", "--fold-r2", "--fold-r3", "--fold-r4"].map(
+      (name) => tray.style.getPropertyValue(name) !== "",
+    ),
+  ).toEqual([true, true, true, true, false]);
+  // The third: Weight stack beside Bodyweight, and Cardio on its own row.
+  expect(tray.style.getPropertyValue("--fold-r2")).toContain(
+    "calc(var(--fold-w2) + var(--fold-w3) + 1 * 2px), calc(var(--fold-w4) + 0 * 2px)",
+  );
+});

@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 
-import { Field, Input } from "./input";
+import { SpeechTextarea } from "./dictation";
+import { Field, Input, Textarea } from "./input";
 import { SegmentedControl } from "./segmented-control";
 import { Select } from "./select";
 
@@ -56,4 +57,34 @@ it("names the rating group and its individual choices without nesting labels", (
   fireEvent.click(radio);
   expect(radio.checked).toBe(true);
   expect(container.querySelector("label label")).toBeNull();
+});
+
+it("keeps a field's insets at their points as the text grows, so the room goes to the value", () => {
+  // Tailwind's own scale is in rem: px-4 doubled with the text, and "Tokyo Powerhouse" read
+  // "Tokyo Powerho…" in its field at 200%. A field's insets are the component scale's points.
+  const { container } = render(
+    <>
+      <Input aria-label="Name" />
+      <Textarea aria-label="Notes" />
+      <Select aria-label="Goal">
+        <option>Get stronger</option>
+      </Select>
+      <SpeechTextarea label="your brief" value="" onChange={() => {}} />
+    </>,
+  );
+  const fields = [...container.querySelectorAll("input, textarea, select")];
+  expect(fields).toHaveLength(4);
+  for (const field of fields) {
+    expect(field.className).not.toMatch(/(?:^|\s)p[xytrbl]?-\d/);
+    expect(field.className).toMatch(/(?:^|\s)p[xl]?-\[calc\(\d+\*var\(--ov-u\)\)\]/);
+  }
+  expect(screen.getByRole("textbox", { name: "Name" }).className).toContain(
+    "px-[calc(16*var(--ov-u))]",
+  );
+  // The select keeps its words clear of the chevron, which alone grows with the text.
+  const chevron = container.querySelector("select + svg")!;
+  expect(chevron.getAttribute("class")).not.toMatch(/(?:^|\s)right-\d/);
+  expect(screen.getByRole("combobox", { name: "Goal" }).className).toContain(
+    "pr-[calc(20*var(--ov-u)+var(--ov-icon-control))]",
+  );
 });

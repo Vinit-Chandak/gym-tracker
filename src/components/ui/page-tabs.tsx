@@ -68,7 +68,7 @@ export function PageTabs({
   return (
     <nav aria-label={label} className={className}>
       <ul
-        className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-surface p-[3px] text-[length:var(--ov-type-meta)]"
+        className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-tray p-[3px] text-[length:var(--ov-type-meta)]"
         style={fold.tray}
       >
         {slots.map((slot, index) => (

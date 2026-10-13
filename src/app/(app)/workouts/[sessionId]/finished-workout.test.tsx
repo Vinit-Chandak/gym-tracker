@@ -3,6 +3,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { emWidth, textEmWidth } from "@/components/ui/fit";
+
 import { FinishedWorkout } from "./finished-workout";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
@@ -160,6 +162,52 @@ it("says each check-in reading on its own scale, as the check-in asked it", () =
   expect(stat("Soreness")).toBe("1 / 5");
   // Energy is no longer asked, and a check-in without it says nothing of it.
   expect(screen.queryByText("Energy")).toBeNull();
+});
+
+it("holds a night's sleep on one line, the readings folding by the widest of them instead", () => {
+  show({ sleepHours: 10.75, sleepQuality: 2, fatigue: 4, soreness: 1 });
+  // A 360-dp phone read "7 h" over "15 min", and "Sleep quality" over two lines beside it.
+  const sleep = screen.getByText("Sleep", { selector: "dt" }).nextElementSibling as HTMLElement;
+  expect(sleep.className).toContain("whitespace-nowrap");
+  const readings = sleep.closest("dl")!;
+  expect(readings.style.getPropertyValue("--check-in-count")).toBe("4");
+  // Four to a row only where a quarter of it holds the widest name and the widest figure.
+  const cell = readings.style.getPropertyValue("--check-in-cell");
+  expect(cell).toContain(`${emWidth("10").toFixed(3)} * var(--ov-type-figure)`);
+  expect(cell).toContain(`${textEmWidth("Sleep quality").toFixed(3)} * var(--ov-type-caption)`);
+});
+
+/**
+ * The check-in's widest reading (--check-in-cell) in px at the default text size: figures at 20,
+ * captions at 13 and the body at 16.
+ */
+function cellPx(): number {
+  const cell = screen
+    .getByText("Sleep", { selector: "dt" })
+    .closest("dl")!
+    .style.getPropertyValue("--check-in-cell")
+    .replaceAll("var(--ov-type-figure)", "20")
+    .replaceAll("var(--ov-type-caption)", "13")
+    .replace(/([\d.]+)em\b/g, "$1 * 16")
+    .replaceAll("max(", "Math.max(");
+  // All that is left is arithmetic: figures, + and * in Math.max.
+  return new Function(`return ${cell}`)() as number;
+}
+
+it("stands four readings across only where a sleep's figure stays clear of the next", () => {
+  // A 390-pt iPhone's 350-pt column read "7 h 15 min 2 / 5" as one run, the sleep ending 10 pt
+  // before the next figure: four stand across only where each figure has room to stand clear.
+  const fourAcross = (sleepHours: number, column: number) => {
+    cleanup();
+    show({ sleepHours, sleepQuality: 2, fatigue: 4, soreness: 4 });
+    return 4 * cellPx() + 3 * 8 <= column;
+  };
+  expect(fourAcross(7.25, 350)).toBe(false);
+  expect(fourAcross(7.25, 362)).toBe(false);
+  // A 440-pt phone's 400 leaves it 23 pt clear.
+  expect(fourAcross(7.25, 400)).toBe(true);
+  // A whole night's figure is narrower than "Sleep quality": the iPhone keeps four across.
+  expect(fourAcross(8, 350)).toBe(true);
 });
 
 it("names the year of a workout from another, as a friend's copy of it does", () => {

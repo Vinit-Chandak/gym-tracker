@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { CompareTable, type CompareSide } from "@/components/ui/compare-table";
 import { InfoTip } from "@/components/ui/info-tip";
-import { LinkRow, List } from "@/components/ui/link-row";
+import { NavRow } from "@/components/ui/nav-row";
 import { RadarChart } from "@/components/ui/radar-chart";
 import { Section } from "@/components/ui/section";
 import { SportSpanControls } from "@/components/ui/sport-span-controls";
@@ -29,6 +29,7 @@ import { sportsOnOffer } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 import { formatActivityMetric } from "@/lib/format";
 import type { LengthUnit } from "@/lib/distance-units";
+import { holdHyphens } from "@/lib/facts";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { rememberedRange } from "@/server/queries/graph-range";
@@ -144,7 +145,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <p className="text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
         ) : (
           <>
             <GraphRangeProvider preset={preset}>
@@ -203,29 +204,29 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                 info="Movements from the shared library whose load means the same everywhere, that you both logged in the span. Each opens the head to head for that movement."
               >
                 {found.lifting.common.comparable.length > 0 ? (
-                  <List>
+                  // A list to choose from, its names at the gutter with nothing boxing them, so
+                  // a name has the row's width up to the chevron (DESIGN.md, Rows and marks).
+                  <ul>
                     {found.lifting.common.comparable.map((exercise) => (
-                      <li key={exercise.id}>
-                        <LinkRow
-                          prefetch="intent"
-                          href={`/u/${them.username}/compare/${exercise.id}`}
-                          title={exercise.name}
-                          subtitle={BODY_REGION_LABELS[exercise.region]}
-                        />
-                      </li>
+                      <NavRow
+                        key={exercise.id}
+                        prefetch="intent"
+                        href={`/u/${them.username}/compare/${exercise.id}`}
+                        label={holdHyphens(exercise.name)}
+                        sub={BODY_REGION_LABELS[exercise.region]}
+                      />
                     ))}
-                  </List>
+                  </ul>
                 ) : (
-                  <Card>
-                    <p className="text-sm text-ink-muted">
-                      {preset === "all"
-                        ? "No comparable exercises in common yet."
-                        : `No comparable exercises in common in ${RANGE_PRESET_WORDS[preset]}.`}
-                    </p>
-                  </Card>
+                  <p className="text-sm text-ink-muted">
+                    {preset === "all"
+                      ? "No comparable exercises in common yet."
+                      : `No comparable exercises in common in ${RANGE_PRESET_WORDS[preset]}.`}
+                  </p>
                 )}
+                {/* At the names' edge, as the label over them is. */}
                 {found.lifting.common.notComparable > 0 && (
-                  <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+                  <p className="flex items-center gap-1 text-sm text-ink-muted">
                     {found.lifting.common.notComparable === 1
                       ? "1 machine exercise in common is not compared: loads differ per machine."
                       : `${found.lifting.common.notComparable} machine exercises in common are not compared: loads differ per machine.`}

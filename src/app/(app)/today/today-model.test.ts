@@ -189,7 +189,7 @@ describe("the day's rows", () => {
     expect(rows[1]).toMatchObject({ name: "Rope triceps pushdown", dropped: true, note: "Elbow." });
   });
 
-  it("lead a machine the coach named with its glyph when it is an accessory", () => {
+  it("lead a machine the coach named with its glyph when its type has one of its own", () => {
     // Back extension on its bench read "3 × 15 · Back extension bench" behind the pull-up
     // bar's figure, while the workout's row drew the bench.
     const EXTENSION = slot({
@@ -202,8 +202,9 @@ describe("the day's rows", () => {
       name: "Ab wheel rollout",
       modality: "bodyweight",
     });
+    const ROW = slot({ programExerciseId: "e7", name: "Rowing machine", modality: "cardio" });
     const rows = planRows(
-      [EXTENSION, ROLLOUT, PUSHDOWN],
+      [EXTENSION, ROLLOUT, PUSHDOWN, ROW],
       {
         exercises: [
           entry({
@@ -225,11 +226,18 @@ describe("the day's rows", () => {
             equipmentInstanceId: "cable",
             equipmentInstanceName: "Cable station",
           }),
+          entry({
+            slotId: "e7",
+            exerciseName: "Rowing machine",
+            equipmentInstanceId: "rower",
+            equipmentInstanceName: "Concept2 rower",
+          }),
         ],
         machines: {
           bench: { typeSlug: "back_extension_bench", typeCategory: "accessory" },
           wheel: { typeSlug: "ab_wheel", typeCategory: "accessory" },
           cable: { typeSlug: "cable_station", typeCategory: "cable" },
+          rower: { typeSlug: "rowing_machine", typeCategory: "cardio" },
         },
       },
       "kg",
@@ -241,6 +249,8 @@ describe("the day's rows", () => {
       ["abWheel", "Ab wheel"],
       // Any other machine is drawn by what loads the movement, as the workout draws it.
       ["cable", "Cable station"],
+      // A cardio machine is drawn as itself, never as the weight stack its movement was.
+      ["rower", "Concept2 rower"],
     ]);
     // A machine whose type was not read, and the programme's own rows, keep the movement's.
     expect(

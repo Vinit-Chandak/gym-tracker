@@ -105,6 +105,23 @@ describe("shared reference data", () => {
     expect(await withUser(t.db, user.id, (tx) => sharedExercises(tx))).toBe(shared);
   });
 
+  it("names the cardio machine each cardio exercise is done on, from the cached library", async () => {
+    const list = await withUser(t.db, user.id, (tx) => listExercises(tx));
+    const machine = (name: string) => list.find((item) => item.name === name)?.cardioMachine;
+    // Its glyph is that machine's: the rowing machine was drawn as a weight stack.
+    expect(machine("Rowing machine")).toBe("rowing_machine");
+    expect(machine("Treadmill walk")).toBe("treadmill");
+    // The first way: a stationary bike is done on the bike before the spin or air bike.
+    expect(machine("Stationary bike")).toBe("bike");
+    // Battle ropes are no cardio machine, and nothing but cardio is done on one.
+    expect(machine("Battle ropes")).toBeNull();
+    expect(machine("Barbell bench press")).toBeNull();
+    // An account's own exercise is on one of its gyms' machines, not a type: it is said in words.
+    expect(list.filter((item) => item.isCustom).map((item) => item.cardioMachine)).not.toContain(
+      expect.any(String),
+    );
+  });
+
   it("forgets everything on reset", async () => {
     const before = await withUser(t.db, user.id, (tx) => sharedEquipmentTypes(tx));
     resetReferenceCache();

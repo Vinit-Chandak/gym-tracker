@@ -317,12 +317,6 @@ li:last-child > .sheet-row {
       calc(32 * var(--ov-u))
   );
 }
-@media (min-width: 64rem) {
-  .pinned-actions {
-    left: 12rem;
-  }
-}
-
 /* ---------- a row that opens a page or holds a setting (boards Training, Profile) ---------- */
 /* Its glyph in the mark column, its name, what it is set to, a chevron; 50 pt, a hairline
    between rows and none after the last. */
@@ -348,16 +342,21 @@ li:last-child > .sheet-row {
 /* The name, and what marks it out beside it (a badge, a tag). The name keeps room for a word
    (6rem, so it grows with the text) and the mark folds under it rather than take that room:
    "PureGym Shoreditch" wraps between its words at 320 pt, and its Default tag goes under it at
-   200% text rather than leaving the name a letter or two a line. */
-.nav-row-main {
+   200% text rather than leaving the name a letter or two a line. With a second line the mark
+   stands beside the name alone (its head), and the line under both keeps the row's width. */
+.nav-row-main,
+.nav-row-head {
   display: flex;
   min-width: 0;
-  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
 }
+.nav-row-main {
+  flex: 1 1 auto;
+}
 .nav-row-main > .nav-row-label,
+.nav-row-head > .nav-row-label,
 .nav-row-text {
   min-width: min(100%, 6rem);
   flex: 1 1 0;
@@ -424,12 +423,15 @@ li:last-child > .sheet-row {
   margin-top: calc(6 * var(--ov-u));
   gap: calc(14 * var(--ov-u));
 }
+/* The initial is sized with its disc, not with the text: the name beside it says who it is, and
+   an initial that doubled at 200% inside a disc that does not ran out of it (a J's tail). */
 .person-card-avatar {
   width: calc(56 * var(--ov-u));
   height: calc(56 * var(--ov-u));
   font-family: var(--ov-font-display);
-  font-size: 1.625rem;
+  font-size: calc(26 * var(--ov-u));
   font-weight: 700;
+  line-height: 1;
 }
 .person-card-text {
   min-width: 0;
@@ -638,13 +640,6 @@ li:last-child > .sheet-row {
   font-size: var(--ov-type-meta);
   font-weight: 700;
 }
-@media (min-width: 64rem) {
-  .session-strip {
-    max-width: calc(var(--content-width) - 2 * var(--ov-gutter));
-    margin-inline: auto;
-  }
-}
-
 /* ---------- the strip folded into a screen's pinned actions, at large text ---------- */
 /* Large text (ADR 0052) is fewer than 14rem across the screen, where the logger folds its entry:
    every phone at 200%, a 320-pt phone from 150%, never at 100%. There, on a screen that pins its
@@ -1244,7 +1239,9 @@ button.activity-card-toggle {
 
 /* ---------- a figure in a row, and a 1–5 scale (boards Check-in, Log a ride) ---------- */
 /* The name at the gutter; −, the figure in a 120-pt column, + at the end. Where both cannot
-   share a line, the stepper folds under the name, at the end. */
+   share a line, the stepper folds under the name, at the end. The name is weighed at its own
+   width up to 8rem, so a short one ("Distance") keeps the stepper beside it on a 360-dp phone,
+   and a long one ("Hours last night") folds the stepper rather than squeeze to a word a line. */
 .row-stepper {
   display: flex;
   flex-wrap: wrap;
@@ -1257,6 +1254,7 @@ button.activity-card-toggle {
 .row-stepper-text {
   display: flex;
   min-width: 0;
+  max-width: max-content;
   flex: 1 1 8rem;
   flex-direction: column;
   font-size: var(--ov-type-body);
@@ -1275,7 +1273,9 @@ button.activity-card-toggle {
   margin-left: auto;
 }
 /* The value's fixed column. The whole column is the field's target: a tap anywhere in it types
-   the value (row-stepper.tsx), and the field itself is never smaller than a target. */
+   the value (row-stepper.tsx), and the field itself is never smaller than a target. The column
+   carries the figure's 26 as its own size, which row-stepper.tsx reads to know what a 26 is
+   drawn at here (larger text, a wider screen) before it steps the figure down to fit. */
 .row-stepper-figure {
   display: flex;
   width: calc(calc(120 * var(--ov-u)) + var(--ov-grow) * 2);
@@ -1284,6 +1284,7 @@ button.activity-card-toggle {
   align-items: baseline;
   justify-content: center;
   gap: calc(3 * var(--ov-u));
+  font-size: var(--ov-type-figure-l);
   cursor: text;
 }
 .row-stepper-figure > .figure-input {

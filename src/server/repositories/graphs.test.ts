@@ -240,7 +240,7 @@ describe("strength", () => {
     });
   });
 
-  it("says which series is on an accessory, whose machine is drawn as one", async () => {
+  it("says the type of the machine a series is on, so the machine is drawn as what it is", async () => {
     const erin = await t.createAuthUser("accessory-graphs@example.com");
     const { benchId, backExtension, legPress, legPressId } = await withUser(
       t.db,
@@ -298,9 +298,12 @@ describe("strength", () => {
     const on = (exerciseId: string) => options.find((o) => o.exerciseId === exerciseId)!;
     expect(on(backExtension)).toMatchObject({
       id: `${backExtension}:${benchId}:kg`,
-      accessory: "back_extension_bench",
+      machineType: { typeSlug: "back_extension_bench", typeCategory: "accessory" },
     });
-    expect(on(legPress)).toMatchObject({ id: `${legPress}:${legPressId}:kg`, accessory: null });
+    expect(on(legPress)).toMatchObject({
+      id: `${legPress}:${legPressId}:kg`,
+      machineType: { typeSlug: "leg_press_45", typeCategory: "machine" },
+    });
   });
 
   it("offers every series ever logged, counting the workouts in the window apart", async () => {
@@ -381,7 +384,7 @@ describe("series ids", () => {
       modality: "barbell",
       group: null,
       assisted: false,
-      accessory: null,
+      machineType: null,
       measure: "reps",
       sessionsInRange: 0,
       sessions: 10,

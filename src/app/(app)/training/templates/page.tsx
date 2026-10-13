@@ -62,7 +62,7 @@ export default async function TemplatesPage() {
           <Section title="Endurance">
             {templates.map((template) => (
               <Card key={template.id}>
-                <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
+                <p className="type-meta-small text-ink-2">
                   {ACTIVITY_SPORT_LABELS[template.sport]}
                 </p>
                 <h2 className="mt-1 text-base font-medium [overflow-wrap:break-word]">

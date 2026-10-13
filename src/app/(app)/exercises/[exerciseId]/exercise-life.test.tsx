@@ -144,7 +144,7 @@ it("leads an accessory with its own glyph, not the movement's", () => {
       {...props(false)}
       exercise={backExtension}
       machineName="Back extension bench"
-      accessory="back_extension_bench"
+      machineType={{ typeSlug: "back_extension_bench", typeCategory: "accessory" }}
     />,
   );
   // The bench was led by the pull-up bar's glyph, read as "Bodyweight".
@@ -169,7 +169,7 @@ it("leads an ab wheel with the ab wheel, said once when it is named after it", (
       {...props(false)}
       exercise={rollout}
       machineName="Ab roller"
-      accessory="ab_wheel"
+      machineType={{ typeSlug: "ab_wheel", typeCategory: "accessory" }}
     />,
   );
   const fact = screen.getByRole("img", { name: "Ab wheel" }).parentElement!;
@@ -180,13 +180,79 @@ it("leads an ab wheel with the ab wheel, said once when it is named after it", (
       {...props(false)}
       exercise={rollout}
       machineName="Ab wheel"
-      accessory="ab_wheel"
+      machineType={{ typeSlug: "ab_wheel", typeCategory: "accessory" }}
     />,
   );
   expect(screen.queryByRole("img", { name: "Ab wheel" })).toBeNull();
   expect(screen.getByText("Ab wheel")).toBeTruthy();
   // The wheel, front on: its tread and the handle out each side (the bench has two legs).
   expect(container.querySelector("svg rect")?.getAttribute("height")).toBe("16");
+});
+
+it("leads a cardio machine and the Smith machine with their own glyphs, never the stack", () => {
+  const rowing = {
+    ...assistedPullUp,
+    name: "Rowing machine",
+    modality: "cardio",
+    loadPortability: "context_dependent",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife
+      {...props(false)}
+      exercise={rowing}
+      machineName="Concept2 rower"
+      machineType={{ typeSlug: "rowing_machine", typeCategory: "cardio" }}
+    />,
+  );
+  // A rowing machine was led by the weight stack, read as "Machine".
+  const fact = screen.getByRole("img", { name: "Rowing machine" }).parentElement!;
+  expect(fact.textContent).toBe("Concept2 rower");
+  expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
+  // The rower, side on: its flywheel at the front (the stack has no circle).
+  expect(container.querySelector("svg circle")).not.toBeNull();
+  const press = {
+    ...assistedPullUp,
+    name: "Smith machine bench press",
+    modality: "smith_machine",
+  } as const;
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={press}
+      machineName="Smith machine"
+      machineType={{ typeSlug: "smith_machine", typeCategory: "machine" }}
+    />,
+  );
+  // Named after its kind, it is said once.
+  expect(screen.getByText("Smith machine")).toBeTruthy();
+  expect(screen.queryByRole("img", { name: "Machine" })).toBeNull();
+});
+
+it("draws cardio with no machine named as the machine it is done on, and on none in words", () => {
+  const rowing = {
+    ...assistedPullUp,
+    name: "Rowing machine",
+    modality: "cardio",
+    loadPortability: "context_dependent",
+    cardioMachine: "rowing_machine",
+  } as const;
+  const { container, rerender } = render(
+    <ExerciseLife {...props(false)} exercise={rowing} machineName={null} />,
+  );
+  // Its page led with the weight stack and said "Machine", where the library draws the rower.
+  const fact = () => container.querySelector(".meta-line .meta-fact")!;
+  expect(fact().textContent).toBe("Rowing machine");
+  expect(fact().querySelector("svg circle")).not.toBeNull();
+  expect(screen.queryByText("Machine")).toBeNull();
+  rerender(
+    <ExerciseLife
+      {...props(false)}
+      exercise={{ ...rowing, cardioMachine: null }}
+      machineName={null}
+    />,
+  );
+  expect(fact().textContent).toBe("Cardio");
+  expect(fact().querySelector("svg")).toBeNull();
 });
 
 it("names a machine called after its kind once", () => {

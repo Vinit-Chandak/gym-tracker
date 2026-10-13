@@ -78,7 +78,7 @@ export function ActivitySummary({
     <>
       <dl className="finished-stats">
         {workout(activity, unit).map((stat) => (
-          <div key={stat.label} className="min-w-0">
+          <div key={stat.label}>
             <dt className="sr-only">{stat.label}</dt>
             <dd className="whitespace-nowrap">
               <span className="type-figure-l">{stat.figure}</span>

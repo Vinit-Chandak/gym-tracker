@@ -103,7 +103,7 @@ export function TokenManager({
               readOnly
               aria-label="New coach token"
               value={state.token}
-              className="min-h-24 w-full rounded-control bg-canvas p-2 font-mono text-sm break-all"
+              className="min-h-24 w-full rounded-control bg-canvas p-[calc(8*var(--ov-u))] font-mono text-sm break-all"
             />
             <div className="flex gap-2">
               <Button

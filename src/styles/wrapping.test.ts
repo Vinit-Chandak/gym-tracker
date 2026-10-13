@@ -106,3 +106,29 @@ it("gives Pick up from today the row's width under its count at large text", () 
     expect(row, `${phone} at 100%`).toBeGreaterThanOrEqual(threshold(16));
   }
 });
+
+it("folds a row's stepper under its name only where the name at its own width leaves no room", () => {
+  // "Distance" kept a 128-pt place when the row decided whether to fold, so a run's stepper
+  // went under it on a 360-dp phone with the word half that wide.
+  expect(rule("rows.css", ".row-stepper")).toMatch(/flex-wrap:\s*wrap/);
+  const name = rule("rows.css", ".row-stepper-text");
+  expect(name).toMatch(/flex:\s*1 1 \d+rem/);
+  expect(name).toMatch(/max-width:\s*max-content/);
+  expect(rule("rows.css", ".row-stepper-control")).toMatch(/margin-left:\s*auto/);
+});
+
+it("folds a finished workout's check-in by its widest reading before a figure would part", () => {
+  // Four readings a row only where the widest has a quarter of it (the page says how wide).
+  const readings = rule("session.css", ".finished-check-in");
+  expect(readings).toMatch(/var\(--check-in-cell/);
+  expect(readings).toMatch(/var\(--check-in-count/);
+});
+
+it("widens a finished workout's stat for its figure rather than run it past the gutter", () => {
+  // "11,078 lb" ran past a 320-pt phone's gutter in an even third of the row: a stat is never
+  // narrower than its figure, and the row wraps by what its figures need.
+  expect(rule("session.css", ".finished-stats")).toMatch(/flex-wrap:\s*wrap/);
+  const stat = rule("session.css", ".finished-stats > div");
+  expect(stat).toMatch(/flex:\s*1 1 [\d.]+rem/);
+  expect(stat).toMatch(/min-width:\s*min-content/);
+});

@@ -30,6 +30,10 @@ it("holds a name together at its hyphens, and breaks it only between its words",
   expect(holdHyphens("Archer push-up")).toBe("Archer push-\u2060up");
   expect(holdHyphens("Off-season Hypertrophy")).toBe("Off-\u2060season Hypertrophy");
   expect(holdHyphens("T-bar row")).toBe("T-\u2060bar row");
+  // In brackets too: Programme fit read "Neutral-grip lat pulldown (D-" over "handles)".
+  expect(holdHyphens("Neutral-grip lat pulldown (D-handles)")).toBe(
+    "Neutral-\u2060grip lat pulldown (D-\u2060handles)",
+  );
   // A hyphen that is not inside a word is left alone.
   expect(holdHyphens("Week 2 - deload")).toBe("Week 2 - deload");
 });

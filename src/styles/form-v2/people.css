@@ -445,12 +445,14 @@
 .activity-row-item:last-child > .activity-row {
   border-bottom: 0;
 }
+/* The initial is sized with its disc, as the profile's is (rows.css). */
 .activity-row-avatar {
   width: calc(40 * var(--ov-u));
   height: calc(40 * var(--ov-u));
   font-family: var(--ov-font-display);
-  font-size: 1.125rem;
+  font-size: calc(18 * var(--ov-u));
   font-weight: 700;
+  line-height: 1;
 }
 .activity-row-name {
   min-width: 0;

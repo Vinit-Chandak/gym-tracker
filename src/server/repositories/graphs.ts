@@ -22,6 +22,7 @@ import {
 } from "@/domain/progress-graphs";
 import {
   LOAD_UNITS,
+  type EquipmentCategory,
   type ExerciseModality,
   type LoadUnit,
   type PrescriptionType,
@@ -129,8 +130,11 @@ export type ExerciseSeriesOption = {
   group: StrengthGroup | null;
   /** On an assisted machine: its number is help given, so less is stronger (ADR 0048). */
   assisted: boolean;
-  /** The accessory's type when it is on one (a bench, the ab wheel): its machine is drawn as one. */
-  accessory: string | null;
+  /**
+   * The type of the machine a series is bound to, so the machine is drawn as what it is (a bench,
+   * the ab wheel, a rowing machine); null across gyms, and on a machine nobody recorded.
+   */
+  machineType: { typeSlug: string; typeCategory: EquipmentCategory } | null;
   /** Counted in reps, seconds or metres. */
   measure: PrescriptionType;
   /** Finished workouts it was in inside the window being drawn, and ever. */
@@ -164,9 +168,9 @@ export async function readExerciseSeriesOptions(
       gymName: sql<string | null>`max(${gyms.name})`,
       // A series is one machine, or a load that means the same everywhere, which is never help.
       assisted: sql<boolean>`coalesce(bool_or(${ASSISTED_SLOT}), false)`,
-      accessory: sql<
-        string | null
-      >`max(${equipmentTypes.slug}) filter (where ${equipmentTypes.category} = 'accessory')`,
+      // One machine, where the series is bound to one; across gyms there may be several.
+      typeSlug: sql<string | null>`max(${equipmentTypes.slug})`,
+      typeCategory: sql<EquipmentCategory | null>`max(${equipmentTypes.category}::text)`,
       sessionsInRange: sql<number>`count(distinct ${workoutSessions.id}) filter (where ${strengthOnDays(window)})::int`,
       sessions: sql<number>`count(distinct ${workoutSessions.id})::int`,
       lastAt: sql<string>`max(${workoutSessions.startedAt})`,
@@ -214,7 +218,10 @@ export async function readExerciseSeriesOptions(
       modality: row.modality,
       group: strengthGroupOf(row.primaryMuscles),
       assisted: row.assisted === true,
-      accessory: row.accessory ?? null,
+      machineType:
+        row.machineKey !== "global" && row.typeSlug && row.typeCategory
+          ? { typeSlug: row.typeSlug, typeCategory: row.typeCategory }
+          : null,
       measure: row.measure,
       sessionsInRange: Number(row.sessionsInRange),
       sessions: Number(row.sessions),

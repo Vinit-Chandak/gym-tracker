@@ -1,14 +1,15 @@
 "use client";
 
 import type { Route } from "next";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
 import { sessionParts } from "@/components/art/session-print";
 import { BackLink } from "@/components/shell/back-link";
 import Link from "@/components/ui/app-link";
-import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
+import { boldEmWidth, emWidth, textEmWidth } from "@/components/ui/fit";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -72,7 +73,7 @@ function volumeOf(session: SessionVM): number {
 
 function Stat({ figure, unit, label }: { figure: string; unit?: string; label: string }) {
   return (
-    <div className="min-w-0">
+    <div>
       <dt className="sr-only">{label}</dt>
       <dd className="whitespace-nowrap">
         <span className="type-figure-l">{figure}</span>
@@ -83,6 +84,25 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
       </dd>
     </div>
   );
+}
+
+/**
+ * The room a check-in reading needs on one line, as a CSS length: its name or its figure,
+ * whichever is wider ("Sleep quality", "10 h 45 min"), each figure in Jost and its unit at the
+ * caption's size. A figure also stands 0.4 of its size clear of the next reading's beyond the
+ * row's gap (twice the room a name has, at the default text size), so "7 h 15 min" is never read
+ * on into "2 / 5" as one run.
+ */
+function readingWidth({ label, parts }: { label: string; parts: string[][] }): string {
+  const at = (em: number, size: "figure" | "caption") =>
+    `${em.toFixed(3)} * var(--ov-type-${size})`;
+  const figure = parts
+    .map(
+      ([value = "", unit = ""]) =>
+        `${at(emWidth(value), "figure")} + ${at(boldEmWidth(` ${unit}`), "caption")}`,
+    )
+    .join(` + ${textEmWidth(" ").toFixed(3)}em + `);
+  return `max(${at(textEmWidth(label), "caption")}, ${figure} + ${at(0.4, "figure")})`;
 }
 
 /**
@@ -211,23 +231,22 @@ export function FinishedWorkout({
               <BackLink fallback={backHref} />
               {edit && (
                 <div className="page-header-action">
-                  {/* A filled button stands on the content's edge, where the bar's glyphs reach
-                      past it into the gutter. */}
+                  {/* Edit and Done are words at the end of the bar, as a gym's Edit is, on the
+                      content's edge at every text size: a fill as tall as the bar (Android, large
+                      text) ran from the screen's top edge to the print. */}
                   {editing ? (
-                    <Button size="sm" className="mr-2.5" onClick={edit.onDone}>
+                    <button type="button" className="header-text-action" onClick={edit.onDone}>
                       Done
-                    </Button>
+                    </button>
                   ) : (
-                    <Button
-                      variant="tonal"
-                      size="sm"
-                      className="mr-2.5"
+                    <button
+                      type="button"
+                      className="header-text-action"
                       aria-label="Edit workout"
                       onClick={edit.onEdit}
                     >
-                      <Glyph name="edit" className="glyph-18" />
                       Edit
-                    </Button>
+                    </button>
                   )}
                 </div>
               )}
@@ -418,25 +437,30 @@ export function FinishedWorkout({
         )}
 
         {!justFinished && checkIn.length > 0 && (
-          <section aria-labelledby="finished-check-in" className="finished-check-in-section">
+          <section aria-labelledby="finished-check-in">
             <h2 id="finished-check-in" className="caption-head mt-4.5">
               Check-in
             </h2>
-            <dl className="finished-check-in">
-              {/* Each reading's figure at the foot of its cell, so a name that takes two lines
-                  ("Sleep quality" in a narrow column) leaves the figures on one line. */}
+            {/* Four to a row while the widest reading, its name or its figure, has a quarter of
+                it; else two and two (session.css). A figure keeps one line ("7 h 15 min"). */}
+            <dl
+              className="finished-check-in"
+              style={
+                {
+                  "--check-in-cell": `max(${checkIn.map(readingWidth).join(", ")})`,
+                  "--check-in-count": checkIn.length,
+                } as CSSProperties
+              }
+            >
               {checkIn.map(({ label, parts }) => (
                 <div key={label} className="flex min-w-0 flex-col justify-between">
                   <dt className="type-caption font-medium text-ink-2">{label}</dt>
-                  {/* A sleep's hours and minutes may part in a narrow cell, each whole. */}
-                  <dd className="mt-0.5">
+                  <dd className="mt-0.5 whitespace-nowrap">
                     {parts.map(([figure, unit], index) => (
                       <Fragment key={index}>
                         {index > 0 && " "}
-                        <span className="whitespace-nowrap">
-                          <span className="type-figure">{figure}</span>
-                          <span className="figure-row-unit"> {unit}</span>
-                        </span>
+                        <span className="type-figure">{figure}</span>
+                        <span className="figure-row-unit"> {unit}</span>
                       </Fragment>
                     ))}
                   </dd>
