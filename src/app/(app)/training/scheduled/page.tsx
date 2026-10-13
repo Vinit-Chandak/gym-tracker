@@ -53,7 +53,7 @@ function OccurrenceRow({
     <Card>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase tabular-nums">
+          <p className="type-meta-small text-ink-2 tabular-nums">
             {joinFacts([
               ACTIVITY_SPORT_LABELS[occurrence.sport],
               formatIsoDate(occurrence.scheduledOn),

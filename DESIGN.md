@@ -541,7 +541,8 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 - **Heading** (700, 16 to 17 px): "Set 3 of 4", a row's name, the coach's question.
 - **Body** (500, 15 to 16 px, 1.45): coach text and everything read; two lines inline, then More.
 - **Meta** (500, 15 px, ink 2): a meta line, each fact led by its glyph; **Meta small** (14 px)
-  for a row's second line.
+  for a row's second line and the facts over a card's name ("Running · planned"), said as
+  written: no role is uppercase or letterspaced.
 - **Caption** (700, 13 px, ink 2): a section's name ("Waiting for you").
 - **Tab** (600, 13 px; 12 under 360 pt; 700 where you are). **Print label** (700, 12 px).
 
