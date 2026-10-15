@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { getCoachBackup } from "@/lib/env";
+import { getCoachBackupConnection } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "./auth";
 
@@ -24,7 +24,7 @@ export function coachOAuthRedirect(value: string): `https://${string}` {
 /** Supabase owns OAuth validation, codes, PKCE, refresh and revocation. We allow one owner/client. */
 export async function readCoachConnectorConsent(authorizationId: string) {
   const user = await requireUser(),
-    backup = getCoachBackup();
+    backup = getCoachBackupConnection();
   if (!backup || user.id !== backup.ownerId) notFound();
   const id = z.string().min(1).max(200).parse(authorizationId);
   const supabase = await createSupabaseServerClient();

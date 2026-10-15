@@ -128,10 +128,28 @@ it("rejects malformed arguments and unknown methods without calling a workflow",
   expect((await (await rpc("tools/call", { name: "unknown" })).json()).error.code).toBe(-32602);
   expect((await (await rpc("unknown")).json()).error.code).toBe(-32601);
 });
-it("pauses the connector with the workflow master switch or backup switch", async () => {
+it("pauses every connector operation with the workflow master switch", async () => {
   vi.stubEnv("COACH_WORKFLOW_ENABLED", "false");
   expect((await rpc("initialize")).status).toBe(503);
-  vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
+});
+it("verifies the authenticated connection while all coaching operations stay paused", async () => {
   vi.stubEnv("COACH_BACKUP_ENABLED", "false");
-  expect((await rpc("initialize")).status).toBe(503);
+  expect((await rpc("initialize")).status).toBe(200);
+  const profile = await (await rpc("tools/call", { name: "coach_profile" })).json();
+  expect(JSON.parse(profile.result.content[0].text).backupEnabled).toBe(false);
+  const contract = await (await rpc("tools/call", { name: "coach_contract" })).json();
+  expect(JSON.parse(contract.result.content[0].text).version).toBe(COACH_CONTRACT_VERSION);
+  for (const [name, args] of [
+    ["coach_dispatch", {}],
+    ["coach_queue", {}],
+    ["coach_claim", { user: crypto.randomUUID(), job: crypto.randomUUID() }],
+    [
+      "coach_context",
+      { user: crypto.randomUUID(), job: crypto.randomUUID(), attempt: crypto.randomUUID() },
+    ],
+  ] as const) {
+    const result = await (await rpc("tools/call", { name, arguments: args })).json();
+    expect(result.result.isError).toBe(true);
+    expect(JSON.parse(result.result.content[0].text).error).toBe("The ChatGPT backup is disabled.");
+  }
 });
