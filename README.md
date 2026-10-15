@@ -256,6 +256,8 @@ the next version rather than editing what was logged. Each athlete switches it o
 Profile → AI coach; the owner
 sets it up once, as described in [`docs/coach-automation.md`](docs/coach-automation.md).
 
+A cloud ChatGPT task can back up the complete coach workflow after ten minutes without Claude progress, using the same policy and service validation. See [ChatGPT coach backup](docs/chatgpt-coach-backup.md) for owner-only OAuth setup and activation checks.
+
 See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
 are retained on the device for manual retry and removed after a confirmed save. Other forms
 require a connection. The offline screen explains how to reconnect; private pages are not cached.

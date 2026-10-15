@@ -393,6 +393,13 @@
       "when": 1791815443126,
       "tag": "0055_sport_units_on_the_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792018800000,
+      "tag": "0056_chatgpt_coach_backup",
+      "breakpoints": true
     }
   ]
 }

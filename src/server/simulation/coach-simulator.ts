@@ -462,10 +462,10 @@ export class CoachSimulation {
       this.day = day;
       const events: { at: Date; what: string; a: SimAthlete | null; run(): Promise<unknown> }[] =
         [];
-      // The nightly routine: 04:05 in India, the boundary every account is dispatched on.
+      // The nightly routine: just after the daily five-in-India boundary.
       if (day >= 0)
         events.push({
-          at: this.at(day, "04:05", "Asia/Kolkata"),
+          at: this.at(day, "05:05", "Asia/Kolkata"),
           what: "routine",
           a: null,
           run: () => this.routine(),
@@ -479,12 +479,12 @@ export class CoachSimulation {
             a,
             run: () => this.switchCoachOn(a),
           });
-      // Each athlete trains at five in their own evening: before the next Indian 04:00 whatever
+      // Each athlete trains at five in their own evening: before the next Indian 05:00 whatever
       // the time zone, so the clock only ever moves forward.
       for (const a of this.athletes) {
         events.push({
           at: a.persona.earlyBird
-            ? this.at(day, "03:55", "Asia/Kolkata")
+            ? this.at(day, "04:55", "Asia/Kolkata")
             : this.at(day, "17:00", a.persona.timeZone),
           what: "athlete day",
           a,

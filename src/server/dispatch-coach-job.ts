@@ -16,6 +16,7 @@ export async function dispatchCoachJob(db: Db, userId: string, id: string) {
           eq(coachJobs.id, id),
           eq(coachJobs.status, "queued"),
           isNull(coachJobs.dispatchStartedAt),
+          isNull(coachJobs.backupTakenAt),
         ),
       )
       .returning();
@@ -43,6 +44,8 @@ export async function dispatchCoachJob(db: Db, userId: string, id: string) {
           error: uncertain
             ? "The request is saved, but the routine's start could not be confirmed. The scheduled coach can pick it up; no duplicate run was started."
             : "The routine could not start. Your request is saved for the scheduled coach.",
+          // An ambiguous start is recovered by inactivity, never called a confirmed failure.
+          ...(!uncertain ? { primaryFailedAt: new Date() } : {}),
         })
         .where(
           and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "queued")),

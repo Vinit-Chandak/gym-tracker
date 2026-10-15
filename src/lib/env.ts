@@ -70,3 +70,34 @@ export function getCoachRoutine(): { fireUrl: string; token: string } | null {
   }
   return { fireUrl, token };
 }
+
+/** Owner-only OAuth connection. No model API key or Claude credential is shared with ChatGPT. */
+export function getCoachBackup() {
+  const ownerId = process.env.COACH_BACKUP_OWNER_ID?.trim();
+  const clientId = process.env.COACH_BACKUP_CLIENT_ID?.trim();
+  const raw = process.env.COACH_BACKUP_RESOURCE_URL?.trim();
+  if (process.env.COACH_BACKUP_ENABLED !== "true" || !ownerId || !clientId || !raw) return null;
+  try {
+    const resource = new URL(raw);
+    if (
+      resource.protocol !== "https:" ||
+      resource.pathname !== "/api/coach/mcp" ||
+      resource.search ||
+      resource.hash ||
+      resource.username ||
+      resource.password
+    )
+      return null;
+    return { ownerId, clientId, resource: resource.href, origin: resource.origin };
+  } catch {
+    return null;
+  }
+}
+
+export function canRunCoachJobs(): boolean {
+  return getCoachRoutine() !== null || getCoachBackup() !== null;
+}
+
+export function isCoachServiceConfigured(): boolean {
+  return getCoachServiceToken() !== null || getCoachBackup() !== null;
+}

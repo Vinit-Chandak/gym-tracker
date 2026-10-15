@@ -11,7 +11,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { NOTE_DISPOSITION_LABELS } from "@/domain/coach-memory";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -64,8 +64,8 @@ export default async function AiCoachSettingsPage() {
     { readOnly: true },
   );
   // Whether this server can hear from the coach and start it: owner-side setup facts.
-  const configured = getCoachServiceToken() !== null;
-  const canRequest = getCoachRoutine() !== null;
+  const configured = isCoachServiceConfigured();
+  const canRequest = canRunCoachJobs();
   // A coach that is on and working says nothing: the switch is the statement. What is worth a
   // line is that it cannot run here, or, on the older single-plan path, what it last produced.
   const status = !configured

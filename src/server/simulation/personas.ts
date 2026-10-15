@@ -52,7 +52,7 @@ export type Persona = {
   historyWeeks?: number;
   /** Days on which the athlete logs three sessions in one evening, catching up. */
   catchUp?: number[];
-  /** Trains at 04:00 in India, so a workout is still open while the nightly routine runs. */
+  /** Trains at 05:00 in India, so a workout is still open while the nightly routine runs. */
   earlyBird?: boolean;
   /** Says no to every programme change the coach proposes; otherwise each is approved. */
   declines?: boolean;
