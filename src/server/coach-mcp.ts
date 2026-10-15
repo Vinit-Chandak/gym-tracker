@@ -126,6 +126,16 @@ const requestSchema = z.object({
   params: z.record(z.string(), z.unknown()).optional(),
 });
 const supportedProtocols = ["2025-03-26", "2025-06-18", "2025-11-25"];
+const profileOutputSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", minLength: 1, pattern: "\\S" },
+    name: { type: "string" },
+    nickname: { type: "string" },
+  },
+  required: ["id"],
+  additionalProperties: false,
+};
 
 /** Stateless Streamable HTTP: each request authenticates independently; no process-local sessions. */
 export async function handleCoachMcp(
@@ -198,7 +208,9 @@ export async function handleCoachMcp(
         inputSchema: z.toJSONSchema(schema, { io: "input" }),
         annotations: { readOnlyHint, destructiveHint: false, openWorldHint: false },
         securitySchemes: [{ type: "oauth2", scopes: ["openid", "email"] }],
-        ...(name === "coach_profile" ? { _meta: { "openai/profile": true } } : {}),
+        ...(name === "coach_profile"
+          ? { _meta: { "openai/profile": true }, outputSchema: profileOutputSchema }
+          : {}),
       })),
     });
   if (rpc.method !== "tools/call")
@@ -215,14 +227,15 @@ export async function handleCoachMcp(
     return reply(textResult({ error: "Invalid tool arguments.", issues: args.error.issues }, true));
   try {
     const name = definition[0];
-    if (name === "coach_profile")
-      return reply(
-        textResult({
-          id: backup.ownerId,
-          name: "Overload house coach backup",
-          backupEnabled: process.env.COACH_BACKUP_ENABLED === "true",
-        }),
-      );
+    if (name === "coach_profile") {
+      const profile = {
+        id: backup.ownerId,
+        name: "Overload house coach backup",
+        nickname:
+          process.env.COACH_BACKUP_ENABLED === "true" ? "Coaching enabled" : "Coaching paused",
+      };
+      return reply({ ...textResult(profile), structuredContent: profile });
+    }
     if (name === "coach_instructions")
       return reply(
         textResult({

@@ -136,7 +136,7 @@ it("verifies the authenticated connection while all coaching operations stay pau
   vi.stubEnv("COACH_BACKUP_ENABLED", "false");
   expect((await rpc("initialize")).status).toBe(200);
   const profile = await (await rpc("tools/call", { name: "coach_profile" })).json();
-  expect(JSON.parse(profile.result.content[0].text).backupEnabled).toBe(false);
+  expect(JSON.parse(profile.result.content[0].text).nickname).toBe("Coaching paused");
   const contract = await (await rpc("tools/call", { name: "coach_contract" })).json();
   expect(JSON.parse(contract.result.content[0].text).version).toBe(COACH_CONTRACT_VERSION);
   for (const [name, args] of [
@@ -152,4 +152,22 @@ it("verifies the authenticated connection while all coaching operations stay pau
     expect(result.result.isError).toBe(true);
     expect(JSON.parse(result.result.content[0].text).error).toBe("The ChatGPT backup is disabled.");
   }
+});
+
+it("declares and returns ChatGPT's standard stable profile identity", async () => {
+  const listed = await (await rpc("tools/list")).json();
+  const definition = listed.result.tools.find(
+    (tool: { name: string }) => tool.name === "coach_profile",
+  );
+  expect(definition).toMatchObject({
+    _meta: { "openai/profile": true },
+    outputSchema: { required: ["id"], additionalProperties: false },
+  });
+  const response = await (await rpc("tools/call", { name: "coach_profile" })).json();
+  expect(response.result.structuredContent).toEqual({
+    id: "owner",
+    name: "Overload house coach backup",
+    nickname: "Coaching enabled",
+  });
+  expect(JSON.parse(response.result.content[0].text)).toEqual(response.result.structuredContent);
 });
