@@ -46,9 +46,9 @@ The orchestrator reads identifiers and counts. Each athlete is processed in a fr
    ```
 
 4. Set server-only `COACH_BACKUP_OWNER_ID` to the owner's existing Supabase Auth user UUID, `COACH_BACKUP_CLIENT_ID` to the registered OAuth client ID, and `COACH_BACKUP_RESOURCE_URL` to the exact `https://YOUR_APP/api/coach/mcp` URL. Keep `COACH_BACKUP_ENABLED=false` while connecting. An authenticated owner can initialize the connector and read its profile, instructions and contract while coaching is paused; dispatch, queue, claims, private context and every job operation still return 503. The master `COACH_WORKFLOW_ENABLED` switch gates the entire connector. The ChatGPT runtime needs no Claude trigger credential or coach service token.
-5. In ChatGPT on the web, add a custom MCP server for that URL with OAuth and the registered client ID. A public PKCE client uses token endpoint authentication `none` and needs no client secret. Discovery is advertised through the unauthenticated response's `WWW-Authenticate` header and `/api/coach/oauth/resource`; advanced OAuth settings also allow the verified endpoints to be entered manually. Sign in to Overload as the configured owner and approve the consent screen. Other athletes and other OAuth clients are refused. Keep any client credentials in the connection settings, never in the task prompt. [ChatGPT custom MCP setup](https://developers.openai.com/api/docs/guides/custom-mcp-server).
-6. Test the authenticated cloud connection while paused: read `coach_profile`, `coach_contract`, and `coach_instructions`; verify that the shared contract matches and fresh athlete subagent contexts are available. Only then set `COACH_BACKUP_ENABLED=true`, redeploy, test a controlled takeover and verify the accepted result and attempt receipts before enabling the recurring task. Local tests do not establish account capabilities, unattended tool approvals, report rendering in the cloud runtime or scheduler reliability.
-7. Create the following task in **ChatGPT cloud**, hourly at ten minutes past each hour in Asia/Kolkata. A local desktop automation cannot satisfy the requirement to run while the owner's computer is off. Verify the saved cloud destination, enabled schedule, connection and first real run. Standby checks still use the account's scheduled-task allowance. [Cloud scheduled tasks](https://learn.chatgpt.com/docs/automations).
+5. In ChatGPT on the web, add a custom MCP server for that URL with OAuth and the registered client ID. A public PKCE client uses token endpoint authentication `none` and needs no client secret. Use the authenticated `coach_profile` tool for identity and turn off the optional OIDC identity lookup; that is the verified working configuration for this setup. Discovery is advertised through the unauthenticated response's `WWW-Authenticate` header and `/api/coach/oauth/resource`; advanced OAuth settings also allow the verified endpoints to be entered manually. Sign in to Overload as the configured owner and approve the consent screen. Other athletes and other OAuth clients are refused. Keep any client credentials in the connection settings, never in the task prompt. [ChatGPT custom MCP setup](https://developers.openai.com/api/docs/guides/custom-mcp-server).
+6. Test the authenticated cloud connection while paused: read `coach_profile`, `coach_contract`, and `coach_instructions`; verify that the shared contract matches. Create the hourly cloud task paused with a read-only preflight prompt, and use Scheduled's **Run now** action to prove that a fresh worker can independently call the non-private contract tool. Only then set `COACH_BACKUP_ENABLED=true` and redeploy. Local tests do not establish account capabilities, unattended tool approvals, report rendering in the cloud runtime or scheduler reliability.
+7. Replace the same task's preflight prompt with the full prompt below, keep its schedule paused and run it once. Verify the accepted results and attempt receipts before enabling recurrence, hourly at ten minutes past each hour in Asia/Kolkata. The verified scheduler returns to the same cloud coordinator chat; it holds identifiers and counts only, while each athlete uses a fresh worker. A local desktop automation cannot satisfy the requirement to run while the owner's computer is off. Verify the saved cloud destination, enabled schedule, connection and first real run. Standby checks still use the account's scheduled-task allowance. [Cloud scheduled tasks](https://learn.chatgpt.com/docs/automations).
 
 ## Cloud task prompt
 
@@ -56,6 +56,11 @@ The orchestrator reads identifiers and counts. Each athlete is processed in a fr
 You are the backup house coach for Overload, using the authenticated Overload
 coach connector and my ChatGPT subscription. Run in the cloud, with no local
 computer dependency and no separately billed model API.
+
+Use the installed Overload coach backup cloud plugin. This coordinator returns
+to the same cloud chat and reads only identifiers and counts. On every run, call
+coach_profile first; if coaching is paused or the connection fails, stop and
+report that blocker before accessing jobs or private evidence.
 
 On every scheduled check:
 1. Call coach_dispatch with after=null. If standby=true, leave that daily batch
@@ -65,10 +70,12 @@ On every scheduled check:
    The orchestrator reads only identifiers and counts. If no jobs are eligible,
    finish quietly; if this run dispatched all pages, call coach_batch_complete.
 3. When work is eligible, read coach_instructions and coach_contract. Use a fresh
-   subagent context per athlete to follow the shared workflow through the coach_*
+   subagent context with fork_turns="none" per athlete to follow the shared workflow through the coach_*
    tools. Each worker claims the named job and uses only its returned attempt ID.
    If fresh contexts are unavailable, report that setup blocker before reading
    private athlete evidence. Never mix athletes' evidence or result files.
+   Workers return only job status, counts and concise operational error categories
+   to the coordinator; never return private athlete evidence or report contents.
 4. A null claim means stop that job. The server alone decides whether Claude has
    failed or stopped making progress for ten minutes; never bypass its decision.
    Keep live computations renewed with coach_heartbeat at least every five minutes.
@@ -82,15 +89,17 @@ On every scheduled check:
 
 Stay quiet while Claude is healthy or nothing is actionable. Notify me only for
 an actual takeover, completion, unresolved failure, or action I need to take.
+On an empty standby check, do not post a no-work status update.
 Report counts and concise operational reasons; keep private athlete details out
-of the orchestrator summary. Never change repository files, invoke Claude, bypass
-disabled workflow gates, or use legacy coach write endpoints.
+of the orchestrator summary. Never change repository files, schedules or connector
+permissions; invoke Claude; bypass disabled workflow gates; or use legacy coach
+write endpoints.
 ```
 
 ## Current activation state
 
-Repository implementation and synthetic tests do not activate a hosted task. Deployment, the Supabase OAuth client and audience hook, owner consent, and a verified cloud task are separate setup steps. Do not mark this backup operational until all four have been checked against the owner's account.
+The backup is operational as of 16 October 2026. Production has `COACH_BACKUP_ENABLED=true`. Claude's saved routine reads the current repository entry point and runs at **05:00 Asia/Kolkata**. The enabled **Overload house coach backup** cloud task runs at **:10 every hour in Asia/Kolkata**, with no end date. The owner accepted the account's hourly minimum; ten minutes remains the server's inactivity threshold, not a guaranteed takeover deadline.
 
-The production setup check on 16 October 2026 confirmed the migrated server, OAuth discovery, a registered public PKCE client, and the client-specific audience hook. Claude's saved routine uses the current repository entry point and now runs at 05:00 GMT+05:30. A regular ChatGPT cloud Work chat demonstrated a fresh subagent context with synthetic data. The account's scheduling tool and standalone schedule form offer an hourly minimum, which the owner has accepted.
+The authenticated **Overload coach backup cloud** connection imported all fourteen tools. Live OAuth issuance verified the expected owner, client, issuer, role, numeric expiry and MCP audience; temporary diagnostics were removed. The audience hook's five synthetic cases cover both documented client-ID locations, other clients, ordinary browser sessions and claims precedence. The authenticated profile, shared instructions and contract-version-6 preflight passed both in a regular cloud chat and through Scheduled's **Run now** action. A fresh worker independently called the contract tool during the scheduled preflight.
 
-OAuth consent and token issuance succeed. A live issuance check confirmed the expected owner, client, issuer, role, numeric expiry and MCP audience; temporary diagnostics were then removed. The hook's five synthetic cases cover both documented client-ID locations, other clients, ordinary browser sessions and claims precedence. However, ChatGPT still reports **Authentication update required**, its callback logs a completion error, and the app has no imported tools even when explicitly selected in a cloud chat. The authenticated profile/instructions/contract preflight has therefore not passed. **The backup remains disabled and no recurring coach task has been activated.** Resolve the connection import before testing unattended execution or allowing private evidence access.
+The first full cloud run produced three accepted, persisted results: one prepared session, one unchanged preparation and one clarification request. It stopped two null claims without processing stale jobs, recorded no unresolved failures, drained the queue and marked the batch complete. Each athlete used a fresh worker context. A second run with the final prompt finished quietly, added no attempts or result receipts, and left the completion timestamp unchanged. Recurrence was enabled only after those checks. A clarification remains an athlete action under the existing workflow, rather than a failed backup run.
