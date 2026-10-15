@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Db } from "@/db/types";
-import { getCoachBackup } from "@/lib/env";
+import { getCoachBackupConnection } from "@/lib/env";
 import { COACH_CONTRACT_VERSION, JOB_ERROR_MAX } from "@/domain/coaching-workflow";
 import { handleCoachWorkflow, type CoachWorkflowOptions } from "./coach-workflow-service";
 import {
@@ -136,7 +136,7 @@ export async function handleCoachMcp(
     defer?: CoachWorkflowOptions["defer"];
   } = {},
 ): Promise<Response> {
-  const backup = getCoachBackup();
+  const backup = getCoachBackupConnection();
   if (!backup || process.env.COACH_WORKFLOW_ENABLED !== "true")
     return json({ error: "The ChatGPT coach backup is not configured or is paused." }, 503);
   const origin = request.headers.get("origin");
@@ -216,7 +216,13 @@ export async function handleCoachMcp(
   try {
     const name = definition[0];
     if (name === "coach_profile")
-      return reply(textResult({ id: backup.ownerId, name: "Overload house coach backup" }));
+      return reply(
+        textResult({
+          id: backup.ownerId,
+          name: "Overload house coach backup",
+          backupEnabled: process.env.COACH_BACKUP_ENABLED === "true",
+        }),
+      );
     if (name === "coach_instructions")
       return reply(
         textResult({

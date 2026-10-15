@@ -36,13 +36,15 @@ it.each([
 ])("rejects a wrong or expired identity: %j", (override) => {
   expect(authorizeCoachConnector({ ...claims, ...override }, 2000)).toBe(false);
 });
-it("fails closed when disabled or incompletely configured", () => {
+it("allows the pinned connection to be verified while job execution is paused", () => {
   vi.stubEnv("COACH_BACKUP_ENABLED", "false");
-  expect(authorizeCoachConnector(claims, 1000)).toBe(false);
-  expect(coachResourceMetadata()).toBeNull();
-  vi.stubEnv("COACH_BACKUP_ENABLED", "true");
+  expect(authorizeCoachConnector(claims, 1000)).toBe(true);
+  expect(coachResourceMetadata()?.resource).toBe(resource);
+});
+it("fails closed when incompletely configured", () => {
   vi.stubEnv("COACH_BACKUP_RESOURCE_URL", "http://app.test/api/coach/mcp");
   expect(authorizeCoachConnector(claims, 1000)).toBe(false);
+  expect(coachResourceMetadata()).toBeNull();
 });
 it("publishes public discovery without including a service credential", () => {
   expect(coachResourceMetadata()).toEqual({

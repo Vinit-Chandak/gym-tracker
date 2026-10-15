@@ -1,12 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
-import { getCoachBackup, getSupabasePublicEnv } from "@/lib/env";
+import { getCoachBackupConnection, getSupabasePublicEnv } from "@/lib/env";
 import { getClaimsOptions } from "@/lib/supabase/jwks";
 
 export type VerifiedCoachClaims = Record<string, unknown>;
 
 /** Receives verified claims only. A browser session or a token for another app is insufficient. */
 export function authorizeCoachConnector(claims: VerifiedCoachClaims, now = Date.now()): boolean {
-  const backup = getCoachBackup(),
+  const backup = getCoachBackupConnection(),
     env = getSupabasePublicEnv();
   if (!backup || !env) return false;
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
@@ -34,7 +34,7 @@ export async function verifyCoachConnectorToken(
 }
 
 export function coachResourceMetadata() {
-  const backup = getCoachBackup(),
+  const backup = getCoachBackupConnection(),
     env = getSupabasePublicEnv();
   if (!backup || !env) return null;
   return {

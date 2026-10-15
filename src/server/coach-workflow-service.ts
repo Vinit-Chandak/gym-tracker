@@ -97,8 +97,6 @@ export async function handleCoachWorkflow(
   if (process.env.COACH_WORKFLOW_ENABLED !== "true")
     return json({ error: "The new coaching workflow is not enabled on this server." }, 503);
   const provider = options.provider ?? "claude";
-  if (provider === "chatgpt" && process.env.COACH_BACKUP_ENABLED !== "true")
-    return json({ error: "The ChatGPT backup is disabled." }, 503);
   try {
     const method = request.method;
     if (path.length === 1 && path[0] === "contract" && method === "GET")
@@ -107,6 +105,8 @@ export async function handleCoachWorkflow(
         supportedVersions: SUPPORTED_CONTRACT_VERSIONS,
         result: z.toJSONSchema(coachJobResultSchema, { io: "input", unrepresentable: "any" }),
       });
+    if (provider === "chatgpt" && process.env.COACH_BACKUP_ENABLED !== "true")
+      return json({ error: "The ChatGPT backup is disabled." }, 503);
     /**
      * A worker says which contract it speaks before it is given anything to do.
      *
