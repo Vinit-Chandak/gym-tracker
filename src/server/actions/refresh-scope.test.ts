@@ -43,7 +43,7 @@ const set = {
 };
 
 it("saves a set without rendering the workout again or discarding any screen", async () => {
-  mocks.withUser.mockResolvedValue(set);
+  mocks.withUser.mockResolvedValue({ set, finished: false });
   const result = await logSetAction({
     effortInputVersion: 2,
     workoutExerciseId: "00000000-0000-4000-8000-000000000002",
@@ -63,11 +63,32 @@ it("saves a set without rendering the workout again or discarding any screen", a
 });
 
 it("does the same when a set is deleted", async () => {
-  mocks.withUser.mockResolvedValue(undefined);
+  mocks.withUser.mockResolvedValue({ finished: false });
   await expect(deleteSetAction("00000000-0000-4000-8000-000000000002", 1)).resolves.toEqual({
     ok: true,
   });
   expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.revalidatePath).not.toHaveBeenCalled();
+});
+
+it("re-renders a finished workout's set, saved or deleted, as History counts it (ADR 0049)", async () => {
+  mocks.withUser.mockResolvedValue({ set, finished: true });
+  const saved = await logSetAction({
+    effortInputVersion: 2,
+    workoutExerciseId: "00000000-0000-4000-8000-000000000002",
+    setIndex: 1,
+    setType: "working",
+    weight: 60,
+    reps: 5,
+    rir: 2,
+    durationSeconds: null,
+  });
+  expect(saved).toMatchObject({ ok: true });
+  mocks.withUser.mockResolvedValue({ finished: true });
+  await expect(deleteSetAction("00000000-0000-4000-8000-000000000002", 1)).resolves.toEqual({
+    ok: true,
+  });
+  expect(mocks.refresh).toHaveBeenCalledTimes(2);
   expect(mocks.revalidatePath).not.toHaveBeenCalled();
 });
 

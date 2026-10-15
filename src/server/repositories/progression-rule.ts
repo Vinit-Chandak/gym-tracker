@@ -1,6 +1,8 @@
 import { comparisonScope } from "@/domain/comparable-history";
 import {
+  afterBreak,
   prescriptionLadder,
+  readAddedLoad,
   suggestNext,
   workingSets,
   type Prescription,
@@ -11,10 +13,14 @@ import { bodyLoad } from "@/domain/body-load";
 import { weightStepFor } from "@/domain/sets";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
-import { canConvertLoad, convertLoad, loadStepIn, setInUnit } from "@/lib/units";
+import { canConvertLoad, convertLoad, loadStepIn } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
-import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
+import {
+  lighterSessions,
+  summarizeExerciseEvidence,
+  TRAINING_POLICY,
+} from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { readPerformance } from "@/domain/warmup-ramp";
@@ -37,7 +43,10 @@ export type RuleInput = {
   };
   /** The athlete's latest body weight, for the part of it a bodyweight movement lifts. */
   bodyWeightKg?: number | null;
-  /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
+  /**
+   * The machine in use, or null for an undecided one. A registered bar or set of dumbbells may be
+   * here too: its unit and loads are today's, but which history counts is the exercise's to say.
+   */
   equipment: {
     id: string;
     unit: LoadUnit;
@@ -88,86 +97,156 @@ export type RuleOutcome = {
  */
 export function applyRule(input: RuleInput): RuleOutcome {
   const unit = input.equipment?.unit ?? input.preferredUnit ?? "kg";
-  const defaultStep = weightStepFor({
+  // The library's step is in kilograms: in pounds it is the plate jump, with a machine registered
+  // without its own increment as much as without one.
+  const weightStep = weightStepFor({
     equipmentLoadIncrement: input.equipment?.loadIncrement ?? null,
     exerciseDefaultIncrement: input.exercise.defaultLoadIncrement,
+    unit,
   });
-  // Without a machine the step is the library's, in kilograms: in pounds it is the plate jump.
-  const weightStep = input.equipment ? defaultStep : loadStepIn(defaultStep, unit);
+  const ladder = input.equipment ? (input.ladder ?? null) : null;
+  /**
+   * A load logged in another unit, read in this one. Converted, 100 kg is 220.46 lb, which
+   * nobody can load and which a step turns into 225.46; it lands on the nearest load that
+   * exists here, never on nothing.
+   */
+  const loadIn = (value: number, from: LoadUnit) => {
+    if (from === unit) return value;
+    const converted = convertLoad(value, from, unit);
+    const known = ladder?.known ?? [];
+    if (known.length > 0)
+      return known.reduce((best, load) =>
+        Math.abs(load - converted) < Math.abs(best - converted) ? load : best,
+      );
+    if (!(weightStep > 0) || converted <= 0) return converted;
+    const snapped = Math.round(converted / weightStep) * weightStep;
+    return Math.max(weightStep, Math.round(snapped * 100) / 100);
+  };
   const normalize = (performance: ComparablePerformance): ComparablePerformance | null =>
     performance.sets.some((set) => set.weight !== null && !canConvertLoad(set.unit, unit))
       ? null
-      : { ...performance, sets: performance.sets.map((set) => setInUnit(set, unit)) };
+      : {
+          ...performance,
+          sets: performance.sets.map((set) =>
+            canConvertLoad(set.unit, unit)
+              ? { ...set, unit, weight: set.weight === null ? null : loadIn(set.weight, set.unit) }
+              : set,
+          ),
+        };
   const scope = comparisonScope(input.exercise.loadPortability);
   const now = input.asOf ?? new Date();
-  const history = input.history
-    .filter(
-      (h) =>
-        h.equipmentInstanceId === (input.equipment?.id ?? null) &&
-        h.performedAt.getTime() >= now.getTime() - TRAINING_POLICY.trendDays * 86_400_000,
-    )
+  // Free weights and bodyweight are the same lift at any gym, on whichever bar or none was
+  // registered there; only a machine's numbers are its own (ADR 0006 §5).
+  const comparable = input.history
+    .filter((h) => scope === "exercise" || h.equipmentInstanceId === (input.equipment?.id ?? null))
     .map(normalize)
     .filter((item) => item !== null);
-  const previous = history[0] ?? null;
+  const history = comparable.filter(
+    (h) => h.performedAt.getTime() >= now.getTime() - TRAINING_POLICY.trendDays * 86_400_000,
+  );
+  // Last time is last time, however long ago it was.
+  const previous = comparable[0] ?? null;
   const sameSlot = input.slotLineageId
     ? history.filter((h) => h.plannedSlotLineageId === input.slotLineageId)
     : [];
-  const basisHistory = sameSlot.length > 0 ? sameSlot : history;
-  let basisPerformance = basisHistory[0] ?? null;
-  let basis: SuggestionBasis = basisPerformance
-    ? scope === "equipment_instance"
-      ? "same_equipment"
-      : "exercise"
-    : "none";
-  if (!basisPerformance && scope === "equipment_instance" && input.equipment && input.elsewhere) {
-    basisPerformance = normalize(input.elsewhere);
-    if (basisPerformance) basis = "other_equipment";
-  }
-  const prescription = prescriptionFor(
-    input.planned,
-    input.exercise,
-    basisPerformance,
-    weightStep,
-    unit,
-  );
-  if (prescription && !input.equipment && unit === "lb") {
-    // Explicit programme increments, like library defaults, are specified in kilograms.
-    const rule = input.planned?.progressionRule;
-    const increment =
-      (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
-    if (increment != null) prescription.loadIncrement = loadStepIn(increment, unit);
-  }
-  const ladder = input.equipment ? (input.ladder ?? null) : null;
+  let basisHistory = sameSlot.length > 0 ? sameSlot : history;
   // On a split squat or a pull-up the curve runs through the body as well as what is added to
   // it, so a dumbbell step is read as the small step it is (ADR 0040).
   const body = bodyLoad(input.exercise, input.bodyWeightKg, unit);
-  if (prescription) {
-    prescription.ladder = ladder;
-    prescription.requireKnownLoads = input.locationKind === "home";
-    if (body > 0) prescription.bodyLoad = body;
-  }
-  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
-  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
-  // it as a back-off. Only what the rule decides from is read this way; `previous` is returned
-  // as it was logged, because that is what the athlete is shown.
-  const asTrained = (performance: ComparablePerformance) =>
-    readPerformance(performance.sets, {
-      assisted: ladder?.assisted ?? false,
-      // A plan saved before units were recorded was written in the unit it is read in.
-      planned: (performance.planned ?? []).flatMap(({ weight, unit: from }) =>
-        canConvertLoad(from ?? unit, unit) ? [convertLoad(weight, from ?? unit, unit)] : [],
-      ),
-    });
-  const evidenceHistory = basisHistory.map((h) => ({
-    ...h,
-    sets: asTrained(h),
-    performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
-  }));
+  const prescribe = (from: ComparablePerformance | null) => {
+    const prescription = prescriptionFor(input.planned, input.exercise, from, weightStep, unit);
+    if (prescription) {
+      // Explicit programme increments, like library defaults, are specified in kilograms.
+      prescription.loadIncrement = prescribedIncrement(input.planned, weightStep, unit);
+      prescription.ladder = ladder;
+      prescription.requireKnownLoads = input.locationKind === "home";
+      if (body > 0) prescription.bodyLoad = body;
+    }
+    return prescription;
+  };
   const decisions = (input.changes ?? []).flatMap((record) =>
     record.changes
       .filter((change) => change.scope === `slot:${input.slotLineageId}`)
       .map((change) => ({ ...change, at: record.createdAt })),
   );
+  /**
+   * The working loads a session's own plan prescribed, in the unit the rule reads, with the loads
+   * a temporary change asked for after it was made: that lighter session was the coach's, not a
+   * lighter day of the athlete's own (ADR 0048).
+   */
+  const plannedLoads = (performance: ComparablePerformance) => [
+    // A plan saved before units were recorded was written in the unit it is read in.
+    ...(performance.planned ?? []).flatMap(({ weight, unit: from }) =>
+      canConvertLoad(from ?? unit, unit) ? [loadIn(weight, from ?? unit)] : [],
+    ),
+    ...decisions.flatMap((change) =>
+      change.kind === "temporary" &&
+      performance.performedAt > change.at &&
+      change.unit &&
+      canConvertLoad(change.unit, unit)
+        ? (change.after.loads ?? []).map((item) => convertLoad(item.load, change.unit!, unit))
+        : [],
+    ),
+  ];
+  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
+  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
+  // it as a back-off; and a bodyweight set saved without a load as the body alone. Only what the
+  // rule decides from is read this way; `previous` is returned as it was logged, because that is
+  // what the athlete is shown.
+  const readAs = prescribe(null);
+  const asTrained = (performance: ComparablePerformance) =>
+    readPerformance(
+      readAs ? readAddedLoad(performance.sets, input.exercise, readAs) : performance.sets,
+      {
+        assisted: ladder?.assisted ?? false,
+        planned: plannedLoads(performance),
+      },
+    );
+  const asEvidence = (h: ComparablePerformance) => ({
+    ...h,
+    sets: asTrained(h),
+    planned: plannedLoads(h),
+    performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
+  });
+  // A single session lighter than a load just held in the range is not where the next one
+  // starts (ADR 0048): the rule builds on the session before it, as the coach's trend does.
+  const provisional = prescribe(basisHistory[0] ?? null);
+  const aside = provisional
+    ? new Set(
+        lighterSessions(provisional, basisHistory.map(asEvidence)).map((item) => item.sourceId),
+      )
+    : new Set<string>();
+  if (aside.size > 0)
+    basisHistory = basisHistory.filter((h) => !aside.has(`workout:${h.workoutSessionId}`));
+  let basisPerformance = basisHistory[0] ?? null;
+  // Nothing in the weeks the rule reads, but there was before them: back after a break, from
+  // the last time, the same slot's first (owner decision).
+  const beforeBreak = basisPerformance
+    ? null
+    : ((input.slotLineageId
+        ? comparable.find((h) => h.plannedSlotLineageId === input.slotLineageId)
+        : undefined) ??
+      comparable[0] ??
+      null);
+  if (beforeBreak) basisPerformance = beforeBreak;
+  let basis: SuggestionBasis = basisPerformance
+    ? scope === "equipment_instance"
+      ? "same_equipment"
+      : "exercise"
+    : "none";
+  if (
+    !basisPerformance &&
+    scope === "equipment_instance" &&
+    input.equipment &&
+    input.elsewhere &&
+    // This machine's own session is its history, never a guess from another machine.
+    input.elsewhere.equipmentInstanceId !== input.equipment.id
+  ) {
+    basisPerformance = normalize(input.elsewhere);
+    if (basisPerformance) basis = "other_equipment";
+  }
+  const prescription = prescribe(basisPerformance);
+  const evidenceHistory = basisHistory.map(asEvidence);
   const lastDecision = decisions.filter((change) => change.kind !== "temporary").at(-1);
   const freshHistory = lastDecision
     ? evidenceHistory.filter(
@@ -187,15 +266,17 @@ export function applyRule(input: RuleInput): RuleOutcome {
       .filter((h) => !freshHistory.includes(h))
       .map((h) => `workout:${h.workoutSessionId}`),
   );
-  let suggestion = prescription
-    ? suggestNext(
-        prescription,
-        basisPerformance ? asTrained(basisPerformance) : null,
-        basis,
-        freshHistory,
-        { full: evidenceHistory, spent },
-      )
-    : null;
+  let suggestion = !prescription
+    ? null
+    : beforeBreak
+      ? afterBreak(prescription, asTrained(beforeBreak), basis)
+      : suggestNext(
+          prescription,
+          basisPerformance ? asTrained(basisPerformance) : null,
+          basis,
+          freshHistory,
+          { full: evidenceHistory, spent },
+        );
   const original = basisHistory
     .filter(
       (h) => h.performedAt.getTime() >= now.getTime() - TRAINING_POLICY.cumulativeDays * 86_400_000,
@@ -236,7 +317,8 @@ export function applyRule(input: RuleInput): RuleOutcome {
     .filter(
       (change) =>
         change.exerciseSlug === input.exerciseSlug &&
-        change.equipmentId === (input.equipment?.id ?? null) &&
+        // A free weight's decision holds wherever the lift is done, as its history does.
+        (scope === "exercise" || change.equipmentId === (input.equipment?.id ?? null)) &&
         change.unit &&
         canConvertLoad(change.unit, unit) &&
         (change.before.loads?.length || change.after.loads?.length),
@@ -249,9 +331,11 @@ export function applyRule(input: RuleInput): RuleOutcome {
   const since = lastLoadDecision
     ? basisHistory.filter((h) => h.performedAt > lastLoadDecision.at).length
     : 0;
+  // Back after a break, the baseline a temporary session kept is from before it, and the lighter
+  // return stands; a lasting change made since still sets where the next session starts.
   const referenceLoads =
     lastLoadDecision?.kind === "temporary"
-      ? since <= 1
+      ? since <= 1 && !beforeBreak
         ? lastLoadDecision.before.loads
         : undefined
       : since === 0
@@ -262,9 +346,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     suggestion &&
     prescription &&
     referenceLoads?.some(
-      (load) =>
-        currentWorking[load.index]?.weight !==
-        convertLoad(load.load, lastLoadDecision!.unit!, unit),
+      (load) => currentWorking[load.index]?.weight !== loadIn(load.load, lastLoadDecision!.unit!),
     )
   ) {
     const temporary = lastLoadDecision!.kind === "temporary";
@@ -283,7 +365,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
         return load
           ? {
               ...set,
-              weight: convertLoad(load.load, lastLoadDecision!.unit!, unit),
+              weight: loadIn(load.load, lastLoadDecision!.unit!),
               rir: prescription.rirMin,
             }
           : set;
@@ -345,6 +427,24 @@ function defaultRange(exercise: ExerciseDefaults): [number, number] | null {
   }
 }
 
+/**
+ * The jump a prescription's load moves by, in `unit`: the programme's own increment, else
+ * `weightStep`. Explicit programme increments, like library defaults, are specified in
+ * kilograms, so in pounds each is the plate jump nearest it, whether or not a machine is
+ * registered.
+ */
+export function prescribedIncrement(
+  planned: RulePrescription | null,
+  weightStep: number,
+  unit: LoadUnit,
+): number {
+  const rule = planned?.progressionRule;
+  const increment =
+    (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? planned?.loadIncrement;
+  if (increment == null) return weightStep;
+  return unit === "lb" ? loadStepIn(increment, unit) : increment;
+}
+
 /** Today's prescription for the rule: the programme slot, else the exercise's own defaults. */
 export function prescriptionFor(
   planned: RulePrescription | null,
@@ -384,8 +484,10 @@ export function prescriptionFor(
     durationMaxSeconds: measure === "duration" ? range[1] : null,
     distanceMinMeters: measure === "distance" ? range[0] : null,
     distanceMaxMeters: measure === "distance" ? range[1] : null,
-    rirMin: exercise.defaultRir,
-    rirMax: exercise.defaultRir,
+    // A library RIR between two whole reps (1.5) is the two it sits between, as the screen says
+    // it: nobody logs half a rep in reserve, and a target of 1.5 was never reached exactly.
+    rirMin: exercise.defaultRir === null ? null : Math.floor(exercise.defaultRir),
+    rirMax: exercise.defaultRir === null ? null : Math.ceil(exercise.defaultRir),
     rule:
       measure === "reps"
         ? { kind: "double_progression", loadIncrement: null }

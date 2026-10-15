@@ -4,6 +4,7 @@ import {
   activities,
   dailyRecovery,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   gyms,
   programDays,
@@ -16,6 +17,9 @@ import type { DbOrTx } from "@/db/types";
 import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domain/activity";
 import { paceSecondsPerKm } from "@/domain/pace";
 import type { DateRange } from "@/server/validation/date-range";
+
+import { printedSessionOf, sessionPrintColumns } from "./session-prints";
+import { strengthOnDays, strengthParent } from "./strength-day";
 
 export const TRAINING_RECORD_LIMIT = 500;
 const inRange = (range: DateRange | null) =>
@@ -39,6 +43,17 @@ export async function readWorkouts(
     completedOnly?: boolean;
     /** Require completion by this instant as well as starting within the range. */
     completedBy?: Date;
+    /**
+     * Read `range` as the calendar does: whole local days, each session on the day its parent
+     * froze, not the day its start falls on in the profile's zone today (`strengthOnDays`).
+     */
+    onDays?: boolean;
+    /**
+     * Each workout's print as well (`prints`, by session), for a reader that draws them (the
+     * calendar's day): read in the statement that reads the sessions, so it costs no
+     * statement of its own (ADR 0030).
+     */
+    prints?: boolean;
   } = {},
 ) {
   const matchingExercise = filter.exerciseId
@@ -62,14 +77,17 @@ export async function readWorkouts(
       session: workoutSessions,
       gym: { id: gyms.id, name: gyms.name },
       day: { id: programDays.id, name: programDays.name },
+      title: activities.title,
+      ...(filter.prints ? { print: sessionPrintColumns() } : {}),
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(
       and(
         eq(workoutSessions.userId, userId),
-        inRange(range),
+        filter.onDays && range ? strengthOnDays(range) : inRange(range),
         filter.sessionId ? eq(workoutSessions.id, filter.sessionId) : undefined,
         matchingExercise,
         filter.completedOnly ? isNotNull(workoutSessions.completedAt) : undefined,
@@ -105,6 +123,8 @@ export async function readWorkouts(
               id: equipmentInstances.id,
               name: equipmentInstances.name,
               gymId: equipmentInstances.gymId,
+              /** The machine's type, which says whether its number is load or help. */
+              typeSlug: equipmentTypes.slug,
             },
           })
           .from(workoutExercises)
@@ -113,6 +133,7 @@ export async function readWorkouts(
             equipmentInstances,
             eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
           )
+          .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
           .where(
             and(
               eq(workoutExercises.userId, userId),
@@ -155,10 +176,24 @@ export async function readWorkouts(
   }
   return {
     hasMore,
+    // Only when asked for, so what the coach's API sends is as it was.
+    ...(filter.prints
+      ? {
+          prints: new Map(
+            selected.flatMap((row) =>
+              row.print ? [[row.session.id, printedSessionOf(row.print)] as const] : [],
+            ),
+          ),
+        }
+      : {}),
     workouts: selected.map((row) => ({
       ...row.session,
       gym: row.gym,
       day: row.day,
+      // The saved routine's name it was started from, as it was then: the athlete's own label
+      // (`sessionName`). The shared stats made from this read the day's name, never this one
+      // (ADR 0026).
+      title: row.title,
       exercises: slotsBySession.get(row.session.id) ?? [],
     })),
   };

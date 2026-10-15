@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
@@ -35,21 +34,6 @@ async function save(userId: string, chosen: readonly ActivitySport[]): Promise<v
   });
   revalidatePath("/training");
   revalidatePath("/profile/sports");
-}
-
-/** The onboarding step. Lifting sends you to the gym setup; the other sports do not need it. */
-export async function chooseSportsAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const user = await requireUser();
-  const parsed = parseForm(sportsSchema, formData);
-  if (!parsed.success) return parsed.state;
-  const chosen = parsed.data.sports;
-  if (chosen.length === 0)
-    return { formError: "Choose at least one sport.", values: { sports: "" } };
-  await save(user.id, chosen);
-  redirect(chosen.includes("strength") ? "/welcome/gym" : "/welcome/programme");
 }
 
 /**

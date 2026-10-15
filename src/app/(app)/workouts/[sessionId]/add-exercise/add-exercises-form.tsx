@@ -5,7 +5,7 @@ import { Fragment, useActionState, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { Button } from "@/components/ui/button";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
-import { Glyph } from "@/components/ui/glyphs";
+import { Glyph, machineGlyph, type MachineKind } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
 import { Sheet } from "@/components/ui/sheet";
@@ -14,7 +14,8 @@ import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
-type Machine = { id: string; name: string };
+/** A machine of this gym, and what it is, for its glyph. */
+type Machine = { id: string; name: string } & MachineKind;
 
 /** The most one submission adds; the server holds the same limit. */
 export const MAX_SELECTED = 20;
@@ -335,8 +336,8 @@ export function AddExercisesForm({
                   />
                 ) : place.kind === "machine" ? (
                   <p className="pinned-fact">
-                    <Glyph name="machine" className="glyph-18" />
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                    <Glyph name={machineGlyph(place.machine)} className="glyph-18" />
+                    <span className="min-w-0 [overflow-wrap:break-word]">
                       On {place.machine.name}
                     </span>
                   </p>

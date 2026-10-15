@@ -22,8 +22,10 @@ const client = postgres(database, { max: 1, prepare: false });
 const db = drizzle(client, { schema });
 async function main() {
   try {
-    const [person] = await db.select().from(schema.profiles).where(eq(schema.profiles.id, userId));
-    if (!person || !/^auditpr[a-z0-9]+$/.test(person.username))
+    // Known by the email the audit signed up with: sign-up makes the username from the name.
+    const [account] = await client<{ email: string | null }[]>`
+      select email from auth.users where id = ${userId}`;
+    if (!account?.email || !/^auditpr[a-z0-9]+@local\.test$/.test(account.email))
       throw new Error(
         "Only this programme audit's disposable accounts may receive cloned proposals.",
       );

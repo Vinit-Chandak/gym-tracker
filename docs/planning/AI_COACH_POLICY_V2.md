@@ -53,7 +53,7 @@ These exact windows, matching tolerances, counts and thresholds are engineering 
 | Load across 14 days | Harder: +10% or two real steps, whichever is larger. Easier: −15%. Measured from the earlier retained load |
 | Weekly exercise set count | At most one set and 25% per exercise |
 | Total program working sets | At most 20%; cumulative revisions also checked |
-| Daily rep target | What each set had in hand last session at the target RIR, or one rep on repeat performance; within the range, past it only where the next load step is too coarse |
+| Daily rep target | What each set had in hand last session at the target RIR, or one rep on repeat performance; within the range, two past it at most where the next load step is too coarse, and below it, to five reps at least, while a coarse step builds back (ADR 0048) |
 | Timed/distance target | At most 10%, inside the current range |
 | Run distance and duration | Each checked separately against 10%; cumulative decisions over 14 days checked |
 | Run session distance | Also checked against the longest recorded run in 30 days |

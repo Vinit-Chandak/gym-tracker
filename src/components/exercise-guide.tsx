@@ -27,18 +27,30 @@ function Lines({ items, numbered = false }: { items: readonly string[]; numbered
 }
 
 /**
+ * Whether there is anything to read about doing an exercise besides that its guide is not there
+ * yet: a guide, the athlete's own notes (or that a custom exercise has none), what a shared one
+ * said before its guide, how to log it, a demonstration or a form guide elsewhere.
+ */
+export function guideHasContent(guidance: ExerciseGuidance): boolean {
+  const { guide, notes, ownNotes, logNote, demonstrations, formUrl } = guidance;
+  return Boolean(guide || ownNotes || notes || logNote || formUrl || demonstrations.length > 0);
+}
+
+/**
  * How to do an exercise (plan: exercise technique and media), the same in the workout's
  * Technique tab and in the library: the guide's Setup, Steps, Cues and Common mistakes, then How
  * to log, then the programme's cue when the slot has one, then the demonstration and the way to
  * the library. An exercise with no guide says so plainly rather than inventing one, and keeps
- * everything else that is written about it. Guidance is the same for everyone. A draft, shown
- * only where drafts are, says it awaits review.
+ * everything else that is written about it; where that is not wanted (`sayMissing`), it says
+ * only what there is. Guidance is the same for everyone. A draft, shown only where drafts are,
+ * says it awaits review.
  */
 export function ExerciseGuide({
   guidance,
   programmeCue = null,
   libraryHref,
   sources,
+  sayMissing = true,
 }: {
   guidance: ExerciseGuidance;
   /** The programme slot's cue, in the workout only. */
@@ -47,6 +59,12 @@ export function ExerciseGuide({
   libraryHref?: Route;
   /** Where the guide was checked: the library lists them, the workout leaves them out. */
   sources?: readonly GuideSource[];
+  /**
+   * Say that a shared exercise has no guide yet. The workout's Technique tab does, so it is never
+   * blank; the library does only where drafts are reviewed, since elsewhere a guide awaiting the
+   * owner's review would be announced on nearly every exercise.
+   */
+  sayMissing?: boolean;
 }) {
   const { guide, logNote, notes, ownNotes, formUrl, demonstrations } = guidance;
   const draft = guide?.status === "draft" || demonstrations.some((d) => d.status !== "approved");
@@ -54,9 +72,12 @@ export function ExerciseGuide({
   return (
     <div className="guide">
       {draft && <p className="guide-draft">Draft for review</p>}
-      {/* A custom exercise is the athlete's own: their notes are its guide. */}
-      {!guide && !ownNotes && (
-        <p className="guide-row guide-text text-ink-2">Guide not available yet.</p>
+      {/* A custom exercise is the athlete's own: their notes are its guide, and without any it
+          says so rather than leaving the heading over nothing. */}
+      {!guide && (ownNotes ? !shownNotes : sayMissing) && (
+        <p className="guide-row guide-text text-ink-2">
+          {ownNotes ? "No notes yet." : "Guide not available yet."}
+        </p>
       )}
       {(guide || shownNotes || logNote || programmeCue) && (
         <dl>

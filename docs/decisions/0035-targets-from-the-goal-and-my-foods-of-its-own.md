@@ -5,6 +5,9 @@ macronutrient's sheet lists its foods by grams alone, with no share of the day a
 food, and the card's macronutrients are rows, its goal range drawn on the bar and not written out
 (decisions 2 and 3 there). The colours of decision 8 stand as written here.
 
+**And by [ADR 0046](0046-the-most-eaten-first-in-pages-on-one-food-row.md):** My foods lists its
+saved meals and its foods each the most eaten first, a page at a time (decision 5).
+
 Follows [0033](0033-meals-of-the-day-and-my-foods.md) and
 [0034](0034-food-takes-the-history-tab.md). The owner asked for four things:
 
@@ -41,6 +44,11 @@ change before anything was built.
    - The first time, protein and fat follow it as the target is typed, until either is changed.
    - After that, "Use 55 / 25 / 20" (the goal's own numbers) appears only while the targets
      differ from it, and refills protein and fat.
+
+   Amended after the year audit: a bare "55 / 25 / 20" was read as carbs, protein, fat, so
+   "Use 45 / 25 / 30" looked like the split already set. The split is written with each share
+   named, in the order the grams are ("Carbs 55% · Fat 25% · Protein 20%"), under the goal, and
+   the button beside it reads "Use this split".
 
 3. **Protein per kilogram, fat as a share, carbohydrate the rest.** The split switch is gone.
    - **Protein** stays per kilogram of the newest body weight, as before, so it follows every

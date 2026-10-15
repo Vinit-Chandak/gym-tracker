@@ -50,7 +50,9 @@ export function CustomExerciseForm({
             notes,
           }),
         );
-        if (result.ok) startNavigation(() => router.push(`/exercises/${result.value.id}` as Route));
+        // The new exercise takes the form's place, so Back does not open the form again, empty.
+        if (result.ok)
+          startNavigation(() => router.replace(`/exercises/${result.value.id}` as Route));
         else setError(result.error);
         setSaving(false);
       }}
@@ -95,7 +97,7 @@ export function CustomExerciseForm({
         </legend>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(7rem,45%)),1fr))] gap-2">
           {MUSCLE_GROUPS.map((m) => (
-            <label key={m} className="flex min-h-11 min-w-0 items-center gap-2">
+            <label key={m} className="flex min-h-[var(--ov-target)] min-w-0 items-center gap-2">
               <input
                 type="checkbox"
                 checked={muscles.includes(m)}
@@ -104,7 +106,7 @@ export function CustomExerciseForm({
                 }
                 className="size-5 shrink-0"
               />
-              <span className="min-w-0 [overflow-wrap:anywhere]">{MUSCLE_LABELS[m]}</span>
+              <span className="min-w-0 [overflow-wrap:break-word]">{MUSCLE_LABELS[m]}</span>
             </label>
           ))}
         </div>

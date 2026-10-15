@@ -1,34 +1,41 @@
 import { z } from "zod";
 
-import {
-  BODY_LOAD_UNITS,
-  SEXES,
-  TRAINING_EXPERIENCES,
-  TRAINING_GOALS,
-  type BodyLoadUnit,
-} from "@/domain/types";
+import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
+import { DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
+import { checkTimeZone } from "@/lib/time-zones";
 import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
 
 import { usernameSchema } from "./username";
 
 const asString = (value: unknown): string => (typeof value === "string" ? value : "");
 
-/** Any IANA zone the running platform knows about; the browser proposes one during onboarding. */
-const timeZoneSchema = z.preprocess(
+export const UNKNOWN_TIME_ZONE = "That is not a time zone this app recognises.";
+export const NOT_A_PLACE =
+  "Choose a place, such as Europe/London: an abbreviation or an offset can mean another zone.";
+
+/**
+ * A place's IANA zone, or UTC, spelt as the platform spells it (`checkTimeZone`); the browser
+ * proposes one during onboarding, and Edit profile offers a list of them. Abbreviations and
+ * offsets are refused. Saving also asks Postgres, which dates the graphs, for its spelling.
+ */
+export const timeZoneSchema = z.preprocess(
   asString,
   z
     .string()
     .trim()
     .min(1, "Choose a time zone.")
     .max(64)
-    .refine((zone) => {
-      try {
-        new Intl.DateTimeFormat("en", { timeZone: zone });
-        return true;
-      } catch {
-        return false;
+    .transform((value, ctx) => {
+      const checked = checkTimeZone(value);
+      if (checked.problem) {
+        ctx.addIssue({
+          code: "custom",
+          message: checked.problem === "unknown" ? UNKNOWN_TIME_ZONE : NOT_A_PLACE,
+        });
+        return z.NEVER;
       }
-    }, "That is not a time zone this app recognises."),
+      return checked.zone;
+    }),
 );
 
 /** A typed number, or null when the field was left blank. Ranges are checked once, in kg and cm. */
@@ -98,7 +105,8 @@ const HEIGHT_CM = { min: 50, max: 260 } as const;
  * Weight and height arrive in whichever units the account uses — pounds and feet, or
  * kilograms and centimetres — and leave as kilograms and centimetres, which is how they are
  * stored. `preferredUnit` is part of the same submission, so the conversion never has to
- * guess which units the numbers were typed in.
+ * guess which units the numbers were typed in. Distances arrive as the form shows them; only
+ * what differs from the weight unit's is stored (ADR 0055).
  */
 export const profileInputSchema = z
   .object({
@@ -113,6 +121,8 @@ export const profileInputSchema = z
     username: usernameSchema,
     timeZone: timeZoneSchema,
     preferredUnit: z.enum(BODY_LOAD_UNITS, { error: "Choose kilograms or pounds." }),
+    distanceUnit: z.enum(DISTANCE_UNITS, { error: "Choose kilometres or miles." }),
+    poolUnit: z.enum(POOL_UNITS, { error: "Choose metres or yards." }),
     dateOfBirth: dateOfBirthSchema,
     sex: sexSchema,
     trainingGoal: z.enum(TRAINING_GOALS, { error: "Choose what you are training for." }),
@@ -168,6 +178,8 @@ export const profileInputSchema = z
       username: values.username,
       timeZone: values.timeZone,
       preferredUnit: unit,
+      distanceUnit: values.distanceUnit,
+      poolUnit: values.poolUnit,
       dateOfBirth: values.dateOfBirth,
       sex: values.sex,
       trainingGoal: values.trainingGoal,
@@ -177,18 +189,3 @@ export const profileInputSchema = z
   });
 
 export type ProfileInput = z.output<typeof profileInputSchema>;
-
-/**
- * Account setup is independent of optional coaching measurements and goals. "Which sounds like
- * you?" is asked here, once (plan: onboarding flow): the machines step and the coach's setup both
- * start from the answer instead of asking again.
- */
-export const basicProfileInputSchema = z.object({
-  displayName: z.preprocess(asString, z.string().trim().max(80)),
-  username: usernameSchema,
-  timeZone: timeZoneSchema,
-  preferredUnit: z.enum(BODY_LOAD_UNITS),
-  trainingExperience: z.enum(TRAINING_EXPERIENCES, {
-    error: "Choose the one that sounds like you.",
-  }),
-});

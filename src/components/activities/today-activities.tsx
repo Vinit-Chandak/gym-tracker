@@ -1,13 +1,16 @@
 import { Art } from "@/components/art/art";
-import Link from "@/components/ui/app-link";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
+import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -20,7 +23,7 @@ const MARK: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "swim"> 
 };
 
 /** "Log run", "Log ride", "Log swim": the action names the sport, so three cards never share it. */
-const LOG_LABEL: Record<Exclude<ActivitySport, "strength">, string> = {
+export const LOG_LABEL: Record<Exclude<ActivitySport, "strength">, string> = {
   running: "Log run",
   cycling: "Log ride",
   swimming: "Log swim",
@@ -31,7 +34,7 @@ function Fact({ glyph, children }: { glyph: GlyphName; children: React.ReactNode
   return (
     <span className="meta-fact">
       <Glyph name={glyph} className="glyph-16" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </span>
   );
 }
@@ -44,13 +47,15 @@ function Fact({ glyph, children }: { glyph: GlyphName; children: React.ReactNode
 function EnduranceDetails({
   occurrence,
   coachSummary,
+  units,
 }: {
   occurrence: ScheduledOccurrence;
   coachSummary?: string | null;
+  units: SportUnits;
 }) {
   const prescription = occurrence.prescription;
   const steps = prescription ? expandSteps(prescription) : [];
-  const overall = prescription ? sessionLine(prescription) : null;
+  const overall = prescription ? sessionLine(prescription, units) : null;
   const how = [
     ["Pace", prescription?.running?.paceNote],
     ["Progression", prescription?.running?.progressionNote],
@@ -74,10 +79,16 @@ function EnduranceDetails({
               {steps.map((step, index) => (
                 <li
                   key={`${step.id}-${step.repetition}-${index}`}
-                  className="type-meta-small [overflow-wrap:anywhere] tabular-nums"
+                  className="type-meta-small [overflow-wrap:break-word] tabular-nums"
                 >
-                  <span className="text-ink-2">{PHASE_LABELS[step.phase]}</span> {stepLine(step)}
-                  {step.notes && <span className="text-ink-2"> · {step.notes}</span>}
+                  <span className="text-ink-2">{PHASE_LABELS[step.phase]}</span>{" "}
+                  {stepLine(step, prescription!.sport, units)}
+                  {step.notes && (
+                    <span className="text-ink-2">
+                      {FACT_SEPARATOR}
+                      {step.notes}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>
@@ -89,18 +100,14 @@ function EnduranceDetails({
           {how.map(([label, value], index) => (
             <div key={`${label}-${index}`} className="min-w-0">
               <dt className="type-caption text-ink-2">{label}</dt>
-              <dd className="type-meta [overflow-wrap:anywhere]">{value}</dd>
+              <dd className="type-meta [overflow-wrap:break-word]">{value}</dd>
             </div>
           ))}
         </dl>
       )}
-      <Link
-        href={`/training/programme/occurrences/${occurrence.id}`}
-        className="activity-card-link"
-      >
+      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>
         {occurrence.disposition === "skipped" ? "Undo skip or move" : "Skip or move"}
-        <Glyph name="chevronRight" className="glyph-18" />
-      </Link>
+      </CardLink>
     </div>
   );
 }
@@ -119,30 +126,41 @@ function EnduranceDetails({
  */
 export function EnduranceCard({
   occurrence,
+  day,
   partOf,
   coachSummary,
+  units = DEFAULT_SPORT_UNITS,
 }: {
   /** `preparedByCoach` when the prescription is the coach's preparation for today. */
   occurrence: ScheduledOccurrence & { preparedByCoach?: boolean };
+  /**
+   * The programme day it is the whole of, on a day that only runs: the card takes the day's name
+   * and its focus ("Tempo run", "Threshold"), as a lifting day's card does, rather than the
+   * sport's bare "Run" that Training and the programme never call it.
+   */
+  day?: { name: string; focus: string | null } | null;
   /** The programme day it belongs to, when that is not obvious ("Part of Easy Run + Arms"). */
   partOf?: string | null;
   /** The coach's own words for this sport, on the day it planned. */
   coachSummary?: string | null;
+  /** How the athlete reads this sport's distances; its targets are said in them. */
+  units?: SportUnits;
 }) {
   if (occurrence.sport === "strength") return null;
   const sport = occurrence.sport;
   const logged = occurrence.resolution.kind === "logged";
   const skipped = occurrence.disposition === "skipped";
-  const target = enduranceTarget(occurrence.prescription);
+  const target = enduranceTarget(occurrence.prescription, units);
   const note = enduranceNote(occurrence.prescription);
-  const name = enduranceName(sport);
+  const name = day?.name ?? enduranceName(sport);
+  const focus = day?.focus ?? null;
   const time = occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null;
   // What the Log button adds to its words, so two runs on one day are told apart.
   const said = [
     target
       ? `${target.figure} ${target.unit}`
       : occurrence.prescription
-        ? describePrescription(occurrence.prescription)
+        ? describePrescription(occurrence.prescription, units)
         : null,
     time ? `at ${time}` : null,
   ]
@@ -170,14 +188,15 @@ export function EnduranceCard({
           </span>
         ) : occurrence.prescription ? (
           <span className="type-meta-small text-ink-2">
-            {describePrescription(occurrence.prescription)}
+            {describePrescription(occurrence.prescription, units)}
           </span>
         ) : null
       }
       muted={logged || skipped}
       facts={
-        (note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
+        (focus || note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
           <>
+            {focus && <Fact glyph="target">{holdFigures(focus)}</Fact>}
             {note && <Fact glyph="pace">{note}</Fact>}
             {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
             {time && (
@@ -207,21 +226,20 @@ export function EnduranceCard({
       }
       details={
         logged ? undefined : (
-          <EnduranceDetails occurrence={occurrence} coachSummary={coachSummary} />
+          <EnduranceDetails occurrence={occurrence} coachSummary={coachSummary} units={units} />
         )
       }
       actions={
         logged && occurrence.resolution.kind === "logged" ? (
-          <Link
-            href={`/training/activities/${occurrence.resolution.activityId}`}
-            className="activity-card-link"
+          // Opened from Today, it keeps Today selected and goes back to it (NAV-03).
+          <CardLink
+            href={`/training/activities/${occurrence.resolution.activityId}${originQuery("today")}`}
           >
             See what you logged
-            <Glyph name="chevronRight" className="glyph-18" />
-          </Link>
+          </CardLink>
         ) : occurrence.loggable && !skipped ? (
           <LinkButton
-            href={`/training/new?occurrence=${occurrence.id}`}
+            href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
             variant="tonal"
             className="w-full"
             aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}

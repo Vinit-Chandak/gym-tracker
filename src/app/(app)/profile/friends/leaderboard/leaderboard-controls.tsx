@@ -31,20 +31,26 @@ export type ExerciseChoice = {
 
 /**
  * The leaderboard's controls (plan §3.12, §3.16), every choice in the URL so the server
- * answers with only the rows asked for and a refresh keeps the board: the sport, then for
- * lifting the mode, then what Activity ranks by and over which period, or which movement
- * Exercise ranks and by which of its metrics. Running is one board, so its mode control is
- * not drawn. Native selects, since six labels do not fit one row of pills on a phone. The
- * board dims while the next one loads rather than blanking.
+ * answers with only the rows asked for and a refresh keeps the board: Activity or Exercise,
+ * then for Activity the sport, what it ranks by and over which period, or for Exercise which
+ * movement it ranks and by which of its metrics. The rows keep their order whatever is chosen:
+ * the default board opened on "Activity | Exercise" and a running one on "Lifting | Running",
+ * as though they were two pages. Exercise ranks lifts, so it is offered wherever lifting is,
+ * and choosing it is choosing lifting; the sport belongs to Activity and is asked under it.
+ * Native selects, since six labels do not fit one row of pills on a phone. The board dims
+ * while the next one loads rather than blanking.
  */
 export function LeaderboardControls({
   sport,
+  sports,
   mode,
   activityMetric,
   period,
   exercise,
 }: {
   sport: TrainingSport;
+  /** The viewer's sports, `sport` among them: one sport has no switch. */
+  sports: readonly TrainingSport[];
   mode: BoardMode;
   activityMetric: ActivityMetric;
   period: Period;
@@ -64,19 +70,19 @@ export function LeaderboardControls({
 
   return (
     <Card className={pending ? "opacity-60 transition-opacity" : undefined} aria-busy={pending}>
-      {/* The mode and metric belong to the sport: the other sport starts on its own board. */}
-      <SportSwitch value={sport} resets={["mode", "metric"]} />
-      {sport === "workout" && (
+      {sports.includes("workout") && (
         <SegmentedControl
           name="mode"
           aria-label="Leaderboard"
           columns={2}
           value={mode}
-          // The metric belongs to the mode: the other board picks its own default.
+          // The metric belongs to the mode: the other board picks its own default. Exercise
+          // ranks lifts, so choosing it from a running board turns to lifting.
           onChange={(next) =>
             navigate((params) => {
               params.set("mode", next);
               params.delete("metric");
+              if (next === "exercise") params.set("sport", "workout");
             })
           }
           options={BOARD_MODES.map((value) => ({ value, label: BOARD_MODE_LABELS[value] }))}
@@ -84,6 +90,8 @@ export function LeaderboardControls({
       )}
       {mode === "activity" ? (
         <>
+          {/* The metric belongs to the sport: the other sport starts on its own board. */}
+          <SportSwitch value={sport} sports={sports} resets={["mode", "metric"]} />
           <Field label="Rank by">
             <Select
               value={activityMetric}

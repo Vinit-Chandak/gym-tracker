@@ -2,11 +2,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
+import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import {
+  durationTargetParts,
   expandSteps,
   prescriptionTotals,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
+import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 
 /**
  * What today's endurance session asks for (plan §8.2 item 5).
@@ -43,37 +47,59 @@ function minutes(ms: number): string {
   return `${Number.isInteger(whole) ? whole : whole.toFixed(1)} min`;
 }
 
-function metres(value: number): string {
-  return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)} km` : `${value} m`;
-}
-
 function range(low: number, high: number, format: (value: number) => string): string {
   return low === high ? format(high) : `${format(low)}–${format(high)}`;
 }
 
-/** "8 × 50 m · freestyle": one written step, said the way it was written. */
-export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
+/**
+ * "37–47 min", "20 s": a duration or its range with its unit said once, as the card's figure and
+ * every other screen say it. Each end with its own unit ("37 min–47 min") read as two targets.
+ */
+function durationLine(ms: readonly [number, number]): string {
+  const { figure, unit } = durationTargetParts(ms);
+  return `${figure}\u00a0${unit}`;
+}
+
+/**
+ * "Effort 2–3 of 5". A prescribed effort is on the athlete's own five steps since 0034, and it
+ * says so, so the target reads against the answer the log form asks for. It said "of 10" after
+ * the scale changed, which made an easy 2 read as almost nothing.
+ */
+function effortLine([low, high]: readonly [number, number]): string {
+  // Held whole where a line wraps: never "Effort 2–3 of / 5".
+  return holdFigures(`Effort ${range(low, high, String)} of\u00a0${PRESCRIBED_EFFORT.max}`);
+}
+
+/** "8 × 50 m · freestyle": one written step, its distance in the athlete's own unit. */
+export function stepLine(
+  step: ReturnType<typeof expandSteps>[number],
+  sport: EndurancePrescription["sport"],
+  units: SportUnits,
+): string {
   const target =
     step.target.kind === "duration"
-      ? range(step.target.ms[0], step.target.ms[1], minutes)
-      : range(step.target.metres[0], step.target.metres[1], metres);
-  const parts = [ACTION_LABELS[step.action], target];
-  // A prescribed effort is out of ten; the athlete's own report is out of five, so each says
-  // its scale rather than sharing a bare "Effort".
-  if (step.effort) parts.push(`Effort ${range(step.effort[0], step.effort[1], String)} of 10`);
+      ? durationLine(step.target.ms)
+      : formatSportDistance(step.target.metres, sport, units);
+  // Held at its dash where the line wraps, as the effort is: never "37–" over "47 min".
+  const parts = [ACTION_LABELS[step.action], holdFigures(target)];
+  if (step.effort) parts.push(effortLine(step.effort));
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
-  return parts.join(" · ");
+  return parts.join(FACT_SEPARATOR);
 }
 
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
-export function sessionLine(prescription: EndurancePrescription): string | null {
+export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
+  // Each range held at its dash where the line wraps, as the programme's run line holds them
+  // (`runSummary`): never "4.7–6.0 mi · 37–" over "47 min".
   const parts = [
-    distanceMetres ? range(distanceMetres[0], distanceMetres[1], metres) : null,
-    durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
-    effort ? `Effort ${range(effort[0], effort[1], String)} of 10` : null,
+    distanceMetres
+      ? holdFigures(formatSportDistance(distanceMetres, prescription.sport, units))
+      : null,
+    durationMs ? holdFigures(durationLine(durationMs)) : null,
+    effort ? effortLine(effort) : null,
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
 export type ActivityPlanProps = {
@@ -84,6 +110,13 @@ export type ActivityPlanProps = {
   preparation?: { summary: string; note: string } | null;
   /** Said out loud rather than left blank when the coach has not prepared this one. */
   preparedByCoach?: boolean;
+  /**
+   * Whose plan it is, said beside it. Off for a session of a programme the athlete has moved on
+   * from (ADR 0054): it is no longer "Your programme", and the line under it names whose it was.
+   */
+  showSource?: boolean;
+  /** How the athlete reads this sport's distances. */
+  units?: SportUnits;
 };
 
 export function ActivityPlan({
@@ -91,29 +124,36 @@ export function ActivityPlan({
   prescription,
   preparation = null,
   preparedByCoach = false,
+  showSource = true,
+  units = DEFAULT_SPORT_UNITS,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   const steps = prescription ? expandSteps(prescription) : [];
   const totals = prescription ? prescriptionTotals(prescription) : null;
-  const overall = prescription ? sessionLine(prescription) : null;
+  const overall = prescription ? sessionLine(prescription, units) : null;
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[sport]} · planned
+      {/* Whose plan it is stands beside what it asks for, and goes under it before the words
+          beside it would have less than a few words' room (large text), where it ran over them. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-[1_1_8rem]">
+          <p className="type-meta-small text-ink-2">
+            {ACTIVITY_SPORT_LABELS[sport]}
+            {FACT_SEPARATOR}planned
           </p>
           {prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">
+            <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
               {prescription.title}
             </h2>
           )}
           {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
         </div>
-        <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-          {preparedByCoach ? "From your coach" : "Your programme"}
-        </Badge>
+        {showSource && (
+          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
+            {preparedByCoach ? "From your coach" : "Your programme"}
+          </Badge>
+        )}
       </div>
 
       {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}
@@ -123,7 +163,7 @@ export function ActivityPlan({
           {steps.map((step, index) => (
             <li key={`${step.id}-${step.repetition}-${index}`} className="text-sm">
               <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>{" "}
-              <span className="tabular-nums">{stepLine(step)}</span>
+              <span className="tabular-nums">{stepLine(step, prescription!.sport, units)}</span>
               {step.notes && <span className="text-ink-muted"> — {step.notes}</span>}
             </li>
           ))}

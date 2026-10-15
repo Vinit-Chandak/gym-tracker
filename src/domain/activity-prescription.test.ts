@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_SPORT_UNITS, toMetres } from "@/lib/distance-units";
+
 import {
   describePrescription,
+  durationTargetParts,
   expandSteps,
   parsePrescription,
+  prescriptionTarget,
   prescriptionTotals,
   simplePrescription,
   type PrescriptionNode,
 } from "./activity-prescription";
 
 const MINUTE = 60_000;
+const KM = DEFAULT_SPORT_UNITS;
+const MILES = { distanceUnit: "mi", poolUnit: "yd" } as const;
 
 const step = (overrides: Partial<PrescriptionNode> & { id: string }): PrescriptionNode =>
   ({
@@ -55,7 +61,7 @@ describe("written sessions", () => {
       prescribedRestMs: 0,
       steps: 10,
     });
-    expect(describePrescription(result.value)).toBe("5 × 2 min");
+    expect(describePrescription(result.value, KM)).toBe("5 × 2 min");
   });
 
   /** AT-STRUCT-04: eight fifties is 400 m and seven rests, not eight. */
@@ -107,9 +113,105 @@ describe("written sessions", () => {
       durationMs: [30 * MINUTE, 30 * MINUTE],
       effort: [3, 4],
     });
-    expect(describePrescription(easy)).toBe("30 minutes");
+    expect(describePrescription(easy, KM)).toBe("30 min");
     const fiveK = simplePrescription("running", { distanceMetres: [5000, 5000] });
-    expect(describePrescription(fiveK)).toBe("5 km");
+    expect(describePrescription(fiveK, KM)).toBe("5 km");
+  });
+});
+
+/**
+ * A target reads in the athlete's own unit for its sport, rounded for reading, whatever unit
+ * it was written in. These summaries used to print raw kilometres for every sport.
+ */
+describe("what a session is said to ask for", () => {
+  const swimSet = (yards: number, repetitions: number) =>
+    prescription("swimming", [
+      {
+        kind: "repeat",
+        id: "block",
+        repetitions,
+        restBetweenMs: 20_000,
+        steps: [
+          step({
+            id: "work",
+            action: "swim",
+            target: { kind: "distance", metres: [toMetres(yards, "yd"), toMetres(yards, "yd")] },
+          }) as never,
+        ],
+      },
+    ]);
+
+  it("says a swim in metres or yards, never in kilometres", () => {
+    const thousandYards = simplePrescription("swimming", {
+      distanceMetres: [toMetres(1000, "yd"), toMetres(1000, "yd")],
+    });
+    expect(describePrescription(thousandYards, KM)).toBe("914 m");
+    expect(describePrescription(thousandYards, MILES)).toBe("1,000 yd");
+    const mile = simplePrescription("swimming", { distanceMetres: [1500, 1500] });
+    expect(describePrescription(mile, KM)).toBe("1,500 m");
+  });
+
+  it("says a run in kilometres or miles, rounded for reading", () => {
+    const fiveMiles = simplePrescription("running", {
+      distanceMetres: [toMetres(5, "mi"), toMetres(5, "mi")],
+    });
+    expect(describePrescription(fiveMiles, KM)).toBe("8.05 km");
+    expect(describePrescription(fiveMiles, MILES)).toBe("5 mi");
+  });
+
+  it("says a repeated block in the unit its sport is read in", () => {
+    const fifties = swimSet(50, 8);
+    expect(fifties.ok).toBe(true);
+    if (!fifties.ok) return;
+    expect(describePrescription(fifties.value, MILES)).toBe("8 × 50 yd");
+    expect(describePrescription(fifties.value, KM)).toBe("8 × 46 m");
+  });
+
+  it("gives a range in full, distance and duration alike", () => {
+    const easy = simplePrescription("running", { durationMs: [25 * MINUTE, 30 * MINUTE] });
+    expect(describePrescription(easy, KM)).toBe("25–30 min");
+    const between = simplePrescription("cycling", { distanceMetres: [20_000, 25_000] });
+    expect(prescriptionTarget(between, KM)).toEqual({ figure: "20–25", unit: "km" });
+  });
+
+  it("says a block of seconds in seconds rather than as no minutes at all", () => {
+    expect(durationTargetParts([20_000, 20_000])).toEqual({ figure: "20", unit: "s" });
+    expect(durationTargetParts([90_000, 90_000])).toEqual({ figure: "1.5", unit: "min" });
+    const strides = prescription("running", [
+      {
+        kind: "repeat",
+        id: "block",
+        repetitions: 6,
+        restBetweenMs: null,
+        steps: [
+          step({ id: "stride", target: { kind: "duration", ms: [20_000, 20_000] } }) as never,
+        ],
+      },
+    ]);
+    expect(strides.ok).toBe(true);
+    if (!strides.ok) return;
+    expect(describePrescription(strides.value, KM)).toBe("6 × 20 s");
+  });
+
+  it("keeps the unit a distance was written in, for the editor and nothing else", () => {
+    const written = parsePrescription({
+      prescriptionVersion: 1,
+      sport: "running",
+      sessionTargets: {
+        distanceMetres: [toMetres(5, "mi"), toMetres(5, "mi")],
+        distanceUnit: "mi",
+      },
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+    expect(written.value.sessionTargets.distanceUnit).toBe("mi");
+    // Read in kilometres all the same: the athlete reads in their unit, not the author's.
+    expect(describePrescription(written.value, KM)).toBe("8.05 km");
+    // A prescription written without one gains no key it did not have.
+    expect(
+      "distanceUnit" in
+        simplePrescription("running", { distanceMetres: [5000, 5000] }).sessionTargets,
+    ).toBe(false);
   });
 });
 

@@ -68,6 +68,7 @@ import {
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   finishSession,
@@ -142,6 +143,10 @@ type Trend = {
   stepEvidenceIds: string[];
   evidenceIds: string[];
   revert: { load: number; loads: (number | null)[]; evidenceIds: string[] } | null;
+  /** Each working set's baseline load: a heavier attempt counts at the session's (ADR 0048). */
+  latestWorkLoads?: (number | null)[];
+  /** The coarse step the current load came from, and the reps it counts from (ADR 0048). */
+  landing?: { load: number; from: number; floor: number } | null;
 };
 type Slot = {
   slotId: string;
@@ -937,7 +942,7 @@ export class CoachSimulation {
     if (p.skipEvery && a.trainingDays % p.skipEvery === 0) {
       await this.as(a, async (tx) => {
         for (const part of pendingParts(schedule.state, ref))
-          await recordSlotEvent(tx, a.userId, schedule.program.id, ref, part, "skipped", {
+          await skipSlotPart(tx, a.userId, schedule.program, ref, part, {
             occurredOn: today,
             note: "Busy day.",
           });
@@ -1182,12 +1187,15 @@ export class CoachSimulation {
     const today = todayInTimeZone(p.timeZone);
     await this.as(a, async (tx) => {
       const schedule = (await getSchedule(tx, a.userId))!;
+      // The running programme's run: one of a block since replaced is closed (ADR 0054), and a
+      // cycle and day alone would find the old block's as readily as this one's.
       const [occurrence] = await tx
         .select()
         .from(plannedOccurrences)
         .where(
           and(
             eq(plannedOccurrences.userId, a.userId),
+            eq(plannedOccurrences.familyId, schedule.program.familyId),
             eq(plannedOccurrences.sport, "running"),
             eq(plannedOccurrences.cycleIndex, ref.cycleIndex),
             eq(plannedOccurrences.cycleDayIndex, ref.dayIndex),
@@ -1422,6 +1430,15 @@ export function session(context: Context, strategy: Persona["coach"]): Plan {
     const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
     const hold = Array.from({ length: p.sets }, (_, i) => {
       const prior = latest[i];
+      // Where the set counts: a heavier attempt that fell short goes back to the session's load.
+      const weight = trend?.latestWorkLoads?.[i] ?? prior?.weight ?? known;
+      // After a coarse step the reps count from its landing, below the range (ADR 0048).
+      const landed =
+        trend?.landing && weight !== null && Math.abs(trend.landing.load - weight) < 0.05
+          ? trend.landing.floor
+          : null;
+      const bounds: [number | null, number | null] | null =
+        range && landed !== null ? [Math.min(range[0] ?? landed, landed), range[1]] : range;
       const value =
         p.type === "reps"
           ? prior?.reps
@@ -1437,10 +1454,10 @@ export function session(context: Context, strategy: Persona["coach"]): Plan {
             : rule?.distanceMeters) ??
         range?.[0] ??
         (p.type === "reps" ? 8 : 30);
-      const target = clamp(value ?? fallback, range);
+      const target = clamp(value ?? fallback, bounds);
       return {
         setType: "working",
-        weight: prior?.weight ?? known,
+        weight,
         reps: p.type === "reps" ? target : null,
         durationSeconds: p.type === "duration" ? target : null,
         distanceMeters: p.type === "distance" ? target : null,

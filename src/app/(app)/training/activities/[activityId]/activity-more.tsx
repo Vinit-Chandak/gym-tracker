@@ -7,7 +7,7 @@ import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 
-import { DeleteActivityButton } from "./delete-button";
+import { DeleteActivityButton, type AnsweredOnDelete } from "./delete-button";
 
 /**
  * What can be done to a logged activity, behind More (board Run): correct it, or delete it.
@@ -18,14 +18,15 @@ export function ActivityMore({
   title,
   editHref,
   activityId,
-  settlesOccurrence,
+  answered,
 }: {
   /** What More is called aloud: "Correct or delete this run". */
   label: string;
   title: string;
   editHref: Route;
   activityId: string;
-  settlesOccurrence: boolean;
+  /** What deleting it does to the planned session it answered, said before it is done. */
+  answered: AnsweredOnDelete;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -49,7 +50,7 @@ export function ActivityMore({
           </li>
         </ul>
         <div className="mt-3">
-          <DeleteActivityButton activityId={activityId} settlesOccurrence={settlesOccurrence} />
+          <DeleteActivityButton activityId={activityId} answered={answered} />
         </div>
       </Sheet>
     </>

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -26,7 +26,9 @@ export async function createGymAction(
   if (!parsed.success) return parsed.state;
   const gym = await withUser(getDb(), user.id, (tx) => createGym(tx, user.id, parsed.data));
   revalidateGyms(gym.id);
-  redirect(`/gyms/${gym.id}`);
+  // The new gym takes the form's place in the history, so Back (the phone's too) goes where
+  // New gym was opened from rather than into the form again, empty.
+  redirect(`/gyms/${gym.id}`, RedirectType.replace);
 }
 
 export async function updateGymAction(

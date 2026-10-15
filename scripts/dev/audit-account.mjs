@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
-import { chooseOnboardingUnits, addStarterChestPress } from "./audit-controls.mjs";
+import { addStarterChestPress, answerFirstStep, choosePlace, signUp } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3101";
 const database =
@@ -59,33 +60,35 @@ const checkWidth = async (page) => {
   }));
   assert.ok(width.document <= width.viewport + 1, `Page overflows: ${JSON.stringify(width)}`);
 };
-async function signup(page, account, gym = true) {
+/**
+ * A new account through sign-up and setup (ADR 0053): a lifter at a gym who logs their own
+ * workouts, or an athlete who only runs and is finished after the first step. The username is
+ * made from the name, so it is read back by the email.
+ */
+async function signup(page, account, lifts = true) {
   await go(page, "/signup");
-  await page.getByLabel("Name", { exact: true }).fill(account.name);
-  await page.getByLabel("Username", { exact: true }).fill(account.username);
-  await page.getByLabel("Email", { exact: true }).fill(account.email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByLabel("Confirm password", { exact: true }).fill(password);
-  await button(page, "Create account").click();
-  await page.waitForURL(/\/welcome$/);
-  await expect(page.getByLabel("What should we call you?")).toHaveValue(account.name);
-  await chooseOnboardingUnits(page, "lb");
-  await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
-  await button(page, "Continue").click();
-  await page.waitForURL(/\/welcome\/sports$/);
-  if (!gym) await page.getByRole("checkbox", { name: "Strength", exact: true }).click();
-  await button(page, "Continue").click();
-  if (gym) {
-    await page.waitForURL(/\/welcome\/gym$/);
-    await page.getByLabel("Name", { exact: true }).fill(`${account.username} first gym`);
-    await button(page, "Add gym").click();
-    await page.waitForURL(/\/welcome\/equipment\?gym=/);
+  await signUp(page, { name: account.name, email: account.email, password });
+  // The name given at sign-up is not asked for again: it greets.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Welcome, ${account.name.split(" ")[0]}`,
+  );
+  await answerFirstStep(page, {
+    sports: lifts ? ["Strength", "Running"] : ["Running"],
+    weight: "lb",
+    timeZone: "America/New_York",
+  });
+  if (lifts) {
+    await choosePlace(page, { name: `${account.key} first gym` });
     await addStarterChestPress(page);
+    await page.waitForURL(/\/welcome\/programme$/);
+    await button(page, "Log my own workouts").click();
+    await page.waitForURL(/\/today$/);
   }
-  await page.waitForURL(/\/welcome\/programme$/);
-  await button(page, "Just track my workouts").click();
-  await page.waitForURL(/\/today$/);
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  const [profile] = await sql`select p.id, p.username from profiles p
+    join auth.users u on u.id = p.id where u.email = ${account.email}`;
+  account.id = profile.id;
+  account.username = profile.username;
 }
 async function deleteInUi(page) {
   await go(page, "/profile/delete-account");
@@ -97,9 +100,7 @@ async function deleteInUi(page) {
 }
 
 async function runDevice(device) {
-  const browser = await (device === "iphone" ? webkit : chromium).launch({
-    executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-  });
+  const browser = await launch(device === "iphone" ? "webkit" : "chromium");
   const contexts = [];
   const accounts = [];
   const freshPage = async () => {
@@ -129,10 +130,10 @@ async function runDevice(device) {
     return page;
   };
   const makeAccount = (suffix) => {
-    const username = `auditac${device[0]}${Date.now().toString(36)}${suffix}`;
+    const key = `auditac${device[0]}${Date.now().toString(36)}${suffix}`;
     const account = {
-      username,
-      email: `${username}@local.test`,
+      key,
+      email: `${key}@local.test`,
       name: `Alexandra ${suffix} — strength, swimming and everyday wellbeing`,
     };
     accounts.push(account);
@@ -172,11 +173,10 @@ async function runDevice(device) {
     await step("signup-onboarding-imperial", async () => {
       await signup(page, account);
       const [profile] =
-        await sql`select id, preferred_unit, time_zone, onboarded_at from profiles where username = ${account.username}`;
+        await sql`select preferred_unit, time_zone, onboarded_at from profiles where id = ${account.id}`;
       assert.equal(profile.preferred_unit, "lb");
       assert.equal(profile.time_zone, "America/New_York");
       assert.ok(profile.onboarded_at);
-      account.id = profile.id;
       const [machine] =
         await sql`select unit from equipment_instances where user_id = ${account.id}`;
       assert.equal(machine.unit, "lb");
@@ -204,17 +204,18 @@ async function runDevice(device) {
     );
     await step("profile-validation-conversion-and-save", async () => {
       await go(page, "/profile/edit");
-      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
+      // The time zone is chosen from a list, so an impossible body weight is what is refused.
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("1200");
       await page.getByLabel("Feet", { exact: true }).fill("5");
       await page.getByLabel("Inches", { exact: true }).fill("10");
       await page.getByLabel("Date of birth", { exact: true }).fill("1994-06-15");
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
-      await page.getByLabel("Time zone", { exact: true }).fill("Invalid/Time_Zone");
+      await page.getByLabel("Time zone", { exact: true }).selectOption("America/New_York");
       await button(page, "Save").click();
       await expect(page.getByRole("alert").first()).toBeVisible();
-      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("170");
+      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("1200");
       await expect(page.getByLabel("Date of birth", { exact: true })).toHaveValue("1994-06-15");
-      await page.getByLabel("Time zone", { exact: true }).fill("America/New_York");
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
       await choose(page, "preferredUnit", "kg");
       assert.ok(
         Math.abs(
@@ -310,6 +311,14 @@ async function runDevice(device) {
       await expect(page.getByRole("link", { name: "Add machine", exact: true })).toBeVisible();
     });
     await step("privacy-switches-persist", async () => {
+      // A ride or swim switch is offered only for a sport the athlete has on: turn both on.
+      await go(page, "/profile/sports");
+      for (const sport of ["Cycling", "Swimming"]) {
+        const box = page.getByRole("checkbox", { name: sport, exact: true });
+        if (!(await box.isChecked())) await box.click();
+      }
+      await button(page, "Save").click();
+      await settle(page);
       await go(page, "/profile/privacy");
       for (const label of [
         "Share training with followers",
@@ -407,11 +416,11 @@ try {
   for (const device of process.env.AUDIT_DEVICE
     ? [process.env.AUDIT_DEVICE]
     : ["android", "iphone"])
-    await runDevice(device);
+    if (!skipDevice(device, device === "iphone" ? "webkit" : "chromium")) await runDevice(device);
   const passed = results.every((result) => result.passed) && runtimeErrors.length === 0;
   await writeFile(
     `${output}/results.json`,
-    JSON.stringify({ passed, results, runtimeErrors }, null, 2),
+    JSON.stringify({ passed, results, runtimeErrors, skipped: skippedDevices }, null, 2),
   );
   console.log(
     JSON.stringify({
@@ -419,6 +428,7 @@ try {
       checks: results.length,
       failed: results.filter((result) => !result.passed).length,
       runtimeErrors: runtimeErrors.length,
+      skipped: skippedDevices.map((row) => row.device),
     }),
   );
   if (!passed) process.exitCode = 1;

@@ -17,6 +17,8 @@ const PROGRAM: TodayPlan["program"] = {
   startDate: "2026-09-08",
   endDate: null,
   weeks: 8,
+  repeats: null,
+  cycles: 8,
   startDayIndex: 1,
   notes: null,
 };
@@ -43,6 +45,7 @@ const PREVIOUS_DAY: NonNullable<TodayPlan["finishedToday"]> = {
   name: "Upper A",
   focus: "Chest, back, shoulders",
   includesRun: false,
+  cycleIndex: 1,
 };
 
 const EXERCISES: TodayPlan["suggestedExercises"] = [
@@ -128,7 +131,10 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     today: "2026-09-11",
     progress: { total: 56, completed: 2, skipped: 0, remaining: 54, currentCycle: 1 },
     behind: 0,
+    missed: [],
+    pickUpDay: null,
     projectedEnd: null,
+    finishedOn: null,
     suggestion: {
       slot: { cycleIndex: 1, dayIndex: 3 },
       restSlotsBefore: [],
@@ -138,6 +144,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     suggestedExercises: EXERCISES,
     nextTrainingDay: null,
     sessionStatus: "completed",
+    sessionPrint: null,
     finishedToday: null,
     // The board's week: two days done, this one offered, four to come.
     cycleDays: Array.from({ length: 7 }, (_, index) => ({
@@ -174,6 +181,7 @@ const RUN_OCCURRENCE: ScheduledOccurrence = {
   originalWeekIndex: 1,
   originalScheduledOn: "2026-09-11",
   resolution: { kind: "incomplete" },
+  closed: false,
   loggable: true,
 };
 
@@ -184,39 +192,132 @@ const OPEN_SESSION = {
   gymName: "Anytime Fitness",
   programDayId: DAY.id,
   dayName: DAY.name,
+  title: null,
   cycleIndex: 1,
   startedAt: new Date("2026-09-11T07:05:00.000Z"),
   completedAt: null,
   exerciseCount: 4,
   setCount: 5,
+  workingSetCount: 5,
+  lastSetAt: new Date("2026-09-11T07:41:00.000Z"),
+  // The curls done and two pushdowns in: the band inks them as the workout's print does.
+  print: {
+    drills: 0,
+    warmupCompleted: false,
+    completed: false,
+    exercises: EXERCISES.map((exercise, index) => ({
+      slotId: exercise.programExerciseId,
+      exerciseId: exercise.exerciseId,
+      planned: exercise.sets,
+      work: [3, 2][index] ?? 0,
+      warm: 0,
+      skipped: false,
+      supersetGroup: exercise.supersetGroup,
+    })),
+  },
+};
+
+/** A day that only runs, named for itself on its card: `?state=run`. */
+const TEMPO_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000008",
+  dayIndex: 4,
+  name: "Tempo run",
+  focus: "Threshold",
+  includesLifting: false,
+  timeNote: null,
+  effortNote: null,
+  notes: null,
+};
+
+const TEMPO_OCCURRENCE: ScheduledOccurrence = {
+  ...RUN_OCCURRENCE,
+  id: "00000000-0000-4000-8000-000000000009",
+  prescription: endurancePrescriptionSchema.parse({
+    prescriptionVersion: PRESCRIPTION_VERSION,
+    sport: "running",
+    sessionTargets: {
+      distanceMetres: [7400, 9500],
+      durationMs: [37 * 60_000, 47 * 60_000],
+      effort: [3, 4],
+    },
+    running: { paceNote: "Half-marathon pace" },
+  }),
+};
+
+/** A rest day, and a ride nobody scheduled logged on it this morning: `?state=rest`. */
+const REST_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000010",
+  dayIndex: 7,
+  name: "Rest",
+  focus: null,
+  includesLifting: false,
+  includesRun: false,
+  timeNote: null,
+  effortNote: null,
+  notes: null,
 };
 
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
   // The states of a day that lifts and runs. The default is the one the run used to
   // disappear in: workout finished, run still owed. `next` is the day offered after the one
-  // before it was finished today, which is up next rather than today's.
+  // before it was finished today, which is up next rather than today's. `run` and `rest` are a
+  // day that only runs, and a rest day with a ride already logged on it.
   const { state } = await props.searchParams;
+  const onOffer =
+    state === "run"
+      ? plan({ suggestedDay: TEMPO_DAY, suggestedExercises: [], sessionStatus: "pending" })
+      : state === "rest"
+        ? plan({ suggestedDay: REST_DAY, suggestedExercises: [], sessionStatus: "pending" })
+        : null;
 
   return (
     <PreviewShell tab="/today">
       <TodayView
         today="2026-09-11"
         timeZone="Asia/Kolkata"
+        userId="preview"
+        // Mid-workout, so the open session reads as being trained rather than left open.
+        now={new Date("2026-09-11T07:45:00.000Z")}
         gyms={[
           { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true },
           { id: "g2", name: "Home", kind: "home", isDefault: false },
         ]}
         plan={
-          state === "done"
+          onOffer ??
+          (state === "done"
             ? plan()
             : plan({
                 sessionStatus: "pending",
                 finishedToday: state === "next" ? PREVIOUS_DAY : null,
-              })
+              }))
         }
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
-        programmeOccurrences={[RUN_OCCURRENCE]}
+        programmeOccurrences={
+          state === "rest" ? [] : [state === "run" ? TEMPO_OCCURRENCE : RUN_OCCURRENCE]
+        }
+        logged={
+          state === "rest"
+            ? [
+                {
+                  id: "00000000-0000-4000-8000-000000000011",
+                  sport: "cycling",
+                  startedAt: new Date("2026-09-11T04:18:00.000Z"),
+                  durationMs: 3_092_000,
+                  distanceMetres: null,
+                  environment: "indoor",
+                  occurrenceId: null,
+                  sessionId: null,
+                  programDayId: null,
+                  dayName: null,
+                  title: null,
+                  gymName: null,
+                },
+              ]
+            : []
+        }
         // Today-Coach: the coach planning this session since nine.
         coach={
           state === "coach"

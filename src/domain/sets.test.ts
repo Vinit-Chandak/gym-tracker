@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSets, sanitizeNumberEntry, stepValue, weightStepFor, workingVolume } from "./sets";
+import {
+  formatSet,
+  formatSets,
+  loadReadingOf,
+  sanitizeNumberEntry,
+  stepValue,
+  weightStepFor,
+  workingSetCount,
+  workingVolume,
+} from "./sets";
 
 describe("set helpers", () => {
   it("picks the load step from the machine, then the exercise, then 2.5", () => {
@@ -9,6 +18,19 @@ describe("set helpers", () => {
     expect(weightStepFor({ equipmentLoadIncrement: null, exerciseDefaultIncrement: null })).toBe(
       2.5,
     );
+  });
+
+  it("reads the library's kilogram step as the plate jump in pounds, never the machine's own", () => {
+    const step = (equipmentLoadIncrement: number | null, unit: string) =>
+      weightStepFor({ equipmentLoadIncrement, exerciseDefaultIncrement: 2.5, unit });
+    expect(step(null, "lb")).toBe(5);
+    expect(
+      weightStepFor({ equipmentLoadIncrement: null, exerciseDefaultIncrement: 2, unit: "lb" }),
+    ).toBe(5);
+    // A typed increment is already in its machine's unit, and a stack's pins have no pounds.
+    expect(step(2.5, "lb")).toBe(2.5);
+    expect(step(null, "kg")).toBe(2.5);
+    expect(step(null, "stack_index")).toBe(2.5);
   });
 
   it("steps values from the current entry or from the faint prefill", () => {
@@ -54,6 +76,16 @@ describe("set helpers", () => {
     ] as const;
     expect(formatSets(sets)).toBe("80×10, 80×9");
     expect(workingVolume(sets)).toBe(1520);
+    // The count is the sets listed: the warm-up is done, not counted.
+    expect(workingSetCount(sets)).toBe(2);
+    expect(
+      workingSetCount([
+        { setType: "warmup" },
+        { setType: "working" },
+        { setType: "backoff" },
+        { setType: "drop" },
+      ]),
+    ).toBe(3);
     expect(
       formatSets([
         {
@@ -67,7 +99,52 @@ describe("set helpers", () => {
           distanceMeters: null,
         },
       ]),
-    ).toBe("40 s");
+    ).toBe("40\u00a0s");
+  });
+
+  it("lists a hold of a minute or more as a clock, as its best is said", () => {
+    const hold = (durationSeconds: number, weight: number | null = null) => ({
+      setIndex: 1,
+      setType: "working" as const,
+      weight,
+      unit: "kg" as const,
+      reps: null,
+      rir: null,
+      durationSeconds,
+      distanceMeters: null,
+    });
+    // A session listed "72 s, 67 s" while the profile's longest hold read "0:51".
+    expect(formatSets([hold(72), hold(51)])).toBe("1:12, 51\u00a0s");
+    expect(formatSet(hold(90, 20), "kg")).toBe("20\u00a0kg\u00a0\u00d7\u00a01:30");
+  });
+
+  it("reads a bodyweight movement's and an assisted machine's load as the logger does", () => {
+    const set = (weight: number | null, reps: number) => ({
+      setIndex: 1,
+      setType: "working" as const,
+      weight,
+      unit: "kg" as const,
+      reps,
+      rir: 2,
+      durationSeconds: null,
+      distanceMeters: null,
+    });
+    // Nothing added to the body is the body, never "0 kg" lifted.
+    expect(formatSet(set(0, 3), "kg", "bodyweight")).toBe("Bodyweight\u00a0×\u00a03");
+    expect(formatSet(set(null, 3), "kg", "bodyweight")).toBe("Bodyweight\u00a0×\u00a03");
+    expect(formatSet(set(10, 8), "kg", "bodyweight")).toBe("10\u00a0kg\u00a0×\u00a08");
+    // An assisted machine's number is help given, not load; no help at all is the body alone.
+    expect(formatSet(set(50, 6), "kg", "assisted")).toBe(
+      "50\u00a0kg\u00a0assistance\u00a0×\u00a06",
+    );
+    expect(formatSet(set(0, 6), "kg", "assisted")).toBe("Bodyweight\u00a0×\u00a06");
+    // Anywhere else a load is a load, whatever it is.
+    expect(formatSet(set(0, 3), "kg")).toBe("0\u00a0kg\u00a0×\u00a03");
+    expect(formatSet(set(50, 6), "kg", loadReadingOf({ modality: "machine" }, true))).toBe(
+      "50\u00a0kg\u00a0assistance\u00a0×\u00a06",
+    );
+    expect(loadReadingOf({ modality: "bodyweight" }, undefined)).toBe("bodyweight");
+    expect(loadReadingOf({ modality: "barbell" }, false)).toBe("load");
   });
 
   it("keeps typed entry to something the log-set action accepts", () => {

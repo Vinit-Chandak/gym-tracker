@@ -4,9 +4,9 @@
  * the friend's value — "+20%" is "you did a fifth more than they did".
  */
 
+import { roundTo } from "@/lib/distance-units";
+
 export type Side = "a" | "b";
-export type TrendPoint = { date: string; value: number };
-export type Point = { date: string; value: number | null };
 
 export type Comparison = {
   /** Who is ahead; null when equal, or when neither side has anything. */
@@ -15,13 +15,18 @@ export type Comparison = {
   percent: number | null;
 };
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/**
+ * To a tenth, a half away from zero whichever side it falls: Math.round takes −18.75 up to
+ * −18.7, so being behind read a shade less than being ahead by the same margin.
+ */
+const round1 = (n: number) => roundTo(n, 1);
 
 /**
- * Nothing (null) and zero are the same absence: a side that logged nothing reads "0" on the
- * bar and the percentage is "—", because there is no value to be a fraction of. A side with
- * a value leads a side without one whichever way the metric points, since for pace and the
- * like a zero is not a fast time but a missing one.
+ * Nothing (null) and zero are the same absence: the percentage is "—", because there is no
+ * value to be a fraction of. A side with a value leads a side without one whichever way the
+ * metric points, since for pace and the like a zero is not a fast time but a missing one. Two
+ * values closer than the percentage can show, which reads "=", are a tie: nobody leads by a
+ * difference that rounds to nothing.
  */
 export function compareValues(
   a: number | null,
@@ -34,6 +39,8 @@ export function compareValues(
   if (vb === 0) return { leader: "a", percent: null };
   if (va === 0) return { leader: "b", percent: null };
   const percent = round1(((va - vb) / vb) * 100);
+  // Under 0.05% apart rounds to 0, or -0: "↑ =" would contradict itself.
+  if (percent === 0) return { leader: null, percent: 0 };
   const aLeads = lowerIsBetter ? va < vb : va > vb;
   return { leader: aLeads ? "a" : "b", percent };
 }
@@ -51,20 +58,4 @@ export function strongerVerdict(
 export function bodyWeightRatio(loadKg: number, bodyWeightKg: number | null): number | null {
   if (bodyWeightKg === null || !(bodyWeightKg > 0)) return null;
   return Math.round((loadKg / bodyWeightKg) * 100) / 100;
-}
-
-/**
- * Two people's readings on one date axis: the union of their dates, oldest first, each
- * series holding null where that person has no session. `Chart` bridges those gaps.
- */
-export function alignSeries(
-  a: readonly TrendPoint[],
-  b: readonly TrendPoint[],
-): { dates: string[]; a: Point[]; b: Point[] } {
-  const dates = [...new Set([...a, ...b].map((p) => p.date))].sort();
-  const fill = (points: readonly TrendPoint[]): Point[] => {
-    const byDate = new Map(points.map((p) => [p.date, p.value]));
-    return dates.map((date) => ({ date, value: byDate.get(date) ?? null }));
-  };
-  return { dates, a: fill(a), b: fill(b) };
 }

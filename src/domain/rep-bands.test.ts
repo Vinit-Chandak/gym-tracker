@@ -35,6 +35,9 @@ describe("exercise roles", () => {
     expect(exerciseRole(bySlug("standing-calf-raise-machine"))).toBe("small_isolation");
     expect(exerciseRole(bySlug("cable-crunch"))).toBe("trunk");
     expect(exerciseRole(bySlug("pallof-press"))).toBe("trunk");
+    expect(exerciseRole(bySlug("dragon-flag"))).toBe("trunk");
+    // Rotator-cuff work is filed under the rear delts, and trained like them.
+    expect(exerciseRole(bySlug("cable-external-rotation"))).toBe("small_isolation");
     expect(exerciseRole(bySlug("farmers-carry"))).toBe("timed_or_distance");
   });
 

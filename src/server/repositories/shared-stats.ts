@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import {
   activities,
@@ -15,7 +28,7 @@ import {
 import type { DbOrTx } from "@/db/types";
 import type { ActivitySport } from "@/domain/activity";
 import { activityValue, type ActivityMetric } from "@/domain/leaderboard";
-import { addMuscleSets, type MuscleSets } from "@/domain/muscle-split";
+import { splitGroupOf, type GroupSets } from "@/domain/muscle-split";
 import { regionOf, type BodyRegion } from "@/domain/muscles";
 import { detectRecords, type PreviousMaxima, type TrainingRecord } from "@/domain/records";
 import {
@@ -32,9 +45,12 @@ import {
   type StatsWorkout,
 } from "@/domain/shared-stats";
 import type { TrainingSport } from "@/domain/sport-scope";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
+import type { SharedDistanceUnits } from "@/lib/format";
 import type { DateRange } from "@/server/validation/date-range";
 
 import type { BodyWeightReading } from "./body-weight";
+import { readSportUnits } from "./sport-preferences";
 
 /**
  * The shared tables (ADR 0026). Every function names the user ids it reads; the policies —
@@ -51,6 +67,20 @@ async function ownerTimeZone(tx: DbOrTx, userId: string): Promise<string> {
     .where(eq(profiles.id, userId))
     .limit(1);
   return row?.timeZone ?? "UTC";
+}
+
+/** What the account reads a carry in, which decides whether a longer one is a record. */
+async function ownerLength(tx: DbOrTx, userId: string): Promise<SetLengthUnit> {
+  const [row] = await tx
+    .select({
+      preferredUnit: profiles.preferredUnit,
+      distanceUnit: profiles.distanceUnit,
+      poolUnit: profiles.poolUnit,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return row ? setLengthFor(row) : "m";
 }
 
 /** The best the owner had done per exercise and metric before `startedAt`. */
@@ -99,7 +129,9 @@ async function previousMaxima(
 /**
  * Writes a finished workout's shared rows and returns the records it set. Upserts on the
  * unique keys, so the backfill can run over history that already has rows; an exercise row
- * the recomputation no longer produces is removed.
+ * the recomputation no longer produces is removed. Each exercise row takes its place in the
+ * order `sessionStats` gives, the order the workout first worked them, and every write sets
+ * them all again: a set logged after Finish in a movement left undone moves the rest along.
  */
 export async function writeSessionStats(
   tx: DbOrTx,
@@ -115,7 +147,7 @@ export async function writeSessionStats(
     stats.exercises.map((e) => e.exerciseId),
     workout.startedAt,
   );
-  const records = detectRecords(previous, stats.exercises);
+  const records = detectRecords(previous, stats.exercises, await ownerLength(tx, userId));
   const { session } = stats;
   await tx
     .insert(sharedSessionStats)
@@ -162,10 +194,11 @@ export async function writeSessionStats(
     await tx
       .insert(sharedExerciseStats)
       .values(
-        stats.exercises.map((e) => ({
+        stats.exercises.map((e, orderIndex) => ({
           userId,
           workoutSessionId: workout.id,
           exerciseId: e.exerciseId,
+          orderIndex,
           occurredOn: session.occurredOn,
           startedAt: session.startedAt,
           comparable: e.comparable,
@@ -188,6 +221,7 @@ export async function writeSessionStats(
           sharedExerciseStats.exerciseId,
         ],
         set: {
+          orderIndex: sql`excluded.order_index`,
           occurredOn: sql`excluded.occurred_on`,
           startedAt: sql`excluded.started_at`,
           comparable: sql`excluded.comparable`,
@@ -427,6 +461,16 @@ export async function writeBodyWeight(
     });
 }
 
+/**
+ * The units the signed-in user reads shared distances in, per sport: their own, as their own
+ * activities are entered (owner decision). Runs and rides in kilometres or miles; swims in
+ * metres or yards, which is what a swim is measured in, never kilometres.
+ */
+export async function readDistanceUnits(tx: DbOrTx, userId: string): Promise<SharedDistanceUnits> {
+  const { distanceUnit, poolUnit } = await readSportUnits(tx, userId);
+  return { run: distanceUnit, cycle: distanceUnit, swim: poolUnit };
+}
+
 /** Whether the signed-in user may see `ownerId`'s training, as the policies decide it. */
 export async function canViewTraining(tx: DbOrTx, ownerId: string): Promise<boolean> {
   const [row] = await tx
@@ -434,6 +478,23 @@ export async function canViewTraining(tx: DbOrTx, ownerId: string): Promise<bool
     .from(profileDirectory)
     .limit(1);
   return row?.ok === true;
+}
+
+/**
+ * The sports any of these people has a shared session in, ever, as the policies let the
+ * signed-in user see them: what their social screens have a sport to switch to. A ride or swim
+ * is here only while its own sharing is on, since turning it off deletes its rows.
+ */
+export async function readSharedSports(
+  tx: DbOrTx,
+  userIds: readonly string[],
+): Promise<Set<TrainingSport>> {
+  if (userIds.length === 0) return new Set();
+  const rows = await tx
+    .selectDistinct({ sport: sharedSessionStats.sport })
+    .from(sharedSessionStats)
+    .where(inArray(sharedSessionStats.userId, [...userIds]));
+  return new Set(rows.map((row) => row.sport));
 }
 
 const EXERCISE_COLUMNS = {
@@ -568,24 +629,40 @@ export async function readLeaderboard(
   return values;
 }
 
-/** One person's working sets per muscle over a period, for the split radar. */
-export async function readMuscleSets(
+/**
+ * Working sets per axis of the muscle split over a period (ADR 0044): each set once, under its
+ * exercise's axis, its first primary muscle's (`splitGroupOf`). Read from the per-exercise shared
+ * rows, so a compound lift is never counted once for each muscle it names, as summing a
+ * session's sets per muscle did. A movement someone added themselves has no shared row and no
+ * place in the split.
+ */
+export async function readGroupSets(
   tx: DbOrTx,
   userId: string,
   range: DateRange,
-): Promise<MuscleSets> {
+): Promise<GroupSets> {
   const rows = await tx
-    .select({ muscleSets: sharedSessionStats.muscleSets })
-    .from(sharedSessionStats)
+    .select({
+      primaryMuscles: exercises.primaryMuscles,
+      workingSets: sql<number>`sum(${sharedExerciseStats.workingSets})::int`,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
     .where(
       and(
-        eq(sharedSessionStats.userId, userId),
-        eq(sharedSessionStats.sport, "workout"),
-        gte(sharedSessionStats.occurredOn, range.from),
-        lte(sharedSessionStats.occurredOn, range.to),
+        eq(sharedExerciseStats.userId, userId),
+        gte(sharedExerciseStats.occurredOn, range.from),
+        lte(sharedExerciseStats.occurredOn, range.to),
       ),
-    );
-  return rows.reduce<MuscleSets>((into, row) => addMuscleSets(into, row.muscleSets), {});
+    )
+    .groupBy(exercises.id);
+  const sets: GroupSets = {};
+  for (const row of rows) {
+    const group = splitGroupOf(row.primaryMuscles);
+    const count = Number(row.workingSets);
+    if (group && count > 0) sets[group] = (sets[group] ?? 0) + count;
+  }
+  return sets;
 }
 
 export type ExerciseBest = {
@@ -668,24 +745,34 @@ function harder(a: ExerciseBest["work"], b: ExerciseBest["work"]): boolean {
   return reps(a) > reps(b) || (reps(a) === reps(b) && a.sets > b.sets);
 }
 
-export type TrendPoint = { date: string; value: number };
+export type TrendPoint = {
+  date: string;
+  value: number;
+  /** The workout that set the day's value, which its owner opens. */
+  workoutSessionId: string;
+  /** Its shared session, which a follower opens it by; null where there is none. */
+  sharedId: string | null;
+};
 
 /**
- * One metric of one movement per session for each person over a period, oldest first: the
- * two lines of an exercise comparison. Two sessions on one day keep the better one.
+ * Each of a movement's metrics per session for each person over a period, oldest first: the
+ * lines of an exercise comparison, one pair per metric. Two sessions on one day keep the better
+ * one, metric by metric. Read once, every metric's column at a time.
  */
-export async function readExerciseTrend(
+export async function readExerciseTrends(
   tx: DbOrTx,
   userIds: readonly string[],
   exerciseId: string,
-  metric: SharedMetric,
+  metrics: readonly SharedMetric[],
   range: DateRange,
-): Promise<Map<string, TrendPoint[]>> {
-  if (userIds.length === 0) return new Map();
+): Promise<Map<SharedMetric, Map<string, TrendPoint[]>>> {
+  if (userIds.length === 0 || metrics.length === 0) return new Map();
   const rows = await tx
     .select({
       userId: sharedExerciseStats.userId,
       occurredOn: sharedExerciseStats.occurredOn,
+      workoutSessionId: sharedExerciseStats.workoutSessionId,
+      sharedId: sharedSessionStats.id,
       bestE1rmKg: sharedExerciseStats.bestE1rmKg,
       topWeightKg: sharedExerciseStats.topWeightKg,
       bestSetVolumeKg: sharedExerciseStats.bestSetVolumeKg,
@@ -694,6 +781,15 @@ export async function readExerciseTrend(
       longestDistanceMeters: sharedExerciseStats.longestDistanceMeters,
     })
     .from(sharedExerciseStats)
+    // The session's own shared row, under the same policy, is what a follower opens.
+    .leftJoin(
+      sharedSessionStats,
+      and(
+        eq(sharedSessionStats.userId, sharedExerciseStats.userId),
+        eq(sharedSessionStats.sport, "workout"),
+        eq(sharedSessionStats.sourceId, sharedExerciseStats.workoutSessionId),
+      ),
+    )
     .where(
       and(
         inArray(sharedExerciseStats.userId, [...userIds]),
@@ -703,19 +799,28 @@ export async function readExerciseTrend(
       ),
     )
     .orderBy(asc(sharedExerciseStats.startedAt));
-  const result = new Map<string, Map<string, number>>();
-  for (const row of rows) {
-    const value = metricValue(row, metric);
-    if (value === null) continue;
-    const days = result.get(row.userId) ?? new Map<string, number>();
-    days.set(row.occurredOn, Math.max(days.get(row.occurredOn) ?? -Infinity, value));
-    result.set(row.userId, days);
-  }
   return new Map(
-    [...result].map(([userId, days]) => [
-      userId,
-      [...days].map(([date, value]) => ({ date, value })),
-    ]),
+    metrics.map((metric) => {
+      const result = new Map<string, Map<string, TrendPoint>>();
+      for (const row of rows) {
+        const value = metricValue(row, metric);
+        if (value === null) continue;
+        const days = result.get(row.userId) ?? new Map<string, TrendPoint>();
+        const held = days.get(row.occurredOn);
+        if (!held || value > held.value)
+          days.set(row.occurredOn, {
+            date: row.occurredOn,
+            value,
+            workoutSessionId: row.workoutSessionId,
+            sharedId: row.sharedId,
+          });
+        result.set(row.userId, days);
+      }
+      return [
+        metric,
+        new Map([...result].map(([userId, days]) => [userId, [...days.values()]])),
+      ] as const;
+    }),
   );
 }
 
@@ -728,6 +833,8 @@ export type CommonExercise = {
 /**
  * The comparable movements both people logged in the period, by name, and how many machine
  * or context-bound movements they also share, which are counted but never compared (§3.9).
+ * Logged means worked: a row without a working set, which older sessions wrote for a skipped
+ * movement, does not count.
  */
 export async function readExercisesInCommon(
   tx: DbOrTx,
@@ -748,6 +855,7 @@ export async function readExercisesInCommon(
     .where(
       and(
         inArray(sharedExerciseStats.userId, [a, b]),
+        gt(sharedExerciseStats.workingSets, 0),
         gte(sharedExerciseStats.occurredOn, range.from),
         lte(sharedExerciseStats.occurredOn, range.to),
       ),
@@ -825,6 +933,65 @@ export async function readSharedActivity(
   return row ?? null;
 }
 
+export type SharedSessionExercise = MetricExercise & {
+  id: string;
+  name: string;
+  /** A load that means the same everywhere; a machine's is its own, and is not said. */
+  comparable: boolean;
+  workingSets: number;
+  topWeightKg: number | null;
+  /** The most reps a set at the top weight reached. */
+  topWeightReps: number | null;
+  mostReps: number | null;
+  longestDurationSeconds: number | null;
+  longestDistanceMeters: number | null;
+};
+
+/**
+ * What a shared workout was made of (ADR 0026): its shared-library movements, each with the
+ * numbers its shared row carries, read through the session's own shared row by that row's id,
+ * so the workout's own id is never asked for. A movement someone created themselves has no
+ * shared row, which is why these sets can add up to fewer than the session's. In the workout's
+ * order, as its owner's finished workout lists them (migration 0053); by name where two share a
+ * place, as the rows of a workout the deployment before it finished all do, at 0.
+ */
+export async function readSharedSessionExercises(
+  tx: DbOrTx,
+  ownerId: string,
+  sharedStatId: string,
+): Promise<SharedSessionExercise[]> {
+  return tx
+    .select({
+      ...EXERCISE_COLUMNS,
+      comparable: sharedExerciseStats.comparable,
+      workingSets: sharedExerciseStats.workingSets,
+      topWeightKg: sharedExerciseStats.topWeightKg,
+      topWeightReps: sharedExerciseStats.topWeightReps,
+      mostReps: sharedExerciseStats.mostReps,
+      longestDurationSeconds: sharedExerciseStats.longestDurationSeconds,
+      longestDistanceMeters: sharedExerciseStats.longestDistanceMeters,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(
+      sharedSessionStats,
+      and(
+        eq(sharedSessionStats.userId, sharedExerciseStats.userId),
+        eq(sharedSessionStats.sport, "workout"),
+        eq(sharedSessionStats.sourceId, sharedExerciseStats.workoutSessionId),
+      ),
+    )
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
+    .where(
+      and(
+        eq(sharedSessionStats.id, sharedStatId),
+        eq(sharedSessionStats.userId, ownerId),
+        eq(sharedExerciseStats.userId, ownerId),
+        gt(sharedExerciseStats.workingSets, 0),
+      ),
+    )
+    .orderBy(asc(sharedExerciseStats.orderIndex), asc(exercises.name), asc(exercises.id));
+}
+
 export type ComparableExerciseRow = MetricExercise & {
   id: string;
   name: string;
@@ -859,7 +1026,7 @@ export type CircleExercise = ComparableExerciseRow & {
 
 /**
  * Exercise mode's picker (plan §3.12): the comparable movements anyone in the circle has
- * ever logged, the ones most of them share first, then by name.
+ * ever worked, the ones most of them share first, then by name.
  */
 export async function readCircleExercises(
   tx: DbOrTx,
@@ -878,6 +1045,7 @@ export async function readCircleExercises(
       and(
         inArray(sharedExerciseStats.userId, [...userIds]),
         eq(sharedExerciseStats.comparable, true),
+        gt(sharedExerciseStats.workingSets, 0),
       ),
     )
     .groupBy(exercises.id)
@@ -930,26 +1098,35 @@ export async function readRecords(
     )
     .orderBy(asc(sharedExerciseStats.startedAt));
   const best = new Map<string, PeriodRecord>();
-  for (const row of rows) {
-    const metric = primaryMetric(row.exercise);
+  const keep = (row: (typeof rows)[number], metric: SharedMetric) => {
     const value = metricValue(row, metric);
-    if (value === null) continue;
+    if (value === null) return;
     const current = best.get(row.exercise.id);
-    if (!current || value > current.value) {
+    // A lift's estimate outranks its top weight: the weight stands in only where the span has
+    // no set an estimate can be made from.
+    const outranks = current?.metric === "top_weight" && metric === "e1rm";
+    if (!current || outranks || (current.metric === metric && value > current.value))
       best.set(row.exercise.id, {
         exercise: row.exercise,
         metric,
         value,
         occurredOn: row.occurredOn,
       });
-    }
+  };
+  for (const row of rows) {
+    const metric = primaryMetric(row.exercise);
+    keep(row, metric);
+    // Lifted only for more than ten reps in the span (35 kg × 12), a lift has no estimated 1RM;
+    // its heaviest is still its best of the span, so it is listed by its top weight.
+    if (metric === "e1rm") keep(row, "top_weight");
   }
   const all = [...best.values()];
   const byValue = (a: PeriodRecord, b: PeriodRecord) =>
     b.value - a.value || a.exercise.name.localeCompare(b.exercise.name);
-  const lifts = all.filter((r) => r.metric === "e1rm").sort(byValue);
+  const isLift = (r: PeriodRecord) => primaryMetric(r.exercise) === "e1rm";
+  const lifts = all.filter(isLift).sort(byValue);
   const others = all
-    .filter((r) => r.metric !== "e1rm")
+    .filter((r) => !isLift(r))
     .sort((a, b) => a.metric.localeCompare(b.metric) || byValue(a, b));
   return [...lifts.slice(0, PROFILE_RECORDS_LIMIT), ...others.slice(0, PROFILE_RECORDS_LIMIT)];
 }
@@ -969,13 +1146,24 @@ export type ActivityRow = {
   records: number;
 };
 
-/** The last shared sessions of the given people, newest first: the quiet list (plan §3.4). */
+/**
+ * The last shared sessions of the given people, newest first: the quiet list (plan §3.4).
+ *
+ * Newest by the day each row says, then by the time it started. A session keeps its owner's
+ * date, so by start time alone a New Yorker's late Thursday came after an Indian friend's early
+ * Friday, and the list read Fri, Thu, Fri. A day after the reader's `today` is said as today
+ * (the row reads it so), so it is sorted as today too.
+ */
 export async function readActivity(
   tx: DbOrTx,
   userIds: readonly string[],
-  limit = 20,
+  { today, limit = 20 }: { today?: string; limit?: number } = {},
 ): Promise<ActivityRow[]> {
   if (userIds.length === 0) return [];
+  const day =
+    today === undefined
+      ? sharedSessionStats.occurredOn
+      : sql`least(${sharedSessionStats.occurredOn}, ${today}::date)`;
   const rows = await tx
     .select({
       id: sharedSessionStats.id,
@@ -998,7 +1186,7 @@ export async function readActivity(
     .from(sharedSessionStats)
     .innerJoin(profileDirectory, eq(profileDirectory.id, sharedSessionStats.userId))
     .where(inArray(sharedSessionStats.userId, [...userIds]))
-    .orderBy(desc(sharedSessionStats.startedAt), desc(sharedSessionStats.id))
+    .orderBy(desc(day), desc(sharedSessionStats.startedAt), desc(sharedSessionStats.id))
     .limit(limit);
   return rows;
 }

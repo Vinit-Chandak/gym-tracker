@@ -29,8 +29,22 @@ it("keeps Progress when a finished workout is opened from History", () => {
   expect(selected()).toEqual(["Progress"]);
 });
 
-it("keeps Today for the workout its card opens", () => {
+it("keeps Today for the finished workout its card opens", () => {
   route.pathname = "/workouts/abc";
+  route.search = "from=today";
+  render(<BottomNav />);
+  expect(selected()).toEqual(["Today"]);
+});
+
+it("lights Progress for a finished workout opened by a link of its own, as its Back is History", () => {
+  route.pathname = "/workouts/abc";
+  route.search = "";
+  render(<BottomNav />);
+  expect(selected()).toEqual(["Progress"]);
+});
+
+it("keeps Today for the session's own pages", () => {
+  route.pathname = "/workouts/abc/check-in";
   route.search = "";
   render(<BottomNav />);
   expect(selected()).toEqual(["Today"]);

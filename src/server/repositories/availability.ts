@@ -1,4 +1,18 @@
-import { and, asc, eq, inArray, isNull, or, type SQL, type SQLWrapper } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  max,
+  or,
+  sql,
+  type SQL,
+  type SQLWrapper,
+} from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import {
@@ -11,6 +25,9 @@ import {
   programExerciseFallbacks,
   programExercises,
   programs,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import {
@@ -18,6 +35,7 @@ import {
   equipmentState,
   evaluateFallback,
   inventoryAt,
+  machinesWithType,
   resolveExerciseAtGym,
   type AvailabilityStatus,
   type EquipmentInstanceRef,
@@ -38,8 +56,10 @@ import {
   referenceSets,
   type ReferenceSets,
 } from "./equipment-context";
+import { PREFERRED_RANK } from "./exercises";
 
 import type { GymRow } from "./gyms";
+import { getSchedule, scheduleComplete } from "./schedule";
 
 /*
  * Every read in this file is written so that nothing waits for another query's result: the ids
@@ -87,7 +107,8 @@ export type AvailabilitySummary = Record<AvailabilityStatus, number>;
 
 export type GymAvailability = {
   gym: GymRow;
-  program: { id: string; name: string } | null;
+  /** The active programme; complete once nothing but rest is left in it (ADR 0051). */
+  program: { id: string; name: string; complete: boolean } | null;
   rows: PlannedExerciseAvailability[];
   summary: AvailabilitySummary;
 };
@@ -119,13 +140,19 @@ function idsCondition(column: AnyPgColumn, ids: Ids): SQL {
   return Array.isArray(ids) ? inArray(column, ids) : inArray(column, ids as SQLWrapper);
 }
 
+/**
+ * The active programme, and whether it is complete. A complete one is still the one whose fit is
+ * read, which is what repeating the block needs; the screens say it is complete.
+ */
 async function activeProgram(db: DbOrTx, userId: string) {
-  const [program] = await db
-    .select({ id: programs.id, name: programs.name })
-    .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
-    .limit(1);
-  return program ?? null;
+  const schedule = await getSchedule(db, userId);
+  return schedule
+    ? {
+        id: schedule.program.id,
+        name: schedule.program.name,
+        complete: scheduleComplete(schedule),
+      }
+    : null;
 }
 
 /** Ids of the active programme's slots, optionally only those planning one exercise. */
@@ -455,6 +482,8 @@ export type ExerciseGymAvailability = {
   equipment: EquipmentState;
   resolvedExerciseName: string;
   missingTypes: NamedType[];
+  /** What the way it is done here takes for granted rather than has registered: a gym's basics. */
+  assumedTypes: NamedType[];
   /** Active machines at the gym, for the "preferred machine" picker. */
   machines: { id: string; name: string }[];
   preferredInstanceId: string | null;
@@ -533,9 +562,11 @@ export async function exerciseAvailability(
       options,
       inputs.modalityTypeIds,
     ).map((item) => ({ id: item.id, name: item.name }));
+    // Only a machine chosen here: a custom exercise's own machine is what Automatic means.
     const preferred = options.find(
       (option) =>
         option.exerciseId === exercise.id &&
+        option.preferenceRank === PREFERRED_RANK &&
         option.equipmentInstanceId !== null &&
         machines.some((machine) => machine.id === option.equipmentInstanceId),
     );
@@ -554,6 +585,10 @@ export async function exerciseAvailability(
               id,
               name: names.get(id) ?? "Unknown",
             }))
+          : [],
+      assumedTypes:
+        resolution.status === "direct" || resolution.status === "fallback"
+          ? resolution.assumedTypeIds.map((id) => ({ id, name: names.get(id) ?? "Unknown" }))
           : [],
       machines,
       preferredInstanceId: preferred?.equipmentInstanceId ?? null,
@@ -777,9 +812,71 @@ export type PlannedDayResolution = {
   /** The programme's grouping, which a new session copies and then owns. */
   supersetGroup: string | null;
   decision: ExerciseDecision;
+  /**
+   * The resolution's machine is one of several of its kind here, nobody chose between them and
+   * the exercise was never logged on any of them: a new session leaves it for the workout to ask.
+   */
+  machineUndecided: boolean;
 };
 
-/** Resolves every planned exercise of one programme day at a gym, in programme order. */
+/**
+ * The machines of one kind a direct resolution picked between by name alone: several are here,
+ * and neither the slot nor the athlete chose one for the exercise (a preferred machine, a custom
+ * exercise's own). Empty when the machine was chosen, or is the only one of its kind.
+ */
+function unchosenMachines(
+  ctx: DecisionContext,
+  exercise: ExerciseRef,
+  resolution: Resolution,
+  preferredEquipmentInstanceId: string | null,
+): EquipmentInstanceRef[] {
+  if (resolution.status !== "direct" || !resolution.equipmentInstance || !resolution.primaryTypeId)
+    return [];
+  const machine = resolution.equipmentInstance.id;
+  if (machine === preferredEquipmentInstanceId) return [];
+  if (ctx.options.some((o) => o.exerciseId === exercise.id && o.equipmentInstanceId === machine))
+    return [];
+  const kind = machinesWithType(inventoryAt(ctx.gym.id, ctx.equipment), resolution.primaryTypeId);
+  return kind.length > 1 ? kind : [];
+}
+
+/**
+ * The machines each exercise has been logged on at a gym, the most recently used first: of
+ * several of one kind, a new session takes the one the exercise was last done on there.
+ */
+function machinesUsedAtGym(db: DbOrTx, userId: string, gymId: string, exerciseIds: Ids) {
+  return db
+    .select({
+      exerciseId: workoutExercises.exerciseId,
+      equipmentInstanceId: workoutExercises.equipmentInstanceId,
+    })
+    .from(workoutExercises)
+    .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .where(
+      and(
+        eq(workoutExercises.userId, userId),
+        eq(workoutSessions.gymId, gymId),
+        idsCondition(workoutExercises.exerciseId, exerciseIds),
+        isNotNull(workoutExercises.equipmentInstanceId),
+        isNull(workoutExercises.skippedAt),
+        exists(
+          db
+            .select({ one: sql`1` })
+            .from(setLogs)
+            .where(eq(setLogs.workoutExerciseId, workoutExercises.id)),
+        ),
+      ),
+    )
+    .groupBy(workoutExercises.exerciseId, workoutExercises.equipmentInstanceId)
+    .orderBy(desc(max(workoutSessions.startedAt)));
+}
+
+/**
+ * Resolves every planned exercise of one programme day at a gym, in programme order. Where the
+ * gym has several machines of the kind an exercise needs and none was chosen for it, the one it
+ * was last logged on here is used; never logged on any, the workout asks which (owner, October
+ * 2026), rather than every session landing on whichever is first by name.
+ */
 export async function resolvePlannedDay(
   db: DbOrTx,
   userId: string,
@@ -788,7 +885,7 @@ export async function resolvePlannedDay(
   gym?: KnownGym,
 ): Promise<PlannedDayResolution[] | null> {
   const slotIds = daySlotIds(db, userId, programDayId);
-  const [planned, fallbacks, ctx] = await Promise.all([
+  const [planned, fallbacks, ctx, used] = await Promise.all([
     db
       .select({
         programExerciseId: programExercises.id,
@@ -798,6 +895,7 @@ export async function resolvePlannedDay(
         exerciseName: exercises.name,
         modality: exercises.modality,
         requiresEquipment: exercises.requiresEquipment,
+        loadPortability: exercises.loadPortability,
       })
       .from(programExercises)
       .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
@@ -813,6 +911,7 @@ export async function resolvePlannedDay(
       [slotExerciseIds(db, slotIds), fallbackExerciseIds(db, slotIds, gymId)],
       gym,
     ),
+    machinesUsedAtGym(db, userId, gymId, slotExerciseIds(db, slotIds)),
   ]);
   if (!ctx) return null;
   return planned.map((p) => {
@@ -822,17 +921,26 @@ export async function resolvePlannedDay(
       modality: p.modality,
       requiresEquipment: p.requiresEquipment,
     };
+    const slotFallbacks = fallbacks.filter((f) => f.programExerciseId === p.programExerciseId);
+    let decision = decide(ctx, exercise, slotFallbacks, p.preferredEquipmentInstanceId);
+    // A load that means the same on any of them needs no particular machine.
+    const unchosen =
+      p.loadPortability === "global"
+        ? []
+        : unchosenMachines(ctx, exercise, decision.resolution, p.preferredEquipmentInstanceId);
+    const last = used.find(
+      (row) =>
+        row.exerciseId === exercise.id &&
+        unchosen.some((machine) => machine.id === row.equipmentInstanceId),
+    )?.equipmentInstanceId;
+    if (last) decision = decide(ctx, exercise, slotFallbacks, last);
     return {
       programExerciseId: p.programExerciseId,
       exercise,
       preferredEquipmentInstanceId: p.preferredEquipmentInstanceId,
       supersetGroup: p.supersetGroup,
-      decision: decide(
-        ctx,
-        exercise,
-        fallbacks.filter((f) => f.programExerciseId === p.programExerciseId),
-        p.preferredEquipmentInstanceId,
-      ),
+      decision,
+      machineUndecided: unchosen.length > 0 && !last,
     };
   });
 }

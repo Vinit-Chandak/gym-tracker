@@ -22,6 +22,8 @@ type Props = {
   sessionId: string;
   /** No set is logged: finishing would only record nothing, so discarding is offered first. */
   nothingLogged?: boolean;
+  /** Left open, the last set's time ("19:30"): Finish ends the workout there, and says so. */
+  asOf?: string | null;
 };
 
 export function FinishForm({
@@ -32,6 +34,7 @@ export function FinishForm({
   userId,
   sessionId,
   nothingLogged = false,
+  asOf = null,
 }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -63,7 +66,7 @@ export function FinishForm({
         label={`Body weight (${unit})`}
         hint={
           lastBodyWeight
-            ? `Optional. Last reading ${lastBodyWeight} ${unit}; what you type is today's.`
+            ? `Optional. Last reading ${lastBodyWeight}\u00a0${unit}; what you type is today's.`
             : "Optional. What you type is today's reading."
         }
         error={state.fieldErrors?.bodyWeight}
@@ -123,9 +126,12 @@ export function FinishForm({
             />
           </>
         ) : (
-          <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
-            Finish session
-          </SubmitButton>
+          <>
+            {asOf && <input type="hidden" name="asOf" value="last-set" />}
+            <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
+              {asOf ? `Finish it as of ${asOf}` : "Finish session"}
+            </SubmitButton>
+          </>
         )}
       </PinnedActions>
     </form>

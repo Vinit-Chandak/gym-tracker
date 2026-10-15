@@ -21,6 +21,7 @@ import {
   MissingReferenceDataError,
   readProgramBlueprint,
 } from "./programs";
+import { getSchedule } from "./schedule";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -131,8 +132,8 @@ describe("materialising a blueprint", () => {
   });
 
   it("leaves out a fallback still awaiting the owner where drafts are not seeded, and keeps the rest", async () => {
-    /** The preacher curl slot's fallbacks in a programme, by exercise slug and rank. */
-    const preacherBackups = async (programId: string) => {
+    /** One slot's fallbacks in a programme, by exercise slug and rank. */
+    const backups = async (programId: string, planned: string) => {
       const slugById = new Map(
         (await t.db.select({ id: exercises.id, slug: exercises.slug }).from(exercises)).map(
           (row) => [row.id, row.slug],
@@ -152,20 +153,48 @@ describe("materialising a blueprint", () => {
         .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
         .where(eq(programDays.programId, programId));
       return rows
-        .filter((row) => slugById.get(row.planned) === "preacher-curl")
+        .filter((row) => slugById.get(row.planned) === planned)
         .sort((a, b) => a.rank - b.rank)
         .map((row) => [slugById.get(row.backup), row.rank]);
     };
-    // Production's catalogue: the incline bench preacher curl is still a draft, so it is not here.
-    const published = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
-    expect(await preacherBackups(published.id)).toEqual([["ez-bar-curl", 2]]);
-    // A local database seeds the drafts, and the template's first choice comes with them.
-    await seedReferenceData(t.db, { drafts: true });
-    resetReferenceCache();
-    const withDrafts = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
-    expect(await preacherBackups(withDrafts.id)).toEqual([
+    // The template's own backups are all published: the incline bench preacher curl was approved
+    // in October 2026, so production's catalogue keeps the template's first choice.
+    const template = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
+    expect(await backups(template.id, "preacher-curl")).toEqual([
       ["incline-bench-preacher-curl", 1],
       ["ez-bar-curl", 2],
+    ]);
+    // Upper A's row backed up first by the machine high row, which still waits for its machine type.
+    const withDraftBackup = parseProgramBlueprint({
+      ...STRENGTH_AESTHETICS_HYBRID_8WK,
+      slug: "draft-backup",
+      days: STRENGTH_AESTHETICS_HYBRID_8WK.days.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((exercise) =>
+          day.name === "Upper A" && exercise.exerciseSlug === "seated-cable-row"
+            ? {
+                ...exercise,
+                fallbacks: [
+                  { exerciseSlug: "machine-high-row", rank: 1 },
+                  { exerciseSlug: "chest-supported-db-row", rank: 2 },
+                ],
+              }
+            : exercise,
+        ),
+      })),
+    });
+    // Production's catalogue: the machine high row is a draft, so it is not here.
+    const published = await adopt(withDraftBackup, "2027-07-05");
+    expect(await backups(published.id, "seated-cable-row")).toEqual([
+      ["chest-supported-db-row", 2],
+    ]);
+    // A local database seeds the drafts, and the first choice comes with them.
+    await seedReferenceData(t.db, { drafts: true });
+    resetReferenceCache();
+    const withDrafts = await adopt(withDraftBackup, "2027-07-05");
+    expect(await backups(withDrafts.id, "seated-cable-row")).toEqual([
+      ["machine-high-row", 1],
+      ["chest-supported-db-row", 2],
     ]);
   });
 });
@@ -227,5 +256,79 @@ describe("a run's distance", () => {
     );
     expect(read!.blueprint.runs[0]!.distanceKm).toBeUndefined();
     expect(read!.blueprint.runs[0]!.duration).toEqual([25, 40]);
+  });
+});
+
+describe("how the cycle repeats", () => {
+  // Upper, lower, a rest day and a full-body day: four days that do not make a week.
+  const fourDays = (repeats?: "weekly" | "rolling"): ProgramBlueprint =>
+    parseProgramBlueprint({
+      blueprintVersion: 1,
+      slug: `four-day-${repeats ?? "unchosen"}`,
+      name: "Four-day cycle",
+      weeks: 8,
+      ...(repeats ? { repeats } : {}),
+      days: [
+        { dayIndex: 1, dayOfWeek: 1, name: "Upper", includesLifting: true, includesRun: false },
+        { dayIndex: 2, dayOfWeek: 2, name: "Lower", includesLifting: true, includesRun: false },
+        { dayIndex: 3, dayOfWeek: 3, name: "Rest", includesLifting: false, includesRun: false },
+        { dayIndex: 4, dayOfWeek: 4, name: "Full", includesLifting: true, includesRun: false },
+      ].map((day) => ({
+        ...day,
+        exercises: day.includesLifting
+          ? [{ exerciseSlug: "high-bar-squat", sets: 3, reps: [5, 8], rest: [120, 180] }]
+          : [],
+      })),
+    });
+  const scheduleOf = () => withUser(t.db, user.id, (tx) => getSchedule(tx, user.id));
+  const repeatsOf = async (id: string) =>
+    (await t.db.select({ repeats: programs.repeats }).from(programs).where(eq(programs.id, id)))[0]
+      ?.repeats;
+
+  it("fills the weeks with a cycle that rolls", async () => {
+    const created = await adopt(fourDays("rolling"), "2027-05-03");
+    expect(await repeatsOf(created.id)).toBe("rolling");
+    const schedule = await scheduleOf();
+    expect(schedule?.program.cycles).toBe(14);
+    expect(schedule?.state.cycles).toBe(14);
+  });
+
+  it("takes the repeat a new programme's days suggest when none is chosen", async () => {
+    const created = await adopt(fourDays(), "2027-05-03");
+    expect(await repeatsOf(created.id)).toBe("rolling");
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.repeats).toBe("rolling");
+  });
+
+  it("keeps a programme that predates the choice counting as it did through a revision", async () => {
+    const created = await adopt(fourDays(), "2027-05-03");
+    // As every programme written before the column existed reads.
+    await t.db.update(programs).set({ repeats: null }).where(eq(programs.id, created.id));
+    expect((await scheduleOf())?.program.cycles).toBe(8);
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.repeats).toBeUndefined();
+    const revised = await adopt(
+      { ...read!.blueprint, name: "Four-day cycle, revised" },
+      "2027-05-03",
+      created.familyId,
+    );
+    expect(await repeatsOf(revised.id)).toBeNull();
+    expect((await scheduleOf())?.program.cycles).toBe(8);
+  });
+
+  it("refuses a weekly cycle its weekdays cannot hold", async () => {
+    const blueprint = fourDays("weekly");
+    blueprint.days[2]!.dayOfWeek = 1;
+    await expect(adopt(blueprint, "2027-05-03")).rejects.toThrow(/its own weekday/);
+  });
+
+  it("reads a seven-day template as a week, as it always counted", async () => {
+    const created = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-05-03");
+    expect(await repeatsOf(created.id)).toBe("weekly");
+    expect((await scheduleOf())?.program.cycles).toBe(STRENGTH_AESTHETICS_HYBRID_8WK.weeks);
   });
 });

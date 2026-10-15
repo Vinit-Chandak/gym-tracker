@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { alignSeries, bodyWeightRatio, compareValues, strongerVerdict } from "./compare";
+import { bodyWeightRatio, compareValues, strongerVerdict } from "./compare";
 
 describe("compareValues", () => {
   it("says the difference from the viewer's side, relative to the friend", () => {
     expect(compareValues(6240, 5200)).toEqual({ leader: "a", percent: 20 });
     expect(compareValues(5200, 6240)).toEqual({ leader: "b", percent: -16.7 });
+  });
+  it("rounds a half away from zero, behind as ahead", () => {
+    // 13 workouts against 16 is 18.75% behind, and 30 lb against 20 kg (44.09 lb) 31.95%:
+    // −18.8% and −32%, never the −18.7% and −31.9% that rounding towards +∞ gave.
+    expect(compareValues(13, 16)).toEqual({ leader: "b", percent: -18.8 });
+    expect(compareValues(13.61, 20)).toEqual({ leader: "b", percent: -32 });
+    expect(compareValues(19, 16)).toEqual({ leader: "a", percent: 18.8 });
   });
   it("cannot give a percentage when a side has nothing, but still names a leader", () => {
     expect(compareValues(12, null)).toEqual({ leader: "a", percent: null });
@@ -14,6 +21,15 @@ describe("compareValues", () => {
   });
   it("calls equal values equal", () => {
     expect(compareValues(80, 80)).toEqual({ leader: null, percent: 0 });
+  });
+  it("calls values closer than a tenth of a percent equal, never '↓ ='", () => {
+    // These round to -0 and 0; one side leading by "=" would contradict itself.
+    expect(compareValues(12345.6, 12350)).toEqual({ leader: null, percent: 0 });
+    expect(compareValues(250.1, 250)).toEqual({ leader: null, percent: 0 });
+    expect(Object.is(compareValues(250, 250.1).percent, 0)).toBe(true);
+    expect(compareValues(250, 250.1, true)).toEqual({ leader: null, percent: 0 });
+    // A difference the percentage can show still has a leader.
+    expect(compareValues(1000, 999)).toEqual({ leader: "a", percent: 0.1 });
   });
   it("turns the leader around for a metric that improves downwards", () => {
     expect(compareValues(300, 325, true)).toEqual({ leader: "a", percent: -7.7 });
@@ -28,6 +44,8 @@ describe("strongerVerdict", () => {
     expect(strongerVerdict(85, 88)).toBe("b");
     expect(strongerVerdict(88, 88)).toBeNull();
     expect(strongerVerdict(null, null)).toBeNull();
+    // Too close for the row beneath to tell apart: nobody is Stronger.
+    expect(strongerVerdict(250.1, 250)).toBeNull();
   });
 });
 
@@ -36,23 +54,5 @@ describe("bodyWeightRatio", () => {
     expect(bodyWeightRatio(88, 74.5)).toBe(1.18);
     expect(bodyWeightRatio(88, null)).toBeNull();
     expect(bodyWeightRatio(88, 0)).toBeNull();
-  });
-});
-
-describe("alignSeries", () => {
-  it("puts both people on one date axis with gaps where one did not train", () => {
-    const aligned = alignSeries(
-      [
-        { date: "2026-09-01", value: 80 },
-        { date: "2026-09-08", value: 82 },
-      ],
-      [
-        { date: "2026-09-03", value: 70 },
-        { date: "2026-09-08", value: 72 },
-      ],
-    );
-    expect(aligned.dates).toEqual(["2026-09-01", "2026-09-03", "2026-09-08"]);
-    expect(aligned.a.map((p) => p.value)).toEqual([80, null, 82]);
-    expect(aligned.b.map((p) => p.value)).toEqual([null, 70, 72]);
   });
 });

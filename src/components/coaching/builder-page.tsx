@@ -51,9 +51,13 @@ export async function ProgrammeBuilderPage({
       <PageHeader title="Programme builder" backHref={base} />
       <PageContent>
         <ProgramBuilder {...data} base={base} />
-        <LinkButton href="/exercises/new" variant="ghost">
-          Add a custom exercise to your library
-        </LinkButton>
+        {/* The library's own page lies outside setup, which would send an account still in setup
+            straight back here and lose what was built (audit B5). */}
+        {!onboarding && (
+          <LinkButton href="/exercises/new" variant="ghost">
+            Add a custom exercise to your library
+          </LinkButton>
+        )}
       </PageContent>
     </>
   );

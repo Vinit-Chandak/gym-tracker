@@ -9,6 +9,9 @@ export function effortMetric(measure: PrescriptionType) {
   return measure === "reps" ? "rir" : "rpe";
 }
 
+/** What a missing or impossible RPE asks for: the scale, in its own words. */
+export const RPE_SCALE = "Enter effort from 1 (very easy) to 10 (maximal).";
+
 /** Effort is an athlete report. A target or a previous set is never a reported value. */
 export function effortError(input: {
   setType: SetType;
@@ -18,10 +21,13 @@ export function effortError(input: {
   rir: number | null;
   rpe?: number | null;
 }) {
+  // RPE starts at 1, a warm-up's too: a 0 typed is not on the scale, and is said in the app's own
+  // words rather than as the server's refusal.
+  if (input.rpe != null && input.rpe < 1) return RPE_SCALE;
   if (input.setType === "warmup") return null;
   if (input.reps !== null)
     return input.rir === null ? "Enter RIR: estimate how many more good reps you could do." : null;
-  return input.rpe == null ? "Enter effort from 1 (very easy) to 10 (maximal)." : null;
+  return input.rpe == null ? RPE_SCALE : null;
 }
 
 export const RPE_HELP =

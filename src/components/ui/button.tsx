@@ -14,12 +14,13 @@ export type ButtonVariant =
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  // Disabled, a primary button waits: surface with ink 2, never a faded ink.
-  primary: "bg-ink text-on-ink disabled:bg-surface disabled:text-ink-2",
+  // Disabled, a primary button waits: the waiting fill with ink 2, never a faded ink. That
+  // fill is the surface on the ground and surface 2 on a card, so Saving… keeps its shape.
+  primary: "bg-ink text-on-ink disabled:bg-waiting disabled:text-ink-2",
   // Tonal stands on the control surface: the surface in light, lifted in dark (DESIGN.md).
   secondary: "bg-surface-control text-ink active:bg-surface-control-pressed disabled:text-ink-2",
   tonal: "bg-surface-control text-ink active:bg-surface-control-pressed disabled:text-ink-2",
-  waiting: "bg-surface text-ink-2",
+  waiting: "bg-waiting text-ink-2",
   outline: "border-[1.5px] border-control bg-transparent text-ink disabled:text-ink-2",
   ghost: "bg-transparent px-2.5 text-ink disabled:text-control",
   text: "bg-transparent px-2.5 text-ink disabled:text-control",
@@ -40,7 +41,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:anywhere] select-none disabled:pointer-events-none",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:break-word] select-none disabled:pointer-events-none",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,
@@ -70,6 +71,7 @@ export function LinkButton<T extends string>({
   className,
   children,
   "aria-label": label,
+  prefetch,
 }: {
   href: Route<T>;
   variant?: ButtonVariant;
@@ -78,9 +80,16 @@ export function LinkButton<T extends string>({
   children: ReactNode;
   /** Adds to what the link says when the screen has several of it (keep its words in it). */
   "aria-label"?: string;
+  /** `true` fetches the whole screen, data included, before the tap (see `AppLink`). */
+  prefetch?: ComponentProps<typeof Link>["prefetch"];
 }) {
   return (
-    <Link href={href} aria-label={label} className={buttonClassName(variant, size, className)}>
+    <Link
+      href={href}
+      aria-label={label}
+      prefetch={prefetch}
+      className={buttonClassName(variant, size, className)}
+    >
       {children}
     </Link>
   );

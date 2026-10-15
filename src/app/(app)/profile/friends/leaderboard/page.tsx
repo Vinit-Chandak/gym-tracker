@@ -10,17 +10,23 @@ import { RankList } from "@/components/ui/rank-list";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { legacySportOf } from "@/domain/activity";
 import {
   ACTIVITY_METRIC_LABELS,
   boardMetricsForExercise,
   isPerKgMetric,
   lowerIsBetter,
   perKgBase,
+  type ActivityMetric,
   type BoardMetric,
+  type BoardMode,
 } from "@/domain/leaderboard";
 import { PERIOD_LABELS } from "@/domain/period";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
+import { sportsOnOffer, type TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
 import { formatActivityMetric, formatSharedMetric } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { loadCircle, perKgAvailable, rankCircle, rankExercise } from "@/server/queries/leaderboard";
@@ -28,9 +34,11 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   readBodyWeights,
   readCircleExercises,
+  readDistanceUnits,
   readExerciseBests,
   readLeaderboard,
 } from "@/server/repositories/shared-stats";
+import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 import {
   parseActivityMetric,
   parseBoardMetric,
@@ -38,11 +46,31 @@ import {
   parseExerciseParam,
 } from "@/server/validation/leaderboard";
 import { parsePeriod, periodRange } from "@/server/validation/period";
-import { parseSport } from "@/server/validation/sport";
+import { askedSport } from "@/server/validation/sport";
 
 import { LeaderboardControls, type ExerciseChoice } from "./leaderboard-controls";
 
 export const metadata: Metadata = { title: "Leaderboard" };
+
+/** What one of each sport is called where the board says who has none. */
+const ACTIVITY_NAMES: Record<TrainingSport, string> = {
+  workout: "workout",
+  run: "run",
+  cycle: "ride",
+  swim: "swim",
+};
+
+/** What a sport's board ranks: the mode, and the number Activity ranks by. */
+function boardOf(
+  sport: TrainingSport,
+  params: { mode?: string | string[]; metric?: string | string[] },
+): { mode: BoardMode; activityMetric: ActivityMetric } {
+  return {
+    // Endurance sports have no Exercise mode: whatever the URL says, it is one board.
+    mode: sport === "workout" ? parseBoardMode(params.mode) : "activity",
+    activityMetric: parseActivityMetric(params.metric, sport),
+  };
+}
 
 /** "Est. 1RM" for the movement, or "Est. 1RM ÷ body weight" for its per-kg variant. */
 function boardMetricLabel(metric: BoardMetric, exercise: MetricExercise): string {
@@ -51,11 +79,19 @@ function boardMetricLabel(metric: BoardMetric, exercise: MetricExercise): string
     : metricLabel(metric, exercise);
 }
 
-/** A load reads in the viewer's unit; a per-kg value is a multiple of body weight. */
-function formatBoardMetric(metric: BoardMetric, value: number, unit: BodyLoadUnit): string {
+/**
+ * A load reads in the viewer's unit and a carry in their length; a per-kg value is a multiple
+ * of body weight.
+ */
+function formatBoardMetric(
+  metric: BoardMetric,
+  value: number,
+  unit: BodyLoadUnit,
+  length: SetLengthUnit,
+): string {
   return isPerKgMetric(metric)
     ? `${value.toLocaleString("en-GB", { minimumFractionDigits: 2 })}×`
-    : formatSharedMetric(metric, value, unit);
+    : formatSharedMetric(metric, value, unit, length);
 }
 
 /**
@@ -63,18 +99,13 @@ function formatBoardMetric(metric: BoardMetric, value: number, unit: BodyLoadUni
  * a period's totals — six lifting numbers, or five running ones — and, for lifting only,
  * Exercise ranks all-time bests of one comparable movement on the metrics it is measured by,
  * with "÷ body weight" variants of the loads once two of you share yours. Equal values share
- * a rank; whoever has nothing for the metric trails as "—"; a friend who turned sharing off
- * is simply not there.
+ * a rank; whoever has nothing for the metric trails as "—", and a period in which nobody has
+ * anything says so in a line instead; a friend who turned sharing off is simply not there.
  */
 export default async function LeaderboardPage(props: PageProps<"/profile/friends/leaderboard">) {
   const user = await requireUser();
   const params = await props.searchParams;
-  const sport = parseSport(params.sport);
-  // Endurance sports have no Exercise mode: whatever the URL says, it is one board.
-  const mode = sport === "workout" ? parseBoardMode(params.mode) : "activity";
-  const activityName =
-    sport === "workout" ? "workout" : sport === "run" ? "run" : sport === "cycle" ? "ride" : "swim";
-  const activityMetric = parseActivityMetric(params.metric, sport);
+  const asked = askedSport(params.sport);
   const period = parsePeriod(params.period);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
@@ -83,18 +114,31 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
     getDb(),
     user.id,
     async (tx) => {
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username });
-      // A board of one ranks nobody: the way out is to follow someone.
-      if (circle.length < 2) return { kind: "alone" as const };
+      const [circle, enabled] = await Promise.all([
+        loadCircle(tx, user.id),
+        enabledSportsFor(tx, user.id),
+      ]);
+      // Your board, in your sports: a sport you turned off has no tab here, as it has no
+      // shortcut (a link to it still opens it).
+      const sports = sportsOnOffer(enabled.map(legacySportOf), asked);
+      const sport = asked ?? sports[0]!;
+      const { mode, activityMetric } = boardOf(sport, params);
+      // A board of one ranks nobody: the way out is to follow someone who shares.
+      if (circle.length < 2) return { sport, sports, kind: "alone" as const };
       const ids = circle.map((person) => person.id);
       if (mode === "activity") {
-        const values = await readLeaderboard(tx, ids, sport, activityMetric, range);
+        const [values, units] = await Promise.all([
+          readLeaderboard(tx, ids, sport, activityMetric, range),
+          sport === "workout" ? null : readDistanceUnits(tx, user.id),
+        ]);
         const rows = rankCircle(
           circle,
           new Map([...values].map(([id, value]) => [id, { value }])),
           lowerIsBetter(activityMetric),
         );
-        return { kind: "activity" as const, rows };
+        // Distances read in the viewer's own unit for the sport, as their own do.
+        const distanceUnit = sport !== "workout" && units ? units[sport] : undefined;
+        return { sport, sports, kind: "activity" as const, rows, distanceUnit };
       }
       const [exercises, readings] = await Promise.all([
         readCircleExercises(tx, ids),
@@ -102,11 +146,13 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
       ]);
       const wanted = parseExerciseParam(params.exercise);
       const exercise = exercises.find((e) => e.id === wanted) ?? exercises[0];
-      if (!exercise) return { kind: "empty" as const };
+      if (!exercise) return { sport, sports, kind: "empty" as const };
       const metrics = boardMetricsForExercise(exercise, perKgAvailable(readings));
       const metric = parseBoardMetric(params.metric, metrics);
       const bests = await readExerciseBests(tx, ids, exercise.id);
       return {
+        sport,
+        sports,
         kind: "exercise" as const,
         exercises,
         exercise,
@@ -117,6 +163,8 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
     },
     { readOnly: true },
   );
+  const { sport, sports } = board;
+  const { mode, activityMetric } = boardOf(sport, params);
 
   const exerciseChoice: ExerciseChoice =
     board.kind === "exercise"
@@ -152,6 +200,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
           <>
             <LeaderboardControls
               sport={sport}
+              sports={sports}
               mode={mode}
               activityMetric={activityMetric}
               period={period}
@@ -161,20 +210,33 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
             {board.kind === "activity" ? (
               <Section
                 title={ACTIVITY_METRIC_LABELS[activityMetric]}
-                info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no ${activityName} in the period reads "—".${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher." : ""}`}
+                info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no ${ACTIVITY_NAMES[sport]} in the period reads "—".${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher." : ""}`}
               >
-                <RankList
-                  rows={board.rows}
-                  you={user.id}
-                  format={(value) => formatActivityMetric(activityMetric, value, unit)}
-                />
+                {board.rows.some((row) => row.value !== null) ? (
+                  <RankList
+                    rows={board.rows}
+                    you={user.id}
+                    format={(value) =>
+                      formatActivityMetric(activityMetric, value, unit, board.distanceUnit)
+                    }
+                  />
+                ) : (
+                  // Nobody to rank: a column of "—" for everyone says less than a sentence.
+                  <Card>
+                    <p className="text-sm text-ink-muted">
+                      {activityMetric === "best_pace"
+                        ? `No run of 1 km or more from you or the people you follow in the last ${PERIOD_LABELS[period]}.`
+                        : `No ${ACTIVITY_NAMES[sport]}s from you or the people you follow in the last ${PERIOD_LABELS[period]}.`}
+                    </p>
+                  </Card>
+                )}
               </Section>
             ) : board.kind === "exercise" ? (
               <Section
                 title={board.exercise.name}
                 info={`All-time bests, with the day each was set. ${
                   perKgBase(board.metric) === "top_weight" || board.metric === "top_weight"
-                    ? "Under a top weight, how it was worked: working sets at that load × the most reps one of them reached. "
+                    ? "Under a top weight, how many working sets were at it and the most reps the best of them reached. "
                     : ""
                 }${
                   perKgBase(board.metric) === "e1rm" || board.metric === "e1rm"
@@ -189,7 +251,10 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                 <RankList
                   rows={board.rows}
                   you={user.id}
-                  format={(value) => formatBoardMetric(board.metric, value, unit)}
+                  format={(value) =>
+                    formatBoardMetric(board.metric, value, unit, setLengthFor(viewer))
+                  }
+                  currentYear={todayInTimeZone(viewer.timeZone).slice(0, 4)}
                 />
               </Section>
             ) : (

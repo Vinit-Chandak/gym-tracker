@@ -9,12 +9,15 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ENDURANCE_SPORTS } from "@/domain/activity";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { occurrenceVersions, plannedOccurrences } from "@/db/schema";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getTemplateRevision } from "@/server/repositories/activity-templates";
 import {
+  OccurrenceClosedError,
   OccurrenceNotFoundError,
+  removeStandaloneOccurrence,
   reopenOccurrence,
   rescheduleOccurrence,
   skipOccurrence,
@@ -33,7 +36,8 @@ import { formValues, parseForm, type FormState } from "@/server/validation/form"
 export type OccurrenceResult = { ok: true } | { ok: false; error: string };
 
 function describe(error: unknown): string {
-  if (error instanceof OccurrenceNotFoundError) return error.message;
+  if (error instanceof OccurrenceNotFoundError || error instanceof OccurrenceClosedError)
+    return error.message;
   return "Something went wrong. Please try again.";
 }
 
@@ -70,6 +74,26 @@ export async function reopenOccurrenceAction(occurrenceId: string): Promise<Occu
   return { ok: true };
 }
 
+/**
+ * Takes a standalone session off the calendar. A programme's own sessions are not removed
+ * here: they change when the programme does.
+ */
+export async function removeOccurrenceAction(occurrenceId: string): Promise<OccurrenceResult> {
+  const user = await requireUser();
+  try {
+    await withUser(getDb(), user.id, (tx) => removeStandaloneOccurrence(tx, user.id, occurrenceId));
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+  revalidateSchedule(occurrenceId);
+  redirect("/training/scheduled");
+}
+
+/** Said where a date that has gone by is refused. */
+const MOVE_TO_PAST = "Choose today or a later day.";
+const SCHEDULE_IN_PAST =
+  "That day has gone by. To record something you have already done, log it instead.";
+
 const rescheduleSchema = z.object({
   scheduledOn: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
@@ -85,13 +109,20 @@ export async function rescheduleOccurrenceAction(
   const user = await requireUser();
   const parsed = parseForm(rescheduleSchema, formData);
   if (!parsed.success) return parsed.state;
+  let moved: boolean;
   try {
-    await withUser(getDb(), user.id, (tx) =>
-      rescheduleOccurrence(tx, user.id, occurrenceId, parsed.data.scheduledOn),
-    );
+    moved = await withUser(getDb(), user.id, async (tx) => {
+      // A session is moved to a day still to come. Moved into the past it would only arrive
+      // already missed, which is never what somebody moving it meant.
+      const profile = await ensureProfile(tx, user);
+      if (parsed.data.scheduledOn < todayInTimeZone(profile.timeZone)) return false;
+      await rescheduleOccurrence(tx, user.id, occurrenceId, parsed.data.scheduledOn);
+      return true;
+    });
   } catch (error) {
     return { formError: describe(error), values: formValues(formData) };
   }
+  if (!moved) return { fieldErrors: { scheduledOn: MOVE_TO_PAST }, values: formValues(formData) };
   revalidateSchedule(occurrenceId);
   redirect(`/training/programme/occurrences/${occurrenceId}`);
 }
@@ -134,10 +165,13 @@ export async function scheduleActivityAction(
   if (!parsed.success) return parsed.state;
   const form = parsed.data;
 
-  let occurrenceId: string;
+  let occurrenceId: string | null;
   try {
     occurrenceId = await withUser(getDb(), user.id, async (tx) => {
       const profile = await ensureProfile(tx, user);
+      // Scheduling is for days to come. A session put on a day that has gone by would be
+      // missed the moment it was made; what was done then is logged, not scheduled.
+      if (form.scheduledOn < todayInTimeZone(profile.timeZone)) return null;
       const revision = form.templateRevisionId
         ? await getTemplateRevision(tx, user.id, form.templateRevisionId)
         : null;
@@ -183,6 +217,8 @@ export async function scheduleActivityAction(
   } catch (error) {
     return { formError: describe(error), values: formValues(formData) };
   }
+  if (occurrenceId === null)
+    return { fieldErrors: { scheduledOn: SCHEDULE_IN_PAST }, values: formValues(formData) };
   revalidateSchedule(occurrenceId);
   redirect("/training/scheduled");
 }

@@ -1,7 +1,14 @@
 import type { LoadUnit, PrescriptionType, ProgressionRule, SetType } from "./types";
-import { difficultyChange, stepEasier, stepHarder, type LoadLadder } from "./load-steps";
+import {
+  difficultyChange,
+  leastAssistance,
+  stepEasier,
+  stepHarder,
+  type LoadLadder,
+} from "./load-steps";
 import {
   capacityAt,
+  landingFloor,
   repCeiling,
   repTarget,
   summarizeExerciseEvidence,
@@ -108,6 +115,8 @@ export type SuggestionKind =
   | "lengthen"
   | "transfer"
   | "start"
+  /** Back after a break: the last session's sets, a little lighter. */
+  | "resume"
   /** Targets written by the AI coach's plan for this session, in place of the rule's. */
   | "coach";
 
@@ -142,6 +151,24 @@ export function workingSets(sets: readonly PerformedSet[]): PerformedSet[] {
   return sets
     .filter((s) => WORKING_SET_TYPES.has(s.setType))
     .sort((a, b) => a.setIndex - b.setIndex);
+}
+
+/**
+ * A bodyweight movement's sets of reps as the rule reads them. Its load is what is added to the
+ * body, and the logger leaves that empty until something is, so a set saved that way added
+ * nothing: 0, which is how the library says bodyweight is logged. Read as unknown, no session
+ * had a load to compare with another, and the reps never built. Anywhere else an empty load
+ * stays unknown: an unweighed barbell set is not an empty bar, and a hold or a carry is not
+ * compared on its load.
+ */
+export function readAddedLoad<S extends { weight: number | null }>(
+  sets: readonly S[],
+  exercise: { modality?: string | null },
+  prescription: Pick<Prescription, "prescriptionType">,
+): S[] {
+  if (exercise.modality !== "bodyweight" || prescription.prescriptionType !== "reps")
+    return [...sets];
+  return sets.map((set) => (set.weight === null ? ({ ...set, weight: 0 } as S) : set));
 }
 
 function copy(sets: readonly PerformedSet[]): TargetSet[] {
@@ -186,6 +213,30 @@ function muchWorseRir(set: PerformedSet, targetRir: number | null): boolean {
 
 function rirSatisfied(set: PerformedSet, targetRir: number | null): boolean {
   return targetRir === null || (set.rir !== null && set.rir >= targetRir);
+}
+
+/**
+ * Why the load holds where the next step harder is not known, as the athlete needs to hear it.
+ * At the least help an assisted machine gives there is no next weight to learn, so none is asked
+ * for: what is harder from there is the movement without the machine.
+ */
+function noNextStep(p: Prescription, from: number | null): [reason: string, advice: string] {
+  const ladder = prescriptionLadder(p);
+  if (from !== null && leastAssistance(ladder, from))
+    return [
+      "Keep this weight: it is the least assistance this machine gives.",
+      "There is no less help to step to here. Build reps within the range, then try the movement without the machine, or with a band.",
+    ];
+  return [
+    p.requireKnownLoads
+      ? "Keep the current load; the next one is not a weight you have listed for this machine."
+      : "Keep the current load; the next weight on this machine is not known yet.",
+    !p.ladder?.stack
+      ? "Add reps within the range, or list the weights this equipment has."
+      : ladder.assisted
+        ? "Enter the next step down under the exercise once your sets are done, or add reps within the range."
+        : "Enter the next weight up under the exercise once your sets are done, or add reps within the range.",
+  ];
 }
 
 function base(
@@ -273,7 +324,8 @@ function forReps(
  * the load up now; exactly on target steps it up once seen twice. Inside the range the load
  * holds and each set is asked for what it had in hand. A step that missed the range twice in
  * its first three sessions goes back to the load before it. A step so coarse it would land
- * below the range waits while reps build past the top.
+ * below the range waits while reps build past the top — by two reps at most — and is then
+ * taken, starting below the range and building back up (ADR 0048).
  */
 function byCapacity(
   p: Prescription,
@@ -326,6 +378,25 @@ function byCapacity(
   }
   if (evidence.readiness === "unknown" || evidence.readiness === "below") return null;
 
+  const body = p.bodyLoad ?? 0;
+  /**
+   * The load each working set counts at (ADR 0048): its own, except a heavier set of the
+   * athlete's own that fell short of the range, which counts at the session's load.
+   */
+  const workLoads = evidence.latestWorkLoads;
+  /**
+   * Where a set stands when it counts at another load than it was lifted at: that load, and the
+   * reps in hand it predicts there. Null for a set that counts at its own load.
+   */
+  const settled = (set: TargetSet, index: number) => {
+    const at = workLoads[index];
+    if (at == null || set.weight == null || Math.abs(at - set.weight) < 0.05) return null;
+    const inHand =
+      set.reps == null || set.rir == null
+        ? null
+        : capacityAt(set.reps + set.rir, set.weight, at, body);
+    return { weight: at, inHand };
+  };
   const first = working.find((set) => set.weight != null && set.weight > 0);
   const next = first ? stepHarder(ladder, first.weight!) : null;
   const ceiling =
@@ -343,7 +414,10 @@ function byCapacity(
     if (target === null || set.reps === null) return set.reps;
     return nudge && target <= set.reps ? Math.min(ceiling, set.reps + 1) : target;
   };
-  /** The same load, each set asked for what it had in hand at the target effort. */
+  /**
+   * The same load, each set asked for what it had in hand at the target effort; a heavier set
+   * that fell short goes back to the session's load, asked for what it predicts there.
+   */
   const build = (kind: SuggestionKind, reason: string, advice: string | null = null) =>
     base(
       kind,
@@ -351,8 +425,50 @@ function byCapacity(
       reason,
       advice,
       inc,
-      onWork((set) => ({ ...set, reps: aim(set), rir: p.rirMin })),
+      onWork((set, index) => {
+        const at = settled(set, index);
+        if (!at) return { ...set, reps: aim(set), rir: p.rirMin };
+        return {
+          ...set,
+          weight: at.weight,
+          reps:
+            at.inHand === null
+              ? (p.repMin ?? set.reps)
+              : Math.max(
+                  p.repMin ?? 1,
+                  Math.min(ceiling, Math.floor(at.inHand - targetRir + 1e-9)),
+                ),
+          rir: p.rirMin,
+        };
+      }),
     );
+  /** Why the load holds before a coarse step, and how far reps go first (ADR 0048). */
+  const bigJump = (): [string, string] => {
+    const to = next && !(p.requireKnownLoads && next.source !== "known") ? next.load : null;
+    if (first?.weight == null || to === null)
+      return [
+        "The next weight up is a big jump.",
+        `Build to ${ceiling} reps at this weight first.`,
+      ];
+    const floor = landingFloor(p, first.weight, to, ladder.assisted) ?? p.repMin;
+    const lands = Math.floor(
+      capacityAt(ceiling + targetRir, first.weight, to, body) - targetRir + 1e-9,
+    );
+    if (p.repMin === null || lands >= p.repMin)
+      return [
+        "The next weight up is a big jump.",
+        `Build to ${ceiling} reps at this weight first, so the step lands inside the range.`,
+      ];
+    if (floor !== null && lands >= floor)
+      return [
+        "The next weight up is a big jump.",
+        `Build to ${ceiling} reps at this weight, ${ceiling - (top ?? ceiling)} past the top of the range and no further. The step comes from there and starts below the range, at about ${lands} reps.`,
+      ];
+    return [
+      "The next weight up is too big a jump to bridge with reps.",
+      `Build to ${ceiling} reps here and no further: the step comes once every set has more in reserve there, or sooner with a smaller step or a variation.`,
+    ];
+  };
 
   if (evidence.loadReady && unspent(evidence.stepEvidenceIds)) {
     if (working.every((set) => set.weight === 0))
@@ -362,59 +478,69 @@ function byCapacity(
         "Bodyweight has no next weight here: add load you can measure, a vest or a plate, and log it, or ask the coach for a harder variation.",
       );
     let unknown = false,
-      short = false;
-    const stepped = onWork((set) => {
-      if (set.weight == null || set.weight <= 0) {
+      short = false,
+      below: number | null = null;
+    /** The load no step harder was found from. */
+    let stuck: number | null = null;
+    const stepped = onWork((set, index) => {
+      // Each set steps from the load it counts at, so an attempt above it does not step twice.
+      const at = settled(set, index);
+      const weight = at?.weight ?? set.weight;
+      if (weight == null || weight <= 0) {
         unknown = true;
         return set;
       }
-      const step = stepHarder(ladder, set.weight);
+      const step = stepHarder(ladder, weight);
       if (!step || (p.requireKnownLoads && step.source !== "known")) {
         unknown = true;
+        stuck ??= weight;
         return set;
       }
-      const inHand = set.reps != null && set.rir != null ? set.reps + set.rir : null;
+      const inHand = at
+        ? at.inHand
+        : set.reps != null && set.rir != null
+          ? set.reps + set.rir
+          : null;
       const after =
-        inHand === null || ladder.assisted
-          ? null
-          : capacityAt(inHand, set.weight, step.load, p.bodyLoad ?? 0);
-      if (after !== null && p.repMin != null && after < p.repMin + targetRir - 1e-9) short = true;
+        inHand === null || ladder.assisted ? null : capacityAt(inHand, weight, step.load, body);
+      /**
+       * Where a coarse step may start (ADR 0048): below the range, once the set has built to the
+       * ceiling at the target effort and the step would still leave it the landing floor.
+       */
+      const floor = landingFloor(p, weight, step.load, ladder.assisted);
+      const most = repCeiling(p, weight, step.load, ladder.assisted) ?? Infinity;
+      if (after !== null && p.repMin != null && after < p.repMin + targetRir - 1e-9) {
+        if (floor === null || inHand! < most + targetRir - 1e-9 || after < floor + targetRir - 1e-9)
+          short = true;
+        else below = Math.min(below ?? Infinity, Math.floor(after - targetRir + 1e-9));
+      }
       // What the set should have in hand at the new load, asked for at the target effort.
       const reps =
         after === null
           ? (p.repMin ?? set.reps)
           : Math.max(
-              p.repMin ?? 1,
+              floor ?? p.repMin ?? 1,
               Math.min(top ?? Infinity, Math.floor(after - targetRir + 1e-9)),
             );
       return { ...set, weight: step.load, reps, rir: p.rirMin };
     });
-    if (unknown)
-      return build(
-        "hold",
-        p.requireKnownLoads
-          ? "Keep the current load; the next one is not a weight you have listed for this machine."
-          : "Keep the current load; the next weight on this machine is not known yet.",
-        p.ladder?.stack
-          ? "Enter the next weight up under the exercise once your sets are done, or add reps within the range."
-          : "Add reps within the range, or list the weights this equipment has.",
-      );
+    if (unknown) return build("hold", ...noNextStep(p, stuck));
     if (!short)
       return base(
         "increase",
         basis,
-        evidence.loadReady === "spare"
-          ? "Every set had a rep to spare at the top of the range."
-          : "On target at the top of the range two sessions running.",
-        null,
+        below !== null
+          ? `${label(stepped.find((set) => WORKING_SET_TYPES.has(set.setType))?.weight ?? null, p.unit)} is a big jump: every set has built to ${ceiling} reps, as far past the top of the range as reps go.`
+          : evidence.loadReady === "spare"
+            ? "Every set had a rep to spare at the top of the range."
+            : "On target at the top of the range two sessions running.",
+        below !== null
+          ? `It starts below the range, at ${below} reps, and builds back up from there.`
+          : null,
         inc,
         stepped,
       );
-    return build(
-      "hold",
-      "The next weight on this machine is a big jump.",
-      `Build to ${ceiling} reps at this weight first, so the step lands inside the range.`,
-    );
+    return build("hold", ...bigJump());
   }
 
   const worse = working.find((set) => muchWorseRir(set, p.rirMin));
@@ -424,24 +550,24 @@ function byCapacity(
       `Set ${worse.setIndex} was ${worse.rir} RIR against a ${p.rirMin} RIR plan`,
       "Keep the baseline and reassess the next comparable session; one harder set is not a persistent decline.",
     );
+  const climbing =
+    evidence.landing !== null &&
+    working.some((set) => set.reps != null && p.repMin != null && set.reps < p.repMin);
   if (evidence.readiness === "building")
     return build(
       "hold",
-      working.some((set) => (repTarget(set, targetRir, ceiling) ?? 0) > (set.reps ?? 0))
-        ? "Same weight: aim for the reps you had in hand last time."
-        : nudge
-          ? "Two comparable sessions met the target; add one rep within the range."
-          : "Same weight: reps build before load.",
+      climbing
+        ? "Same weight: reps build back into the range after the big jump."
+        : working.some((set) => (repTarget(set, targetRir, ceiling) ?? 0) > (set.reps ?? 0))
+          ? "Same weight: aim for the reps you had in hand last time."
+          : nudge
+            ? "Two comparable sessions met the target; add one rep within the range."
+            : "Same weight: reps build before load.",
     );
   const latest = evidence.observations[0]?.sourceId;
   if (latest && !unspent([latest]))
     return build("hold", "Same weight: this session already earned the last change.");
-  if (coarse)
-    return build(
-      "hold",
-      "The next weight on this machine is a big jump.",
-      `Build to ${ceiling} reps at this weight first, so the step lands inside the range.`,
-    );
+  if (coarse) return build("hold", ...bigJump());
   return evidence.readiness === "spare"
     ? build(
         "hold",
@@ -453,6 +579,95 @@ function byCapacity(
         "On target at the top of the range.",
         "Repeat it once more and the weight goes up.",
       );
+}
+
+/**
+ * Back after a break (owner decision). Nothing in the weeks the rule reads says where the load
+ * is now, so the last session comes back a little easier: each working load stepped along the
+ * machine's or the plates' own loads to the first one at least a tenth easier, which is never
+ * less than one step, and the reps and effort the plan asks for. From what is logged then, the
+ * rule goes on as usual. Without a lighter load that is known to exist, the load stays and the
+ * advice says to go lighter.
+ */
+export function afterBreak(
+  prescription: Prescription,
+  previous: readonly PerformedSet[],
+  basis: SuggestionBasis,
+): ProgressionSuggestion {
+  const inc = prescription.loadIncrement;
+  if (workingSets(previous).length === 0)
+    return base("start", basis, "No working sets logged last time", null, inc, []);
+  const ladder = prescriptionLadder(prescription);
+  const reps = prescription.prescriptionType === "reps";
+  const cut = TRAINING_POLICY.breakLoadReduction;
+  let loaded = false,
+    unknown = false;
+  const sets = copy(previous).map((set) => {
+    if (!WORKING_SET_TYPES.has(set.setType)) return set;
+    const target = {
+      ...set,
+      rir: reps ? prescription.rirMin : null,
+      rpe: reps ? undefined : null,
+      reps:
+        set.reps === null || prescription.repMin === null
+          ? set.reps
+          : Math.max(prescription.repMin, set.reps),
+    };
+    if (set.weight == null || set.weight <= 0) return target;
+    loaded = true;
+    let load = set.weight;
+    for (
+      let guard = 0;
+      guard < 200 && -difficultyChange(ladder, set.weight, load) < cut - 1e-9;
+      guard++
+    ) {
+      const step = stepEasier(ladder, load);
+      if (
+        !step ||
+        step.load === load ||
+        (prescription.requireKnownLoads && step.source !== "known")
+      )
+        break;
+      load = step.load;
+    }
+    if (load === set.weight) unknown = true;
+    return { ...target, weight: load };
+  });
+  const weeks = Math.floor(TRAINING_POLICY.trendDays / 7);
+  const away = `Not done for over ${weeks} weeks`;
+  const easier = ladder.assisted
+    ? "with more assistance"
+    : `about ${Math.round(cut * 100)}% lighter`;
+  if (!loaded)
+    return base(
+      "resume",
+      basis,
+      `${away}: start from last time's sets.`,
+      "Keep reps in reserve on every set; the rule goes on from what you log.",
+      inc,
+      sets,
+    );
+  if (unknown)
+    return base(
+      "resume",
+      basis,
+      ladder.assisted
+        ? `${away}: start with more assistance than last time.`
+        : `${away}: start lighter than last time.`,
+      ladder.assisted
+        ? "No setting with more assistance is known here: use the next one up. The rule goes on from what you log."
+        : `No lighter weight is known here: use one ${easier}. The rule goes on from what you log.`,
+      inc,
+      sets,
+    );
+  return base(
+    "resume",
+    basis,
+    `${away}: last time's sets, ${easier}.`,
+    "The rule goes on from what you log.",
+    inc,
+    sets,
+  );
 }
 
 /**
@@ -493,6 +708,8 @@ export function suggestNext(
     );
   }
   const evidence = summarizeExerciseEvidence(prescription, history);
+  // After a coarse step the reps count from where that step may start (ADR 0048).
+  const bottom = evidence.landing?.floor ?? prescription.repMin;
   const hold = (reason: string, advice: string | null = null) =>
     base(
       "hold",
@@ -504,10 +721,7 @@ export function suggestNext(
         ...set,
         rir: prescription.prescriptionType === "reps" ? prescription.rirMin : null,
         rpe: prescription.prescriptionType === "reps" ? undefined : null,
-        reps:
-          set.reps === null || prescription.repMin === null
-            ? set.reps
-            : Math.max(prescription.repMin, set.reps),
+        reps: set.reps === null || bottom === null ? set.reps : Math.max(bottom, set.reps),
       })),
     );
   let candidate: ProgressionSuggestion;
@@ -528,6 +742,8 @@ export function suggestNext(
         "The upper target was met twice.",
         "Review a feasible load or exercise variation before increasing beyond this range.",
       );
+    // A set already past the top of the range keeps what it did: capping it would ask for less
+    // under a tag that says more.
     const longer = copy(previous).map((set) =>
       !WORKING_SET_TYPES.has(set.setType)
         ? set
@@ -538,9 +754,12 @@ export function suggestNext(
             [field]:
               set[field] === null
                 ? null
-                : Math.min(
-                    max ?? Infinity,
-                    set[field]! + Math.min(5, Math.max(1, Math.floor(set[field]! * 0.1))),
+                : Math.max(
+                    set[field]!,
+                    Math.min(
+                      max ?? Infinity,
+                      set[field]! + Math.min(5, Math.max(1, Math.floor(set[field]! * 0.1))),
+                    ),
                   ),
           },
     );
@@ -596,6 +815,8 @@ export function suggestNext(
     const ladder = prescriptionLadder(prescription);
     let unknown = false;
     let tooFar = false;
+    /** The load no step harder was found from. */
+    let stuck: number | null = null;
     const targetSets = candidate.sets.map((set) => {
       const old = working.find((item) => item.setIndex === set.setIndex);
       if (!old) return set;
@@ -606,6 +827,7 @@ export function suggestNext(
       const step = harder ? stepHarder(ladder, old.weight) : stepEasier(ladder, old.weight);
       if (!step || (prescription.requireKnownLoads && step.source !== "known")) {
         unknown = true;
+        if (harder) stuck ??= old.weight;
         return set;
       }
       if (
@@ -615,15 +837,7 @@ export function suggestNext(
         tooFar = true;
       return { ...set, weight: step.load };
     });
-    if (unknown)
-      return hold(
-        prescription.requireKnownLoads
-          ? "Keep the current load; the next one is not a weight you have listed for this machine."
-          : "Keep the current load; the next weight on this machine is not known yet.",
-        prescription.ladder?.stack
-          ? "Enter the next weight up under the exercise once your sets are done, or add reps within the range."
-          : "Add reps within the range, or list the weights this equipment has.",
-      );
+    if (unknown) return hold(...noNextStep(prescription, stuck));
     if (tooFar)
       return hold(
         "Keep the current load; the next lighter step is more than the automatic cut.",

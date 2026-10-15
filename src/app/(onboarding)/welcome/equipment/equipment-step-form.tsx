@@ -13,12 +13,9 @@ import { sameNameCandidates, searchEquipment } from "@/lib/equipment-search";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { holdEnter } from "@/lib/search-keys";
-import { cn } from "@/lib/utils";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 import type { MachinesStep, StarterItem, StarterVariant } from "@/lib/machines-step";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
-
-import { SkipLink } from "../skip-link";
 
 type Props = {
   step: MachinesStep;
@@ -62,19 +59,20 @@ const listed = (names: readonly string[]) =>
         .join(", ")} and ${lower(names.at(-1)!)}`;
 
 /**
- * The machines step (plan: onboarding flow; board Machines). What it offers depends on the place
- * and the answer to "Which sounds like you?":
+ * The optional equipment step of setup. Nothing here has to be answered: Continue with nothing
+ * chosen goes on, and anything missed is confirmed the first time a workout needs it.
  *
- * - at a gym, the basics first, as one line that counts them and opens them as pictures, where a
- *   tap records one as not here;
- * - for somebody new, a few illustrated suggestions, each with its picture, name and purpose,
- *   unticked; a family asks which variant it is, and "Not sure" registers nothing;
- * - for somebody who already trains, every other type, grouped and searchable by any of its
- *   names, with its picture behind ⓘ;
- * - outdoors, a short calisthenics set for everyone.
+ * - At a gym (board Anything unusual, for someone who already trains): the basics are taken as
+ *   there, as one line that counts them and opens them as pictures to untick. A search over every
+ *   type, the basics included, finds the belt squat or the pec deck by any of their names; a
+ *   basic it finds says it is counted already, with Not here beside it (audit B3). Under the
+ *   basics, the kit often missed, and Browse all for the rest.
+ * - At home or outdoors (board What you have): nothing is taken as there, so the short set for
+ *   that kind of place is shown as pictures to tick, and everything else is in Browse all.
  *
- * Everyone can browse everything, review what they chose and skip. Nothing is saved until Add;
- * what the place already has shows as such, and an archived machine is restored, not doubled.
+ * What was chosen adds up at the foot, with Review; nothing is saved until Add, and there is no
+ * Skip that would drop what was ticked (B9). What the place already has shows as such, and an
+ * archived machine is restored, not doubled.
  */
 export function EquipmentStepForm({ step, art }: Props) {
   const form = useKeptForm();
@@ -82,6 +80,7 @@ export function EquipmentStepForm({ step, art }: Props) {
     keepsFormOnDisconnect(addStarterEquipmentAction),
     INITIAL_FORM_STATE,
   );
+  const atGym = step.gym.kind === "gym";
   const basics = step.basics;
   const basicIds = useMemo(() => new Set(basics.flatMap((item) => item.typeIds)), [basics]);
   const active = useMemo(() => new Set(step.activeTypeIds), [step.activeTypeIds]);
@@ -94,8 +93,8 @@ export function EquipmentStepForm({ step, art }: Props) {
   );
   const [sheet, setSheet] = useState<OpenSheet>(null);
   const [notice, setNotice] = useState("");
-  const beginner = step.suggestions.length > 0;
-  const [browsing, setBrowsing] = useState(!beginner);
+  const [query, setQuery] = useState("");
+  const [browsing, setBrowsing] = useState(false);
   const fullList = useRef<HTMLDivElement>(null);
 
   const byKey = useMemo(() => {
@@ -111,14 +110,25 @@ export function EquipmentStepForm({ step, art }: Props) {
       for (const variant of item.variants ?? []) names.set(variant.typeId, variant.name);
     return names;
   }, [step.suggestions, step.catalogue]);
+  // What the search at the top looks through: every type, the basics included.
+  const searchable = useMemo(() => {
+    const seen = new Set<string>();
+    return [...basics, ...step.suggestions, ...step.catalogue].filter((item) => {
+      if (seen.has(item.key)) return false;
+      seen.add(item.key);
+      return true;
+    });
+  }, [basics, step.suggestions, step.catalogue]);
 
   const isHere = (item: StarterItem) =>
     item.kind === "family"
       ? item.typeIds.some((id) => active.has(id))
       : item.typeIds.every((id) => active.has(id));
+  const isBasic = (item: StarterItem) => item.typeIds.every((id) => basicIds.has(id));
   const familyPick = (item: StarterItem) => item.typeIds.find((id) => chosen.has(typeKey(id)));
   const isChosen = (item: StarterItem) =>
     item.kind === "family" ? familyPick(item) !== undefined : chosen.has(item.key);
+  const markedNotHere = (item: StarterItem) => item.typeIds.every((id) => notHere.has(id));
 
   const say = (next: ReadonlySet<string>) =>
     setNotice(`${next.size} ${next.size === 1 ? "item" : "items"} selected`);
@@ -150,10 +160,12 @@ export function EquipmentStepForm({ step, art }: Props) {
     say(next);
     setSheet(null);
   };
-  const markHere = (typeId: string, here: boolean) => {
+  const markHere = (typeIds: readonly string[], here: boolean) => {
     const next = new Set(notHere);
-    if (here) next.delete(typeId);
-    else next.add(typeId);
+    for (const id of typeIds) {
+      if (here) next.delete(id);
+      else next.add(id);
+    }
     setNotHere(next);
   };
 
@@ -168,18 +180,29 @@ export function EquipmentStepForm({ step, art }: Props) {
   };
 
   const count = chosen.size;
-  const hereCount = basics.filter((item) => !item.typeIds.every((id) => notHere.has(id))).length;
-  const notHereNames = basics
-    .filter((item) => item.typeIds.every((id) => notHere.has(id)))
-    .map((item) => item.name);
+  const hereCount = basics.filter((item) => !markedNotHere(item)).length;
+  const notHereNames = basics.filter(markedNotHere).map((item) => item.name);
 
   const openFullList = () => {
     setBrowsing(true);
-    // After the list renders: bring its search into view and put the caret in it.
-    requestAnimationFrame(() => {
-      fullList.current?.scrollIntoView({ block: "start" });
-      fullList.current?.querySelector<HTMLInputElement>("input[type=search]")?.focus();
-    });
+    // After the list renders: bring it into view.
+    requestAnimationFrame(() => fullList.current?.scrollIntoView({ block: "start" }));
+  };
+
+  const rowProps = {
+    isChosen,
+    isHere,
+    isBasic,
+    markedNotHere,
+    status,
+    onToggle: (item: StarterItem) => {
+      toggle(item);
+      // Choosing while typing closes the keyboard, so the count and Add are in sight again.
+      const focused = document.activeElement;
+      if (focused instanceof HTMLInputElement && focused.type === "search") focused.blur();
+    },
+    onMarkHere: (item: StarterItem, here: boolean) => markHere(item.typeIds, here),
+    onAbout: (item: StarterItem) => setSheet({ kind: "about", item }),
   };
 
   return (
@@ -200,77 +223,94 @@ export function EquipmentStepForm({ step, art }: Props) {
         <input key={id} type="hidden" name="notHereTypeId" value={id} />
       ))}
 
-      {basics.length > 0 && (
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => setSheet({ kind: "basics" })}
-          className="basics-line"
-        >
-          <span className="basics-line-text">
-            <span className="basics-line-title">
-              Usually here (
-              <Swap id={String(hereCount)} className="tabular-nums">
-                {hereCount}
-              </Swap>
-              )
-            </span>
-            <span className="basics-line-meta">
-              {notHereNames.length > 0
-                ? `Not here: ${listed(notHereNames.map(lower))}`
-                : basicsSummary(basics.map((item) => item.name))}
-            </span>
-          </span>
-          <span className="basics-line-action">
-            Review
-            <Glyph name="chevronRight" className="glyph-18" />
-          </span>
-        </button>
-      )}
+      {atGym && <SearchBox query={query} onQuery={setQuery} className="mt-4" />}
 
-      {beginner && (
-        <section aria-labelledby="suggestions-title">
-          <h2 id="suggestions-title" className="caption-head mt-4">
-            {step.gym.kind === "gym" ? "What else is here?" : "Common here"}
-          </h2>
-          <ul className="equipment-grid">
-            {step.suggestions.map((item) => {
-              const pick = familyPick(item);
-              return (
-                <StarterTile
-                  key={item.key}
-                  item={item}
-                  art={art[pick ? (variantSlug(item, pick) ?? item.slug) : item.slug]}
-                  checked={isChosen(item) || isHere(item)}
-                  disabled={isHere(item)}
-                  note={pick ? (variantName.get(pick) ?? null) : status(item)}
-                  onToggle={() => toggle(item)}
-                  onAbout={() => setSheet({ kind: "about", item })}
-                />
-              );
-            })}
-          </ul>
-          {!browsing && (
-            <Button variant="text" className="mt-1 -ml-2.5" onClick={openFullList}>
-              Browse all equipment
-            </Button>
+      {atGym && query.trim() ? (
+        <SearchResults items={searchable} query={query} art={art} {...rowProps} />
+      ) : (
+        <>
+          {basics.length > 0 && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => setSheet({ kind: "basics" })}
+              className="basics-line"
+            >
+              <span className="basics-line-text">
+                <span className="basics-line-title">
+                  Usually here (
+                  <Swap id={String(hereCount)} className="tabular-nums">
+                    {hereCount}
+                  </Swap>
+                  )
+                </span>
+                <span className="basics-line-meta">
+                  {notHereNames.length > 0
+                    ? `Not here: ${listed(notHereNames.map(lower))}`
+                    : basicsSummary(basics.map((item) => item.name))}
+                </span>
+              </span>
+              <span className="basics-line-action">
+                Review
+                <Glyph name="chevronRight" className="glyph-18" />
+              </span>
+            </button>
           )}
-        </section>
-      )}
 
-      {browsing && (
-        <div ref={fullList} className={cn(beginner && "mt-4")}>
-          <h2 className={beginner ? "caption-head" : "sr-only"}>All equipment</h2>
-          <FullList
-            items={step.catalogue}
-            art={art}
-            isChosen={isChosen}
-            isHere={isHere}
-            status={status}
-            onToggle={toggle}
-            onAbout={(item) => setSheet({ kind: "about", item })}
-          />
-        </div>
+          {step.suggestions.length > 0 &&
+            (atGym ? (
+              <section aria-labelledby="suggestions-title">
+                <h2 id="suggestions-title" className="caption-head mt-4">
+                  {step.experience === "new" ? "What else is here?" : "Often missed"}
+                </h2>
+                <EquipmentRows
+                  items={step.suggestions}
+                  label={step.experience === "new" ? "What else is here?" : "Often missed"}
+                  {...rowProps}
+                />
+              </section>
+            ) : (
+              <ul aria-label="Equipment" className="equipment-grid mt-4.5">
+                {step.suggestions.map((item) => {
+                  const pick = familyPick(item);
+                  return (
+                    <StarterTile
+                      key={item.key}
+                      item={item}
+                      art={art[pick ? (variantSlug(item, pick) ?? item.slug) : item.slug]}
+                      checked={isChosen(item) || isHere(item)}
+                      disabled={isHere(item)}
+                      note={pick ? (variantName.get(pick) ?? null) : status(item)}
+                      compact
+                      onToggle={() => toggle(item)}
+                      onAbout={() => setSheet({ kind: "about", item })}
+                    />
+                  );
+                })}
+              </ul>
+            ))}
+
+          {!browsing ? (
+            <Button
+              variant="text"
+              // Its words on the screen's one left edge, wrapped too (200% text): the margin
+              // takes back the button's own padding.
+              className="mt-1 -ml-[16px] justify-start text-left"
+              onClick={openFullList}
+            >
+              {atGym ? "Browse all equipment" : "Something else? Browse all equipment"}
+            </Button>
+          ) : (
+            <div ref={fullList} className="mt-4">
+              <h2 className="caption-head">All equipment</h2>
+              {atGym ? (
+                <GroupedRows items={step.catalogue} {...rowProps} />
+              ) : (
+                <FullList items={step.catalogue} art={art} {...rowProps} />
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <p role="status" className="sr-only">
@@ -301,8 +341,6 @@ export function EquipmentStepForm({ step, art }: Props) {
         <SubmitButton pendingLabel="Saving…">
           {count === 0 ? "Continue" : `Add ${count} and continue`}
         </SubmitButton>
-        {/* With nothing chosen or marked, Continue already skips: Skip is said once. */}
-        {(count > 0 || notHere.size > 0) && <SkipLink href="/welcome/programme" />}
       </PinnedActions>
 
       <Sheet
@@ -324,11 +362,11 @@ export function EquipmentStepForm({ step, art }: Props) {
                 key={item.key}
                 item={item}
                 art={art[item.slug]}
-                checked={registered || !item.typeIds.every((id) => notHere.has(id))}
+                checked={registered || !markedNotHere(item)}
                 disabled={registered}
                 note={registered ? "Registered" : null}
                 compact
-                onToggle={() => item.typeIds.forEach((id) => markHere(id, notHere.has(id)))}
+                onToggle={() => markHere(item.typeIds, markedNotHere(item))}
                 onAbout={() => setSheet({ kind: "about", item, back: "basics" })}
               />
             );
@@ -349,17 +387,17 @@ export function EquipmentStepForm({ step, art }: Props) {
         <AboutSheet
           item={sheet.item}
           art={art}
-          basic={sheet.item.typeIds.every((id) => basicIds.has(id))}
+          basic={isBasic(sheet.item)}
           here={isHere(sheet.item)}
           chosen={isChosen(sheet.item)}
-          markedNotHere={sheet.item.typeIds.every((id) => notHere.has(id))}
+          markedNotHere={markedNotHere(sheet.item)}
           onToggle={() => {
             const item = sheet.item;
             setSheet(null);
             toggle(item);
           }}
           onMarkHere={(here) => {
-            sheet.item.typeIds.forEach((id) => markHere(id, here));
+            markHere(sheet.item.typeIds, here);
             setSheet(sheet.back ? { kind: sheet.back } : null);
           }}
           // Opened from the basics' Review, it goes back there.
@@ -444,6 +482,234 @@ function variantSlug(item: StarterItem, typeId: string): string | undefined {
   return item.variants?.find((variant) => variant.typeId === typeId)?.slug;
 }
 
+type RowProps = {
+  isChosen: (item: StarterItem) => boolean;
+  isHere: (item: StarterItem) => boolean;
+  isBasic: (item: StarterItem) => boolean;
+  markedNotHere: (item: StarterItem) => boolean;
+  status: (item: StarterItem) => string | null;
+  onToggle: (item: StarterItem) => void;
+  onMarkHere: (item: StarterItem, here: boolean) => void;
+  onAbout: (item: StarterItem) => void;
+};
+
+/** The search over every type, at the top of the step at a gym. */
+function SearchBox({
+  query,
+  onQuery,
+  className,
+}: {
+  query: string;
+  onQuery: (query: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`search-box ${className ?? ""}`} data-filled={query ? "true" : undefined}>
+      <Glyph name="search" className="glyph-20" />
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => onQuery(event.target.value)}
+        placeholder="Find equipment by any name…"
+        aria-label="Find equipment"
+        className="search-box-input"
+        autoCapitalize="none"
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        onKeyDown={holdEnter}
+      />
+      {query && (
+        <button
+          type="button"
+          aria-label="Clear the search"
+          onClick={() => onQuery("")}
+          className="search-box-clear"
+        >
+          <Glyph name="close" className="glyph-18" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Rows to tick, each its name and what it is for, the ring at its end and ⓘ beside it (DESIGN.md,
+ * Inputs: several from a list). A basic is not ticked, since it counts as there already: its row
+ * says so, with Not here (or It's here) at its end.
+ */
+function EquipmentRows({
+  items,
+  label,
+  isChosen,
+  isHere,
+  isBasic,
+  markedNotHere,
+  status,
+  onToggle,
+  onMarkHere,
+  onAbout,
+}: RowProps & { items: readonly StarterItem[]; label: string }) {
+  return (
+    <ul aria-label={label}>
+      {items.map((item) => {
+        if (isBasic(item) && !isHere(item)) {
+          const missing = markedNotHere(item);
+          return (
+            <li key={item.key} className="equipment-row">
+              <div className="picker-row">
+                <span className="picker-row-text">
+                  <span className="picker-row-name">{item.name}</span>
+                  <span className="picker-row-note">
+                    {missing ? "Marked not here" : "Usually here, counted already"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  aria-label={
+                    missing ? `${item.name} is here after all` : `${item.name} is not here`
+                  }
+                  onClick={() => onMarkHere(item, missing)}
+                  className="equipment-row-toggle"
+                >
+                  {missing ? "It’s here" : "Not here"}
+                </button>
+              </div>
+            </li>
+          );
+        }
+        const here = isHere(item);
+        const on = isChosen(item) || here;
+        const note = status(item);
+        return (
+          <li key={item.key} className="equipment-row">
+            <label className="picker-row" data-disabled={here || undefined}>
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={here}
+                onChange={() => onToggle(item)}
+                className="peer sr-only"
+              />
+              <span className="picker-row-text">
+                <span className="picker-row-name">{item.name}</span>
+                {item.purpose && (
+                  <span className="picker-row-meta">
+                    <span>{item.purpose}</span>
+                  </span>
+                )}
+                {note && <span className="picker-row-note">{note}</span>}
+              </span>
+              <span aria-hidden className="picker-tick" data-on={on || undefined}>
+                {on && <Glyph name="check" className="glyph-15" />}
+              </span>
+            </label>
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={`About ${item.name}`}
+              onClick={() => onAbout(item)}
+              className="equipment-row-info"
+            >
+              <Glyph name="info" className="glyph-20" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Every type of one list, grouped by kind, each group its caption. */
+function GroupedRows({ items, ...rowProps }: RowProps & { items: readonly StarterItem[] }) {
+  const groups = useMemo(() => {
+    const order: StarterItem["category"][] = [];
+    for (const item of items) if (!order.includes(item.category)) order.push(item.category);
+    return order.map((category) => ({
+      key: category,
+      title: GROUP_LABELS[category],
+      items: items.filter((item) => item.category === category),
+    }));
+  }, [items]);
+  return groups.map((group) => (
+    <Fragment key={group.key}>
+      <h3 className="caption-head mt-3.5">{group.title}</h3>
+      <EquipmentRows items={group.items} label={group.title} {...rowProps} />
+    </Fragment>
+  ));
+}
+
+/**
+ * What a search found, closest first, from every type the step knows, the basics included
+ * (audit B3). A name that means two things ("Roman chair") shows both, side by side, with their
+ * pictures, before the rows.
+ */
+function SearchResults({
+  items,
+  query,
+  art,
+  ...rowProps
+}: RowProps & { items: readonly StarterItem[]; query: string; art: Record<string, string> }) {
+  const results = useMemo(() => searchEquipment(items, query), [items, query]);
+  const candidates = useMemo(() => sameNameCandidates(items, query), [items, query]);
+  const said =
+    results.length > 0
+      ? `${results.length} ${results.length === 1 ? "match" : "matches"}`
+      : `Nothing is called “${query.trim()}”`;
+  return (
+    <div>
+      <p role="status" className="caption-head mt-3.5">
+        {said}
+      </p>
+      {candidates.length > 1 && (
+        <section aria-labelledby="same-name-title" className="mt-2">
+          <h3 id="same-name-title" className="caption-head">
+            “{query.trim()}” can mean either
+          </h3>
+          <ul className="equipment-grid">
+            {candidates.map((item) => (
+              <StarterTile
+                key={item.key}
+                item={item}
+                art={art[item.slug]}
+                checked={rowProps.isChosen(item) || rowProps.isHere(item)}
+                disabled={rowProps.isHere(item) || rowProps.isBasic(item)}
+                note={rowProps.isBasic(item) ? "Usually here" : rowProps.status(item)}
+                onToggle={() => rowProps.onToggle(item)}
+                onAbout={() => rowProps.onAbout(item)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+      {results.length > 0 && <EquipmentRows items={results} label="Matches" {...rowProps} />}
+    </div>
+  );
+}
+
+/**
+ * Everything else, at home or outdoors: grouped by kind while nothing is typed, ranked by any of
+ * its names when something is (local names included).
+ */
+function FullList({
+  items,
+  art,
+  ...rowProps
+}: RowProps & { items: readonly StarterItem[]; art: Record<string, string> }) {
+  const [query, setQuery] = useState("");
+  return (
+    <div>
+      <SearchBox query={query} onQuery={setQuery} className="mt-1" />
+      {query.trim() ? (
+        <SearchResults items={items} query={query} art={art} {...rowProps} />
+      ) : (
+        <GroupedRows items={items} {...rowProps} />
+      )}
+    </div>
+  );
+}
+
 /**
  * A picture tile: the drawing, the box and the name, the purpose under it; ticked, the tile is
  * ink and the drawing inverts with it. ⓘ stands beside the label, never inside it.
@@ -463,7 +729,7 @@ function StarterTile({
   checked: boolean;
   disabled?: boolean;
   note: string | null;
-  /** Name only: the basics' Review, where the picture and the name are enough. */
+  /** Name only: the picture and the name are enough (what is at home, the basics' Review). */
   compact?: boolean;
   onToggle: () => void;
   onAbout: () => void;
@@ -488,7 +754,7 @@ function StarterTile({
           <span aria-hidden className="tick-box">
             {checked && <Glyph name="check" className="glyph-15" />}
           </span>
-          <span className="min-w-0 [overflow-wrap:anywhere]">{item.name}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{item.name}</span>
         </span>
         {!compact && item.purpose && <span className="equipment-tile-purpose">{item.purpose}</span>}
         {note && <span className="equipment-tile-note">{note}</span>}
@@ -509,169 +775,6 @@ function StarterTile({
         <Glyph name="info" className="glyph-20" />
       </button>
     </li>
-  );
-}
-
-/**
- * Every type, grouped by kind while nothing is typed and ranked by any of its names when
- * something is (local names included). A search never hides a choice already made from the
- * count: the selection lives in the review, not in the results. A name that means two things
- * ("Roman chair") shows both, side by side, with their pictures.
- */
-function FullList({
-  items,
-  art,
-  isChosen,
-  isHere,
-  status,
-  onToggle,
-  onAbout,
-}: {
-  items: StarterItem[];
-  art: Record<string, string>;
-  isChosen: (item: StarterItem) => boolean;
-  isHere: (item: StarterItem) => boolean;
-  status: (item: StarterItem) => string | null;
-  onToggle: (item: StarterItem) => void;
-  onAbout: (item: StarterItem) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const results = useMemo(() => searchEquipment(items, query), [items, query]);
-  const candidates = useMemo(() => sameNameCandidates(items, query), [items, query]);
-  const groups = useMemo(() => {
-    if (query.trim()) return [{ key: "results", title: null, items: results }];
-    const order: StarterItem["category"][] = [];
-    for (const item of items) if (!order.includes(item.category)) order.push(item.category);
-    return order.map((category) => ({
-      key: category,
-      title: GROUP_LABELS[category],
-      items: items.filter((item) => item.category === category),
-    }));
-  }, [items, query, results]);
-
-  // Choosing while the search is being typed in closes the keyboard, so the count and Add at the
-  // foot are in sight again.
-  const choose = (item: StarterItem) => {
-    onToggle(item);
-    const focused = document.activeElement;
-    if (focused instanceof HTMLInputElement && focused.type === "search") focused.blur();
-  };
-
-  return (
-    <div>
-      <div className="search-box mt-1" data-filled={query ? "true" : undefined}>
-        <Glyph name="search" className="glyph-20" />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find equipment by any name…"
-          aria-label="Find equipment"
-          className="search-box-input"
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="search"
-          onKeyDown={holdEnter}
-        />
-        {query && (
-          <button
-            type="button"
-            aria-label="Clear the search"
-            onClick={() => setQuery("")}
-            className="search-box-clear"
-          >
-            <Glyph name="close" className="glyph-18" />
-          </button>
-        )}
-      </div>
-
-      {/* What a search found, said as well as shown. */}
-      <p role="status" className="sr-only">
-        {query.trim()
-          ? results.length > 0
-            ? `${results.length} ${results.length === 1 ? "match" : "matches"}`
-            : `Nothing is called “${query.trim()}”`
-          : ""}
-      </p>
-
-      {candidates.length > 1 && (
-        <section aria-labelledby="same-name-title" className="mt-3">
-          <h3 id="same-name-title" className="caption-head">
-            “{query.trim()}” can mean either
-          </h3>
-          <ul className="equipment-grid">
-            {candidates.map((item) => (
-              <StarterTile
-                key={item.key}
-                item={item}
-                art={art[item.slug]}
-                checked={isChosen(item) || isHere(item)}
-                disabled={isHere(item)}
-                note={status(item)}
-                onToggle={() => choose(item)}
-                onAbout={() => onAbout(item)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {results.length === 0 ? (
-        <p className="mt-3 type-meta text-ink-2">Nothing is called “{query.trim()}”.</p>
-      ) : (
-        groups.map((group) => (
-          <Fragment key={group.key}>
-            {group.title && <h3 className="caption-head mt-3.5">{group.title}</h3>}
-            <ul aria-label={group.title ?? "Matches"}>
-              {group.items.map((item) => {
-                const here = isHere(item);
-                const note = status(item);
-                return (
-                  <li key={item.key} className="equipment-row">
-                    <label className="picker-row" data-disabled={here || undefined}>
-                      <input
-                        type="checkbox"
-                        checked={isChosen(item) || here}
-                        disabled={here}
-                        onChange={() => choose(item)}
-                        className="peer sr-only"
-                      />
-                      <span className="picker-row-text">
-                        <span className="picker-row-name">{item.name}</span>
-                        {item.purpose && (
-                          <span className="picker-row-meta">
-                            <span>{item.purpose}</span>
-                          </span>
-                        )}
-                        {note && <span className="picker-row-note">{note}</span>}
-                      </span>
-                      <span
-                        aria-hidden
-                        className="picker-tick"
-                        data-on={isChosen(item) || here || undefined}
-                      >
-                        {(isChosen(item) || here) && <Glyph name="check" className="glyph-15" />}
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      aria-haspopup="dialog"
-                      aria-label={`About ${item.name}`}
-                      onClick={() => onAbout(item)}
-                      className="equipment-row-info"
-                    >
-                      <Glyph name="info" className="glyph-20" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </Fragment>
-        ))
-      )}
-    </div>
   );
 }
 
@@ -727,7 +830,7 @@ function VariantTile({
       <button type="button" onClick={onChoose} className="equipment-tile w-full text-left">
         {art ? <EquipmentArt src={art} className="equipment-tile-art" /> : null}
         <span className="equipment-tile-name">
-          <span className="min-w-0 [overflow-wrap:anywhere]">{variant.name}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{variant.name}</span>
         </span>
         {(variant.identification ?? variant.purpose) && (
           <span className="equipment-tile-purpose">

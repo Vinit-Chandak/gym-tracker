@@ -3,6 +3,7 @@ import { RankList, type RankRow } from "@/components/ui/rank-list";
 import { Section } from "@/components/ui/section";
 import { metricLabel, type MetricExercise, type SharedMetric } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatSharedMetric } from "@/lib/format";
 
 /**
@@ -17,6 +18,8 @@ export function FriendsBoardCard({
   rows,
   you,
   unit,
+  length,
+  currentYear,
 }: {
   exercise: MetricExercise & { id: string };
   metric: SharedMetric;
@@ -24,13 +27,22 @@ export function FriendsBoardCard({
   rows: readonly RankRow[];
   you: string;
   unit: BodyLoadUnit;
+  /** What a carry reads in: the viewer's metres or yards. */
+  length: SetLengthUnit;
+  /** The year it is in the viewer's zone: a best set in it does not name it. */
+  currentYear?: string;
 }) {
   return (
     <Section
       title="Friends' leaderboard"
       info={`You and the people you follow, ranked by ${metricLabel(metric, exercise).toLowerCase()} over all time, with the day each best was set. Equal values share a rank.`}
     >
-      <RankList rows={rows} you={you} format={(value) => formatSharedMetric(metric, value, unit)} />
+      <RankList
+        rows={rows}
+        you={you}
+        format={(value) => formatSharedMetric(metric, value, unit, length)}
+        currentYear={currentYear}
+      />
       <LinkButton
         href={`/profile/friends/leaderboard?mode=exercise&exercise=${exercise.id}`}
         variant="ghost"

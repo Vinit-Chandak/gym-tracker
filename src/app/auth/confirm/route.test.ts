@@ -1,3 +1,4 @@
+import { AuthApiError, AuthPKCECodeVerifierMissingError } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -56,4 +57,40 @@ it("sends a recovery link to the password screen, and a bad one back with its re
   expect(
     (await confirm("https://overload.example/auth/confirm?nothing=here")).headers.get("location"),
   ).toBe("/login?error=link");
+});
+
+/**
+ * A code is exchanged with a verifier kept in the browser that asked for the email. Opened in
+ * any other — Safari, from an app on an iPhone's home screen — it cannot be, and saying the link
+ * had expired sent the athlete round asking for another that would fail the same way.
+ */
+it("says a link was opened in another browser, rather than that it expired", async () => {
+  supabase.exchangeCodeForSession.mockResolvedValue({
+    data: { user: null, session: null, redirectType: null },
+    error: new AuthPKCECodeVerifierMissingError(),
+  });
+  expect(
+    (await confirm("https://overload.example/auth/confirm?code=c")).headers.get("location"),
+  ).toBe("/login?error=browser");
+
+  supabase.exchangeCodeForSession.mockResolvedValue({
+    data: { user: null, session: null, redirectType: null },
+    error: new AuthApiError("invalid flow state", 404, "flow_state_not_found"),
+  });
+  expect(
+    (await confirm("https://overload.example/auth/confirm?code=c")).headers.get("location"),
+  ).toBe("/login?error=link");
+});
+
+it("sends a failure Supabase reports back to the reset form only when the link was a reset", async () => {
+  const failed = "error=access_denied&error_code=otp_expired";
+  expect(
+    (await confirm(`https://overload.example/auth/confirm?${failed}`)).headers.get("location"),
+  ).toBe("/login?error=link");
+  expect(
+    (await confirm(`https://overload.example/auth/confirm?${failed}&type=recovery`)).headers.get(
+      "location",
+    ),
+  ).toBe("/forgot-password?error=link");
+  expect(supabase.exchangeCodeForSession).not.toHaveBeenCalled();
 });

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -32,9 +33,14 @@ const AUTH_UID = sql.raw("(select auth.uid())");
  * an accepted follower while the owner shares, which `can_view_training()` (migration 0020)
  * and `can_view_body_weight()` (0021) decide as security-definer functions. Every query in
  * application code names the user ids it wants; RLS is the guarantee, not the filter.
+ *
+ * Writes also need the server-write marker `withUser` sets for a mutating request, as the
+ * canonical tables do (migration 0026): every number here is derived from the session, run or
+ * reading it describes, in the same transaction, so a browser holding its own token and the
+ * public key cannot write a 400 kg bench or a malformed records list onto friends' boards.
  */
 function sharedPolicies(table: string, canView: string) {
-  const owner = sql`user_id = ${AUTH_UID}`;
+  const owner = sql`user_id = ${AUTH_UID} and public.server_write()`;
   return [
     pgPolicy(`${table}_select`, {
       for: "select",
@@ -95,6 +101,10 @@ export const sharedSessionStats = pgTable(
   (t) => [
     uniqueIndex("shared_session_stats_source_uq").on(t.userId, t.sport, t.sourceId),
     index("shared_session_stats_user_sport_day_idx").on(t.userId, t.sport, t.occurredOn.desc()),
+    // Every follower's feed and board counts the records with jsonb_array_length, which
+    // throws on anything but an array: one malformed row would break them all.
+    check("shared_session_stats_records_chk", sql`jsonb_typeof(records) = 'array'`),
+    check("shared_session_stats_muscle_sets_chk", sql`jsonb_typeof(muscle_sets) = 'object'`),
     ...sharedPolicies("shared_session_stats", "public.can_view_training"),
   ],
 ).enableRLS();
@@ -138,6 +148,12 @@ export const sharedExerciseStats = pgTable(
       scale: 1,
       mode: "number",
     }),
+    /**
+     * Where the movement came in the workout, from 0, counted among the session's shared rows
+     * alone: the order a follower reads them in. A movement the owner created, or one never
+     * worked, has no row and leaves no gap, so the place says nothing the rows do not.
+     */
+    orderIndex: integer("order_index").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -146,6 +162,7 @@ export const sharedExerciseStats = pgTable(
       t.workoutSessionId,
       t.exerciseId,
     ),
+    check("shared_exercise_stats_order_chk", sql`order_index >= 0`),
     index("shared_exercise_stats_user_exercise_day_idx").on(
       t.userId,
       t.exerciseId,

@@ -50,9 +50,16 @@ pick; Finish takes optional notes and body weight; the check-in is documented fo
    optional reason; completing needs at least one set; both can be undone while the session
    is open. Finishing records the slot as completed for planned sessions only. Ad hoc sessions
    never advance the programme. A session can be discarded only while it has no sets.
+   _Note, 11 October 2026:_ a discard also gives back the rest days its start passed (each
+   names the workout that passed it), and a skipped day trained from "Train another day" stays
+   skipped until its workout is finished, when the completion replaces the skip.
 
 6. **Starting a day that is already done serves its next pending cycle** ("Choose a day"), so
    a day can be repeated deliberately without breaking the sequence.
+   _Note, 11 October 2026:_ "Start next cycle" on such a day read as leaving the rest of the
+   cycle behind. It now says Do again (Start early for a day the cycle does not have), and Start
+   next cycle only where nothing training is owed before it. That start names its day ("Start
+   cycle 5 with Push A"), in the words Today's rest day uses for the same tap.
 
 7. **Check-in is optional and comes after Start.** It writes the pre-session fields on the
    session row (sleep hours, sleep quality, energy, fatigue, soreness, lower back, left and

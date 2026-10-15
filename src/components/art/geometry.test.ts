@@ -13,6 +13,7 @@ import {
   heapHeight,
   levelFor,
   monthCells,
+  restForm,
   type PrintPart,
   type Shape,
 } from "./geometry";
@@ -106,6 +107,14 @@ describe("a form's state", () => {
       for (const state of ["todo", "done"] as const)
         expect(form(sport, 0, 0, 24, 24, { state }).some((s) => "dash" in s && s.dash)).toBe(false);
     }
+    // A fan of drills too: its edge and each line between two drills dashed once in the
+    // pigment, never a cut around nothing, nor a line dashed twice out of step.
+    const fan = form("mobility", 0, 0, 40, 40, { state: "skipped", segments: 6 }) as Path[];
+    expect(fan).toHaveLength(1 + 5);
+    for (const line of fan) expect(line).toMatchObject({ fill: "none", stroke: "mobility" });
+    expect(fan.every((line) => line.dash)).toBe(true);
+    expect(fan[0]?.d).toMatch(/A.*Z$/);
+    for (const cut of fan.slice(1)) expect(cut.d).toMatch(/^M0 40L[\d.]+ [\d.]+$/);
   });
 
   it("inks a form's segments from the first as they are done", () => {
@@ -294,6 +303,73 @@ describe("the day's print", () => {
   });
 });
 
+describe("a day of rest", () => {
+  /** The rest form's shapes, in a print of only it, at a module of 20. */
+  const rest = (state?: "todo" | "done" | "skipped") =>
+    dayPrint({ width: 400, height: 120, module: 20, parts: [{ kind: "rest", state }] });
+
+  it("stands a crescent two modules tall on the baseline, centred on its paper", () => {
+    const u = 20;
+    const side = (2 + GAPS.set) * u;
+    const day = rest();
+    expect(day.right - day.left).toBeCloseTo(side, 6);
+    expect(day.baseline - day.top).toBeCloseTo(side, 6);
+    expect((day.left + day.right) / 2).toBeCloseTo(200, 6);
+    const crescent = at(day.shapes, 0) as Path;
+    const { xs, ys } = points(crescent.d);
+    // Its two horns, where the cut meets the disc: inside the box, above the baseline.
+    for (const x of xs) expect(x).toBeGreaterThan(day.left);
+    for (const x of xs) expect(x).toBeLessThanOrEqual(day.right);
+    for (const y of ys) expect(y).toBeLessThan(day.baseline);
+    // One path: the disc's edge the long way round, and the cut's back, never two shapes.
+    expect(day.shapes).toHaveLength(1);
+    expect(crescent.d.match(/A/g)).toHaveLength(2);
+  });
+
+  it("keeps the grammar's states in the print's greys, never a pigment", () => {
+    expect(at(rest("todo").shapes, 0)).toMatchObject({ fill: "warm", stroke: "dot" });
+    expect(at(rest().shapes, 0)).toMatchObject({ fill: "warm", stroke: "dot" });
+    expect(at(rest("done").shapes, 0)).toMatchObject({ fill: "dot" });
+    expect(at(rest("done").shapes, 0)).not.toHaveProperty("stroke");
+    const skipped = at(rest("skipped").shapes, 0);
+    expect(skipped).toMatchObject({ fill: "none", stroke: "dot" });
+    expect(skipped.kind === "path" && skipped.dash).toBeTruthy();
+    // Dashed means skipped and nothing else.
+    expect(at(rest("todo").shapes, 0)).not.toHaveProperty("dash");
+    expect(at(rest("done").shapes, 0)).not.toHaveProperty("dash");
+  });
+
+  it("draws an edge inside the disc, so nothing stands under the baseline", () => {
+    // The disc's foot is the crescent's lowest point: its outer edge passes under the centre.
+    const outer = (shape: Shape | undefined) =>
+      shape?.kind === "path"
+        ? Number(/A([\d.]+)/.exec(shape.d)?.[1]) + (shape.strokeWidth ?? 0) / 2
+        : NaN;
+    expect(outer(at(restForm(0, 0, 40, 40, "done"), 0))).toBe(20);
+    for (const state of ["todo", "skipped"] as const) {
+      const reach = outer(at(restForm(0, 0, 40, 40, state), 0));
+      // Within the one decimal the geometry rounds to.
+      expect(Math.abs(reach - 20)).toBeLessThan(0.06);
+    }
+  });
+
+  it("shares a page's module, so it stands as tall as a run beside the week's lifting", () => {
+    const u = 12;
+    const restDay = dayPrint({ width: 176, height: 64, module: u, parts: [{ kind: "rest" }] });
+    const runDay = dayPrint({ width: 176, height: 64, module: u, parts: [{ kind: "run" }] });
+    expect(restDay.baseline - restDay.top).toBeCloseTo(runDay.baseline - runDay.top, 6);
+    // Alone, it fits far larger than the lifting days: it never makes the page's module smaller.
+    const fitted = dayPrint({ width: 176, height: 64, parts: [{ kind: "rest" }] }).module;
+    expect(fitted).toBeGreaterThan(
+      dayPrint({
+        width: 176,
+        height: 64,
+        parts: [{ kind: "strength", columns: [{ sets: 5, done: 0 }] }],
+      }).module,
+    );
+  });
+});
+
 describe("the bowl", () => {
   const halfArea = (r: number) => (Math.PI * r * r) / 2;
   /** The bowl's area between two heights measured from its round edge up. */
@@ -428,5 +504,23 @@ describe("the month", () => {
 
   it("draws nothing for a day with nothing in it", () => {
     expect(dayIcons([], 17.5, 17.5)).toEqual([]);
+  });
+
+  it("draws a workout still under way as a mark to do, unlike the finished ones beside it", () => {
+    // Kenji's 11 October: the open session drawn as the six finished ones were, beside a 6.
+    const plates = (shapes: Shape[]) => shapes.filter((shape) => shape.kind === "rect");
+    for (const plate of plates(calendarIcon("strength", 0, 0, 24, { open: true })))
+      expect(plate).toMatchObject({ fill: "strength-todo", stroke: "strength" });
+    for (const plate of plates(calendarIcon("strength", 0, 0, 24)))
+      expect(plate).toMatchObject({ fill: "strength" });
+    // Only the one flagged: a finished lift, then the open one.
+    const day = plates(dayIcons(["strength", "strength"], 17.5, 17.5, [false, true]));
+    expect(day.map((plate) => "fill" in plate && plate.fill)).toEqual([
+      ...Array(4).fill("strength"),
+      ...Array(4).fill("strength-todo"),
+    ]);
+    expect(calendarIcon("run", 0, 0, 24, { open: true })).toEqual(
+      form("run", 0, 0, 24, 24, { state: "todo" }),
+    );
   });
 });

@@ -1,9 +1,12 @@
+import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
+import { coachPreferences } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { setLengthFor } from "@/lib/distance-units";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { tidyCoachJobsLater } from "@/server/coach-tidy";
@@ -12,10 +15,12 @@ import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState, withPreparedTargets } from "@/server/repositories/coach-plans";
+import { readLoggedOn } from "@/server/repositories/activity-analytics";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
+import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
 
 import Loading from "./loading";
 import { TodayView } from "./today-view";
@@ -47,9 +52,14 @@ export default async function TodayPage(props: PageProps<"/today">) {
         const profile = requestProfile;
         // Read once here and handed on: the coach's job target is worked out from the same
         // schedule and gym list rather than reading each a second time.
-        const [gyms, schedule] = await Promise.all([
+        const [gyms, schedule, sports, [preference]] = await Promise.all([
           listGyms(tx, user.id),
           getSchedule(tx, user.id),
+          enabledSportsFor(tx, user.id),
+          tx
+            .select({ mode: coachPreferences.mode })
+            .from(coachPreferences)
+            .where(eq(coachPreferences.userId, user.id)),
         ]);
         const plan = await getTodayPlan(tx, user.id, profile.timeZone, schedule);
         const restProtocol =
@@ -85,8 +95,12 @@ export default async function TodayPage(props: PageProps<"/today">) {
         // to one day on the card of another. Standalone work is asked for by date, because a
         // date is exactly what the athlete chose when they put it on the calendar. Neither
         // rolls forward.
-        const [standalone, programme] = await Promise.all([
-          standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
+        //
+        // Once today's programme day is finished the sequence offers the next one, so the
+        // endurance the finished day logged is asked for by its own slot, to stay on today.
+        const date = plan?.today ?? todayInTimeZone(profile.timeZone);
+        const [standalone, programme, finished, logged] = await Promise.all([
+          standaloneOccurrencesOnDate(tx, user.id, date),
           plan?.suggestion && plan.suggestedDay
             ? occurrencesForSlot(tx, user.id, {
                 familyId: plan.program.familyId,
@@ -94,6 +108,16 @@ export default async function TodayPage(props: PageProps<"/today">) {
                 cycleIndex: plan.suggestion.slot.cycleIndex,
               })
             : Promise.resolve([]),
+          plan?.suggestion && plan.finishedToday
+            ? occurrencesForSlot(tx, user.id, {
+                familyId: plan.program.familyId,
+                cycleDayIndex: plan.finishedToday.dayIndex,
+                cycleIndex: plan.finishedToday.cycleIndex,
+              })
+            : Promise.resolve([]),
+          // Everything already finished today, so what nothing above answers still has a card:
+          // a ride nobody scheduled, an unplanned workout.
+          readLoggedOn(tx, user.id, date),
         ]);
         // What the coach prepared for each, where it did: the target to follow today.
         const [preparedStandalone, preparedProgramme] = await Promise.all([
@@ -108,12 +132,24 @@ export default async function TodayPage(props: PageProps<"/today">) {
           coach,
           standalone: preparedStandalone,
           programme: preparedProgramme,
+          finished,
+          logged,
+          // The endurance cards say their targets, and what was logged, in the athlete's own units.
+          distanceUnits:
+            preparedStandalone.length + preparedProgramme.length + finished.length > 0 ||
+            logged.some((activity) => activity.sport !== "strength")
+              ? await unitsBySport(tx, user.id)
+              : {},
+          sports,
+          tracking: preference?.mode === "track",
         };
       },
       { readOnly: true },
     ),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, finished, logged } =
+    data;
+  const { distanceUnits, sports, tracking } = data;
   if (coach?.expiredJobs) tidyCoachJobsLater(user.id);
 
   return (
@@ -121,6 +157,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
       <TodayView
         today={plan?.today ?? todayInTimeZone(profile.timeZone)}
         timeZone={profile.timeZone}
+        userId={user.id}
         // Only active gyms can be trained at, so only they can be chosen between.
         gyms={gyms
           .filter((gym) => gym.isActive)
@@ -130,8 +167,14 @@ export default async function TodayPage(props: PageProps<"/today">) {
         restProtocol={restProtocol}
         coach={coach}
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+        length={setLengthFor(profile)}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        finishedOccurrences={finished}
+        distanceUnits={distanceUnits}
+        logged={logged}
+        sports={sports}
+        tracking={tracking}
         discarded={discarded === "1"}
       />
     </FreshAfterSets>

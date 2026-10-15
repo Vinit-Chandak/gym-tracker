@@ -17,7 +17,7 @@ import type { DbOrTx } from "@/db/types";
 import { stepHarder } from "@/domain/load-steps";
 import { ensureProfile } from "@/server/queries/profile";
 
-import { confirmMachineLoad, loadLadders } from "./load-ladders";
+import { bestLoads, confirmMachineLoad, loadLadders } from "./load-ladders";
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -135,5 +135,23 @@ it("never reads another athlete's machine", async () => {
   await a.as(async (db) => {
     expect((await loadLadders(db, a.user.id, [theirs.id])).size).toBe(0);
     expect(await confirmMachineLoad(db, a.user.id, theirs.id, 50)).toBeNull();
+  });
+});
+
+it("reads the best each exercise has lifted on each machine, across every session", async () => {
+  const a = await athlete();
+  await a.as(async (db) => {
+    const legCurl = await a.machine(db, "leg_curl_seated", "selectorized");
+    const [exercise] = await db.select().from(exercises).limit(1);
+    await a.log(db, legCurl.id, [54, 59, 59]);
+    // A lighter day since: the best is still 59.
+    await a.log(db, legCurl.id, [47, 47]);
+    // Another unit is not this machine's number.
+    await a.log(db, legCurl.id, [150], "lb");
+    const best = await bestLoads(db, a.user.id, [
+      { machineId: legCurl.id, exerciseId: exercise!.id },
+    ]);
+    expect(best.get(`${legCurl.id}:${exercise!.id}`)).toEqual({ heaviest: 59, lightest: 47 });
+    expect((await bestLoads(db, a.user.id, [])).size).toBe(0);
   });
 });

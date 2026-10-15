@@ -15,8 +15,10 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
       <div className="flex size-12 items-center justify-center rounded-card bg-surface-raised text-accent">
         <Icon scale="feature" aria-hidden />
       </div>
-      <h2 className="mt-4 text-lg font-medium">{title}</h2>
-      <p className="mt-2 max-w-xs text-sm text-ink-muted">{description}</p>
+      {/* Centred under the icon: the lines are evened out, so the last never holds one word
+          ("…a cycle at a / time.") at a desktop's width. */}
+      <h2 className="mt-4 text-lg font-medium text-balance">{title}</h2>
+      <p className="mt-2 max-w-xs text-sm text-pretty text-ink-muted">{description}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

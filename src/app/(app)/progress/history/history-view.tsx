@@ -2,60 +2,28 @@
 
 import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import type { Route } from "next";
 
-import { Art } from "@/components/art/art";
-import type { Sport } from "@/components/art/geometry";
 import { DateRangeFields } from "@/components/date-range-fields";
-import Link from "@/components/ui/app-link";
+import { dayLabel } from "@/components/graph/labels";
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
+import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
-import { formatDateRange, formatIsoWeekdayDay } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { joinFacts } from "@/lib/facts";
+import { formatDateRange } from "@/lib/format";
 
-import { ProgressSections } from "../progress-sections";
-
-export type HistoryItem = {
-  id: string;
-  /** Every sport history holds, plus the recovery readings that are not training at all. */
-  kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
-  /** When it began, for the order; a recovery reading has only its date. */
-  date: string;
-  /** The local day it is listed under. */
-  day: string;
-  title: string;
-  /** Its time and where: "19:00 · Anytime Fitness"; a recovery reading's answers. */
-  subtitle: string;
-  href?: Route<`/workouts/${string}` | `/runs/${string}` | `/training/activities/${string}`>;
-  meta: string;
-  gymId: string | null;
-  exercises: { id: string; name: string; machineId: string | null; machineName: string | null }[];
-  recovery?: string;
-};
+import { HistoryList, type HistoryItem } from "./history-list";
 
 type Filters = { kind: string; gym: string; exercise: string; machine: string };
 
-/** What each row's mark says aloud. Exhaustive: a sport added later has to be named here. */
-const KIND_LABELS: Record<HistoryItem["kind"], string> = {
-  workout: "Workout",
-  run: "Run",
-  cycling: "Ride",
-  swimming: "Swim",
-  recovery: "Recovery",
-};
-
-/** Each sport's mark; recovery, which is not training, is the moon. */
-const KIND_MARKS: Record<Exclude<HistoryItem["kind"], "recovery">, Sport> = {
-  workout: "strength",
-  run: "run",
-  cycling: "ride",
-  swimming: "swim",
-};
-
 const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
+
+/** Entries a page of History lists (ADR 0044). */
+export const HISTORY_PAGE_SIZE = 10;
 
 const FILTER_PARAMS: Record<keyof Filters, string> = {
   kind: "kind",
@@ -82,19 +50,25 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
 
 export function HistoryView({
   error = null,
+  today,
   range,
   items,
   gyms,
-  truncated,
+  stopsAfter = null,
 }: {
   /** A range the reader asked for that could not be read. */
   error?: string | null;
-  /** The dates the server read, changed from inside the filter sheet. */
+  /** Today in the account's time zone: a day in another year is named with it. */
+  today: string;
+  /** The dates the list covers, changed from inside the filter sheet. */
   range: { from: string; to: string };
   items: HistoryItem[];
   gyms: { id: string; name: string }[];
-  /** The list stops at the newest records the server would send, short of the whole range. */
-  truncated: boolean;
+  /**
+   * The oldest day listed, where the list stops short of the dates it covers (its readers send
+   * only the newest records); null when every entry is here.
+   */
+  stopsAfter?: string | null;
 }) {
   // Filtering happens on data the page already has, so it stays local and immediate. The
   // URL is updated through the History API purely so that coming back from an entry
@@ -104,15 +78,21 @@ export function HistoryView({
   // every render so Back, deep links and a changed date range cannot leave stale filters.
   const filters = fromSearch(searchParams);
 
-  const apply = (next: Filters) => {
+  const replace = (change: (params: URLSearchParams) => void) => {
     const params = new URLSearchParams(window.location.search);
-    for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
-      if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);
-      else params.delete(param);
-    }
+    change(params);
     const query = params.toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   };
+  // A narrower list starts again at its first page.
+  const apply = (next: Filters) =>
+    replace((params) => {
+      for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
+        if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);
+        else params.delete(param);
+      }
+      params.delete("page");
+    });
 
   const choices = useMemo(
     () =>
@@ -158,22 +138,29 @@ export function HistoryView({
     (key) => filters[key] !== EMPTY[key],
   ).length;
 
-  // The entries under their days, newest first (board Progress-History).
-  const days = shown.reduce<{ day: string; items: HistoryItem[] }[]>((all, item) => {
-    const last = all.at(-1);
-    if (last?.day === item.day) last.items.push(item);
-    else all.push({ day: item.day, items: [item] });
-    return all;
-  }, []);
+  // Ten entries a page, newest first; the page is in the URL, so Back from an entry returns to it.
+  const pages = Math.max(1, Math.ceil(shown.length / HISTORY_PAGE_SIZE));
+  const page = Math.min(Math.max(Math.floor(Number(searchParams.get("page"))) || 1, 1), pages);
+  const choosePage = (next: number) => {
+    replace((params) => {
+      if (next > 1) params.set("page", String(next));
+      else params.delete("page");
+    });
+    // A new page is read from its top, as a new list is.
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+  };
+  const listed = shown.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE);
 
   return (
     <>
-      {/* History is one of Progress's sections (ADR 0034), so it is chosen where they are, with
-          one control at the end of the title for everything that narrows the list. */}
-      <ProgressSections
-        value="history"
-        range={formatDateRange(range.from, range.to)}
-        filters={
+      {/* Every entry, behind Overview's History (ADR 0045): a page under Progress, as the
+          calendar is, with one control at the end of its bar for everything that narrows it. */}
+      <PageHeader
+        title="History"
+        meta={formatDateRange(range.from, range.to)}
+        backHref="/progress"
+        action={
           <FilterSheet
             title="Filters"
             summary={formatDateRange(range.from, range.to)}
@@ -191,10 +178,15 @@ export function HistoryView({
                       <option value="all">All activity</option>
                       <option value="workout">Workouts</option>
                       <option value="run">Runs</option>
-                      {/* Shown only where they exist, so a lifter's filter list stays short. */}
+                      {/* Shown only where they exist, so a lifter's filter list stays short.
+                          Recovery readings of their own are an older account's daily ones: a
+                          check-in today is a workout's, and its sleep stands on that row. Kept
+                          while chosen, so the select never shows a filter other than the one on. */}
                       {kinds.has("cycling") && <option value="cycling">Rides</option>}
                       {kinds.has("swimming") && <option value="swimming">Swims</option>}
-                      <option value="recovery">Recovery</option>
+                      {(kinds.has("recovery") || filters.kind === "recovery") && (
+                        <option value="recovery">Recovery</option>
+                      )}
                     </Select>
                   </Field>
                   <Field label="Gym">
@@ -249,95 +241,53 @@ export function HistoryView({
         }
       />
 
-      {error && (
-        <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          {error}
+      <div className="progress page-width">
+        {error && (
+          <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="warn" className="mt-px glyph-18" />
+            {error}
+          </p>
+        )}
+        <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
+          {/* Each fact held whole, so the line wraps at the dot before "page 1 of 18". */}
+          <Figures>
+            {joinFacts([
+              `${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`,
+              pages > 1 && `page\u00a0${page}\u00a0of\u00a0${pages}`,
+            ])}
+          </Figures>
         </p>
-      )}
-      {truncated && (
-        <p role="status" className="mt-3 type-meta text-ink-2">
-          Showing the newest records only. Narrow the dates to see every entry; the totals in
-          Overview cover the whole period whatever this list shows.
-        </p>
-      )}
-      <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-        {shown.length} {shown.length === 1 ? "entry" : "entries"}
-      </p>
-      {shown.length > 0 ? (
-        days.map((group) => (
-          <section key={group.day} aria-labelledby={`history-${group.day}`}>
-            <h2 id={`history-${group.day}`} className="caption-head mt-3.5">
-              {formatIsoWeekdayDay(group.day)}
-            </h2>
-            <ul>
-              {group.items.map((item, index) => {
-                const last = index === group.items.length - 1;
-                const line = [item.subtitle, item.recovery].filter(Boolean).join(" · ");
-                const content = (
-                  <>
-                    <span className="mark-cell">
-                      {item.kind === "recovery" ? (
-                        <Glyph name="moon" label="Recovery" className="glyph-18" />
-                      ) : (
-                        <Art
-                          kind="mark"
-                          sport={KIND_MARKS[item.kind]}
-                          size={16}
-                          label={KIND_LABELS[item.kind]}
-                        />
-                      )}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      {/* The figure stands beside the name while both fit, under it when not. */}
-                      <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
-                        <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:anywhere] tabular-nums">
-                          {item.title}
-                        </span>
-                        {item.meta && (
-                          <span className="shrink-0 type-meta font-semibold tabular-nums">
-                            {item.meta}
-                          </span>
-                        )}
-                      </span>
-                      {line && (
-                        <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
-                          {line}
-                        </span>
-                      )}
-                    </span>
-                  </>
-                );
-                return (
-                  <li key={item.id}>
-                    {item.href ? (
-                      <Link
-                        prefetch="intent"
-                        href={item.href}
-                        className={cn("history-row", last && "plan-row-last")}
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      <div className={cn("history-row", last && "plan-row-last")}>{content}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))
-      ) : (
-        <div className="mt-6">
-          <h2 className="type-heading">No matching activity</h2>
-          <p className="mt-1 type-body text-ink-2">Try a wider date range or clear the filters.</p>
-          {active > 0 && (
-            <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
-              Clear filters
-            </Button>
-          )}
-        </div>
-      )}
+        {shown.length > 0 ? (
+          // The page's entries under their days, newest first (board Progress-History).
+          <HistoryList items={listed} today={today} />
+        ) : (
+          <div className="mt-6">
+            <h2 className="type-heading">No matching activity</h2>
+            <p className="mt-1 type-body text-ink-2">
+              Try a wider date range or clear the filters.
+            </p>
+            {active > 0 && (
+              <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Said where it matters: at the end of the list, not over every page of it. */}
+        {stopsAfter && page === pages && shown.length > 0 && (
+          <p role="note" className="mt-4 type-meta text-ink-2">
+            The list ends at {dayLabel(stopsAfter, today)}: earlier entries are behind the funnel,
+            under dates.
+          </p>
+        )}
+        <PageTabs
+          page={page}
+          total={pages}
+          onChange={choosePage}
+          label="History pages"
+          className="mt-4"
+        />
+      </div>
     </>
   );
 }

@@ -84,7 +84,7 @@ const SHAKE = food("Amul protein blueberry shake", [200, "ml"], 138, [12, 3, 15]
 const HIGH_PROTEIN_MILK = food("Amul high protein milk", [250, "ml"], 225, [20, 0.5, 35]);
 const PANEER = food("Paneer", [100, "g"], 265, [1.2, 20.8, 18.3]);
 
-/** My foods, the most lately eaten first. */
+/** My foods, the most eaten first. */
 const FOODS = [
   FRUIT,
   CHICKPEA,

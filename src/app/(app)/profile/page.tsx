@@ -13,7 +13,7 @@ import { requireUser } from "@/server/auth";
 import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { countRequests } from "@/server/repositories/follows";
-import { getDirectoryProfile } from "@/server/repositories/people";
+import { getDirectoryProfileById } from "@/server/repositories/people";
 
 import { RestTimerSetting } from "./rest-timer-setting";
 import { SignOutRow } from "./sign-out-row";
@@ -37,7 +37,8 @@ export default async function ProfilePage() {
     user.id,
     async (tx) => {
       const [directory, requests] = await Promise.all([
-        getDirectoryProfile(tx, profile.username),
+        // By id: the cached profile's username can be one a rename on another device gave up.
+        getDirectoryProfileById(tx, user.id),
         countRequests(tx, user.id),
       ]);
       return { counts: directory ?? { followers: 0, following: 0 }, requests };
@@ -88,6 +89,8 @@ export default async function ProfilePage() {
           </h2>
           <ul>
             <NavRow href="/profile/programme" glyph="table" label="Programme" />
+            {/* Which sports the app offers, chosen in setup and changed only here. */}
+            <NavRow href="/profile/sports" glyph="distance" label="Sports" />
             <NavRow href="/gyms" glyph="pin" label="Gyms and machines" />
             <NavRow href="/exercises" glyph="book" label="Exercise library" />
             <RestTimerSetting enabled={profile.restTimerEnabled} />
@@ -118,7 +121,7 @@ export default async function ProfilePage() {
         <InstallSection />
 
         <ul className="mt-3">
-          <SignOutRow />
+          <SignOutRow userId={user.id} />
           <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
         </ul>
       </div>

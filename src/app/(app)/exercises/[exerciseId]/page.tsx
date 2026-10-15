@@ -3,13 +3,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
-import { ExerciseGuide } from "@/components/exercise-guide";
+import { ExerciseGraph } from "@/components/graph/exercise-graph";
+import { GraphRangeProvider } from "@/components/graph/graph-range-context";
+import { ExerciseGuide, guideHasContent } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
+import { Figures } from "@/components/ui/figures";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -17,20 +20,26 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
-import { performanceSeries } from "@/domain/analytics";
+import { rangeOf, readWindowOf } from "@/domain/graph-range";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { earliestOf, exerciseSessions } from "@/domain/progress-graphs";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
+import { setLengthFor, type SetLengthUnit } from "@/lib/distance-units";
 import { showsDrafts } from "@/lib/drafts";
-import { formatKilograms } from "@/lib/format";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
+import { formatLoadStep } from "@/lib/format";
 import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
+  exerciseOnMachine,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
-  MEASURE_COLUMN_LABELS,
-  MEASURE_UNIT_SUFFIX,
+  lengthRangeLabel,
+  measureColumnLabel,
+  measureUnitSuffix,
   MUSCLE_LABELS,
   rangeLabel,
   restLabel,
@@ -41,7 +50,7 @@ import { requireUser } from "@/server/auth";
 import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 import { guidanceFor } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { recentPerformances } from "@/server/queries/comparable";
+import { recentPerformances, type ComparablePerformance } from "@/server/queries/comparable";
 import {
   exerciseAvailability,
   type ExerciseGymAvailability,
@@ -52,13 +61,19 @@ import {
   type ExerciseProgramUsage,
 } from "@/server/repositories/exercises";
 import { readExerciseLife } from "@/server/repositories/exercise-life";
+import { getSchedule, scheduleComplete } from "@/server/repositories/schedule";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
-import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
-import { parseDateRangeOrDefault } from "@/server/validation/date-range";
+import {
+  parseSeriesId,
+  pickSeries,
+  readExerciseSeriesOptions,
+  readExerciseSetRows,
+} from "@/server/repositories/graphs";
+import { readRangeChoice } from "@/server/queries/graph-range";
+import { dateWindow } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
 
-import { ExerciseLife } from "./exercise-life";
-import { ExerciseTrend } from "./exercise-trend";
+import { ExerciseLife, type LatestPerformance } from "./exercise-life";
 
 export const metadata: Metadata = { title: "Exercise" };
 
@@ -74,31 +89,45 @@ function equipmentWayLabel(way: ExerciseEquipmentWay): string {
   return `${primary.typeName} with ${joined}`;
 }
 
-function prescription(usage: ExerciseProgramUsage): string {
+/**
+ * "3 × 10–12 per side @ 1–2 RIR · rest 90 s", as the page shows it: each range held at its dash,
+ * RIR and the rest to their figures, and the dot to the rest after it. A carry's range reads in
+ * the athlete's length.
+ */
+function prescription(usage: ExerciseProgramUsage, length: SetLengthUnit): string {
   const range =
     usage.prescriptionType === "duration"
       ? rangeLabel(usage.durationMinSeconds, usage.durationMaxSeconds, " s")
       : usage.prescriptionType === "distance"
-        ? rangeLabel(usage.distanceMinMeters, usage.distanceMaxMeters, " m")
+        ? lengthRangeLabel(usage.distanceMinMeters, usage.distanceMaxMeters, length)
         : rangeLabel(usage.repMin, usage.repMax);
   const volume = `${usage.sets} × ${range}`;
   const side = usage.perSide ? " per side" : "";
-  return `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR · rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`;
+  return holdFigures(
+    joinFacts([
+      `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR`,
+      `rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`,
+    ]),
+  );
 }
 
 function availabilityDetail(entry: ExerciseGymAvailability): string {
   const r: Resolution = entry.resolution;
   switch (r.status) {
     case "direct":
+      // As Programme fit says it: a basic taken for granted is asked about when first used.
       return r.equipmentInstance
         ? `On ${r.equipmentInstance.name}`
         : r.basis === "free"
           ? "No equipment needed"
-          : "Usually here, as a gym's basics are: it is asked about the first time it is used.";
+          : `Usually here (${entry.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
     case "fallback":
-      return `Do ${entry.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
+      return `Do ${exerciseOnMachine(entry.resolvedExerciseName, r.equipmentInstance?.name)} instead`;
     case "unknown":
-      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
+      // A custom exercise names no kind of machine, only its own, which is at another gym.
+      return entry.missingTypes.length === 0
+        ? "Needs the machine it was made for, which is not registered here."
+        : `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
     case "unavailable":
       return "This place is marked as not having the equipment, and no fallback fits.";
   }
@@ -110,14 +139,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const user = await requireUser();
   const params = await props.searchParams;
   const requestProfile = await getRequestProfile(user.id, user.email);
-  // The chart's window, and the same default Progress opens on: the last twelve weeks.
-  const { range, error: rangeError } = parseDateRangeOrDefault(
-    {
-      from: typeof params.from === "string" ? params.from : undefined,
-      to: typeof params.to === "string" ? params.to : undefined,
-    },
-    requestProfile.timeZone,
-  );
+  // The graph's span is the one every graph shares (ADR 0042): chosen on any graph, kept here.
+  const today = todayInTimeZone(requestProfile.timeZone);
+  const { choice, error: rangeError } = await readRangeChoice(params, today);
+  const read = readWindowOf(choice, today);
+  const window = dateWindow(read.from, read.to, requestProfile.timeZone);
   const data = await withUser(
     getDb(),
     user.id,
@@ -127,25 +153,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       // Records exist only for movements whose load means the same everywhere (plan §3.13);
       // a machine's numbers stay with its machine, in the trend below. The same movements are
       // the ones friends are ranked on, so one read of the circle's bests serves both.
-      const circle = isComparable(exercise)
-        ? await loadCircle(tx, { id: user.id, username: requestProfile.username })
-        : [];
-      // A movement whose load means the same everywhere is read across gyms and machines; one
-      // bound to its machine is read on the machine it was last done on.
-      const latest = await recentPerformances(tx, user.id, exerciseId);
-      const machine =
-        exercise.loadPortability === "global"
-          ? null
-          : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
-            null);
-      const [availability, charted, bests, profile, life, written] = await Promise.all([
+      const circle = isComparable(exercise) ? await loadCircle(tx, user.id) : [];
+      const [availability, options, bests, profile, written, schedule] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
-        // Only the sessions this movement was actually in, so the trend costs a page about
-        // one exercise a read about one exercise.
-        readWorkouts(tx, user.id, range, 0, TRAINING_RECORD_LIMIT, {
-          exerciseId,
-          completedOnly: true,
-        }),
+        // This movement's series only: one machine's loads are not another's.
+        readExerciseSeriesOptions(tx, user.id, window, exerciseId),
         circle.length > 0
           ? readExerciseBests(
               tx,
@@ -154,11 +166,42 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             )
           : new Map(),
         requestProfile,
-        readExerciseLife(tx, user.id, exerciseId, requestProfile.timeZone, machine),
         // The guide and its demonstrations, from the cached library; drafts only where shown.
         guidanceFor(tx, exerciseId, showsDrafts()),
+        // Whether the programme it is planned in is finished, said over its days.
+        exercise.programUsage.length > 0 ? getSchedule(tx, user.id) : null,
       ]);
-      const performances = latest;
+      const selected = pickSeries(
+        options,
+        typeof params.series === "string" ? params.series : undefined,
+      );
+      // Everything on the page is read on the series the graph draws. A movement whose load
+      // means the same everywhere is one, across gyms and machines; one bound to its machine is
+      // read on the machine chosen over the graph, in its unit, and a machine nobody recorded is
+      // its one workout. Free weights keep their history across gyms; machines keep their own.
+      const key = selected ? parseSeriesId(selected.id) : null;
+      const machineKey = key && key.machineKey !== "global" ? key.machineKey : null;
+      const slot = machineKey?.startsWith("unknown:") ? machineKey.slice("unknown:".length) : null;
+      const machine = machineKey && !slot ? machineKey : null;
+      const [sets, latest, life] = await Promise.all([
+        selected
+          ? readExerciseSetRows(tx, user.id, profile.timeZone, window, selected.id)
+          : Promise.resolve([]),
+        recentPerformances(
+          tx,
+          user.id,
+          exerciseId,
+          machine ? { equipmentInstanceId: machine } : slot ? { workoutExerciseId: slot } : null,
+        ),
+        readExerciseLife(
+          tx,
+          user.id,
+          exerciseId,
+          profile.timeZone,
+          machine,
+          machineKey ? { workoutExerciseId: slot ?? undefined, unit: key!.unit } : {},
+        ),
+      ]);
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
       // anyone in the circle has logged the movement; nothing dead ships.
       const board =
@@ -168,17 +211,24 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         guidance: guidanceOf(exercise, written.guide, written.media),
         sources: written.guide?.sources ?? [],
         availability,
-        performances,
+        performances: latest.scoped,
+        elsewhere: latest.elsewhere,
         bests: bests.get(user.id) ?? [],
         board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
-        series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
+        options,
+        selected,
+        sessions: selected
+          ? exerciseSessions(sets, selected.modality, selected.unit, {
+              assisted: selected.assisted,
+            })
+          : [],
         life,
-        machineName: machine
-          ? (latest.find((performance) => performance.equipmentInstanceId === machine)
-              ?.equipmentInstanceName ?? null)
-          : null,
+        programmeComplete: schedule !== null && scheduleComplete(schedule),
+        machineName: machine ? (latest.scoped[0]?.equipmentInstanceName ?? null) : null,
+        machineType: machine ? (selected?.machineType ?? null) : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+        length: setLengthFor(profile),
       };
     },
     { readOnly: true },
@@ -190,24 +240,38 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     sources,
     availability,
     performances,
+    elsewhere,
     bests,
     board,
-    series,
+    options,
+    selected,
+    sessions,
     timeZone,
     unit,
+    length,
     life,
     machineName,
+    machineType,
+    programmeComplete,
   } = data;
-  // One machine's loads are not another's, so each is its own series and the corner picker
-  // chooses between them. Only the chosen one's points cross the wire.
-  const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
-    id,
-    name,
-    machine,
-    unit: loadUnit,
-  }));
-  const wanted = typeof params.series === "string" ? params.series : undefined;
-  const selected = series.find((s) => s.id === wanted) ?? series[0] ?? null;
+  // A finished programme's days are still worth reading (repeating the block asks for them), but
+  // not as the programme being trained: Today says it is complete, and so does this.
+  const usageTitle = programmeComplete ? "In your last programme (complete)" : "In your programme";
+  const latestRow = (performance: ComparablePerformance): LatestPerformance => ({
+    id: performance.workoutExerciseId,
+    sessionId: performance.workoutSessionId,
+    performedAt: performance.performedAt.toISOString(),
+    gymName: performance.gymName,
+    machineName: performance.equipmentInstanceName,
+    sets: performance.sets.map((set) =>
+      exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
+    ),
+  });
+  const graphRange = rangeOf(
+    choice,
+    today,
+    choice.preset === "all" ? earliestOf(sessions.map((session) => session.date)) : null,
+  );
   // What one set of this movement counts, and the range it is normally worked in.
   const measure = exercise.defaultPrescriptionType;
   const measureRange: [number | null, number | null] =
@@ -225,19 +289,52 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           exercise={exercise}
           life={life}
           machineName={machineName}
+          machineType={machineType}
           bests={bests}
           unit={unit}
+          length={length}
           timeZone={timeZone}
-          performances={performances.map((performance) => ({
-            id: performance.workoutExerciseId,
-            sessionId: performance.workoutSessionId,
-            performedAt: performance.performedAt.toISOString(),
-            gymName: performance.gymName,
-            machineName: performance.equipmentInstanceName,
-            sets: performance.sets.map((set) =>
-              exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
-            ),
-          }))}
+          today={today}
+          graph={
+            <GraphRangeProvider preset={choice.preset ?? null}>
+              {rangeError && (
+                <p role="alert" className="mb-2 type-meta font-semibold">
+                  {rangeError}
+                </p>
+              )}
+              <ExerciseGraph
+                today={today}
+                // A past workout opened here keeps the exercise's tab, Profile, and goes back to
+                // it, as the exercise's latest sessions do (NAV-03).
+                origin="exercises"
+                length={length}
+                data={{
+                  range: graphRange,
+                  options: options.map(({ id, name, machine, unit: loadUnit, group }) => ({
+                    id,
+                    name,
+                    machine,
+                    unit: loadUnit,
+                    group,
+                  })),
+                  selected: selected
+                    ? {
+                        id: selected.id,
+                        name: selected.name,
+                        machine: selected.machine,
+                        unit: selected.unit,
+                        modality: selected.modality,
+                        assisted: selected.assisted,
+                        sessions,
+                      }
+                    : null,
+                }}
+              />
+            </GraphRangeProvider>
+          }
+          loadUnit={selected?.unit ?? null}
+          performances={performances.map(latestRow)}
+          elsewhere={elsewhere.map(latestRow)}
         />
 
         <Card>
@@ -270,11 +367,25 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </p>
           </div>
 
+          {/* The library's own prescription, said to be one: a programme's days ask for theirs
+              (In your programme, below), and the two can differ. */}
+          <div className="flex items-center gap-0.5">
+            <h2 className="text-xs font-medium text-ink-muted">Defaults</h2>
+            <InfoTip label="About the defaults" className="-my-2">
+              {exercise.programUsage.length > 0
+                ? `What it starts on when it is added to a workout or a programme on its own. Your programme's days ask for their own, under ${usageTitle}.`
+                : "What it starts on when it is added to a workout or a programme."}
+            </InfoTip>
+          </div>
           <StatTileRow>
             {/* Whatever this movement is actually counted in. A carry has no reps to show. */}
             <StatTile
-              label={MEASURE_COLUMN_LABELS[measure]}
-              value={rangeLabel(measureRange[0], measureRange[1], MEASURE_UNIT_SUFFIX[measure])}
+              label={measureColumnLabel(measure, length)}
+              value={
+                measure === "distance"
+                  ? lengthRangeLabel(measureRange[0], measureRange[1], length)
+                  : rangeLabel(measureRange[0], measureRange[1], measureUnitSuffix(measure, length))
+              }
             />
             <StatTile
               label="RIR"
@@ -292,20 +403,23 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   ? exercise.loadPortability === "global"
                     ? "—"
                     : "Machine"
-                  : formatKilograms(exercise.defaultLoadIncrement, unit)
+                  : formatLoadStep(exercise.defaultLoadIncrement, unit)
               }
             />
           </StatTileRow>
         </Card>
 
         {/* The same guide the workout's Technique shows (plan: exercise technique and media),
-            with where it was checked. */}
-        <section aria-labelledby="guide-title">
-          <h2 id="guide-title" className="caption-head">
-            How to do it
-          </h2>
-          <ExerciseGuide guidance={guidance} sources={sources} />
-        </section>
+            with where it was checked. A guide still awaiting the owner's review is not
+            announced as missing outside review: the section says what there is, or is left out. */}
+        {(showsDrafts() || guideHasContent(guidance)) && (
+          <section aria-labelledby="guide-title">
+            <h2 id="guide-title" className="caption-head">
+              How to do it
+            </h2>
+            <ExerciseGuide guidance={guidance} sources={sources} sayMissing={showsDrafts()} />
+          </section>
+        )}
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>
@@ -331,15 +445,19 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-medium">In your programme</h2>
+            <h2 className="text-base font-medium">{usageTitle}</h2>
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
-                  <p className="text-sm font-medium">{usage.dayName}</p>
-                  <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
+                  <p className="text-sm font-medium [overflow-wrap:break-word]">{usage.dayName}</p>
+                  <p className="text-sm text-ink-muted tabular-nums">
+                    <Figures>{prescription(usage, length)}</Figures>
+                  </p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
-                    <p className="text-xs text-ink-subtle">
-                      {[usage.targetLoadNote, usage.progressionNotes].filter(Boolean).join(" · ")}
+                    <p className="text-xs [overflow-wrap:break-word] text-ink-subtle">
+                      {[usage.targetLoadNote, usage.progressionNotes]
+                        .filter(Boolean)
+                        .join(FACT_SEPARATOR)}
                     </p>
                   )}
                 </li>
@@ -355,15 +473,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             rows={board}
             you={user.id}
             unit={unit}
+            length={length}
+            currentYear={today.slice(0, 4)}
           />
         )}
-
-        {rangeError && (
-          <p role="alert" className="text-sm text-danger">
-            {rangeError}
-          </p>
-        )}
-        <ExerciseTrend range={range} machines={machines} selected={selected} />
 
         <Section title="Availability by gym">
           {availability.length === 0 && (
@@ -372,7 +485,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="min-w-0 font-medium [overflow-wrap:anywhere]">{entry.gym.name}</h3>
+                <h3 className="min-w-0 font-medium [overflow-wrap:break-word]">{entry.gym.name}</h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>
@@ -388,12 +501,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   >
                     Preferred machine here
                   </label>
-                  {/* The select carries the long machine names, so it takes the row. */}
-                  <div className="flex items-center gap-2">
+                  {/* The select carries the long machine names, so it takes the row (its wrapper
+                      is what the row lays out), and Save goes under it before the choice would
+                      have less than a few words' room (large text). */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select
                       id={`preferred-machine-${entry.gym.id}`}
                       name="equipmentInstanceId"
-                      className="min-w-0 flex-1"
+                      wrapperClassName="min-w-0 flex-[1_1_12rem]"
                       defaultValue={entry.preferredInstanceId ?? ""}
                     >
                       <option value="">Automatic</option>
@@ -409,9 +524,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                   </div>
                 </form>
               )}
-              <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
-                Programme fit
-              </LinkButton>
+              {/* A link inside a card, at the card's text edge and led on by its chevron, as
+                  Today's cards say theirs; a button's padding set it in from the lines above. */}
+              <CardLink href={`/gyms/${entry.gym.id}/programme`}>Programme fit</CardLink>
             </Card>
           ))}
         </Section>

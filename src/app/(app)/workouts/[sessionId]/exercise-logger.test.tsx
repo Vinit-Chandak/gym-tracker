@@ -6,7 +6,12 @@ import { draftKey, writeDraft } from "@/lib/workout-drafts";
 import { ExerciseLogger } from "./exercise-logger";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
-const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn(), complete: vi.fn() }));
+const actions = vi.hoisted(() => ({
+  log: vi.fn(),
+  remove: vi.fn(),
+  complete: vi.fn(),
+  history: vi.fn(),
+}));
 // `unstable_rethrow` is how a failed save tells a redirect from a dropped connection; the
 // mock has to carry it, or every failure here looks like the framework's own.
 vi.mock("next/navigation", () => ({
@@ -22,6 +27,7 @@ vi.mock("@/server/actions/sessions", () => ({
   setExerciseCompletedAction: actions.complete,
   skipExerciseAction: vi.fn(),
   applyFallbackAction: vi.fn(),
+  readExerciseHistoryAction: actions.history,
 }));
 
 const context = {
@@ -93,6 +99,7 @@ const session: SessionVM = {
   id: "session",
   gym: { id: "gym", name: "Test gym", kind: "gym" },
   day: null,
+  title: null,
   cycleIndex: null,
   startedAt: "2026-09-08T11:00:00.000Z",
   completedAt: null,
@@ -110,6 +117,8 @@ const session: SessionVM = {
   warnings: [],
   timeZone: "Asia/Kolkata",
   preferredUnit: "kg" as const,
+  length: "m" as const,
+  today: "2026-09-08",
   exercises: [exercise],
 };
 
@@ -117,17 +126,31 @@ function renderLogger(
   overrides: {
     exercise?: Partial<ExerciseVM>;
     readOnly?: boolean;
+    /** A finished workout opened for changes (ADR 0049). */
+    amending?: boolean;
     preferredUnit?: "kg" | "lb";
+    /** What a carry is typed in (ADR 0055). */
+    length?: "m" | "yd";
     onLogged?: (seconds: number) => void;
+    /** The saved routine's name the workout was started from. */
+    title?: string;
   } = {},
 ) {
   const merged = { ...exercise, ...overrides.exercise };
   return render(
     <ExerciseLogger
       exercise={merged}
-      session={{ ...session, preferredUnit: overrides.preferredUnit ?? "kg", exercises: [merged] }}
+      session={{
+        ...session,
+        completedAt: overrides.amending ? "2026-09-08T12:30:00.000Z" : session.completedAt,
+        preferredUnit: overrides.preferredUnit ?? "kg",
+        title: overrides.title ?? session.title,
+        length: overrides.length ?? "m",
+        exercises: [merged],
+      }}
       userId="user"
       readOnly={overrides.readOnly ?? false}
+      amending={overrides.amending}
       onBack={() => {}}
       onDirtyChange={() => {}}
       onLogged={overrides.onLogged ?? (() => {})}
@@ -164,7 +187,9 @@ function fill(values: Record<string, string>) {
   const [first] = Object.keys(values);
   if (!screen.queryByRole("textbox", { name: first }))
     fireEvent.click(
-      screen.getAllByRole("button", { name: /\. Type (a load|reps|RIR|RPE|metres|seconds)$/ })[0]!,
+      screen.getAllByRole("button", {
+        name: /\. Type (a load|reps|RIR|RPE|metres|yards|seconds)$/,
+      })[0]!,
     );
   for (const [label, value] of Object.entries(values))
     fireEvent.change(screen.getByRole("textbox", { name: label }), { target: { value } });
@@ -231,6 +256,65 @@ it("uses the coach's exact set count and types instead of repeating targets to f
   expect(await screen.findByRole("region", { name: "Set 1 of 1" })).toBeTruthy();
 });
 
+it("prefills a warm-up turned into a working set with the coach's working set, and says why", async () => {
+  // Upper B's incline bench as the coach wrote it: a ramp of three, then 3 × 55 kg × 6 at 2 RIR.
+  const target = (setIndex: number, weight: number, reps: number, rir: number | null) => ({
+    ...saved,
+    setIndex,
+    setType: rir === null ? ("warmup" as const) : ("working" as const),
+    weight,
+    reps,
+    rir,
+  });
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 55, reps: 6, rir: 2 } });
+  renderLogger({
+    exercise: {
+      coachNote: "Back to 55 kg. Low incline.",
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Coach plan for today",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [
+          target(1, 30, 6, null),
+          target(2, 40, 5, null),
+          target(3, 50, 4, null),
+          target(4, 55, 6, 2),
+          target(5, 55, 6, 2),
+          target(6, 55, 6, 2),
+        ],
+      },
+    },
+  });
+  // The warm-up says what it is, with its own figures.
+  expect(entry("Warm-up 1 of 3")).toBeTruthy();
+  press(/^Coach plan: why 30 kilograms × 6$/);
+  expect(screen.getByRole("dialog", { name: "Why this suggestion" })).toBeTruthy();
+  // Skipping the warm-up: the row is now the first working set, and asks for the work.
+  press("Set options: add a set, type, remove");
+  fireEvent.change(screen.getByRole("combobox", { name: "Type" }), {
+    target: { value: "working" },
+  });
+  expect(entry("Set 1 of 3")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "55 kilograms, suggested. Type a load" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "6 reps, suggested. Type reps" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Coach plan: why 55 kilograms × 6$/ })).toBeTruthy();
+  // The reps say the working set's figure under them, not the warm-up's.
+  expect(screen.getByText(/^target\s6$/)).toBeTruthy();
+  // Saved untouched, it is the coach's working set, never the warm-up's 30 kg.
+  fill({ RIR: "2" });
+  press("Save");
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({
+    setType: "working",
+    weight: 55,
+    reps: 6,
+  });
+  // The ramp nobody did is passed: the entry goes on to the second working set.
+  expect(await screen.findByRole("region", { name: "Set 2 of 3" })).toBeTruthy();
+});
+
 it("says what an open-ended coach plan asks for instead of a load it never set", () => {
   renderLogger({
     exercise: {
@@ -273,11 +357,113 @@ it("preserves decimal metres in the entry and in the set it saved", async () => 
   expect(field("Metres").value).toBe("26.5");
 });
 
+it("takes a carry in whole yards beside miles, keeps its metres, and reads it back as typed", async () => {
+  // 50 yd is 45.72 m, kept to the tenth the set's column holds (ADR 0055).
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 45.7 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  fill({ Yards: "50", RPE: "7" });
+  // Whole yards, on a keypad with no point.
+  expect(field("Yards").getAttribute("inputmode")).toBe("numeric");
+  expect(screen.queryByRole("textbox", { name: "Metres" })).toBeNull();
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 45.7 })),
+  );
+  press(/^Set 1: 20 kilograms, 50 yards, RPE 7\. Edit$/);
+  expect(field("Yards").value).toBe("50");
+});
+
+it("refuses a point in yards rather than running its figures together", () => {
+  renderLogger({
+    length: "yd",
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  // A keyboard or a paste brings the point the keypad does not have: 27.5, never 275.
+  fill({ Yards: "27.5", RPE: "7" });
+  expect(field("Yards").value).toBe("27.5");
+  press("Save");
+  expect(screen.getByRole("alert").textContent).toContain("Enter the distance in whole yards.");
+  expect(actions.log).not.toHaveBeenCalled();
+});
+
+it("keeps a carry's own metres when an edit leaves its yards as they read", async () => {
+  // Logged as 30 m before yards, it reads 33 yd, which would be kept as 30.2 m.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 8, distanceMeters: 30 },
+  });
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      sets: [{ ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 30 }],
+    },
+  });
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 7\. Edit$/);
+  fireEvent.change(field("RPE"), { target: { value: "8" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ rpe: 8, distanceMeters: 30 }),
+    ),
+  );
+  // A figure that was changed is the athlete's, and is kept as what it says.
+  press(/^Set 1: 20 kilograms, 33 yards, RPE 8\. Edit$/);
+  fireEvent.change(field("Yards"), { target: { value: "35" } });
+  press("Update");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenLastCalledWith(expect.objectContaining({ distanceMeters: 32 })),
+  );
+});
+
+it("prefills a metre target in yards that, saved, reaches it", async () => {
+  // 15 m reads 16 yd, which is kept as 14.6 m and falls short: the prefill asks for 17 yd.
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, rir: null, rpe: 7, distanceMeters: 15.5 },
+  });
+  const target = { ...saved, weight: 20, reps: null, rir: null, distanceMeters: 15 };
+  renderLogger({
+    length: "yd",
+    exercise: {
+      exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" },
+      suggestion: {
+        kind: "hold",
+        basis: "exercise",
+        reason: "Repeat the target until two comparable sessions meet it with reported effort.",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [target, { ...target, setIndex: 2 }],
+      },
+    },
+  });
+  fill({ RPE: "7" });
+  press("Save");
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(expect.objectContaining({ distanceMeters: 15.5 })),
+  );
+});
+
 it("picks up a set carried here by a machine answer as the row it was, whenever it arrives", async () => {
   // The machine answer lands after the exercise reopened on its machine: the carried row is
   // the one being typed, not a recovered draft, so it carries no warning.
   renderLogger({
-    exercise: { equipment: { id: "m1", name: "Hack squat", unit: "kg", ladder: null } },
+    exercise: {
+      equipment: {
+        id: "m1",
+        name: "Hack squat",
+        unit: "kg",
+        typeCategory: "machine",
+        typeSlug: "hack_squat",
+        ladder: null,
+      },
+    },
   });
   const there = { ...context, equipmentId: "m1" };
   act(() => {
@@ -417,7 +603,7 @@ it("turns to the next set, and starts rest, only once the server has the set", a
   expect(
     screen.getByRole("button", { name: "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit" }),
   ).toBeTruthy();
-  expect(entry("Set 2")).toBeTruthy();
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
   expect(screen.getByRole("status").textContent).toBe(
     "Set 1 saved: 60 kilograms, 5 reps, 2 reps in reserve. Set 2 next.",
   );
@@ -440,9 +626,21 @@ it("recognizes an acknowledged-on-the-server draft and does not duplicate non-co
   });
   renderLogger({ exercise: { sets: [{ ...saved, setIndex: 3 }] } });
   await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
-  expect(screen.getAllByRole("button", { name: /^Set 3: / })).toHaveLength(1);
-  // The first set not yet done is entered first.
-  expect(entry("Set 1")).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /^Set 1: / })).toHaveLength(1);
+  // The places before it were deleted or never done: the next set goes after it, so the sets
+  // stay in the order they were done, and it is the second.
+  expect(entry("Set 2")).toBeTruthy();
+});
+
+it("never reopens a set deleted from among those done, through a reload", async () => {
+  // Sets 1 and 3 of 3 done, set 2 deleted: coming back, the next set goes after the last done.
+  const done = [1, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, id: "set-4", setIndex: 4 } });
+  renderLogger({ exercise: { planned: benchSlot, sets: done } });
+  expect(entry("Set 3 of 3")).toBeTruthy();
+  saveFirstSet();
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setIndex: 4 });
 });
 
 it("keeps each set's values to itself when the next one is edited", async () => {
@@ -539,6 +737,93 @@ it("uses mandatory RPE for a carry and persists that reported effort", async () 
   );
 });
 
+it("writes History's free-weight loads in the Log tab's unit, so a lift reads the same on both", async () => {
+  actions.history.mockResolvedValue({
+    more: false,
+    entries: [
+      {
+        workoutExerciseId: "earlier",
+        workoutSessionId: "s1",
+        performedAt: "2026-09-01T09:00:00.000Z",
+        gymName: "Home gym",
+        equipmentName: "Barbell",
+        sets: [{ ...saved, weight: 100 }],
+      },
+    ],
+  });
+  // A barbell registered in kilograms, on an account that has since switched to pounds.
+  renderLogger({
+    preferredUnit: "lb",
+    exercise: {
+      equipment: {
+        id: "bar",
+        name: "Barbell",
+        unit: "kg",
+        typeCategory: "free_weight",
+        typeSlug: "barbell",
+        ladder: null,
+      },
+    },
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "History" }));
+  await screen.findByText("Home gym · Barbell");
+  const panel = document.getElementById("exercise-panel")!;
+  expect(panel.textContent).toContain("100");
+  expect(panel.textContent).not.toContain("220.46");
+});
+
+it("refuses an RPE of 0 in the app's own words, before anything is sent", async () => {
+  renderLogger({
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "duration" } },
+  });
+  fill({ Seconds: "45", RPE: "0" });
+  press("Save");
+  expect(await screen.findByText("Enter effort from 1 (very easy) to 10 (maximal).")).toBeTruthy();
+  expect(actions.log).not.toHaveBeenCalled();
+});
+
+it("takes in a set typed before the exercise's machine changed, to save or discard", async () => {
+  const typed = {
+    setIndex: 1,
+    setType: "working" as const,
+    weight: "60",
+    reps: "5",
+    rir: "2",
+    effortVersion: 2 as const,
+    duration: "",
+    distance: "",
+    touched: ["weight" as const, "reps" as const, "rir" as const],
+    baseCompletedAt: null,
+  };
+  // Typed while the machine question was open; Register with details then put Rack 1 on it.
+  // The answer moved it, so it is the set being typed, here, as it was.
+  writeDraft(localStorage, context, typed);
+  const onRack = { ...context, equipmentId: "rack-1" };
+  const rack = {
+    equipment: {
+      id: "rack-1",
+      name: "Rack 1",
+      unit: "kg" as const,
+      typeCategory: "accessory" as const,
+      typeSlug: "power_rack",
+      ladder: null,
+    },
+  };
+  renderLogger({ exercise: rack });
+  expect(await screen.findByRole("button", { name: "60 kilograms. Type a load" })).toBeTruthy();
+  expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(localStorage.getItem(draftKey(onRack))).not.toBeNull();
+  cleanup();
+  localStorage.clear();
+
+  // Typed on another machine the exercise was then swapped from: back as a draft to review.
+  writeDraft(localStorage, { ...context, equipmentId: "rack-2" }, typed);
+  renderLogger({ exercise: rack });
+  expect(await screen.findByText("Unsaved draft restored. Review and retry saving.")).toBeTruthy();
+  expect(localStorage.getItem(draftKey({ ...context, equipmentId: "rack-2" }))).toBeNull();
+});
+
 it("preserves an older draft but requires its possibly copied effort to be re-entered", async () => {
   writeDraft(localStorage, context, {
     setIndex: 1,
@@ -603,6 +888,52 @@ it("updates a logged set from its line without starting rest again", async () =>
     name: "Set 1: 62.5 kilograms, 5 reps, 2 reps in reserve. Edit",
   });
   expect(onLogged).not.toHaveBeenCalled();
+});
+
+it("amends a finished workout's sets, done or not, offering nothing of training it (ADR 0049)", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 62.5 } });
+  renderLogger({
+    amending: true,
+    exercise: {
+      completedAt: "2026-09-08T12:20:00.000Z",
+      sets: [saved],
+      planned: { ...programmeSlot, sets: 3 },
+      coachNote: "Pause each rep",
+      decision: asking("confirm_basic"),
+    },
+  });
+  expect(screen.queryByText("Is there a hack squat here?")).toBeNull();
+  // What was done, and no row asking for the next set: Add set offers one.
+  expect(screen.queryByRole("region", { name: /^Set 2/ })).toBeNull();
+  expect(screen.queryByText("Done")).toBeNull();
+  expect(screen.queryByText("Pause each rep")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Complete, skip, superset, substitute" })).toBeNull();
+  // The load put right from the set's own line.
+  press("Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit");
+  const sheet = screen.getByRole("dialog", { name: "Set 1" });
+  fireEvent.click(within(sheet).getByRole("button", { name: "More load, 2.5 kg" }));
+  fireEvent.click(within(sheet).getByRole("button", { name: "Update" }));
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        setIndex: 1,
+        weight: 62.5,
+        expectedCompletedAt: saved.completedAt,
+      }),
+    ),
+  );
+  await screen.findByRole("button", {
+    name: "Set 1: 62.5 kilograms, 5 reps, 2 reps in reserve. Edit",
+  });
+  expect(screen.getByText("Tap a set to change or delete it.")).toBeTruthy();
+  // A set forgotten on the day: Add set brings the entry up for it, and once saved, it goes.
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, id: "set-2", setIndex: 2 } });
+  press("Add set");
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
+  fill({ Reps: "5", RIR: "2" });
+  press("Save");
+  await screen.findByRole("button", { name: "Add set" });
+  expect(screen.queryByRole("region", { name: /^Set 3/ })).toBeNull();
 });
 
 it("leaves a set being typed into alone when the saved sets change underneath it", async () => {
@@ -723,16 +1054,49 @@ it("saves a light set with no RIR before the work as a warm-up, says so, and tak
   );
   expect(screen.getByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeTruthy();
 
-  // It was a working set after all: back it goes, and it is saved again with its RIR.
+  // It was a working set after all: its sheet opens on a working set, to be saved again with
+  // its RIR. Nothing changes until Update, so no draft is left behind meanwhile.
   press("Set 1 was a working set");
-  expect(screen.queryByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeNull();
   const sheet = screen.getByRole("dialog", { name: "Set 1" });
   expect(within(sheet).getByRole("combobox", { name: "Type" })).toHaveProperty("value", "working");
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
   fireEvent.change(within(sheet).getByRole("textbox", { name: "RIR" }), { target: { value: "3" } });
   actions.log.mockResolvedValueOnce({ ok: true, set: { ...saved, weight: 60, rir: 3 } });
   fireEvent.click(within(sheet).getByRole("button", { name: "Update" }));
   await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(2));
   expect(actions.log.mock.calls[1]?.[0]).toMatchObject({ setType: "working", weight: 60, rir: 3 });
+  await waitFor(() =>
+    expect(screen.queryByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeNull(),
+  );
+});
+
+it("leaves the warm-up as it was saved when Undo's sheet is closed without Update", async () => {
+  actions.log.mockResolvedValueOnce({
+    ok: true,
+    set: { ...saved, setType: "warmup", weight: 60, rir: null },
+  });
+  const dirty = vi.fn();
+  render(
+    <ExerciseLogger
+      exercise={{ ...exercise, ...holding() }}
+      session={{ ...session, exercises: [{ ...exercise, ...holding() }] }}
+      userId="user"
+      readOnly={false}
+      onBack={() => {}}
+      onDirtyChange={dirty}
+      onLogged={() => {}}
+    />,
+  );
+  fill({ "Load in kilograms": "60" });
+  press("Save");
+  await screen.findByText(/Saved as a warm-up/, { selector: ".entry-slot span" });
+  press("Set 1 was a working set");
+  const sheet = screen.getByRole("dialog", { name: "Set 1" });
+  fireEvent.click(within(sheet).getByRole("button", { name: "Close sheet" }));
+  // No draft holds Finish back, and the way back to a working set is still where it was.
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(dirty).toHaveBeenLastCalledWith(false);
+  expect(screen.getByRole("button", { name: "Set 1 was a working set" })).toBeTruthy();
 });
 
 it("keeps a light set with its RIR, or one after the work has started, as a working set", async () => {
@@ -771,6 +1135,28 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
   expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
 });
 
+it("names its way back for the routine the workout was started from", () => {
+  renderLogger({ title: "Push day at home" });
+  expect(screen.getByRole("button", { name: "Push day at home" })).toBeTruthy();
+  expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
+it("says a routine's long name as the workout, so the dock stays whole on screen", async () => {
+  // As long as a routine's name may be: the workout's own screens say it, as their title.
+  const name = "Hotel gym push day: dumbbell bench, overhead press, slow tempo dips, ".padEnd(
+    120,
+    "and the band finisher ",
+  );
+  expect(name).toHaveLength(120);
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  renderLogger({ title: name, exercise: { sets: [saved] } });
+  expect(screen.getByRole("button", { name: "Workout" })).toBeTruthy();
+  more("Complete");
+  await screen.findByText("Done");
+  expect(screen.getByRole("button", { name: "Back to the workout" })).toBeTruthy();
+  expect(screen.queryByText(name, { exact: false })).toBeNull();
+});
+
 it("makes Complete the dock's button once the planned sets are in, another set a tap away", async () => {
   const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
   renderLogger({ exercise: { planned: benchSlot, sets } });
@@ -781,6 +1167,20 @@ it("makes Complete the dock's button once the planned sets are in, another set a
   expect(entry("Set 4")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
+});
+
+it("lets the slot's Complete drop a set typed past the plan, so no draft is left to hold Finish", async () => {
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  renderLogger({ exercise: { planned: benchSlot, sets } });
+  fireEvent.click(screen.getByRole("button", { name: "Log another set" }));
+  fill({ "Load in kilograms": "62.5" });
+  expect(localStorage.getItem(draftKey(context))).not.toBeNull();
+  // Complete stays in the slot while the set past the plan is under way; pressed, the set goes.
+  press("Complete Bench press");
+  await waitFor(() => expect(actions.complete).toHaveBeenCalledWith("slot", true));
+  expect(localStorage.getItem(draftKey(context))).toBeNull();
+  expect(await screen.findByText("Done")).toBeTruthy();
 });
 
 it("offers Complete once the planned sets are in, and keeps focus with the exercise as it completes", async () => {
@@ -803,7 +1203,7 @@ it("puts an exercise back, and says why, when completing it fails", async () => 
   more("Complete");
   await screen.findByText("That session no longer exists.");
   await waitFor(() => expect(screen.queryByText("Done")).toBeNull());
-  expect(entry("Set 2")).toBeTruthy();
+  expect(screen.getByRole("region", { name: /^Set 2/ })).toBeTruthy();
 });
 
 it("takes Complete while the last set is still saving, and completes once the set has landed", async () => {
@@ -834,7 +1234,8 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   await act(async () =>
     save.answer({ ok: false, error: "Something went wrong. Please try again." }),
   );
-  await screen.findByRole("button", { name: "Retry saving set 1" });
+  // The set after set 2 (index 2): the second set done, not one put back before it.
+  await screen.findByRole("button", { name: "Retry saving set 2" });
   expect(actions.complete).not.toHaveBeenCalled();
   expect(screen.queryByText("Done")).toBeNull();
   // The failed set holds changes nobody has saved, so it has to be dealt with first, and
@@ -887,13 +1288,15 @@ it("says the coach's numbers under the name when the coach planned the session",
   // The programme says 3–5 reps and 3–4 min; the coach wrote 5 reps and 150 s. The figures sit
   // in spans of their own (Figures), so the line is read whole.
   const meta = document.querySelector(".session-meta")?.textContent ?? "";
-  expect(meta).toContain("5 reps");
+  expect(meta).toContain("5\u00a0reps");
   expect(meta).toContain("2.5 min");
-  expect(meta).not.toContain("3–5 reps");
+  expect(meta).not.toContain("3\u2060–\u20605\u00a0reps");
   expect(meta).not.toContain("3–4 min");
   // Off the Log tab, the line under the name gives the whole prescription.
   fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
-  expect(document.querySelector(".session-meta")?.textContent).toContain("60 kg · 3 × 5 @ 2 RIR");
+  expect(document.querySelector(".session-meta")?.textContent).toContain(
+    "60\u00a0kg ·\u00a03 × 5 @\u00a02\u00a0RIR",
+  );
 });
 
 it("shows the guide and the programme's cue in Technique, and none of the programme's notes", () => {
@@ -1012,7 +1415,14 @@ it("still takes the answer once a set is typed, so Save is never stuck behind it
 it("does not hold Save for a question about what an attached machine is used with", () => {
   renderLogger({
     exercise: {
-      equipment: { id: "smith", name: "Garage Smith", unit: "kg", ladder: null },
+      equipment: {
+        id: "smith",
+        name: "Garage Smith",
+        unit: "kg",
+        typeCategory: "machine",
+        typeSlug: "smith_machine",
+        ladder: null,
+      },
       decision: asking("unknown"),
     },
   });

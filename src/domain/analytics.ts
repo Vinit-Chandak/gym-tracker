@@ -1,5 +1,6 @@
 import type { TrainingData, TrainingWorkout } from "@/server/repositories/training-data";
 import type { Schedule } from "@/server/repositories/schedule";
+import { joinFacts } from "@/lib/facts";
 import { addDays, todayInTimeZone } from "./program-calendar";
 import { weekStart } from "./running";
 import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "./muscle-volume";
@@ -45,6 +46,21 @@ export function estimated1RM(
   modality: string,
   unit: string,
 ): number | null {
+  const estimate = unroundedEstimated1RM(weight, reps, modality, unit);
+  return estimate === null ? null : round(estimate);
+}
+
+/**
+ * The same estimate before it is rounded for reading, for a figure that is kept in another unit
+ * than it was lifted in: 30 lb × 6 is 16.33 kg, and rounded to 16.3 first it read back as
+ * 35.9 lb, never the 36 it was.
+ */
+export function unroundedEstimated1RM(
+  weight: number | null,
+  reps: number | null,
+  modality: string,
+  unit: string,
+): number | null {
   if (
     (modality !== "barbell" && modality !== "dumbbell") ||
     !["kg", "lb"].includes(unit) ||
@@ -55,7 +71,7 @@ export function estimated1RM(
     reps > 10
   )
     return null;
-  return round(reps === 1 ? weight : weight * (1 + reps / 30));
+  return reps === 1 ? weight : weight * (1 + reps / 30);
 }
 
 /**
@@ -93,7 +109,10 @@ export function performanceSeries(
           machine:
             machineKey === "global"
               ? "Across gyms"
-              : `${slot.equipment?.name ?? "Unrecorded machine (this session only)"} · ${workout.gym.name}`,
+              : joinFacts([
+                  slot.equipment?.name ?? "Unrecorded machine (this session only)",
+                  workout.gym.name,
+                ]),
           unit,
           load: [],
           reps: [],

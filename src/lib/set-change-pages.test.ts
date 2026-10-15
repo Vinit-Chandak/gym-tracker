@@ -26,10 +26,10 @@ const READS = [
 const SHOWS_NO_SETS: Record<string, string> = {
   "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/page.tsx":
     "the exercise being replaced and the gym",
-  "src/app/(app)/exercises/[exerciseId]/page.tsx": "finished workouts only (`completedOnly`)",
-  "src/app/(app)/progress/day/[date]/page.tsx": "finished workouts only (`completedOnly`)",
   "src/components/shell/session-status.tsx": "the open workout's name",
   "src/app/(app)/workouts/start/page.tsx": "nothing of it: an open workout is gone to instead",
+  "src/app/(app)/today/choose/page.tsx": "which day is in progress, so nothing else starts",
+  "src/app/(app)/profile/programme/page.tsx": "which day of the cycle is in progress",
 };
 
 const callers = ["src/app", "src/components"]
@@ -45,7 +45,6 @@ it("finds the screens that show the open workout's sets", () => {
   expect(callers.map(({ path }) => path)).toEqual(
     expect.arrayContaining([
       "src/app/(app)/today/page.tsx",
-      "src/app/(app)/progress/page.tsx",
       "src/app/(app)/workouts/[sessionId]/page.tsx",
       "src/app/(app)/workouts/[sessionId]/finish/page.tsx",
     ]),

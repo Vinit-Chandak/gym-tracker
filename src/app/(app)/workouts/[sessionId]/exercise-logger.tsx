@@ -26,11 +26,25 @@ import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
-import { formatSets, SET_LIMITS } from "@/domain/sets";
+import { formatSets, loadReadingOf, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import {
+  setLengthIn,
+  setTargetIn,
+  SET_LENGTH_WORDS,
+  type SetLengthUnit,
+} from "@/lib/distance-units";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatDay } from "@/lib/format";
 import { NO_GUIDANCE } from "@/lib/guidance";
-import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import {
+  backToSession,
+  LOAD_UNIT_LABELS,
+  measureUnitSuffix,
+  sessionChromeName,
+  sessionName,
+  SUGGESTION_KIND_LABELS,
+} from "@/lib/labels";
 import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
@@ -52,6 +66,7 @@ import {
   isWarmup,
   logSize,
   measureOf,
+  openRow,
   perSetLabel,
   plannedSets,
   prescriptionLabel,
@@ -60,6 +75,7 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
+  targetFor,
 } from "./logger-model";
 import {
   EffortSheet,
@@ -118,7 +134,8 @@ type Sheet =
   | { kind: "why" }
   | { kind: "effort" }
   | { kind: "options" }
-  | { kind: "edit"; setIndex: number }
+  // A set's own sheet; `setType` opens it on another type than the set has (Undo's working set).
+  | { kind: "edit"; setIndex: number; setType?: SetType }
   | { kind: "more" }
   | { kind: "skip" }
   | { kind: "gone" };
@@ -129,6 +146,10 @@ function fieldsFor(
   measure: PrescriptionType,
   row: RowState | null,
   unit: LoadUnit,
+  /** The row's own suggested set (`targetFor`): what its targets are read from. */
+  target: NonNullable<ExerciseVM["suggestion"]>["sets"][number] | null,
+  /** What a distance is typed in: metres, or yards beside miles (ADR 0055). */
+  length: SetLengthUnit,
 ): [EntryField, EntryField, EntryField] {
   const loadUnit = row?.unit ?? unit;
   const bodyweight = exercise.exercise.modality === "bodyweight";
@@ -156,14 +177,20 @@ function fieldsFor(
     target: null,
     info: null,
   };
-  const target = countTargetLabel(exercise, row?.setIndex ?? null);
+  // Said under a folded column as "target" and then the range, which the entry holds whole:
+  // at large text the line breaks after the word, never at the range's dash.
+  const countTarget = countTargetLabel(exercise, target, length);
+  // Yards are typed whole, which is what makes 50 yd read back as 50 yd (ADR 0055); metres
+  // keep their tenth. A point that reaches the yards anyway is kept for Save to refuse.
+  const lengthWords = SET_LENGTH_WORDS[length];
+  const Lengths = `${lengthWords[0]!.toUpperCase()}${lengthWords.slice(1)}`;
   const count: EntryField =
     measure === "duration"
       ? {
           field: "duration",
           unit: "s",
           hint: null,
-          foldHint: target ? `target ${target}` : null,
+          foldHint: countTarget ? `target ${countTarget}` : null,
           inputLabel: "Seconds",
           inputMode: "numeric",
           max: SET_LIMITS.durationSeconds,
@@ -181,20 +208,21 @@ function fieldsFor(
       : measure === "distance"
         ? {
             field: "distance",
-            unit: "m",
+            unit: length,
             hint: null,
-            foldHint: target ? `target ${target}` : null,
-            inputLabel: "Metres",
-            inputMode: "decimal",
-            max: SET_LIMITS.distanceMeters,
+            foldHint: countTarget ? `target ${countTarget}` : null,
+            inputLabel: Lengths,
+            inputMode: length === "yd" ? "numeric" : "decimal",
+            keeps: "decimal",
+            max: setLengthIn(SET_LIMITS.distanceMeters, length),
             min: 0,
             step: 5,
-            less: "5 metres less",
-            more: "5 metres more",
+            less: `5 ${lengthWords} less`,
+            more: `5 ${lengthWords} more`,
             name: (value, state) =>
               state === "empty"
-                ? "Metres not set. Type metres"
-                : `${value} metres${suggested(state)}. Type metres`,
+                ? `${Lengths} not set. Type ${lengthWords}`
+                : `${value} ${lengthWords}${suggested(state)}. Type ${lengthWords}`,
             target: null,
             info: null,
           }
@@ -202,7 +230,7 @@ function fieldsFor(
             field: "reps",
             unit: "reps",
             hint: null,
-            foldHint: target ? `target ${target}` : null,
+            foldHint: countTarget ? `target ${countTarget}` : null,
             inputLabel: "Reps",
             inputMode: "numeric",
             max: SET_LIMITS.reps,
@@ -221,8 +249,8 @@ function fieldsFor(
   const effort: EntryField =
     effortMetric(measure) === "rir"
       ? (() => {
-          const target = row && !warmup ? rirTarget(exercise, row.setIndex) : null;
-          const targetLabel = row && !warmup ? rirTargetLabel(exercise, row.setIndex) : null;
+          const rir = row && !warmup ? rirTarget(exercise, target) : null;
+          const targetLabel = row && !warmup ? rirTargetLabel(exercise, target) : null;
           return {
             field: "rir",
             unit: "RIR",
@@ -244,7 +272,7 @@ function fieldsFor(
                   : targetLabel
                     ? `RIR not set, target ${targetLabel}. Use the target`
                     : "RIR not set. Type RIR",
-            target,
+            target: rir,
             info: "What RIR means",
           };
         })()
@@ -283,6 +311,12 @@ type LoggerProps = {
   session: SessionVM;
   userId: string;
   readOnly: boolean;
+  /**
+   * A finished workout opened for changes (ADR 0049): its sets are edited, added and removed,
+   * done or not, and nothing that belongs to training it (completing, skipping, machines, the
+   * coach's note, the next load) is offered.
+   */
+  amending?: boolean;
   onBack: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onLogged: (restSeconds: number) => void;
@@ -301,6 +335,7 @@ export function ExerciseLogger({
   session,
   userId,
   readOnly,
+  amending = false,
   onBack,
   onDirtyChange,
   onLogged,
@@ -344,7 +379,7 @@ export function ExerciseLogger({
   // Complete pressed in the message slot: focus follows the exercise to its Done line.
   const focusDone = useRef(false);
   const shownTab = useRef(tab);
-  const box = useMeasure(layer, probe);
+  const box = useMeasure(layer, probe, undefined, true);
   const android = useSyncExternalStore(
     noSubscription,
     () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
@@ -362,6 +397,8 @@ export function ExerciseLogger({
     sessionId: session.id,
     measure,
     unit,
+    length: session.length,
+    amending,
     onLogged,
     onSaved: (setIndex, added, saved) => {
       setLastSaved(setIndex);
@@ -377,6 +414,9 @@ export function ExerciseLogger({
   useEffect(() => {
     onDirtyChange(sets.dirty);
   }, [sets.dirty, onDirtyChange]);
+  // Left, the exercise holds nothing back: a row still typed or saving is a draft in storage,
+  // which the workout counts, and a save that lands after this has gone clears its own.
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   // Save reads Saved for half a second, then turns to the next set's Save.
   useEffect(() => {
@@ -418,11 +458,17 @@ export function ExerciseLogger({
     };
   }, [typing]);
 
-  const editable = !readOnly && !skipped && !completed;
-  const entryRow = editable ? (sets.rows.find((row) => row.logged === null) ?? null) : null;
+  // Training it, the exercise takes sets until it is done or dropped; amended after the workout,
+  // whatever it was left as.
+  const editable = !readOnly && (amending || (!skipped && !completed));
+  // What belongs to training the exercise: completing, skipping, its machine, the next load.
+  const live = !readOnly && !amending;
+  const entryRow = editable ? openRow(sets.rows) : null;
   const heading = entryRow ? entryHeading(sets.rows, entryRow, exercise) : null;
   const ghost = entryRow ? sets.ghost(entryRow.setIndex) : {};
-  const fields = fieldsFor(exercise, measure, entryRow, unit);
+  // The suggested set this row stands for: the same kind of set in the same place.
+  const entryTarget = entryRow ? sets.target(entryRow.setIndex) : null;
+  const fields = fieldsFor(exercise, measure, entryRow, unit, entryTarget, session.length);
 
   // The log's soft top edge shows once its earlier lines pass under the tabs.
   const [overflow, setOverflow] = useState(false);
@@ -543,19 +589,23 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const dayName = session.day?.name ?? UNPLANNED_SESSION;
+  const workoutName = sessionName(session.day?.name, session.title);
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
   const equipment = equipmentLine(exercise);
-  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise, unitLabel);
+  const range =
+    tab === "log"
+      ? perSetLabel(exercise, session.length)
+      : prescriptionLabel(exercise, unitLabel, session.length);
   const rest = restText(exercise);
   const facts: ReactNode[] = [
     <>
       {/* The glyph says the kind; the machine itself is said once, in words. */}
       <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-      {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
-      <Figures>{range ?? equipment}</Figures>
+      {/* Its figures in Jost, whose zero is plain, as every meta line's are, and each range
+          held at its dash: "@ 1–" never ends a line. */}
+      <Figures>{range === null ? equipment : holdFigures(range)}</Figures>
     </>,
   ];
   if (rest)
@@ -574,41 +624,73 @@ export function ExerciseLogger({
   if (substituted) facts.push(<span>instead of {plannedName}</span>);
 
   // ---------- the suggestion, its tag and Why ----------
-  const suggestion = exercise.suggestion;
-  const kindLabel = suggestion ? SUGGESTION_KIND_LABELS[suggestion.kind] : null;
-  const bodyweight = exercise.exercise.modality === "bodyweight";
-  const countField = fields[1].field;
-  const whyLoad = ghost.weight && !(bodyweight && Number(ghost.weight) === 0) ? ghost.weight : null;
-  const whyCount = ghost[countField]
-    ? `${ghost[countField]}${measure === "duration" ? " s" : measure === "distance" ? " m" : ""}`
+  // Said only where the set on the entry has a suggested set of its own, warm-up or work, and
+  // always that set's figures: never a warm-up's numbers under a working set's tag.
+  // Not when a finished workout is amended: what the day suggested is no longer advice.
+  const suggestion = entryTarget && live ? exercise.suggestion : null;
+  const entryWarm = entryRow !== null && isWarmup(entryRow.setType);
+  const kindLabel = suggestion
+    ? entryWarm && suggestion.kind !== "coach"
+      ? "Warm-up"
+      : SUGGESTION_KIND_LABELS[suggestion.kind]
     : null;
+  const bodyweight = exercise.exercise.modality === "bodyweight";
+  const targetCount =
+    measure === "duration"
+      ? entryTarget?.durationSeconds
+      : measure === "distance"
+        ? entryTarget?.distanceMeters == null
+          ? null
+          : setTargetIn(entryTarget.distanceMeters, session.length)
+        : entryTarget?.reps;
+  const whyLoad =
+    entryTarget?.weight != null && !(bodyweight && entryTarget.weight === 0)
+      ? String(entryTarget.weight)
+      : null;
+  const whyCount =
+    targetCount != null ? `${targetCount}${measureUnitSuffix(measure, session.length)}` : null;
   const whyEffort =
-    entryRow && effort === "rir" ? rirTargetLabel(exercise, entryRow.setIndex) : null;
+    entryRow && effort === "rir" && !entryWarm ? rirTargetLabel(exercise, entryTarget) : null;
+  // A warm-up the app ramped to the first working set says so; the rule's reason is the work's.
+  const firstWork = exercise.suggestion?.sets.find((set) => !isWarmup(set.setType)) ?? null;
+  const rampReason =
+    firstWork?.weight != null && firstWork.weight > 0
+      ? `A ramp to today's first working set, ${firstWork.weight} ${unitLabel}.`
+      : "A ramp to today's first working set.";
   const why: WhyContent | null =
     suggestion && kindLabel
       ? {
           tag: kindLabel,
           figures: { load: whyLoad, unit: unitLabel, count: whyCount, effort: whyEffort },
           reason:
-            suggestion.kind === "coach" && exercise.coachNote ? null : suggestion.reason || null,
-          advice: suggestion.advice,
+            suggestion.kind === "coach"
+              ? exercise.coachNote
+                ? null
+                : suggestion.reason || null
+              : entryWarm
+                ? rampReason
+                : suggestion.reason || null,
+          advice: entryWarm ? null : suggestion.advice,
           coachNote: exercise.coachNote,
           warning: null,
-          basis: exercise.basis
-            ? `Based on ${
-                suggestion.basis === "other_equipment"
-                  ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                  : "this exercise"
-              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
-                // The sets it read, so the reason can be checked against what was done.
-                exercise.basis.sets.length > 0
-                  ? `: ${formatSets(
-                      exercise.basis.sets.map((set) => setInUnit(set, unit)),
-                      (load) => LOAD_UNIT_LABELS[load],
-                    )}`
-                  : ""
-              }.`
-            : null,
+          basis:
+            !entryWarm && exercise.basis
+              ? `Based on ${
+                  suggestion.basis === "other_equipment"
+                    ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                    : "this exercise"
+                }, ${formatDay(exercise.basis.performedAt, session.timeZone, session.today.slice(0, 4))}${
+                  // The sets it read, so the reason can be checked against what was done.
+                  exercise.basis.sets.length > 0
+                    ? `: ${formatSets(
+                        exercise.basis.sets.map((set) => setInUnit(set, unit)),
+                        (load) => LOAD_UNIT_LABELS[load],
+                        loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                        session.length,
+                      )}`
+                    : ""
+                }.`
+              : null,
         }
       : null;
   const tagName =
@@ -621,7 +703,7 @@ export function ExerciseLogger({
       .join(" × ")}`.trim();
 
   // ---------- completing, skipping, a fallback ----------
-  const needsDecision = exercise.decision !== null && !skipped && !readOnly;
+  const needsDecision = exercise.decision !== null && !skipped && live;
   // A machine question still open before the first set: Save waits and points at it, since
   // the machine goes on the exercise only before anything is logged ("Not sure" lets it be). A
   // question about what an attached machine is used with (a bench) changes nothing recorded.
@@ -650,8 +732,9 @@ export function ExerciseLogger({
     if (active && active !== document.body) return;
     titleRef.current?.focus({ preventScroll: true });
   }, [needsDecision]);
-  // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
-  // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
+  // Once this exercise's working sets are in, a stack whose next stop past the best ever lifted
+  // nobody knows asks for it under the sets (ADR 0028, ADR 0048); nothing is asked mid-exercise
+  // or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
   const workingDone =
     completed ||
@@ -659,10 +742,11 @@ export function ExerciseLogger({
       loggedWorking.length > 0 &&
       loggedWorking.length >= (exercise.planned?.sets ?? 1));
   const nextLoad =
-    !readOnly && !skipped && measure === "reps" && workingDone
+    live && !skipped && measure === "reps" && workingDone
       ? nextLoadQuestion(
           exercise.equipment?.ladder,
           loggedWorking.map((set) => set.weight),
+          exercise.equipment?.best ?? null,
         )
       : null;
 
@@ -765,7 +849,7 @@ export function ExerciseLogger({
   // is otherwise in More. Further sets are still saved as the entry offers them.
   const planned = plannedSets(exercise);
   const workDone = sets.loggedSets.filter((set) => !isWarmup(set.setType)).length;
-  const planDone = editable && planned !== null && planned > 0 && workDone >= planned;
+  const planDone = editable && live && planned !== null && planned > 0 && workDone >= planned;
   const planDoneText =
     planned === null ? "" : `${planned} of ${planned} ${planned === 1 ? "set" : "sets"} done.`;
   // Then the hand leads to what comes next (DESIGN.md, The session): Complete is the dock's
@@ -804,14 +888,14 @@ export function ExerciseLogger({
     if (!added) return warm ? "Warm-up updated." : `Set ${n} updated.`;
     const said = saved.autoWarmup
       ? AUTO_WARMUP
-      : `${(warm ? warmSaid(saved.set, measure) : setSaid(n, saved.set, measure)).replace(
-          ":",
-          " saved:",
-        )}.`;
+      : `${(warm
+          ? warmSaid(saved.set, measure, session.length)
+          : setSaid(n, saved.set, measure, session.length)
+        ).replace(":", " saved:")}.`;
     const work = after.filter((r) => r.logged && !isWarmup(r.logged.setType)).length;
     // The entry turns to the first set not yet done, or to a working set after the last one, as
     // use-set-rows adds it on the same answer.
-    const open = after.find((r) => r.logged === null);
+    const open = openRow(after);
     const last = Math.max(...after.map((r) => r.setIndex));
     const nextRow =
       open ??
@@ -841,7 +925,11 @@ export function ExerciseLogger({
         ) ?? null);
   const partner = supersetNext(session, exercise);
   const partnerLine = partner
-    ? prescriptionLabel(partner, LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit])
+    ? prescriptionLabel(
+        partner,
+        LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit],
+        session.length,
+      )
     : null;
 
   // The one message slot, at the head of the entry: every message about Save stands here, and
@@ -855,7 +943,7 @@ export function ExerciseLogger({
   ) => (
     <p id={id} role={role} className="entry-slot entry-slot-message">
       <Glyph name={glyphName} className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{text}</span>
     </p>
   );
   const slot: ReactNode = entryRow?.error ? (
@@ -872,10 +960,11 @@ export function ExerciseLogger({
           type="button"
           className="entry-slot-action"
           aria-label={`Set ${setNumber(sets.rows, { ...autoWarmupRow, setType: "working" })} was a working set`}
-          onClick={() => {
-            sets.undoWarmup(autoWarmupRow);
-            setSheet({ kind: "edit", setIndex: autoWarmupRow.setIndex });
-          }}
+          // The set's sheet opens on a working set, to be saved again with its RIR; the set
+          // stays the warm-up it was until Update, so closing the sheet changes nothing.
+          onClick={() =>
+            setSheet({ kind: "edit", setIndex: autoWarmupRow.setIndex, setType: "working" })
+          }
         >
           Undo
         </button>
@@ -895,6 +984,9 @@ export function ExerciseLogger({
           disabled={pending}
           onClick={() => {
             focusDone.current = true;
+            // The press says the set typed past the plan is not wanted: it goes with the press,
+            // rather than staying behind as a draft that holds Finish. One on its way is saved.
+            if (entryRow?.dirty && !entryRow.saving) sets.restore(entryRow);
             setCompletedState(true);
           }}
         >
@@ -912,7 +1004,9 @@ export function ExerciseLogger({
       <Glyph name="link" className="glyph-18 text-ink-2" />
       <span className="font-bold">Then {partner.exercise.name}</span>
       {partnerLine && (
-        <span className="type-meta-small text-ink-2 tabular-nums">{partnerLine}</span>
+        <span className="type-meta-small text-ink-2 tabular-nums">
+          <Figures>{holdFigures(partnerLine)}</Figures>
+        </span>
       )}
     </p>
   ) : null;
@@ -986,21 +1080,24 @@ export function ExerciseLogger({
   })();
 
   // ---------- sheets ----------
+  const editType = sheet?.kind === "edit" ? sheet.setType : undefined;
   const editRow =
     sheet?.kind === "edit"
       ? (sets.rows.find((row) => row.setIndex === sheet.setIndex) ?? null)
       : null;
-  const editTitle = editRow
-    ? isWarmup(editRow.setType)
-      ? `Warm-up ${sets.rows.filter((row) => isWarmup(row.setType) && row.setIndex <= editRow.setIndex).length}`
-      : `Set ${setNumber(sets.rows, editRow)}`
+  // The set as its sheet opens on: its own type, or the one the sheet was opened to give it.
+  const editShown = editRow && editType ? { ...editRow, setType: editType } : editRow;
+  const editTitle = editShown
+    ? isWarmup(editShown.setType)
+      ? `Warm-up ${sets.rows.filter((row) => isWarmup(row.setType) && row.setIndex <= editShown.setIndex).length}`
+      : `Set ${setNumber(sets.rows, editShown)}`
     : "Set";
   const optionsTitle = heading
     ? `${heading.kind === "warmup" ? "Warm-up" : "Set"} ${heading.n}`
     : "Set";
 
   const more: MoreOption[] = [];
-  if (!readOnly && !skipped) {
+  if (live && !skipped) {
     if (completed)
       more.push({
         glyph: "undo",
@@ -1025,30 +1122,30 @@ export function ExerciseLogger({
       });
     }
   }
-  if (!readOnly && onEditSuperset)
+  if (live && onEditSuperset)
     more.push({
       glyph: "link",
       label: "Superset",
       onSelect: () => onEditSuperset(exercise.supersetGroup),
       opens: true,
     });
-  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
+  if (live && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
     more.push({
       glyph: "swap",
       label: "Swap the exercise",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
   // A registered machine that is missing or broken today: has it gone, or is it out of use?
-  if (exercise.equipment && !readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+  if (exercise.equipment && live && !completed && !skipped && sets.loggedSets.length === 0)
     more.push({
       glyph: "warn",
       label: `${exercise.equipment.name} not here`,
       onSelect: () => setSheet({ kind: "gone" }),
       disabled: pending || sets.dirty,
     });
-  if (!readOnly && skipped)
+  if (live && skipped)
     more.push({ glyph: "undo", label: "Unskip", onSelect: () => setCompletedState(false) });
-  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+  if (live && !completed && !skipped && sets.loggedSets.length === 0)
     more.push({
       glyph: "skip",
       label: "Skip exercise",
@@ -1062,7 +1159,7 @@ export function ExerciseLogger({
     effort === "rir"
       ? `${exercise.exercise.rirNote ?? RIR_HELP}${
           exercise.planned && (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
-            ? ` Today's target is ${rirTargetLabel(exercise, entryRow?.setIndex ?? 0)} RIR.`
+            ? ` Today's target is ${rirTargetLabel(exercise, entryTarget)} RIR.`
             : ""
         }`
       : RPE_HELP;
@@ -1088,21 +1185,23 @@ export function ExerciseLogger({
       <header ref={header} className="session-header">
         <button type="button" onClick={onBack} className="session-back">
           <Glyph name="chevronLeft" className="glyph-22" />
-          <span>{dayName}</span>
+          <span>{sessionChromeName(workoutName)}</span>
         </button>
-        <span className="flex-1" />
-        {session.restTimerEnabled && <RestPill sessionId={session.id} />}
-        {more.length > 0 && (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-label="Complete, skip, superset, substitute"
-            className="session-icon-button -mr-[10px]"
-            onClick={() => setSheet({ kind: "more" })}
-          >
-            <Glyph name="more" className="glyph-24" />
-          </button>
-        )}
+        {/* Under the way back, at the end, when it would have too little room (session.css). */}
+        <span className="session-header-end">
+          {session.restTimerEnabled && !session.completedAt && <RestPill sessionId={session.id} />}
+          {more.length > 0 && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-label="Complete, skip, superset, substitute"
+              className="session-icon-button -mr-[10px]"
+              onClick={() => setSheet({ kind: "more" })}
+            >
+              <Glyph name="more" className="glyph-24" />
+            </button>
+          )}
+        </span>
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
@@ -1162,7 +1261,7 @@ export function ExerciseLogger({
             )}
 
             {/* More opens the rest in place, as it does on the workout; Why is the tag's. */}
-            {exercise.coachNote && editable && (
+            {exercise.coachNote && editable && live && (
               <CoachNoteMore size="body" className="mt-2">
                 {exercise.coachNote}
               </CoachNoteMore>
@@ -1174,7 +1273,7 @@ export function ExerciseLogger({
               </p>
             )}
 
-            {(readOnly || completed || skipped) && sets.dirty && (
+            {!editable && sets.dirty && (
               <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
                 <p className="flex items-start gap-1.5 type-meta-small font-semibold">
                   <Glyph name="warn" className="mt-0.5 glyph-16" />
@@ -1187,13 +1286,18 @@ export function ExerciseLogger({
                   .map((row) => (
                     <div key={row.setIndex} className="type-meta-small">
                       <p className="tabular-nums">
-                        Set {row.setIndex}: {row.weight || "—"} {unitLabel} ·{" "}
-                        {measure === "duration"
-                          ? `${row.duration || "—"} s`
-                          : measure === "distance"
-                            ? `${row.distance || "—"} m`
-                            : `${row.reps || "—"} reps`}{" "}
-                        · {effort === "rir" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
+                        Set {row.setIndex}:{" "}
+                        {joinFacts([
+                          `${row.weight || "—"}\u00a0${unitLabel}`,
+                          measure === "duration"
+                            ? `${row.duration || "—"}\u00a0s`
+                            : measure === "distance"
+                              ? `${row.distance || "—"}\u00a0${session.length}`
+                              : `${row.reps || "—"}\u00a0reps`,
+                          effort === "rir"
+                            ? `RIR\u00a0${row.rir || "—"}`
+                            : `RPE\u00a0${row.rpe || "—"}`,
+                        ])}
                       </p>
                       <Button
                         variant="text"
@@ -1213,6 +1317,7 @@ export function ExerciseLogger({
                 <Log
                   rows={sets.rows}
                   measure={measure}
+                  length={session.length}
                   size={lineSize}
                   landed={landed}
                   onOpen={
@@ -1265,9 +1370,12 @@ export function ExerciseLogger({
                 exerciseId={exercise.exercise.id}
                 workoutExerciseId={exercise.id}
                 loadPortability={exercise.exercise.loadPortability}
-                preferredUnit={session.preferredUnit}
+                // The Log tab's unit, so a lift reads the same on both tabs: a weight, never a
+                // machine's stops or plates.
+                unit={unit === "kg" || unit === "lb" ? unit : session.preferredUnit}
                 timeZone={session.timeZone}
                 measure={measure}
+                length={session.length}
                 width={box.width}
                 grow={logGrow}
               />
@@ -1342,7 +1450,7 @@ export function ExerciseLogger({
               {quietHint}
               {saveButton}
             </Entry>
-          ) : completed || skipped || completing ? (
+          ) : live && (completed || skipped || completing) ? (
             <section aria-label={exercise.exercise.name} className="entry">
               {message && slotMessage("warn", message, "alert")}
               <div className="entry-head">
@@ -1357,17 +1465,23 @@ export function ExerciseLogger({
                     Completing…
                   </Button>
                 ) : (
-                  // Finished with, the exercise hands back to the list; Reopen and Unskip are
-                  // in More, where a change of mind goes.
+                  // Finished with, the exercise hands back to the list, by the workout's name
+                  // while it is short, so the dock stays on screen whole at 200% text; Reopen
+                  // and Unskip are in More, where a change of mind goes.
                   <Button size="lg" className="w-full" onClick={onBack}>
-                    Back to {dayName}
+                    {backToSession(workoutName)}
                   </Button>
                 )}
               </div>
             </section>
           ) : editable ? (
             <section aria-label="Sets" className="entry">
-              {message && slotMessage("warn", message, "alert")}
+              {message
+                ? slotMessage("warn", message, "alert")
+                : // Amending, the sets above are what is changed: each line opens its own.
+                  amending &&
+                  sets.loggedSets.length > 0 &&
+                  slotMessage("info", "Tap a set to change or delete it.", "status")}
               <div className="entry-save">
                 <Button
                   variant="tonal"
@@ -1403,8 +1517,20 @@ export function ExerciseLogger({
       />
       <SetEditSheet
         row={editRow}
+        initialType={editType}
         title={editTitle}
-        fields={editRow ? fieldsFor(exercise, measure, editRow, unit) : []}
+        fields={
+          editShown
+            ? fieldsFor(
+                exercise,
+                measure,
+                editShown,
+                unit,
+                targetFor(exercise, sets.rows, editShown),
+                session.length,
+              )
+            : []
+        }
         onUpdate={(row) => {
           setAnnounced("");
           sets.logRow(row);

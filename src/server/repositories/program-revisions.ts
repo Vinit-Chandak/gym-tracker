@@ -1,7 +1,14 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 
-import { programChangeProposals, programSlotEvents, programs, workoutSessions } from "@/db/schema";
+import {
+  programChangeProposals,
+  programSlotEvents,
+  programs,
+  sessionPlans,
+  workoutSessions,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import {
   applyProgramPatch,
   describePatch,
@@ -12,6 +19,8 @@ import {
 import type { ProposalSource } from "@/domain/types";
 
 import { carryPlansToRevision, patchCarryChanges } from "./coach-plans";
+import { carryGymFallbacks } from "./fallbacks";
+import { materialiseProgramme } from "./program-occurrences";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 
 /**
@@ -81,6 +90,34 @@ export async function listProposals(
   return rows.map(toView).filter((view): view is ProposalView => view !== null);
 }
 
+/**
+ * The programme a patch leaves behind, held to the same rules as any other programme.
+ *
+ * A patch is checked operation by operation, and an operation can be valid on its own and
+ * still leave a programme that is not: a run's effort given out of ten when programmes ask out
+ * of five did exactly that. Written out unchecked, such a version is one nothing can read back
+ * again — no edit, no review, no further change — so it is refused here, while somebody can
+ * still fix it, rather than discovered later under the athlete's thumb.
+ */
+function patched(
+  blueprint: ProgramBlueprint,
+  patch: ProgramPatch,
+  stale: string,
+): ProgramBlueprint {
+  let next: ProgramBlueprint;
+  try {
+    next = applyProgramPatch(blueprint, patch);
+  } catch (error) {
+    throw new ProposalError(error instanceof ProgramPatchError ? error.message : stale);
+  }
+  const checked = programBlueprintSchema.safeParse(next);
+  if (!checked.success)
+    throw new ProposalError(
+      `The changed programme is not valid: ${checked.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`,
+    );
+  return checked.data;
+}
+
 export type CreateProposalInput = {
   source: ProposalSource;
   summary: string;
@@ -114,13 +151,7 @@ export async function createProposal(
   if (!program) throw new ProposalError("There is no active programme to change.");
   const current = await readProgramBlueprint(db, userId, program.id);
   if (!current) throw new ProposalError("The active programme could not be read.");
-  try {
-    applyProgramPatch(current.blueprint, parsed.data);
-  } catch (error) {
-    throw new ProposalError(
-      error instanceof ProgramPatchError ? error.message : "The change does not fit the programme.",
-    );
-  }
+  patched(current.blueprint, parsed.data, "The change does not fit the programme.");
   const [row] = await db
     .insert(programChangeProposals)
     .values({
@@ -206,16 +237,11 @@ export async function applyProposal(
   if (!current) throw new ProposalError("The active programme could not be read.");
   const patch = programPatchSchema.safeParse(proposal.patch);
   if (!patch.success) throw new ProposalError("This change can no longer be read.");
-  let next;
-  try {
-    next = applyProgramPatch(current.blueprint, patch.data);
-  } catch (error) {
-    throw new ProposalError(
-      error instanceof ProgramPatchError
-        ? error.message
-        : "The programme has moved on and this change no longer fits.",
-    );
-  }
+  const next = patched(
+    current.blueprint,
+    patch.data,
+    "The programme has moved on and this change no longer fits.",
+  );
 
   if (!program.startDate)
     throw new ProposalError(
@@ -227,6 +253,8 @@ export async function applyProposal(
     familyId: program.familyId,
     status: "active",
   });
+  // What the athlete said each gym does instead of a lift is not part of the change.
+  await carryGymFallbacks(db, userId, { fromProgramId: program.id, toProgramId: created.id });
 
   // Where the athlete had got to, carried over slot for slot — each half of a day with it.
   // A day that lifts and runs answers the two separately and keeps an event for each, so the
@@ -259,6 +287,29 @@ export async function applyProposal(
     fromProgramId: program.id,
     toProgramId: created.id,
     changes: patchCarryChanges(patch.data),
+  });
+  // A run's preparation follows its occurrence, which the new version keeps, as an approved
+  // draft's does; one whose occurrence this change revises is withdrawn when it is revised.
+  await db
+    .update(sessionPlans)
+    .set({ programId: created.id })
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.programId, program.id),
+        eq(sessionPlans.status, "active"),
+        isNotNull(sessionPlans.occurrenceId),
+      ),
+    );
+  // The run half of a day is answered by its occurrence, and Today and the log screen read the
+  // occurrence. Writing only the programme's runs left a changed run showing its new target on
+  // the programme's day and its old one everywhere the athlete actually runs it.
+  await materialiseProgramme(db, userId, {
+    programId: created.id,
+    familyId: program.familyId,
+    blueprint: next,
+    startDate: program.startDate,
+    transition: "continue",
   });
 
   const now = new Date();

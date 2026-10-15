@@ -7,13 +7,16 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
   type RefObject,
 } from "react";
 
 import { Art } from "@/components/art/art";
-import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { sessionParts } from "@/components/art/session-print";
+import { DiscardSessionButton } from "@/components/discard-session-button";
+import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -23,8 +26,12 @@ import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
-import { formatSet } from "@/domain/sets";
-import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatSet, loadReadingOf } from "@/domain/sets";
+import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+import { formatTimeOrDateTime } from "@/lib/format";
+import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
@@ -36,6 +43,8 @@ import {
   isWarmup,
   plannedSets,
   prescriptionLabel,
+  printedSession,
+  warmupName,
 } from "./logger-model";
 import type { ExerciseVM, SessionVM } from "./view-model";
 
@@ -58,6 +67,35 @@ export function draftsWarning({ count, names }: Drafts): string {
     : `Sets ${where} are not saved yet. Save or remove them before finishing.`;
 }
 
+/** Checks the clock each minute, and as the app comes back into view. */
+function everyMinute(listener: () => void): () => void {
+  const timer = window.setInterval(listener, 60_000);
+  document.addEventListener("visibilitychange", listener);
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", listener);
+  };
+}
+
+/**
+ * When an open workout left open was last trained, as the screen says it ("19:30", "Sat 10 Oct,
+ * 19:30"); null while it is being trained. Read from the sets as they stand on this screen, so a
+ * set saved here a moment ago counts.
+ */
+export function leftOpenSince(session: SessionVM, now: number): string | null {
+  const last = session.exercises
+    .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
+    .reduce<string | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
+  const startedAt = new Date(session.startedAt);
+  const lastSetAt = last === null ? null : new Date(last);
+  if (!isLeftOpen(startedAt, lastSetAt, new Date(now))) return null;
+  return formatTimeOrDateTime(
+    lastTrainedAt(startedAt, lastSetAt),
+    session.timeZone,
+    todayInTimeZone(session.timeZone, new Date(now)),
+  );
+}
+
 /** Sets of the work done so far, warm-ups aside. */
 const workDone = (exercise: ExerciseVM) => exercise.sets.filter((set) => !isWarmup(set.setType));
 
@@ -72,45 +110,20 @@ const underWay = (exercise: ExerciseVM) =>
  */
 function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): string {
   const done = workDone(exercise);
-  if ((readOnly || underWay(exercise)) && done.length > 0)
-    return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
+  if ((readOnly || underWay(exercise)) && done.length > 0) {
+    const reading = loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted);
+    return done
+      .map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit], reading, session.length))
+      .join(", ");
+  }
   const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
-  const line = prescriptionLabel(exercise, unitLabel);
+  const line = prescriptionLabel(exercise, unitLabel, session.length);
   const machine = equipmentLine(exercise);
   if (!line) return machine;
   // A machine still to settle is news on the row, as it is under the exercise's name.
   return machine === "Machine not chosen" && !exercise.completedAt && !exercise.skippedAt
-    ? `${line} · ${machine}`
+    ? `${line}${FACT_SEPARATOR}${machine}`
     : line;
-}
-
-/** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */
-function workoutParts(session: SessionVM, warmupDone: boolean): PrintPart[] {
-  const parts: PrintPart[] = [];
-  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
-  if (blades > 0)
-    parts.push({
-      kind: "mobility",
-      segments: blades,
-      segmentsDone: warmupDone ? blades : 0,
-      state: warmupDone ? "done" : "todo",
-      modules: 3,
-    });
-  const columns: StrengthColumn[] = [];
-  session.exercises.forEach((exercise, index) => {
-    const done = workDone(exercise).length;
-    const sets = Math.max(plannedSets(exercise) ?? 0, done);
-    if (sets === 0) return;
-    const next = session.exercises[index + 1];
-    columns.push({
-      sets,
-      done,
-      skipped: exercise.skippedAt !== null,
-      pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
-    });
-  });
-  if (columns.length > 0) parts.push({ kind: "strength", columns });
-  return parts;
 }
 
 /**
@@ -161,11 +174,7 @@ function WarmupSheet({
   const { toggle: toggleDone, pending, error } = useWarmupDone(session.id, done, onDone);
 
   return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title={coachLines.length > 0 ? "Warm-up" : (session.warmup?.name ?? "Warm-up")}
-    >
+    <Sheet open={open} onClose={onClose} title={warmupName(session)}>
       {open && (
         <div className="mt-1">
           <ol>
@@ -174,7 +183,7 @@ function WarmupSheet({
                   <li
                     key={index}
                     className={cn(
-                      "py-2.5 [overflow-wrap:anywhere]",
+                      "py-2.5 [overflow-wrap:break-word]",
                       index < coachLines.length - 1 && "border-b border-hair",
                     )}
                   >
@@ -189,7 +198,9 @@ function WarmupSheet({
                       index < drills.length - 1 && "border-b border-hair",
                     )}
                   >
-                    <span className="min-w-0 font-bold [overflow-wrap:anywhere]">{drill.name}</span>
+                    <span className="min-w-0 font-bold [overflow-wrap:break-word]">
+                      {drill.name}
+                    </span>
                     <span className="shrink-0 text-right type-meta text-ink-2 tabular-nums">
                       {drill.dose}
                     </span>
@@ -263,7 +274,7 @@ function WarmupRow({
             {lines.map((line, index) => (
               <span
                 key={index}
-                className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums"
+                className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums"
               >
                 {line}
               </span>
@@ -322,12 +333,14 @@ function WarmupRow({
 type OverviewProps = {
   session: SessionVM;
   readOnly: boolean;
+  /** Whose device this is: a set it holds unsaved keeps a workout left open from finishing. */
+  userId?: string;
   /** Set drafts on this device, which hold Finish back until they are saved or removed. */
   drafts?: Drafts;
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
   onEditSuperset: (group: string | null) => void;
-  /** The day's name, or UNPLANNED_SESSION. */
+  /** The session's name (`sessionName`): its day's, its routine's, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising goes: Today, or wherever the session was opened from. */
   backHref?: Route;
@@ -351,16 +364,18 @@ export function addedLine(names: readonly string[]): string {
  * The workout (DESIGN.md, The session; boards Workout, Workout-Superset, Workout-Coach): the
  * day's name and where, its plan as a print with the sets inked as they are done, the app's
  * advice, then the warm-up and the exercises in the programme's order. A row says where it
- * stands only when that is news: a check when done, Resume on one under way, Skipped.
+ * stands only when that is news: a check when done or when every set it plans is in, Resume on
+ * one still under way, Skipped.
  */
 export function WorkoutOverview({
   session,
   readOnly,
+  userId,
   drafts = NO_DRAFTS,
   onOpenExercise,
   onOpenDetails,
   onEditSuperset,
-  title = session.day?.name ?? UNPLANNED_SESSION,
+  title = sessionName(session.day?.name, session.title),
   backHref = "/today",
   layer = false,
   listScrollRef,
@@ -369,6 +384,15 @@ export function WorkoutOverview({
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const hasDrafts = drafts.count > 0;
+  // Left open, with nothing logged for six hours, the workout offers to finish as of its last set,
+  // or to be discarded while it holds none (owner, 11 October 2026). The clock is the browser's,
+  // so the server's render never offers it.
+  const leftOpen = useSyncExternalStore(
+    everyMinute,
+    () => (readOnly ? null : leftOpenSince(session, Date.now())),
+    () => null,
+  );
+  const anyLogged = session.exercises.some((exercise) => exercise.sets.length > 0);
   const draftsId = useId();
   const actionsRef = useRef<HTMLSpanElement>(null);
   // Folded, never dropped: when the reader's text is so large that Minimise, the rest pill,
@@ -428,15 +452,13 @@ export function WorkoutOverview({
   const [sheet, setSheet] = useState<"warmup" | null>(null);
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
-  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
+  // Its plan, its sets inked as they land, as every screen that prints it draws it.
+  const printed = printedSession(session, warmupDone);
+  const blades = printed.drills;
   const hasWarmup = session.warmup !== null || (session.coachPlan?.warmup.length ?? 0) > 0;
-  const parts = workoutParts(session, warmupDone);
+  const parts = sessionParts(printed);
   const strength = parts.find((part) => part.kind === "strength");
   const columns = strength?.kind === "strength" ? strength.columns.length : 0;
-  // The coach's warm-up stands in for the protocol, so it does not take the protocol's name.
-  const warmupName = session.coachPlan?.warmup.length
-    ? "Warm-up"
-    : (session.warmup?.name ?? "Warm-up");
   const groups = session.exercises.reduce<ExerciseVM[][]>((all, exercise) => {
     const last = all.at(-1);
     if (exercise.supersetGroup && last?.[0]?.supersetGroup === exercise.supersetGroup)
@@ -456,6 +478,8 @@ export function WorkoutOverview({
         : null;
     const working = workDone(exercise).length;
     const of = plannedSets(exercise);
+    // Every set the plan asked for is in: done, as the logger says it, though not yet marked so.
+    const planDone = open && of !== null && of > 0 && working >= of;
     const glyph = equipmentGlyph(exercise);
     const coachAdded = exercise.suggestion?.kind === "coach" && exercise.planned === null;
     return (
@@ -469,7 +493,7 @@ export function WorkoutOverview({
           <span className="flex min-w-0 flex-1 flex-col">
             <span
               className={cn(
-                "plan-row-name [overflow-wrap:anywhere]",
+                "plan-row-name [overflow-wrap:break-word]",
                 (done || skipped) && !readOnly && "text-ink-2",
               )}
             >
@@ -479,7 +503,7 @@ export function WorkoutOverview({
               <span className="meta-line plan-row-meta">
                 <span className="meta-fact">
                   <Glyph name={glyph} label={equipmentLabel(exercise)} className="glyph-16" />
-                  <Figures>{rowLine(exercise, session, readOnly)}</Figures>
+                  <Figures>{holdFigures(rowLine(exercise, session, readOnly))}</Figures>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>
@@ -500,7 +524,13 @@ export function WorkoutOverview({
               className="glyph-18 shrink-0 text-ink-2"
             />
           )}
-          {open ? (
+          {planDone ? (
+            <Glyph
+              name="check"
+              label={`${working} of ${of} sets done`}
+              className="glyph-20 shrink-0"
+            />
+          ) : open ? (
             <>
               <span className="sr-only">
                 , in progress, {working}
@@ -551,6 +581,22 @@ export function WorkoutOverview({
           </span>
         )}
       </p>
+      {/* A set on this device not saved holds either way out, said under the advice beside
+          Finish's own reason. */}
+      {leftOpen !== null &&
+        (anyLogged ? (
+          userId && (
+            <FinishLeftOpenButton
+              userId={userId}
+              sessionId={session.id}
+              at={leftOpen}
+              held={hasDrafts}
+              explainHeld={false}
+            />
+          )
+        ) : (
+          <DiscardSessionButton sessionId={session.id} disabled={hasDrafts} />
+        ))}
       {/* A print draws only what is planned or done: an ad hoc session with nothing yet has no
           print, rather than an empty paper (DESIGN.md, Prints). */}
       {parts.length > 0 && (
@@ -602,7 +648,7 @@ export function WorkoutOverview({
           className="mt-3 flex items-start gap-2 type-meta font-semibold"
         >
           <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{draftsWarning(drafts)}</span>
+          <span className="min-w-0 [overflow-wrap:break-word]">{draftsWarning(drafts)}</span>
         </p>
       )}
 
@@ -613,7 +659,7 @@ export function WorkoutOverview({
           {!readOnly && hasWarmup && (
             <WarmupRow
               session={session}
-              name={warmupName}
+              name={warmupName(session)}
               blades={blades}
               done={warmupDone}
               onDone={setWarmupDone}

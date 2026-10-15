@@ -50,18 +50,20 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{proposal.summary}</p>
+        <p className="min-w-0 font-medium [overflow-wrap:break-word]">{proposal.summary}</p>
         {proposal.fromCoach && <Badge tone="accent">Coach</Badge>}
       </div>
       <ul className="space-y-1.5">
         {proposal.lines.map((line, index) => (
-          <li key={index} className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+          <li key={index} className="text-sm [overflow-wrap:break-word] text-ink-muted">
             {line}
           </li>
         ))}
       </ul>
       {proposal.rationale && (
-        <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{proposal.rationale}</p>
+        <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line">
+          {proposal.rationale}
+        </p>
       )}
       <p className="text-xs text-ink-muted tabular-nums">{proposal.createdAt}</p>
       {error && (

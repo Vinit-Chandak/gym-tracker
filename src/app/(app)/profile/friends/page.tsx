@@ -9,7 +9,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { countRequests, listFollowing } from "@/server/repositories/follows";
-import { readActivity } from "@/server/repositories/shared-stats";
+import { readActivity, readDistanceUnits } from "@/server/repositories/shared-stats";
 
 import { ActivityRow } from "./activity-row";
 import { PEOPLE_TABS } from "./people-tabs";
@@ -32,20 +32,23 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
   const profile = await getRequestProfile(user.id, user.email);
   const unit = profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
   const today = todayInTimeZone(profile.timeZone);
-  const { requests, activity } = await withUser(
+  const { requests, activity, distanceUnits } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
-      const [requests, following] = await Promise.all([
+      const [requests, following, distanceUnits] = await Promise.all([
         countRequests(tx, user.id),
         listFollowing(tx, user.id),
+        readDistanceUnits(tx, user.id),
       ]);
-      // Only the people you follow; the policies leave out anyone who stopped sharing.
+      // Only the people you follow; the policies leave out anyone who stopped sharing. In the
+      // order of the days the rows say, as the reader's today clamps them.
       const activity = await readActivity(
         tx,
         following.map((person) => person.id),
+        { today },
       );
-      return { requests, activity };
+      return { requests, activity, distanceUnits };
     },
     { readOnly: true },
   );
@@ -88,7 +91,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
             <ul>
               {activity.map((row) => (
                 <li key={row.id} className="activity-row-item">
-                  <ActivityRow row={row} unit={unit} today={today} />
+                  <ActivityRow row={row} unit={unit} distanceUnits={distanceUnits} today={today} />
                 </li>
               ))}
             </ul>

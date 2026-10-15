@@ -5,7 +5,10 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { listSportPreferences } from "@/server/repositories/sport-preferences";
+import {
+  listSportSharingSwitches,
+  SEPARATELY_SHARED,
+} from "@/server/repositories/sport-preferences";
 
 import { PrivacyListRow } from "./privacy-list";
 import { PrivacySwitches, SportSharingSwitches } from "./privacy-switches";
@@ -16,7 +19,7 @@ export const metadata: Metadata = { title: "Privacy" };
 const VISIBLE = [
   "Your name, username, join month, and follower and following counts.",
   "Per finished workout: date, the day's name, duration, working sets, volume, sets per muscle group, records set.",
-  "Per exercise from the shared library: working sets, reps, top weight, best estimated 1RM, best set volume, most reps, longest hold, longest carry.",
+  "Per exercise from the shared library: its place in the workout, working sets, reps, top weight, best estimated 1RM, best set volume, most reps, longest hold, longest carry.",
   "Per run: date, distance, duration, pace.",
   "Per ride or swim, if you enable sharing for that sport: date, duration and distance when known.",
   "Your latest body weight, only if you both switch that on.",
@@ -37,9 +40,16 @@ const NEVER = [
 export default async function PrivacyPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const sports = await withUser(getDb(), user.id, (tx) => listSportPreferences(tx, user.id), {
-    readOnly: true,
-  });
+  // A ride or swim switch for a sport you do, still share, or have logged: a sport turned off
+  // keeps its history, so its rides stay yours to share or not. Lifting and running are the
+  // training switch's, and its sentence names only the switches drawn under it.
+  const additional = await withUser(
+    getDb(),
+    user.id,
+    (tx) => listSportSharingSwitches(tx, user.id),
+    { readOnly: true },
+  );
+  const separately = SEPARATELY_SHARED.filter((sport) => additional[sport] !== undefined);
 
   // Board Privacy: the switches that keep the promise first, each saying what Off (or On)
   // means; then the promise itself, in full, behind two rows.
@@ -55,16 +65,14 @@ export default async function PrivacyPage() {
               shareBodyWeight: profile.shareBodyWeight,
               discoverableByEmail: profile.discoverableByEmail,
             }}
+            separately={separately}
           />
         </div>
-        <div className="mt-3.5">
-          <SportSharingSwitches
-            values={{
-              cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
-              swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
-            }}
-          />
-        </div>
+        {separately.length > 0 && (
+          <div className="mt-3.5">
+            <SportSharingSwitches values={additional} />
+          </div>
+        )}
         <ul className="mt-1.5">
           <PrivacyListRow glyph="people" title="What a follower can see" lines={VISIBLE} />
           <PrivacyListRow glyph="lock" title="What nobody can see" lines={NEVER} />

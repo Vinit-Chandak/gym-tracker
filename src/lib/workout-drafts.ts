@@ -1,5 +1,6 @@
 import type { LoadUnit, SetType } from "@/domain/types";
 import { LOAD_UNITS, SET_TYPES } from "@/domain/types";
+import { setLengthIn, setLengthToMetres, type SetLengthUnit } from "./distance-units";
 import { canConvertLoad, convertLoad } from "./units";
 
 /** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
@@ -19,6 +20,8 @@ export type DraftFields = {
   effortVersion?: 2;
   duration: string;
   distance: string;
+  /** What `distance` was typed in; metres where a draft predates yards (ADR 0055). */
+  length?: SetLengthUnit;
   /**
    * Which values the user actually set. An empty field that was never touched still takes
    * its row's suggestion when the set is saved; one the user deliberately cleared stays
@@ -51,8 +54,12 @@ export function draftKey(ctx: DraftContext) {
 }
 
 export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
+  return readKey(storage, draftKey(ctx));
+}
+
+function readKey(storage: StorageLike, key: string): Draft[] {
   try {
-    const raw = storage.getItem(draftKey(ctx));
+    const raw = storage.getItem(key);
     if (!raw || raw.length > 50_000) return [];
     const value: unknown = JSON.parse(raw);
     if (!Array.isArray(value)) return [];
@@ -65,6 +72,7 @@ export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
           row.setIndex <= 50 &&
           SET_TYPES.includes(row.setType) &&
           (row.unit === undefined || LOAD_UNITS.includes(row.unit)) &&
+          (row.length === undefined || row.length === "m" || row.length === "yd") &&
           (row.effortVersion === undefined || row.effortVersion === 2) &&
           [row.weight, row.reps, row.rir, row.rpe ?? "", row.duration, row.distance ?? ""].every(
             (v) => typeof v === "string" && v.length <= 24,
@@ -118,6 +126,7 @@ export function removeDraft(
           "effortVersion",
           "duration",
           "distance",
+          "length",
         ].some(
           (field) => current[field as keyof DraftFields] !== expected[field as keyof DraftFields],
         )
@@ -160,6 +169,43 @@ export function moveDrafts(storage: StorageLike, from: DraftContext, to: DraftCo
 }
 
 /**
+ * Takes in the rows an exercise left under another exercise or machine: one changed by a way
+ * that could not carry them (Register with details, Out of use today, another device), whose
+ * drafts no screen read any more while the workout went on counting them. Rows already here for
+ * the same set win. Rows typed while the machine question was open come as carried, since an
+ * answer to it is what moved them (and a machine answer's own carry may land after this screen
+ * opens); the rest come as they were typed, restored as drafts to review, retry or discard. The
+ * old keys go once their rows are written here.
+ */
+export function adoptDrafts(storage: Storage, ctx: DraftContext): boolean {
+  const own = draftKey(ctx);
+  const prefix = `overload:draft:v1:${ctx.userId}:${ctx.sessionId}:${ctx.workoutExerciseId}:`;
+  try {
+    const strays: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key !== own && key.startsWith(prefix)) strays.push(key);
+    }
+    if (strays.length === 0) return true;
+    const rows = readDrafts(storage, ctx);
+    for (const key of strays) {
+      const answered = key.endsWith(":none");
+      for (const { carried: _carried, ...row } of readKey(storage, key))
+        if (!rows.some((kept) => kept.setIndex === row.setIndex))
+          rows.push(answered ? { ...row, carried: true } : row);
+    }
+    const payload = JSON.stringify(rows);
+    if (rows.length > 50 || payload.length > 50_000) return false;
+    if (rows.length > 0) storage.setItem(own, payload);
+    for (const key of strays) storage.removeItem(key);
+    notify();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The fields a stored draft counts as set by the user. Drafts written before this was
  * recorded have no list, and are read the way they were written: whatever they hold is
  * what the user typed, and an empty field still falls back to its suggestion.
@@ -167,6 +213,26 @@ export function moveDrafts(storage: StorageLike, from: DraftContext, to: DraftCo
 export function touchedFields(draft: DraftFields): Set<DraftValueField> {
   if (draft.touched) return new Set(draft.touched);
   return new Set(DRAFT_VALUE_FIELDS.filter((field) => (draft[field] ?? "").trim() !== ""));
+}
+
+/** A draft's distance as the metres a set keeps, whatever it was typed in; null when blank. */
+export function draftMetres(draft: Pick<DraftFields, "distance" | "length">): number | null {
+  if (draft.distance.trim() === "") return null;
+  const typed = Number(draft.distance.replace(",", "."));
+  if (!Number.isFinite(typed)) return Number.NaN;
+  return draft.length === "yd" ? setLengthToMetres(typed, "yd") : typed;
+}
+
+/**
+ * Whether a draft's distance is the set's. In yards, it is when the set reads as the figure
+ * typed: a set kept in metres keeps them through an edit that leaves its figure alone (30 m under
+ * 33 yd), so the metres 33 yd would keep are not the test.
+ */
+function sameDistance(draft: Pick<DraftFields, "distance" | "length">, metres: number | null) {
+  const typed = draftMetres(draft);
+  if (draft.length !== "yd" || typed === null || Number.isNaN(typed) || metres === null)
+    return typed === metres;
+  return Number(draft.distance.replace(",", ".")) === setLengthIn(metres, "yd");
 }
 
 /** A lost response may have committed successfully. Clear that draft only after matching server values. */
@@ -195,7 +261,7 @@ export function draftMatchesSet(
     numeric(draft.rir) === set.rir &&
     numeric(draft.rpe ?? "") === (set.rpe ?? null) &&
     numeric(draft.duration) === set.durationSeconds &&
-    numeric(draft.distance) === set.distanceMeters
+    sameDistance(draft, set.distanceMeters)
   );
 }
 

@@ -96,15 +96,35 @@ export function isOverdue(
 }
 
 /**
+ * Whether the programme an occurrence was written for has closed it (ADR 0054): the athlete's
+ * programme is now another one, or none, because it was replaced or archived.
+ *
+ * Derived, as late is, from what is true now rather than a state written at the switch: a
+ * session is open while its family is the athlete's active programme, through every revision
+ * of it (a revision keeps the family) and after the programme is finished, until another takes
+ * its place. Standalone work belongs to no programme and never closes.
+ */
+export function programmeClosed(
+  occurrence: Pick<Occurrence, "programFamilyId">,
+  activeFamilyId: string | null,
+): boolean {
+  return occurrence.programFamilyId !== null && occurrence.programFamilyId !== activeFamilyId;
+}
+
+/**
  * Whether an activity may still be logged against this occurrence. A skip can be undone by
  * logging it; a cancelled occurrence cannot, because a programme change removed the
- * obligation, and a legacy resolution has to be reopened explicitly first.
+ * obligation, and a legacy resolution has to be reopened explicitly first. Nothing of a
+ * programme the athlete has moved on from can be: what became of its sessions is the record of
+ * that block, kept as it was when it ended (`programmeClosed`).
  */
 export function canLog(
-  occurrence: Pick<Occurrence, "disposition">,
+  occurrence: Pick<Occurrence, "disposition" | "programFamilyId">,
   activity: LinkedActivity | null,
+  activeFamilyId: string | null,
 ): boolean {
   if (activity) return false;
+  if (programmeClosed(occurrence, activeFamilyId)) return false;
   return occurrence.disposition === "pending" || occurrence.disposition === "skipped";
 }
 
@@ -173,7 +193,12 @@ export function outstanding<T extends { resolution: OccurrenceResolution }>(
   return occurrences.filter((occurrence) => occurrence.resolution.kind === "incomplete");
 }
 
-/** Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08). */
+/**
+ * Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08).
+ *
+ * Sorted by date only: within a day the sort is stable, so the order it was handed — the time
+ * of day, then the written order — is the order it keeps.
+ */
 export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   occurrences: readonly T[],
   today: string,
@@ -183,7 +208,9 @@ export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   for (const occurrence of occurrences) {
     (occurrence.scheduledOn >= today ? upcoming : earlier).push(occurrence);
   }
-  upcoming.sort((a, b) => (a.scheduledOn < b.scheduledOn ? -1 : 1));
-  earlier.sort((a, b) => (a.scheduledOn > b.scheduledOn ? -1 : 1));
+  const byDate = (a: T, b: T) =>
+    a.scheduledOn < b.scheduledOn ? -1 : a.scheduledOn > b.scheduledOn ? 1 : 0;
+  upcoming.sort(byDate);
+  earlier.sort((a, b) => byDate(b, a));
   return { upcoming, earlier };
 }

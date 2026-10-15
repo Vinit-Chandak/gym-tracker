@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
-import { draftsWarning, WorkoutOverview } from "./workout-overview";
+import { draftsWarning, leftOpenSince, WorkoutOverview } from "./workout-overview";
 
 /** The innermost element whose whole text is `text`: a fact's figures stand in spans of their own. */
 const whole = (text: string) => (_: string, element: Element | null) =>
@@ -15,7 +15,11 @@ const actions = vi.hoisted(() => ({ warmup: vi.fn() }));
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));
-vi.mock("@/server/actions/sessions", () => ({ setWarmupCompletedAction: actions.warmup }));
+vi.mock("@/server/actions/sessions", () => ({
+  setWarmupCompletedAction: actions.warmup,
+  discardSessionAction: vi.fn(),
+  finishLeftOpenAction: vi.fn(),
+}));
 
 const set = (setIndex: number, weight: number, reps: number): SetVM => ({
   id: `set-${setIndex}`,
@@ -103,6 +107,7 @@ const SESSION: SessionVM = {
   id: "00000000-0000-4000-8000-00000000c0de",
   gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
   day: { id: "day", name: "Upper A", focus: null, includesRun: false, timeNote: "70–90 min" },
+  title: null,
   cycleIndex: 3,
   startedAt: "2026-09-29T07:30:00.000Z",
   completedAt: null,
@@ -138,6 +143,8 @@ const SESSION: SessionVM = {
   coachPlan: null,
   timeZone: "UTC",
   preferredUnit: "kg",
+  length: "m",
+  today: "2026-09-29",
   exercises: [
     exercise("Barbell bench press", { sets: [set(1, 60, 4), set(2, 60, 4)] }),
     exercise("Barbell curl", { completedAt: "2026-09-29T07:58:00.000Z" }),
@@ -216,6 +223,15 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getByText(whole("70–90 min"))).toBeTruthy();
 });
 
+it("is named for the saved routine it was started from, with no programme day", () => {
+  show({
+    session: { ...SESSION, day: null, cycleIndex: null, title: "Push day at the hotel gym" },
+    title: undefined,
+  });
+  expect(screen.getByRole("heading", { level: 1, name: "Push day at the hotel gym" })).toBeTruthy();
+  expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
 it("holds Finish back while a set draft is unsaved, and says where", () => {
   show({ drafts: { count: 1, names: ["Barbell bench press"] } });
   expect(screen.queryByRole("link", { name: "Finish" })).toBeNull();
@@ -236,10 +252,28 @@ it("names every exercise holding drafts, and none it cannot find", () => {
   );
 });
 
+it("says a row whose planned sets are all in is done, not Resume", () => {
+  // Kenji's squat in the year audit: 4 of 4 sets, not yet marked complete.
+  const sets = [set(1, 60, 4), set(2, 60, 4), set(3, 60, 4), set(4, 60, 4)];
+  show({
+    session: {
+      ...SESSION,
+      exercises: [exercise("Barbell bench press", { sets }), ...SESSION.exercises.slice(1)],
+    },
+  });
+  const bench = screen.getByRole("button", { name: /Barbell bench press/ });
+  expect(within(bench).getByRole("img", { name: "4 of 4 sets done" })).toBeTruthy();
+  expect(bench.textContent).not.toContain("Resume");
+  // Its sets are still what the row says under the name.
+  expect(bench.textContent).toContain(
+    "60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04",
+  );
+});
+
 it("says where a row stands only when that is news", () => {
   const { open } = show();
   const bench = screen.getByRole("button", { name: /Barbell bench press/ });
-  expect(bench.textContent).toContain("60 kg × 4, 60 kg × 4");
+  expect(bench.textContent).toContain("60\u00a0kg\u00a0×\u00a04, 60\u00a0kg\u00a0×\u00a04");
   expect(bench.textContent).toContain("in progress, 2 of 4 sets done. Resume");
   expect(
     within(screen.getByRole("button", { name: /Barbell curl/ })).getByRole("img", { name: "Done" }),
@@ -248,7 +282,7 @@ it("says where a row stands only when that is news", () => {
   expect(crunch.textContent).toContain("Skipped");
   expect(crunch.textContent).toContain("Back is sore today.");
   expect(screen.getByRole("button", { name: /Face pull/ }).textContent).toContain(
-    "15 kg · 1 × 15 @ 2 RIR",
+    "15\u00a0kg ·\u00a01 × 15 @\u00a02\u00a0RIR",
   );
   // The coach's note for an exercise is its own screen's to say whole (DESIGN.md, The session):
   // the row says there is one, and that the coach added it, without cutting it short.
@@ -261,6 +295,32 @@ it("says where a row stands only when that is news", () => {
 
   fireEvent.click(bench);
   expect(open).toHaveBeenCalledWith("barbell-bench-press");
+});
+
+it("leads a row done on an accessory with the accessory's glyph, named for its machine", () => {
+  show({
+    session: {
+      ...SESSION,
+      exercises: [
+        exercise("Back extension", {
+          exercise: { ...exercise("Back extension").exercise, modality: "bodyweight" },
+          equipment: {
+            id: "bench",
+            name: "Back extension bench",
+            unit: "kg",
+            typeCategory: "accessory",
+            typeSlug: "back_extension_bench",
+            ladder: null,
+          },
+        }),
+      ],
+    },
+  });
+  const row = screen.getByRole("button", { name: /Back extension/ });
+  const glyph = within(row).getByRole("img", { name: "Back extension bench" });
+  // The bench: a pad on two legs (the pull-up bar's glyph has a figure's head, a circle).
+  expect(glyph.querySelector("rect")).not.toBeNull();
+  expect(glyph.querySelector("circle")).toBeNull();
 });
 
 it("gives the recovery check its own note", () => {
@@ -357,7 +417,14 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
       exercises: [
         // Planned by the coach on a machine that counts in pounds: the coach's sets, its unit.
         exercise("Leg press", {
-          equipment: { id: "lp", name: "Leg press 2", unit: "lb", ladder: null },
+          equipment: {
+            id: "lp",
+            name: "Leg press 2",
+            unit: "lb",
+            typeCategory: "machine",
+            typeSlug: "leg_press_45",
+            ladder: null,
+          },
           suggestion: coached,
           coachRestSeconds: 150,
         }),
@@ -384,13 +451,13 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
     },
   });
   expect(screen.getByRole("button", { name: /Leg press/ }).textContent).toContain(
-    "100 lb · 3 × 5 @ 2 RIR",
+    "100\u00a0lb ·\u00a03 × 5 @\u00a02\u00a0RIR",
   );
   expect(screen.getByRole("button", { name: /Seated leg curl/ }).textContent).toContain(
-    "4 × 3–5 @ 2 RIR",
+    "4 × 3\u2060–\u20605 @\u00a02\u00a0RIR",
   );
   expect(screen.getByRole("button", { name: /Cable lateral raise/ }).textContent).toContain(
-    "12–20 reps @ 2 RIR",
+    "12\u2060–\u206020\u00a0reps @\u00a02\u00a0RIR",
   );
 });
 
@@ -406,6 +473,54 @@ it("says on the row when an exercise's machine is still to settle", () => {
     },
   });
   expect(screen.getByRole("button", { name: /Hack squat/ }).textContent).toContain(
-    "4 × 3–5 @ 2 RIR · Machine not chosen",
+    "4 × 3\u2060–\u20605 @\u00a02\u00a0RIR ·\u00a0Machine not chosen",
   );
+});
+
+describe("a workout left open", () => {
+  // Started 13:00 in Kolkata, its last set at 13:10.
+  const left: SessionVM = {
+    ...SESSION,
+    startedAt: "2026-09-29T07:30:00.000Z",
+    timeZone: "Asia/Kolkata",
+    exercises: [exercise("Barbell bench press", { sets: [set(1, 60, 4)] })],
+  };
+
+  it("says when it was last trained once six hours have passed, and nothing before", () => {
+    expect(leftOpenSince(left, Date.parse("2026-09-29T09:00:00.000Z"))).toBeNull();
+    expect(leftOpenSince(left, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:10");
+    expect(leftOpenSince(left, Date.parse("2026-09-30T03:00:00.000Z"))).toBe(
+      "Tue\u00a029\u00a0Sept, 13:10",
+    );
+    // Nothing logged: counted from its start.
+    const empty = { ...left, exercises: [exercise("Barbell bench press")] };
+    expect(leftOpenSince(empty, Date.parse("2026-09-29T14:00:00.000Z"))).toBe("13:00");
+  });
+
+  it("offers to finish it as of its last set, or to discard it while it holds none", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-30T03:00:00.000Z"));
+    try {
+      show({ session: left, userId: "user" });
+      expect(
+        screen.getByRole("button", { name: "Finish it as of Tue\u00a029\u00a0Sept, 13:10" }),
+      ).toBeTruthy();
+      // The Finish pill stays: the offer is a way out, not the only one.
+      expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
+      cleanup();
+
+      show({ session: { ...left, exercises: [exercise("Barbell bench press")] }, userId: "user" });
+      expect(screen.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Finish it as of/ })).toBeNull();
+      cleanup();
+
+      // A set typed and not saved holds the way out, as it holds Finish.
+      show({ session: left, userId: "user", drafts: { count: 1, names: ["Barbell bench press"] } });
+      expect(
+        (screen.getByRole("button", { name: /^Finish it as of/ }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { Route } from "next";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -83,6 +84,7 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     id,
     gym: { id: "gym", name: "Test gym", kind: "gym" },
     day: null,
+    title: null,
     cycleIndex: null,
     startedAt: "2026-09-08T11:00:00.000Z",
     completedAt: null,
@@ -100,6 +102,8 @@ function workout(id: string, sets: SetVM[] = []): SessionVM {
     warnings: [],
     timeZone: "UTC",
     preferredUnit: "kg",
+    length: "m",
+    today: "2026-09-08",
     exercises: [{ ...exercise, sets }],
   };
 }
@@ -134,23 +138,35 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-/** Types set 1's load, reps and RIR into the entry and presses Save. */
-function enterFirstSet() {
+/** Types set 1's load, reps and RIR into the entry. */
+function typeFirstSet() {
   fireEvent.click(screen.getByRole("button", { name: /Type a load$/ }));
   fireEvent.change(screen.getByRole("textbox", { name: "Load in kilograms" }), {
     target: { value: "60" },
   });
   fireEvent.change(screen.getByRole("textbox", { name: "Reps" }), { target: { value: "5" } });
   fireEvent.change(screen.getByRole("textbox", { name: "RIR" }), { target: { value: "2" } });
+}
+
+/** Types set 1 and presses Save, leaving the save on its way. */
+function enterFirstSet() {
+  typeFirstSet();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 }
 const LINE = "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit";
 /** Back to the workout: the logger's back link names it (an unplanned session here). */
 const BACK = "Unplanned session";
 
+/**
+ * Saves set 1 and lets all of the save land before the test goes on. Waiting only for its line
+ * is not enough: the end of the save's transition can still be waiting in React's scheduler
+ * then, and on a busy machine the next step's act renders it, stops there, and leaves the
+ * step's own update unrendered.
+ */
 async function saveFirstSet() {
-  enterFirstSet();
-  await screen.findByRole("button", { name: LINE });
+  typeFirstSet();
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save" })));
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
 }
 
 it("shows a saved set in the list, in the reopened exercise and on Back, without a new render", async () => {
@@ -169,7 +185,7 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(view());
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
@@ -200,7 +216,7 @@ it("takes a render that already holds the set as it is", async () => {
   render(
     <WorkoutView session={workout(id, [saved])} seenSetChanges={setChangesMade()} userId="user" />,
   );
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
 });
 
 it("drops a deleted set from the list", async () => {
@@ -212,13 +228,14 @@ it("drops a deleted set from the list", async () => {
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   fireEvent.click(screen.getByRole("button", { name: LINE }));
   fireEvent.click(screen.getByRole("button", { name: "Delete this set" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete it" }));
-  await vi.waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
-  await vi.waitFor(() => expect(setChangesMade()).toBeGreaterThan(seen));
+  // All of the deletion lands before Back, as a save does in saveFirstSet.
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Delete it" })));
+  expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt);
+  expect(setChangesMade()).toBeGreaterThan(seen);
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.queryByText(whole("60 kg × 5"))).toBeNull();
+  expect(screen.queryByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeNull();
   expect(screen.queryByText("Resume")).toBeNull();
 });
 
@@ -235,5 +252,144 @@ it("brings the list up to date when a save lands after the exercise was left", a
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.queryByText("Resume")).toBeNull();
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
+  expect(screen.getByText(whole("60\u00a0kg\u00a0×\u00a05"))).toBeTruthy();
+});
+
+it("opens a finished workout for changes within its week, and closes the edit in place (ADR 0049)", async () => {
+  const rendered: SessionVM = {
+    ...workout(crypto.randomUUID(), [saved]),
+    completedAt: "2026-09-08T12:00:00.000Z",
+    exercises: [
+      { ...exercise, sets: [saved] },
+      { ...exercise, id: "row", exercise: { ...exercise.exercise, id: "row", name: "Cable row" } },
+    ],
+  };
+  const seen = setChangesMade();
+  const view = (editUntil: string | null) => (
+    <WorkoutView
+      session={rendered}
+      seenSetChanges={seen}
+      userId="user"
+      title="Upper A"
+      backHref="/progress/history"
+      editUntil={editUntil}
+      addExerciseHref={"/workouts/session/add-exercise?from=history" as Route}
+    />
+  );
+  window.history.replaceState(null, "", "/workouts/session?from=history");
+  // Past its week, the record has no Edit.
+  const page = render(view(null));
+  expect(screen.getByText("Not done")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Edit workout" })).toBeNull();
+
+  page.rerender(view("2026-09-15"));
+  // Edit and Done are words at the end of the bar, as a gym's Edit is: no fill as tall as the bar
+  // to run from the screen's top edge to the print.
+  const bar = (name: string) => {
+    const action = screen.getByRole("button", { name });
+    expect(action.closest(".page-header-bar")).toBeTruthy();
+    expect(action.className).toBe("header-text-action");
+    return action;
+  };
+  expect(bar("Edit workout").textContent).toBe("Edit");
+  fireEvent.click(bar("Edit workout"));
+  expect(window.location.search).toBe("?from=history&edit=1");
+  page.rerender(view("2026-09-15"));
+  expect(bar("Done").textContent).toBe("Done");
+  expect(screen.getByText(/Each change saves as you make it, until Tue 15 Sept/)).toBeTruthy();
+  // Every exercise opens, the one not done as well, and more can be added.
+  expect(screen.getByRole("button", { name: /Cable row\s*No sets/ })).toBeTruthy();
+  expect(screen.queryByText("Not done")).toBeNull();
+  expect(screen.getByRole("link", { name: "Add exercise" }).getAttribute("href")).toBe(
+    "/workouts/session/add-exercise?from=history",
+  );
+
+  // Opened, the exercise's set is a line that edits it, and Add set takes another.
+  fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
+  page.rerender(view("2026-09-15"));
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Add set" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  page.rerender(view("2026-09-15"));
+
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(window.location.search).toBe("?from=history");
+  page.rerender(view("2026-09-15"));
+  expect(screen.getByRole("button", { name: "Edit workout" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Add exercise" })).toBeNull();
+
+  // Read only, the same exercise's line no longer opens it for changes.
+  fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
+  page.rerender(view("2026-09-15"));
+  expect(screen.queryByRole("button", { name: LINE })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add set" })).toBeNull();
+});
+
+/**
+ * Year audit, October 2026: Edit on the summary of a workout just finished opened it under
+ * Progress, going back to History. Finish names Today, where a workout is finished, and the
+ * past workout the summary's Edit becomes keeps it.
+ */
+it("opens the summary's Edit from where the summary was, without the summary's mark", () => {
+  const finished: SessionVM = {
+    ...workout(crypto.randomUUID(), [saved]),
+    completedAt: "2026-09-08T12:00:00.000Z",
+  };
+  window.history.replaceState(null, "", `/workouts/${finished.id}?from=today&finished=1`);
+  render(
+    <WorkoutView
+      session={finished}
+      seenSetChanges={setChangesMade()}
+      userId="user"
+      title="Upper A"
+      backHref="/today"
+      justFinished
+      editUntil="2026-09-15"
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Edit workout" }).getAttribute("href")).toBe(
+    `/workouts/${finished.id}?from=today&edit=1`,
+  );
+});
+
+it("names the year of a finished workout from another year, not of one from this year", () => {
+  const record = (startedAt: string, today: string): SessionVM => ({
+    ...workout(crypto.randomUUID(), [saved]),
+    startedAt,
+    completedAt: startedAt,
+    today,
+  });
+  const view = (session: SessionVM) => (
+    <WorkoutView
+      session={session}
+      seenSetChanges={setChangesMade()}
+      userId="user"
+      title="Full body A"
+      backHref="/progress/history"
+    />
+  );
+  const page = render(view(record("2026-09-08T11:00:00.000Z", "2026-10-11")));
+  expect(screen.getByText(whole("Tue\u00a08\u00a0Sept"))).toBeTruthy();
+  // 13 October is a Tuesday this year: a year-old Monday says which year it was.
+  page.rerender(view(record("2025-10-13T11:00:00.000Z", "2026-10-11")));
+  expect(screen.getByText(whole("Mon\u00a013\u00a0Oct\u00a02025"))).toBeTruthy();
+});
+
+it("lets Finish go once a set left saving lands after its exercise was closed", async () => {
+  const rendered = workout(crypto.randomUUID());
+  const seen = setChangesMade();
+  let land!: (value: { ok: true; set: SetVM }) => void;
+  actions.log.mockReturnValue(new Promise((resolve) => (land = resolve)));
+  window.history.replaceState(null, "", "/workouts/session?exercise=slot");
+  const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  enterFirstSet();
+
+  // Back while it is still on its way: its draft holds Finish, as any unsaved set does.
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
+  expect(screen.getByText(/A set in Bench press is not saved yet/)).toBeTruthy();
+  // Landed, nothing is left to save, and nothing holds Finish back.
+  await act(async () => land({ ok: true, set: saved }));
+  expect(screen.queryByText(/not saved yet/)).toBeNull();
+  expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
 });

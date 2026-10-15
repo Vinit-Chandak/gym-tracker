@@ -17,6 +17,8 @@
  *   drills); size is how long, in whole modules. The runner is one fixed drawing.
  * - STATE: thinned pigment with an edge of the full one is to do, full is done, a dashed edge
  *   is skipped. A warm-up is grey.
+ * - REST: a day that asks for nothing is a crescent, in the greys a warm-up is drawn in: it is
+ *   no sport, so it takes no pigment.
  * Every form stands on one baseline, on one module grid, with nothing drawn under it, and the
  * composition sits in the middle of its paper. A print carries no words.
  */
@@ -431,20 +433,37 @@ export function form(
       });
     }
   } else if (shape === "fan") {
-    // A quarter disc standing on its corner, cut into its drills.
+    // A quarter disc standing on its corner, cut into its drills. Skipped, it is a dashed edge
+    // with the paper inside, and each cut between drills a dashed line of its own: a cut in the
+    // paper's colour around nothing drew no fan at all, and a warm-up a workout finished without
+    // stood as blank paper in its print; a dashed edge round each drill dashed every line between
+    // two drills twice, out of step, so those read as solid and only the rim as dashed.
     const r = Math.min(w, h);
     const ox = x;
     const oy = base;
     const n = Math.max(1, segments || 1);
-    for (let k = 0; k < n; k++) {
-      const a0 = -Math.PI / 2 + (k / n) * (Math.PI / 2);
-      const a1 = -Math.PI / 2 + ((k + 1) / n) * (Math.PI / 2);
+    const at = (k: number) => {
+      const a = -Math.PI / 2 + (k / n) * (Math.PI / 2);
+      return `${f1(ox + r * Math.cos(a))} ${f1(oy + r * Math.sin(a))}`;
+    };
+    if (state === "skipped") {
       out.push({
         kind: "path",
-        d: `M${f1(ox)} ${f1(oy)}L${f1(ox + r * Math.cos(a0))} ${f1(oy + r * Math.sin(a0))}A${f1(r)} ${f1(r)} 0 0 1 ${f1(ox + r * Math.cos(a1))} ${f1(oy + r * Math.sin(a1))}Z`,
-        fill: fillFor(k),
-        ...(isTodo(k) ? edge(k) : n > 1 ? { stroke: "cut", strokeWidth: cutW } : dash),
+        d: `M${f1(ox)} ${f1(oy)}L${at(0)}A${f1(r)} ${f1(r)} 0 0 1 ${at(n)}Z`,
+        fill: "none",
+        ...dash,
       });
+      for (let k = 1; k < n; k++)
+        out.push({ kind: "path", d: `M${f1(ox)} ${f1(oy)}L${at(k)}`, fill: "none", ...dash });
+    } else {
+      for (let k = 0; k < n; k++) {
+        out.push({
+          kind: "path",
+          d: `M${f1(ox)} ${f1(oy)}L${at(k)}A${f1(r)} ${f1(r)} 0 0 1 ${at(k + 1)}Z`,
+          fill: fillFor(k),
+          ...(isTodo(k) ? edge(k) : n > 1 ? { stroke: "cut", strokeWidth: cutW } : dash),
+        });
+      }
     }
     if (cut === "arc") {
       const ar = r * 0.62;
@@ -500,6 +519,67 @@ export function form(
   return out;
 }
 
+// ---------- rest: a day that asks for nothing ----------
+
+/** In a print a rest day is two modules tall, as the runner is: rest is not measured either. */
+const REST_MODULES = 2;
+/** The disc cut from it, as the moon glyph's is: up and to the right, nearly as large. */
+const REST_CUT = { offset: 0.45, radius: 0.9 } as const;
+
+/** A crescent of radius r about (cx, cy), the paper showing where the cut is. */
+function crescent(cx: number, cy: number, r: number): string {
+  const d = REST_CUT.offset * r;
+  const rc = REST_CUT.radius * r;
+  // Where the two circles cross, either side of the line between their centres (up and right).
+  const a = (r * r - rc * rc + d * d) / (2 * d);
+  const h = Math.sqrt(r * r - a * a);
+  const k = Math.SQRT1_2;
+  const mx = cx + a * k;
+  const my = cy - a * k;
+  const east = `${f1(mx + h * k)} ${f1(my + h * k)}`;
+  const north = `${f1(mx - h * k)} ${f1(my - h * k)}`;
+  // The outer edge the long way round, under and behind; the cut's edge back, inside the disc.
+  return `M${east}A${f1(r)} ${f1(r)} 0 1 1 ${north}A${f1(rc)} ${f1(rc)} 0 0 0 ${east}Z`;
+}
+
+/**
+ * A rest day: a crescent, the moon the app says sleep with, standing on the bottom of its box.
+ * It is no sport, so it takes no pigment: it is drawn in the print's greys, as a warm-up is, and
+ * keeps the grammar's states in them. To do is the pale grey inside a 3:1 edge, done is that
+ * edge's grey in full, and skipped is the edge dashed with the paper inside. One fixed drawing,
+ * like the runner: a day of rest has no structure and no length.
+ */
+export function restForm(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  state: FormState = "todo",
+): Shape[] {
+  const S = Math.min(w, h);
+  const r = S / 2;
+  const cx = x + w / 2;
+  const cy = y + h - r;
+  if (state === "done") return [{ kind: "path", d: crescent(cx, cy, r), fill: "dot" }];
+  // An edge stands inside the disc, so nothing is drawn under the baseline.
+  const sw = f1(
+    state === "skipped" ? Math.max(1.5, S * 0.05) : Math.min(1.5, Math.max(1, S * 0.06)),
+  );
+  return [
+    {
+      kind: "path",
+      d: crescent(cx, cy, r - sw / 2),
+      fill: state === "skipped" ? "none" : "warm",
+      stroke: "dot",
+      strokeWidth: sw,
+      linejoin: "round",
+      ...(state === "skipped"
+        ? { dash: [f1(S * 0.09), f1(S * 0.07)] as const, linecap: "butt" as const }
+        : {}),
+    },
+  ];
+}
+
 // ---------- the day: one module grid ----------
 
 /** One exercise: a column of its sets, done from the bottom up, its warm-ups at the foot. */
@@ -515,6 +595,8 @@ export type StrengthColumn = {
 
 export type PrintPart =
   | { kind: "strength"; columns: readonly StrengthColumn[] }
+  /** A rest day with nothing in it: its routine, when it has one, is a fan instead. */
+  | { kind: "rest"; state?: FormState }
   | {
       kind: Exclude<Sport, "strength" | "food">;
       state?: FormState;
@@ -530,6 +612,8 @@ export const GAPS = { set: 0.14, column: 0.34, pair: 0.14, part: 1 } as const;
 type Size = { wm: number; hm: number };
 
 function partModules(part: Exclude<PrintPart, { kind: "strength" }>, cap: number): Size {
+  if (part.kind === "rest")
+    return { hm: REST_MODULES, wm: REST_MODULES + (REST_MODULES - 1) * GAPS.set };
   const family = familyOf(part.kind);
   const hm = family === "run" ? RUNNER_MODULES : Math.max(1, Math.min(cap, part.modules || cap));
   // A runner, a wheel, a fan and a bowl are as wide as they are tall: hm modules and the gaps
@@ -673,12 +757,14 @@ export function dayPrint({
       const fw = q.wm * u;
       const fh = tall(q) * u;
       shapes.push(
-        ...form(part.kind, x, base - fh, fw, fh, {
-          state: part.state ?? "todo",
-          segments: part.segments ?? 0,
-          done: part.segmentsDone ?? 0,
-          fill: true,
-        }),
+        ...(part.kind === "rest"
+          ? restForm(x, base - fh, fw, fh, part.state)
+          : form(part.kind, x, base - fh, fw, fh, {
+              state: part.state ?? "todo",
+              segments: part.segments ?? 0,
+              done: part.segmentsDone ?? 0,
+              fill: true,
+            })),
       );
       x += fw;
     }
@@ -943,10 +1029,24 @@ const WATER = "M2.4 18.6Q4.8 16 7.2 18.6T12 18.6T16.8 18.6T21.6 18.6";
  * 24-unit grid in the sport's pigment: lifting a dumbbell, a run the runner (its own form),
  * a ride a cyclist and a swim a swimmer. They are told apart by their shape, so the month
  * never asks a reader to tell its pigments apart. A sport with no icon draws its form.
+ *
+ * `open` draws one still under way, as a mark to do is drawn: its solid parts in the thinned
+ * pigment inside an edge of the full one, so the workout in progress no longer looks like one
+ * of the month's finished sessions beside a count that leaves it out (year audit, October 2026).
  */
-export function calendarIcon(sport: Sport, x: number, y: number, size: number): Shape[] {
+export function calendarIcon(
+  sport: Sport,
+  x: number,
+  y: number,
+  size: number,
+  { open = false }: { open?: boolean } = {},
+): Shape[] {
   const family = familyOf(sport);
   const k = size / 24;
+  // A solid part: full, or still under way, thinned within its edge.
+  const solid: Paintable = open
+    ? { fill: todoOf(family), stroke: family, strokeWidth: f1(1.5 * k), linejoin: "round" }
+    : { fill: family };
   const at = (cx: number, cy: number, r: number) => ({
     cx: f1(x + cx * k),
     cy: f1(y + cy * k),
@@ -979,7 +1079,7 @@ export function calendarIcon(sport: Sport, x: number, y: number, size: number): 
           width: f1(pw * k),
           height: f1(ph * k),
           rx: f1(r * k),
-          fill: family,
+          ...solid,
         })),
       ];
     case "ride":
@@ -987,16 +1087,16 @@ export function calendarIcon(sport: Sport, x: number, y: number, size: number): 
         wheel(5.4),
         wheel(18.6),
         line(CYCLIST, 2.6),
-        { kind: "circle", ...at(16.4, 4.4, 2.3), fill: family },
+        { kind: "circle", ...at(16.4, 4.4, 2.3), ...solid },
       ];
     case "swim":
       return [
         line(WATER, 2.4),
         line(SWIMMER, 2.6),
-        { kind: "circle", ...at(6, 11, 2.3), fill: family },
+        { kind: "circle", ...at(6, 11, 2.3), ...solid },
       ];
     default:
-      return form(sport, x, y, size, size);
+      return form(sport, x, y, size, size, open ? { state: "todo" } : {});
   }
 }
 
@@ -1006,22 +1106,32 @@ export const ICON = { size: 16, gap: 3 } as const;
 /**
  * A day's icons, one for each activity in the order they were done, as one group centred on
  * (cx, cy): one, or two side by side; three or four in two rows of two; past four, three and
- * +N. Every icon is the same size whatever the day holds.
+ * +N. Every icon is the same size whatever the day holds. `open` flags, by its place, an
+ * activity still under way (`calendarIcon`).
  */
-export function dayIcons(sports: readonly Sport[], cx: number, cy: number): Shape[] {
+export function dayIcons(
+  sports: readonly Sport[],
+  cx: number,
+  cy: number,
+  open: readonly boolean[] = [],
+): Shape[] {
   const { size, gap } = ICON;
   const shown = sports.length > 4 ? sports.slice(0, 3) : sports;
   const more = sports.length - shown.length;
-  const items: (Sport | null)[] = more ? [...shown, null] : [...shown];
+  const items: ({ sport: Sport; open: boolean } | null)[] = shown.map((sport, index) => ({
+    sport,
+    open: open[index] ?? false,
+  }));
+  if (more) items.push(null);
   const rows = items.length > 2 ? [items.slice(0, 2), items.slice(2)] : [items];
   const block = rows.length * size + (rows.length - 1) * gap;
   const out: Shape[] = [];
   rows.forEach((row, ri) => {
     const y = cy - block / 2 + ri * (size + gap);
     const total = row.length * size + (row.length - 1) * gap;
-    row.forEach((sport, j) => {
+    row.forEach((item, j) => {
       const x = cx - total / 2 + j * (size + gap);
-      if (sport) out.push(...calendarIcon(sport, x, y, size));
+      if (item) out.push(...calendarIcon(item.sport, x, y, size, { open: item.open }));
       else
         out.push({ kind: "text", x: f1(x + size / 2), y: f1(y + size / 2 + 4), text: `+${more}` });
     });

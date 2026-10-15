@@ -2,17 +2,21 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { cycleCount } from "@/domain/cycle-repeat";
 import type { OccurrenceDisposition } from "@/domain/occurrences";
+import type { PrintedSession } from "@/domain/session-print";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
+  finishedOn,
   isRestSlot,
+  missedSlots,
   nextPendingSlot,
   partStatus,
   pendingParts,
+  pickUpFromToday,
   progress,
   projectedEndDate,
-  runEventsFromOccurrences,
   sessionsBehind,
   slotFinishedOn,
   slotFor,
@@ -28,8 +32,11 @@ import {
   type Suggestion,
   withDerivedRunEvents,
 } from "@/domain/schedule";
-import type { ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
+import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
+
+import { skipSlotOccurrences } from "./occurrences";
+import { readSlotPrints } from "./session-prints";
 
 export type ActiveProgram = {
   id: string;
@@ -40,6 +47,10 @@ export type ActiveProgram = {
   startDate: string | null;
   endDate: string | null;
   weeks: number;
+  /** How the cycle repeats; null for a programme that predates the choice. */
+  repeats: CycleRepeat | null;
+  /** How many cycles the weeks hold: "Cycle 3 of 14". */
+  cycles: number;
   startDayIndex: number;
   notes: string | null;
 };
@@ -54,14 +65,18 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
       startDate: programs.startDate,
       endDate: programs.endDate,
       weeks: programs.weeks,
+      repeats: programs.repeats,
       startDayIndex: programs.startDayIndex,
       notes: programs.notes,
+      dayCount: sql<number>`(select count(*)::int from program_days d where d.program_id = programs.id)`,
     })
     .from(programs)
     .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
     .limit(1);
   if (!row) return null;
-  return { ...row, weeks: row.weeks ?? 8 };
+  const { dayCount, ...program } = row;
+  const weeks = row.weeks ?? 8;
+  return { ...program, weeks, cycles: cycleCount(weeks, dayCount, row.repeats) };
 }
 
 export type ScheduleDay = {
@@ -99,6 +114,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       startDate: programs.startDate,
       endDate: programs.endDate,
       weeks: programs.weeks,
+      repeats: programs.repeats,
       startDayIndex: programs.startDayIndex,
       notes: programs.notes,
       // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
@@ -129,14 +145,30 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
       // The programme's own endurance work, as the sequence needs to read it: which slot of
-      // the cycle it belongs to and whether anything still owes an answer. Joined here rather
-      // than fetched after, so the day a running slot completes costs no extra round trip.
+      // the cycle it belongs to, whether anything still owes an answer, the day a logged one
+      // was done on, and the day a skipped one was skipped: its last skip's date, or, for a
+      // skip made on its page, which carries none, the athlete's date it was made on. Joined
+      // here rather than fetched after, so the day a running slot completes costs no extra
+      // round trip.
       enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
         select json_agg(json_build_object(
           'cycleIndex', o.cycle_index,
           'cycleDayIndex', o.cycle_day_index,
           'disposition', o.disposition,
-          'logged', (a.id is not null)
+          'logged', (a.id is not null),
+          'occurredOn', a.occurred_on,
+          'skippedOn', case when o.disposition = 'skipped' then (
+            select coalesce(
+              e.occurred_on,
+              (e.created_at at time zone (
+                select p.time_zone from profiles p where p.id = o.user_id
+              ))::date
+            )
+            from occurrence_events e
+            where e.user_id = o.user_id and e.occurrence_id = o.id and e.kind = 'skipped'
+            order by e.created_at desc
+            limit 1
+          ) end
         ))
         from planned_occurrences o
         left join activities a
@@ -159,6 +191,8 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
     startDate: row.startDate,
     endDate: row.endDate,
     weeks: row.weeks ?? 8,
+    repeats: row.repeats,
+    cycles: cycleCount(row.weeks ?? 8, row.days.length, row.repeats),
     startDayIndex: row.startDayIndex,
     notes: row.notes,
   };
@@ -171,13 +205,12 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         name: d.name,
         includesLifting: d.includesLifting,
         includesRun: d.includesRun,
+        dayOfWeek: d.dayOfWeek,
       })),
-      cycles: program.weeks,
+      cycles: program.cycles,
+      repeats: program.repeats,
       startDayIndex: program.startDayIndex,
-      events: withDerivedRunEvents(
-        row.events,
-        runEventsFromOccurrences(slotOccurrences(row.days, row.enduranceOccurrences)),
-      ),
+      events: withDerivedRunEvents(row.events, slotOccurrences(row.days, row.enduranceOccurrences)),
     },
   };
 }
@@ -188,6 +221,10 @@ type EnduranceRow = {
   cycleDayIndex: number;
   disposition: OccurrenceDisposition;
   logged: boolean;
+  /** The local date of the activity that answered it; null until one has. */
+  occurredOn: string | null;
+  /** The athlete's date it was last skipped on, while it is skipped; null otherwise. */
+  skippedOn: string | null;
 };
 
 /**
@@ -217,15 +254,34 @@ function slotOccurrences(
           : row.disposition === "pending"
             ? ("incomplete" as const)
             : row.disposition,
+        ...(row.logged && row.occurredOn
+          ? { occurredOn: row.occurredOn }
+          : !row.logged && row.disposition === "skipped" && row.skippedOn
+            ? { occurredOn: row.skippedOn }
+            : {}),
       },
     ];
   });
 }
 
+/** Where a slot's part is answered: one event each, for good. */
+const SLOT_PART = [
+  programSlotEvents.programId,
+  programSlotEvents.cycleIndex,
+  programSlotEvents.dayIndex,
+  programSlotEvents.part,
+];
+
 /**
  * Records what happened to one part of a slot: the workout, or the run. Returns false when
- * that part already had an event, so finishing a session twice, or logging a second run
- * against one planned run, changes nothing.
+ * that part already had an answer that stands, so finishing a session twice, or logging a
+ * second run against one planned run, changes nothing.
+ *
+ * A skip is the one answer that gives way, and only to a completion: a day trained after all
+ * was done. That is how a skipped day picked from "Train another day" is recorded once its
+ * workout is finished. Nothing is taken back when the workout starts, so one discarded before
+ * a set leaves the day skipped, with the reason given for skipping it, rather than putting it
+ * back in front of the sequence.
  */
 export async function recordSlotEvent(
   db: DbOrTx,
@@ -241,38 +297,69 @@ export async function recordSlotEvent(
     note?: string | null;
   },
 ): Promise<boolean> {
-  const inserted = await db
-    .insert(programSlotEvents)
-    .values({
-      userId,
-      programId,
-      cycleIndex: ref.cycleIndex,
-      dayIndex: ref.dayIndex,
-      part,
-      status,
-      workoutSessionId: details.workoutSessionId ?? null,
-      runId: details.runId ?? null,
-      occurredOn: details.occurredOn,
-      note: details.note ?? null,
-    })
-    .onConflictDoNothing({
-      target: [
-        programSlotEvents.programId,
-        programSlotEvents.cycleIndex,
-        programSlotEvents.dayIndex,
-        programSlotEvents.part,
-      ],
-    })
-    .returning({ id: programSlotEvents.id });
-  return inserted.length > 0;
+  const answer = {
+    status,
+    workoutSessionId: details.workoutSessionId ?? null,
+    runId: details.runId ?? null,
+    occurredOn: details.occurredOn,
+    note: details.note ?? null,
+  };
+  const insert = db.insert(programSlotEvents).values({
+    userId,
+    programId,
+    cycleIndex: ref.cycleIndex,
+    dayIndex: ref.dayIndex,
+    part,
+    ...answer,
+  });
+  const written = await (
+    status === "completed"
+      ? insert.onConflictDoUpdate({
+          target: SLOT_PART,
+          set: answer,
+          setWhere: eq(programSlotEvents.status, "skipped"),
+        })
+      : insert.onConflictDoNothing({ target: SLOT_PART })
+  ).returning({ id: programSlotEvents.id });
+  return written.length > 0;
 }
 
 /**
- * Takes back the skip on a slot's session, so the day can be trained after all.
+ * Skips one half of a slot on purpose, from Today or "Pick up from today": the workout, or the
+ * run (owner, 12 October 2026).
  *
- * Picking a skipped day from "Train another day" trains the occurrence the list showed, which
- * means the skip on it has to go: a slot event is written once, so a workout finished against a
- * day still marked skipped would never be recorded as done.
+ * A day's run is answered on its occurrences, not beside them (`withDerivedRunEvents`), so
+ * skipping it skips each of its sessions still owed: Skipped on Today, on the programme and in
+ * the coach's adherence alike, never owed in one and skipped in another. Each can still be
+ * logged, which replaces the skip on the day too. Only a day whose run has no occurrence at
+ * all, from before occurrences, records the skip on the day itself. The workout half has no
+ * occurrence, and skipping it never touches the day's run.
+ */
+export async function skipSlotPart(
+  db: DbOrTx,
+  userId: string,
+  program: Pick<ActiveProgram, "id" | "familyId">,
+  ref: SlotRef,
+  part: SlotPart,
+  details: { occurredOn: string; note?: string | null },
+): Promise<void> {
+  if (part === "run") {
+    const skipped = await skipSlotOccurrences(
+      db,
+      userId,
+      { familyId: program.familyId, cycleIndex: ref.cycleIndex, cycleDayIndex: ref.dayIndex },
+      details,
+    );
+    if (skipped !== null) return;
+  }
+  await recordSlotEvent(db, userId, program.id, ref, part, "skipped", details);
+}
+
+/**
+ * Takes back the skip on a slot's session, so the day is owed again.
+ *
+ * Training a skipped day does not need it: finishing its workout replaces the skip (see
+ * `recordSlotEvent`), and the app no longer takes the skip back when such a workout starts.
  */
 export async function reopenSkippedSession(
   db: DbOrTx,
@@ -294,13 +381,26 @@ export async function reopenSkippedSession(
     );
 }
 
-/** Completes every pending rest slot that comes before `ref` in the sequence, in one statement. */
+/**
+ * The note on a rest day a workout's start passed. It names the workout, which is what lets a
+ * discard give back exactly the rest days that start passed and no others: nothing else ties a
+ * rest day's event to a session, and `workout_session_id` is kept for the slot a session trained.
+ */
+function restPassedBy(sessionId: string): string {
+  return `Rest day passed by workout ${sessionId}`;
+}
+
+/**
+ * Completes every pending rest slot that comes before `ref` in the sequence, in one statement.
+ * `passedBy` is the workout whose start passes them, so that discarding it can give them back.
+ */
 export async function completeRestSlotsBefore(
   db: DbOrTx,
   userId: string,
   schedule: Schedule,
   ref: SlotRef,
   occurredOn: string,
+  passedBy?: string,
 ): Promise<number> {
   const pendingRest: SlotRef[] = [];
   for (const candidate of allSlots(schedule.state)) {
@@ -328,19 +428,38 @@ export async function completeRestSlotsBefore(
         status: "completed" as const,
         workoutSessionId: null,
         occurredOn,
-        note: "Rest day passed",
+        note: passedBy ? restPassedBy(passedBy) : "Rest day passed",
       })),
     )
-    .onConflictDoNothing({
-      target: [
-        programSlotEvents.programId,
-        programSlotEvents.cycleIndex,
-        programSlotEvents.dayIndex,
-        programSlotEvents.part,
-      ],
-    })
+    .onConflictDoNothing({ target: SLOT_PART })
     .returning({ id: programSlotEvents.id });
   return inserted.length;
+}
+
+/**
+ * Gives back the rest days a workout's start passed, when that workout is discarded before
+ * anything was trained: they were passed only because it was about to be, so without it they
+ * are as they were. Looked for in every version of the athlete's programmes, so a revision that
+ * copied them onto a new version gives those copies back too.
+ */
+export async function returnRestDaysPassedBy(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  await db.delete(programSlotEvents).where(
+    and(
+      eq(programSlotEvents.userId, userId),
+      // By programme, so the slot index is what finds them rather than a scan of every event.
+      inArray(
+        programSlotEvents.programId,
+        db.select({ id: programs.id }).from(programs).where(eq(programs.userId, userId)),
+      ),
+      eq(programSlotEvents.part, "session"),
+      eq(programSlotEvents.status, "completed"),
+      eq(programSlotEvents.note, restPassedBy(sessionId)),
+    ),
+  );
 }
 
 /**
@@ -521,6 +640,8 @@ export type TodayPlan = {
   progress: Progress;
   behind: number;
   projectedEnd: string | null;
+  /** The day the programme was finished on, once it is; null while it is still going. */
+  finishedOn: string | null;
   /** null once the programme is complete. */
   suggestion: Suggestion | null;
   suggestedDay: ScheduleDay | null;
@@ -534,10 +655,19 @@ export type TodayPlan = {
    */
   sessionStatus: SlotStatus | "pending";
   /**
-   * The programme day finished today, when there is one: the day offered is then the next one,
-   * not today's.
+   * The workout that did the offered day's lifting, once it has and the day still owes its run:
+   * the day's print draws it as the workout does (`readSlotPrints`). Null until then.
    */
-  finishedToday: ScheduleDay | null;
+  sessionPrint: PrintedSession | null;
+  /**
+   * The programme day finished today, when there is one: the day offered is then the next one,
+   * not today's. With its cycle, so Today can still show the endurance it logged.
+   */
+  finishedToday: (ScheduleDay & { cycleIndex: number }) | null;
+  /** Training days the calendar has passed with something still owed, oldest first. */
+  missed: { cycleIndex: number; dayIndex: number; name: string }[];
+  /** The day "Pick up from today" would resume at: the calendar's day for today. */
+  pickUpDay: (ScheduleDay & { cycleIndex: number }) | null;
   /** Every day of the current cycle with its status, for "choose another day". */
   cycleDays: DayStatus[];
 };
@@ -560,7 +690,13 @@ export async function getTodayPlan(
   const suggestedDay = next
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
-  const suggestedExercises = suggestedDay ? await listDayExercises(db, suggestedDay.id) : [];
+  const sessionStatus = next ? partStatus(state, next.slot, "session") : "pending";
+  const [suggestedExercises, printed] = await Promise.all([
+    suggestedDay ? listDayExercises(db, suggestedDay.id) : [],
+    next && suggestedDay?.includesLifting && sessionStatus === "completed"
+      ? readSlotPrints(db, userId, schedule.program.id, next.slot.cycleIndex, next.slot.dayIndex)
+      : null,
+  ]);
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
@@ -579,12 +715,22 @@ export async function getTodayPlan(
   });
   const startDate = schedule.program.startDate ?? today;
   const finishedRef = slotFinishedOn(state, today);
+  const dayOf = (ref: SlotRef) => schedule.days.find((d) => d.dayIndex === ref.dayIndex) ?? null;
+  const finishedDay = finishedRef ? dayOf(finishedRef) : null;
+  const resumeAt = pickUpFromToday(state, startDate, today).resumeAt;
+  const resumeDay = resumeAt ? dayOf(resumeAt) : null;
   return {
     program: schedule.program,
     today,
     progress: progress(state),
     behind: sessionsBehind(state, startDate, today),
-    projectedEnd: projectedEndDate(state, today),
+    projectedEnd: projectedEndDate(state, today, finishedRef !== null),
+    finishedOn: finishedOn(state),
+    missed: missedSlots(state, startDate, today).map((ref) => ({
+      ...ref,
+      name: dayOf(ref)?.name ?? `Day ${ref.dayIndex}`,
+    })),
+    pickUpDay: resumeAt && resumeDay ? { ...resumeDay, cycleIndex: resumeAt.cycleIndex } : null,
     suggestion: next,
     suggestedDay,
     suggestedExercises,
@@ -592,12 +738,17 @@ export async function getTodayPlan(
       nextTrainingDay && nextTrainingRef
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
-    sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
-    finishedToday: finishedRef
-      ? (schedule.days.find((d) => d.dayIndex === finishedRef.dayIndex) ?? null)
-      : null,
+    sessionStatus,
+    sessionPrint: next ? (printed?.get(next.slot.dayIndex) ?? null) : null,
+    finishedToday:
+      finishedRef && finishedDay ? { ...finishedDay, cycleIndex: finishedRef.cycleIndex } : null,
     cycleDays,
   };
+}
+
+/** Nothing but rest is left (ADR 0051): what Today says as "Programme complete". */
+export function scheduleComplete(schedule: Schedule): boolean {
+  return suggestion(schedule.state) === null;
 }
 
 export type ProgramDayPlan = {
@@ -609,12 +760,21 @@ export type ProgramDayPlan = {
   status: SlotStatus | "pending" | "not_in_programme";
   /** The day Today is offering. */
   isNext: boolean;
+  /**
+   * The workout that did this day of the cycle, as every screen that prints it draws it
+   * (`readSlotPrints`); null until one has, and when the prints were not asked for.
+   */
+  print: PrintedSession | null;
 };
 
 export type ProgramOverview = {
   program: ActiveProgram;
   progress: Progress;
   projectedEnd: string | null;
+  /** Nothing but rest is left (ADR 0051): what Today says as "Programme complete". */
+  complete: boolean;
+  /** The day it was finished on, once it is; null while it is still going. */
+  finishedOn: string | null;
   currentCycle: number;
   days: ProgramDayPlan[];
   /** What one cycle actually asks for, which is the shape of the programme. */
@@ -624,29 +784,45 @@ export type ProgramOverview = {
 
 /**
  * The whole active programme: every day of the cycle with its exercises, warm-up and run,
- * and where the sequence has got to.
+ * and where the sequence has got to. Asked for its prints (Training and its days, which draw
+ * them), each day the cycle has trained comes with its workout's (`readSlotPrints`).
  *
  * Three statements for any number of days — the schedule, then every day's exercises and
  * the cycle's runs together — plus the warm-up names, which come from the library already
- * in memory. Reading a seven-day cycle costs the same as reading a one-day one.
+ * in memory, and the prints when asked for and the cycle has trained a day. Reading a
+ * seven-day cycle costs the same as reading a one-day one.
  */
 export async function getProgramOverview(
   db: DbOrTx,
   userId: string,
   timeZone: string,
+  { prints = false }: { prints?: boolean } = {},
 ): Promise<ProgramOverview | null> {
   const schedule = await getSchedule(db, userId);
   if (!schedule) return null;
   const state = schedule.state;
   const next = suggestion(state);
   const currentCycle = next?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
-  const [exercisesByDay, runs, warmups] = await Promise.all([
+  const lifting = new Set(
+    schedule.days.filter((day) => day.includesLifting).map((day) => day.dayIndex),
+  );
+  const trained = state.events.some(
+    (event) =>
+      event.cycleIndex === currentCycle &&
+      event.part === "session" &&
+      event.status === "completed" &&
+      lifting.has(event.dayIndex),
+  );
+  const [exercisesByDay, runs, warmups, printed] = await Promise.all([
     listExercisesByDay(
       db,
       schedule.days.map((day) => day.id),
     ),
     listRunTargets(db, schedule.program.id, currentCycle),
     sharedWarmupProtocols(db),
+    prints && trained
+      ? readSlotPrints(db, userId, schedule.program.id, currentCycle)
+      : new Map<number, PrintedSession>(),
   ]);
   const warmupNames = new Map(warmups.map((warmup) => [warmup.id, warmup.name]));
   const slots = allSlots(state);
@@ -665,12 +841,19 @@ export async function getProgramOverview(
         next !== null &&
         next.slot.cycleIndex === currentCycle &&
         next.slot.dayIndex === day.dayIndex,
+      print: printed.get(day.dayIndex) ?? null,
     };
   });
   return {
     program: schedule.program,
     progress: progress(state),
-    projectedEnd: projectedEndDate(state, todayInTimeZone(timeZone)),
+    projectedEnd: projectedEndDate(
+      state,
+      todayInTimeZone(timeZone),
+      slotFinishedOn(state, todayInTimeZone(timeZone)) !== null,
+    ),
+    complete: next === null,
+    finishedOn: finishedOn(state),
     currentCycle,
     days,
     liftingDays: schedule.days.filter((day) => day.includesLifting).length,

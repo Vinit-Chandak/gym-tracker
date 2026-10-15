@@ -22,3 +22,18 @@ export const PLATFORM_INIT_SCRIPT = `try{if(/Android/i.test(navigator.userAgent)
 )},"android")}if(navigator.standalone===true||matchMedia("(display-mode: standalone)").matches){document.documentElement.setAttribute(${JSON.stringify(
   STANDALONE_ATTRIBUTE,
 )},"")}}catch(e){}`;
+
+/**
+ * The reader's text size, in the app installed on an iPhone or iPad.
+ *
+ * Every word follows the root font size (foundation.css), but iOS passes its Larger Text setting
+ * (Dynamic Type) to a web page only through its own font keywords, and the installed app has no
+ * browser menu or page zoom to enlarge text instead. So the installed app measures
+ * `-apple-system-body`, 17 pt at the standard setting, and gives the root the same proportion of
+ * 16 px: 16 at the standard setting, larger as the setting grows. It stops at 32 px, the 200% the
+ * layouts are drawn for (the accessibility sizes reach about 310%), and never goes under 16, the
+ * size the design is drawn at. A setting changed while the app was in the background is read
+ * again as it comes back. A browser tab keeps the browser's own text size, and Android's setting
+ * arrives through the text-scale meta tag (layout.tsx). Any failure leaves the browser's size.
+ */
+export const TEXT_SIZE_INIT_SCRIPT = `try{if(navigator.standalone===true){var r=document.documentElement,s=function(){var p=document.createElement("span");p.style.font="-apple-system-body";p.style.position="absolute";p.style.visibility="hidden";r.appendChild(p);var b=parseFloat(getComputedStyle(p).fontSize);p.remove();var x=Math.min(32,Math.max(16,(16*b)/17));if(x>16)r.style.fontSize=x+"px";else r.style.removeProperty("font-size")};s();document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")s()})}}catch(e){}`;

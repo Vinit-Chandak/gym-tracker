@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  afterBreak,
   performanceScore,
   regressionStreak,
   suggestNext,
@@ -254,7 +255,8 @@ describe("reading what every set had in hand (ADR 0039)", () => {
   });
 
   it("goes back to the load that last worked when a step misses the range twice", () => {
-    const missed = straight(72.5, 2, 2);
+    // 2 at 1 RIR is 3 in hand against the 5 that 3 at 2 RIR needs: clearly short.
+    const missed = straight(72.5, 2, 1);
     const s = next(bench, missed, missed, straight(70, 5, 3));
     expect(s.kind).toBe("revert");
     expect(s.reason).toMatch(/72.5 kg missed the range twice: back to 70 kg/);
@@ -276,7 +278,8 @@ describe("reading what every set had in hand (ADR 0039)", () => {
   });
 
   it("builds reps past the top where the next weight is too big a jump to land in the range", () => {
-    // 30 to 35 on this stack is a sixth of the load.
+    // 30 to 35 on this stack is a sixth of the load: 15 reps would land it in the range, and reps
+    // build two past the top at most (ADR 0048).
     const curl: Prescription = {
       ...accessory,
       repMin: 8,
@@ -286,10 +289,96 @@ describe("reading what every set had in hand (ADR 0039)", () => {
     };
     const s = next(curl, straight(30, 12, 3));
     expect(s).toMatchObject({ kind: "hold", reason: expect.stringMatching(/big jump/) });
-    expect(s.advice).toMatch(/Build to 15 reps/);
+    expect(s.advice).toMatch(/Build to 14 reps .* starts below the range, at about 7 reps/);
     expect(targets(s)[0]).toEqual([30, 13, 2]);
     // 15 at 2 RIR there lands 35 inside the range.
     expect(targets(next(curl, straight(30, 15, 2)))[0]).toEqual([35, 8, 2]);
+    // 14 at 2 RIR, at the ceiling, takes the step anyway and starts it below the range.
+    const atCeiling = next(curl, straight(30, 14, 2));
+    expect(atCeiling.kind).toBe("increase");
+    expect(atCeiling.advice).toMatch(/starts below the range, at 7 reps/);
+    expect(targets(atCeiling)[0]).toEqual([35, 7, 2]);
+  });
+
+  it("caps the reps a coarse dumbbell step asks for, then builds back from below the range", () => {
+    // The incline curl: 2 × 10–15 at 1–2 RIR, 10 to 12.5 kg dumbbells. Landing the step inside
+    // the range would take 21 reps at 1 RIR; reps build to 17 and no further (ADR 0048).
+    const curl: Prescription = {
+      ...accessory,
+      sets: 2,
+      repMin: 10,
+      repMax: 15,
+      rirMin: 1,
+      rirMax: 2,
+      loadIncrement: 2.5,
+    };
+    const two = (weight: number, reps: number, rir: number) =>
+      [1, 2].map((index) => set(index, weight, reps, rir));
+    // Two sessions at 16 add a rep, to the ceiling and no further.
+    const building = next(curl, two(10, 16, 1), two(10, 16, 1));
+    expect(building).toMatchObject({ kind: "hold", advice: expect.stringMatching(/17 reps/) });
+    expect(targets(building)[0]).toEqual([10, 17, 1]);
+    const stepped = next(curl, two(10, 17, 1));
+    expect(stepped.kind).toBe("increase");
+    expect(targets(stepped)).toEqual([
+      [12.5, 7, 1],
+      [12.5, 7, 1],
+    ]);
+    // At 12.5 kg, 7 reps is where the step was meant to start, not a miss: reps build back up.
+    const landed = next(curl, two(12.5, 7, 1), two(10, 17, 1));
+    expect(landed).toMatchObject({
+      kind: "hold",
+      reason: expect.stringMatching(/back into the range/),
+    });
+    expect(targets(landed)[0]).toEqual([12.5, 7, 1]);
+    const climbing = next(curl, two(12.5, 8, 1), two(12.5, 7, 1), two(10, 17, 1));
+    expect(targets(climbing)[0]).toEqual([12.5, 9, 1]);
+    // Under the floor the step was taken knowing about, it is out of reach and goes back.
+    expect(next(curl, two(12.5, 3, 1), two(10, 17, 1)).kind).toBe("revert");
+  });
+
+  it("holds a near miss at a new load rather than going back", () => {
+    // 3 × 4–6 at 2 RIR: 60 × 6 at 2, then the 4-rep minimum with one in reserve less than
+    // planned. One rep in hand short of the range is inside the error of a reported RIR.
+    const incline: Prescription = {
+      ...squat,
+      repMin: 4,
+      repMax: 6,
+      rirMin: 2,
+      rirMax: 2,
+      rule: { kind: "conservative_strength", loadIncrement: 2.5, repsRequired: 6 },
+    };
+    const nearMiss = [set(1, 60, 6, 2), set(2, 60, 4, 1), set(3, 60, 4, 1)];
+    const missed = [set(1, 60, 6, 0), set(2, 60, 3, 1)];
+    const s = next(incline, nearMiss, missed, straight(55, 6, 2));
+    expect(s.kind).toBe("hold");
+    expect(targets(s)[0]?.[0]).toBe(60);
+    // Two clear misses still go back.
+    const clear = straight(60, 3, 0);
+    expect(next(incline, clear, clear, straight(55, 6, 2)).kind).toBe("revert");
+  });
+
+  it("reads a heavier set tried after the work at the session's load, and starts it back there", () => {
+    // 60 × 6 at 2 RIR, then 62.5 kg tried for sets 2–3 at 4 × 1 RIR. At its own load that is
+    // short of the range, and read there it said 60 kg had 5 in hand: a second "miss" at 60
+    // and back to 55. Read at 60, it is about 6.5 in hand: building.
+    const incline: Prescription = {
+      ...squat,
+      repMin: 4,
+      repMax: 6,
+      rirMin: 2,
+      rirMax: 2,
+      rule: { kind: "conservative_strength", loadIncrement: 2.5, repsRequired: 6 },
+    };
+    const tried = [set(1, 60, 6, 2), set(2, 62.5, 4, 1), set(3, 62.5, 4, 1)];
+    const missed = [set(1, 60, 6, 0), set(2, 60, 3, 1)];
+    const s = next(incline, tried, missed, straight(55, 6, 2));
+    expect(s.kind).toBe("hold");
+    expect(targets(s)).toEqual([
+      [60, 6, 2],
+      [60, 4, 2],
+      [60, 4, 2],
+    ]);
   });
 
   it("never takes a step on a session an accepted change was already made on", () => {
@@ -309,6 +398,26 @@ describe("reading what every set had in hand (ADR 0039)", () => {
     const pushUp = next(accessory, straight(0, 10, 3));
     expect(pushUp).toMatchObject({ kind: "hold", advice: expect.stringMatching(/Bodyweight/) });
     expect(targets(pushUp)[0]).toEqual([0, 10, 1]);
+  });
+
+  it("asks no step past the least help an assisted machine gives", () => {
+    const assisted: Prescription = {
+      ...accessory,
+      ladder: { known: [5, 10, 15, 20], stack: true, assisted: true },
+    };
+    const s = next(assisted, straight(5, 10, 3));
+    expect(s).toMatchObject({
+      kind: "hold",
+      reason: "Keep this weight: it is the least assistance this machine gives.",
+      advice: expect.stringMatching(/without the machine, or with a band/),
+    });
+    expect(targets(s)[0]?.[0]).toBe(5);
+    // Where the next stop down is only unknown, it is asked for as a step down, not up.
+    const unknown = next(
+      { ...assisted, ladder: { known: [20], stack: true, assisted: true } },
+      straight(20, 10, 3),
+    );
+    expect(unknown.advice).toMatch(/^Enter the next step down/);
   });
 
   it("keeps the older rule for a session without every set's reps in reserve", () => {
@@ -388,6 +497,96 @@ describe("timed work at the top", () => {
     ]);
     expect(s).toMatchObject({ kind: "hold", reason: expect.stringMatching(/top of the range/) });
     expect(s.sets.map((x) => x.durationSeconds)).toEqual([45, 45]);
+  });
+
+  it("never asks for less time than a set already held past the top", () => {
+    const held = (...seconds: number[]) =>
+      seconds.map((durationSeconds, index) =>
+        set(index + 1, null, null, null, { durationSeconds, rpe: 7 }),
+      );
+    const run = (latest: PerformedSet[], before: PerformedSet[]) =>
+      suggestNext(plank, latest, "exercise", [
+        {
+          workoutExerciseId: "exercise-4",
+          workoutSessionId: "session-4",
+          performedAt: new Date("2026-09-04T12:00:00Z"),
+          sets: latest,
+        },
+        {
+          workoutExerciseId: "exercise-1",
+          workoutSessionId: "session-1",
+          performedAt: new Date("2026-09-01T12:00:00Z"),
+          sets: before,
+        },
+      ]);
+    // 60 s against a 45 s top, after 30 s: not "Add time" down to 45.
+    const over = run(held(60, 60), held(30, 30));
+    expect(over).toMatchObject({ kind: "hold", reason: expect.stringMatching(/top of the range/) });
+    expect(over.sets.map((x) => x.durationSeconds)).toEqual([60, 60]);
+    // Only the set under the top gets longer.
+    const mixed = run(held(50, 30), held(30, 30));
+    expect(mixed.kind).toBe("extend");
+    expect(mixed.sets.map((x) => x.durationSeconds)).toEqual([50, 33]);
+  });
+});
+
+describe("back after a break", () => {
+  const straight = (weight: number | null, reps: number, rir: number) =>
+    [1, 2, 3].map((index) => set(index, weight, reps, rir));
+  const targets = (s: ReturnType<typeof afterBreak>) =>
+    s.sets.map((x) => [x.weight, x.reps, x.rir]);
+
+  it("brings the last sets back on the first load at least a tenth lighter, warm-ups as they were", () => {
+    const s = afterBreak(
+      squat,
+      [
+        set(1, 60, 5, null, { setType: "warmup" }),
+        ...straight(102.5, 6, 3).map((x) => ({ ...x, setIndex: x.setIndex + 1 })),
+      ],
+      "exercise",
+    );
+    expect(s).toMatchObject({
+      kind: "resume",
+      basis: "exercise",
+      reason: "Not done for over 8 weeks: last time's sets, about 10% lighter.",
+    });
+    // 90% of 102.5 is 92.25: down to the load below it that exists, 90.
+    expect(targets(s)).toEqual([
+      [60, 5, null],
+      [90, 6, 2],
+      [90, 6, 2],
+      [90, 6, 2],
+    ]);
+    // A tenth exactly is far enough, and a step coarser than that is still one step.
+    expect(targets(afterBreak(accessory, straight(20, 8, 2), "exercise"))[0]).toEqual([18, 8, 1]);
+    expect(targets(afterBreak(accessory, straight(10, 8, 2), "exercise"))[0]).toEqual([8, 8, 1]);
+  });
+
+  it("gives more help on an assisted machine, and keeps a load nothing lighter is known below", () => {
+    const assisted: Prescription = {
+      ...accessory,
+      ladder: { known: [20, 25, 30], stack: true, assisted: true },
+    };
+    const help = afterBreak(assisted, straight(20, 8, 2), "same_equipment");
+    expect(help.reason).toMatch(/with more assistance/);
+    expect(targets(help)[0]?.[0]).toBe(25);
+    const stack: Prescription = {
+      ...accessory,
+      ladder: { known: [30], stack: true, assisted: false },
+    };
+    const unknown = afterBreak(stack, straight(30, 8, 2), "same_equipment");
+    expect(unknown).toMatchObject({
+      kind: "resume",
+      reason: "Not done for over 8 weeks: start lighter than last time.",
+      advice: expect.stringMatching(/about 10% lighter/),
+    });
+    expect(targets(unknown)[0]?.[0]).toBe(30);
+  });
+
+  it("starts bodyweight work from last time's sets", () => {
+    const s = afterBreak(accessory, straight(0, 8, 2), "exercise");
+    expect(s.reason).toBe("Not done for over 8 weeks: start from last time's sets.");
+    expect(targets(s)[0]).toEqual([0, 8, 1]);
   });
 });
 

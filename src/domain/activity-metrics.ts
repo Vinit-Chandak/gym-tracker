@@ -1,5 +1,7 @@
 import {
   fromMetres,
+  METRES_PER_KM,
+  METRES_PER_MILE,
   roundTo,
   toMetres,
   type DistanceUnit,
@@ -129,6 +131,12 @@ export function actualDurationMs(actual: EnduranceActual): number {
 export function paceSecondsPerKm(metres: number, durationMs: number): number | null {
   if (!(metres > 0) || !(durationMs > 0)) return null;
   return (durationMs / 1000) * (1000 / metres);
+}
+
+/** A pace per kilometre, read per the athlete's unit: per mile is the same pace, 1.609344 km. */
+export function pacePerUnit(secondsPerKm: number | null, unit: DistanceUnit): number | null {
+  if (secondsPerKm === null) return null;
+  return unit === "mi" ? secondsPerKm * (METRES_PER_MILE / METRES_PER_KM) : secondsPerKm;
 }
 
 /** Overall average speed in metres per second. Labelled overall, never "moving". */

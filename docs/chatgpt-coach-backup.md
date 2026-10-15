@@ -22,7 +22,7 @@ The orchestrator reads identifiers and counts. Each athlete is processed in a fr
 
 ## Deploy and configure
 
-1. Apply migration **0048** with the application deployment. Keep `COACH_BACKUP_ENABLED=false` during setup. Set the primary routine's schedule to **05:00 Asia/Kolkata** and its saved prompt to the current entry in [coach automation](coach-automation.md). Its checkout must read the updated skill, shared worker instructions, heartbeat and batch-completion command.
+1. Apply migration **0056** with the application deployment. Keep `COACH_BACKUP_ENABLED=false` during setup. Set the primary routine's schedule to **05:00 Asia/Kolkata** and its saved prompt to the current entry in [coach automation](coach-automation.md). Its checkout must read the updated skill, shared worker instructions, heartbeat and batch-completion command.
 2. Enable the existing Supabase project's **OAuth 2.1 server** and set its authorization path to `/oauth/consent`. Pre-register one OAuth client for this ChatGPT connection, using the exact redirect URI shown by ChatGPT. Dynamic client registration is unnecessary. Supabase handles authorization codes, PKCE, token rotation and grant revocation. [Supabase MCP authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication).
 3. Configure Supabase's Custom Access Token Hook so tokens for **only that client** carry the MCP URL as their `aud` claim. Preserve the project's existing token-hook behavior. The connector validates the signature, expiry, issuer, owner user ID, client ID, role and exact audience. A normal browser token or token for another service cannot authenticate it. [Supabase token hooks](https://supabase.com/docs/guides/auth/oauth-server/token-security).
 

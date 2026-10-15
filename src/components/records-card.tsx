@@ -1,9 +1,12 @@
 import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { Figures } from "@/components/ui/figures";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
-import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
+import { metricLabel, topWeightWorkLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric, formatTopWeightWork } from "@/lib/format";
+import type { SetLengthUnit } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
+import { formatIsoDate, formatSharedMetric } from "@/lib/format";
 import type {
   ExerciseBest,
   PeriodRecord,
@@ -19,9 +22,12 @@ import type {
 export function SessionRecordsCard({
   records,
   unit,
+  length,
 }: {
   records: readonly RecordWithExercise[];
   unit: BodyLoadUnit;
+  /** What a carry reads in: the reader's metres or yards. */
+  length: SetLengthUnit;
 }) {
   if (records.length === 0) return null;
   return (
@@ -31,9 +37,12 @@ export function SessionRecordsCard({
       </h2>
       <ul>
         {records.map((record) => {
-          const [figure, ...rest] = formatSharedMetric(record.metric, record.value, unit).split(
-            " ",
-          );
+          const [figure, ...rest] = formatSharedMetric(
+            record.metric,
+            record.value,
+            unit,
+            length,
+          ).split(/\s/);
           return (
             <li key={`${record.exerciseId}:${record.metric}`} className="figure-row">
               <span className="figure-row-text">
@@ -44,8 +53,10 @@ export function SessionRecordsCard({
                   {record.exercise.name}
                 </Link>{" "}
                 <span className="figure-row-meta">
-                  {metricLabel(record.metric, record.exercise)} · was{" "}
-                  {formatSharedMetric(record.metric, record.previous, unit)}
+                  {joinFacts([
+                    metricLabel(record.metric, record.exercise),
+                    `was ${formatSharedMetric(record.metric, record.previous, unit, length)}`,
+                  ])}
                 </span>
               </span>{" "}
               <span className="figure-row-value">
@@ -62,17 +73,23 @@ export function SessionRecordsCard({
 
 /**
  * "Your records" on an exercise page: the best of each metric the movement is measured by,
- * with the day it was set and, under the top weight, how it was worked ("4 × 12"). Tiles,
- * like the exercise's defaults above them.
+ * with the day it was set and, under the top weight, how it was worked ("4 sets · best 12
+ * reps"). Tiles, like the exercise's defaults above them. A day names its year only outside
+ * `currentYear` (ADR 0044), as every other day in the app does.
  */
 export function ExerciseBestsTiles({
   exercise,
   bests,
   unit,
+  length,
+  currentYear,
 }: {
   exercise: MetricExercise;
   bests: readonly ExerciseBest[];
   unit: BodyLoadUnit;
+  length: SetLengthUnit;
+  /** The year it is in the reader's zone, "2026". */
+  currentYear?: string;
 }) {
   if (bests.length === 0) return null;
   return (
@@ -85,10 +102,12 @@ export function ExerciseBestsTiles({
             label={metricLabel(best.metric, exercise)}
             value={
               <>
-                {formatSharedMetric(best.metric, best.value, unit)}
+                <Figures>{formatSharedMetric(best.metric, best.value, unit, length)}</Figures>
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-                  {best.work ? `${formatTopWeightWork(best.work)} · ` : ""}
-                  {formatIsoDay(best.occurredOn)}
+                  {joinFacts([
+                    best.work && topWeightWorkLabel(best.work),
+                    formatIsoDate(best.occurredOn, currentYear),
+                  ])}
                 </span>
               </>
             }
@@ -100,34 +119,48 @@ export function ExerciseBestsTiles({
 }
 
 /**
- * A person's Records for a period (plan §3.13): the best lifts by estimated 1RM, then the
- * other movements by what they are measured in. The same list on your own page as on a
- * friend's, in the reader's unit.
+ * A person's best lifts in a span (plan §3.13, as built: the span's bests, which the page heads
+ * "Best lifts" since a best is not always a record): the best lifts by estimated 1RM, or by top
+ * weight where the span has no set of ten reps or fewer, then the other movements by what they
+ * are measured in. The same list on your own page as on a
+ * friend's, in the reader's unit, each day as the exercise page dates it: "Tue 15 Sept", with
+ * its year only outside `currentYear`.
  */
 export function PeriodRecordsList({
   records,
   unit,
+  length,
+  currentYear,
 }: {
   records: readonly PeriodRecord[];
   unit: BodyLoadUnit;
+  length: SetLengthUnit;
+  /** The year it is in the reader's zone, "2026". */
+  currentYear?: string;
 }) {
   return (
     <ul className="divide-y divide-line text-sm">
       {records.map((record) => (
+        // The value keeps the row's right edge and a long name wraps beside it; only where the
+        // name would have less than a few words' room (large text) does the value go under it,
+        // still at the right.
         <li
           key={record.exercise.id}
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
         >
-          <span className="min-w-0">
-            <span className="block font-medium [overflow-wrap:anywhere]">
+          <span className="min-w-0 flex-[1_1_8rem]">
+            <span className="block font-medium [overflow-wrap:break-word]">
               {record.exercise.name}
             </span>
             <span className="block text-xs text-ink-muted">
-              {metricLabel(record.metric, record.exercise)} · {formatIsoDay(record.occurredOn)}
+              {joinFacts([
+                metricLabel(record.metric, record.exercise),
+                formatIsoDate(record.occurredOn, currentYear),
+              ])}
             </span>
           </span>
-          <span className="font-medium tabular-nums">
-            {formatSharedMetric(record.metric, record.value, unit)}
+          <span className="ml-auto text-right font-medium whitespace-nowrap tabular-nums">
+            <Figures>{formatSharedMetric(record.metric, record.value, unit, length)}</Figures>
           </span>
         </li>
       ))}

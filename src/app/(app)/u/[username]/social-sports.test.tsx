@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { holdHyphens } from "@/lib/facts";
 import LeaderboardPage from "@/app/(app)/profile/friends/leaderboard/page";
 import ComparePage from "./compare/page";
 import PersonPage from "./page";
+
+/** The page's words with its tags left out: a figure's digits stand in a span of their own. */
+const words = (html: string) => html.replace(/<[^>]*>/g, "");
 
 const mocks = vi.hoisted(() => ({
   head: vi.fn(),
@@ -17,6 +21,10 @@ const mocks = vi.hoisted(() => ({
   circleExercises: vi.fn(),
   weights: vi.fn(),
   exerciseBests: vi.fn(),
+  profile: vi.fn(),
+  sharedSports: vi.fn(),
+  enabledSports: vi.fn(),
+  rankCircle: vi.fn(),
 }));
 
 vi.mock("@/server/auth", () => ({
@@ -34,6 +42,7 @@ vi.mock("@/server/queries/head-to-head", () => ({
   hiddenTrainingLine: () => "Hidden training",
 }));
 vi.mock("@/server/repositories/people", () => ({ getDirectoryProfile: mocks.directory }));
+vi.mock("@/server/queries/profile", () => ({ readProfile: mocks.profile }));
 vi.mock("@/server/repositories/follows", () => ({
   followState: async () => ({ outgoing: "accepted", incoming: null, followApproval: true }),
 }));
@@ -41,17 +50,22 @@ vi.mock("@/server/repositories/shared-stats", () => ({
   EMPTY_TOTALS: {},
   canViewTraining: async () => true,
   readPeriodTotals: mocks.totals,
-  readMuscleSets: mocks.muscles,
+  readGroupSets: mocks.muscles,
   readExercisesInCommon: mocks.common,
   readRecords: mocks.records,
   readLeaderboard: mocks.leaderboard,
   readCircleExercises: mocks.circleExercises,
   readBodyWeights: mocks.weights,
   readExerciseBests: mocks.exerciseBests,
+  readDistanceUnits: async () => ({ run: "mi", cycle: "km", swim: "m" }),
+  readSharedSports: mocks.sharedSports,
+}));
+vi.mock("@/server/repositories/sport-preferences", () => ({
+  enabledSportsFor: mocks.enabledSports,
 }));
 vi.mock("@/server/queries/leaderboard", () => ({
   loadCircle: async () => [{ id: "me" }, { id: "friend" }],
-  rankCircle: () => [],
+  rankCircle: mocks.rankCircle,
   rankExercise: () => [],
   perKgAvailable: () => false,
 }));
@@ -63,22 +77,47 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/page-header", () => ({
-  PageHeader: ({ title, backHref }: { title: string; backHref: string }) => (
+  PageHeader: ({
+    title,
+    backHref,
+    backLabel,
+  }: {
+    title: string;
+    backHref: string;
+    backLabel?: string;
+  }) => (
     <header>
-      <a href={backHref}>Back</a>
+      <a href={backHref}>{backLabel ?? "Back"}</a>
       <h1>{title}</h1>
     </header>
   ),
 }));
 vi.mock("@/components/follow-button", () => ({ FollowButton: () => null }));
-vi.mock("@/components/ui/sport-period-controls", () => ({ SportPeriodControls: () => null }));
+vi.mock("@/components/ui/sport-span-controls", () => ({
+  SportSpanControls: ({ sport, sports }: { sport: string; sports: string[] }) => (
+    <span>
+      tabs:{sports.join(",")}|{sport}
+    </span>
+  ),
+}));
+vi.mock("@/components/graph/graph-range-context", () => ({
+  GraphRangeProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 vi.mock("@/components/ui/info-tip", () => ({
   InfoTip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 vi.mock("@/app/(app)/profile/friends/leaderboard/leaderboard-controls", () => ({
-  LeaderboardControls: ({ sport, mode }: { sport: string; mode: string }) => (
+  LeaderboardControls: ({
+    sport,
+    sports,
+    mode,
+  }: {
+    sport: string;
+    sports: string[];
+    mode: string;
+  }) => (
     <span>
-      {sport}:{mode}
+      {sport}:{mode}|tabs:{sports.join(",")}
     </span>
   ),
 }));
@@ -117,10 +156,13 @@ beforeEach(() => {
       [friend.id, totals],
     ]),
   );
-  mocks.muscles.mockResolvedValue({ chest: 8 });
+  mocks.muscles.mockResolvedValue({ Chest: 8 });
   mocks.common.mockResolvedValue({ comparable: [], notComparable: 0 });
   mocks.records.mockResolvedValue([]);
   mocks.leaderboard.mockResolvedValue(new Map());
+  mocks.sharedSports.mockResolvedValue(new Set(["workout"]));
+  mocks.enabledSports.mockResolvedValue(["strength", "running"]);
+  mocks.rankCircle.mockReturnValue([]);
 });
 
 const props = (sport: string) => ({
@@ -147,7 +189,8 @@ it.each([
     storedSport,
     expect.anything(),
   );
-  expect(html).toContain(`/u/friend?sport=${storedSport}&amp;period=90d`);
+  // Back to the person, by name, in the same sport; the span is the one every graph shares.
+  expect(html).toContain(`href="/u/friend?sport=${storedSport}">Friend</a>`);
 });
 
 it("lifting still renders the muscle split and exercises in common", async () => {
@@ -158,13 +201,39 @@ it("lifting still renders the muscle split and exercises in common", async () =>
   expect(mocks.common).toHaveBeenCalledOnce();
 });
 
+it("lists the exercises in common at the gutter, unboxed, each name held at its hyphens", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Archer push-up", region: "chest" }],
+    notComparable: 0,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  // In a box, its rows inset a rem each side, "Seated dumbbell shoulder press" took three lines
+  // at 200% text: a list to choose from puts its names at the gutter (DESIGN.md, One Left Edge).
+  expect(html).not.toContain("box-rows");
+  expect(html).toContain('<li class="nav-row-item"><a href="/u/friend/compare/e1">');
+  expect(html).toContain(holdHyphens("Archer push-up"));
+});
+
+it("keeps the exercises in common's label and note at their names' edge", async () => {
+  mocks.common.mockResolvedValue({
+    comparable: [{ id: "e1", name: "Bulgarian split squat", region: "quads" }],
+    notComparable: 1,
+  });
+  const html = renderToStaticMarkup(await ComparePage(props("strength")));
+  const start = html.lastIndexOf("<section", html.indexOf("Exercises in common"));
+  const section = html.slice(start, html.indexOf("</section>", start));
+  expect(section).toContain("1 machine exercise in common is not compared");
+  // The label and the note stood a quarter rem in from the names under them (One Left Edge).
+  expect(section).not.toContain("px-1");
+});
+
 it.each([
   ["cycling", "cycle"],
   ["swimming", "swim"],
   ["running", "run"],
-])("the %s person page carries sport and period into Compare", async (sport, storedSport) => {
+])("the %s person page carries its sport into Compare", async (sport, storedSport) => {
   const html = renderToStaticMarkup(await PersonPage(props(sport)));
-  expect(html).toContain(`/u/friend/compare?sport=${storedSport}&amp;period=90d`);
+  expect(html).toContain(`href="/u/friend/compare?sport=${storedSport}"`);
   expect(mocks.muscles).not.toHaveBeenCalled();
   expect(mocks.records).not.toHaveBeenCalled();
 });
@@ -195,3 +264,156 @@ it.each([
     );
   },
 );
+
+it("reads a running comparison's distances and paces in the viewer's own unit", async () => {
+  const html = renderToStaticMarkup(await ComparePage(props("run")));
+  // 5 km and 5:00 /km, for a viewer who runs in miles.
+  expect(words(html)).toContain("3.1\u00a0mi");
+  expect(words(html)).toContain("8:03\u00a0/mi");
+  // Only the rule in the help still says "1 km"; no figure does.
+  expect(html).not.toMatch(/\d(<\/span>)?\s*km</);
+  expect(words(html)).toContain("3.11\u00a0mi");
+});
+
+it.each([
+  [true, "This is what a follower sees of your training."],
+  [false, "Sharing is off: followers see only your profile card."],
+])("your own page, sharing %s, says what a follower sees", async (shareTraining, line) => {
+  mocks.directory.mockResolvedValue(me);
+  mocks.profile.mockResolvedValue({ shareTraining });
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain(line);
+  expect(mocks.profile).toHaveBeenCalledWith(expect.anything(), "me");
+});
+
+it("heads a person's span bests as best lifts, not as records Compare would not count", async () => {
+  mocks.records.mockResolvedValue([
+    {
+      exercise: {
+        id: "press",
+        name: "Incline dumbbell press",
+        modality: "dumbbell",
+        defaultPrescriptionType: "reps",
+      },
+      metric: "e1rm",
+      value: 25.2,
+      occurredOn: "2026-10-01",
+    },
+  ]);
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain("Best lifts");
+  expect(html).toContain("Incline dumbbell press");
+  expect(html).not.toMatch(/>Records</);
+});
+
+describe("the sports on offer", () => {
+  const bare = {
+    params: Promise.resolve({ username: "friend" }),
+    searchParams: Promise.resolve({}),
+  };
+
+  it("gives a person's page a tab for each sport they share, and none they do not", async () => {
+    // Sofia lifts and shares her rides; swimming is off (or never done), so it has no tab.
+    mocks.sharedSports.mockResolvedValue(new Set(["cycle", "workout"]));
+    const html = renderToStaticMarkup(await PersonPage(props("strength")));
+    expect(html).toContain("tabs:workout,cycle|workout");
+    expect(mocks.sharedSports).toHaveBeenCalledWith(expect.anything(), ["friend"]);
+  });
+
+  it("opens on the first sport a person does when the link names none", async () => {
+    mocks.sharedSports.mockResolvedValue(new Set(["cycle"]));
+    const html = renderToStaticMarkup(await PersonPage(bare));
+    expect(html).toContain("tabs:cycle|cycle");
+    expect(mocks.totals).toHaveBeenCalledWith(
+      expect.anything(),
+      ["friend"],
+      "cycle",
+      expect.anything(),
+    );
+    expect(html).toContain('href="/u/friend/compare?sport=cycle"');
+  });
+
+  it("shows your own page with the sports a follower would see, not the ones only turned on", async () => {
+    mocks.directory.mockResolvedValue(me);
+    mocks.profile.mockResolvedValue({ shareTraining: true });
+    // Swimming on in your sports but never shared: a follower has no swimming to see.
+    mocks.enabledSports.mockResolvedValue(["strength", "swimming"]);
+    mocks.sharedSports.mockResolvedValue(new Set(["workout"]));
+    const html = renderToStaticMarkup(await PersonPage(bare));
+    expect(html).toContain("tabs:workout|workout");
+    expect(html).not.toContain("swim");
+  });
+
+  it("keeps a sport a link asked for, beside the ones done", async () => {
+    const html = renderToStaticMarkup(await PersonPage(props("swimming")));
+    expect(html).toContain("tabs:workout,swim|swim");
+  });
+
+  it("compares in a sport either of you does: shared by either, or on in yours", async () => {
+    mocks.sharedSports.mockResolvedValue(new Set(["workout", "cycle"]));
+    mocks.enabledSports.mockResolvedValue(["strength", "running"]);
+    const html = renderToStaticMarkup(await ComparePage(bare));
+    expect(html).toContain("tabs:workout,run,cycle|workout");
+    expect(mocks.sharedSports).toHaveBeenCalledWith(expect.anything(), ["me", "friend"]);
+    expect(mocks.enabledSports).toHaveBeenCalledWith(expect.anything(), "me");
+    expect(html).toContain('href="/u/friend?sport=workout"');
+  });
+
+  it("ranks in the viewer's own sports, and a sport a link asked for", async () => {
+    mocks.enabledSports.mockResolvedValue(["strength", "cycling"]);
+    const board = async (searchParams: Record<string, string>) =>
+      renderToStaticMarkup(
+        await LeaderboardPage({
+          params: Promise.resolve({}),
+          searchParams: Promise.resolve(searchParams),
+        }),
+      );
+    expect(await board({})).toContain("workout:activity|tabs:workout,cycle");
+    expect(await board({ sport: "running" })).toContain("run:activity|tabs:workout,run,cycle");
+    mocks.enabledSports.mockResolvedValue(["swimming"]);
+    expect(await board({})).toContain("swim:activity|tabs:swim");
+  });
+});
+
+describe("a board with nobody on it", () => {
+  const row = (key: string, value: number | null, rank: number | null) => ({
+    key,
+    username: key,
+    displayName: null,
+    value,
+    occurredOn: null,
+    rank,
+  });
+  const board = async (searchParams: Record<string, string>) =>
+    renderToStaticMarkup(
+      await LeaderboardPage({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve(searchParams),
+      }),
+    );
+
+  it("says nobody ran in the period, rather than ranking everyone as a dash", async () => {
+    mocks.rankCircle.mockReturnValue([row("me", null, null), row("friend", null, null)]);
+    const html = await board({ sport: "running" });
+    expect(html).toContain("No runs from you or the people you follow in the last 30 days.");
+    expect(html).not.toContain("@friend");
+    const pace = await board({ sport: "running", metric: "best_pace", period: "7d" });
+    expect(pace).toContain(
+      "No run of 1 km or more from you or the people you follow in the last 7 days.",
+    );
+  });
+
+  it("ranks as before once anybody has a number, the rest trailing as a dash", async () => {
+    mocks.rankCircle.mockReturnValue([row("friend", 3, 1), row("me", null, null)]);
+    const html = await board({ sport: "running" });
+    expect(html).toContain("@friend");
+    expect(html).not.toContain("No runs from you");
+  });
+});
+
+it("names the person once, in the title, not again on the card under it", async () => {
+  const html = renderToStaticMarkup(await PersonPage(props("strength")));
+  expect(html).toContain("<h1>Friend</h1>");
+  expect(html).not.toContain("person-card-name");
+  expect(html).toContain("@friend");
+});

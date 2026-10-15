@@ -100,7 +100,7 @@ it("builds a new meal from My foods, each food at the amount its sheet is given"
     inMeal()
       .getAllByRole("button", { name: /kcal/ })
       .map((row) => row.textContent?.replace(/\s+/g, " ").trim()),
-  ).toEqual(["Oats 80 g 311.2 kcal", "Whey 1 scoop 139 kcal"]);
+  ).toEqual(["Oats 80 g 311 kcal", "Whey 1 scoop 139 kcal"]);
   expect(screen.getByText("450.2")).toBeTruthy();
   expect(screen.getByText("Carbs 59 g · Fat 7 g · Protein 39 g")).toBeTruthy();
 
@@ -121,7 +121,7 @@ it("changes a saved meal, keeping the foods it holds as they were saved", async 
   render(<MealBuilder saved={USUAL} foods={[OATS, WHEY, MILK]} />);
   expect(screen.getByLabelText("Name")).toHaveProperty("value", "Usual breakfast");
   // 80 g of oats saved at 379 kcal per 100 g.
-  expect(inMeal().getByRole("button", { name: /^Oats/ }).textContent).toContain("303.2 kcal");
+  expect(inMeal().getByRole("button", { name: /^Oats/ }).textContent).toContain("303 kcal");
 
   fireEvent.click(inMeal().getByRole("button", { name: /^Oats/ }));
   fireEvent.change(inSheet().getByLabelText("Amount"), { target: { value: "60" } });

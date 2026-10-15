@@ -14,6 +14,9 @@ it("does not let an action reset the selected unit while leaving converted value
         username: "qa",
         timeZone: "UTC",
         preferredUnit: "kg",
+        distanceUnit: "km",
+        poolUnit: "m",
+        swims: false,
         bodyWeightKg: 75,
         heightCm: 178,
         dateOfBirth: "1995-05-14",
@@ -28,5 +31,7 @@ it("does not let an action reset the selected unit while leaving converted value
     true,
   );
   expect(new FormData(container.querySelector("form")!).get("preferredUnit")).toBe("lb");
+  // The distance that followed the weight unit stays where it followed it to.
+  expect(new FormData(container.querySelector("form")!).get("distanceUnit")).toBe("mi");
   expect(screen.getByRole("textbox", { name: "Body weight (lb)" })).toBeTruthy();
 });

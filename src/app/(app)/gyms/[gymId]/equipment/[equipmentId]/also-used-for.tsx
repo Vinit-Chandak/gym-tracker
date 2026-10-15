@@ -1,5 +1,6 @@
 import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
+import { Select } from "@/components/ui/select";
 import { setMachineAlsoUsedForAction } from "@/server/actions/equipment";
 import type { EquipmentTypeOption } from "@/server/repositories/equipment";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
@@ -7,8 +8,8 @@ import { EQUIPMENT_CATEGORIES } from "@/domain/types";
 
 /**
  * "Also used for" (owner decision: combination machines): the other kinds of machine this one
- * is, such as the low row on a lat pulldown. Each is a row with Remove; a native select adds
- * one. The machine's own type is changed from the form above, never here, and its history
+ * is, such as the low row on a lat pulldown. Each is a row with Remove; the app's select (a
+ * native one, drawn as every other) adds one. The machine's own type is changed from the form above, never here, and its history
  * stays its own however its uses change.
  */
 export function AlsoUsedFor({
@@ -43,7 +44,7 @@ export function AlsoUsedFor({
         <ul className="mt-1">
           {extra.map((type) => (
             <li key={type.id} className="also-row">
-              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{type.name}</span>
+              <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{type.name}</span>
               <form action={setMachineAlsoUsedForAction.bind(null, gymId, equipmentId, false)}>
                 <input type="hidden" name="equipmentTypeId" value={type.id} />
                 <button type="submit" aria-label={`Remove ${type.name}`} className="review-remove">
@@ -63,11 +64,11 @@ export function AlsoUsedFor({
         <label htmlFor="also-type" className="sr-only">
           Another use
         </label>
-        <select
+        <Select
           id="also-type"
           name="equipmentTypeId"
           required
-          className="also-select"
+          wrapperClassName="also-select"
           defaultValue=""
         >
           <option value="" disabled>
@@ -85,7 +86,7 @@ export function AlsoUsedFor({
               </optgroup>
             );
           })}
-        </select>
+        </Select>
         <button type="submit" className="also-submit">
           Add
         </button>

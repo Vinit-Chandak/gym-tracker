@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, isNotNull } from "drizzle-orm";
 
 import {
   equipmentInstances,
@@ -10,6 +10,8 @@ import {
   programs,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { RequirementRef } from "@/domain/equipment-resolution";
+import type { EquipmentCategory } from "@/domain/types";
 import {
   sharedEquipmentTypes,
   sharedExercises,
@@ -43,9 +45,16 @@ export type ExerciseListItem = Pick<
   | "defaultRestSeconds"
   | "rirNote"
   | "aliases"
-> & { isCustom: boolean };
+> & {
+  isCustom: boolean;
+  /**
+   * The type of cardio machine it is done on, by slug ("rowing_machine"), for its glyph: null
+   * for anything else, and for an account's own exercise, whose machine is one of its gyms'.
+   */
+  cardioMachine: string | null;
+};
 
-function toListItem(row: ExerciseRow): ExerciseListItem {
+function toListItem(row: ExerciseRow, cardioMachine: string | null = null): ExerciseListItem {
   return {
     id: row.id,
     slug: row.slug,
@@ -70,7 +79,47 @@ function toListItem(row: ExerciseRow): ExerciseListItem {
     rirNote: row.rirNote,
     aliases: row.aliases,
     isCustom: row.userId !== null,
+    cardioMachine,
   };
+}
+
+/**
+ * The cardio machine each exercise is done on, by its type's slug: the primary type of its first
+ * way, where that is a cardio machine (the rowing machine's "rowing_machine", the stationary
+ * bike's "bike").
+ */
+function cardioMachines(
+  requirements: readonly RequirementRef[],
+  types: readonly { id: string; slug: string; category: EquipmentCategory }[],
+): Map<string, string> {
+  const cardio = new Map(
+    types.filter((type) => type.category === "cardio").map((type) => [type.id, type.slug]),
+  );
+  const first = new Map<string, { alternative: number; typeId: string }>();
+  for (const requirement of requirements) {
+    if (!requirement.isPrimary) continue;
+    const seen = first.get(requirement.exerciseId);
+    if (seen && seen.alternative <= requirement.alternative) continue;
+    first.set(requirement.exerciseId, {
+      alternative: requirement.alternative,
+      typeId: requirement.equipmentTypeId,
+    });
+  }
+  const found = new Map<string, string>();
+  for (const [exerciseId, { typeId }] of first) {
+    const slug = cardio.get(typeId);
+    if (slug) found.set(exerciseId, slug);
+  }
+  return found;
+}
+
+/** The shared library's cardio machines, from its cache, so a list costs no query more. */
+async function sharedCardioMachines(db: DbOrTx): Promise<Map<string, string>> {
+  const [requirements, types] = await Promise.all([
+    sharedRequirements(db),
+    sharedEquipmentTypes(db),
+  ]);
+  return cardioMachines(requirements, types);
 }
 
 /**
@@ -78,11 +127,12 @@ function toListItem(row: ExerciseRow): ExerciseListItem {
  * own, which Row Level Security limits to the signed-in account.
  */
 export async function listExercises(db: DbOrTx): Promise<ExerciseListItem[]> {
-  const [shared, own] = await Promise.all([
+  const [shared, own, cardio] = await Promise.all([
     sharedExercises(db),
     db.select().from(exercises).where(isNotNull(exercises.userId)).orderBy(asc(exercises.name)),
+    sharedCardioMachines(db),
   ]);
-  const items = shared.map(toListItem);
+  const items = shared.map((row) => toListItem(row, cardio.get(row.id) ?? null));
   for (const row of own) {
     const item = toListItem(row);
     const at = items.findIndex((other) => other.name.localeCompare(item.name) > 0);
@@ -131,6 +181,8 @@ export type ExerciseProgramUsage = {
 
 export type ExerciseDetail = ExerciseRow & {
   isCustom: boolean;
+  /** The type of cardio machine it is done on, by slug, for its glyph (`ExerciseListItem`). */
+  cardioMachine: string | null;
   equipmentOptions: ExerciseEquipmentOption[];
   /** What it needs, as alternatives of types used together. */
   equipmentWays: ExerciseEquipmentWay[];
@@ -202,8 +254,9 @@ export async function getExercise(
     sharedEquipmentTypes(db),
   ]);
   const name = new Map(types.map((type) => [type.id, type.name]));
+  const own = requirements.filter((r) => r.exerciseId === exerciseId);
   const ways = new Map<number, ExerciseEquipmentWay>();
-  for (const requirement of requirements.filter((r) => r.exerciseId === exerciseId)) {
+  for (const requirement of own) {
     const way = ways.get(requirement.alternative) ?? {
       alternative: requirement.alternative,
       types: [],
@@ -221,8 +274,21 @@ export async function getExercise(
       ...way,
       types: [...way.types].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)),
     }));
-  return { ...row, isCustom: row.userId !== null, equipmentOptions, equipmentWays, programUsage };
+  return {
+    ...row,
+    isCustom: row.userId !== null,
+    cardioMachine: cardioMachines(own, types).get(exerciseId) ?? null,
+    equipmentOptions,
+    equipmentWays,
+    programUsage,
+  };
 }
+
+/**
+ * The rank of a machine the athlete chose for an exercise at a gym. A custom exercise's own
+ * machine, the one it was made on, keeps the default rank, so the two are never confused.
+ */
+export const PREFERRED_RANK = 0;
 
 export type PreferredMachine = { equipmentInstanceId: string; gymId: string; instanceName: string };
 
@@ -247,14 +313,17 @@ export async function listPreferredMachines(
       and(
         eq(exerciseEquipmentOptions.userId, userId),
         eq(exerciseEquipmentOptions.exerciseId, exerciseId),
+        eq(exerciseEquipmentOptions.preferenceRank, PREFERRED_RANK),
         isNotNull(exerciseEquipmentOptions.equipmentInstanceId),
       ),
     );
 }
 
 /**
- * The machine set for each exercise at one gym ("use this machine"), keyed by exercise. Add
- * exercise names it rather than asking which of several machines to use.
+ * The machine set for each exercise at one gym ("use this machine", or a custom exercise's own),
+ * keyed by exercise. Add exercise names it rather than asking which of several machines to use.
+ * A machine chosen here comes before the one a custom exercise was made on, as the resolver
+ * takes them.
  */
 export async function preferredMachinesAtGym(
   db: DbOrTx,
@@ -277,7 +346,8 @@ export async function preferredMachinesAtGym(
         eq(equipmentInstances.gymId, gymId),
         eq(equipmentInstances.isActive, true),
       ),
-    );
+    )
+    .orderBy(desc(exerciseEquipmentOptions.preferenceRank));
   const preferred: Record<string, string> = {};
   for (const row of rows)
     if (row.equipmentInstanceId) preferred[row.exerciseId] = row.equipmentInstanceId;
@@ -312,12 +382,16 @@ export async function setPreferredMachine(
     if (!compatible[exerciseId]?.includes(equipmentInstanceId)) throw new MachineNotAtGymError();
   }
   if (gymInstanceIds.length > 0) {
+    // Only the choice made here: a custom exercise's own machine is its tie, not a preference,
+    // and Automatic is that machine. Deleted with it, the exercise could never be put on a
+    // machine again.
     await db
       .delete(exerciseEquipmentOptions)
       .where(
         and(
           eq(exerciseEquipmentOptions.userId, userId),
           eq(exerciseEquipmentOptions.exerciseId, exerciseId),
+          eq(exerciseEquipmentOptions.preferenceRank, PREFERRED_RANK),
           inArray(exerciseEquipmentOptions.equipmentInstanceId, gymInstanceIds),
         ),
       );
@@ -327,7 +401,7 @@ export async function setPreferredMachine(
       userId,
       exerciseId,
       equipmentInstanceId,
-      preferenceRank: 0,
+      preferenceRank: PREFERRED_RANK,
       notes: "Preferred machine at this gym",
     });
   }

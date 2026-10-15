@@ -70,6 +70,28 @@ If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
    and the Site URL is used instead. If you ever need to allow-list a URL that does carry a
    query string, end the pattern with `**`.
 
+3. Sidebar → **Authentication** → **Emails** → **Templates**. Change the link in each of these
+   templates so it opens in whatever browser the email is read in:
+
+   | Template             | Link (`href`)                                                               |
+   | -------------------- | --------------------------------------------------------------------------- |
+   | Confirm signup       | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`        |
+   | Reset password       | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`     |
+   | Magic link           | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`        |
+   | Change email address | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` |
+   | Invite user          | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`       |
+
+   Replace the `{{ .ConfirmationURL }}` in each with the link above and leave the rest of the
+   template as it is. The default link only works in the browser that asked for the email: the
+   app keeps half of it as a cookie there. On an iPhone, the app on the home screen keeps its
+   cookies apart from the browser, and Mail opens links in the browser, so a password reset
+   asked for from the app could never be finished; neither could one asked for on a laptop and
+   opened on a phone. A `token_hash` link works anywhere. If a default link is opened in another
+   browser, the sign-in screen says so and asks for a new link from that browser.
+
+   These links are built from the **Site URL** (step 4.2), so it has to be right. A project you
+   only use locally should have `http://localhost:3000` as its Site URL.
+
 ## 5. Configure complete account deletion
 
 **Profile → Delete account** removes the Supabase Auth identity first. Its database cascade
@@ -132,12 +154,75 @@ Your **deployed** database looks after itself; see step 7.
    **Fluid Compute** is enabled for the project too: it keeps an instance alive between requests
    instead of starting a new one for each, which is the difference between a tap answering in a
    fraction of a second and in one to two seconds.
+7. Recommended: keep the app awake between visits with a once-a-minute job on the Supabase
+   project, as described in [Keeping the app awake](#keeping-the-app-awake). Free, and five
+   minutes of setup.
+
+### Keeping the app awake
+
+On the free plan Vercel stops the app's server five to seven minutes after its last request, and
+the next tap waits about a second and a half for a new one ([ADR 0050](docs/decisions/0050-awake-before-the-first-tap.md)).
+Asking for `/warm` every minute keeps one running, with its database connections open and its
+screens loaded. The request should come from the Supabase project: it then leaves from the same
+region as the database, reaches Vercel where your phone does, and keeps the session check in
+front of every page warm too. A pinging service elsewhere (cron-job.org, for instance) keeps only
+the server; a five-minute interval, such as UptimeRobot's free plan, is too close to the five
+minutes after which an instance can stop to be relied on.
+
+In the Supabase dashboard:
+
+1. Sidebar → **Integrations** → **Cron**, and enable it. If it asks for the `pg_net` extension
+   for HTTP requests, enable that too (or **Database → Extensions** → `pg_net`).
+2. **Create job**: name `overload-keep-warm`, schedule `* * * * *` (every minute), type **HTTP
+   Request**, method **GET**, URL `https://<your production domain>/warm`, timeout 10,000 ms.
+   The default timeout is shorter than a server takes to start, which only makes the job's own
+   log report failures; the server is woken either way.
+
+Or, all at once, in **SQL Editor** (replace the domain with yours):
+
+```sql
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
+grant usage on schema cron to postgres;
+grant all privileges on all tables in schema cron to postgres;
+
+-- Every minute; scheduling the same name again replaces the job.
+select cron.schedule(
+  'overload-keep-warm',
+  '* * * * *',
+  $$ select net.http_get(
+       url := 'https://gym-tracker-fawn-omega.vercel.app/warm',
+       timeout_milliseconds := 10000
+     ) $$
+);
+
+-- pg_cron keeps a row for every run and never deletes it: keep two days.
+select cron.schedule(
+  'overload-keep-warm-tidy',
+  '15 3 * * *',
+  $$ delete from cron.job_run_details where end_time < now() - interval '2 days' $$
+);
+```
+
+A few minutes later, check that the answers are 200s:
+
+```sql
+select status_code, timed_out, error_msg, created
+from net._http_response order by created desc limit 5;
+```
+
+`pg_net` keeps each answer for six hours and then deletes it, about 5 MB at any one time. To stop,
+`select cron.unschedule('overload-keep-warm');` and the same for `overload-keep-warm-tidy`. A
+month of pings is under a tenth of the Hobby plan's function invocations and a few percent of
+its CPU. A deploy starts new instances, so the minute after one is cold whatever is scheduled.
 
 ### What a production deploy does to the database
 
 `vercel.json` runs `npm run db:deploy` before the build. It applies any migration the database
 has not seen, then re-seeds the shared library, so the schema and the exercise catalogue can
 never lag behind the code that is about to be served. Neither step touches a row a user owns.
+After the build, `npm run db:deploy:after-build` carries any run skipped from Today while the
+build ran onto the run itself (ADR 0051); it writes nothing when there is none.
 
 If it cannot do that — the database is unreachable, a migration fails — **the build stops and
 nothing is deployed**. The previous deployment keeps serving, which is the right outcome:
@@ -205,12 +290,19 @@ but only if that address is on the **Redirect URLs** list; otherwise it silently
 Links already sent keep pointing wherever they pointed; sign up again, or ask for a fresh
 password reset, once the settings are right.
 
+## If an email link says it was opened in a different browser
+
+The templates still use Supabase's default link (step 4.3). That link can only be finished in
+the browser that asked for the email, which on an iPhone is never the browser Mail opens when
+the request came from the app on the home screen. Change the templates as step 4.3 describes; a link already
+sent will not work, so ask for a new one.
+
 ## Free-tier notes
 
 - Supabase pauses free projects after seven days without any request; the dashboard shows a
   **Restore** button, and data is kept.
 - Vercel Hobby is plenty for a small group of friends.
 - The first tap after a quiet spell can still take a second or two: that is a new server instance
-  starting, not the database. Everything after it, while the instance stays warm, is fast. A
-  monitoring service pinging the sign-in page every few minutes keeps an instance warm for the
-  price of a few requests an hour.
+  starting, not the database. Everything after it, while the instance stays warm, is fast. The
+  once-a-minute job in [Keeping the app awake](#keeping-the-app-awake) keeps one warm; the sign-in
+  page, which this note used to suggest pinging, wakes the server but not the screens behind it.

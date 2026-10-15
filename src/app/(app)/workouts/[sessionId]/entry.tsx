@@ -8,10 +8,11 @@ import { Glyph } from "@/components/ui/glyphs";
 import { Swap } from "@/components/ui/swap";
 import { sanitizeNumberEntry, stepValue } from "@/domain/sets";
 import type { PrescriptionType } from "@/domain/types";
+import { holdFigures } from "@/lib/facts";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
-import { headingText, isWarmup, type EntryHeading } from "./logger-model";
+import { headingText, type EntryHeading } from "./logger-model";
 import type { Ghost, RowState } from "./use-set-rows";
 
 /** The figure a stepper shows, and how: suggested until touched, then ink; empty is a dash. */
@@ -28,6 +29,12 @@ export type EntryField = {
   /** The field's name while it is typed into. */
   inputLabel: string;
   inputMode: "decimal" | "numeric";
+  /**
+   * What typing keeps, where it is more than the keypad offers. Yards are typed on a pad with no
+   * point, but a point brought by a keyboard or a paste stays, for Save to refuse, rather than
+   * being dropped to run the figures together: 27.5 is never 275.
+   */
+  keeps?: "decimal";
   max: number;
   min: number;
   step: number;
@@ -178,7 +185,7 @@ export function Entry({
                   {
                     [field.field]: sanitizeNumberEntry(
                       event.target.value,
-                      field.inputMode,
+                      field.keeps ?? field.inputMode,
                       field.max,
                     ),
                   },
@@ -216,9 +223,11 @@ export function Entry({
               </button>
             )}
           </span>
-          {field.hint && <span className="stepper-hint">{field.hint}</span>}
+          {/* A target is a range held at its dash and to its unit, which a folded column at
+              large text would otherwise break as "22–" over "44 yd". */}
+          {field.hint && <span className="stepper-hint">{holdFigures(field.hint)}</span>}
           {field.foldHint && (
-            <span className="stepper-hint stepper-hint-fold">{field.foldHint}</span>
+            <span className="stepper-hint stepper-hint-fold">{holdFigures(field.foldHint)}</span>
           )}
         </span>
         <button
@@ -258,7 +267,8 @@ export function Entry({
               {heading.of !== null && <span className="text-ink-2"> of {heading.of}</span>}
             </Swap>
           </h2>
-          {tag && !isWarmup(row.setType) && (
+          {/* Warm-up or work, the tag stands wherever the set has a suggestion of its own. */}
+          {tag && (
             <button
               type="button"
               aria-haspopup="dialog"

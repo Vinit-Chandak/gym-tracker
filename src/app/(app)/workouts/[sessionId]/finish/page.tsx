@@ -7,10 +7,14 @@ import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { formatSets } from "@/domain/sets";
+import { isLeftOpen } from "@/domain/left-open";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
+import { setLengthFor } from "@/lib/distance-units";
+import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
-import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -44,9 +48,19 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const done = session.exercises.filter((e) => e.sets.length > 0);
   const skipped = session.exercises.filter((e) => e.skippedAt !== null);
   const untouched = session.exercises.filter((e) => e.sets.length === 0 && !e.skippedAt);
-  const totalSets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  // Counted as they are listed, warm-ups aside, as the finished workout counts them.
+  const totalSets = done.reduce((sum, exercise) => sum + workingSetCount(exercise.sets), 0);
+  // A workout left open finishes as of its last set, and Finish says so (owner, 11 October 2026).
+  const lastSetAt = done
+    .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
+    .reduce<Date | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
+  const now = new Date();
+  const asOf =
+    lastSetAt && isLeftOpen(session.startedAt, lastSetAt, now)
+      ? formatTimeOrDateTime(lastSetAt, profile.timeZone, todayInTimeZone(profile.timeZone, now))
+      : null;
 
-  const title = session.day?.name ?? UNPLANNED_SESSION;
+  const title = sessionName(session.day?.name, session.title);
 
   // Board Finish: what the session recorded and what it did not, then the notes and the day's
   // body weight. A page that ends the session closes back to it rather than going back.
@@ -73,11 +87,18 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
               {done.map((exercise) => (
                 <li key={exercise.id} className="record-row">
                   <span className="record-row-name">{exercise.exercise.name}</span>{" "}
+                  {/* The sets' figures in Jost, whose zero is plain; "kg" and "×" in Atkinson. */}
                   <span className="record-row-sets">
-                    {formatSets(
-                      exercise.sets.map((set) => setInUnit(set, exercise.equipment?.unit ?? unit)),
-                      (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
-                    )}
+                    <Figures>
+                      {formatSets(
+                        exercise.sets.map((set) =>
+                          setInUnit(set, exercise.equipment?.unit ?? unit),
+                        ),
+                        (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
+                        loadReadingOf(exercise.exercise, exercise.equipment?.ladder?.assisted),
+                        setLengthFor(profile),
+                      )}
+                    </Figures>
                   </span>
                 </li>
               ))}
@@ -115,7 +136,9 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         <FinishForm
           userId={user.id}
           sessionId={sessionId}
-          nothingLogged={totalSets === 0}
+          // A warm-up is something logged all the same: only an empty workout is told so.
+          nothingLogged={done.length === 0}
+          asOf={asOf}
           action={finishSessionAction.bind(null, sessionId)}
           unit={unit}
           initialBodyWeight={

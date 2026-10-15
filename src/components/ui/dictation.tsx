@@ -233,7 +233,7 @@ export function DictationButton({
       aria-pressed={listening}
       aria-label={listening ? `Stop dictating ${label}` : `Dictate ${label}`}
       className={cn(
-        "flex size-11 items-center justify-center rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
+        "flex size-[var(--ov-target)] items-center justify-center rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
         listening
           ? "bg-accent text-on-accent"
           : "bg-surface-raised text-ink-muted hover:text-ink active:bg-surface",
@@ -302,7 +302,7 @@ export function SpeechTextarea({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className={cn(
-            "min-h-24 w-full min-w-0 resize-y rounded-control border border-line-strong bg-surface px-3 py-3 text-[length:var(--ov-text-input)] leading-snug text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none",
+            "min-h-24 w-full min-w-0 resize-y rounded-control border border-line-strong bg-surface p-[calc(12*var(--ov-u))] text-[length:var(--ov-text-input)] leading-snug text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none",
             dictation.supported && "pb-14",
           )}
         />

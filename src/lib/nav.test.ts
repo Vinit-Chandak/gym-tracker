@@ -2,10 +2,13 @@ import { expect, it } from "vitest";
 import {
   isNavItemActive,
   NAV_ITEMS,
+  NAV_ORIGINS,
   originPath,
   originQuery,
   parseOrigin,
   sectionLabel,
+  workoutBackPath,
+  workoutOrigin,
   type NavOrigin,
 } from "./nav";
 
@@ -14,7 +17,9 @@ it.each([
   ["/workouts/session/check-in", "/today"],
   // The check-in before a workout, which has no session yet, is Today's too.
   ["/workouts/start", "/today"],
-  ["/training/activities/abc", "/training"],
+  // A record opened with no origin is History's, inside Progress, as its Back is (NAV-03).
+  ["/workouts/abc", "/progress"],
+  ["/training/activities/abc", "/progress"],
   // Gyms left the tab bar; its screens keep Profile selected, the way it is reached.
   ["/gyms", "/profile"],
   ["/gyms/gym/equipment/new", "/profile"],
@@ -22,7 +27,7 @@ it.each([
   ["/exercises/bench", "/profile"],
   ["/profile/programme", "/profile"],
   ["/u/phani03", "/profile"],
-  // A meal's page is the Food tab's; History is a section of Progress (ADR 0034).
+  // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
   ["/food/breakfast", "/food"],
   // So are My foods, a meal kept in it, and the targets (ADR 0035).
@@ -44,13 +49,19 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/gyms/abc/equipment/new")).toBe("Gyms");
   expect(sectionLabel("/workouts/abc")).toBe("Workout");
   expect(sectionLabel("/profile")).toBe("Profile");
-  expect(sectionLabel("/u/phani03")).toBe("People");
+  // A person's page has no section name: "People" is another page, the list you follow them from.
+  // What links to their page names them; Comparing with them is a page with a name of its own.
+  expect(sectionLabel("/u/phani03")).toBeUndefined();
+  expect(sectionLabel("/u/phani03/activities/abc")).toBeUndefined();
+  expect(sectionLabel("/u/phani03/compare?sport=running")).toBe("Compare");
+  expect(sectionLabel("/u/phani03/compare/bench")).toBe("Compare");
+  expect(sectionLabel("/u/compare")).toBeUndefined();
   // A meal's page goes back to the Food tab.
   expect(sectionLabel("/food")).toBe("Food");
   // My foods is a screen of Food's with a name of its own (ADR 0035); Targets is Food's.
   expect(sectionLabel("/food/my-foods")).toBe("My foods");
   expect(sectionLabel("/food/targets")).toBe("Food");
-  // History is a section of Progress with a page, and a name, of its own.
+  // History is a page of Progress's with a name of its own.
   expect(sectionLabel("/progress/history")).toBe("History");
   expect(sectionLabel("/progress/history?from=2026-09-01")).toBe("History");
   expect(sectionLabel("/progress?view=strength")).toBe("Progress");
@@ -76,10 +87,11 @@ it("puts Training where Runs was, and Food where History was", () => {
 
 it.each([
   ["/training", "/training"],
-  ["/training/activities/abc", "/training"],
+  ["/training/new", "/training"],
   ["/training/programme", "/training"],
-  // The strength logger is opened from Today's card and keeps Today selected.
+  // The session's own pages are Today's, where a workout is started and finished.
   ["/workouts/abc/check-in", "/today"],
+  ["/workouts/abc/add-exercise", "/today"],
 ])("keeps one shared tab selected for %s", (pathname, expected) => {
   expect(
     NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href)).map(({ href }) => href),
@@ -98,6 +110,33 @@ it("accepts only the origins it knows, and never an arbitrary destination", () =
   expect(originPath("programme")).toBe("/training/programme");
 });
 
+it("sends a finished workout back to History unless its link names where it was opened", () => {
+  expect(workoutBackPath(null, true)).toBe("/progress/history");
+  expect(sectionLabel(workoutBackPath(null, true))).toBe("History");
+  expect(workoutBackPath("today", true)).toBe("/today");
+  expect(workoutBackPath("shared", true)).toBe("/profile/friends");
+  // Opened from an exercise's page and loaded again, it goes back to Exercises, where that is.
+  expect(sectionLabel(workoutBackPath("exercises", true))).toBe("Exercises");
+  // The open workout is Today's, wherever it was opened from.
+  expect(workoutBackPath(null, false)).toBe("/today");
+  expect(workoutBackPath("history", false)).toBe("/today");
+});
+
+const selected = (pathname: string, origin: NavOrigin | null = null) =>
+  NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, origin)).map(({ href }) => href);
+
+it.each([null, ...NAV_ORIGINS])("lights the tab a record's Back leads into (%s)", (origin) => {
+  // A finished workout and a logged run, ride or swim, with their link's origin or none.
+  expect(selected("/workouts/abc", origin)).toEqual(selected(workoutBackPath(origin, true)));
+  expect(selected("/training/activities/abc", origin)).toEqual(selected(originPath(origin)));
+  // A finished workout's edit's Add exercise keeps the tab the workout lit, its link naming none
+  // included; the open workout's is Today's.
+  expect(selected("/workouts/abc/add-exercise", workoutOrigin(origin, true))).toEqual(
+    selected("/workouts/abc", origin),
+  );
+  expect(selected("/workouts/abc/add-exercise", workoutOrigin(null, false))).toEqual(["/today"]);
+});
+
 it.each<[string, NavOrigin, string]>([
   // A finished workout opened from History keeps History's tab, Progress, and so does its
   // exercise.
@@ -106,7 +145,13 @@ it.each<[string, NavOrigin, string]>([
   // Correcting a run opened from History does not move you to Training.
   ["/training/activities/abc/edit", "history", "/progress"],
   ["/training/activities/abc", "programme", "/training"],
+  // Opened from Today's card, a finished workout or a logged run keeps Today selected.
+  ["/workouts/abc", "today", "/today"],
+  ["/training/activities/abc", "today", "/today"],
   ["/workouts/abc", "shared", "/profile"],
+  // Year audit, October 2026: a workout opened from an exercise's graph lit Progress while its
+  // Back went to the exercise, which is Profile's. The exercise's tab stays selected.
+  ["/workouts/abc", "exercises", "/profile"],
 ])("keeps %s under the tab its link names (%s)", (pathname, origin, expected) => {
   expect(
     NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, origin)).map(({ href }) => href),

@@ -2,7 +2,7 @@ import { and, asc, eq, ne, or, sql } from "drizzle-orm";
 
 import { profileDirectory } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { normaliseUsername } from "@/domain/username";
+import { isEmailQuery, normaliseUsername } from "@/domain/username";
 
 /** A person as the directory shows them: nothing an account keeps to itself. */
 export type DirectoryProfile = typeof profileDirectory.$inferSelect;
@@ -46,6 +46,23 @@ export async function getDirectoryProfile(
 }
 
 /**
+ * One person by id, or null: how the signed-in user finds their own row. Their username comes
+ * from a profile cached for up to a minute, which a rename on another device leaves behind;
+ * by then the old name finds nobody, or whoever has since claimed it.
+ */
+export async function getDirectoryProfileById(
+  tx: DbOrTx,
+  id: string,
+): Promise<DirectoryProfile | null> {
+  const [row] = await tx
+    .select()
+    .from(profileDirectory)
+    .where(eq(profileDirectory.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
  * The exact-email lookup: one person, only if they allow being found this way, and never the
  * address itself. Runs as `security definer` in the database, which is what keeps a wrong
  * guess from confirming anything.
@@ -71,9 +88,9 @@ function escapeLike(value: string): string {
 }
 
 /**
- * Finds people (plan §3.4). A query with `@` in it is an exact email; anything else matches
- * the start of a username or the start of any word of a display name, case-insensitively,
- * twenty at most, never the viewer.
+ * Finds people (plan §3.4). A query shaped like an email is an exact email; anything else,
+ * a handle typed with its `@` included, matches the start of a username or the start of any
+ * word of a display name, case-insensitively, twenty at most, never the viewer.
  */
 export async function searchDirectory(
   tx: DbOrTx,
@@ -82,11 +99,14 @@ export async function searchDirectory(
 ): Promise<DirectoryProfile[]> {
   const trimmed = query.trim();
   if (trimmed === "") return [];
-  if (trimmed.includes("@")) {
+  if (isEmailQuery(trimmed)) {
     const person = await findByEmail(tx, trimmed);
     return person && person.id !== viewerId ? [person] : [];
   }
-  const prefix = `${escapeLike(trimmed.toLowerCase())}%`;
+  // "@alice" is how the app writes alice's handle everywhere, so it is searched as "alice".
+  const name = normaliseUsername(trimmed);
+  if (name === "") return [];
+  const prefix = `${escapeLike(name)}%`;
   return tx
     .select()
     .from(profileDirectory)

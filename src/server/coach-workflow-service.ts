@@ -87,7 +87,7 @@ function startReplan(
   });
 }
 
-/** Called only after the existing coach service's constant-time bearer authentication. */
+/** Called only by authenticated coach transports, which choose the trusted provider. */
 export async function handleCoachWorkflow(
   db: Db,
   request: Request,

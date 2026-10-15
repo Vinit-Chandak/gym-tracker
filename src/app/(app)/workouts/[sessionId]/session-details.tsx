@@ -4,25 +4,37 @@ import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatSleep } from "@/lib/format";
 import { formatBodyWeight } from "@/lib/units";
 
 import type { SessionVM } from "./view-model";
 
-export const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
-  ["sleepHours", "Sleep (h)"],
-  ["sleepQuality", "Sleep quality"],
-  ["energy", "Energy"],
-  ["fatigue", "Fatigue"],
-  ["soreness", "Soreness"],
+/**
+ * The check-in's readings, each with what its number is counted in: hours, or the check-in's
+ * 1–5 scale (docs/check-in.md), written "/ 5" as Progress writes it, so a 2 reads as two of five.
+ */
+export const CHECK_IN_LABELS: [keyof SessionVM, string, string][] = [
+  ["sleepHours", "Sleep", "h"],
+  ["sleepQuality", "Sleep quality", "/ 5"],
+  ["energy", "Energy", "/ 5"],
+  ["fatigue", "Fatigue", "/ 5"],
+  ["soreness", "Soreness", "/ 5"],
 ];
+
+/**
+ * A check-in reading as it is said: a night's sleep as every other time is ("7 h 45 min", not
+ * "7.75 h"), an answer on its scale ("2 / 5").
+ */
+export function checkInReading(key: keyof SessionVM, value: number, unit: string): string {
+  return key === "sleepHours" ? formatSleep(value) : `${value} ${unit}`;
+}
 
 /** One fact: its name in ink 2 at the gutter, what it is in ink at the end, on a hair rule. */
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-3 border-b border-hair py-1.5">
       <dt className="text-ink-2">{label}</dt>
-      <dd className="text-right font-semibold [overflow-wrap:anywhere] tabular-nums">
+      <dd className="text-right font-semibold [overflow-wrap:break-word] tabular-nums">
         <Figures>{value}</Figures>
       </dd>
     </div>
@@ -45,9 +57,10 @@ export function SessionDetails({
   session: SessionVM;
   readOnly: boolean;
 }) {
-  const readings = CHECK_IN_LABELS.map(([key, label]) => [label, session[key]] as const).filter(
-    ([, value]) => value !== null && value !== undefined,
-  );
+  const readings = CHECK_IN_LABELS.flatMap(([key, label, unit]) => {
+    const value = session[key];
+    return typeof value === "number" ? [[label, checkInReading(key, value, unit)] as const] : [];
+  });
   const durationMinutes = session.completedAt
     ? Math.round(
         (new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 60_000,
@@ -58,7 +71,10 @@ export function SessionDetails({
     <Sheet open={open} onClose={onClose} title="Session details">
       <dl className="type-meta">
         <Row label="Gym" value={session.gym.name} />
-        <Row label="Started" value={formatDateTime(session.startedAt, session.timeZone)} />
+        <Row
+          label="Started"
+          value={formatDateTime(session.startedAt, session.timeZone, session.today.slice(0, 4))}
+        />
         {durationMinutes !== null && <Row label="Duration" value={`${durationMinutes} min`} />}
         {session.day && <Row label="Programme day" value={session.day.name} />}
         {/* "Cycle 1 of 8", as everywhere else the cycle is said. */}
@@ -94,7 +110,7 @@ export function SessionDetails({
         ) : (
           <dl className="mt-1 type-meta">
             {readings.map(([label, value]) => (
-              <Row key={label} label={label} value={String(value)} />
+              <Row key={label} label={label} value={value} />
             ))}
           </dl>
         )}

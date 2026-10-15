@@ -1,6 +1,11 @@
 "use server";
 
-import { EFFORT_INPUT_VERSION, EFFORT_REFRESH_MESSAGE, effortError } from "@/domain/effort";
+import {
+  EFFORT_INPUT_VERSION,
+  EFFORT_REFRESH_MESSAGE,
+  effortError,
+  RPE_SCALE,
+} from "@/domain/effort";
 
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -13,23 +18,25 @@ import { profiles } from "@/db/schema";
 import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
+import { isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { SKIP_CHECK_IN } from "@/lib/check-in";
+import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
 import { getRequestProfile, profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
-import { addGymFallback } from "@/server/repositories/fallbacks";
+import { rememberSlotFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
 import {
   completeRestSlotsBefore,
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
-  reopenSkippedSession,
+  returnRestDaysPassedBy,
+  skipSlotPart,
 } from "@/server/repositories/schedule";
 import {
   addExercisesToSession,
@@ -38,11 +45,13 @@ import {
   ExerciseHasSetsError,
   finishSession,
   getInProgressSession,
-  logSet,
+  getSessionRecord,
   saveCheckIn,
+  saveSet,
   removeSupersetGroup,
   saveSupersetGroup,
   SessionFinishedError,
+  SessionLockedError,
   SetConflictError,
   SessionHasSetsError,
   SessionNotFoundError,
@@ -55,6 +64,7 @@ import {
   startAdHocSession,
   startPlannedSession,
   substituteExercise,
+  type FinishInput,
   type SessionSet,
 } from "@/server/repositories/sessions";
 import {
@@ -108,7 +118,11 @@ function refreshSession(): void {
 }
 
 function describe(error: unknown): string {
-  if (error instanceof SessionFinishedError || error instanceof SessionHasSetsError)
+  if (
+    error instanceof SessionFinishedError ||
+    error instanceof SessionLockedError ||
+    error instanceof SessionHasSetsError
+  )
     return error.message;
   if (error instanceof SupersetGroupError) return error.message;
   if (error instanceof WorkoutSelectionError) return error.message;
@@ -177,16 +191,20 @@ async function startPlanned(
       ? fromCycleIndex
       : null;
   // A run still owed on a combined day must not make its completed lift pending again.
+  //
+  // A skipped day stays skipped while its workout is open: finishing the workout is what turns
+  // the skip into a completion (recordSlotEvent), so one discarded before a set leaves the day
+  // as it was, reason and all, instead of putting it back in front of the sequence.
   const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
   if (cycleIndex === null) return null;
-  if (shown !== null) {
-    await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
-  }
-  // Passing rest days and starting the session write different rows; both land or neither.
-  const [, { sessionId }] = await Promise.all([
-    completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),
-    startPlannedSession(tx, user.id, { gymId, programDayId, cycleIndex }),
-  ]);
+  const { sessionId } = await startPlannedSession(tx, user.id, {
+    gymId,
+    programDayId,
+    cycleIndex,
+  });
+  // In the same transaction as the session, so both land or neither. The rest days passed name
+  // the workout that passed them, which is what lets a discard give them back.
+  await completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today, sessionId);
   return { sessionId, created: true };
 }
 
@@ -251,7 +269,8 @@ const skipSlotSchema = z.object({
 
 /**
  * Marks one half of the pending occurrence of a day as skipped on purpose: the workout, or
- * the run. A day that does both keeps the other half, which is still owed.
+ * the run. A day that does both keeps the other half, which is still owed. The run is skipped
+ * on its sessions, so it reads skipped everywhere it is shown (`skipSlotPart`).
  */
 export async function skipSlotAction(
   dayIndex: number,
@@ -270,15 +289,10 @@ export async function skipSlotAction(
     if (!schedule) return { ok: false, error: "No active programme." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, part);
     if (cycleIndex === null) return { ok: false, error: "That day has nothing left to skip." };
-    await recordSlotEvent(
-      tx,
-      user.id,
-      schedule.program.id,
-      { cycleIndex, dayIndex },
-      part,
-      "skipped",
-      { occurredOn: todayInTimeZone(profile.timeZone), note: parsed.data.reason },
-    );
+    await skipSlotPart(tx, user.id, schedule.program, { cycleIndex, dayIndex }, part, {
+      occurredOn: todayInTimeZone(profile.timeZone),
+      note: parsed.data.reason,
+    });
     // Nobody will train what is left of this slot, so the coach's plan for it goes with it.
     if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === part)) {
       await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
@@ -341,6 +355,18 @@ export async function setWarmupCompletedAction(
   return { ok: true };
 }
 
+/** A figure within its bounds, refused in the app's own words rather than the validator's. */
+function bounded(message: string, min: number, max: number, integer = false) {
+  const number = z.number({ error: message });
+  return (integer ? number.int({ error: message }) : number)
+    .min(min, { error: message })
+    .max(max, { error: message });
+}
+
+/** A set's figure, from 0: "Enter reps from 0 to 1000." */
+const setFigure = (what: string, max: number, integer = false) =>
+  bounded(`Enter ${what} from 0 to ${max}.`, 0, max, integer);
+
 const logSetSchema = z
   .object({
     effortInputVersion: z.literal(EFFORT_INPUT_VERSION, { error: EFFORT_REFRESH_MESSAGE }),
@@ -351,12 +377,12 @@ const logSetSchema = z
     workoutExerciseId: z.uuid(),
     setIndex: z.number().int().min(1).max(50),
     setType: z.enum(SET_TYPES),
-    weight: z.number().min(0).max(SET_LIMITS.weight).nullable(),
-    reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable(),
-    rir: z.number().min(0).max(SET_LIMITS.rir).nullable(),
-    rpe: z.number().min(1).max(SET_LIMITS.rpe).nullable().default(null),
-    durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable(),
-    distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
+    weight: setFigure("a load", SET_LIMITS.weight).nullable(),
+    reps: setFigure("reps", SET_LIMITS.reps, true).nullable(),
+    rir: setFigure("RIR", SET_LIMITS.rir).nullable(),
+    rpe: bounded(RPE_SCALE, 1, SET_LIMITS.rpe).nullable().default(null),
+    durationSeconds: setFigure("seconds", SET_LIMITS.durationSeconds, true).nullable(),
+    distanceMeters: setFigure("metres", SET_LIMITS.distanceMeters).nullable().default(null),
   })
   .refine(
     (value) =>
@@ -378,8 +404,13 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
   const effortIssue = effortError(parsed.data);
   if (effortIssue) return { ok: false, error: effortIssue };
   try {
-    const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
+    const { set, finished } = await withUser(getDb(), user.id, (tx) =>
+      saveSet(tx, user.id, parsed.data),
+    );
     // No render comes back with the set; the browser takes it from the reply (see refreshSession).
+    // A finished workout changed after the fact is the exception (ADR 0049): History, the day
+    // and the records card read it too, and none of them take part in set changes.
+    if (finished) refreshSession();
     return { ok: true, set: { ...set, completedAt: set.completedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -393,10 +424,12 @@ export async function deleteSetAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) =>
+    const { finished } = await withUser(getDb(), user.id, (tx) =>
       deleteSet(tx, user.id, workoutExerciseId, setIndex, expectedCompletedAt),
     );
-    // As for a saved set, the browser takes the deletion from the reply (see refreshSession).
+    // As for a saved set, the browser takes the deletion from the reply (see refreshSession), and
+    // a finished workout's other screens are read again.
+    if (finished) refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -584,12 +617,15 @@ const substituteSchema = z.object({
   remember: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
 });
 
-/** Manual substitution from the picker; optionally remembered as a fallback at this gym. */
+/**
+ * Manual substitution from the picker; optionally remembered as a fallback at this gym, for the
+ * exercise the row's programme slot plans.
+ */
 export async function substituteExerciseAction(
   sessionId: string,
   workoutExerciseId: string,
   gymId: string,
-  plannedExerciseId: string | null,
+  programExerciseId: string | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -604,14 +640,10 @@ export async function substituteExerciseAction(
         equipmentInstanceId: parsed.data.equipmentInstanceId,
         reason: "Chosen during the session",
       });
-      if (
-        parsed.data.remember &&
-        plannedExerciseId &&
-        plannedExerciseId !== parsed.data.exerciseId
-      ) {
-        await addGymFallback(tx, user.id, {
+      if (parsed.data.remember && programExerciseId) {
+        await rememberSlotFallback(tx, user.id, {
           gymId,
-          exerciseId: plannedExerciseId,
+          programExerciseId,
           fallbackExerciseId: parsed.data.exerciseId,
           fallbackEquipmentInstanceId: parsed.data.equipmentInstanceId,
         });
@@ -656,9 +688,13 @@ const addExercisesSchema = z
  * is minted once per form, and a retry after a lost reply finds its receipt, adds nothing again
  * and still lands on the workout; the same key with another selection is refused. The form keeps
  * its selection in its own state, so nothing here echoes values back.
+ *
+ * A finished workout still in its week of changes (ADR 0049) lands back in its edit, opened from
+ * where it was opened: `origin` is checked like any input, since a bound argument can be changed.
  */
 export async function addExercisesAction(
   sessionId: string,
+  origin: NavOrigin | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -674,21 +710,28 @@ export async function addExercisesAction(
     exerciseId,
     equipmentInstanceId: machineIds[index] ?? null,
   }));
+  let finished: boolean;
   try {
-    await withUser(getDb(), user.id, (tx) =>
-      submitWorkoutOnce(
+    finished = await withUser(getDb(), user.id, async (tx) => {
+      await submitWorkoutOnce(
         tx,
         user.id,
         submissionKey,
         { kind: "add-exercises", sessionId, items },
         () => addExercisesToSession(tx, user.id, sessionId, items),
-      ),
-    );
+      );
+      return (await getSessionRecord(tx, user.id, sessionId))?.completedAt != null;
+    });
   } catch (error) {
     return { formError: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}?added=${items.length}`);
+  const from = parseOrigin(origin ?? undefined);
+  redirect(
+    finished
+      ? `/workouts/${sessionId}?${from ? `${ORIGIN_PARAM}=${from}&` : ""}${EDIT_PARAM}=1&added=${items.length}`
+      : `/workouts/${sessionId}?added=${items.length}`,
+  );
 }
 
 /**
@@ -706,6 +749,8 @@ const finishSchema = z
     ),
     unit: z.enum(BODY_LOAD_UNITS).catch("kg"),
     bodyWeight: optionalNumber(0, 2000, false),
+    // Sent by a Finish that says "as of" a workout's last set, for one left open.
+    asOf: z.literal("last-set").optional().catch(undefined),
   })
   .transform((values, ctx) => {
     const bodyWeightKg =
@@ -718,8 +763,66 @@ const finishSchema = z
       });
       return z.NEVER;
     }
-    return { notes: values.notes, bodyWeightKg };
+    return { notes: values.notes, bodyWeightKg, asOfLastSet: values.asOf === "last-set" };
   });
+
+/**
+ * Finishes the session and records what that means beyond it: the day's body weight, and the
+ * programme's day done.
+ */
+async function finishAndRecord(
+  user: SessionUser,
+  sessionId: string,
+  input: FinishInput,
+): Promise<void> {
+  await withUser(getDb(), user.id, async (tx) => {
+    const [profile, finished] = await Promise.all([
+      ensureProfile(tx, user),
+      finishSession(tx, user.id, sessionId, input),
+    ]);
+    const today = todayInTimeZone(profile.timeZone);
+    // Weighing yourself is part of finishing, so the reading is dated now rather than when
+    // the session started: a session that ran past midnight was still weighed today.
+    if (input.bodyWeightKg !== null) {
+      await recordBodyWeight(tx, user.id, {
+        measuredOn: today,
+        weightKg: input.bodyWeightKg,
+      });
+    }
+    // Only the lifting half of the day. A day that also runs still owes its run, and the
+    // sequence stays on it until that is logged or skipped in its own right.
+    //
+    // Dated by when the session started, not when it finished, as the session's own
+    // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
+    // that evening's; dating it by the finish made the next morning's Today say the day
+    // had been done that morning, and hold back the day that was actually up next.
+    //
+    // A skipped day trained after all, from Train another day, is still skipped until now;
+    // the completion replaces the skip.
+    if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
+      await recordSlotEvent(
+        tx,
+        user.id,
+        finished.programId,
+        { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
+        "session",
+        "completed",
+        {
+          occurredOn: todayInTimeZone(profile.timeZone, finished.startedAt),
+          workoutSessionId: sessionId,
+        },
+      );
+    }
+  });
+}
+
+/**
+ * The summary, once (board Summary). A workout is finished in Today's layer over the tabs, so the
+ * summary names Today as where it was opened, and the past workout its Edit becomes is Today's
+ * and goes back there, not to History (NAV-03).
+ */
+const summaryPath = (sessionId: string) =>
+  `/workouts/${sessionId}?${ORIGIN_PARAM}=today&finished=1` as const;
 
 export async function finishSessionAction(
   sessionId: string,
@@ -730,44 +833,12 @@ export async function finishSessionAction(
   const parsed = parseForm(finishSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
-    await withUser(getDb(), user.id, async (tx) => {
-      const [profile, finished] = await Promise.all([
-        ensureProfile(tx, user),
-        finishSession(tx, user.id, sessionId, parsed.data),
-      ]);
-      const today = todayInTimeZone(profile.timeZone);
-      // Weighing yourself is part of finishing, so the reading is dated now rather than when
-      // the session started: a session that ran past midnight was still weighed today.
-      if (parsed.data.bodyWeightKg !== null) {
-        await recordBodyWeight(tx, user.id, {
-          measuredOn: today,
-          weightKg: parsed.data.bodyWeightKg,
-        });
-      }
-      // Only the lifting half of the day. A day that also runs still owes its run, and the
-      // sequence stays on it until that is logged or skipped in its own right.
-      //
-      // Dated by when the session started, not when it finished, as the session's own
-      // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
-      // that evening's; dating it by the finish made the next morning's Today say the day
-      // had been done that morning, and hold back the day that was actually up next.
-      if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
-        await recordSlotEvent(
-          tx,
-          user.id,
-          finished.programId,
-          { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
-          "session",
-          "completed",
-          {
-            occurredOn: todayInTimeZone(profile.timeZone, finished.startedAt),
-            workoutSessionId: sessionId,
-          },
-        );
-      }
-    });
+    await finishAndRecord(user, sessionId, parsed.data);
   } catch (error) {
-    return { formError: describe(error), values: formValues(formData) };
+    // Finish pressed again after its first reply was lost: the workout is finished, which is
+    // what was asked, so it goes on to the summary rather than stopping at a refusal.
+    if (!(error instanceof SessionFinishedError))
+      return { formError: describe(error), values: formValues(formData) };
   }
   // The reading may have moved the profile's own body weight.
   if (parsed.data.bodyWeightKg !== null) {
@@ -776,7 +847,23 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
-  redirect(`/workouts/${sessionId}?finished=1`);
+  redirect(summaryPath(sessionId));
+}
+
+/**
+ * "Finish it as of 19:30", from Today or the workout (owner, 11 October 2026): a workout left
+ * open finishes as of its last set, with nothing more asked, and lands on its summary.
+ */
+export async function finishLeftOpenAction(sessionId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await finishAndRecord(user, sessionId, { notes: null, bodyWeightKg: null, asOfLastSet: true });
+  } catch (error) {
+    // As for Finish: pressed again after a lost reply, it was done the first time.
+    if (!(error instanceof SessionFinishedError)) return { ok: false, error: describe(error) };
+  }
+  revalidateSession(sessionId);
+  redirect(summaryPath(sessionId));
 }
 
 const supersetSchema = z.object({
@@ -822,12 +909,21 @@ export async function removeSupersetAction(
   return { ok: true };
 }
 
+/**
+ * Throws away a workout nothing was logged in, and with it what its start did to the
+ * programme: the rest days it passed are owed again, as they were before it. A skipped day it
+ * was training was never taken back, so it simply stays skipped.
+ */
 export async function discardSessionAction(sessionId: string): Promise<ActionResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) => discardSession(tx, user.id, sessionId));
+    await withUser(getDb(), user.id, async (tx) => {
+      await discardSession(tx, user.id, sessionId);
+      await returnRestDaysPassedBy(tx, user.id, sessionId);
+    });
   } catch (error) {
-    return { ok: false, error: describe(error) };
+    // Discard pressed again after its first reply was lost: the session is gone, as asked.
+    if (!(error instanceof SessionNotFoundError)) return { ok: false, error: describe(error) };
   }
   revalidateSession(sessionId);
   // Today says once that it is gone (DiscardedNote).
@@ -868,6 +964,51 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
     if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === "session")) {
       await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
     }
+    return { ok: true };
+  });
+  if (result.ok) revalidateSession();
+  return result;
+}
+
+/**
+ * "Pick up from today" (owner, 11 October 2026): every training day the calendar has passed
+ * without an answer is skipped, part by part, and the rest days among them are passed, so the
+ * sequence resumes at the day the programme has for today. Nothing from today on is touched, and
+ * every skip stays in the programme as one; History lists only what was done. Refused while a
+ * workout is open, since that workout is answering one of those days.
+ */
+export async function pickUpFromTodayAction(
+  _previous: ActionResult,
+  _formData: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const result = await withUser(getDb(), user.id, async (tx): Promise<ActionResult> => {
+    const [profile, schedule, open] = await Promise.all([
+      ensureProfile(tx, user),
+      getSchedule(tx, user.id),
+      getInProgressSession(tx, user.id),
+    ]);
+    if (!schedule) return { ok: false, error: "No active programme." };
+    if (open) return { ok: false, error: "Finish or discard the open workout first." };
+    const today = todayInTimeZone(profile.timeZone);
+    const startDate = schedule.program.startDate ?? today;
+    const { skip, rest } = pickUpFromToday(schedule.state, startDate, today);
+    // A day's run is skipped on its sessions, so the programme and the coach's adherence both
+    // read it skipped rather than one skipped and the other still owed (`skipSlotPart`).
+    for (const { ref, part } of skip)
+      await skipSlotPart(tx, user.id, schedule.program, ref, part, {
+        occurredOn: today,
+        note: "Picked up from today",
+      });
+    // A passed rest day is dated by its own day, so it never reads as finished today.
+    for (const { ref, date } of rest)
+      await recordSlotEvent(tx, user.id, schedule.program.id, ref, "session", "completed", {
+        occurredOn: date,
+        note: "Rest day passed",
+      });
+    const skippedSlots = new Map(skip.map(({ ref }) => [`${ref.cycleIndex}:${ref.dayIndex}`, ref]));
+    for (const ref of skippedSlots.values())
+      await voidPlanForSlot(tx, user.id, schedule.program.id, ref);
     return { ok: true };
   });
   if (result.ok) revalidateSession();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AiCoachSettings } from "./ai-coach-settings";
 
@@ -70,4 +70,27 @@ it("lists what the coach knows as facts, one a line", () => {
     "Easy runs finish short.",
   ]);
   expect(screen.queryByText(/read separately/)).toBeNull();
+});
+
+it("keeps a note being typed when the page is drawn again for the switch", () => {
+  const props = {
+    workflow: true,
+    enabled: true,
+    status: null,
+    notes: [],
+    overview: "",
+    attempts: [],
+  };
+  const { container, rerender } = render(<AiCoachSettings {...props} noteId="first" />);
+  const note = screen.getByRole("textbox", { name: "Notes for the coach" }) as HTMLTextAreaElement;
+  fireEvent.change(note, { target: { value: "Knee is sore after lunges." } });
+  // Saving the switch refreshes the page, which comes back with a new id for the next note.
+  rerender(<AiCoachSettings {...props} enabled={false} noteId="second" />);
+  expect(
+    (screen.getByRole("textbox", { name: "Notes for the coach" }) as HTMLTextAreaElement).value,
+  ).toBe("Knee is sore after lunges.");
+  // The note still goes under the id its form was opened with.
+  expect((container.querySelector('input[name="noteId"]') as HTMLInputElement | null)?.value).toBe(
+    "first",
+  );
 });

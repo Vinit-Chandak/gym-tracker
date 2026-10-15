@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { PRESCRIBED_EFFORT } from "./activity-limits";
-import { PRESCRIPTION_TYPES } from "./types";
+import { CYCLE_REPEATS, PRESCRIPTION_TYPES } from "./types";
 
 /**
  * A programme described as portable data instead of database rows.
@@ -154,6 +154,12 @@ export const programBlueprintSchema = z
     // what to do rather than reporting the shape of the value that was missing.
     name: z.string().min(1, "Name your programme.").max(120),
     weeks: z.number().int().min(1, "Set how many weeks it runs.").max(52),
+    /**
+     * How the cycle repeats (`cycle-repeat.ts`). Absent means not chosen: a new programme
+     * takes the one its days suggest, and a later version keeps the one before it — which, for
+     * a programme that predates the choice, is none.
+     */
+    repeats: z.enum(CYCLE_REPEATS).optional(),
     notes: z.string().max(2000).default(""),
     days: z.array(blueprintDaySchema).min(1, "Add at least one day.").max(31),
     runs: z.array(blueprintRunSchema).max(200).default([]),

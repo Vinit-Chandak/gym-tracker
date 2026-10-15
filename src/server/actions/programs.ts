@@ -14,10 +14,8 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { assertNoOpenWorkout, CoachingError } from "@/server/repositories/coaching-state";
 import { profileChanged } from "@/server/queries/request-profile";
-import {
-  createProgramFromBlueprint,
-  MissingReferenceDataError,
-} from "@/server/repositories/programs";
+import { adoptProgramme } from "@/server/repositories/program-drafts";
+import { MissingReferenceDataError } from "@/server/repositories/programs";
 import { civilDate } from "@/server/validation/date-range";
 
 export type AdoptProgramState = { error?: string };
@@ -51,7 +49,7 @@ export async function adoptProgramTemplateAction(
       const profile = await ensureProfile(tx, user);
       const startDate = parsed.data.startDate ?? todayInTimeZone(profile.timeZone);
       await assertNoOpenWorkout(tx, user.id);
-      await createProgramFromBlueprint(tx, user.id, template.blueprint, { startDate });
+      await adoptProgramme(tx, user.id, template.blueprint, { startDate });
       // Adopting a programme finishes setup without requiring optional coaching details.
       if (parsed.data.finishOnboarding && profile.onboardedAt === null) {
         await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));

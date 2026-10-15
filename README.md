@@ -35,10 +35,10 @@ Weights and heights are stored once, in kilograms and centimetres, and read back
 units the account chose — pounds and feet, or kilograms and centimetres. Body weight is a
 running record rather than a single field: finishing a session with a weight, or changing it on
 the profile, writes that day's reading, the profile always shows the newest one, and
-**Progress → Body** draws the trend.
+**Progress → Body weight** draws the trend.
 
 The only thing shipped with the app is shared reference data: the equipment catalogue (92 kinds
-of machine), the exercise library (268 movements, every muscle group covered), warm-up protocols
+of machine), the exercise library (376 movements, every muscle group covered), warm-up protocols
 and the programme templates. It is one library, readable by everybody and owned by nobody, so a
 new account has all of it on day one and adds only what its own gyms have. Nothing is seeded per
 person.
@@ -46,6 +46,12 @@ person.
 Each exercise says how it is counted — reps, seconds held, or metres covered — so a farmer's
 carry asks for a distance and a plank for a time. Rep-based sets record reps in reserve (RIR);
 timed sets and carries record perceived effort (RPE), including in completed workout history.
+
+A finished workout can be mended for a week after its day: open it (from **Progress → History**,
+the calendar or Today), tap **Edit**, and every exercise opens to change, add or delete its sets,
+with **Add exercise** for one nobody logged. Each change saves as it is made, and History,
+Progress, records and what friends see follow it. After the week it is read only
+([ADR 0049](docs/decisions/0049-a-week-to-mend-a-finished-workout.md)).
 
 - [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
@@ -69,7 +75,8 @@ The fifth tab is **Profile**: who you are, then everything that used to be Setti
   what a follower would see.
 - **Compare**: you against a friend, head to head — both muscle splits on one radar, a bar
   pair per number for the period, and every comparable exercise you both did, each opening a
-  comparison of that movement with the day each best was set and both trends on one chart.
+  comparison of that movement with the day each best was set and both lines on one graph, over
+  the span every graph shares, each point opening the workout behind it.
 - **Leaderboard**: you and the people you follow, ranked on a period's totals or on the
   all-time bests of one movement, with "per kg of body weight" rankings once two of you share
   your weight. Equal values share a rank; whoever has nothing for a metric reads "—".
@@ -126,6 +133,7 @@ need the Supabase values from `SETUP.md`.
 | `npm run db:seed`                  | Seed the shared library (no gyms, machines or programmes)                        |
 | `npm run db:setup`                 | `db:migrate` followed by `db:seed`                                               |
 | `npm run db:deploy`                | What a production deploy runs: migrate, then seed the library                    |
+| `npm run db:deploy:after-build`    | What a production deploy runs after the build: carry Today's run skips onto runs |
 | `npm run db:backfill:shared-stats` | Rewrite friends' shared stats from history (idempotent; `db:deploy` ran it once) |
 | `npm run db:studio`                | Drizzle Studio against the configured database                                   |
 
@@ -151,7 +159,7 @@ src/
     (onboarding)/welcome/       the four first-run steps
     (app)/                      the five tabs behind the shared shell
       today/ training/ food/ progress/ profile/
-      progress/history/           History, one of Progress's sections
+      progress/history/           History: every entry, behind Overview's latest ten
       profile/friends/            friends, leaderboard, compare; profile/privacy/
       u/[username]/               a person's page and the head-to-head comparisons
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...
@@ -228,6 +236,10 @@ as the **Food** tab, where History used to be; History is now a section of **Pro
 [0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md),
 [0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md) and
 [0037](docs/decisions/0037-any-day-on-the-food-tab.md).
+
+**Progress → Food** draws calories and protein a day over any span, against today's target, each
+average taken over the days something was logged; a bar opens its day
+([ADR 0042](docs/decisions/0042-one-graph-for-every-trend.md)).
 
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.

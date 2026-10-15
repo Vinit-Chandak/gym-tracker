@@ -5,6 +5,7 @@
 @import "../styles/form-v2/session.css";
 @import "../styles/form-v2/rows.css";
 @import "../styles/form-v2/progress.css";
+@import "../styles/form-v2/graph.css";
 @import "../styles/form-v2/food.css";
 @import "../styles/form-v2/training.css";
 @import "../styles/form-v2/people.css";
@@ -25,6 +26,9 @@
   --color-surface-2: var(--ov-surface-2);
   --color-surface-control: var(--ov-surface-control);
   --color-surface-control-pressed: var(--ov-surface-control-pressed);
+  --color-surface-control-on-surface: var(--ov-surface-control-on-surface);
+  --color-tray: var(--ov-tray);
+  --color-waiting: var(--ov-waiting);
   --color-ink-2: var(--ov-ink-2);
   --color-control: var(--ov-control);
   --color-hair: var(--ov-hair);
@@ -123,6 +127,12 @@
   --radius-card: var(--ov-radius-card);
   --radius-control: var(--ov-radius-control);
   --radius-sheet: var(--ov-radius-sheet);
+
+  /*
+   * Tailwind's own scale (p-4, gap-3, size-11…) grows with the design's lengths on wide screens
+   * (ADR 0052): an eighth larger at 1440 px and wider, exactly as before on a phone.
+   */
+  --spacing: calc(0.25rem + var(--ov-fluid) * 0.5);
 
   --text-xs: var(--ov-text-label);
   --text-xs--line-height: 1.3;
@@ -258,40 +268,40 @@
  * Glyphs grow with the reader's text by half, as figures do: 20 pt at 100%, 30 at 200%.
  */
 @utility glyph-14 {
-  width: calc(7px + 0.4375rem);
-  height: calc(7px + 0.4375rem);
+  width: calc(calc(7 * var(--ov-u)) + 0.4375rem);
+  height: calc(calc(7 * var(--ov-u)) + 0.4375rem);
 }
 @utility glyph-15 {
-  width: calc(7.5px + 0.46875rem);
-  height: calc(7.5px + 0.46875rem);
+  width: calc(calc(7.5 * var(--ov-u)) + 0.46875rem);
+  height: calc(calc(7.5 * var(--ov-u)) + 0.46875rem);
 }
 @utility glyph-16 {
-  width: calc(8px + 0.5rem);
-  height: calc(8px + 0.5rem);
+  width: calc(calc(8 * var(--ov-u)) + 0.5rem);
+  height: calc(calc(8 * var(--ov-u)) + 0.5rem);
 }
 @utility glyph-18 {
-  width: calc(9px + 0.5625rem);
-  height: calc(9px + 0.5625rem);
+  width: calc(calc(9 * var(--ov-u)) + 0.5625rem);
+  height: calc(calc(9 * var(--ov-u)) + 0.5625rem);
 }
 @utility glyph-20 {
-  width: calc(10px + 0.625rem);
-  height: calc(10px + 0.625rem);
+  width: calc(calc(10 * var(--ov-u)) + 0.625rem);
+  height: calc(calc(10 * var(--ov-u)) + 0.625rem);
 }
 @utility glyph-22 {
-  width: calc(11px + 0.6875rem);
-  height: calc(11px + 0.6875rem);
+  width: calc(calc(11 * var(--ov-u)) + 0.6875rem);
+  height: calc(calc(11 * var(--ov-u)) + 0.6875rem);
 }
 @utility glyph-24 {
-  width: calc(12px + 0.75rem);
-  height: calc(12px + 0.75rem);
+  width: calc(calc(12 * var(--ov-u)) + 0.75rem);
+  height: calc(calc(12 * var(--ov-u)) + 0.75rem);
 }
 @utility glyph-26 {
-  width: calc(13px + 0.8125rem);
-  height: calc(13px + 0.8125rem);
+  width: calc(calc(13 * var(--ov-u)) + 0.8125rem);
+  height: calc(calc(13 * var(--ov-u)) + 0.8125rem);
 }
 @utility glyph-30 {
-  width: calc(15px + 0.9375rem);
-  height: calc(15px + 0.9375rem);
+  width: calc(calc(15 * var(--ov-u)) + 0.9375rem);
+  height: calc(calc(15 * var(--ov-u)) + 0.9375rem);
 }
 /* A figure inside words keeps Jost's tabular lining digits without the role's size. */
 @utility figures {
@@ -317,6 +327,31 @@
   --panel-padding: var(--ov-panel-padding);
   --section-gap: var(--ov-section-gap);
   --content-width: var(--ov-content-max);
+  /* A screen that is a set of cards or sections, laid out in columns when there is room. */
+  --content-width-wide: var(--ov-content-max);
+  /* Sheets rise over the page at a phone's width; a little wider beyond one. */
+  --sheet-width: 32rem;
+}
+
+/*
+ * Size classes (ADR 0052), named as the native apps will name them: compact under 600 pt (a
+ * phone, laid out as DESIGN.md draws it), medium to 1024 (a tablet, or a phone on its side:
+ * the tab bar stays), expanded beyond (the navigation becomes a rail). Reading and form
+ * screens widen a little; screens of cards and sections widen a lot and fold into columns.
+ */
+@media (width >= 600px) {
+  :root {
+    --content-width: 44rem;
+    --content-width-wide: 62rem;
+    --sheet-width: 36rem;
+  }
+}
+@media (width >= 64rem) {
+  :root {
+    --content-width: 46rem;
+    --content-width-wide: 78rem;
+    --sheet-width: 38rem;
+  }
 }
 
 @layer base {
@@ -413,7 +448,7 @@
 
   legend {
     max-width: 100%;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   /*
@@ -478,6 +513,37 @@
   padding-right: max(var(--page-gutter), env(safe-area-inset-right));
 }
 
+/*
+ * A link set in a line of text, where a full-height target would open the line: its target
+ * reaches the platform's size above and below the words without moving them (44 pt, 48 dp on
+ * Android). Not sideways, where the next link in the line is.
+ */
+@utility tap-area {
+  position: relative;
+  &::after {
+    position: absolute;
+    inset: min(0px, (1lh - var(--ov-target)) / 2) 0;
+    content: "";
+  }
+}
+
+/* A screen of cards and sections: as wide as the size class allows (ADR 0052). */
+@utility page-wide {
+  --content-width: var(--content-width-wide);
+}
+
+/*
+ * Cards and sections in columns where there is room: one on a phone, two on a tablet, three on
+ * a wide desktop. The minimum is in rem, so larger text means fewer, wider columns rather than
+ * squeezed ones; `min(100%, …)` keeps a single column inside a phone's width.
+ */
+@utility adaptive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  gap: var(--ov-space-12);
+  align-items: start;
+}
+
 @utility page-stack {
   :where(& > :not(:last-child)) {
     margin-block-end: var(--section-gap);
@@ -512,6 +578,11 @@
   background: var(--ov-surface);
   padding: var(--ov-space-3);
   box-shadow: var(--ov-nav-shadow);
+  /* On a surface, as in a box: Back keeps its shape beside Next, and Next while it waits. */
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
 }
 
 /*
@@ -528,12 +599,22 @@
 /*
  * A box: the grouping for anything that belongs together. A shared hairline keeps its
  * boundary visible in both palettes, including when it sits on another surface.
+ *
+ * What stands on it steps a tone off it (DESIGN.md, Neutral), or it would be the box's own
+ * fill: in light a tonal button is the surface, so Save under a select read as a stray word,
+ * a segmented tray left its unchosen words bare, and Saving… lost its button. A tray and a
+ * waiting button take surface 2, and a tonal or round button its on-surface fill (surface 2 in
+ * light; in dark it is lifted already).
  */
 @utility box {
   min-width: 0;
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
 }
 
 /* Icon dimensions follow the viewport and text size independently of the hit target. */
@@ -572,6 +653,11 @@
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+  /* What stands on it steps a tone off it, as in a box. */
+  --ov-tray: var(--ov-surface-2);
+  --ov-waiting: var(--ov-surface-2);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
   :where(& > * + *) {
     border-top: 1px solid var(--ov-line);
   }
@@ -606,8 +692,43 @@ html:has(.app-content) {
 html:has(.pinned-actions) {
   scroll-padding-bottom: calc(
     var(--nav-reserve) + var(--session-chrome-height, 0px) + var(--pinned-actions-height, 0px) +
-      24px
+      calc(24 * var(--ov-u))
   );
+}
+
+/*
+ * The offline notice (connectivity.tsx), the first thing in the page, held at the top of the
+ * screen as it scrolls. Where the page runs under the status bar it pads for the bar itself,
+ * so its words are never under the clock or the Dynamic Island, and it gives that padding back
+ * underneath: the header that follows pads for the bar too, and starts where the words end
+ * rather than a status bar lower.
+ *
+ * A workout is a layer over the page, under notices, so the notice would cover its header:
+ * Back, the rest and More could not be reached offline, which is when a basement gym needs
+ * them. While the notice shows, the layer starts its header under the notice's measured
+ * height (--connectivity-height) instead of under the status bar.
+ */
+.connectivity {
+  position: sticky;
+  top: 0;
+  z-index: var(--ov-z-notice);
+  margin-bottom: calc(-1 * env(safe-area-inset-top));
+  padding: calc(env(safe-area-inset-top) + 0.5rem) max(1rem, env(safe-area-inset-right)) 0.5rem
+    max(1rem, env(safe-area-inset-left));
+}
+html:has(.connectivity) {
+  scroll-padding-top: calc(
+    var(--header-height) + max(env(safe-area-inset-top), var(--connectivity-height, 0px)) + 1rem
+  );
+}
+html:has(.connectivity) .session-layer {
+  padding-top: max(env(safe-area-inset-top), var(--connectivity-height, 0px));
+}
+html:has(.connectivity) .session-layer[data-spill="true"] {
+  padding-top: 0;
+}
+html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
+  padding-top: max(env(safe-area-inset-top), var(--connectivity-height, 0px));
 }
 
 /*
@@ -626,8 +747,8 @@ html:has(.pinned-actions) {
   inset: auto 0 0 0;
   z-index: var(--ov-z-nav);
   height: var(--nav-height);
-  padding: 2px max(6px, env(safe-area-inset-right)) var(--nav-foot)
-    max(6px, env(safe-area-inset-left));
+  padding: 2px max(calc(6 * var(--ov-u)), env(safe-area-inset-right)) var(--nav-foot)
+    max(calc(6 * var(--ov-u)), env(safe-area-inset-left));
   border-top: 1px solid var(--ov-hair);
   background: var(--ov-ground);
 }
@@ -665,8 +786,10 @@ html:has(.pinned-actions) {
 
 .nav-items {
   display: grid;
+  max-width: 40rem;
   height: var(--ov-target);
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-inline: auto;
 }
 
 /* The tap target: the whole cell, so nothing between two tabs is dead space. */
@@ -677,7 +800,7 @@ html:has(.pinned-actions) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: calc(3 * var(--ov-u));
   color: var(--ov-ink-2);
   user-select: none;
 }
@@ -687,13 +810,13 @@ html:has(.pinned-actions) {
 /* The glyphs and labels keep their size at large text, as the system's tab bars do; the
    targets grow. */
 .nav-glyph {
-  width: 24px;
-  height: 24px;
+  width: calc(24 * var(--ov-u));
+  height: calc(24 * var(--ov-u));
 }
 .nav-label {
   max-width: 100%;
   overflow: hidden;
-  font-size: min(var(--ov-type-tab), 15px);
+  font-size: min(var(--ov-type-tab), calc(15 * var(--ov-u)));
   font-weight: 600;
   line-height: 1;
   text-overflow: ellipsis;
@@ -764,6 +887,7 @@ html:has(.pinned-actions) {
   }
   .nav-items {
     display: flex;
+    max-width: none;
     height: auto;
     flex-direction: column;
     gap: 0.375rem;
@@ -785,6 +909,14 @@ html:has(.pinned-actions) {
     font-size: var(--ov-type-meta);
   }
   .navigation-progress {
+    left: 12rem;
+  }
+  /* Pinned actions and the session strip stand over the content, beside the rail rather than
+     under it, from the rail's own 12rem, so both share the page's column. Not Tailwind's
+     left-48, which grows with its scale on a wide screen (ADR 0052): it stood the strip 12 px
+     right of the actions over it. */
+  .pinned-actions,
+  .session-chrome {
     left: 12rem;
   }
 }
@@ -817,7 +949,9 @@ html:has(.pinned-actions) {
   .pinned-actions {
     position: sticky;
     bottom: var(--session-chrome-height, 0px);
-    margin-top: 24px;
+    margin-top: calc(24 * var(--ov-u));
+    /* At the foot of a landscape phone, clear of the home indicator. */
+    padding-bottom: max(calc(12 * var(--ov-u)), env(safe-area-inset-bottom, 0px));
   }
   /* In the page's flow, inside its gutters, they reach back out to them: the ground runs edge to
      edge and the actions keep the page's one left edge. */
@@ -872,7 +1006,7 @@ dialog.sheet {
   inset: auto 0 var(--sheet-bottom, 0px) 0;
   margin: 0 auto;
   width: 100%;
-  max-width: 32rem;
+  max-width: var(--sheet-width);
   max-height: var(--sheet-height, 90dvh);
   border: 0;
   padding: 0;
@@ -914,8 +1048,9 @@ dialog.sheet[open]::backdrop {
   display: flex;
   flex-direction: column;
   max-height: var(--sheet-height, 90dvh);
-  padding: 8px max(var(--ov-gutter), env(safe-area-inset-right))
-    calc(env(safe-area-inset-bottom) + 16px) max(var(--ov-gutter), env(safe-area-inset-left));
+  padding: calc(8 * var(--ov-u)) max(var(--ov-gutter), env(safe-area-inset-right))
+    calc(env(safe-area-inset-bottom) + calc(16 * var(--ov-u)))
+    max(var(--ov-gutter), env(safe-area-inset-left));
   border-radius: var(--ov-radius-sheet) var(--ov-radius-sheet) 0 0;
   background: var(--ov-ground);
 }
@@ -932,7 +1067,7 @@ dialog.sheet[open]::backdrop {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 10px;
+  column-gap: calc(10 * var(--ov-u));
 }
 .sheet-head:has(> .sheet-head-lead) {
   grid-template-columns: auto minmax(0, 1fr) auto;

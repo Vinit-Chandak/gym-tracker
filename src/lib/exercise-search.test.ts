@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EXERCISE_ALIASES } from "@/db/seed/data/exercise-aliases";
 import { EXERCISES } from "@/db/seed/data/exercises";
 
-import { exerciseSections, matchesExerciseQuery, searchExercises } from "./exercise-search";
+import { exerciseSections, likeOf, matchesExerciseQuery, searchExercises } from "./exercise-search";
 
 const latPulldown = {
   name: "Lat pulldown",
@@ -76,6 +76,25 @@ describe("exercise search", () => {
     expect(names(searchExercises(library, "lat")?.byName ?? [])).toContain("Lateral raise machine");
   });
 
+  it.each([
+    ["bench presses", "Barbell bench press"],
+    ["leg presses", "45° leg press"],
+    ["shoulder presses", "Shoulder press machine"],
+    ["crunches", "Crunch"],
+    ["flyes", "Dumbbell chest fly"],
+    // On its way to "bench presses", the word is no longer the start of "press".
+    ["bench presse", "Barbell bench press"],
+  ])("reads %j as the plural it is", (query, name) => {
+    expect(names(searchExercises(library, query)?.byName ?? [])).toContain(name);
+  });
+
+  it("keeps a word that only ever took an s", () => {
+    expect(names(searchExercises(library, "lateral raises")?.byName ?? [])).toContain(
+      "Lateral raise machine",
+    );
+    expect(names(searchExercises(library, "lunges")?.byName ?? []).length).toBeGreaterThan(0);
+  });
+
   it("lists exercises for a muscle after the names that mention it, primary movers first", () => {
     const results = searchExercises(library, "biceps");
     // A name match is the name or one of the names it goes by.
@@ -94,5 +113,50 @@ describe("exercise search", () => {
     expect(exerciseSections(library, "")[0]?.key).not.toBe("name");
     expect(exerciseSections(library, "pullup").map((s) => s.title)).toEqual(["Best matches"]);
     expect(exerciseSections([latPulldown], "biceps").map((s) => s.key)).toEqual(["other"]);
+  });
+
+  it("opens a swap on the same movement, each exercise listed once", () => {
+    const squat = library.find((e) => e.slug === "low-bar-squat")!;
+    expect(squat.movementPattern).toBe("squat");
+    const sections = exerciseSections(library, "", squat);
+    // A squat's swap began at the chest exercises; it begins at the squats and leg presses.
+    expect(sections[0]).toMatchObject({ key: "like", title: "Same movement" });
+    expect(names(sections[0]!.items)).toEqual(
+      expect.arrayContaining(["Front squat", "Hack squat", "45° leg press"]),
+    );
+    expect(sections[0]!.items.every((e) => e.movementPattern === "squat")).toBe(true);
+    const listed = sections.flatMap((section) => section.items);
+    expect(listed).toHaveLength(library.length);
+    expect(new Set(listed).size).toBe(library.length);
+    // A search ranks as ever, and nothing alike leaves the library as it was.
+    expect(exerciseSections(library, "curl", squat).map((s) => s.key)).not.toContain("like");
+    expect(exerciseSections(library, "", { movementPattern: "none such" })).toEqual(
+      exerciseSections(library, ""),
+    );
+  });
+
+  it("lists the same movement closest first: the equipment, the muscles, then the name", () => {
+    // Alphabetically a low-bar squat's swap read the leg press, the thruster and the belt squat
+    // before the high-bar, the safety-bar and the pause squat.
+    const squat = library.find((e) => e.slug === "low-bar-squat")!;
+    // The swap lists every exercise but the one it replaces.
+    const others = library.filter((e) => e !== squat);
+    const same = names(exerciseSections(others, "", likeOf(squat))[0]!.items);
+    expect(same.slice(0, 2)).toEqual(["High-bar barbell squat", "Safety-bar squat"]);
+    expect(same.indexOf("Pause squat")).toBeLessThan(same.indexOf("Front squat"));
+    // Another barbell squat before any squat on other equipment, and a squat that works the
+    // same muscles before a thruster that adds the shoulders.
+    const barbell = same.filter(
+      (name) => library.find((e) => e.name === name)!.modality === "barbell",
+    );
+    expect(same.slice(0, barbell.length)).toEqual(barbell);
+    expect(same.indexOf("Front squat")).toBeLessThan(same.indexOf("Barbell thruster"));
+    // Equal in every way, the library's own order stands.
+    const boxAndZercher = same.filter((name) => name === "Box squat" || name === "Zercher squat");
+    expect(boxAndZercher).toEqual(["Box squat", "Zercher squat"]);
+    // With only the movement known, the list is as it was.
+    expect(names(exerciseSections(library, "", { movementPattern: "squat" })[0]!.items)).toEqual(
+      names(library.filter((e) => e.movementPattern === "squat")),
+    );
   });
 });

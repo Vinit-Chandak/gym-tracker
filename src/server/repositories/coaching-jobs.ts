@@ -34,7 +34,6 @@ import {
   programDrafts,
   programDays,
   plannedOccurrences,
-  occurrenceVersions,
   activities,
   programs,
   sessionPlans,
@@ -533,9 +532,37 @@ export async function supersedeJob(db: DbOrTx, job: CoachJob, reason: string, no
     );
 }
 
+/**
+ * Whether an occurrence's preparation was queued against an earlier version of the programme
+ * that is running now.
+ *
+ * It answers for the occurrence, not for the version, and a revision carries every occurrence
+ * it does not change forward as it was. Refusing it as a changed programme superseded it, and
+ * its key — one per occurrence and revision — then kept the next night from queueing it again,
+ * so a run due in the next two days went unprepared over a change to some other day. Whether
+ * the occurrence itself changed is checked on its own below.
+ */
+async function sameProgrammeLineage(
+  db: DbOrTx,
+  userId: string,
+  job: CoachJob,
+  active: { familyId: string } | null,
+): Promise<boolean> {
+  if (!active || !job.target.occurrenceId || !job.target.programId) return false;
+  const [queuedFor] = await db
+    .select({ familyId: programs.familyId })
+    .from(programs)
+    .where(and(eq(programs.userId, userId), eq(programs.id, job.target.programId)))
+    .limit(1);
+  return queuedFor?.familyId === active.familyId;
+}
+
 async function targetMismatch(db: DbOrTx, userId: string, job: CoachJob): Promise<string | null> {
   const active = await getActiveProgram(db, userId);
-  if ((active?.id ?? null) !== job.target.programId)
+  if (
+    (active?.id ?? null) !== job.target.programId &&
+    !(await sameProgrammeLineage(db, userId, job, active))
+  )
     return "Your programme changed while this request was waiting.";
   const preferences = await getCoachingPreferences(db, userId);
   if (job.intakeId && job.intakeId !== preferences?.intakeId)
@@ -1096,20 +1123,23 @@ export async function programmeSports(
     if (day.includesLifting) sports.add("strength");
     if (day.includesRun) sports.add("running");
   }
+  // The programme's lineage rather than this one version: a revision carries the work it does
+  // not change forward without rewriting it, so a version's own revisions are only what it
+  // changed, and a ride-only sport fell out of review coverage at the first change elsewhere.
   const occurrenceSports = await db
     .selectDistinct({ sport: plannedOccurrences.sport })
     .from(plannedOccurrences)
     .innerJoin(
-      occurrenceVersions,
+      programs,
       and(
-        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
-        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+        eq(programs.familyId, plannedOccurrences.familyId),
+        eq(programs.userId, plannedOccurrences.userId),
       ),
     )
     .where(
       and(
         eq(plannedOccurrences.userId, userId),
-        eq(occurrenceVersions.programVersionId, programId),
+        eq(programs.id, programId),
         ne(plannedOccurrences.disposition, "cancelled"),
       ),
     );
@@ -1325,8 +1355,12 @@ export async function enqueueOccurrencePreparations(
   const queued: string[] = [];
   for (const occurrence of occurrences) {
     // Only the active programme's work is coached. Standalone scheduled activities are the
-    // athlete's own, and adding one to the programme is an explicit act (SCHED-08).
-    if (!occurrence.programVersionId || occurrence.programVersionId !== active?.id) continue;
+    // athlete's own, and adding one to the programme is an explicit act (SCHED-08). Asked by
+    // lineage, not version: a revision carries a run it leaves unchanged forward on the
+    // revision an earlier version wrote, and matching the version stopped preparing every
+    // such run from the first change the athlete approved.
+    if (!active || occurrence.familyId === null || occurrence.familyId !== active.familyId)
+      continue;
     const dedupeKey = `occurrence:${occurrence.id}:${occurrence.revisionId}${replanSuffix(options)}`;
     // A re-plan replaces whatever preparation of this session is still waiting.
     if (options.after)

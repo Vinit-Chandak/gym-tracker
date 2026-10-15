@@ -51,6 +51,8 @@ export function TokenManager({
     name: string;
     createdAt: string;
     expiresAt: string;
+    /** When it stops working, in the account's time zone: "Sat 9 Jan 2027, 19:00". */
+    expires: string;
     revokedAt: string | null;
     expired: boolean;
   }[];
@@ -101,7 +103,7 @@ export function TokenManager({
               readOnly
               aria-label="New coach token"
               value={state.token}
-              className="min-h-24 w-full rounded-control bg-canvas p-2 font-mono text-sm break-all"
+              className="min-h-24 w-full rounded-control bg-canvas p-[calc(8*var(--ov-u))] font-mono text-sm break-all"
             />
             <div className="flex gap-2">
               <Button
@@ -149,11 +151,7 @@ export function TokenManager({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-ink-muted">
-                    {t.revokedAt
-                      ? "Revoked"
-                      : t.expired
-                        ? "Expired"
-                        : `Expires ${t.expiresAt.slice(0, 10)}`}
+                    {t.revokedAt ? "Revoked" : t.expired ? "Expired" : `Expires ${t.expires}`}
                   </p>
                 </div>
                 {!t.revokedAt && !t.expired && <Revoke id={t.id} />}

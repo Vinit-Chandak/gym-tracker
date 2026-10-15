@@ -94,3 +94,15 @@ it("leaves the coach API and the confirmation link alone", async () => {
   expect((await run("https://overload.example/api/coach/sessions")).status).toBe(200);
   expect((await run("https://overload.example/auth/confirm?token_hash=t")).status).toBe(200);
 });
+
+/**
+ * A keep-warm scheduler has no session (ADR 0050). Sent to the sign-in screen it would wake only
+ * this proxy; the page it asks for is what keeps the instance the next tap lands on running.
+ */
+it("lets the keep-warm page through without a session, after checking for one", async () => {
+  signedOut();
+  const response = await run("https://overload.example/warm");
+  expect(response.status).toBe(200);
+  expect(response.headers.get("location")).toBeNull();
+  expect(auth.getClaims).toHaveBeenCalled();
+});

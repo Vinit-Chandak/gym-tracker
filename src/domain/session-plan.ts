@@ -168,18 +168,28 @@ export type StoredPlanExercise = PlanExercise & {
   slotLineageId: string | null;
 };
 
+/**
+ * Why a workout's exercise is skipped from the start when the coach's plan dropped it and said
+ * nothing of why. The coach's words, not the athlete's: never read back to it as their note.
+ */
+export const COACH_DROP_NOTE = "Left out by the coach's plan";
+
 /** A plan run as stored. The programme run is kept only when it is really in the programme. */
 export type StoredPlanRun = PlanRun;
 
 /** A prepared endurance session as stored, with the sport it was written for. */
 export type StoredPlannedOccurrence = PlannedOccurrence;
 
-/** "25 min · 4 km · Effort 3": the run in one line. */
+/**
+ * "25 min · 4 km · Effort 3 of 5": the run in one line. The effort is on the athlete's own
+ * five steps (`EFFORT`); this line feeds the coach's record of its own plans, and reading a 3
+ * back as "of 10" told it an ordinary run had been an easy one.
+ */
 export function runPlanLine(run: PlanRun): string {
   const parts = [
     run.durationMinutes === null ? null : `${run.durationMinutes} min`,
     run.distanceKm === null ? null : `${run.distanceKm} km`,
-    run.rpe === null ? null : `Effort ${run.rpe} of 10`,
+    run.rpe === null ? null : `Effort ${run.rpe} of ${EFFORT.max}`,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "Easy run";
 }

@@ -1,12 +1,25 @@
 import type { ActivityMetric } from "@/domain/leaderboard";
 import type { FoodUnit } from "@/domain/nutrition";
 import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
+import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
 
-import { formatDuration, formatPace } from "@/domain/pace";
+import { formatHold, formatPace } from "@/domain/pace";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { dateTimeFormatter } from "./date-time-format";
+import {
+  fromMetres,
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  roundTo,
+  setLengthIn,
+  UNIT_LABELS,
+  type LengthUnit,
+  type SetLengthUnit,
+} from "./distance-units";
+import { FACT_SEPARATOR, joinFacts } from "./facts";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
-import { fromKilograms } from "./units";
+import { fromKilograms, loadStepIn } from "./units";
 
 /**
  * The pieces of a formatted date, so a caller can join them itself.
@@ -28,19 +41,29 @@ function dateParts(
   return parts;
 }
 
-/** "Tue 8 Sept, 18:30" in the given IANA time zone. */
-export function formatDateTime(value: string | Date, timeZone: string): string {
+/**
+ * "Tue 8 Sept, 18:30" in the given IANA time zone. Given the year it is now (`currentYear`,
+ * "2026"), a day in another year names it, "Mon 13 Oct 2025, 18:30", so an old record never
+ * reads as one from this year.
+ */
+export function formatDateTime(
+  value: string | Date,
+  timeZone: string,
+  currentYear?: string,
+): string {
   const date = typeof value === "string" ? new Date(value) : value;
   const at = dateParts(date, {
     timeZone,
     weekday: "short",
     day: "numeric",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
-  return `${at.weekday} ${at.day} ${at.month}, ${at.hour}:${at.minute}`;
+  const year = currentYear === undefined || at.year === currentYear ? "" : `\u00a0${at.year}`;
+  return `${at.weekday}\u00a0${at.day}\u00a0${at.month}${year}, ${at.hour}:${at.minute}`;
 }
 
 /** "09:15" in the given time zone. */
@@ -54,10 +77,28 @@ export function formatTime(value: string | Date, timeZone: string): string {
   }).format(date);
 }
 
-/** "8 Sep" in the given time zone. */
-export function formatDay(value: string | Date, timeZone: string): string {
+/** "19:30" when it was `today`, else with its day, "Sat 10 Oct, 19:30", and another year's. */
+export function formatTimeOrDateTime(
+  value: string | Date,
+  timeZone: string,
+  today: string,
+): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return dateTimeFormatter("en-GB", { timeZone, day: "numeric", month: "short" }).format(date);
+  return todayInTimeZone(timeZone, date) === today
+    ? formatTime(date, timeZone)
+    : formatDateTime(date, timeZone, today.slice(0, 4));
+}
+
+/**
+ * "8 Sept" in the given time zone. Given the year it is now (`currentYear`), a day in another
+ * year names it: "17 Nov 2025".
+ */
+export function formatDay(value: string | Date, timeZone: string, currentYear?: string): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const on = dateParts(date, { timeZone, day: "numeric", month: "short", year: "numeric" });
+  return currentYear === undefined || on.year === currentYear
+    ? `${on.day}\u00a0${on.month}`
+    : `${on.day}\u00a0${on.month}\u00a0${on.year}`;
 }
 
 /** A calendar date, read as itself: no time zone shifts it off the day it names. */
@@ -72,35 +113,41 @@ function isoParts(
 
 const ISO_DAY = { day: "numeric", month: "short", year: "numeric" } as const;
 
-/** "Tue 8 Sept 2026" for an ISO date string. */
-export function formatIsoDate(isoDate: string): string {
+/**
+ * "Tue 8 Sept 2026" for an ISO date string, or "Tue 8 Sept" inside `currentYear`: a day that
+ * could be in any year names its year when it is not this one.
+ */
+export function formatIsoDate(isoDate: string, currentYear?: string): string {
   const on = isoParts(isoDate, { weekday: "short", ...ISO_DAY });
-  return on ? `${on.weekday} ${on.day} ${on.month} ${on.year}` : isoDate;
+  if (!on) return isoDate;
+  return isoDate.slice(0, 4) === currentYear
+    ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}`
+    : `${on.weekday}\u00a0${on.day}\u00a0${on.month}\u00a0${on.year}`;
 }
 
 /** "8 Sept 2026" for an ISO date string: the same date without its weekday. */
 export function formatIsoDay(isoDate: string): string {
   const on = isoParts(isoDate, ISO_DAY);
-  return on ? `${on.day} ${on.month} ${on.year}` : isoDate;
+  return on ? `${on.day}\u00a0${on.month}\u00a0${on.year}` : isoDate;
 }
 
 /** "Fri 11 Sept" — today's date beside the wordmark, where the year is never in question. */
 export function formatIsoWeekdayDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "short", day: "numeric", month: "short" });
-  return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
+  return on ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "September", or "September 2025" outside `currentYear`: the month a calendar is turned to. */
 export function formatIsoMonth(month: string, currentYear?: string): string {
   const on = isoParts(`${month}-01`, { month: "long", year: "numeric" });
   if (!on) return month;
-  return month.slice(0, 4) === currentYear ? on.month : `${on.month} ${on.year}`;
+  return month.slice(0, 4) === currentYear ? on.month : `${on.month}\u00a0${on.year}`;
 }
 
 /** "8 Jul", "28 Sept": a day on a chart's axis, where the year is the range's. */
 export function formatIsoShortDay(isoDate: string): string {
   const on = isoParts(isoDate, { day: "numeric", month: "short" });
-  return on ? `${on.day} ${on.month}` : isoDate;
+  return on ? `${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "Feb 2022": a month on a chart's axis that spans years. */
@@ -109,13 +156,13 @@ export function formatIsoShortMonth(isoDate: string): string {
     month: "short",
     year: "numeric",
   });
-  return on ? `${on.month} ${on.year}` : isoDate;
+  return on ? `${on.month}\u00a0${on.year}` : isoDate;
 }
 
 /** "Saturday 26 September": a day named in full, as a calendar's day is read out. */
 export function formatIsoLongDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "long", day: "numeric", month: "long" });
-  return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
+  return on ? `${on.weekday}\u00a0${on.day}\u00a0${on.month}` : isoDate;
 }
 
 /** "M" for a Monday: the letter over a column of days. */
@@ -123,7 +170,10 @@ export function formatIsoWeekdayLetter(isoDate: string): string {
   return isoParts(isoDate, { weekday: "narrow" })?.weekday ?? "";
 }
 
-/** Compact date range, retaining both years when it crosses a year boundary. */
+/**
+ * Compact date range, retaining both years when it crosses a year boundary. Each date is held
+ * whole, so a line breaks only around the dash: "13 Oct 2025 – / 11 Oct 2026".
+ */
 export function formatDateRange(from: string, to: string): string {
   const format = (date: string, year: boolean) =>
     dateTimeFormatter("en-GB", {
@@ -131,7 +181,9 @@ export function formatDateRange(from: string, to: string): string {
       day: "numeric",
       month: "short",
       ...(year ? { year: "numeric" as const } : {}),
-    }).format(new Date(`${date}T00:00:00Z`));
+    })
+      .format(new Date(`${date}T00:00:00Z`))
+      .replace(/\s/g, "\u00a0");
   return from === to
     ? format(to, true)
     : `${format(from, from.slice(0, 4) !== to.slice(0, 4))} – ${format(to, true)}`;
@@ -148,49 +200,88 @@ export function formatRunKm(distanceMeters: number): string {
   return String(Math.round(distanceMeters / 10) / 100);
 }
 
-/** "1 h 12 min" / "48 min". */
-export function formatMinutes(totalMinutes: number): string {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60);
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
-}
-
-/** Kilograms per pound, for turning the library's kg defaults into the reader's unit. */
-const LB_PER_KG = 2.2046226218;
+/*
+ * A figure and its unit, or a count and its noun, are held together by a space that does not
+ * break ("42.5 kg", "12 sets", "× 10"), here and in every formatter like these: a line may wrap
+ * between two facts, never inside one.
+ */
 
 /**
- * A load stored in kilograms, written in the unit the reader prefers: "2.5 kg" or "5.5 lb".
- * Only for the shared library's own defaults — logged sets keep the unit they were logged in.
+ * "1 h 12 min" / "48 min". Rounded to the minute before it is split, so 1:59:40 is "2 h", never
+ * "1 h 60 min". A narrow column breaks between the hours and the minutes, never inside "12 min"
+ * (ADR 0045).
  */
-export function formatKilograms(kilograms: number, unit: "kg" | "lb"): string {
-  if (unit === "kg") return `${kilograms} kg`;
-  return `${Math.round(kilograms * LB_PER_KG * 10) / 10} lb`;
+export function formatMinutes(totalMinutes: number): string {
+  const total = Math.round(totalMinutes);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (hours === 0) return `${minutes}\u00a0min`;
+  return minutes === 0 ? `${hours}\u00a0h` : `${hours}\u00a0h ${minutes}\u00a0min`;
 }
 
-/** "6,240 kg" / "13,757 lb": a shared load in the reader's unit, thousands separated. */
-export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
-  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")} ${unit}`;
+/**
+ * A night's sleep, as every other time is said: "7 h 45 min", never "7.75 h". The check-in takes
+ * it in hours; an average of several nights keeps its tenth of an hour ("7.1 h").
+ */
+export function formatSleep(hours: number): string {
+  return formatMinutes(hours * 60);
+}
+
+/**
+ * A load step the library gives in kilograms, as the jump a reader in `unit` makes: "2.5 kg",
+ * or in pounds the plate jump nearest it, "5 lb". The same step progression moves by
+ * (`loadStepIn`), so the page never names a 5.5 lb jump that nobody can load.
+ */
+export function formatLoadStep(kilograms: number, unit: BodyLoadUnit): string {
+  return `${loadStepIn(kilograms, unit)}\u00a0${unit}`;
+}
+
+/**
+ * "62.5 kg" / "137.8 lb": a shared load in the reader's unit, thousands separated. A load as it
+ * was lifted (`asLifted`) keeps the quarter kilogram a plate makes, "38.75 kg", which a tenth
+ * read as "38.8 kg"; a load lifted in pounds is stored converted (45 lb is 20.41 kg), and those
+ * hundredths are the conversion, so it reads to the tenth, as an estimate and a pound reader do.
+ */
+export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit, asLifted = false): string {
+  const plates = Math.abs(roundTo(kilograms * 4, 6) - Math.round(kilograms * 4)) < 1e-6;
+  const value =
+    asLifted && unit === "kg" && plates ? roundTo(kilograms, 2) : fromKilograms(kilograms, unit);
+  return `${value.toLocaleString("en-GB")}\u00a0${unit}`;
+}
+
+/**
+ * "6,240 kg" / "13,757 lb": a volume (load × reps, summed) in the reader's unit, whole and
+ * thousands separated, as Progress and a finished workout total it. A tenth of a pound in a
+ * six-figure total is the conversion talking, not the training.
+ */
+export function formatVolume(kilograms: number, unit: BodyLoadUnit): string {
+  return `${Math.round(fromKilograms(kilograms, unit)).toLocaleString("en-GB")}\u00a0${unit}`;
 }
 
 /**
  * A shared metric's value as a reader in `unit` should see it (ADR 0026): loads in their
- * unit, reps as a count, holds as a clock, carries in metres.
+ * unit, reps as a count, holds as a set list says them ("45 s", "1:12"), carries in their
+ * length, metres or yards (ADR 0055).
  */
 export function formatSharedMetric(
   metric: SharedMetric,
   value: number,
   unit: BodyLoadUnit,
+  length: SetLengthUnit,
 ): string {
   switch (METRIC_UNIT[metric]) {
     case "kg":
-      return formatSharedLoad(value, unit);
+      // A set's volume is load × reps, read whole as every volume is: 35 lb × 14 is 490 lb,
+      // never the 490.1 lb its kilograms come back as.
+      if (metric === "best_set_volume") return formatVolume(value, unit);
+      // A top weight was lifted; an estimated 1RM is worked out.
+      return formatSharedLoad(value, unit, metric === "top_weight");
     case "reps":
-      return `${value} ${value === 1 ? "rep" : "reps"}`;
+      return `${value}\u00a0${value === 1 ? "rep" : "reps"}`;
     case "seconds":
-      return formatDuration(value);
+      return formatHold(value);
     case "metres":
-      return `${value.toLocaleString("en-GB")} m`;
+      return `${setLengthIn(value, length).toLocaleString("en-GB")}\u00a0${length}`;
   }
 }
 
@@ -199,30 +290,55 @@ export function formatSharedMetric(
  * twelve reps, "4 sets" for a hold or carry that has no reps to count.
  */
 export function formatTopWeightWork(work: { sets: number; reps: number | null }): string {
-  if (work.reps === null) return `${work.sets} ${work.sets === 1 ? "set" : "sets"}`;
-  return `${work.sets} × ${work.reps}`;
+  if (work.reps === null) return `${work.sets}\u00a0${work.sets === 1 ? "set" : "sets"}`;
+  return `${work.sets}\u00a0×\u00a0${work.reps}`;
 }
 
 /** "42.3 km": a period's distance, to a tenth, as the weekly totals on Runs read. */
 export function formatTotalKm(distanceMeters: number): string {
-  return `${Math.round(distanceMeters / 100) / 10} km`;
+  return `${Math.round(distanceMeters / 100) / 10}\u00a0km`;
+}
+
+/** The unit a reader sees each shared sport's distances in; lifting has none to show. */
+export type SharedDistanceUnits = Record<Exclude<TrainingSport, "workout">, LengthUnit>;
+
+/** What a reader who has never chosen sees: road distances in kilometres, swims in metres. */
+export const DEFAULT_DISTANCE_UNITS: SharedDistanceUnits = { run: "km", cycle: "km", swim: "m" };
+
+/**
+ * A shared distance in the reader's own unit: kilometres or miles to `places` decimals — two
+ * for one session, as it was logged, one for a period's total — and metres or yards whole.
+ */
+export function formatSharedDistance(metres: number, unit: LengthUnit, places = 2): string {
+  const whole = unit === "m" || unit === "yd";
+  const value = roundTo(fromMetres(metres, unit), whole ? 0 : places);
+  return `${value.toLocaleString("en-GB", { maximumFractionDigits: whole ? 0 : places })}\u00a0${UNIT_LABELS[unit]}`;
+}
+
+/** "5:25 /km" or "8:43 /mi": a pace stored per kilometre, per the reader's road unit. */
+export function formatSharedPace(secondsPerKm: number | null, unit: LengthUnit): string {
+  if (unit !== "mi") return `${formatPace(secondsPerKm)}\u00a0/km`;
+  const perMile = secondsPerKm === null ? null : (secondsPerKm * METRES_PER_MILE) / METRES_PER_KM;
+  return `${formatPace(perMile)}\u00a0/mi`;
 }
 
 /**
  * A period's total on the leaderboard or a compare row: a count, a time as the other period
- * totals read it, a load in the reader's unit, a distance in kilometres, or a pace.
+ * totals read it, a load in the reader's unit, or a distance or pace in the reader's unit for
+ * the sport.
  */
 export function formatActivityMetric(
   metric: ActivityMetric,
   value: number,
   unit: BodyLoadUnit,
+  distanceUnit: LengthUnit = "km",
 ): string {
   switch (metric) {
     case "workout_time":
     case "time":
       return formatMinutes(value / 60);
     case "volume":
-      return formatSharedLoad(value, unit);
+      return formatVolume(value, unit);
     case "workouts":
     case "working_sets":
     case "active_days":
@@ -231,16 +347,19 @@ export function formatActivityMetric(
     case "sessions":
       return value.toLocaleString("en-GB");
     case "distance":
-      return formatTotalKm(value);
+      return formatSharedDistance(value, distanceUnit, 1);
     case "best_pace":
-      return `${formatPace(value)} /km`;
+      return formatSharedPace(value, distanceUnit);
     // One run, so the distance as it was logged, not rounded to a tenth.
     case "longest_run":
-      return `${formatRunKm(value)} km`;
+      return formatSharedDistance(value, distanceUnit, 2);
   }
 }
 
-/** "Today", "Yesterday", else the weekday and date: how an activity row says when. */
+/**
+ * "Today", "Yesterday", else the weekday and date, with its year when it is not this one: how an
+ * activity row says when.
+ */
 export function formatRelativeDay(isoDate: string, today: string): string {
   if (isoDate === today) return "Today";
   const [y, m, d] = today.split("-").map(Number);
@@ -248,7 +367,7 @@ export function formatRelativeDay(isoDate: string, today: string): string {
     const yesterday = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
     if (isoDate === yesterday) return "Yesterday";
   }
-  return formatIsoWeekdayDay(isoDate);
+  return formatIsoDate(isoDate, today.slice(0, 4));
 }
 
 /**
@@ -264,19 +383,33 @@ export function formatKcal(value: number): string {
   return (Math.round(value * 10) / 10 + 0).toLocaleString("en-GB", { maximumFractionDigits: 1 });
 }
 
+/**
+ * "1001": a food's or a saved meal's energy in a meal page's lists to add from, to the nearest
+ * whole kcal and with no thousands comma, so a column four digits wide holds anything under 9,999.5.
+ * Rounded from the tenth it is stored to, so a sum that lands a hair under a half still goes up
+ * with the half it is: 0.3 + 1.9 + 0.3 is 2.4999999999999996, and 3.
+ */
+export function formatWholeKcal(value: number): string {
+  return String(Math.round(Math.round(value * 10) / 10) + 0);
+}
+
 /** "1,000", "0.5", "1.25": a portion or an amount eaten, to the hundredth it is stored to. */
 export function formatAmount(value: number): string {
   return (Math.round(value * 100) / 100 + 0).toLocaleString("en-GB", { maximumFractionDigits: 2 });
 }
 
 /**
- * "55 / 25 / 20": a split as shares of carbohydrate, fat and protein, in whole percent (ADR
- * 0035). The spaces do not break, so the three numbers never part company at the end of a line.
+ * "Carbs 55% \u00b7 Fat 25% \u00b7 Protein 20%": a split as shares of the day's energy, in whole percent
+ * (ADR 0035), each named, in the order a target's grams are given ("Carbs 373 g \u00b7 Fat 75 g \u00b7
+ * Protein 133 g"). "55 / 25 / 20" said none of which was which, and was read as protein second.
  */
 export function formatSplit(split: { carbs: number; fat: number; protein: number }): string {
-  return [split.carbs, split.fat, split.protein]
-    .map((share) => String(Math.round(share * 100)))
-    .join("\u00a0/\u00a0");
+  const share = (value: number) => `${Math.round(value * 100)}%`;
+  return joinFacts([
+    `Carbs\u00a0${share(split.carbs)}`,
+    `Fat\u00a0${share(split.fat)}`,
+    `Protein\u00a0${share(split.protein)}`,
+  ]);
 }
 
 /** "100 g", "1 scoop", "1.5 scoops": an amount of a food in its own unit (ADR 0033). */
@@ -285,7 +418,11 @@ export function formatPortion(amount: number, unit: FoodUnit): string {
   return `${formatAmount(amount)} ${plural ?? FOOD_UNIT_LABELS[unit]}`;
 }
 
-/** "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known. */
+/**
+ * "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known: each
+ * figure held to its unit and each dot to the macro after it, so a wrapped line breaks before a
+ * dot.
+ */
 export function formatMacros(amounts: {
   carbsG: number | null;
   fatG: number | null;
@@ -298,6 +435,8 @@ export function formatMacros(amounts: {
       ["Protein", amounts.proteinG],
     ] as const
   )
-    .flatMap(([label, grams]) => (grams === null ? [] : [`${label} ${formatFoodAmount(grams)} g`]))
-    .join(" · ");
+    .flatMap(([label, grams]) =>
+      grams === null ? [] : [`${label} ${formatFoodAmount(grams)}\u00a0g`],
+    )
+    .join(FACT_SEPARATOR);
 }

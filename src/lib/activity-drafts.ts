@@ -12,7 +12,10 @@ import { DRAFT_LIMITS } from "@/domain/activity-limits";
  *
  * Nothing here ever discards unsent work to make room. When the account is at its limit the
  * save is refused and the caller says so; the athlete decides what goes. A draft written by a
- * version this build does not understand is quarantined, not guessed at.
+ * version this build does not understand is quarantined, not guessed at. Two things do remove
+ * drafts, both bounds the plan sets (§5.3): age, once a draft is older than
+ * `DRAFT_LIMITS.ageDays` (one reopened in its last week says so first), and signing out, which
+ * takes this account's drafts with it so the next person on the device cannot read them.
  */
 
 export const DRAFT_SCHEMA_VERSION = 1;
@@ -33,6 +36,10 @@ export type ActivityDraft = {
   /** The activity being corrected, and the version this edit was started from. */
   activityId: string | null;
   expectedRevision: number | null;
+  /**
+   * The fields the athlete actually changed from what the form opened with. A field not in
+   * here is the form's own default, and a reopened draft takes the form's default afresh.
+   */
   dirtyFields: string[];
   updatedAt: string;
 };
@@ -228,6 +235,57 @@ export function ageWarnings(
       return [{ draftId: draft.draftId, reason: "expiring" as const, updatedAt: draft.updatedAt }];
     return [];
   });
+}
+
+/**
+ * Removes this account's drafts that have reached the age limit, and says how many went.
+ *
+ * Ninety days unsent is the bound the plan sets, and a draft in its last week says so when it
+ * is reopened (`ageWarnings`). Without this, abandoned drafts filled the account's twenty
+ * places for good and nothing new could be kept.
+ */
+export function expireDrafts(store: DraftStore, userId: string, now: Date = new Date()): number {
+  const expired = new Set(
+    ageWarnings(readDrafts(store, userId).drafts, now)
+      .filter((warning) => warning.reason === "expired")
+      .map((warning) => warning.draftId),
+  );
+  for (const draftId of expired) store.removeItem(draftKey(userId, draftId));
+  return expired.size;
+}
+
+/**
+ * The fields of `values` that differ from what the form opened with. A field the form posts
+ * but the opening values never named counts as unchanged only when it is blank.
+ */
+export function changedFields(
+  values: Record<string, string>,
+  opened: Record<string, string>,
+): string[] {
+  const keys = new Set([...Object.keys(values), ...Object.keys(opened)]);
+  return [...keys].filter((key) => (values[key] ?? "") !== (opened[key] ?? ""));
+}
+
+/** When it started is one answer, in three fields: the time, which of a repeated hour, the zone. */
+const START_FIELDS = ["startedAt", "startedAtOffsetMinutes", "recordedTimeZone"];
+
+/**
+ * A stored draft brought up to date with the form it reopens into.
+ *
+ * What the athlete changed comes back exactly as they left it. What they never touched opens
+ * as the form opens now — above all when it started, which for a new log is now, and which a
+ * draft abandoned on Monday used to carry into Thursday's run and file it under Monday.
+ */
+export function restoreDraft(draft: ActivityDraft, opening: Record<string, string>): ActivityDraft {
+  const dirty = new Set(draft.dirtyFields);
+  const startTouched = START_FIELDS.some((field) => dirty.has(field));
+  const values = { ...draft.values };
+  for (const field of START_FIELDS) if (!startTouched) delete values[field];
+  for (const [key, value] of Object.entries(opening)) {
+    const touched = START_FIELDS.includes(key) ? startTouched : dirty.has(key);
+    if (!touched) values[key] = value;
+  }
+  return { ...draft, values };
 }
 
 /** A fresh draft for a form that has just been opened. */

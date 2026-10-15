@@ -20,19 +20,20 @@ import {
 import type { DbOrTx } from "@/db/types";
 import { bodyLoad } from "@/domain/body-load";
 import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
-import { WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
+import { readAddedLoad, WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   summarizeExerciseEvidence,
   TRAINING_POLICY,
   type EvidencePerformance,
 } from "@/domain/training-evidence";
+import { weightStepFor } from "@/domain/sets";
 import type { LoadUnit } from "@/domain/types";
 import { readPerformance } from "@/domain/warmup-ramp";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 import { existingEvidenceIds } from "./coach-memory";
 import { loadLadders } from "./load-ladders";
-import { prescriptionFor } from "./progression-rule";
+import { prescribedIncrement, prescriptionFor } from "./progression-rule";
 import { readRunActivitiesBetween, type RunActivity } from "./training-data";
 
 /**
@@ -222,6 +223,13 @@ export async function readCoachingEvidence(
     assisted: boolean;
     /** The part of the athlete's body the exercise lifts, in the prescription's unit (ADR 0040). */
     bodyLoad: number;
+    /** What says whether a set saved without a load is the body alone. */
+    modality: string;
+    /**
+     * The jump the load moves by, as the athlete's rule steps it (`applyRule`): in pounds, the
+     * library's and the programme's kilogram steps are plate jumps.
+     */
+    step: number;
     history: Map<string, EvidencePerformance>;
     /**
      * Only part of the retained reference's identity now (ADR 0028): the column is no longer
@@ -234,12 +242,13 @@ export async function readCoachingEvidence(
     const slot = slots.find(
       (s) => s.prescription.lineageId === row.lineageId && s.exercise.id === row.exercise.id,
     );
+    const loadUnit = row.equipment?.unit ?? unit;
     const prescription = prescriptionFor(
       slot?.prescription ?? null,
       row.exercise,
       null,
       row.equipment?.loadIncrement ?? row.exercise.defaultLoadIncrement ?? 2.5,
-      row.equipment?.unit ?? unit,
+      loadUnit,
     );
     if (!prescription) continue;
     // Keep equipment/setup identities even for portable loads; do not infer band or machine equivalence.
@@ -254,6 +263,16 @@ export async function readCoachingEvidence(
         prescription,
         assisted: ASSISTED_EQUIPMENT_TYPES.has(row.equipmentType ?? ""),
         bodyLoad: bodyLoad(row.exercise, profileRows[0]?.bodyWeightKg, prescription.unit),
+        modality: row.exercise.modality,
+        step: prescribedIncrement(
+          slot?.prescription ?? null,
+          weightStepFor({
+            equipmentLoadIncrement: row.equipment?.loadIncrement ?? null,
+            exerciseDefaultIncrement: row.exercise.defaultLoadIncrement,
+            unit: loadUnit,
+          }),
+          loadUnit,
+        ),
         history: new Map(),
         convention: row.equipment?.loadConvention ?? "exercise_log_convention",
       };
@@ -295,19 +314,25 @@ export async function readCoachingEvidence(
     // warm-ups, whatever they were logged as, a back-off after it as a back-off, and a load the
     // session's own plan prescribed as working kept as the work.
     const unit = group.prescription.unit;
-    const history = [...group.history.values()].map((performance) => ({
-      ...performance,
-      sets: readPerformance(performance.sets, {
-        assisted: group.assisted,
-        load: (set) => loadIn(set, unit),
-        planned: (plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []).flatMap(
-          (target) => {
-            const load = loadIn(target, unit);
-            return load === null ? [] : [load];
-          },
-        ),
-      }),
-    }));
+    const history = [...group.history.values()].map((performance) => {
+      const planned = (
+        plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []
+      ).flatMap((target) => {
+        const load = loadIn(target, unit);
+        return load === null ? [] : [load];
+      });
+      return {
+        ...performance,
+        // What the plan asked for that day: never a lighter day or an attempt (ADR 0048).
+        planned,
+        // A bodyweight set saved without a load is the body alone, as the athlete's rule reads it.
+        sets: readPerformance(readAddedLoad(performance.sets, group, group.prescription), {
+          assisted: group.assisted,
+          load: (set) => loadIn(set, unit),
+          planned,
+        }),
+      };
+    });
     const initial = summarizeExerciseEvidence(group.prescription, history, null, {
       assisted: group.assisted,
     });
@@ -347,10 +372,14 @@ export async function readCoachingEvidence(
       })
         ? saved.reference
         : null;
-    // The body a bodyweight movement lifts and the machine's loads are read beside the
-    // prescription, not into it: the prescription is part of the reference's identity above.
-    const read: Prescription =
-      group.bodyLoad > 0 ? { ...group.prescription, bodyLoad: group.bodyLoad } : group.prescription;
+    // The body a bodyweight movement lifts, the step the rule takes and the machine's loads are
+    // read beside the prescription, not into it: the prescription is part of the reference's
+    // identity above.
+    const read: Prescription = {
+      ...group.prescription,
+      loadIncrement: group.step,
+      ...(group.bodyLoad > 0 ? { bodyLoad: group.bodyLoad } : {}),
+    };
     return {
       scope,
       exerciseId: group.exerciseId,

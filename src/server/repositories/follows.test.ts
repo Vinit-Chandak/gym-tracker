@@ -14,7 +14,9 @@ import {
   followState,
   listFollowers,
   listFollowing,
+  listFollowingWhoShare,
   listRequests,
+  listSentRequests,
   removeFollower,
   requestFollow,
   unfollow,
@@ -162,6 +164,21 @@ describe("answering a request", () => {
     ).rejects.toThrow(/only be accepted/);
   });
 
+  it("lists a request among the asker's sent ones until it is answered or withdrawn", async () => {
+    const sent = (id: string) =>
+      as(id)((tx) => listSentRequests(tx, id)).then((people) => people.map((p) => p.username));
+    expect(await sent(alice)).toEqual(["bob"]);
+    // Only the asker's: bob was asked, he sent nothing, and carol sees neither side of it.
+    expect(await sent(bob)).toEqual([]);
+    expect(await sent(carol)).toEqual([]);
+    await as(alice)((tx) => requestFollow(tx, alice, carol));
+    expect(await sent(alice)).toEqual(["carol", "bob"]);
+    // Accepted, it is a follow and no longer waits; withdrawn, it is gone.
+    await as(bob)((tx) => acceptFollow(tx, bob, alice));
+    await as(alice)((tx) => unfollow(tx, alice, carol));
+    expect(await sent(alice)).toEqual([]);
+  });
+
   it("declining deletes the row, so they may ask again", async () => {
     expect((await as(bob)((tx) => listRequests(tx, bob))).map((p) => p.username)).toEqual([
       "alice",
@@ -215,6 +232,9 @@ describe("can_view_training", () => {
     if (asked) await as(alice)((tx) => requestFollow(tx, alice, bob));
     if (accepted) await as(bob)((tx) => acceptFollow(tx, bob, alice));
     expect(await canView(alice, bob)).toBe(expected);
+    // Who a leaderboard ranks besides you gets the same answer, in its one read of follows.
+    const ranked = await as(alice)((tx) => listFollowingWhoShare(tx, alice));
+    expect(ranked.map((person) => person.id)).toEqual(expected ? [bob] : []);
     // Your own training, always; a follower's, never on the strength of their following you.
     expect(await canView(bob, bob)).toBe(true);
     expect(await canView(bob, alice)).toBe(false);
@@ -243,6 +263,10 @@ describe("the directory and the circle", () => {
         rows.map((row) => row.username),
       );
     expect(await names("bo")).toEqual(["bob"]);
+    // A handle as the app writes it: the `@` is not an email.
+    expect(await names("@bob")).toEqual(["bob"]);
+    expect(await names(" @Bo")).toEqual(["bob"]);
+    expect(await names("@")).toEqual([]);
     expect(await names("Build")).toEqual(["bob"]);
     expect(await names("obert")).toEqual([]);
     expect(await names("al")).toEqual([]);

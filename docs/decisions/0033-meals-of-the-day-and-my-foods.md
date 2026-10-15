@@ -11,6 +11,9 @@ adds from it (decisions 5 and 6). Starring, portions and copies stand as written
 **And by [ADR 0036](0036-meals-in-eating-order-and-a-calmer-food-card.md):** the day has seven
 meals, an evening snack before dinner and a late-night snack after it (decision 1).
 
+**And by [ADR 0046](0046-the-most-eaten-first-in-pages-on-one-food-row.md):** foods are listed
+the most eaten first, a page at a time (decision 2).
+
 Follows [0032](0032-food-behind-a-switch.md). The owner compared its food tracking with Samsung
 Health's and described the flow they had wanted from the start:
 
@@ -71,7 +74,8 @@ to be over-engineered. This record covers what changed and why.
      That is how "Usual breakfast" is brought up to date.
    - The star is lit while the meal holds exactly a saved meal's foods and amounts. Change a
      portion and it is a meal of its own again, with nothing stored to go stale.
-   - Tapping a lit star deletes that saved meal.
+   - Tapping a lit star deletes that saved meal. Since October 2026 a sheet asks first, as the
+     deletion cannot be taken back.
    - A saved meal is a copy, so it adds what was saved even after its foods are corrected or
      deleted.
 

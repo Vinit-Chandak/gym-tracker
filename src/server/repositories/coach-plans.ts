@@ -80,6 +80,7 @@ import { workingSets } from "@/domain/progression";
 import type {
   CoachRequestInitiator,
   CoachRequestStatus,
+  EquipmentCategory,
   PlanTrigger,
   PrescriptionType,
 } from "@/domain/types";
@@ -905,6 +906,9 @@ export async function planningContext(
       id: schedule.program.id,
       name: schedule.program.name,
       weeks: schedule.program.weeks,
+      /** How the cycle repeats and how many cycles the weeks hold (ADR 0051). */
+      repeats: schedule.program.repeats,
+      cycles: schedule.program.cycles,
       startDate: schedule.program.startDate,
       progress: state,
       adherence: liftingAdherence(schedule),
@@ -974,6 +978,8 @@ export async function planningContext(
         startedAt: w.startedAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
         day: w.day?.name ?? null,
+        // The saved routine's name it was started from, the athlete's own label (ADR 0026).
+        title: w.title,
         gym: w.gym.name,
         checkIn: {
           sleepHours: w.sleepHours,
@@ -1698,6 +1704,7 @@ async function reviewStoredPlan(
       weightStep: weightStepFor({
         equipmentLoadIncrement: machine?.loadIncrement ?? null,
         exerciseDefaultIncrement: library?.defaultLoadIncrement ?? null,
+        unit: machine?.unit ?? input.unit,
       }),
       isStrengthCompound: STRENGTH_COMPOUND_SLUGS.has(entry.exerciseSlug),
       unit: machine?.unit ?? input.unit,
@@ -1955,7 +1962,7 @@ export async function withPreparedTargets<
   db: DbOrTx,
   userId: string,
   occurrences: readonly T[],
-): Promise<(T & { preparedByCoach: boolean })[]> {
+): Promise<(T & { preparedByCoach: boolean; preparedPlanId: string | null })[]> {
   const plans = await activePlansForOccurrences(
     db,
     userId,
@@ -1967,9 +1974,10 @@ export async function withPreparedTargets<
       plan && plan.occurrenceRevisionId === occurrence.revisionId
         ? (plan.endurance[0]?.prescription ?? null)
         : null;
-    return prepared
-      ? { ...occurrence, prescription: prepared, preparedByCoach: true }
-      : { ...occurrence, preparedByCoach: false };
+    // The plan's id travels with its target, so a log made against it can say which it was.
+    return prepared && plan
+      ? { ...occurrence, prescription: prepared, preparedByCoach: true, preparedPlanId: plan.id }
+      : { ...occurrence, preparedByCoach: false, preparedPlanId: null };
   });
 }
 
@@ -2352,10 +2360,16 @@ export async function latestPlan(db: DbOrTx, userId: string): Promise<StoredPlan
   return row ?? null;
 }
 
+/** A machine the plan names, as what it is: Today leads its row with the machine's glyph. */
+export type PlanMachineType = { typeSlug: string; typeCategory: EquipmentCategory };
+
 export type TodayCoachState = {
   enabled: boolean;
-  /** The plan for the suggested slot, whichever gym it was made for. */
-  plan: (StoredPlan & { gymName: string }) | null;
+  /**
+   * The plan for the suggested slot, whichever gym it was made for, with the type of each
+   * machine it names, keyed by the machine.
+   */
+  plan: (StoredPlan & { gymName: string; machines: Record<string, PlanMachineType> }) | null;
   /** Whether that plan was made for the gym the athlete is about to train at. */
   matchesGym: boolean;
   pending: (Pick<CoachRequest, "gymId" | "requestedAt"> & Partial<CoachRequest>) | null;
@@ -2455,6 +2469,26 @@ export async function todayCoachState(
   ]);
   const requests = stored.map((request) => asReconciledRequest(request, now));
   const plan = planRow?.plan ?? null;
+  // What each machine the plan names is, read now rather than kept with the plan, so a plan
+  // written before this was asked for, or a machine retyped since, is still drawn as it is.
+  const named = [
+    ...new Set(plan?.exercises.flatMap((entry) => entry.equipmentInstanceId ?? []) ?? []),
+  ];
+  const machineRows =
+    named.length === 0
+      ? []
+      : await db
+          .select({
+            id: equipmentInstances.id,
+            typeSlug: equipmentTypes.slug,
+            typeCategory: equipmentTypes.category,
+          })
+          .from(equipmentInstances)
+          .innerJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
+          .where(and(eq(equipmentInstances.userId, userId), inArray(equipmentInstances.id, named)));
+  const machines = Object.fromEntries(
+    machineRows.map(({ id, ...type }): [string, PlanMachineType] => [id, type]),
+  );
   const pending =
     requests.find(
       (request) =>
@@ -2469,7 +2503,7 @@ export async function todayCoachState(
   const failure = outcome?.status === "failed" ? outcome : null;
   return {
     enabled: input.enabled,
-    plan: plan ? { ...plan, gymName: planRow?.gymName ?? "another gym" } : null,
+    plan: plan ? { ...plan, gymName: planRow?.gymName ?? "another gym", machines } : null,
     matchesGym: plan !== null && input.gymId !== null && plan.gymId === input.gymId,
     pending,
     failure: plan === null && pending === null ? failure : null,

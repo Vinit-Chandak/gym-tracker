@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { measureOf as measureOfSet } from "@/domain/sets";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
+import type { SetLengthUnit } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatIsoDay } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
 import type { ExerciseHistoryEntry } from "@/server/actions/sessions";
@@ -28,20 +30,26 @@ export function ExerciseHistory({
   exerciseId,
   workoutExerciseId,
   loadPortability,
-  preferredUnit,
+  unit,
   timeZone,
   measure,
+  length,
   width = 402,
   grow = 1,
 }: {
   exerciseId: string;
   workoutExerciseId: string;
   loadPortability: LoadPortability;
-  /** Free-weight loads are shown in this unit; a machine's stay in the machine's own. */
-  preferredUnit: LoadUnit;
+  /**
+   * The unit the Log tab beside it writes loads in: free-weight loads are shown in it, so the
+   * same lifts read the same on both tabs; a machine's stay in the machine's own.
+   */
+  unit: LoadUnit;
   timeZone: string;
   /** What this exercise counts, for a set that says nothing itself. */
   measure?: PrescriptionType;
+  /** What a carry reads in, as the Log tab beside it reads it: metres or yards. */
+  length: SetLengthUnit;
   /** The screen's width and how much larger figures are drawn: the lines fit their columns. */
   width?: number;
   grow?: number;
@@ -78,7 +86,7 @@ export function ExerciseHistory({
         Could not load the history.{" "}
         <button
           type="button"
-          className="min-h-11 font-bold text-ink"
+          className="min-h-[var(--ov-target)] font-bold text-ink"
           onClick={() => {
             setState({ status: "loading" });
             setAttempt((n) => n + 1);
@@ -94,7 +102,7 @@ export function ExerciseHistory({
   }
 
   const shown = (sets: ExerciseHistoryEntry["sets"]): ShownSet[] =>
-    sets.map((set) => (loadPortability === "global" ? setInUnit(set, preferredUnit) : set));
+    sets.map((set) => (loadPortability === "global" ? setInUnit(set, unit) : set));
   // One size for every session's lines, so a load reads the same in each: 26 at most.
   const loads = state.entries.flatMap((entry) =>
     shown(entry.sets)
@@ -106,7 +114,8 @@ export function ExerciseHistory({
   return (
     <div>
       <h2 className="mt-3 type-caption text-ink-2 tabular-nums">
-        All sessions · {state.entries.length}
+        All sessions{FACT_SEPARATOR}
+        {state.entries.length}
         {state.more ? "+" : ""}
       </h2>
       {state.entries.map((entry, index) => {
@@ -127,9 +136,9 @@ export function ExerciseHistory({
               <span className="tabular-nums">
                 {formatIsoDay(todayInTimeZone(timeZone, new Date(entry.performedAt)))}
               </span>
-              <span className="min-w-0 type-meta-small [overflow-wrap:anywhere] text-ink-2">
+              <span className="min-w-0 type-meta-small [overflow-wrap:break-word] text-ink-2">
                 {entry.gymName}
-                {entry.equipmentName ? ` · ${entry.equipmentName}` : ""}
+                {entry.equipmentName ? `${FACT_SEPARATOR}${entry.equipmentName}` : ""}
               </span>
             </h3>
             <ol className="log py-0" style={logStyle(size)}>
@@ -142,9 +151,13 @@ export function ExerciseHistory({
                     {warmups.map((set, k) => (
                       <span key={k} className="log-warm-item">
                         <span className="sr-only">
-                          {warmSaid(set, measure ?? measureOfSet(set))}
+                          {warmSaid(set, measure ?? measureOfSet(set), length)}
                         </span>
-                        <WarmNotation set={set} measure={measure ?? measureOfSet(set)} />
+                        <WarmNotation
+                          set={set}
+                          measure={measure ?? measureOfSet(set)}
+                          length={length}
+                        />
                       </span>
                     ))}
                   </span>
@@ -153,9 +166,14 @@ export function ExerciseHistory({
               {work.map((set, k) => (
                 <li key={k} className="log-line">
                   <span className="sr-only">
-                    {setSaid(k + 1, set, measure ?? measureOfSet(set))}
+                    {setSaid(k + 1, set, measure ?? measureOfSet(set), length)}
                   </span>
-                  <SetCells n={k + 1} set={set} measure={measure ?? measureOfSet(set)} />
+                  <SetCells
+                    n={k + 1}
+                    set={set}
+                    measure={measure ?? measureOfSet(set)}
+                    length={length}
+                  />
                 </li>
               ))}
             </ol>

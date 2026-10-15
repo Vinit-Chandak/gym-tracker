@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 export type PersonCounts = { followers: number; following: number };
 
@@ -14,13 +15,16 @@ export type PersonCounts = { followers: number; following: number };
  * on anyone else's they are plain.
  *
  * Given an `href`, the avatar and the name lead there: on your tab, to the page a follower
- * sees. The counts stay links of their own beside it, never inside it.
+ * sees. The counts stay links of their own beside it, never inside it. On the person's own
+ * page the title already names them, so the card leaves the name out (`named`) and starts at
+ * the handle rather than say it twice.
  */
 export function PersonCard<T extends string>({
   person,
   counts,
   countsLinkToFriends = false,
   href,
+  named = true,
   action,
   children,
 }: {
@@ -29,12 +33,16 @@ export function PersonCard<T extends string>({
   countsLinkToFriends?: boolean;
   /** Where the avatar and the name lead, on a screen that is not already there. */
   href?: Route<T>;
+  /** Whether the card says the name; false where the page's title already does. */
+  named?: boolean;
   /** A round button at the end of the line: Edit profile. */
   action?: ReactNode;
   children?: ReactNode;
 }) {
-  const followers = `${counts.followers} ${counts.followers === 1 ? "follower" : "followers"}`;
-  const following = `${counts.following} following`;
+  // Each count keeps its word on its line ("2 following", never "2 / following"), and a dot
+  // goes with the count after it when the line wraps.
+  const followers = `${counts.followers}\u00a0${counts.followers === 1 ? "follower" : "followers"}`;
+  const following = `${counts.following}\u00a0following`;
   const avatar = (
     <Avatar
       username={person.username}
@@ -46,7 +54,7 @@ export function PersonCard<T extends string>({
   // The name on a line of its own; the handle starts the next, the counts follow it there.
   const identity = (
     <>
-      <span className="person-card-name">{person.displayName || person.username}</span>
+      {named && <span className="person-card-name">{person.displayName || person.username}</span>}
       {`@${person.username}`}
     </>
   );
@@ -65,15 +73,19 @@ export function PersonCard<T extends string>({
         <p className="person-card-text">
           {href ? <Link href={href}>{identity}</Link> : identity}
           <span className="tabular-nums">
-            {" · "}
+            {FACT_SEPARATOR}
             {countsLinkToFriends ? (
-              <Link href="/profile/friends/people?people=followers">{followers}</Link>
+              <Link href="/profile/friends/people?people=followers" className="tap-area">
+                {followers}
+              </Link>
             ) : (
               followers
             )}
-            {" · "}
+            {FACT_SEPARATOR}
             {countsLinkToFriends ? (
-              <Link href="/profile/friends/people?people=following">{following}</Link>
+              <Link href="/profile/friends/people?people=following" className="tap-area">
+                {following}
+              </Link>
             ) : (
               following
             )}

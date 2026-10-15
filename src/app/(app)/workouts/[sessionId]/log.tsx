@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { onRamp, rampSize } from "@/components/ui/fit";
 import { Glyph } from "@/components/ui/glyphs";
 import type { LoadUnit, PrescriptionType } from "@/domain/types";
+import { setLengthIn, SET_LENGTH_WORDS, type SetLengthUnit } from "@/lib/distance-units";
 
 import { isWarmup, setNumber } from "./logger-model";
 import type { RowState } from "./use-set-rows";
@@ -34,18 +35,20 @@ export function unitName(unit: LoadUnit): string {
 
 const rirName = (rir: number) => (rir === 1 ? "1 rep in reserve" : `${rir} reps in reserve`);
 
-/** What one set counted, said aloud: "4 reps", "45 seconds", "25 metres". */
-function countSaid(set: ShownSet, measure: PrescriptionType): string {
+/** What one set counted, said aloud: "4 reps", "45 seconds", "25 metres", "27 yards". */
+function countSaid(set: ShownSet, measure: PrescriptionType, length: SetLengthUnit): string {
   if (measure === "duration" && set.durationSeconds !== null)
     return `${set.durationSeconds} seconds`;
-  if (measure === "distance" && set.distanceMeters !== null) return `${set.distanceMeters} metres`;
+  if (measure === "distance" && set.distanceMeters !== null)
+    return `${setLengthIn(set.distanceMeters, length)} ${SET_LENGTH_WORDS[length]}`;
   return set.reps === null ? "no reps" : `${set.reps} ${set.reps === 1 ? "rep" : "reps"}`;
 }
 
-/** The figure a set counted, in its column: reps, seconds or metres. */
-function countFigure(set: ShownSet, measure: PrescriptionType): string {
+/** The figure a set counted, in its column: reps, seconds, or metres or yards. */
+function countFigure(set: ShownSet, measure: PrescriptionType, length: SetLengthUnit): string {
   if (measure === "duration" && set.durationSeconds !== null) return String(set.durationSeconds);
-  if (measure === "distance" && set.distanceMeters !== null) return String(set.distanceMeters);
+  if (measure === "distance" && set.distanceMeters !== null)
+    return String(setLengthIn(set.distanceMeters, length));
   return set.reps === null ? "–" : String(set.reps);
 }
 
@@ -62,9 +65,14 @@ function effortSaid(set: ShownSet): string | null {
 }
 
 /** "Set 2: 60 kilograms, 4 reps, 2 reps in reserve" (DESIGN.md, The log). */
-export function setSaid(n: number, set: ShownSet, measure: PrescriptionType): string {
+export function setSaid(
+  n: number,
+  set: ShownSet,
+  measure: PrescriptionType,
+  length: SetLengthUnit,
+): string {
   const effort = effortSaid(set);
-  return `Set ${n}: ${loadSaid(set)}, ${countSaid(set, measure)}${effort ? `, ${effort}` : ""}`;
+  return `Set ${n}: ${loadSaid(set)}, ${countSaid(set, measure, length)}${effort ? `, ${effort}` : ""}`;
 }
 
 /** The log's sizes as CSS: its figures at `size` and its operators a little over half that. */
@@ -78,6 +86,8 @@ export function logStyle(size: number): CSSProperties {
 type LogProps = {
   rows: readonly RowState[];
   measure: PrescriptionType;
+  /** What a distance reads in: the session's metres or yards. */
+  length: SetLengthUnit;
   /** The log's figure size on the ramp, before the reader's text size. */
   size: number;
   /** Sets that landed while this screen was open: they rise into place. */
@@ -94,7 +104,7 @@ type LogProps = {
  * in an 18-pt column at the edge and its figures in the entry's columns, so the entry reads as
  * the log's next line. Nothing is drawn for a set not yet done.
  */
-export function Log({ rows, measure, size, landed, onOpen, children }: LogProps) {
+export function Log({ rows, measure, length, size, landed, onOpen, children }: LogProps) {
   const done = rows.filter((row) => row.logged !== null);
   const warmups = done.filter((row) => isWarmup(row.logged!.setType));
   const sets = done.filter((row) => !isWarmup(row.logged!.setType));
@@ -112,6 +122,7 @@ export function Log({ rows, measure, size, landed, onOpen, children }: LogProps)
                   key={row.setIndex}
                   row={row}
                   measure={measure}
+                  length={length}
                   landed={landed.has(row.setIndex)}
                   onOpen={onOpen}
                 />
@@ -132,6 +143,7 @@ export function Log({ rows, measure, size, landed, onOpen, children }: LogProps)
             n={setNumber(rows, row)}
             row={row}
             measure={measure}
+            length={length}
             landed={landed.has(row.setIndex)}
             onOpen={onOpen}
           />
@@ -143,11 +155,19 @@ export function Log({ rows, measure, size, landed, onOpen, children }: LogProps)
 }
 
 /** A warm-up in the app's notation: "25 × 8", the operator quieter. */
-export function WarmNotation({ set, measure }: { set: ShownSet; measure: PrescriptionType }) {
+export function WarmNotation({
+  set,
+  measure,
+  length,
+}: {
+  set: ShownSet;
+  measure: PrescriptionType;
+  length: SetLengthUnit;
+}) {
   return (
     <span className="log-notation" aria-hidden>
       {set.weight === null ? "–" : set.weight} <span className="log-notation-op">×</span>{" "}
-      {countFigure(set, measure)}
+      {countFigure(set, measure, length)}
     </span>
   );
 }
@@ -157,10 +177,12 @@ export function SetCells({
   n,
   set,
   measure,
+  length,
 }: {
   n: number;
   set: ShownSet;
   measure: PrescriptionType;
+  length: SetLengthUnit;
 }) {
   const rated = set.rpe !== null && set.rpe !== undefined;
   return (
@@ -175,7 +197,7 @@ export function SetCells({
         ×
       </span>
       <span aria-hidden className="log-figure">
-        {countFigure(set, measure)}
+        {countFigure(set, measure, length)}
       </span>
       <span aria-hidden className="log-op">
         {rated || measure !== "reps" ? "·" : "@"}
@@ -198,16 +220,18 @@ export function SetCells({
 function WarmItem({
   row,
   measure,
+  length,
   landed,
   onOpen,
 }: {
   row: RowState;
   measure: PrescriptionType;
+  length: SetLengthUnit;
   landed: boolean;
   onOpen?: (row: RowState) => void;
 }) {
   const set = row.logged!;
-  const said = `Warm-up: ${loadSaid(set)}, ${countSaid(set, measure)}`;
+  const said = warmSaid(set, measure, length);
   return onOpen ? (
     <button
       type="button"
@@ -217,36 +241,38 @@ function WarmItem({
       aria-label={`${said}. Edit`}
       onClick={() => onOpen(row)}
     >
-      <WarmNotation set={set} measure={measure} />
+      <WarmNotation set={set} measure={measure} length={length} />
     </button>
   ) : (
     <span className="log-warm-item" data-landed={landed} data-set={row.setIndex}>
       <span className="sr-only">{said}</span>
-      <WarmNotation set={set} measure={measure} />
+      <WarmNotation set={set} measure={measure} length={length} />
     </span>
   );
 }
 
 /** Said aloud for a warm-up that is read, not edited. */
-export function warmSaid(set: ShownSet, measure: PrescriptionType): string {
-  return `Warm-up: ${loadSaid(set)}, ${countSaid(set, measure)}`;
+export function warmSaid(set: ShownSet, measure: PrescriptionType, length: SetLengthUnit): string {
+  return `Warm-up: ${loadSaid(set)}, ${countSaid(set, measure, length)}`;
 }
 
 function LogLine({
   n,
   row,
   measure,
+  length,
   landed,
   onOpen,
 }: {
   n: number;
   row: RowState;
   measure: PrescriptionType;
+  length: SetLengthUnit;
   landed: boolean;
   onOpen?: (row: RowState) => void;
 }) {
   const set = row.logged!;
-  const said = setSaid(n, set, measure);
+  const said = setSaid(n, set, measure, length);
   return (
     <li>
       {onOpen ? (
@@ -258,12 +284,12 @@ function LogLine({
           aria-label={`${said}. Edit`}
           onClick={() => onOpen(row)}
         >
-          <SetCells n={n} set={set} measure={measure} />
+          <SetCells n={n} set={set} measure={measure} length={length} />
         </button>
       ) : (
         <div className="log-line" data-landed={landed} data-set={row.setIndex}>
           <span className="sr-only">{said}</span>
-          <SetCells n={n} set={set} measure={measure} />
+          <SetCells n={n} set={set} measure={measure} length={length} />
         </div>
       )}
       {row.error && <LineNote>{row.error}</LineNote>}
@@ -276,7 +302,7 @@ function LineNote({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="flex items-start gap-1.5 pb-2 type-meta-small text-ink">
       <Glyph name="warn" className="mt-0.5 glyph-16" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }

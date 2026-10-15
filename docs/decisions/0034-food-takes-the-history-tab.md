@@ -1,5 +1,9 @@
 # Food takes History's tab
 
+**Superseded in part by [ADR 0045](0045-the-latest-ten-under-the-month.md):** History is no longer
+one of Progress's sections. Overview lists the latest ten under its month, and `/progress/history`
+is the page behind them, under Progress as the calendar is (decision 4).
+
 Follows [0033](0033-meals-of-the-day-and-my-foods.md). Food was a card at the foot of Today that
 opened a screen of Today's. The owner asked for it to be a section of its own, in the tab History
 had, and for History to move into Progress.
@@ -41,6 +45,23 @@ had, and for History to move into Progress.
    carries `from=history` as before (NAV-03). That now selects Progress and goes back to History by
    name. Deleting an activity lands on History, and so does Back from a finished workout opened by
    a direct link.
+   - _Year audit, October 2026:_ such a workout still lit Today, and a run, ride or swim opened by a
+     link of its own lit Training, while each went back to History. A record opened with no origin
+     now selects Progress as well: the tab lit is the one Back leads into. The open workout shares
+     a finished one's path but hides the tabs, and the session's pages under it stay Today's.
+     Today's "See what you logged", and logging from Today, name Today, so what they open stays
+     Today's.
+   - _Its review:_ an exercise's page is Profile's, yet a workout opened from its graph or its
+     latest sessions lit Progress. Those links name the page now (`from=exercises`), so Profile
+     stays lit and Back goes to Exercises. Finish lands on a summary that names Today, where the
+     workout was finished, so the past workout its Edit becomes stays Today's and goes back there.
+     A finished workout opened with no origin passes History on to its edit's Add exercise. The
+     tab bar reads only the address, and the open workout's is a finished one's with no origin. Its
+     loading screen hides the tabs for such a link, so a finished workout opened by one loses its
+     tabs for a moment as it loads, and a load behind the app's own loading screen can light
+     Progress for an instant before the session's layer covers it. With the app's links naming
+     their origin, a bare finished workout is all but always a direct link's: rare enough to pay
+     that, rather than redirect each one to carry `from=history`.
 6. **Old paths still work.** `/history` redirects permanently to `/progress/history`, its query
    included, and `/today/food` and everything under it to `/food`, as `/settings` did to `/profile`
    (ADR 0026).

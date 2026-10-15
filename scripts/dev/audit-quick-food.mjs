@@ -1,9 +1,10 @@
 // Quick-add regression audit. Creates and removes its own account in the loopback QA database.
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import postgres from "postgres";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -28,9 +29,8 @@ const salt = randomBytes(16).toString("hex");
 const password = `${salt}:${scryptSync("password123", salt, 32).toString("hex")}`;
 const results = [],
   pageErrors = [];
-const browser = await (engine === "webkit" ? webkit : chromium).launch({
-  executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+await skipWholeRun(engine === "webkit" ? "iphone" : "android", engine, `${output}/results.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -40,7 +40,7 @@ const page = await context.newPage();
 page.setDefaultTimeout(15_000);
 page.on("pageerror", (error) => pageErrors.push({ url: page.url(), message: error.message }));
 const dialog = () => page.getByRole("dialog");
-const foods = () => page.getByRole("list", { name: "Your foods and meals" });
+const foods = () => page.getByRole("group", { name: "Your foods and meals" });
 const entries = () => sql`select id, name, food_id, eaten_on::text as day, meal,
   kcal::float8 as kcal, carbs_g::float8 as carbs, fat_g::float8 as fat,
   protein_g::float8 as protein, amount::float8 as amount, unit

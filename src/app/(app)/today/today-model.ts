@@ -1,10 +1,21 @@
+import { dayOrder, type DayPart } from "@/app/(app)/training/programme-day";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
+import { exerciseColumn, planColumn } from "@/components/art/session-print";
+import { modalityGlyph, typeGlyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
+import { pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
+import type { SetLengthUnit } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
+import type { LoggedActivity } from "@/server/repositories/activity-analytics";
+import type { PlanMachineType } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
-import type { PlannedExercisePreview, TodayPlan } from "@/server/repositories/schedule";
+import type {
+  PlannedExercisePreview,
+  ScheduleDay,
+  TodayPlan,
+} from "@/server/repositories/schedule";
 
 // ---------- the cycle as squares ----------
 
@@ -29,9 +40,9 @@ export function cycleCells(plan: TodayPlan): CycleCell[] {
     );
 }
 
-/** How far the programme is behind the calendar: "25 days behind", "1 day behind". */
-export function daysBehind(days: number): string {
-  return `${days} ${days === 1 ? "day" : "days"} behind`;
+/** How far the programme is behind the calendar: "3 sessions behind", "1 session behind". */
+export function sessionsBehindLabel(sessions: number): string {
+  return `${sessions} ${sessions === 1 ? "session" : "sessions"} behind`;
 }
 
 /** What the squares say aloud, and where they go. */
@@ -39,9 +50,9 @@ export function cycleLabel(plan: TodayPlan): string {
   const cycle = plan.suggestion?.slot.cycleIndex;
   const day = plan.suggestedDay?.dayIndex;
   const parts = [
-    cycle ? `Cycle ${cycle} of ${plan.program.weeks}` : null,
+    cycle ? `Cycle ${cycle} of ${plan.program.cycles}` : null,
     day ? `day ${day} of ${plan.cycleDays.length}` : null,
-    plan.behind > 0 ? daysBehind(plan.behind) : null,
+    plan.behind > 0 ? sessionsBehindLabel(plan.behind) : null,
   ].filter(Boolean);
   return `${parts.join(", ")}. Open the programme`;
 }
@@ -56,6 +67,10 @@ const PRINT_SPORT: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "
 
 export type PlanRowModel = {
   key: string;
+  /** The programme's slot it stands for; null for one the coach added. */
+  slotId: string | null;
+  /** The exercise it asks for, which an added one is found by in the workout started from it. */
+  exerciseId: string;
   name: string;
   glyph: GlyphName | null;
   /** The prescription, or the coach's line for it. */
@@ -67,29 +82,44 @@ export type PlanRowModel = {
   /** The sets it asks for, for its column in the print. */
   sets: number;
   supersetGroup: string | null;
+  /** What it becomes at the athlete's gym, where that is news (a programme day's page). */
+  at?: string | null;
 };
 
 /**
  * A slot's prescription as a row says it: "3 × 8–12 @ 1–2 RIR". RIR is written for sets counted
  * in reps; a carry or a hold is rated by RPE as it is logged, so its line is the work alone
- * ("3 × 20–40 m").
+ * ("3 × 20–40 m", or "3 × 22–44 yd" for an athlete in yards).
  */
-export function rowPrescription(slot: PlannedExercisePreview): string {
-  if (slot.prescriptionType === "reps") return prescription(slot);
-  return `${slot.sets} × ${volumeRange(slot)}${slot.perSide ? " per side" : ""}`;
+export function rowPrescription(slot: PlannedExercisePreview, length: SetLengthUnit): string {
+  if (slot.prescriptionType === "reps") return prescription(slot, length);
+  return `${slot.sets} × ${volumeRange(slot, length)}${slot.perSide ? " per side" : ""}`;
 }
 
-/** The programme's exercises, or the coach's plan for them, in the programme's order. */
+/**
+ * The programme's exercises, or the coach's plan for them, in the programme's order. A coach's
+ * row names its machine when it chose one, and is led by that machine's glyph where its type has
+ * one of its own (`typeGlyph`: an accessory, a cardio machine, the Smith machine), as the
+ * workout's row will be (`equipmentGlyph`); otherwise by what loads the movement.
+ */
 export function planRows(
   planned: readonly PlannedExercisePreview[],
-  coach: { exercises: readonly StoredPlanExercise[] } | null,
+  coach: {
+    exercises: readonly StoredPlanExercise[];
+    /** The type of each machine the plan names, keyed by the machine. */
+    machines?: Readonly<Record<string, PlanMachineType>>;
+  } | null,
   unit: string,
+  /** What a carry reads in: the athlete's metres or yards. */
+  length: SetLengthUnit,
 ): PlanRowModel[] {
   const fromSlot = (slot: PlannedExercisePreview): PlanRowModel => ({
     key: slot.programExerciseId,
+    slotId: slot.programExerciseId,
+    exerciseId: slot.exerciseId,
     name: slot.name,
     glyph: modalityGlyph(slot.modality),
-    line: rowPrescription(slot),
+    line: rowPrescription(slot, length),
     note: null,
     dropped: false,
     sets: slot.sets,
@@ -102,19 +132,24 @@ export function planRows(
     const line = targetsLine(
       entry.sets,
       entry.unit ?? unit,
+      length,
       entry.perSide ?? slot?.perSide ?? false,
     );
     const working = entry.sets.filter((set) => set.setType !== "warmup").length;
+    const machine =
+      !dropped && entry.equipmentInstanceId ? coach.machines?.[entry.equipmentInstanceId] : null;
     return {
       key: `${entry.slotId ?? "added"}-${index}`,
+      slotId: entry.slotId,
+      exerciseId: entry.exerciseId,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
-      glyph: modalityGlyph(slot?.modality),
+      glyph: (machine ? typeGlyph(machine) : null) ?? modalityGlyph(slot?.modality),
       line: dropped
         ? slot
-          ? prescription(slot)
+          ? prescription(slot, length)
           : ""
-        : `${line ?? (slot ? prescription(slot) : "By the rule")}${
-            entry.equipmentInstanceName ? ` · ${entry.equipmentInstanceName}` : ""
+        : `${line ?? (slot ? prescription(slot, length) : "By the rule")}${
+            entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
           }`,
       note: entry.note || null,
       dropped,
@@ -141,60 +176,113 @@ export function groupRows<T extends { supersetGroup: string | null }>(rows: read
   return groups;
 }
 
+// ---------- what was logged today besides ----------
+
+/**
+ * What was finished today that no card of Today's already stands for (year audit, October
+ * 2026): a ride nobody scheduled, an unplanned workout, a run logged late against a day long
+ * gone. History, the calendar and the day's page all had them while Today said only "Rest".
+ *
+ * A run, ride or swim that answered a session on the page is that session's card, inked done;
+ * a workout of a programme day the page shows done is that day's card. Everything else logged
+ * today gets a card of its own, in the order it was done.
+ */
+export function loggedBesides(
+  logged: readonly LoggedActivity[],
+  shown: {
+    /** The scheduled sessions Today has cards for. */
+    occurrences: readonly ScheduledOccurrence[];
+    /** The programme days whose cards say their workout is done. */
+    doneDayIds: readonly string[];
+  },
+): LoggedActivity[] {
+  const answered = new Set(
+    shown.occurrences.flatMap((occurrence) =>
+      occurrence.resolution.kind === "logged" ? [occurrence.resolution.activityId] : [],
+    ),
+  );
+  return logged.filter((activity) =>
+    activity.sport === "strength"
+      ? activity.programDayId === null || !shown.doneDayIds.includes(activity.programDayId)
+      : !answered.has(activity.id),
+  );
+}
+
 // ---------- the day's print ----------
 
 /**
- * The day's plan as a print (DESIGN.md, Prints): its parts in the order of the rows under it.
- * The programme's own endurance first, as the day is written; then the exercises, a column of
- * sets each, a superset's two standing closer; then anything else dated today.
+ * The day's plan as a print (DESIGN.md, Prints): its parts in the order the day is done
+ * (`dayOrder`), as Training's tile and the day's own page draw it. A rest day's routine; the
+ * programme's own endurance where the day is written to have it, before the lifting ("Easy
+ * Run + Arms") or after it ("Lower + easy run"), where the band once drew it first on every day;
+ * the exercises, a column of sets each, a superset's two standing closer; then anything else
+ * dated today. Once the day has a workout, each row's column is the column of the exercise done
+ * for it, as the workout's own print draws it (`exerciseColumn`): open, the sets logged ink the
+ * plan; finished, the working sets done, what was not done dashed. A plan's print, it draws no
+ * warm-up sets.
  */
 export function todayParts({
+  day,
   programme,
   rows,
   standalone,
   restDrills,
   lifted = false,
+  session = null,
 }: {
+  /** The programme day on offer, whose order its parts stand in. */
+  day: Pick<ScheduleDay, "name" | "focus" | "includesLifting">;
   programme: readonly ScheduledOccurrence[];
   rows: readonly PlanRowModel[];
   standalone: readonly ScheduledOccurrence[];
   /** A rest day's mobility: its drills as the fan's blades. */
   restDrills?: number;
-  /** The day's workout is logged: its columns print full. */
+  /** The day's workout is logged and was not read: its columns print full. */
   lifted?: boolean;
+  /** The day's workout, open or finished: each row's column is drawn from what it did there. */
+  session?: PrintedSession | null;
 }): PrintPart[] {
+  // Work a revision withdrew asks for nothing, so it is not drawn as a run still to do; work
+  // answered by history the app has no activity for was done.
   const endurance = (occurrence: ScheduledOccurrence): PrintPart | null =>
-    occurrence.sport === "strength"
+    occurrence.sport === "strength" || occurrence.resolution.kind === "cancelled"
       ? null
       : {
           kind: PRINT_SPORT[occurrence.sport],
           state:
             occurrence.disposition === "skipped"
               ? "skipped"
-              : occurrence.resolution.kind === "logged"
+              : occurrence.resolution.kind === "logged" ||
+                  occurrence.resolution.kind === "legacy_completed"
                 ? "done"
                 : "todo",
         };
   const columns: StrengthColumn[] = [];
+  const done = session ? pairBySlot(rows, session.exercises) : [];
   rows.forEach((row, index) => {
     if (row.sets <= 0) return;
     const next = rows[index + 1];
-    columns.push({
-      sets: row.sets,
-      done: lifted && !row.dropped ? row.sets : 0,
-      skipped: row.dropped,
-      pair:
-        row.supersetGroup !== null &&
-        next !== undefined &&
-        next.supersetGroup === row.supersetGroup,
-    });
+    const pair =
+      row.supersetGroup !== null && next !== undefined && next.supersetGroup === row.supersetGroup;
+    // What the coach dropped is asked for by nothing, done or not.
+    const column = row.dropped
+      ? planColumn(row.sets, 0, { skipped: true, pair })
+      : session
+        ? exerciseColumn(row.sets, done[index] ?? null, session.completed, {
+            pair,
+            warmups: false,
+          })
+        : planColumn(row.sets, lifted ? row.sets : 0, { pair });
+    if (column) columns.push(column);
   });
-  return [
-    ...(restDrills ? [{ kind: "mobility" as const, segments: restDrills, modules: 3 }] : []),
-    ...programme.map(endurance),
-    ...(columns.length > 0 ? [{ kind: "strength" as const, columns }] : []),
-    ...standalone.map(endurance),
-  ].filter((part): part is PrintPart => part !== null);
+  const drawn: Record<DayPart, readonly (PrintPart | null)[]> = {
+    "warm-up": restDrills ? [{ kind: "mobility", segments: restDrills, modules: 3 }] : [],
+    run: programme.map(endurance),
+    lifting: columns.length > 0 ? [{ kind: "strength", columns }] : [],
+  };
+  return [...dayOrder(day).flatMap((part) => drawn[part]), ...standalone.map(endurance)].filter(
+    (part): part is PrintPart => part !== null,
+  );
 }
 
 const PART_NAMES = { run: "a run", ride: "a ride", swim: "a swim", walk: "a walk" } as const;
@@ -208,12 +296,15 @@ export function printLabel(dayName: string, parts: readonly PrintPart[]): string
   const said = parts.map((part) => {
     if (part.kind === "strength") {
       const done = part.columns.every((column) => column.skipped || column.done >= column.sets);
-      return `${part.columns.length} ${part.columns.length === 1 ? "exercise" : "exercises"} as columns of their sets, ${done ? "done" : "to do"}`;
+      const begun = part.columns.some((column) => column.done > 0);
+      return `${part.columns.length} ${part.columns.length === 1 ? "exercise" : "exercises"} as columns of their sets, ${done ? "done" : begun ? "the sets done inked" : "to do"}`;
     }
     const name =
       part.kind === "mobility"
         ? "the mobility"
-        : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
+        : part.kind === "rest"
+          ? "rest"
+          : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
     const state = part.state === "done" ? "done" : part.state === "skipped" ? "skipped" : "to do";
     return `${name} ${state}`;
   });

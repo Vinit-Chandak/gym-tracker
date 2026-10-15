@@ -159,8 +159,10 @@ it.each([undefined, "false", "someone-else@example.test"])(
     // The calendar's read is not a change, and none of these reads it.
     const { logFood: _both, submitFoodOnce: _receipt, readFoodDays: _read, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
-    // Thirteen changes, each refreshing the five screens food is shown on.
-    expect(revalidatePath).toHaveBeenCalledTimes(65);
+    // Thirteen changes, each refreshing the five screens food is shown on and Progress, whose
+    // Food graphs draw what each day came to.
+    expect(revalidatePath).toHaveBeenCalledTimes(78);
+    expect(revalidatePath).toHaveBeenCalledWith("/progress");
     expect(revalidatePath).toHaveBeenCalledWith("/food");
     expect(revalidatePath).toHaveBeenCalledWith("/food/[meal]", "page");
     expect(revalidatePath).toHaveBeenCalledWith("/food/targets");
@@ -336,7 +338,7 @@ it("saves the targets from the form", async () => {
     proteinPerKg: 1.8,
     fatPercent: 25,
   });
-  expect(revalidatePath).toHaveBeenCalledTimes(5);
+  expect(revalidatePath).toHaveBeenCalledTimes(6);
   mocks.saveNutritionTargets.mockRejectedValueOnce(new Error("down"));
   expect(await saveTargetsAction(INITIAL_FORM_STATE, targetsForm())).toEqual({
     formError: "Something went wrong. Please try again.",

@@ -13,7 +13,9 @@ import {
   hasBackfillRun,
   SHARED_STATS_BACKFILL,
 } from "./backfill-shared-stats";
+import { materialiseMissingOccurrences } from "../server/repositories/program-occurrences";
 import { createMigrationClient, describeTarget, runMigrations } from "./migrate";
+import { carryDaySkipsOntoRuns } from "./runs-skipped-from-today";
 import * as schema from "./schema";
 import { seedReferenceData } from "./seed/reference";
 
@@ -76,6 +78,14 @@ async function main(): Promise<void> {
   const url = getMigrationDatabaseUrl();
   const client = createMigrationClient(url);
   try {
+    // After `next build`: only the run skips the deployment being replaced wrote while this one
+    // built (ADR 0051). Run before the build too, the carry alone would miss them for a release.
+    if (process.argv[2] === "after-build") {
+      console.log(`Database deploy after the build (${because}) → ${describeTarget(url)}`);
+      const carried = await carryDaySkipsOntoRuns(drizzle(client, { schema }));
+      console.log(`  ${carried} run(s) skipped from Today carried from their day onto the run`);
+      return;
+    }
     console.log(`Database deploy (${because}) → ${describeTarget(url)}`);
     await runMigrations(client);
     console.log("  migrations applied");
@@ -100,6 +110,11 @@ async function main(): Promise<void> {
       );
     }
     await deployMultisportBackfill(db);
+    await repairProgrammeOccurrences(db);
+    // After the repair, so a programme it has just given runs has its days' skips carried too.
+    const carried = await carryDaySkipsOntoRuns(db);
+    if (carried > 0)
+      console.log(`  ${carried} run(s) skipped from Today carried from their day onto the run`);
   } finally {
     await client.end();
   }
@@ -141,6 +156,31 @@ async function deployMultisportBackfill(db: Parameters<typeof backfillMultisport
     console.warn("  multisport reconciliation does not balance; the backfill is not marked done:");
     console.warn(formatReconciliation(reconciliation));
   }
+}
+
+/**
+ * Occurrences for every running programme that was started without them.
+ *
+ * Adopting a template wrote the programme and never its runs' occurrences, which held each
+ * athlete who did it on their first running day. This runs on every deploy rather than once:
+ * it reads only active programmes with runs and no occurrences at all, which after one pass is
+ * none, and it writes by lineage, so a second pass writes nothing. It waits for the multisport
+ * backfill, which writes the older accounts' occurrences itself. A programme it cannot repair
+ * is named and left for the next deploy; it does not stop this one.
+ */
+async function repairProgrammeOccurrences(db: Parameters<typeof backfillMultisport>[0]) {
+  if (!(await hasBackfillRun(db, MULTISPORT_BACKFILL))) return;
+  const repaired = await materialiseMissingOccurrences(db);
+  if (repaired.programmes > 0)
+    console.log(
+      `  programme occurrences written for ${repaired.programmes} programme(s): ` +
+        `${repaired.occurrences} occurrences`,
+    );
+  if (repaired.failed.length > 0)
+    console.warn(
+      `  ${repaired.failed.length} programme(s) could not be given occurrences: ` +
+        repaired.failed.join(", "),
+    );
 }
 
 main().catch((error: unknown) => {

@@ -16,6 +16,7 @@ import {
 
 import { ownerPolicy, timestamps } from "./common";
 import { loadUnitEnum, sexEnum, trainingExperienceEnum, trainingGoalEnum } from "./enums";
+import { lengthUnitEnum } from "./multisport-enums";
 
 /**
  * One row per Supabase Auth user. `id` equals `auth.users.id`; the FK and the trigger that
@@ -37,6 +38,14 @@ export const profiles = pgTable(
     /** IANA zone; every civil date in the app is resolved in it. Set during onboarding. */
     timeZone: text("time_zone").notNull().default("UTC"),
     preferredUnit: loadUnitEnum("preferred_unit").notNull().default("kg"),
+    /**
+     * Road distances in kilometres or miles, and pools in metres or yards (ADR 0055). Null
+     * follows the weight unit (pounds read miles and yards), which is how every account starts;
+     * a value is stored only where it differs from that, so changing the weight unit carries an
+     * account that never set its distances apart along with it. Read with `resolveSportUnits`.
+     */
+    distanceUnit: lengthUnitEnum("distance_unit"),
+    poolUnit: lengthUnitEnum("pool_unit"),
     /**
      * The most recent body weight reading, in kilograms. Kept in step with the newest row in
      * `body_weight_logs` rather than written on its own, so "what I weigh" and the trend behind
@@ -81,6 +90,11 @@ export const profiles = pgTable(
       "profiles_measurements_chk",
       sql`(body_weight_kg is null or (body_weight_kg > 0 and body_weight_kg <= 500))
         and (height_cm is null or (height_cm >= 50 and height_cm <= 260))`,
+    ),
+    check(
+      "profiles_units_chk",
+      sql`(distance_unit is null or distance_unit in ('km', 'mi'))
+        and (pool_unit is null or pool_unit in ('m', 'yd'))`,
     ),
     // Stored lowercase, so the plain unique index is the case-insensitive one.
     uniqueIndex("profiles_username_uq").on(t.username),

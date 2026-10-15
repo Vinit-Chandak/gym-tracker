@@ -1,0 +1,202 @@
+import { describe, expect, it } from "vitest";
+
+import { presetRange } from "@/domain/graph-range";
+
+import {
+  axisTicks,
+  barLayout,
+  barPath,
+  barScale,
+  clearOfRule,
+  dayX,
+  linePath,
+  lineScale,
+  markX,
+  nearestIndex,
+  type Frame,
+} from "./geometry";
+
+const TODAY = "2026-10-07";
+const FRAME: Frame = { width: 362, left: 32, right: 362, top: 12, bottom: 164 };
+const widthOf = (label: string) => label.length * 7.2;
+const round = (value: number) => Math.round(value * 1000) / 1000;
+
+describe("the scale", () => {
+  it("runs a bar scale to a round top at or over the highest bar, in two or three steps", () => {
+    expect(barScale([8, 3])).toEqual({ ticks: [0, 4, 8], max: 8 });
+    expect(barScale([10.1])).toEqual({ ticks: [0, 4, 8, 12], max: 12 });
+    expect(barScale([2310], { include: [2600] })).toEqual({
+      ticks: [0, 1000, 2000, 3000],
+      max: 3000,
+    });
+    expect(barScale([150])).toEqual({ ticks: [0, 50, 100, 150], max: 150 });
+  });
+
+  it("labels counts with whole numbers only, and draws nothing over nothing", () => {
+    expect(barScale([18], { integral: true }).ticks).toEqual([0, 10, 20]);
+    expect(barScale([1], { integral: true }).ticks).toEqual([0, 1]);
+    expect(barScale([0, 0])).toEqual({ ticks: [0], max: 1 });
+  });
+
+  it("steps by the values a scale is given, where powers of ten do not suit", () => {
+    // Minutes: an hour, not 50 or 100 minutes.
+    expect(barScale([95], { steps: [15, 30, 45, 60, 90, 120] }).ticks).toEqual([0, 60, 120]);
+  });
+
+  it("runs a line's scale from a round value at or under its lowest reading to one at or over its highest", () => {
+    expect(lineScale([75.95, 76.4, 77.5])).toEqual({ ticks: [75, 77.5], lo: 75, hi: 77.5 });
+    expect(lineScale([70.2, 70.6, 71])).toEqual({ ticks: [70, 70.5, 71], lo: 70, hi: 71 });
+    // 190.5 lb no longer stands over a top line of 190.4.
+    expect(lineScale([190.5, 190])).toEqual({ ticks: [190, 191], lo: 190, hi: 191 });
+    // Nor 215 lb over a top line of 200.
+    expect(lineScale([180, 185, 195, 215]).ticks).toEqual([180, 200, 220]);
+    // Pace in seconds, by the minute: 5:45 to 6:40 between 5:00 and 7:00.
+    expect(lineScale([345, 400], { steps: [5, 10, 15, 30, 60] }).ticks).toEqual([300, 360, 420]);
+  });
+
+  it("steps by values its labels write exactly, so equal steps read as equal", () => {
+    // Pounds converted from kilograms: never 180.8, 181, 181.3 (a quarter, to a tenth).
+    expect(lineScale([180.75, 181.3]).ticks).toEqual([180, 181, 182]);
+    // Under 100 a tenth is written, so a step can be one.
+    expect(lineScale([81.9, 82.35]).ticks).toEqual([81.6, 82, 82.4]);
+    for (const values of [
+      [180.75, 181.3],
+      [64.1, 64.45, 64.9],
+      [3.41, 3.45],
+      [102.5, 110, 117.5],
+    ]) {
+      const { ticks } = lineScale(values);
+      const steps = ticks.slice(1).map((tick, i) => round(tick - ticks[i]!));
+      expect(new Set(steps).size, String(values)).toBe(1);
+      expect(ticks[0], String(values)).toBeLessThanOrEqual(Math.min(...values));
+      expect(ticks.at(-1), String(values)).toBeGreaterThanOrEqual(Math.max(...values));
+      expect(ticks.length, String(values)).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("stands one repeated reading on a round middle line, never on a false precision", () => {
+    // A dumbbell at 17.5 kg four times: 15, 17.5 and 20, not 17.2, 17.6 and 18.
+    expect(lineScale([17.5, 17.5, 17.5, 17.5]).ticks).toEqual([15, 17.5, 20]);
+    expect(lineScale([100]).ticks).toEqual([90, 100, 110]);
+    // A hold at 1:30, on the clock's own steps.
+    expect(lineScale([90, 90], { steps: [5, 10, 15, 20, 30, 60] }).ticks).toEqual([80, 90, 100]);
+    // Not a whole number of any step near a tenth of it: round lines either side.
+    const odd = lineScale([75.2, 75.2]);
+    expect(odd.ticks).toEqual([70, 80]);
+    expect(odd.lo).toBeLessThan(70);
+    expect(odd.hi).toBeGreaterThan(80);
+    // Zeros stand on the bottom line, with no line under nothing.
+    expect(lineScale([0, 0]).ticks).toEqual([0, 0.5, 1]);
+  });
+
+  it("steps a line of counts by whole numbers, never 7.5 reps", () => {
+    expect(lineScale([5, 10]).ticks).toEqual([5, 7.5, 10]);
+    expect(lineScale([5, 10], { integral: true }).ticks).toEqual([5, 10]);
+    expect(lineScale([6, 8, 10, 12], { integral: true }).ticks).toEqual([4, 8, 12]);
+    // Five reps every time: 4, 5 and 6 around it, not 4.5 and 5.5.
+    expect(lineScale([5, 5]).ticks).toEqual([4.5, 5, 5.5]);
+    expect(lineScale([5, 5], { integral: true }).ticks).toEqual([4, 5, 6]);
+    // A narrow spread still gets whole lines.
+    expect(lineScale([9, 10], { integral: true }).ticks).toEqual([9, 10]);
+  });
+
+  it("draws a fixed scale whole whatever the readings", () => {
+    expect(lineScale([2, 3], { min: 1, max: 5, ticks: [1, 3, 5] })).toEqual({
+      ticks: [1, 3, 5],
+      lo: 1,
+      hi: 5,
+    });
+  });
+});
+
+describe("the scale's labels beside the rule", () => {
+  it("keeps a step's label a step from the rule at any text size", () => {
+    // A 148-pt plot in four steps: 37 pt apart. Labels are 12 pt at 100% text, 24 at 200%.
+    expect(clearOfRule(37, 74, 12)).toBe(true);
+    expect(clearOfRule(37, 74, 24)).toBe(true);
+    expect(clearOfRule(111, 74, 24)).toBe(true);
+  });
+
+  it("gives way to the rule where the two would touch", () => {
+    // On the rule's own line, and half a step from it at 200% text.
+    expect(clearOfRule(74, 74, 12)).toBe(false);
+    expect(clearOfRule(55.5, 74, 24)).toBe(false);
+  });
+});
+
+describe("the date axis", () => {
+  it("gives every bucket a slot, and a bar up to 14 pt in it", () => {
+    expect(barLayout(5, FRAME)).toEqual({ slot: 66, bar: 14 });
+    const month = barLayout(30, FRAME);
+    expect(month.slot).toBe(11);
+    expect(month.bar).toBeCloseTo(7.7);
+  });
+
+  it("places buckets in equal slots and records on their own day", () => {
+    const range = presetRange("1m", TODAY);
+    expect(markX(0, range.from, range, FRAME, "bucket", 30)).toBe(37.5);
+    expect(markX(29, TODAY, range, FRAME, "bucket", 30)).toBe(356.5);
+    // A record on the range's last day stands in the middle of that day.
+    expect(markX(0, TODAY, range, FRAME, "record", 1)).toBeCloseTo(356.5);
+    // A day inside a week's slot stands its share of the way across it.
+    const weeks = presetRange("3m", TODAY);
+    expect(dayX("2026-07-13", weeks, FRAME, "bucket", 14)).toBeCloseTo(32 + 330 / 14);
+    expect(dayX("2026-07-16", weeks, FRAME, "bucket", 14)).toBeCloseTo(32 + (330 / 14) * (10 / 7));
+  });
+
+  it("names Mondays over a month, months over a quarter, years over All", () => {
+    const month = presetRange("1m", TODAY);
+    const x =
+      (range: typeof month, placement: "bucket" | "record", count: number) => (date: string) =>
+        dayX(date, range, FRAME, placement, count);
+    expect(axisTicks(month, FRAME, x(month, "bucket", 30), widthOf).map((t) => t.label)).toEqual([
+      "14 Sept",
+      "21 Sept",
+      "28 Sept",
+    ]);
+    const quarter = presetRange("3m", TODAY);
+    expect(
+      axisTicks(quarter, FRAME, x(quarter, "bucket", 14), widthOf).map((t) => t.label),
+    ).toEqual(["Aug", "Sept", "Oct"]);
+    const all = { preset: "all" as const, from: "2022-03-01", to: TODAY, bucket: "month" as const };
+    expect(axisTicks(all, FRAME, x(all, "bucket", 56), widthOf).map((t) => t.label)).toEqual([
+      "2023",
+      "2024",
+      "2025",
+      "2026",
+    ]);
+  });
+
+  it("thins a year's months to every second, the year at January, so none run together", () => {
+    const year = presetRange("12m", TODAY);
+    const ticks = axisTicks(year, FRAME, (date) => dayX(date, year, FRAME, "bucket", 12), widthOf);
+    expect(ticks.map((t) => t.label)).toEqual(["Nov", "2026", "Mar", "May", "Jul", "Sept"]);
+    ticks
+      .slice(1)
+      .forEach((tick, i) =>
+        expect(tick.x - ticks[i]!.x).toBeGreaterThanOrEqual(widthOf(ticks[i]!.label) + 10),
+      );
+  });
+});
+
+describe("reading a mark", () => {
+  it("finds the nearest mark that has something in it", () => {
+    expect(nearestIndex([10, null, 30, 60], 35)).toBe(2);
+    expect(nearestIndex([10, null, 30, 60], 21)).toBe(2);
+    expect(nearestIndex([null, null], 5)).toBeNull();
+  });
+});
+
+describe("the marks", () => {
+  it("rounds a bar's top and keeps its foot square on the baseline", () => {
+    expect(barPath(10, 20, 8, 40)).toBe(
+      "M10.00 60.00V23.00Q10.00 20.00 13.00 20.00H15.00Q18.00 20.00 18.00 23.00V60.00Z",
+    );
+  });
+
+  it("breaks a line where a bucket has no reading", () => {
+    expect(linePath([{ x: 1, y: 1 }, { x: 2, y: 2 }, null, { x: 4, y: 4 }])).toBe(
+      "M1.0 1.0L2.0 2.0M4.0 4.0",
+    );
+  });
+});

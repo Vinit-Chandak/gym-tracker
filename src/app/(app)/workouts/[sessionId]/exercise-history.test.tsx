@@ -33,7 +33,8 @@ function renderHistory() {
       exerciseId={EXERCISE}
       workoutExerciseId={CURRENT}
       loadPortability="global"
-      preferredUnit="kg"
+      unit="kg"
+      length="m"
       timeZone="Europe/London"
     />,
   );

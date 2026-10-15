@@ -1,9 +1,10 @@
 // Native date/time regression audit. Each browser uses a disposable local QA account.
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import postgres from "postgres";
 import { fillActivityField } from "./audit-controls.mjs";
+import { launch, skipDevice, skippedDevices } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -26,7 +27,10 @@ const sql = postgres(database, { max: 1 });
 const results = [];
 const pageErrors = [];
 const saveReport = () =>
-  writeFile(`${output}/results.json`, JSON.stringify({ results, pageErrors }, null, 2));
+  writeFile(
+    `${output}/results.json`,
+    JSON.stringify({ results, pageErrors, skipped: skippedDevices }, null, 2),
+  );
 
 async function run(engine) {
   const id = randomUUID();
@@ -61,7 +65,8 @@ async function run(engine) {
   };
   const saveActivity = async (label = "Save activity") => {
     await page.getByRole("button", { name: label, exact: true }).click();
-    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+$/);
+    // A run logged from Training opens on Training (?from=training), as its Back leads there.
+    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
     await page.waitForLoadState("networkidle");
     return new URL(page.url()).pathname.split("/").at(-1);
   };
@@ -73,9 +78,7 @@ async function run(engine) {
     await sql`update profiles set onboarded_at=now(), time_zone='America/New_York',
       body_weight_kg=75, height_cm=175, date_of_birth='1994-06-15', training_goal='get_stronger'
       where id=${id}`;
-    browser = await (engine === "webkit" ? webkit : chromium).launch({
-      executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-    });
+    browser = await launch(engine);
     const context = await browser.newContext({
       ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
       baseURL,
@@ -194,7 +197,8 @@ async function run(engine) {
       "Correction after travel retains the activity zone and original repeated hour",
       async () => {
         await page.goto("/profile/edit", { waitUntil: "networkidle" });
-        await page.getByLabel("Time zone", { exact: true }).fill("America/Los_Angeles");
+        // The time zone is chosen from a list of places now, not typed.
+        await page.getByLabel("Time zone", { exact: true }).selectOption("America/Los_Angeles");
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByRole("status").filter({ hasText: "Profile saved" })).toHaveText(
           "Profile saved",
@@ -246,6 +250,7 @@ async function run(engine) {
 
 try {
   for (const engine of engines) {
+    if (skipDevice(engine === "webkit" ? "iphone" : "android", engine)) continue;
     try {
       await run(engine);
     } catch (error) {

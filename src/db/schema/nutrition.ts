@@ -166,6 +166,8 @@ export const foodEntries = pgTable(
   },
   (t) => [
     index("food_entries_user_day_idx").on(t.userId, t.eatenOn),
+    // How often each food has been eaten is counted from its entries, which orders My foods.
+    index("food_entries_user_food_idx").on(t.userId, t.foodId),
     // The food must be the owner's own. Deleting it clears only `food_id`: the migration writes
     // `on delete set null (food_id)`, since a bare `set null` would null the owner as well.
     foreignKey({
@@ -199,6 +201,14 @@ export const savedMeals = pgTable(
     userId: owner(),
     name: text("name").notNull(),
     items: jsonb("items").$type<LoggedFood[]>().notNull(),
+    /**
+     * How many times it has been added to a meal, so the meals eaten most come first (owner, 8
+     * October 2026). Its entries are copies that keep no link back to it, so it is counted as it
+     * is added; meals eaten before the count began were counted once, by migration 0048.
+     */
+    timesLogged: integer("times_logged").notNull().default(0),
+    /** When it was last added to a meal, which orders meals added as often. */
+    lastLoggedAt: timestamp("last_logged_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 import Link from "./app-link";
+import { Figures } from "./figures";
 import { Glyph, type GlyphName } from "./glyphs";
 
 /**
@@ -43,6 +44,12 @@ export function NavRow<T extends string>({
   prefetch?: "intent";
   className?: string;
 }) {
+  const marks = (
+    <>
+      {badge && <span className="nav-row-badge">{badge}</span>}
+      {tag && <span className="nav-row-tag">{tag}</span>}
+    </>
+  );
   const content = (
     <>
       {(glyph || lead) && (
@@ -50,16 +57,30 @@ export function NavRow<T extends string>({
           {glyph ? <Glyph name={glyph} className="glyph-20" /> : lead}
         </span>
       )}
-      {sub ? (
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="nav-row-label nav-row-label-bold">{label}</span>
-          <span className="nav-row-sub">{sub}</span>
-        </span>
-      ) : (
-        <span className="nav-row-label">{label}</span>
-      )}
-      {badge && <span className="nav-row-badge">{badge}</span>}
-      {tag && <span className="nav-row-tag">{tag}</span>}
+      {/* The name and what marks it share a line while the name keeps room for a word beside
+          them, and the mark goes under the name before it would break a word (large text). */}
+      <span className="nav-row-main">
+        {sub ? (
+          <span className="nav-row-text">
+            {/* The mark stands beside the name alone: the line under it keeps the row's
+                width, so "Machine · Chest, Front delts" is not broken for a Per machine tag. */}
+            <span className="nav-row-head">
+              <span className="nav-row-label nav-row-label-bold">{label}</span>
+              {marks}
+            </span>
+            {/* "101 machines": its figures in Jost, whose zero is plain (DESIGN.md, The Two
+                Voices Rule); a sentence has none, and is left as it is. */}
+            <span className="nav-row-sub">
+              {typeof sub === "string" ? <Figures>{sub}</Figures> : sub}
+            </span>
+          </span>
+        ) : (
+          <>
+            <span className="nav-row-label">{label}</span>
+            {marks}
+          </>
+        )}
+      </span>
       {value && <span className="nav-row-value">{value}</span>}
       {trailing ??
         (href && <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />)}

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { AmountSheet } from "@/components/food/amount-sheet";
+import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
+import { FOODS_PER_PAGE, FoodSection } from "@/components/food/food-section";
 import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
@@ -42,7 +44,7 @@ export function MealBuilder({
 }: {
   /** The meal being changed, or null for a new one. */
   saved: SavedMealRecord | null;
-  /** My foods, the most lately eaten first, to add from. */
+  /** My foods, the most eaten first, to add from, a page at a time. */
   foods: readonly FoodRecord[];
   /** Where saving or deleting returns to when there is no page to go back to. */
   leaveTo?: Route;
@@ -165,7 +167,7 @@ export function MealBuilder({
           </Button>
         </div>
         {items.length > 0 && (
-          <ul className="meal-entries" aria-label="In this meal">
+          <ul className="meal-entries food-list" aria-label="In this meal">
             {items.map((item) => (
               <li key={item.key}>
                 <SwipeRow
@@ -179,18 +181,12 @@ export function MealBuilder({
                     onClick={() => open({ kind: "item", item })}
                     className="food-row"
                   >
-                    <span className="food-row-text">
-                      <span className="food-row-name">{item.food.name}</span>{" "}
-                      <span className="food-row-meta">
-                        {formatPortion(item.amount, item.food.unit)}
-                      </span>
-                    </span>{" "}
-                    <span className="food-row-kcal">
-                      <span className="type-figure">
-                        {formatKcal(scaleFood(item.food, item.amount).kcal)}
-                      </span>{" "}
-                      <span className="food-row-unit">kcal</span>
-                    </span>
+                    <FoodRowText
+                      name={item.food.name}
+                      tile={<RowGlyph name="food" />}
+                      meta={formatPortion(item.amount, item.food.unit)}
+                    />{" "}
+                    <RowKcal kcal={scaleFood(item.food, item.amount).kcal} />
                   </button>
                 </SwipeRow>
               </li>
@@ -220,31 +216,29 @@ export function MealBuilder({
               enterKeyHint="search"
             />
           </div>
-          {choices.length > 0 && (
-            <ul className="food-list mt-1.5" aria-label="Your foods">
-              {choices.map((food) => (
-                <li key={food.id}>
-                  <button
-                    type="button"
-                    disabled={busy || full}
-                    onClick={() => open({ kind: "add", food })}
-                    className="food-row"
-                  >
-                    <span className="food-row-text">
-                      <span className="food-row-name">{food.name}</span>{" "}
-                      <span className="food-row-meta">
-                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
-                        kcal
-                      </span>
-                    </span>
-                    <span aria-hidden className="meal-add">
-                      <Glyph name="plus" className="glyph-18" />
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <FoodSection
+            key={search}
+            title="Foods"
+            items={choices}
+            perPage={FOODS_PER_PAGE}
+            row={(food) => (
+              <li key={food.id}>
+                <button
+                  type="button"
+                  disabled={busy || full}
+                  onClick={() => open({ kind: "add", food })}
+                  className="food-row"
+                >
+                  <FoodRowText
+                    name={food.name}
+                    tile={<RowGlyph name="food" />}
+                    meta={formatPortion(food.portionAmount, food.unit)}
+                  />{" "}
+                  <RowKcal kcal={food.kcal} />
+                </button>
+              </li>
+            )}
+          />
         </div>
       ) : (
         <p className="type-meta-small text-ink-2">No foods yet. Make one in My foods first.</p>

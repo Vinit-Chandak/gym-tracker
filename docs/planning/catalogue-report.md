@@ -11,16 +11,16 @@ production deploy leaves out until they are approved.
 | Record | Count | Of which drafts |
 | --- | --- | --- |
 | Equipment types | 101 | 8 |
-| Exercises | 289 | 13 |
+| Exercises | 379 | 3 |
 | Inactive exercises | 0 | – |
-| Requirement alternatives | 481 | 26 |
-| Exercises with types used together | 53 | 1 |
+| Requirement alternatives | 606 | 12 |
+| Exercises with types used together | 66 | 0 |
 | Corrected mappings | 120 | – |
 | Combination machines | 11 | 8 |
 | Families | 5 | – |
 | Gym basics (assumed at a gym) | 18 | – |
 | Starter presets | 3 | – |
-| Aliases | 542 | 109 |
+| Aliases | 635 | 93 |
 | Guides | 61 | 61 |
 | Demonstration links | 65 | 65 |
 | Drawings | 111 | 111 |
@@ -67,23 +67,13 @@ way to do an exercise and every alias that depends on them. Approving one is tak
 | `ab_crunch_back_extension` | Ab crunch and back extension | `ab_crunch_machine`, `back_extension_machine` | Ab and back machine; Low back abdominal |
 | `chest_press_lat_pulldown` | Chest press and lat pulldown | `chest_press_machine`, `lat_pulldown` | Seated chest press and lat pull down |
 
-### Exercises (13)
+### Exercises (3)
 
 | Exercise | Name | Modality | Measured in | Equipment |
 | --- | --- | --- | --- | --- |
-| `incline-push-up` | Incline push-up | bodyweight | reps | bodyweight · flat_bench · plyo_box · smith_machine |
-| `kneeling-push-up` | Kneeling push-up | bodyweight | reps | bodyweight |
-| `burpee` | Burpee | bodyweight | reps | bodyweight |
-| `mountain-climber` | Mountain climber | bodyweight | duration | bodyweight |
-| `jump-squat` | Jump squat | bodyweight | reps | bodyweight |
-| `db-sumo-squat` | Dumbbell sumo squat | dumbbell | reps | dumbbells · kettlebells |
-| `hindu-push-up` | Hindu push-up | bodyweight | reps | bodyweight |
-| `hindu-squat` | Hindu squat | bodyweight | reps | bodyweight |
 | `decline-press-machine` | Decline press machine | machine | reps | decline_press_machine |
 | `lever-squat` | Lever squat | machine | reps | lever_squat_machine |
 | `machine-high-row` | Machine high row | machine | reps | high_row_machine |
-| `medicine-ball-slam` | Medicine ball slam | cardio | reps | medicine_ball |
-| `incline-bench-preacher-curl` | Incline bench preacher curl | dumbbell | reps | (dumbbells + adjustable_bench) |
 
 ### Ways to do a published exercise on a draft type (9)
 
@@ -162,8 +152,8 @@ what production seeds: the drafts, and the ways that wait for a draft type, are 
 | `optional` | An optional support or added load could stand in for the main equipment | 13 |
 | `no_equipment` | The floor was listed as equipment | 1 |
 | `variants` | Interchangeable variants of the same machine family were missing | 31 |
-| unchanged: one way | One type, or one group, and nothing to correct | 87 |
-| unchanged: alternatives | Interchangeable types for the same movement | 69 |
+| unchanged: one way | One type, or one group, and nothing to correct | 160 |
+| unchanged: alternatives | Interchangeable types for the same movement | 96 |
 
 <details><summary>All exercises</summary>
 
@@ -445,6 +435,106 @@ what production seeds: the drafts, and the ways that wait for a draft type, are 
 | `machine-chest-dip` | unchanged: one way |  | triceps_dip_machine |
 | `v-bar-overhead-cable-extension` | variants | cable_station, functional_trainer | cable_station · functional_trainer · cable_crossover |
 | `cable-serratus-punch` | variants | cable_station, functional_trainer, resistance_bands | cable_station · functional_trainer · cable_crossover · resistance_bands |
+| `incline-push-up` | unchanged: alternatives |  | bodyweight · flat_bench · plyo_box · smith_machine |
+| `kneeling-push-up` | unchanged: one way |  | bodyweight |
+| `burpee` | unchanged: one way |  | bodyweight |
+| `mountain-climber` | unchanged: one way |  | bodyweight |
+| `jump-squat` | unchanged: one way |  | bodyweight |
+| `db-sumo-squat` | unchanged: alternatives |  | dumbbells · kettlebells |
+| `hindu-push-up` | unchanged: one way |  | bodyweight |
+| `hindu-squat` | unchanged: one way |  | bodyweight |
+| `medicine-ball-slam` | unchanged: one way |  | medicine_ball |
+| `incline-bench-preacher-curl` | unchanged: one way |  | (dumbbells + adjustable_bench) |
+| `dragon-flag` | unchanged: alternatives |  | flat_bench · adjustable_bench · decline_ab_bench |
+| `bent-knee-dragon-flag` | unchanged: alternatives |  | flat_bench · adjustable_bench · decline_ab_bench |
+| `bench-reverse-hyperextension` | unchanged: alternatives |  | flat_bench · adjustable_bench |
+| `v-up` | unchanged: one way |  | bodyweight |
+| `sit-up` | unchanged: one way |  | bodyweight |
+| `flutter-kick` | unchanged: one way |  | bodyweight |
+| `heel-touch` | unchanged: one way |  | bodyweight |
+| `toe-touch-crunch` | unchanged: one way |  | bodyweight |
+| `lying-windshield-wiper` | unchanged: one way |  | bodyweight |
+| `hanging-windshield-wiper` | unchanged: one way |  | pull_up_bar |
+| `seated-knee-tuck` | unchanged: alternatives |  | flat_bench · bodyweight |
+| `stability-ball-crunch` | unchanged: one way |  | stability_ball |
+| `superman` | unchanged: one way |  | bodyweight |
+| `decline-push-up` | unchanged: alternatives |  | flat_bench · plyo_box · bodyweight |
+| `pike-push-up` | unchanged: one way |  | bodyweight |
+| `handstand-push-up` | unchanged: one way |  | bodyweight |
+| `archer-push-up` | unchanged: one way |  | bodyweight |
+| `clap-push-up` | unchanged: one way |  | bodyweight |
+| `scapular-push-up` | unchanged: one way |  | bodyweight |
+| `svend-press` | unchanged: alternatives |  | weight_plates · dumbbells |
+| `db-squeeze-press` | unchanged: one way |  | (dumbbells + flat_bench) |
+| `barbell-floor-press` | unchanged: one way |  | (barbell + power_rack) |
+| `paused-bench-press` | unchanged: one way |  | (barbell + flat_bench + power_rack) |
+| `standing-cable-chest-press` | unchanged: alternatives |  | functional_trainer · cable_crossover |
+| `swiss-bar-bench-press` | unchanged: one way |  | (swiss_bar + flat_bench + power_rack) |
+| `yates-row` | unchanged: one way |  | barbell |
+| `db-bent-over-row` | unchanged: alternatives |  | dumbbells · kettlebells |
+| `muscle-up` | unchanged: alternatives |  | pull_up_bar · gymnastic_rings |
+| `band-assisted-pull-up` | unchanged: one way |  | (pull_up_bar + resistance_bands) |
+| `pull-up-negative` | unchanged: one way |  | pull_up_bar |
+| `stiff-leg-deadlift` | unchanged: one way |  | barbell |
+| `deficit-deadlift` | unchanged: one way |  | barbell |
+| `db-deadlift` | unchanged: alternatives |  | dumbbells · kettlebells |
+| `smith-machine-rdl` | unchanged: one way |  | smith_machine |
+| `smith-machine-shrug` | unchanged: one way |  | smith_machine |
+| `standing-db-shoulder-press` | unchanged: one way |  | dumbbells |
+| `z-press` | unchanged: one way |  | (barbell + power_rack) |
+| `barbell-front-raise` | unchanged: alternatives |  | barbell · ez_bar |
+| `cable-external-rotation` | unchanged: alternatives |  | cable_station · functional_trainer · cable_crossover · resistance_bands |
+| `side-lying-external-rotation` | unchanged: one way |  | dumbbells |
+| `wall-slide` | unchanged: one way |  | bodyweight |
+| `cable-preacher-curl` | unchanged: alternatives |  | (cable_station + preacher_bench) · (functional_trainer + preacher_bench) · (cable_crossover + preacher_bench) |
+| `overhead-cable-curl` | unchanged: alternatives |  | cable_crossover · functional_trainer |
+| `low-bar-squat` | unchanged: one way |  | (barbell + power_rack) |
+| `pause-squat` | unchanged: one way |  | (barbell + power_rack) |
+| `zercher-squat` | unchanged: one way |  | (barbell + power_rack) |
+| `overhead-squat` | unchanged: one way |  | (barbell + power_rack) |
+| `landmine-squat` | unchanged: one way |  | (landmine + barbell) |
+| `db-squat` | unchanged: alternatives |  | dumbbells · kettlebells |
+| `forward-lunge` | unchanged: alternatives |  | dumbbells · barbell · kettlebells · bodyweight |
+| `curtsy-lunge` | unchanged: alternatives |  | dumbbells · kettlebells · bodyweight |
+| `jumping-lunge` | unchanged: one way |  | bodyweight |
+| `smith-machine-split-squat` | unchanged: one way |  | smith_machine |
+| `pistol-squat` | unchanged: one way |  | bodyweight |
+| `wall-sit` | unchanged: one way |  | bodyweight |
+| `reverse-hack-squat` | unchanged: one way |  | hack_squat |
+| `stability-ball-leg-curl` | unchanged: one way |  | stability_ball |
+| `barbell-glute-bridge` | unchanged: one way |  | barbell |
+| `db-hip-thrust` | unchanged: one way |  | (dumbbells + flat_bench) |
+| `donkey-kick` | unchanged: alternatives |  | bodyweight · resistance_bands |
+| `fire-hydrant` | unchanged: alternatives |  | bodyweight · resistance_bands |
+| `clamshell` | unchanged: alternatives |  | resistance_bands · bodyweight |
+| `side-lying-hip-abduction` | unchanged: one way |  | bodyweight |
+| `cable-hip-adduction` | unchanged: alternatives |  | cable_station · functional_trainer · cable_crossover |
+| `bodyweight-calf-raise` | unchanged: alternatives |  | bodyweight · calf_block |
+| `hang-power-clean` | unchanged: one way |  | barbell |
+| `power-snatch` | unchanged: one way |  | barbell |
+| `clean-and-jerk` | unchanged: one way |  | barbell |
+| `barbell-thruster` | unchanged: one way |  | barbell |
+| `db-thruster` | unchanged: alternatives |  | dumbbells · kettlebells |
+| `wall-ball` | unchanged: one way |  | medicine_ball |
+| `turkish-get-up` | unchanged: alternatives |  | kettlebells · dumbbells |
+| `jumping-jack` | unchanged: one way |  | bodyweight |
+| `high-knees` | unchanged: one way |  | bodyweight |
+| `broad-jump` | unchanged: one way |  | bodyweight |
+| `bear-crawl` | unchanged: one way |  | bodyweight |
+| `treadmill-walk` | unchanged: one way |  | treadmill |
+| `kneeling-hip-flexor-stretch` | unchanged: one way |  | bodyweight |
+| `pigeon-stretch` | unchanged: one way |  | bodyweight |
+| `standing-hamstring-stretch` | unchanged: alternatives |  | bodyweight · flat_bench |
+| `childs-pose` | unchanged: one way |  | bodyweight |
+| `doorway-chest-stretch` | unchanged: one way |  | bodyweight |
+| `cobra-stretch` | unchanged: one way |  | bodyweight |
+| `downward-dog` | unchanged: one way |  | bodyweight |
+| `butterfly-stretch` | unchanged: one way |  | bodyweight |
+| `cross-body-shoulder-stretch` | unchanged: one way |  | bodyweight |
+| `foam-roll-hamstrings` | unchanged: one way |  | foam_roller |
+| `foam-roll-calves` | unchanged: one way |  | foam_roller |
+| `foam-roll-glutes` | unchanged: one way |  | foam_roller |
+| `foam-roll-lats` | unchanged: one way |  | foam_roller |
 
 </details>
 
@@ -459,9 +549,9 @@ what production seeds: the drafts, and the ways that wait for a draft type, are 
 
 ## Unused equipment types
 
-- Referenced by no exercise: `medicine_ball`, `swiss_bar`, `dip_belt`.
+- Referenced by no exercise: `dip_belt`.
 - Only ever a supporting implement, never a primary: none.
-- Of the unused, those a draft exercise would use: `medicine_ball` (`medicine-ball-slam`).
+- Of the unused, those a draft exercise would use: none.
 - Draft types no exercise uses: none.
 
 ## Duplicate and alias candidates
@@ -486,6 +576,7 @@ Exercise names and aliases shared by more than one exercise:
 | Name | Exercises |
 | --- | --- |
 | french press | `skull-crusher`, `ez-bar-overhead-extension` |
+| dragon fly | `dragon-flag`, `bent-knee-dragon-flag` |
 
 Once the drafts are seeded, also:
 
@@ -497,12 +588,12 @@ None.
 | --- | --- |
 | Published guide | 0 |
 | Draft guide awaiting review | 61 |
-| No guide yet (honest gap) | 216 |
-| A How to log note | 35 |
-| A legacy form cue (shown until a guide is published) | 31 |
+| No guide yet (honest gap) | 315 |
+| A How to log note | 78 |
+| A legacy form cue (shown until a guide is published) | 83 |
 | A legacy form link | 8 |
 | At least one demonstration link | 61 |
-| Draft exercises awaiting approval (not counted above) | 13 |
+| Draft exercises awaiting approval (not counted above) | 3 |
 
 Template exercises and fallbacks without a guide: none.
 

@@ -46,7 +46,13 @@ async function resolveTrainingLocation(
     .from(gyms)
     .where(and(eq(gyms.userId, userId), eq(gyms.isActive, true)))
     .orderBy(desc(gyms.isDefault), asc(gyms.createdAt));
-  const chosen = owned.find((gym) => gym.id === answers.gymId && gym.kind === kind);
+  // An outdoor place is answered as "home" (what you own, and your body), and kept: setup asks the
+  // coach about the place the athlete gave, never one made up beside it.
+  const chosen = owned.find(
+    (gym) =>
+      gym.id === answers.gymId &&
+      (gym.kind === kind || (kind === "home" && gym.kind === "outdoor")),
+  );
   const matching = chosen ?? owned.find((gym) => gym.kind === kind);
   if (matching) return { ...answers, gymId: matching.id };
   if (!create) return { ...answers, gymId: null };

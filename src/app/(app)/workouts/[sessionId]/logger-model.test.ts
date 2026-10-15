@@ -10,6 +10,7 @@ import {
   figureColumn,
   headingText,
   logSize,
+  openRow,
   operatorColumn,
   perSetLabel,
   prescriptionLabel,
@@ -19,6 +20,7 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
+  targetFor,
 } from "./logger-model";
 import type { RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
@@ -106,8 +108,8 @@ const row = (setIndex: number, setType: RowState["setType"] = "working"): RowSta
 
 describe("what the header says", () => {
   it("gives the Log tab the range a set aims at, and the other tabs the whole prescription", () => {
-    expect(perSetLabel(exercise())).toBe("3–5 reps");
-    expect(prescriptionLabel(exercise())).toBe("4 × 3–5 @ 2 RIR");
+    expect(perSetLabel(exercise(), "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(exercise(), "", "m")).toBe("4 × 3–5 @ 2 RIR");
     expect(restText(exercise())).toBe("3–4 min");
   });
 
@@ -125,15 +127,71 @@ describe("what the header says", () => {
         restMaxSeconds: 90,
       },
     });
-    expect(perSetLabel(carry)).toBe("20–40 m");
-    expect(prescriptionLabel(carry)).toBe("3 × 20–40 m");
+    expect(perSetLabel(carry, "m")).toBe("20–40 m");
+    expect(prescriptionLabel(carry, "", "m")).toBe("3 × 20–40 m");
     expect(restText(carry)).toBe("90 s");
+    // Beside miles a carry reads in yards, each end as a logged set of it would (ADR 0055).
+    expect(perSetLabel(carry, "yd")).toBe("22–44 yd");
+    expect(prescriptionLabel(carry, "", "yd")).toBe("3 × 22–44 yd");
+    expect(countTargetLabel(carry, null, "yd")).toBe("22–44 yd");
+    // Each end is the least whole yard that, logged, reaches it: 16 yd is kept as 14.6 m, short
+    // of 15 m, and 49 yd as 44.8 m, short of 45 m.
+    const longer = exercise({
+      planned: { ...carry.planned!, distanceMinMeters: 15, distanceMaxMeters: 45 },
+    });
+    expect(perSetLabel(longer, "yd")).toBe("17–50 yd");
+    expect(perSetLabel(longer, "m")).toBe("15–45 m");
+  });
+
+  it("says the coach's carry in the athlete's length, its metres underneath unchanged", () => {
+    const carried = exercise({
+      planned: {
+        ...planned,
+        sets: 2,
+        prescriptionType: "distance",
+        repMin: null,
+        repMax: null,
+        distanceMinMeters: 20,
+        distanceMaxMeters: 40,
+      },
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Coach plan for today",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [1, 2].map((setIndex) => ({
+          setIndex,
+          setType: "working" as const,
+          weight: 32,
+          reps: null,
+          rir: null,
+          rpe: 7,
+          durationSeconds: null,
+          distanceMeters: 30,
+        })),
+      },
+    });
+    expect(perSetLabel(carried, "m")).toBe("30 m");
+    expect(perSetLabel(carried, "yd")).toBe("33 yd");
+    expect(countTargetLabel(carried, null, "yd")).toBe("33 yd");
+    expect(prescriptionLabel(carried, "kg", "yd")).toBe("32 kg ·\u00a02 × 33 yd ·\u00a0RPE 7");
+    // A coach's 15 m is 16.4 yd, and 16 yd falls short of it: the figure asked for is 17.
+    const short = exercise({
+      ...carried,
+      suggestion: {
+        ...carried.suggestion!,
+        sets: carried.suggestion!.sets.map((set) => ({ ...set, distanceMeters: 15 })),
+      },
+    });
+    expect(countTargetLabel(short, null, "yd")).toBe("17 yd");
+    expect(prescriptionLabel(short, "kg", "yd")).toBe("32 kg ·\u00a02 × 17 yd ·\u00a0RPE 7");
   });
 
   it("says nothing it does not know: an exercise with no plan and no defaults has no range", () => {
     const adHoc = exercise({ planned: null });
-    expect(perSetLabel(adHoc)).toBeNull();
-    expect(prescriptionLabel(adHoc)).toBeNull();
+    expect(perSetLabel(adHoc, "m")).toBeNull();
+    expect(prescriptionLabel(adHoc, "", "m")).toBeNull();
     expect(restText(adHoc)).toBeNull();
     expect(restSecondsOf(adHoc)).toBeNull();
   });
@@ -181,6 +239,64 @@ describe("what the header says", () => {
     expect(as("cardio")).toBe("machine");
     expect(as("cardio", false)).toBe("bodyweight");
   });
+
+  it("draws a machine with a glyph of its own as itself, whatever loads the movement", () => {
+    const on = (
+      name: string,
+      modality: ExerciseVM["exercise"]["modality"],
+      machine: string,
+      typeCategory: NonNullable<ExerciseVM["equipment"]>["typeCategory"],
+      typeSlug: string,
+    ) => {
+      const done = exercise({
+        exercise: { ...exercise().exercise, name, modality },
+        equipment: { id: machine, name: machine, unit: "kg", typeCategory, typeSlug, ladder: null },
+      });
+      return [equipmentGlyph(done), equipmentLabel(done)];
+    };
+    // A back extension bench was drawn as the pull-up bar, a calf block as a dumbbell.
+    expect(
+      on(
+        "Back extension",
+        "bodyweight",
+        "Back extension bench",
+        "accessory",
+        "back_extension_bench",
+      ),
+    ).toEqual(["accessory", "Back extension bench"]);
+    expect(
+      on("Single-leg calf raise", "dumbbell", "Calf raise block", "accessory", "calf_block"),
+    ).toEqual(["accessory", "Calf raise block"]);
+    // The ab wheel is drawn as itself and, named by the exercise, said by its kind.
+    expect(on("Ab wheel rollout", "bodyweight", "Ab wheel", "accessory", "ab_wheel")).toEqual([
+      "abWheel",
+      "Ab wheel",
+    ]);
+    expect(on("Kneeling rollout", "bodyweight", "Ab roller", "accessory", "ab_wheel")).toEqual([
+      "abWheel",
+      "Ab roller",
+    ]);
+    // So is a cardio machine or the Smith machine: a rowing machine was drawn as a weight stack.
+    expect(on("Rowing machine", "cardio", "Rowing machine", "cardio", "rowing_machine")).toEqual([
+      "rower",
+      "Rowing machine",
+    ]);
+    expect(on("Treadmill walk", "cardio", "Treadmill 2", "cardio", "treadmill")).toEqual([
+      "treadmill",
+      "Treadmill 2",
+    ]);
+    expect(
+      on("Smith machine squat", "smith_machine", "Smith machine", "machine", "smith_machine")[0],
+    ).toBe("smith");
+    // Any other machine is still drawn by what loads the movement.
+    expect(on("Pull-up", "bodyweight", "Pull-up bar", "bodyweight", "pull_up_bar")).toEqual([
+      "bodyweight",
+      "Pull-up bar",
+    ]);
+    expect(on("Barbell bench press", "barbell", "Barbell", "free_weight", "barbell")[0]).toBe(
+      "dumbbell",
+    );
+  });
 });
 
 /** The coach's sets for today, as a coach-planned session carries them. */
@@ -227,13 +343,13 @@ describe("today's targets: every number from one source (plan: today's targets)"
       coachRestSeconds: 150,
     });
     // The programme says 4 × 3–5 @ 2 RIR, rest 3–4 min; the coach wrote 3 × 5 @ 60 kg, 150 s.
-    expect(perSetLabel(coached)).toBe("5 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60 kg · 3 × 5 @ 2 RIR");
+    expect(perSetLabel(coached, "m")).toBe("5 reps");
+    expect(prescriptionLabel(coached, "kg", "m")).toBe("60 kg ·\u00a03 × 5 @ 2 RIR");
     expect(restText(coached)).toBe("2.5 min");
     expect(restSecondsOf(coached)).toBe(150);
-    expect(countTargetLabel(coached, 3)).toBe("5");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!, "m")).toBe("5");
     // The coach's warm-up asks for its own reps.
-    expect(countTargetLabel(coached, 1)).toBe("8");
+    expect(countTargetLabel(coached, coached.suggestion!.sets[0]!, "m")).toBe("8");
   });
 
   it("says each set when the coach's sets differ", () => {
@@ -244,9 +360,11 @@ describe("today's targets: every number from one source (plan: today's targets)"
         { weight: 70, reps: 4, rir: 1 },
       ]),
     });
-    expect(perSetLabel(coached)).toBe("8/6/4 reps");
-    expect(prescriptionLabel(coached, "kg")).toBe("60/65/70 kg · 3 × 8/6/4 @ 3, 2, 1 RIR");
-    expect(countTargetLabel(coached, 3)).toBe("4");
+    expect(perSetLabel(coached, "m")).toBe("8/6/4 reps");
+    expect(prescriptionLabel(coached, "kg", "m")).toBe(
+      "60/65/70 kg ·\u00a03 × 8/6/4 @ 3, 2, 1 RIR",
+    );
+    expect(countTargetLabel(coached, coached.suggestion!.sets[2]!, "m")).toBe("4");
     // The coach gave no rest: the programme's stands.
     expect(restText(coached)).toBe("3–4 min");
   });
@@ -260,23 +378,23 @@ describe("today's targets: every number from one source (plan: today's targets)"
       ]),
       coachRestSeconds: 60,
     });
-    expect(perSetLabel(added)).toBe("12 reps");
-    expect(prescriptionLabel(added, "kg")).toBe("20 kg · 2 × 12 @ 2 RIR");
+    expect(perSetLabel(added, "m")).toBe("12 reps");
+    expect(prescriptionLabel(added, "kg", "m")).toBe("20 kg ·\u00a02 × 12 @ 2 RIR");
     expect(restText(added)).toBe("60 s");
   });
 
   it("keeps the programme's numbers where the coach left the sets to the programme", () => {
     const left = exercise({ coachRestSeconds: 120 });
-    expect(perSetLabel(left)).toBe("3–5 reps");
-    expect(prescriptionLabel(left, "kg")).toBe("4 × 3–5 @ 2 RIR");
+    expect(perSetLabel(left, "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(left, "kg", "m")).toBe("4 × 3–5 @ 2 RIR");
     // The coach's rest still wins, so the timer and the line agree.
     expect(restText(left)).toBe("2 min");
     expect(restSecondsOf(left)).toBe(120);
   });
 
   it("shows a programme-only exercise the programme's numbers, and its rest to the timer", () => {
-    expect(perSetLabel(exercise())).toBe("3–5 reps");
-    expect(countTargetLabel(exercise(), 1)).toBe("3–5");
+    expect(perSetLabel(exercise(), "m")).toBe("3–5 reps");
+    expect(countTargetLabel(exercise(), null, "m")).toBe("3–5");
     expect(restSecondsOf(exercise())).toBe(180);
   });
 
@@ -297,30 +415,30 @@ describe("today's targets: every number from one source (plan: today's targets)"
         },
       },
     });
-    expect(perSetLabel(adHoc)).toBe("8–12 reps");
+    expect(perSetLabel(adHoc, "m")).toBe("8–12 reps");
     // Per side is today's figure too: the coach's word for the session, else the programme's.
     const planned = exercise();
     const coachSides = exercise({
       coachPerSide: true,
       planned: { ...planned.planned!, perSide: false },
     });
-    expect(perSetLabel(coachSides)).toBe("3–5 reps per side");
-    expect(prescriptionLabel(coachSides, "kg")).toBe("4 × 3–5 per side @ 2 RIR");
+    expect(perSetLabel(coachSides, "m")).toBe("3–5 reps per side");
+    expect(prescriptionLabel(coachSides, "kg", "m")).toBe("4 × 3–5 per side @ 2 RIR");
     const coachBoth = exercise({
       coachPerSide: false,
       planned: { ...planned.planned!, perSide: true },
     });
-    expect(perSetLabel(coachBoth)).toBe("3–5 reps");
-    expect(prescriptionLabel(adHoc, "kg")).toBe("8–12 reps @ 2 RIR");
+    expect(perSetLabel(coachBoth, "m")).toBe("3–5 reps");
+    expect(prescriptionLabel(adHoc, "kg", "m")).toBe("8–12 reps @ 2 RIR");
     // Half a rep in reserve is not a target anyone can hold: it reads as the two either side.
     const half = {
       ...adHoc,
       exercise: { ...adHoc.exercise, defaults: { ...adHoc.exercise.defaults, rir: 1.5 } },
     };
-    expect(prescriptionLabel(half, "kg")).toBe("8–12 reps @ 1–2 RIR");
+    expect(prescriptionLabel(half, "kg", "m")).toBe("8–12 reps @ 1–2 RIR");
     expect(restText(adHoc)).toBe("90 s");
     expect(restSecondsOf(adHoc)).toBe(90);
-    expect(countTargetLabel(adHoc, 1)).toBe("8–12");
+    expect(countTargetLabel(adHoc, null, "m")).toBe("8–12");
     const hold = exercise({
       planned: null,
       exercise: {
@@ -329,15 +447,15 @@ describe("today's targets: every number from one source (plan: today's targets)"
         defaults: { ...adHoc.exercise.defaults, durationMinSeconds: 20, durationMaxSeconds: 45 },
       },
     });
-    expect(perSetLabel(hold)).toBe("20–45 s");
-    expect(prescriptionLabel(hold, "kg")).toBe("20–45 s");
+    expect(perSetLabel(hold, "m")).toBe("20–45 s");
+    expect(prescriptionLabel(hold, "kg", "m")).toBe("20–45 s");
   });
 });
 
 describe("the RIR a set aims at", () => {
   it("is the programme's, or the coach's for that set", () => {
-    expect(rirTarget(exercise(), 3)).toBe(2);
-    expect(rirTargetLabel(exercise({ planned: { ...planned, rirMax: 3 } }), 3)).toBe("2–3");
+    expect(rirTarget(exercise(), null)).toBe(2);
+    expect(rirTargetLabel(exercise({ planned: { ...planned, rirMax: 3 } }), null)).toBe("2–3");
     const coached = exercise({
       suggestion: {
         kind: "coach",
@@ -358,9 +476,9 @@ describe("the RIR a set aims at", () => {
         ],
       },
     });
-    expect(rirTarget(coached, 1)).toBe(3);
-    expect(rirTargetLabel(coached, 1)).toBe("3");
-    expect(rirTargetLabel(exercise({ planned: null }), 1)).toBeNull();
+    expect(rirTarget(coached, coached.suggestion!.sets[0]!)).toBe(3);
+    expect(rirTargetLabel(coached, coached.suggestion!.sets[0]!)).toBe("3");
+    expect(rirTargetLabel(exercise({ planned: null }), null)).toBeNull();
   });
 });
 
@@ -402,6 +520,69 @@ describe("which set the entry is on", () => {
   });
 });
 
+describe("the target a row stands for", () => {
+  // Upper B's incline bench as the coach wrote it: a ramp of three, then 3 × 55 kg × 6 at 2 RIR.
+  const coached = exercise({
+    suggestion: {
+      kind: "coach",
+      basis: "exercise",
+      reason: "Coach plan for today",
+      advice: null,
+      loadIncrement: 2.5,
+      sets: (
+        [
+          [30, 6, null],
+          [40, 5, null],
+          [50, 4, null],
+          [55, 6, 2],
+          [55, 6, 2],
+          [55, 6, 2],
+        ] as const
+      ).map(([weight, reps, rir], index) => ({
+        setIndex: index + 1,
+        setType: index < 3 ? ("warmup" as const) : ("working" as const),
+        weight,
+        reps,
+        rir,
+        durationSeconds: null,
+        distanceMeters: null,
+      })),
+    },
+  });
+  const ramp = () => [row(1, "warmup"), row(2, "warmup"), row(3, "warmup"), row(4), row(5), row(6)];
+
+  it("takes the same kind of set in the same place, never the set number", () => {
+    const rows = ramp();
+    expect(targetFor(coached, rows, rows[1]!)).toMatchObject({ weight: 40, reps: 5 });
+    expect(targetFor(coached, rows, rows[3]!)).toMatchObject({ weight: 55, reps: 6, rir: 2 });
+    // The first warm-up turned into a working set is the first working set: 55 × 6, not 30 × 6.
+    const skipped = [
+      { ...rows[0]!, setType: "working" as const, typeChosen: true },
+      ...rows.slice(1),
+    ];
+    expect(targetFor(coached, skipped, skipped[0]!)).toMatchObject({ weight: 55, reps: 6, rir: 2 });
+    expect(rirTargetLabel(coached, targetFor(coached, skipped, skipped[0]!))).toBe("2");
+    // A working set past the coach's three has none of its own.
+    expect(targetFor(coached, skipped, skipped[5]!)).toBeNull();
+  });
+
+  it("goes on past a warm-up the work has passed", () => {
+    const logged = (setIndex: number, setType: RowState["setType"]) => ({
+      ...row(setIndex, setType),
+      logged: { setIndex, setType } as RowState["logged"],
+    });
+    // Warm-ups skipped: the first row was logged as a working set.
+    const rows = [logged(1, "working"), row(2, "warmup"), row(3, "warmup"), row(4), row(5), row(6)];
+    expect(openRow(rows)?.setIndex).toBe(4);
+    expect(targetFor(coached, rows, openRow(rows)!)).toMatchObject({ weight: 55, setIndex: 5 });
+    // A warm-up the athlete chose after the work is theirs to log.
+    const chosen = [rows[0]!, { ...rows[1]!, typeChosen: true }, ...rows.slice(2)];
+    expect(openRow(chosen)?.setIndex).toBe(2);
+    // Before any work, the warm-ups come first.
+    expect(openRow(ramp())?.setIndex).toBe(1);
+  });
+});
+
 describe("a superset", () => {
   it("goes on to the next of its group in the workout's order, and round to the first", () => {
     const carry = exercise({ id: "carry", orderIndex: 3, supersetGroup: "forearms" });
@@ -411,6 +592,17 @@ describe("a superset", () => {
     expect(supersetNext(session, carry)?.id).toBe("curl");
     expect(supersetNext(session, curl)?.id).toBe("carry");
     expect(supersetNext(session, alone)).toBeNull();
+  });
+
+  it("passes over a partner skipped or done, and has no next once none is left", () => {
+    const bench = exercise({ id: "bench", orderIndex: 1, supersetGroup: "A" });
+    const row = exercise({ id: "row", orderIndex: 2, supersetGroup: "A" });
+    const fly = exercise({ id: "fly", orderIndex: 3, supersetGroup: "A" });
+    const at = "2026-09-08T12:00:00.000Z";
+    const skipped = { exercises: [bench, { ...row, skippedAt: at }, fly] } as SessionVM;
+    expect(supersetNext(skipped, bench)?.id).toBe("fly");
+    const done = { exercises: [bench, { ...row, skippedAt: at }, { ...fly, completedAt: at }] };
+    expect(supersetNext(done as SessionVM, bench)).toBeNull();
   });
 });
 

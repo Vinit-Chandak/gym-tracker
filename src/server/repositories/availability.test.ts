@@ -17,6 +17,7 @@ import { listEquipmentForGym } from "./equipment";
 import { getExercise, listExercises, setPreferredMachine } from "./exercises";
 import { addGymFallback, listGymFallbacks, removeGymFallback } from "./fallbacks";
 import { getGym, listGyms } from "./gyms";
+import { createCustomExercise } from "./manual-training";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -101,6 +102,8 @@ describe("planned-exercise availability", () => {
     const result = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, anytimeId));
     if (!result) throw new Error("no result");
     expect(result.program?.name).toContain("8-Week");
+    // Its sessions are still to do, so it is not said to be complete.
+    expect(result.program?.complete).toBe(false);
     // 37 slots collapse to one row per distinct exercise.
     expect(result.rows.length).toBeLessThan(37);
     expect(row(result.rows, "pull-up").days).toEqual(["Upper A", "Upper B"]);
@@ -159,6 +162,15 @@ describe("planned-exercise availability", () => {
       "Horizontal leg press",
     ]);
     expect(samsung.summary.unavailable).toBe(0);
+    // The exercise's own page names the basics it takes for granted there, as Programme fit does.
+    const bench = row(samsung.rows, "barbell-bench-press");
+    expect(bench.assumedTypes.length).toBeGreaterThan(0);
+    const entries = await withUser(t.db, user.id, (tx) =>
+      exerciseAvailability(tx, user.id, bench.exercise.id),
+    );
+    expect(entries.find((entry) => entry.gym.id === samsungId)?.assumedTypes).toEqual(
+      bench.assumedTypes,
+    );
 
     // Outdoors assumes nothing, and nothing unanswered is unavailable (ADR 0004, amended).
     const outdoor = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, outdoorId));
@@ -341,5 +353,65 @@ describe("planned-exercise availability", () => {
     expect(list.every((e) => !e.isCustom)).toBe(true);
     // Nothing in the shared library is switched off: it is everybody's library, not one plan's.
     expect(list.every((e) => e.isActive)).toBe(true);
+  });
+
+  it("keeps a custom exercise on its own machine whatever is chosen as preferred", async () => {
+    const pressType = await typeId("iso_lateral_press");
+    const [own] = await withUser(t.db, user.id, (tx) =>
+      tx
+        .insert(equipmentInstances)
+        .values({
+          userId: user.id,
+          gymId: anytimeId,
+          equipmentTypeId: pressType,
+          name: "Hammer press",
+          resistanceMode: "plate_loaded",
+        })
+        .returning({ id: equipmentInstances.id }),
+    );
+    const custom = await withUser(t.db, user.id, (tx) =>
+      createCustomExercise(tx, user.id, {
+        name: "Hammer chest press",
+        category: "hypertrophy",
+        modality: "machine",
+        measurement: "reps",
+        primaryMuscles: ["chest"],
+        equipmentInstanceId: own!.id,
+      }),
+    );
+    const atAnytime = async () =>
+      (await withUser(t.db, user.id, (tx) => exerciseAvailability(tx, user.id, custom.id))).find(
+        (g) => g.gym.id === anytimeId,
+      );
+    // Its own machine is what Automatic means, not a choice the athlete made here.
+    expect((await atAnytime())?.preferredInstanceId).toBeNull();
+    expect((await atAnytime())?.resolution).toMatchObject({
+      status: "direct",
+      equipmentInstance: { id: own!.id },
+    });
+
+    // Choosing Automatic leaves it on its machine, and the machine can still be chosen.
+    await withUser(t.db, user.id, (tx) =>
+      setPreferredMachine(tx, user.id, custom.id, anytimeId, null),
+    );
+    const automatic = await atAnytime();
+    expect(automatic?.resolution).toMatchObject({
+      status: "direct",
+      equipmentInstance: { id: own!.id },
+    });
+    expect(automatic?.machines.map((m) => m.id)).toEqual([own!.id]);
+
+    // Choosing it and then Automatic again keeps it too.
+    await withUser(t.db, user.id, (tx) =>
+      setPreferredMachine(tx, user.id, custom.id, anytimeId, own!.id),
+    );
+    expect((await atAnytime())?.preferredInstanceId).toBe(own!.id);
+    await withUser(t.db, user.id, (tx) =>
+      setPreferredMachine(tx, user.id, custom.id, anytimeId, null),
+    );
+    expect((await atAnytime())?.resolution).toMatchObject({
+      status: "direct",
+      equipmentInstance: { id: own!.id },
+    });
   });
 });

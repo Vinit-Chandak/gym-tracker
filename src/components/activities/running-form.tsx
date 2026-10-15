@@ -6,8 +6,8 @@ import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
-import { formatPaceSeconds, paceSecondsPerKm } from "@/domain/activity-metrics";
-import { toMetres } from "@/lib/distance-units";
+import { formatPaceSeconds, paceSecondsPerKm, pacePerUnit } from "@/domain/activity-metrics";
+import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -18,11 +18,14 @@ import {
   DurationField,
   durationFromParts,
   EffortField,
+  ElevationField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  openDistance,
   parseDuration,
+  postedDistance,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -59,6 +62,12 @@ type Props = {
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
   notice?: ReactNode;
+  /** A correction's unconfirmed legacy effort, which stays unless another answer is chosen. */
+  keptEffort?: { value: number | null } | null;
+  /** Opens the folded details from the start, when something in them needs reading. */
+  openDetails?: boolean;
+  /** The unit the athlete reads runs in, which a recorded run opens in. */
+  readIn?: DistanceUnit;
 };
 
 export function RunningForm({
@@ -70,19 +79,32 @@ export function RunningForm({
   expectedRevision = null,
   submitLabel,
   notice,
+  keptEffort = null,
+  openDetails = false,
+  readIn,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
-  const [distance, setDistance] = useState(() => values("distanceValue"));
-  const [unit, setUnit] = useState(() => values("distanceUnit") || "km");
+  // A run entered in kilometres opens in miles for a miles runner, and the other way round.
+  const [opened] = useState(() =>
+    openDistance(values("distanceValue"), values("distanceUnit") || readIn || "km", readIn),
+  );
+  const [distance, setDistance] = useState(opened.value);
+  const [unit, setUnit] = useState(opened.unit);
+  const posted = postedDistance(distance, unit, opened.recorded);
   const [duration, setDuration] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
 
   const durationMs = (parseDuration(duration) ?? 0) * 1000;
   const metres =
-    distance.trim() === "" ? 0 : toMetres(Number(distance.replace(",", ".")), unit as "km" | "mi");
-  const pace = Number.isFinite(metres) ? paceSecondsPerKm(metres, durationMs) : null;
+    posted.value.trim() === ""
+      ? 0
+      : toMetres(Number(posted.value.replace(",", ".")), posted.unit as "km" | "mi");
+  // Pace per the unit the distance is being typed in: miles make a pace per mile.
+  const pace = Number.isFinite(metres)
+    ? pacePerUnit(paceSecondsPerKm(metres, durationMs), unit as "km" | "mi")
+    : null;
   const errors = state.fieldErrors;
 
   // Board Log a run: what the plan asked for, where, the distance and the time with the pace
@@ -116,22 +138,31 @@ export function RunningForm({
           onValueChange={setDistance}
           onUnitChange={setUnit}
           units={DISTANCE_UNITS}
+          recorded={opened.recorded}
           error={errors?.distance ?? errors?.distanceValue}
         />
         <DurationField
           value={duration}
           onChange={setDuration}
+          recorded={{
+            hours: values("hours"),
+            minutes: values("minutes"),
+            seconds: values("seconds"),
+          }}
           hint={
             pace !== null ? (
-              <span role="status">Pace {formatPaceSeconds(pace)} /km</span>
+              <span role="status">
+                Pace {formatPaceSeconds(pace)} /{unit === "mi" ? "mi" : "km"}
+              </span>
             ) : undefined
           }
           error={errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
         />
-        <EffortField value={values("effort")} error={errors?.effort} />
+        <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
       <MoreDetails
+        defaultOpen={openDetails}
         hasErrors={[
           "startedAt",
           "startedAtOffsetMinutes",
@@ -151,14 +182,7 @@ export function RunningForm({
           <Input name="surface" defaultValue={values("surface")} placeholder="Road, trail…" />
         </Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Elevation gain m" error={errors?.elevationGainMetres}>
-            <Input
-              name="elevationGainMetres"
-              inputMode="decimal"
-              defaultValue={values("elevationGainMetres")}
-              placeholder="—"
-            />
-          </Field>
+          <ElevationField values={values} errors={errors} readIn={readIn} />
           <Field label="Incline %" error={errors?.treadmillInclinePercent}>
             <Input
               name="treadmillInclinePercent"

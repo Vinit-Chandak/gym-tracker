@@ -1,24 +1,33 @@
-import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
+import { Figures } from "@/components/ui/figures";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
+import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
+import { lengthRangeLabel, measureUnitSuffix, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview } from "@/server/repositories/schedule";
 
-/** The range in the exercise's own measure: "8–12", "20–45 s", "20–30 m". */
-export function volumeRange(exercise: PlannedExercisePreview): string {
-  const suffix = MEASURE_UNIT_SUFFIX[exercise.prescriptionType];
+/**
+ * The range in the exercise's own measure: "8–12", "20–45 s", "20–30 m", a carry in the
+ * athlete's length ("22–33 yd" beside miles).
+ */
+export function volumeRange(exercise: PlannedExercisePreview, length: SetLengthUnit): string {
   switch (exercise.prescriptionType) {
     case "duration":
-      return rangeLabel(exercise.durationMinSeconds, exercise.durationMaxSeconds, suffix);
+      return rangeLabel(
+        exercise.durationMinSeconds,
+        exercise.durationMaxSeconds,
+        measureUnitSuffix("duration", length),
+      );
     case "distance":
-      return rangeLabel(exercise.distanceMinMeters, exercise.distanceMaxMeters, suffix);
+      return lengthRangeLabel(exercise.distanceMinMeters, exercise.distanceMaxMeters, length);
     default:
       return rangeLabel(exercise.repMin, exercise.repMax);
   }
 }
 
 /** "3 × 8–12 @ 1 RIR", "2 × 20–45 s per side @ 1–2 RIR", "3 × 20 m @ 2 RIR". */
-export function prescription(exercise: PlannedExercisePreview): string {
-  const volume = `${exercise.sets} × ${volumeRange(exercise)}`;
+export function prescription(exercise: PlannedExercisePreview, length: SetLengthUnit): string {
+  const volume = `${exercise.sets} × ${volumeRange(exercise, length)}`;
   return `${volume}${exercise.perSide ? " per side" : ""} @ ${rangeLabel(exercise.rirMin, exercise.rirMax)} RIR`;
 }
 
@@ -27,11 +36,17 @@ export function totalSets(exercises: readonly PlannedExercisePreview[]): number 
   return exercises.reduce((sets, exercise) => sets + exercise.sets, 0);
 }
 
-/** "6 exercises · 15 sets", the one line that says what a day costs. */
+/**
+ * "6 exercises · 15 sets", the one line that says what a day costs: each count held to its noun
+ * and the dot to the count after it, so a narrow line breaks only before the dot.
+ */
 export function planSummary(exercises: readonly PlannedExercisePreview[]): string {
   const count = exercises.length;
   const sets = totalSets(exercises);
-  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
+  return joinFacts([
+    `${count}\u00a0${count === 1 ? "exercise" : "exercises"}`,
+    `${sets}\u00a0${sets === 1 ? "set" : "sets"}`,
+  ]);
 }
 
 type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };
@@ -60,8 +75,11 @@ function blocks(exercises: readonly PlannedExercisePreview[]): Block[] {
  */
 export function PlannedExerciseList({
   exercises,
+  length,
 }: {
   exercises: readonly PlannedExercisePreview[];
+  /** What a carry's range reads in: the athlete's metres or yards. */
+  length: SetLengthUnit;
 }) {
   return (
     <ul className="space-y-2.5">
@@ -76,8 +94,11 @@ export function PlannedExerciseList({
         >
           {block.items.map((exercise) => (
             <div key={exercise.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{exercise.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
+              <p className="text-sm [overflow-wrap:break-word]">{exercise.name}</p>
+              {/* Its figures in Jost, each range held at its dash: "@ 1–" never ends a line. */}
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">
+                <Figures>{holdFigures(prescription(exercise, length))}</Figures>
+              </p>
             </div>
           ))}
         </li>
@@ -99,11 +120,13 @@ type TargetLike = {
 /**
  * Targets a coach wrote, as a row says them: the load leads, then the sets, and "@" is RIR
  * alone ("60 kg · 3 × 5 @ 2, 2, 1 RIR"); a set rated by effort says RPE ("32 kg · 3 × 30 m ·
- * RPE 7"). Warm-ups are left out unless they are all there is. Null when nothing is set.
+ * RPE 7"), its distance in the athlete's length, as the least figure that reaches it
+ * (`setTargetIn`). Warm-ups are left out unless they are all there is. Null when nothing is set.
  */
 export function targetsLine(
   sets: readonly TargetLike[],
   unit: string,
+  length: SetLengthUnit,
   perSide = false,
 ): string | null {
   const working = sets.filter((set) => set.setType !== "warmup");
@@ -113,17 +136,18 @@ export function targetsLine(
   const all = <T,>(pick: (set: TargetLike) => T) => shown.every((set) => pick(set) === pick(first));
   const list = <T,>(pick: (set: TargetLike) => T, joiner: string) =>
     all(pick) ? `${pick(first) ?? "—"}` : shown.map((set) => pick(set) ?? "—").join(joiner);
-  const load = first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit} · `;
+  const load =
+    first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit}${FACT_SEPARATOR}`;
   const volume =
     first.reps === null && first.distanceMeters !== null
-      ? `${list((set) => set.distanceMeters, "/")} m`
+      ? `${list((set) => (set.distanceMeters === null ? null : setTargetIn(set.distanceMeters, length)), "/")} ${length}`
       : first.reps === null && first.durationSeconds !== null
         ? `${list((set) => set.durationSeconds, "/")} s`
         : list((set) => set.reps, "/");
   const effort =
     first.reps === null
       ? first.rpe != null
-        ? ` · RPE ${list((set) => set.rpe ?? null, ", ")}`
+        ? `${FACT_SEPARATOR}RPE ${list((set) => set.rpe ?? null, ", ")}`
         : ""
       : first.rir === null
         ? ""

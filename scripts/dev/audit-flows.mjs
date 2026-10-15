@@ -1,9 +1,10 @@
-import { chromium, webkit, devices, expect } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
 import { fillActivityField } from "./audit-controls.mjs";
+import { launch, skipWholeRun } from "./audit-engines.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 const database =
@@ -19,10 +20,9 @@ if (
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
 const fixtures = JSON.parse(await readFile(`${output}/fixtures.json`, "utf8"));
 const device = process.env.AUDIT_DEVICE ?? "android";
-// A machine whose browsers predate this Playwright can point at its own Chromium.
-const browser = await (device === "iphone" ? webkit : chromium).launch({
-  executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
-});
+const engine = device === "iphone" ? "webkit" : "chromium";
+await skipWholeRun(device, engine, `${output}/flows-${device}.json`);
+const browser = await launch(engine);
 const context = await browser.newContext({
   ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -293,6 +293,12 @@ try {
     },
   );
   let template, occurrence;
+  // A session is scheduled for today or later, and moved only to today or later: a day gone by
+  // is logged, not scheduled (owner decision, 11 October 2026). So the dates follow Sam's today.
+  const [{ today, tomorrow }] = await sql`select
+    (now() at time zone time_zone)::date::text as today,
+    ((now() at time zone time_zone)::date + 1)::text as tomorrow
+    from profiles where id=${userId}`;
   await check(
     "Template sport switch, create, and schedule with the selected revision",
     async () => {
@@ -312,7 +318,7 @@ try {
       await go("/training/schedule");
       await choose("sport", "swimming");
       await page.locator('[name="templateId"]').selectOption(template.id);
-      await fill("scheduledOn", "2026-10-01");
+      await fill("scheduledOn", today);
       await fill("scheduledLocalTime", "07:15");
       await page.getByRole("button", { name: "Schedule it" }).click();
       await page.waitForURL("**/training/scheduled");
@@ -341,13 +347,13 @@ try {
     await page.getByRole("button", { name: "Skip this session" }).click();
     await page.getByRole("button", { name: "Put it back" }).click();
     await expect(page.getByRole("button", { name: "Skip this session" })).toBeVisible();
-    await fill("scheduledOn", "2026-10-02");
+    await fill("scheduledOn", tomorrow);
     await page.getByRole("button", { name: "Move it", exact: true }).click();
     await expect(page.getByText(/Moved from/)).toBeVisible();
     const [row] =
       await sql`select o.*,v.scheduled_on from planned_occurrences o join occurrence_versions v on v.id=o.current_revision_id where o.id=${occurrence.id}`;
     expect(row.disposition).toBe("pending");
-    expect(new Date(row.scheduled_on).toISOString().slice(0, 10)).toBe("2026-10-02");
+    expect(new Date(row.scheduled_on).toISOString().slice(0, 10)).toBe(tomorrow);
   });
   await check(
     "Ad hoc log leaves a scheduled session pending; linked log settles only it",
@@ -404,7 +410,8 @@ try {
     }
   });
   await check("Malformed dates and occurrence links fail safely", async () => {
-    await go("/progress?week=9999-99-99");
+    // Only Muscles steps by the week, so only Muscles reads one and says so (ADR 0047).
+    await go("/progress?view=muscles&week=9999-99-99");
     await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
     await expect(page.getByText(/That week is not a valid date/)).toBeVisible();
     await go("/training/new?occurrence=not-a-uuid&sport=running");
@@ -467,7 +474,10 @@ try {
     await page.getByRole("button", { name: /^Install / }).click();
     expect(await page.evaluate(() => window.__auditPrompted)).toBe(true);
     await page.getByRole("button", { name: /^Install / }).click();
-    await expect(page.getByText("iPhone and iPad", { exact: true })).toBeVisible();
+    // Only this phone's steps: Safari's on an iPhone, Chrome's on Android.
+    await expect(
+      page.getByText(device === "iphone" ? "iPhone and iPad" : "Android", { exact: true }),
+    ).toBeVisible();
   });
   await check(
     "PWA manifest, icon assets, private cache boundary and offline navigation",
@@ -503,9 +513,14 @@ try {
         await context.setOffline(true);
         await page.goto("/progress/history", { waitUntil: "domcontentloaded" });
         await expect(page.getByText(/offline/i).first()).toBeVisible();
+        // The offline page stands in at the screen's own address and opens it again once the
+        // connection is back, so no reload is asked for here.
         await context.setOffline(false);
-        await page.reload({ waitUntil: "networkidle" });
-        await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+        // History is a page of its own behind Overview now (ADR 0045), not a Progress section.
+        await expect(
+          page.getByRole("heading", { level: 1, name: "History", exact: true }),
+        ).toBeVisible({ timeout: 15_000 });
+        expect(path()).toBe("/progress/history");
       }
     },
   );

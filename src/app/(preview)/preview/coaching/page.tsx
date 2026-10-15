@@ -354,6 +354,7 @@ export default async function CoachingPreview({
             stale={false}
             machines={[]}
             preferredUnit="kg"
+            length="m"
           />
         )}
         {(view === "changes" || view === "unchanged") && (

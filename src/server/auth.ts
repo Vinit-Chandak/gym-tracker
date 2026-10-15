@@ -54,6 +54,7 @@ export async function requireProfiledUser(): Promise<SessionUser> {
 export async function requireOnboardedUser(): Promise<SessionUser> {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email, user.displayName);
-  if (profile.onboardedAt === null) redirect(await onboardingEntry(user.id));
+  if (profile.onboardedAt === null)
+    redirect(await onboardingEntry(user.id, profile.trainingExperience));
   return user;
 }

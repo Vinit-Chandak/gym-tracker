@@ -1,84 +1,206 @@
-import { Card } from "@/components/ui/card";
-import { DetailList } from "@/components/ui/detail-list";
-import { formatDuration, formatPace } from "@/domain/pace";
-import { formatIsoDate, formatRunKm, formatSharedLoad } from "@/lib/format";
+import { formatDuration, formatHold } from "@/domain/pace";
+import { metricLabel, type SharedMetric } from "@/domain/shared-stats";
+import type { SetLengthUnit } from "@/lib/distance-units";
+import { FACT_SEPARATOR } from "@/lib/facts";
+import {
+  formatSharedDistance,
+  formatSharedLoad,
+  formatSharedMetric,
+  formatSharedPace,
+  formatVolume,
+  type SharedDistanceUnits,
+} from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
-import { SPORT_LABELS, type TrainingSport } from "@/domain/sport-scope";
-import type { SharedActivityDetail } from "@/server/repositories/shared-stats";
+import type {
+  SharedActivityDetail,
+  SharedSessionExercise,
+} from "@/server/repositories/shared-stats";
 
 /**
- * What a follower sees of one session (plan §9.2).
+ * What a follower sees of one session (plan §9.2), laid out as its owner's own record is: a
+ * workout's time, sets and volume three across, as the finished workout says them, then its
+ * movements; a run's, a ride's or a swim's figures two by two, as the activity's page does. A
+ * figure nobody recorded is left out here, where the owner's page says it as a dash ("Distance —"
+ * on an indoor ride): the owner is shown what a correction could still add, a follower only what
+ * was recorded.
  *
- * The shape of this component is the privacy rule made visible: it takes a shared row and
+ * The shape of this component is the privacy rule made visible: it takes shared rows and
  * nothing else. There is no activity here to accidentally read a note, an effort, a heart
  * rate, a pool or a named bike from — those never left the owner's account, and a component
- * that cannot reach them cannot leak them (AT-PRIV-02).
+ * that cannot reach them cannot leak them (AT-PRIV-02). A movement the owner created is not
+ * shared at all, and the workout says so rather than leave its sets unaccounted for.
  *
  * Cycling and swimming deliberately show less than running. A ride's pace depends on whether
  * the bike was assisted and whether the ride was indoors; a swim's depends on a time basis
  * nobody else can see. Publishing either as a bare number would invite a comparison the data
  * does not support, so it is not published at all this release.
+ *
+ * Loads read in the reader's load unit and distances in the one they use for the sport, as
+ * every friend's number does.
  */
 export function ActivitySummary({
   activity,
+  exercises = [],
+  name,
   unit,
+  length,
+  distanceUnits,
 }: {
   activity: SharedActivityDetail;
+  /** A workout's shared-library movements. */
+  exercises?: readonly SharedSessionExercise[];
+  /** Whose session it is, as the page names them. */
+  name: string;
   unit: BodyLoadUnit;
+  /** What a carry reads in: the reader's metres or yards. */
+  length: SetLengthUnit;
+  distanceUnits: SharedDistanceUnits;
 }) {
+  if (activity.sport !== "workout")
+    return (
+      <dl className="activity-stats">
+        {endurance(activity, distanceUnits).map((stat) => (
+          <div key={stat.label} className="activity-stat">
+            <dt className="activity-stat-label">{stat.label}</dt>
+            <dd className="activity-stat-figure">
+              <span className="type-figure-l">{stat.figure}</span>
+              {stat.unit && <span className="activity-stat-unit">{stat.unit}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+
+  // The sets of movements the owner created have no shared row; the session counts them all.
+  const listed = exercises.reduce((sum, exercise) => sum + exercise.workingSets, 0);
+  const unlisted = Math.max(activity.workingSets - listed, 0);
   return (
-    <Card>
-      <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-        {SPORT_LABELS[activity.sport as TrainingSport]}
-      </p>
-      <h1 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{activity.title}</h1>
-      <p className="mt-1 text-sm text-ink-muted tabular-nums">
-        {formatIsoDate(activity.occurredOn)}
-      </p>
-      <div className="mt-3">
-        <DetailList entries={entries(activity, unit)} />
-      </div>
-    </Card>
+    <>
+      <dl className="finished-stats">
+        {workout(activity, unit).map((stat) => (
+          <div key={stat.label}>
+            <dt className="sr-only">{stat.label}</dt>
+            <dd className="whitespace-nowrap">
+              <span className="type-figure-l">{stat.figure}</span>
+              {stat.unit && <span className="figure-row-unit"> {stat.unit}</span>}
+            </dd>
+            <dd aria-hidden className="type-caption font-medium text-ink-2">
+              {stat.label}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {(exercises.length > 0 || unlisted > 0) && (
+        <section aria-labelledby="shared-exercises">
+          <h2 id="shared-exercises" className="caption-head mt-4.5">
+            Exercises
+          </h2>
+          {exercises.length > 0 && (
+            <ul>
+              {exercises.map((exercise) => (
+                <li key={exercise.id} className="record-row">
+                  <span className="record-row-name">{exercise.name}</span>{" "}
+                  <span className="record-row-sets">{exerciseLine(exercise, unit, length)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {unlisted > 0 && (
+            <p className="mt-2 type-meta text-ink-2">
+              {unlisted}
+              {exercises.length > 0 ? " more" : ""} {unlisted === 1 ? "set" : "sets"} in exercises{" "}
+              {name} created, which are not shared.
+            </p>
+          )}
+        </section>
+      )}
+    </>
   );
 }
 
-function entries(
-  activity: SharedActivityDetail,
+type Stat = { label: string; figure: string; unit?: string };
+
+/** "5.2 km" as its figure and its unit. */
+function split(text: string): { figure: string; unit?: string } {
+  const at = text.search(/\s/);
+  return at < 0 ? { figure: text } : { figure: text.slice(0, at), unit: text.slice(at + 1) };
+}
+
+const sets = (count: number) => `${count} ${count === 1 ? "set" : "sets"}`;
+
+/** Time, sets and volume, worded as the finished workout words them: "69 min", "18", "5,730 kg". */
+function workout(activity: SharedActivityDetail, unit: BodyLoadUnit): Stat[] {
+  const stats: Stat[] = [];
+  if (activity.durationSeconds > 0)
+    stats.push({
+      label: "Time",
+      figure: String(Math.round(activity.durationSeconds / 60)),
+      unit: "min",
+    });
+  stats.push({ label: "Sets", figure: String(activity.workingSets) });
+  if (activity.volumeKg > 0)
+    stats.push({ label: "Volume", ...split(formatVolume(activity.volumeKg, unit)) });
+  return stats;
+}
+
+/** A run's distance, time and pace; a ride's or a swim's distance, where known, and time. */
+function endurance(activity: SharedActivityDetail, distanceUnits: SharedDistanceUnits): Stat[] {
+  const stats: Stat[] = [];
+  const sport = activity.sport === "workout" ? null : activity.sport;
+  if (sport === null) return stats;
+  if (activity.distanceMeters !== null)
+    stats.push({
+      label: "Distance",
+      ...split(formatSharedDistance(activity.distanceMeters, distanceUnits[sport])),
+    });
+  if (activity.durationSeconds > 0)
+    stats.push({ label: "Time", figure: formatDuration(activity.durationSeconds) });
+  if (sport === "run" && activity.paceSecondsPerKm !== null)
+    stats.push({
+      label: "Pace",
+      ...split(formatSharedPace(activity.paceSecondsPerKm, distanceUnits.run)),
+    });
+  return stats;
+}
+
+/**
+ * One movement in a line: its sets, then the best it shared, named as Compare names it — the
+ * heaviest set in the app's notation ("Top weight 110 kg × 3"), else the most reps, the longest
+ * hold or the longest carry. The figure keeps its unit and its reps on its line. A machine's load
+ * is its own, as on the leaderboard, so a machine movement says its sets alone.
+ */
+function exerciseLine(
+  exercise: SharedSessionExercise,
   unit: BodyLoadUnit,
-): readonly (readonly [string, string | null])[] {
-  const duration: readonly [string, string | null] = [
-    "Time",
-    activity.durationSeconds > 0 ? formatDuration(activity.durationSeconds) : null,
-  ];
-  switch (activity.sport) {
-    case "workout":
-      return [
-        duration,
-        ["Working sets", activity.workingSets > 0 ? String(activity.workingSets) : null],
-        ["Volume", activity.volumeKg > 0 ? formatSharedLoad(activity.volumeKg, unit) : null],
-      ];
-    case "run":
-      return [
-        [
-          "Distance",
-          activity.distanceMeters === null ? null : formatRunKm(activity.distanceMeters),
-        ],
-        duration,
-        [
-          "Average pace",
-          activity.paceSecondsPerKm === null
-            ? null
-            : `${formatPace(activity.paceSecondsPerKm)} /km`,
-        ],
-      ];
-    case "cycle":
-    case "swim":
-      return [
-        [
-          "Distance",
-          activity.distanceMeters === null ? null : formatRunKm(activity.distanceMeters),
-        ],
-        duration,
-      ];
-  }
+  length: SetLengthUnit,
+): string {
+  const count = sets(exercise.workingSets);
+  if (!exercise.comparable) return count;
+  const best = ((): [SharedMetric, string] | null => {
+    switch (exercise.defaultPrescriptionType) {
+      case "duration":
+        return exercise.longestDurationSeconds === null
+          ? null
+          : ["longest_hold", formatHold(exercise.longestDurationSeconds)];
+      case "distance":
+        return exercise.longestDistanceMeters === null
+          ? null
+          : [
+              "longest_carry",
+              formatSharedMetric("longest_carry", exercise.longestDistanceMeters, unit, length),
+            ];
+      case "reps":
+        if (exercise.topWeightKg !== null && exercise.topWeightKg > 0)
+          return [
+            "top_weight",
+            `${formatSharedLoad(exercise.topWeightKg, unit, true)}${
+              exercise.topWeightReps === null ? "" : ` × ${exercise.topWeightReps}`
+            }`,
+          ];
+        return exercise.mostReps === null ? null : ["most_reps", String(exercise.mostReps)];
+    }
+  })();
+  if (best === null) return count;
+  const [metric, figure] = best;
+  return `${count}${FACT_SEPARATOR}${metricLabel(metric, exercise)} ${figure.replaceAll(" ", "\u00a0")}`;
 }

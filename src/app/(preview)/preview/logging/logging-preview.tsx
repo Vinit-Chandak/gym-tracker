@@ -442,6 +442,7 @@ function sessionFor(
     id: SESSION_ID,
     gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
     day: { id: "day", name: day } as SessionVM["day"],
+    title: null,
     cycleIndex: 3,
     startedAt: STARTED,
     completedAt: null,
@@ -459,6 +460,9 @@ function sessionFor(
     warnings: [],
     timeZone: "Asia/Kolkata",
     preferredUnit: scenario === "pounds" ? "lb" : "kg",
+    // Pounds read a carry in yards, as an account in pounds does until it says otherwise.
+    length: scenario === "pounds" ? "yd" : "m",
+    today: STARTED.slice(0, 10),
     exercises,
   };
   return { session, exercise: exercises[0]! };

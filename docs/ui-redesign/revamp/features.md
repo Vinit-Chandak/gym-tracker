@@ -24,7 +24,9 @@ Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
   "History", "My foods") and returns to the previous in-app page, or to that destination when
   there is none.
 - **The session strip:** while a workout is unfinished, every screen except Today and the
-  workout itself shows "In progress · {session name}" with Resume.
+  workout itself shows "In progress · {session name}" with Resume. At large text, on a screen
+  with its own pinned actions, the strip folds into them as a key that keeps one-tap Resume and
+  the rest's time, with the session's name in its accessible name.
 - **The rest timer** (only when turned on in Profile): "Rest" and an m:ss countdown, +30 s and
   Stop, then "Go", which clears after 60 s. It survives navigation and reloads and stays in
   step across tabs, and shows on every screen including Today.
@@ -52,9 +54,9 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **The date** and the app's name.
 - **Where:** the gym the next session will use, with Change. Without any gym, a prompt to add
   one replaces it.
-- **An unfinished session** that is not today's offered day (an unplanned session, or a day
-  started early): its name, gym, start time and number of sets, with Resume. Only one Resume
-  ever appears on Today.
+- **An unfinished session** that is not today's offered day (an unplanned session, one started
+  from a saved routine, or a day started early): its name (a routine's is the routine's), gym,
+  start time and number of sets, with Resume. Only one Resume ever appears on Today.
 - **The offered lifting day:**
   - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
@@ -63,8 +65,8 @@ anything scheduled), where they will train, and one tap to start or resume it.
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
-    prescription ("3 × 8–12 @ 1–2 RIR", or metres or seconds for carries and holds), with
-    supersets grouped. When the coach planned the day, each exercise also shows its machine,
+    prescription ("3 × 8–12 @ 1–2 RIR", or metres (yards beside miles) or seconds for carries
+    and holds), with supersets grouped. When the coach planned the day, each exercise also shows its machine,
     loads in the account's unit, the coach's notes, exercises dropped for today, and any
     warnings.
 - **The coach's status**, when the coach is on: planning (the screen updates itself), could
@@ -77,6 +79,10 @@ anything scheduled), where they will train, and one tap to start or resume it.
   a scheduled time if set, and Skipped or Coach. Logged ones stay on the day as cards inked
   done, after what is still owed, each with "See what you logged" (since 4 October 2026: one
   collapsible card per activity, each with its own next step; see `DESIGN.md`, Activity cards).
+  A day that only runs names its run card for the day ("Tempo run", its focus "Threshold").
+- **Anything else finished today**, which no card above stands for (a ride nobody scheduled, an
+  unplanned workout, a run logged late): a card each, inked done, with what it came to, when it
+  began and "See what you logged" (year audit, October 2026).
 - **Days with no lifting**, no programme, or a finished programme each have their own message
   and offer only real next steps.
 - **Once the day is done:** "Done. Nothing left to do here today." (or "Rest day done."), and
@@ -94,10 +100,14 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **Unplanned session**, when there is no programme day to offer.
 - **Choose a programme** or **plan the next block**, when there is none or it has ended.
 - **More options**, one control for everything that is not the offered day: train another
-  day (a list of the programme's days, each with Start, Start next cycle or Start skipped
-  workout), start an unplanned session, ask the coach to plan, re-plan or prepare this session
-  (with a gym choice, an optional note, and "3 requests a day"), and skip this session (with
-  an optional reason; skipping the workout never skips a run on the same day).
+  day (a list of the programme's days, the one Today offers marked Next and its run loggable
+  there, each with Start or Start skipped workout, or "Start cycle 5 with Push A" once this
+  cycle's training is answered, the words Today's rest day uses too; a day trained ahead of the
+  sequence, as its next cycle's, says Do again when it is done this cycle and Start early when
+  this cycle does not have it), start an unplanned session, ask the coach to plan, re-plan or
+  prepare this session (with a gym choice, an optional note, and "3 requests a day"), and skip
+  this session (with an optional reason; skipping the workout never skips a run on the same
+  day).
 
 ### States to design
 
@@ -154,7 +164,10 @@ than adding, and keep the RIR honest").
 
 ### The workout
 
-- **Header:** the day's name or "Unplanned session", and the gym, said once for the whole session.
+- **Header:** the day's name, the name of the saved routine it was started from, or "Unplanned
+  session", and the gym, said once for the whole session. The session strip, a way back to the
+  workout and an exercise's "Back to Lower A" say a name of more than 20 characters (a routine's
+  may run to 120) as "Workout" and "Back to the workout", so each stays a line or two.
 - The recovery check and the coach's summary, when present.
 - **Warm-up**, when the day has one: the number of drills or the coach's lines, each drill
   with its dose, and Mark done.
@@ -180,13 +193,15 @@ than adding, and keep the RIR honest").
   - the set number and type: Warm-up, Working, Back-off, Drop, AMRAP or To failure;
   - load: kg or lb for free weights (the account's unit), added load for bodyweight moves (0
     means bodyweight), or the machine's own unit (plates or stack number), never converted;
-  - reps, seconds or metres, depending on how the exercise is counted;
+  - reps, seconds or a distance (metres, or yards for an account that reads miles; ADR 0055),
+    depending on how the exercise is counted;
   - effort: RIR for reps, RPE 1–10 for time and distance; required on working sets, optional
     on warm-ups, and never pre-filled;
   - Save, then a confirmed check. Untouched load and reps take the suggested value, shown
     faintly until saved; effort never does.
 - **Set options** for a row: its type, steppers for load (in the machine's real increments),
-  reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
+  reps (1), seconds (5), metres or yards (5) and effort (1), and remove the row or delete the
+  set.
 - **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
   coach's rest, else the plan's, else the exercise's own default, else 90 s. A light first set saved without effort before any
   working set becomes a warm-up, with Undo.
@@ -238,6 +253,9 @@ than adding, and keep the RIR honest").
 - **The finished workout:** read only, with its records ("Barbell bench press · Est. 1RM 88 kg
   (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry), and
   "Save or repeat this workout" as a routine.
+- **Edit a finished workout** for a week after its day ([ADR 0049](../../decisions/0049-a-week-to-mend-a-finished-workout.md)):
+  Edit, then each exercise, done or not, opens on its log to change, add or delete sets; Add
+  exercise; Done. Each change saves as it is made. The summary offers "Edit workout" too.
 
 ### States to design
 
@@ -281,50 +299,73 @@ completed and a skipped exercise; the finished record.
 ## Progress
 
 Code: `src/app/(app)/progress/` (`page.tsx`, `progress-view.tsx`, `progress-sections.tsx`,
-`recovery-progress.tsx`, `history/`), `src/components/strength-trend.tsx`,
-`src/components/ui/chart.tsx`, `body-map.tsx`, `filter-sheet.tsx`, `src/domain/analytics.ts`.
+`sections/`, `history/`), `src/components/graph/`, `body-map.tsx`, `filter-sheet.tsx`,
+`src/domain/graph-range.ts`, `src/domain/progress-graphs.ts`, `src/server/repositories/graphs.ts`.
 
 **Purpose:** how training is going over a chosen date range (totals, trends, recovery, body
 weight and muscle volume), and every past entry, which can be opened, corrected or deleted.
 
 ### Sections
 
-One picker offers six sections: **Overview** (where the tab opens), **History**, **Strength**,
-**Running**, **Recovery** and **Body**. The header says "Progress" with the date range
-("6 Jul – 30 Sept 2026"); a Filters control sets the range, about the last 12 weeks by
-default and up to a year.
+One picker offers seven sections: **Overview** (where the tab opens, with **History** under its
+month), **Strength**, **Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The
+header says "Progress" with the dates the section is drawn over ("8 Sept – 7 Oct 2026"), except
+where a section leads with a clock of its own, which has no funnel either: Overview its month
+(ADR 0045), Muscles its week (ADR 0047). Every graph is the one `Graph` (ADR 0042) and carries
+the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
+remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** training totals per sport, only for sports with sessions ("Strength 40
-  sessions · 39 days · 37 h 36 min"; "Running 15 sessions · 15 days · 6 h 10 min · 59.8 km";
-  cycling and swimming alike), noting sessions without a distance or duration; and **weekly
-  sessions**, lifting and runs per week, with this week marked "so far".
-- **Strength:** choose an exercise, then one of five measures (heaviest working set, most reps,
-  volume, average RIR, estimated 1RM), shown as the latest value, the change over the range
-  ("+x since DD/MM") and a line with one point per session. Where the exercise was done on
-  several machines, choose one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from
-  different machines never share a line. Then **sets by muscle**: a muscle and its weekly sets
-  (a primary muscle counts 1, a secondary 0.5, warm-ups not at all).
-- **Running:** distance and duration per week, and pace per run (min/km, lower is faster),
-  outdoor and treadmill never mixed.
-- **Recovery:** how many check-ins; sleep hours, sleep quality, fatigue and soreness, each with
-  its latest value, the range average and a line; the last three check-ins.
-- **Body:** body weight over the range in the account's unit (one reading per day); and
-  **muscles this week**, with its own week arrows: front and back body figures shaded by
-  working sets (15+, 10–14, 5–9, 1–4, none), a legend and a table; tapping a muscle shows
-  "Chest · 6 sets this week".
-- **History:** "79 entries", newest first, each marked Workout, Run, Ride, Swim or Recovery.
-  A workout shows its name, date, time, gym, sets and sleep; a run "Outdoor · 5 km", "30:34 ·
-  6:07/km" and its effort; a ride or swim its distance and time; a recovery entry its
-  readings. Filters: dates, activity, gym, exercise and machine, with a count of filters set
-  and Clear filters.
+- **Overview:** this month on paper and its totals as its key, each sport's count with its
+  distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **History**, the ten newest
+  workouts, runs, rides and swims, running back into the month before (named) when this one
+  holds fewer, with All at its head for every entry. No span and no funnel: the training totals
+  over a span were dropped at the owner's request (ADR 0045).
+- **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
+  and then an exercise filed under it ("All exercises", then each exercise ever logged there,
+  each under the group of its first primary muscle). **All exercises:** the group's total volume
+  as bars, load × reps of kg and lb working sets in the account's unit; the total and the weekly
+  figure over the weeks trained ("158,639 kg · 31,728 kg a week · 24 workouts"); a bar reads its
+  volume and sets ("8,910 kg · 9 sets") and opens its workout; a group that lifted nothing with a
+  load says bodyweight and timed sets add no volume. **An exercise:** estimated 1RM, max weight,
+  max reps and max volume (the best single set), and max time or distance for holds and carries,
+  only those with data; a line with a point per workout (past about sixty, the best of each week
+  or month); its best in the span and the set behind it ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
+  one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from different machines never
+  share a line.
+- **Muscles:** the working sets a week gave each muscle (ADR 0047), on its own week arrows,
+  named as a graph names a week ("This week", "28 Sept – 4 Oct") and stopping at this one: front
+  and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a legend and a
+  table; tapping a muscle shows "Chest · 6 sets".
+- **Running:** distance and duration as bars, with the total and the count of runs; pace as a
+  line, a point per run (past about sixty, each week's or month's pace over all its kilometres),
+  faster higher, with the average over all their kilometres, outdoor and treadmill never mixed
+  (the choice shows only when both were run).
+- **Food:** calories or protein a day as bars, today's target as a rule, the bars that reach it
+  set apart in ink 2; the average a day over the days logged ("2,000 kcal · 26 of 30 days logged
+  · target 2,600").
+- **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
+  answers as lines on their whole scale, fatigue and soreness drawn 1 at the top so a fresher day
+  is higher; the average over the days that gave the answer, a day checked in twice counted once;
+  a span whose check-ins left the answer blank says so ("Sleep not answered in this range.").
+- **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
+  change ("75.2 kg · −1 since Tue 8 Sept").
+- **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
+  "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
+  the list (every page up to five, else the first, the last and the page read with its
+  neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name, date, time,
+  gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim
+  its distance and time; a recovery entry its readings. Filters: dates, activity, gym, exercise
+  and machine, with a count of filters set and Clear filters; a filter starts again at page 1.
 
 ### Actions
 
-Switch section; set the date range; choose exercise, machine, measure, muscle, running mode
-and recovery measure; step through body-map weeks; tap or drag a chart for its value, and
-open "View values" for a table; open any entry from History (a finished workout, read only,
-or an activity page with its time, distance, pace or speed, effort and notes); correct an
-activity; delete an activity (always confirmed).
+Switch section; choose a span, or custom dates behind the funnel; choose what a section draws
+(group or exercise, machine, measure, outdoor or treadmill, food or recovery measure); step
+through body-map weeks; tap or drag a graph to read a mark, and open the workout, run, day, week
+or food log behind it; step through the marks with the arrow keys; open "View values" for every
+value, each opening its record; open any entry from History (a finished workout, read only and
+editable for a week after its day, or an activity page with its time, distance, pace or speed, effort and notes); correct an activity;
+delete an activity (always confirmed).
 
 ### States to design
 
@@ -335,11 +376,12 @@ error; offline.
 
 ### Must survive
 
-- All six sections stay reachable, and History stays its own page. Dates and filters live in
-  the URL, so Back and reload restore them.
+- All seven sections stay reachable, and History stays its own page. The span is remembered
+  for every graph; custom dates and filters live in the URL, so Back and reload restore them.
 - Strength's numbers are the same as the exercise page's; loads from different machines never
   share a series.
-- Missing data is never zero: gaps break lines and blanks stay blank.
+- Missing data is never zero: blanks stay blank, a gap breaks a bucketed line, and no average
+  counts a day with nothing logged.
 - Every chart keeps a table of its values, the body map keeps its table, and colour never
   carries meaning alone.
 - Explanations live in help notes one tap away, not in running text.
@@ -389,16 +431,18 @@ see calories, carbs, fat and protein against targets that start from the trainin
   it matches a saved meal) and a star to save it as a meal; one row per food eaten with its
   portion and calories.
 - **Adding:** a search over the athlete's own foods, and a list in this order: Quick add
-  (calories and macros just this once, always first), saved meals, foods ("100 g · 389 kcal"),
-  and New food only when a search finds nothing.
+  (calories and macros just this once, always first), saved meals under Meals (name, what they
+  hold, "445 kcal"), foods under Foods (name, "100 g", "389 kcal"), each the most eaten first,
+  five meals and ten foods a page, and New food only when a search finds nothing.
 - **Portion sheet:** the food per portion, the amount eaten in the food's own unit, one-tap
   ½, 1, 1½ and 2 portions, a live total, Add or Save, and Remove when editing.
 
 ### My foods, meals and targets
 
-- **My foods:** search, New food, New meal, saved meals (name, "3 foods · 445 kcal") and
-  foods, most recently used first. A food has a name, a portion in one of 12 units, calories
-  (required) and optional carbs, fat and protein.
+- **My foods:** search, New food, New meal, saved meals (name, what they hold, "445 kcal") and
+  foods, each the most eaten first and a page at a time; Back from a saved meal returns to the
+  same search and pages. A food has a name, a portion in one of 12 units, calories (required) and
+  optional carbs, fat and protein.
 - **Meal builder:** a name, the foods and amounts in it with a running total, Save meal, and
   Delete for an existing meal.
 - **Targets:** daily calories; the goal (read only); protein in g per kg of body weight ("134 g

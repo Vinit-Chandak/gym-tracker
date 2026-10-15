@@ -1,7 +1,8 @@
 # ADR 0041: Gym basics, the coach's backup rule and machines with several types
 
 Date: 2026-10-04
-Status: accepted
+Status: accepted; decision 7 amended by [ADR 0053](0053-a-setup-that-asks-once.md): the
+answer decides whether setup asks about machines at all, and nobody new at a gym is asked
 
 ## Context
 

@@ -5,6 +5,7 @@ import {
   adherenceCounts,
   canLog,
   isOverdue,
+  programmeClosed,
   resolveOccurrence,
   outstanding,
   splitByDate,
@@ -52,12 +53,37 @@ describe("what answers for an occurrence", () => {
 
   /** AT-SCHED-14: a migrated legacy completion cannot be logged again until it is reopened. */
   it("lets a pending or skipped occurrence be logged, and nothing else", () => {
-    expect(canLog(occurrence(), null)).toBe(true);
-    expect(canLog(occurrence({ disposition: "skipped" }), null)).toBe(true);
-    expect(canLog(occurrence({ disposition: "cancelled" }), null)).toBe(false);
-    expect(canLog(occurrence({ disposition: "legacy_completed" }), null)).toBe(false);
+    expect(canLog(occurrence(), null, "family")).toBe(true);
+    expect(canLog(occurrence({ disposition: "skipped" }), null, "family")).toBe(true);
+    expect(canLog(occurrence({ disposition: "cancelled" }), null, "family")).toBe(false);
+    expect(canLog(occurrence({ disposition: "legacy_completed" }), null, "family")).toBe(false);
     // One actual per occurrence: an already-logged one is closed.
-    expect(canLog(occurrence(), logged)).toBe(false);
+    expect(canLog(occurrence(), logged, "family")).toBe(false);
+  });
+
+  /**
+   * ADR 0054: after a switch, the replaced programme's sessions keep what became of them and can
+   * no longer be logged — Liam's old blocks kept a past-dated run pending, loggable by its URL.
+   */
+  it("closes a programme's sessions once the athlete's programme is another one, or none", () => {
+    const replaced = occurrence({ programFamilyId: "old-block" });
+    expect(programmeClosed(replaced, "new-block")).toBe(true);
+    expect(canLog(replaced, null, "new-block")).toBe(false);
+    expect(canLog({ ...replaced, disposition: "skipped" }, null, "new-block")).toBe(false);
+    // Archived with nothing in its place: the programme ended, and its sessions with it.
+    expect(programmeClosed(replaced, null)).toBe(true);
+    expect(canLog(replaced, null, null)).toBe(false);
+    // The athlete's own programme, through every revision and once it is finished, stays open.
+    expect(programmeClosed(replaced, "old-block")).toBe(false);
+    expect(canLog(replaced, null, "old-block")).toBe(true);
+  });
+
+  it("never closes standalone work, which belongs to no programme", () => {
+    const own = occurrence({ programFamilyId: null });
+    expect(programmeClosed(own, "new-block")).toBe(false);
+    expect(programmeClosed(own, null)).toBe(false);
+    expect(canLog(own, null, null)).toBe(true);
+    expect(canLog({ ...own, disposition: "skipped" }, null, "new-block")).toBe(true);
   });
 
   /** SCHED-04: late is a fact about today, not a state anybody writes. */
@@ -81,6 +107,22 @@ describe("what is on a day", () => {
     );
     expect(upcoming.map((item) => item.id)).toEqual(["b", "a"]);
     expect(earlier.map((item) => item.id)).toEqual(["c"]);
+  });
+
+  /** Within a day it keeps the order it was given: the time of day, then the written order. */
+  it("keeps one day's sessions in the order they were handed over", () => {
+    const { upcoming, earlier } = splitByDate(
+      [
+        occurrence({ id: "early-swim", scheduledOn: "2026-09-10" }),
+        occurrence({ id: "late-swim", scheduledOn: "2026-09-10" }),
+        occurrence({ id: "morning", scheduledOn: "2026-09-20" }),
+        occurrence({ id: "evening", scheduledOn: "2026-09-20" }),
+        occurrence({ id: "next", scheduledOn: "2026-09-21" }),
+      ],
+      "2026-09-18",
+    );
+    expect(upcoming.map((item) => item.id)).toEqual(["morning", "evening", "next"]);
+    expect(earlier.map((item) => item.id)).toEqual(["early-swim", "late-swim"]);
   });
 
   /** SCHED-08: "upcoming" counts what is owed, not what is on the calendar. */

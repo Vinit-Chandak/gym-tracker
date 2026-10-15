@@ -52,3 +52,12 @@ it("says so when the clipboard refuses, instead of looking like nothing happened
     "ovl_coach_third",
   );
 });
+
+it("keeps the token's inset at its points as the text grows, so the room goes to the token", async () => {
+  // As every field's (input.tsx): p-2 is in rem and doubled to 16 pt a side at 200% text.
+  render(<TokenManager tokens={[]} />);
+  await makeToken("ovl_coach_fourth");
+  const box = screen.getByLabelText("New coach token");
+  expect(box.className).not.toMatch(/(?:^|\s)p[xytrbl]?-\d/);
+  expect(box.className).toContain("p-[calc(8*var(--ov-u))]");
+});

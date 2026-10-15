@@ -10,9 +10,11 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Field, Input } from "@/components/ui/input";
+import { PinnedFold } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { TRAINING_GOALS } from "@/domain/types";
+import { FACT_SEPARATOR, joinFacts } from "@/lib/facts";
 import { TRAINING_GOAL_LABELS, WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/labels";
 import {
   fromKilograms,
@@ -351,7 +353,7 @@ function Header({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0 flex-[1_1_10ch]">
-        <h2 className="text-xl font-medium [overflow-wrap:anywhere]">{title}</h2>
+        <h2 className="text-xl font-medium [overflow-wrap:break-word]">{title}</h2>
         <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
           {status}
         </p>
@@ -406,7 +408,12 @@ function StepProgress({
   );
 }
 
-/** Back and Continue, kept on screen while a long step is scrolled. */
+/**
+ * Back and Continue, kept on screen while a long step is scrolled. They are this screen's pinned
+ * actions, so at large text, while a workout is open, the session strip folds into them. There
+ * Back has a line to itself, and the strip's key takes the rest of it, so the card grows by
+ * nothing: Back, the workout, then Continue, as they read.
+ */
 function Actions({
   busy,
   disabled,
@@ -432,6 +439,7 @@ function Actions({
           Back
         </Button>
       )}
+      <PinnedFold />
       <Button
         size="lg"
         disabled={busy || disabled}
@@ -1035,7 +1043,7 @@ function TrainingStep({
           <ul className="ruled-list">
             {answers.avoidExerciseSlugs.map((slug) => (
               <li key={slug} className="flex items-center justify-between gap-2 py-1 text-sm">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="min-w-0 [overflow-wrap:break-word]">
                   {library.find((exercise) => exercise.slug === slug)?.name ?? slug}
                 </span>
                 <Button
@@ -1133,7 +1141,7 @@ function StartingPointStep({
                       })
                     }
                   />
-                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{file.name}</span>
+                  <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{file.name}</span>
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
                   <a
@@ -1217,17 +1225,20 @@ function ReviewStep({
             ["Goal", answers.goal || "Not answered"],
             [
               "Your week",
-              `${answers.sessionsPerWeek ?? "?"} sessions · ${
-                answers.minutesPerSession ?? "?"
-              } minutes · ${days || "flexible days"}`,
+              joinFacts([
+                `${answers.sessionsPerWeek ?? "?"}\u00a0sessions`,
+                `${answers.minutesPerSession ?? "?"}\u00a0minutes`,
+                days || "flexible days",
+              ]),
             ],
             [
               "Running",
               answers.runsPerWeek
-                ? `${answers.runsPerWeek} a week · ${
+                ? joinFacts([
+                    `${answers.runsPerWeek} a week`,
                     answers.preferredRunDays.map((d) => WEEKDAY_NAMES[d]).join(", ") ||
-                    "flexible days"
-                  }`
+                      "flexible days",
+                  ])
                 : "None",
             ],
             [
@@ -1246,7 +1257,7 @@ function ReviewStep({
                 answers.ageYears ? `${answers.ageYears} years` : null,
               ]
                 .filter(Boolean)
-                .join(" · ") || "Not answered",
+                .join(FACT_SEPARATOR) || "Not answered",
             ],
             ["Injuries", answers.restrictions || "None reported"],
             ["Preferences", answers.preferences || "None reported"],
@@ -1283,7 +1294,7 @@ function ReviewStep({
           <dl className="text-sm ruled-list">
             {answers.clarifications.map((entry) => (
               <div key={entry.question} className="space-y-0.5 py-2">
-                <dt className="[overflow-wrap:anywhere] text-ink-muted">{entry.question}</dt>
+                <dt className="[overflow-wrap:break-word] text-ink-muted">{entry.question}</dt>
                 <dd className="break-words whitespace-pre-wrap">{entry.answer}</dd>
               </div>
             ))}

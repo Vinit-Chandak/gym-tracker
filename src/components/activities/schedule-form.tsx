@@ -71,9 +71,11 @@ export function ScheduleForm({
               the other date pairs in the app make. */}
           <div className="grid gap-3 min-[420px]:grid-cols-2">
             <Field label="Date" error={state.fieldErrors?.scheduledOn}>
+              {/* Today or later: something already done is logged, not scheduled. */}
               <Input
                 name="scheduledOn"
                 type="date"
+                min={today}
                 defaultValue={state.values?.scheduledOn ?? today}
                 required
               />

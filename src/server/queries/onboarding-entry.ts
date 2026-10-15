@@ -2,31 +2,35 @@ import type { Route } from "next";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { listGyms } from "@/server/repositories/gyms";
-import { enabledSportsFor } from "@/server/repositories/sport-preferences";
+import type { TrainingExperience } from "@/domain/types";
+import { pendingFirstProgramme, readSetupState } from "@/server/queries/setup-state";
 
 /**
  * Where a setup that was left unfinished picks up again.
  *
- * The steps are sequential, so what has been saved says how far it got: a gym means the first
- * two steps were answered, machines at that gym mean the third was. Sending everyone back to
- * step one instead made an athlete repeat themselves, and the gym step — which shows nothing
- * about the gym already added — took the same name a second time and made a duplicate.
+ * What has been saved says how far it got: the first step's answers (experience and sports),
+ * then a place to train, then the plan. A step that may be passed with nothing chosen (what is
+ * unusual at a gym, what is at home) is not resumed: an empty answer is an answer, and sending
+ * anyone who gave it back to the same step was the loop the audit found (B4). A programme the
+ * coach is writing, or has written, is where a beginner comes back to.
  */
-export async function onboardingEntry(userId: string): Promise<Route> {
+export async function onboardingEntry(
+  userId: string,
+  experience: TrainingExperience | null,
+): Promise<Route> {
   return withUser(
     getDb(),
     userId,
     async (tx): Promise<Route> => {
-      // A sport-only account never reaches the gym steps, so their absence says nothing about
-      // how far setup got. Keep that short circuit, and reuse the read-only transaction when
-      // the gym read is needed instead of opening and authenticating a second one.
-      const sports = await enabledSportsFor(tx, userId);
-      if (!sports.includes("strength")) return "/welcome/programme";
-      const gyms = await listGyms(tx, userId);
-      if (gyms.length === 0) return "/welcome";
-      const gym = gyms.find((candidate) => candidate.isDefault) ?? gyms[0]!;
-      if (gym.equipmentCount === 0) return `/welcome/equipment?gym=${gym.id}` as Route;
+      const state = await readSetupState(tx, userId, experience);
+      if (state.experience === null || state.sports === null) return "/welcome";
+      // Runs, rides or swims only: setup ends on the first step, so that is where it resumes.
+      if (!state.sports.includes("strength")) return "/welcome";
+      if (!state.place) return "/welcome/gym";
+      const programme = await pendingFirstProgramme(tx, userId);
+      if (programme && "draftId" in programme)
+        return `/welcome/programme/drafts/${programme.draftId}` as Route;
+      if (programme) return `/welcome/programme/jobs/${programme.jobId}` as Route;
       return "/welcome/programme";
     },
     { readOnly: true },

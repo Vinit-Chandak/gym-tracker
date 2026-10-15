@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
+import { Figures } from "@/components/ui/figures";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -19,11 +20,12 @@ import {
 } from "@/domain/nutrition";
 import { sanitizeNumberEntry } from "@/domain/sets";
 import type { BodyLoadUnit, TrainingGoal } from "@/domain/types";
-import { formatFoodAmount, formatSplit } from "@/lib/format";
+import { joinFacts } from "@/lib/facts";
+import { formatFoodAmount, formatMacros, formatSplit } from "@/lib/format";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
-import { formatBodyWeight } from "@/lib/units";
+import { formatBodyWeight, LB_PER_KG } from "@/lib/units";
 import { saveTargetsAction } from "@/server/actions/nutrition";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -32,6 +34,14 @@ function numberIn(value: string, bounds: { min: number; max: number }): number |
   const parsed = Number(value.replace(",", "."));
   if (value.trim() === "" || !Number.isFinite(parsed)) return null;
   return parsed >= bounds.min && parsed <= bounds.max ? parsed : null;
+}
+
+/** "0.82": grams per kilogram, to the tenth it is kept to, read per pound of body weight. */
+function perPound(perKg: number): string {
+  return (Math.round(((Math.round(perKg * 10) / 10) * 100) / LB_PER_KG) / 100).toLocaleString(
+    "en-GB",
+    { maximumFractionDigits: 2 },
+  );
 }
 
 /**
@@ -138,13 +148,21 @@ export function TargetsForm({
         <div className="min-w-0 space-y-1.5">
           <p className="text-[length:var(--ov-type-meta-small)] font-bold">Goal</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className={goal ? "font-semibold" : "text-ink-2"}>
-              {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
-            </p>
+            {/* The goal's split named under it: a bare "55 / 25 / 20" said none of which was
+                which, and "Use 45 / 25 / 30" was read as the split already set. */}
+            <div className="min-w-0">
+              <p className={goal ? "font-semibold" : "text-ink-2"}>
+                {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
+              </p>
+              <p id="goal-split" className="type-meta-small text-ink-2 tabular-nums">
+                <Figures>{formatSplit(split)}</Figures>
+              </p>
+            </div>
             {offerSplit && fromSplit && (
               <button
                 type="button"
-                className={buttonClassName("secondary", "sm", "tabular-nums")}
+                aria-describedby="goal-split"
+                className={buttonClassName("secondary", "sm")}
                 onClick={() => {
                   if (fromSplit.proteinPerKg !== null) {
                     setProteinPerKg(String(fromSplit.proteinPerKg));
@@ -152,19 +170,31 @@ export function TargetsForm({
                   setFatPercent(String(fromSplit.fatPercent));
                 }}
               >
-                Use {formatSplit(split)}
+                Use this split
               </button>
             )}
           </div>
         </div>
 
+        {/* Typed and kept per kilogram, which the label says as the field's unit, as "Daily
+            target, kcal" does, rather than "per kg of body weight" as though the body were
+            weighed in kilograms; someone who weighs in pounds reads the ratio per pound beside
+            it, and before there is one, what a gram per pound comes to. The unit is one phrase:
+            a label that wraps takes it whole to the next line, never "g" / "per kg". */}
         <Field
-          label="Protein, g per kg of body weight"
+          label={"Protein per body weight, g\u00a0per\u00a0kg"}
           error={state.fieldErrors?.proteinPerKg}
           hint={
-            weighed && perKg !== null
-              ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
-              : undefined
+            perKg !== null && (weighed || unit === "lb")
+              ? joinFacts([
+                  unit === "lb" ? `${perPound(perKg)} g per lb` : null,
+                  weighed
+                    ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+                    : null,
+                ])
+              : unit === "lb"
+                ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg`
+                : undefined
           }
         >
           <Input
@@ -211,8 +241,7 @@ export function TargetsForm({
         )}
         {preview && (
           <p className="type-meta-small font-semibold tabular-nums">
-            Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
-            Protein {formatFoodAmount(preview.proteinG)} g
+            <Figures>{formatMacros(preview)}</Figures>
           </p>
         )}
         {preview?.overBudget && (

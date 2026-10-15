@@ -1,3 +1,4 @@
+import { cycleLayout } from "./cycle-repeat";
 import {
   programBlueprintSchema,
   type BlueprintDay,
@@ -85,7 +86,13 @@ export function assessProgramChange(
   const doseChanges: string[] = [];
   if (before.slug !== after.slug) structuralChanges.push("program_identity");
   if (before.weeks !== after.weeks) structuralChanges.push("block_length");
-  if (!same(split(before), split(after))) structuralChanges.push("split_or_schedule");
+  // A repeat left unsaid keeps the one before it, so only a change in what the calendar makes
+  // of the cycle — how many cycles, and whether its days sit on weekdays — moves its days.
+  if (
+    !same(split(before), split(after)) ||
+    !same(cycleLayout(before), cycleLayout({ ...after, repeats: after.repeats ?? before.repeats }))
+  )
+    structuralChanges.push("split_or_schedule");
   if (!same(runSchedule(before), runSchedule(after))) structuralChanges.push("run_schedule");
   const oldSlotDays = new Map(
     before.days.flatMap((day) =>

@@ -1,8 +1,16 @@
-import { GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, typeGlyph, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
+import { plannedWorkingSets, type PrintedSession } from "@/domain/session-print";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
-import { MEASURE_UNIT_SUFFIX, rangeLabel, restLabel } from "@/lib/labels";
+import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
+import {
+  lengthRangeLabel,
+  measureUnitSuffix,
+  nameSaysEquipment,
+  rangeLabel,
+  restLabel,
+} from "@/lib/labels";
 
 import type { RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
@@ -17,15 +25,15 @@ export function measureOf(exercise: ExerciseVM): PrescriptionType {
 }
 
 /**
- * The range a set aims at in the exercise's own measure: "8–12", "20–45 s", "20–30 m". The
- * programme slot's, or for an exercise nothing planned, the library's defaults (plan: today's
- * targets, ad hoc exercises keep their defaults).
+ * The range a set aims at in the exercise's own measure: "8–12", "20–45 s", "20–30 m", a carry
+ * in the athlete's `length` ("22–33 yd"). The programme slot's, or for an exercise nothing
+ * planned, the library's defaults (plan: today's targets, ad hoc exercises keep their defaults).
  */
-export function volumeRange(exercise: ExerciseVM): string | null {
+export function volumeRange(exercise: ExerciseVM, length: SetLengthUnit): string | null {
   const p = exercise.planned;
   const d = exercise.exercise.defaults;
   const measure = measureOf(exercise);
-  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const suffix = measureUnitSuffix(measure, length);
   const range = (min: number | null, max: number | null) =>
     min === null && max === null ? null : rangeLabel(min, max, suffix);
   switch (measure) {
@@ -35,8 +43,10 @@ export function volumeRange(exercise: ExerciseVM): string | null {
         : range(d.durationMinSeconds, d.durationMaxSeconds);
     case "distance":
       return p
-        ? rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix)
-        : range(d.distanceMinMeters, d.distanceMaxMeters);
+        ? lengthRangeLabel(p.distanceMinMeters, p.distanceMaxMeters, length)
+        : d.distanceMinMeters === null && d.distanceMaxMeters === null
+          ? null
+          : lengthRangeLabel(d.distanceMinMeters, d.distanceMaxMeters, length);
     default:
       return p ? rangeLabel(p.repMin, p.repMax) : range(d.repMin, d.repMax);
   }
@@ -64,20 +74,33 @@ function coachMeasure(set: TargetSet): PrescriptionType {
   return "reps";
 }
 
-function coachCount(set: TargetSet, measure: PrescriptionType): number | null {
+/**
+ * What a coach's set asks for in its measure, a carry in the athlete's `length` as the least
+ * figure that reaches it (`setTargetIn`).
+ */
+function coachCount(
+  set: TargetSet,
+  measure: PrescriptionType,
+  length: SetLengthUnit,
+): number | null {
   return measure === "distance"
-    ? set.distanceMeters
+    ? set.distanceMeters === null
+      ? null
+      : setTargetIn(set.distanceMeters, length)
     : measure === "duration"
       ? set.durationSeconds
       : set.reps;
 }
 
 /** "5", "5/5/3", "30 s", "20 m": what the coach's sets ask for. */
-function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionType } | null {
+function coachVolume(
+  sets: TargetSet[],
+  length: SetLengthUnit,
+): { text: string; measure: PrescriptionType } | null {
   const measure = coachMeasure(sets[0]!);
-  const counts = sets.map((set) => coachCount(set, measure));
+  const counts = sets.map((set) => coachCount(set, measure, length));
   if (counts.every((count) => count === null)) return null;
-  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const suffix = measureUnitSuffix(measure, length);
   const text = counts.every((count) => count === counts[0])
     ? `${counts[0]}${suffix}`
     : `${counts.map((count) => count ?? "—").join("/")}${suffix}`;
@@ -85,19 +108,76 @@ function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionTy
 }
 
 /**
- * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
- * ("5", "8–12", "30 s").
+ * The set a row stands for among `sets`: the same kind of set in the same place among them. The
+ * second warm-up row is the second warm-up, the first working row the first working set, whatever
+ * set number each row was given, so a warm-up row the athlete turns into a working set takes the
+ * work's numbers and never the warm-up's. Null past the sets of that kind.
  */
-export function countTargetLabel(exercise: ExerciseVM, setIndex: number | null): string | null {
+export function placedSet<T extends { setIndex: number; setType: SetType }>(
+  sets: readonly T[],
+  rows: readonly Pick<RowState, "setIndex" | "setType">[],
+  row: Pick<RowState, "setIndex" | "setType">,
+): T | null {
+  const warm = isWarmup(row.setType);
+  const same = sets
+    .filter((set) => isWarmup(set.setType) === warm)
+    .sort((a, b) => a.setIndex - b.setIndex);
+  const place = rows.filter(
+    (other) => other.setIndex < row.setIndex && isWarmup(other.setType) === warm,
+  ).length;
+  return same[place] ?? null;
+}
+
+/** The suggestion's set for a row (`placedSet`): the target the entry shows and explains. */
+export function targetFor(
+  exercise: ExerciseVM,
+  rows: readonly Pick<RowState, "setIndex" | "setType">[],
+  row: Pick<RowState, "setIndex" | "setType">,
+): TargetSet | null {
+  return placedSet(exercise.suggestion?.sets ?? [], rows, row);
+}
+
+/**
+ * A warm-up row the work has already passed: not logged, never touched or chosen, behind a
+ * working set that is. Once a working set is in, the warm-up is over, and the entry goes on to
+ * the next working set rather than back to a warm-up nobody did.
+ */
+export function passedWarmup(rows: readonly RowState[], row: RowState): boolean {
+  return (
+    row.logged === null &&
+    isWarmup(row.setType) &&
+    !row.dirty &&
+    !row.typeChosen &&
+    rows.some(
+      (other) =>
+        other.setIndex < row.setIndex && other.logged !== null && !isWarmup(other.logged.setType),
+    )
+  );
+}
+
+/** The set the entry is on: the first not yet done, past any warm-up the work has passed. */
+export function openRow(rows: readonly RowState[]): RowState | null {
+  return rows.find((row) => row.logged === null && !passedWarmup(rows, row)) ?? null;
+}
+
+/**
+ * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
+ * ("5", "8–12", "30 s"). `target` is the set's own suggested set (`targetFor`).
+ */
+export function countTargetLabel(
+  exercise: ExerciseVM,
+  target: TargetSet | null,
+  length: SetLengthUnit,
+): string | null {
   const coach = coachWork(exercise);
   if (coach) {
     // The coach's own figure for that set, a warm-up's included; past them, the first working set.
-    const own = exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) ?? coach[0]!;
+    const own = target ?? coach[0]!;
     const measure = coachMeasure(own);
-    const count = coachCount(own, measure);
-    if (count !== null) return `${count}${MEASURE_UNIT_SUFFIX[measure]}`;
+    const count = coachCount(own, measure, length);
+    if (count !== null) return `${count}${measureUnitSuffix(measure, length)}`;
   }
-  return volumeRange(exercise);
+  return volumeRange(exercise, length);
 }
 
 /** Whether today's sets are per side: the coach's word for this session, else the programme's. */
@@ -110,12 +190,12 @@ export function perSideToday(exercise: ExerciseVM): boolean {
  * "5 reps" when the coach wrote today's sets. How many sets and the RIR target are the entry's,
  * so they are not said twice (DESIGN.md, Layout).
  */
-export function perSetLabel(exercise: ExerciseVM): string | null {
+export function perSetLabel(exercise: ExerciseVM, length: SetLengthUnit): string | null {
   const side = perSideToday(exercise) ? " per side" : "";
   const coach = coachWork(exercise);
-  const volume = coach ? coachVolume(coach) : null;
+  const volume = coach ? coachVolume(coach, length) : null;
   if (volume) return `${volume.text}${volume.measure === "reps" ? " reps" : ""}${side}`;
-  const range = volumeRange(exercise);
+  const range = volumeRange(exercise, length);
   if (range === null) return null;
   return `${range}${measureOf(exercise) === "reps" ? " reps" : ""}${side}`;
 }
@@ -125,18 +205,22 @@ export function perSetLabel(exercise: ExerciseVM): string | null {
  * wrote today's sets ("70 kg · 3 × 5 @ 2 RIR"), else the programme's ("4 × 3–5 @ 2 RIR"), else
  * the exercise's own defaults ("8–12 reps @ 2 RIR").
  */
-export function prescriptionLabel(exercise: ExerciseVM, unitLabel = ""): string | null {
+export function prescriptionLabel(
+  exercise: ExerciseVM,
+  unitLabel: string,
+  length: SetLengthUnit,
+): string | null {
   const coach = coachWork(exercise);
   if (coach) {
-    const line = targetsLine(coach, unitLabel, perSideToday(exercise));
+    const line = targetsLine(coach, unitLabel, length, perSideToday(exercise));
     if (line) return line;
   }
   const p = exercise.planned;
   if (p)
-    return `${p.sets} × ${volumeRange(exercise)}${perSideToday(exercise) ? " per side" : ""}${
+    return `${p.sets} × ${volumeRange(exercise, length)}${perSideToday(exercise) ? " per side" : ""}${
       p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ""
     }`;
-  const range = volumeRange(exercise);
+  const range = volumeRange(exercise, length);
   if (range === null) return null;
   const rir = exercise.exercise.defaults.rir;
   const reps = measureOf(exercise) === "reps";
@@ -181,15 +265,7 @@ export function restSecondsOf(exercise: ExerciseVM): number | null {
  */
 export function equipmentFact(exercise: ExerciseVM): string | null {
   const equipment = exercise.equipment?.name;
-  if (!equipment) return null;
-  const words = (text: string) =>
-    text
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}°]+/u)
-      .filter(Boolean)
-      .map((word) => word.replace(/s$/, ""));
-  const named = new Set(words(exercise.exercise.name));
-  if (words(equipment).every((word) => named.has(word))) return null;
+  if (!equipment || nameSaysEquipment(exercise.exercise.name, equipment)) return null;
   const free = ["barbell", "dumbbell"].includes(exercise.exercise.modality);
   return `${free ? "with" : "on"} ${equipment}`;
 }
@@ -221,9 +297,14 @@ export function equipmentLabel(exercise: ExerciseVM): string {
 
 /**
  * The equipment's glyph (DESIGN.md, Shapes): free weights as a dumbbell, a machine, a cable,
- * a Smith machine, bodyweight. Cardio stands on a machine when it needs one.
+ * a Smith machine, bodyweight. Cardio stands on a machine when it needs one. Done on a machine
+ * whose type has a glyph of its own (`typeGlyph`: an accessory, a cardio machine, the Smith
+ * machine), it is that machine: the glyph stands for the machine the row names, so a back
+ * extension bench is neither a pull-up bar nor a dumbbell, and a treadmill is no weight stack.
  */
 export function equipmentGlyph(exercise: ExerciseVM): GlyphName {
+  const own = exercise.equipment ? typeGlyph(exercise.equipment) : null;
+  if (own) return own;
   switch (exercise.exercise.modality) {
     case "barbell":
     case "dumbbell":
@@ -241,18 +322,19 @@ export function equipmentGlyph(exercise: ExerciseVM): GlyphName {
   }
 }
 
-/** The RIR this exercise's set aims at: the coach's for that set, else the programme's. */
-export function rirTarget(exercise: ExerciseVM, setIndex: number): number | null {
-  const coach = exercise.suggestion?.kind === "coach";
-  const own = coach ? exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) : null;
+/**
+ * The RIR this exercise's set aims at: the coach's for that set, else the programme's. `target`
+ * is the set's own suggested set (`targetFor`).
+ */
+export function rirTarget(exercise: ExerciseVM, target: TargetSet | null): number | null {
+  const own = exercise.suggestion?.kind === "coach" ? target : null;
   if (own && own.rir !== null) return own.rir;
   return exercise.planned?.rirMin ?? exercise.planned?.rirMax ?? null;
 }
 
 /** The target as the entry says it under RIR: "2", "2–3". */
-export function rirTargetLabel(exercise: ExerciseVM, setIndex: number): string | null {
-  const coach = exercise.suggestion?.kind === "coach";
-  const own = coach ? exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) : null;
+export function rirTargetLabel(exercise: ExerciseVM, target: TargetSet | null): string | null {
+  const own = exercise.suggestion?.kind === "coach" ? target : null;
   if (own && own.rir !== null) return String(own.rir);
   const p = exercise.planned;
   if (!p || (p.rirMin === null && p.rirMax === null)) return null;
@@ -267,11 +349,46 @@ export const isWarmup = (type: SetType) => type === "warmup";
  * else the programme's. Null when nothing says (an exercise added on the spot).
  */
 export function plannedSets(exercise: ExerciseVM): number | null {
-  if (exercise.suggestion?.kind === "coach") {
-    const work = exercise.suggestion.sets.filter((set) => !isWarmup(set.setType)).length;
-    return work > 0 ? work : (exercise.planned?.sets ?? null);
-  }
-  return exercise.planned?.sets ?? null;
+  // The coach's targets stand in the suggestion only for the exercise it wrote them for.
+  return plannedWorkingSets(
+    exercise.suggestion?.kind === "coach"
+      ? { action: "keep", sets: exercise.suggestion.sets }
+      : null,
+    exercise.planned?.sets ?? null,
+  );
+}
+
+/** The warm-up's name: the protocol's, or plain Warm-up for the coach's, which stands in for it. */
+export function warmupName(session: SessionVM): string {
+  return session.coachPlan?.warmup.length ? "Warm-up" : (session.warmup?.name ?? "Warm-up");
+}
+
+/**
+ * The workout as its prints draw it (`PrintedSession`), from the session as this screen holds
+ * it, so its print inks a set the moment it lands. `warmupDone` is the warm-up as its row has it,
+ * ticked here before the session is drawn again.
+ */
+export function printedSession(
+  session: SessionVM,
+  warmupDone = session.warmupCompleted,
+): PrintedSession {
+  return {
+    drills: session.coachPlan?.warmup.length || session.warmup?.drills.length || 0,
+    warmupCompleted: warmupDone,
+    completed: session.completedAt !== null,
+    exercises: session.exercises.map((exercise) => {
+      const warm = exercise.sets.filter((set) => isWarmup(set.setType)).length;
+      return {
+        slotId: exercise.planned?.programExerciseId ?? null,
+        exerciseId: exercise.exercise.id,
+        planned: plannedSets(exercise),
+        work: exercise.sets.length - warm,
+        warm,
+        skipped: exercise.skippedAt !== null,
+        supersetGroup: exercise.supersetGroup,
+      };
+    }),
+  };
 }
 
 /**
@@ -311,12 +428,18 @@ export function headingText(heading: EntryHeading): string {
 
 /**
  * The exercise a superset goes to after each set: the next member of its group in the
- * workout's order, round to the first.
+ * workout's order, round to the first. A member skipped or done is passed over, so nothing sends
+ * the athlete to it; with none left, there is no next. The group itself stays, so Unskip or
+ * Reopen pairs it again.
  */
 export function supersetNext(session: SessionVM, exercise: ExerciseVM): ExerciseVM | null {
   if (!exercise.supersetGroup) return null;
   const group = session.exercises
-    .filter((other) => other.supersetGroup === exercise.supersetGroup)
+    .filter(
+      (other) =>
+        other.supersetGroup === exercise.supersetGroup &&
+        (other.id === exercise.id || (other.skippedAt === null && other.completedAt === null)),
+    )
     .sort((a, b) => a.orderIndex - b.orderIndex);
   if (group.length < 2) return null;
   const at = group.findIndex((other) => other.id === exercise.id);

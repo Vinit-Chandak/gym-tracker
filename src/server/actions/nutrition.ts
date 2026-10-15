@@ -96,6 +96,8 @@ function invalid(error: z.ZodError): FoodActionResult {
  * an old Food snapshot: invalidate them all after a successful write.
  */
 function refreshFood(): void {
+  // Progress draws what each day came to (ADR 0042), so its copy is dropped with Food's.
+  revalidatePath("/progress");
   revalidatePath("/food");
   revalidatePath("/food/[meal]", "page");
   revalidatePath("/food/targets");

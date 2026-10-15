@@ -10,7 +10,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: calc(10 * var(--ov-u));
 }
 .cycle-name {
   display: flex;
@@ -21,7 +21,7 @@
   font-size: var(--ov-type-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .cycle-count {
   max-width: 100%;
@@ -30,39 +30,77 @@
   font-size: var(--ov-type-meta-small);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
-/* Two to a row, 10 apart, 14 between rows; the day on offer the full width. */
+/* Two to a row, 10 apart, 14 between rows; the day on offer the full width. The days keep the
+   order they are trained in, so a day that would stand alone in its row before the next one
+   takes the row rather than leave a hole beside it, and so does the last day where it would
+   stand alone (cycle-days.tsx). */
 .cycle-days {
   display: grid;
-  margin-top: 10px;
-  gap: 14px 10px;
+  margin-top: calc(10 * var(--ov-u));
+  gap: calc(14 * var(--ov-u)) calc(10 * var(--ov-u));
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.cycle-day-next {
+.cycle-day-next,
+.cycle-days > li:nth-child(odd):has(+ .cycle-day-next),
+.cycle-day-alone {
   grid-column: 1 / -1;
+}
+/* Beyond a phone the days take as many columns as fit, the next one two of them (ADR 0052), or
+   one where it falls in a row's last column (cycle-days.tsx). Its print is as tall as the
+   others', so the names in a row stand on one line. */
+@media (width >= 600px) {
+  .cycle-days {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  }
+  .cycle-days > li:nth-child(odd):has(+ .cycle-day-next),
+  .cycle-day-alone {
+    grid-column: auto;
+  }
+  .cycle-day-next {
+    grid-column: span 2;
+  }
+  .cycle-day-next-narrow {
+    grid-column: auto;
+  }
 }
 .cycle-day {
   display: block;
 }
 .cycle-day-print {
-  height: 64px;
+  height: calc(64 * var(--ov-u));
 }
-.cycle-day-next .cycle-day-print {
-  height: 92px;
+@media (width < 600px) {
+  .cycle-day-next .cycle-day-print {
+    height: calc(92 * var(--ov-u));
+  }
 }
+/* The day's word (Next, In progress) stands after the name while both fit a line, and goes
+   under the name rather than squeeze it to a word a line (a half tile at large text). It stands
+   beside the name, not at the tile's far edge: there it was nearer the name of the tile after it
+   than its own, and a desktop read "Lower … Next Tempo run" (year audit, October 2026). Only the
+   next day on a phone, which has its row to itself, puts it at the edge, as the board draws it. */
 .cycle-day-name {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: calc(6 * var(--ov-u));
+  gap: 0 calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
   font-weight: 700;
   line-height: 1.25;
 }
+@media (width < 600px) {
+  .cycle-day-next .cycle-day-name {
+    justify-content: space-between;
+  }
+}
+/* A caption (13, 700, ink 2), so beside the name it reads as where the day stands, not as more
+   of its name ("Lower Next"). */
 .cycle-day-next-word {
   flex-shrink: 0;
+  color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   white-space: nowrap;
 }
@@ -72,71 +110,82 @@
    the words fit, and fewer once they would not (320 pt, large text). */
 .start-tiles {
   display: grid;
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: calc(6 * var(--ov-u));
+  gap: calc(8 * var(--ov-u));
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
 }
 .start-tile {
   display: flex;
   min-width: 0;
-  min-height: 76px;
+  min-height: calc(76 * var(--ov-u));
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 12px 10px;
+  padding: calc(12 * var(--ov-u)) calc(12 * var(--ov-u)) calc(10 * var(--ov-u));
   border-radius: 14px;
   background: var(--ov-surface);
-  gap: 8px;
+  gap: calc(8 * var(--ov-u));
 }
 .start-tile-word {
   font-size: var(--ov-type-meta);
   font-weight: 700;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* ---------- a programme day (board Programme day) ---------- */
 .programme-day-print {
-  height: 120px;
+  height: calc(120 * var(--ov-u));
   margin: 2px 0 0;
 }
 @media (height < 800px) {
   .programme-day-print {
-    height: 96px;
+    height: calc(96 * var(--ov-u));
   }
 }
 
 /* ---------- an activity read back (board Run) ---------- */
 .activity-print {
-  height: 128px;
-  margin: 4px 0 0;
+  height: calc(128 * var(--ov-u));
+  margin: calc(4 * var(--ov-u)) 0 0;
 }
-/* What it recorded, two by two, each over a hairline: the figure and its unit, then its name. */
+/* What it recorded, two by two, each over a hairline: the figure and its unit, then its name.
+   Each stat is a subgrid of the two rows it spans, so the figures of a pair share a row and a
+   baseline, and their names a line, whatever stands over them: a dash in Atkinson beside a
+   figure in Jost, a word ("Not sure"), or a unit wrapped under its figure at large text (year
+   audit, October 2026: Distance's name 5 pt above Time's, beside a ride's 40:51). */
 .activity-stats {
   display: grid;
-  margin-top: 10px;
-  column-gap: 16px;
+  margin-top: calc(10 * var(--ov-u));
+  column-gap: calc(16 * var(--ov-u));
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .activity-stat {
-  display: flex;
+  display: grid;
   min-width: 0;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  padding: 10px 0;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: baseline;
+  row-gap: 0;
+  padding: calc(10 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
 }
 .activity-stat-figure {
   display: flex;
+  min-width: 0;
+  grid-row: 1;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 3px;
+  column-gap: calc(3 * var(--ov-u));
 }
 .activity-stat-unit {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 600;
 }
+/* Named first, for a screen reader, and drawn under its figure. */
 .activity-stat-label {
+  grid-row: 2;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;

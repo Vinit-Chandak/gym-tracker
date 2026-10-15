@@ -1,10 +1,13 @@
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { cycleCount } from "@/domain/cycle-repeat";
 import { manualPrescription } from "@/domain/manual-prescription";
 
 import {
+  activities,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   gyms,
   profiles,
@@ -17,8 +20,11 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { ProgressionSuggestion } from "@/domain/progression";
-import { planTargets } from "@/domain/session-plan";
+import { COACH_DROP_NOTE, planTargets } from "@/domain/session-plan";
+import { ownEntry, pairBySlot, type PrintedSession } from "@/domain/session-print";
 import { parseRamp, withRamp } from "@/domain/warmup-ramp";
+import { canEditWorkout, EDIT_WINDOW_DAYS } from "@/domain/workout-edits";
+import { finishedAsOf } from "@/domain/left-open";
 import {
   hasCheckIn,
   recoveryWarnings,
@@ -26,7 +32,7 @@ import {
   type RecoveryWarning,
 } from "@/domain/recovery";
 import type { LoadLadder } from "@/domain/load-steps";
-import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
+import type { EquipmentCategory, LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { guidanceByExercise, getWarmupProtocol } from "@/server/queries/reference";
 
@@ -39,10 +45,12 @@ import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "
 import { getGym } from "./gyms";
 import { machinesByExerciseAtGym } from "./equipment";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
-import { loadLadders } from "./load-ladders";
+import { bestLoads, loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
+import { strengthParent } from "./strength-day";
+import { printedSessionOf, sessionPrintColumns } from "./session-prints";
 import { readWorkouts } from "./training-data";
 
 export class SessionNotFoundError extends Error {
@@ -56,6 +64,16 @@ export class SessionFinishedError extends Error {
   constructor() {
     super("This session is already finished.");
     this.name = "SessionFinishedError";
+  }
+}
+
+/** A finished workout past its week of changes (ADR 0049). */
+export class SessionLockedError extends Error {
+  constructor() {
+    super(
+      `This workout is more than ${EDIT_WINDOW_DAYS} days old, so it can no longer be changed.`,
+    );
+    this.name = "SessionLockedError";
   }
 }
 
@@ -81,11 +99,18 @@ export type SessionSummary = {
   gymName: string;
   programDayId: string | null;
   dayName: string | null;
+  /** The saved routine's name it was started from, as it was then; null for any other. */
+  title: string | null;
   cycleIndex: number | null;
   startedAt: Date;
   completedAt: Date | null;
   exerciseCount: number;
+  /** Every set logged, warm-ups too: whether there is anything to keep (Discard, Finish). */
   setCount: number;
+  /** The sets it counts, warm-ups aside, as the workout lists them (`workingSetCount`). */
+  workingSetCount: number;
+  /** When its latest set was saved; null before any. Says whether it was left open. */
+  lastSetAt: Date | null;
 };
 
 function summarySelection() {
@@ -95,6 +120,7 @@ function summarySelection() {
     gymName: gyms.name,
     programDayId: workoutSessions.programDayId,
     dayName: programDays.name,
+    title: activities.title,
     cycleIndex: workoutSessions.cycleIndex,
     startedAt: workoutSessions.startedAt,
     completedAt: workoutSessions.completedAt,
@@ -106,23 +132,37 @@ function summarySelection() {
       join workout_exercises we on we.id = sl.workout_exercise_id
       where we.workout_session_id = workout_sessions.id
     )::int`,
+    workingSetCount: sql<number>`(
+      select count(*) from set_logs sl
+      join workout_exercises we on we.id = sl.workout_exercise_id
+      where we.workout_session_id = workout_sessions.id and sl.set_type <> 'warmup'
+    )::int`,
+    lastSetAt: sql<Date | null>`(
+      select max(sl.completed_at) from set_logs sl
+      join workout_exercises we on we.id = sl.workout_exercise_id
+      where we.workout_session_id = workout_sessions.id
+    )`.mapWith(workoutSessions.startedAt),
   };
 }
+
+/** The open workout, and what its prints draw: every plan it is inking draws its sets from this. */
+export type OpenSessionSummary = SessionSummary & { print: PrintedSession };
 
 /** The one session started but not finished, if any. */
 export async function getInProgressSession(
   db: DbOrTx,
   userId: string,
-): Promise<SessionSummary | null> {
+): Promise<OpenSessionSummary | null> {
   const [row] = await db
-    .select(summarySelection())
+    .select({ ...summarySelection(), print: sessionPrintColumns() })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
     .orderBy(desc(workoutSessions.startedAt))
     .limit(1);
-  return row ?? null;
+  return row ? { ...row, print: printedSessionOf(row.print) } : null;
 }
 
 /** Finished sessions, newest first. */
@@ -136,6 +176,7 @@ export async function listSessions(
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)))
     .orderBy(desc(workoutSessions.startedAt))
     .limit(limit);
@@ -226,7 +267,9 @@ export async function startPlannedSession(
         equipmentInstanceId: null,
         supersetGroup: null,
         skippedAt: now,
-        notes: entry.note || "Left out by the coach's plan",
+        // The coach's reason, shown as the skip's; the coach is never handed it back as the
+        // athlete's note (coach-memory.ts).
+        notes: entry.note || COACH_DROP_NOTE,
       });
       continue;
     }
@@ -243,11 +286,15 @@ export async function startPlannedSession(
       ...base,
       exerciseId: substituted ? r.exercise.id : item.exercise.id,
       // A fallback takes its own machine. Otherwise a machine the plan names wins, then the
-      // gym's own resolution; a machine named for one exercise never goes onto another.
+      // gym's own resolution; a machine named for one exercise never goes onto another. One of
+      // several alike that nobody chose and the exercise was never done on is left for the
+      // workout to ask about.
       equipmentInstanceId: substituted
         ? (r.equipmentInstance?.id ?? null)
         : (entry?.equipmentInstanceId ??
-          (r.status === "direct" ? (r.equipmentInstance?.id ?? null) : null)),
+          (r.status === "direct" && !item.machineUndecided
+            ? (r.equipmentInstance?.id ?? null)
+            : null)),
       substitutionReason: substituted
         ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
         : null,
@@ -270,10 +317,14 @@ export async function startPlannedSession(
   return { sessionId: session.id };
 }
 
+/**
+ * A session at a gym with no programme day. `title` names it after the saved routine it starts
+ * from (`openStrengthParent`); without one it is an unplanned session.
+ */
 export async function startAdHocSession(
   db: DbOrTx,
   userId: string,
-  input: { gymId: string },
+  input: { gymId: string; title?: string | null },
 ): Promise<{ sessionId: string }> {
   const gym = await getGym(db, userId, input.gymId);
   if (!gym || !gym.isActive) throw new SessionNotFoundError();
@@ -282,7 +333,7 @@ export async function startAdHocSession(
     .values({ userId, gymId: input.gymId })
     .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt });
   if (!session) throw new Error("Session insert returned no row");
-  await openStrengthParent(db, userId, session);
+  await openStrengthParent(db, userId, { ...session, title: input.title ?? null });
   return { sessionId: session.id };
 }
 
@@ -345,8 +396,18 @@ export type SessionExercise = {
     id: string;
     name: string;
     unit: LoadUnit;
+    /** What kind of machine it is: an accessory (a bench, a rack) is drawn as one. */
+    typeCategory: EquipmentCategory;
+    /** Its type, so an accessory is drawn as what it is (an ab wheel, a bench). */
+    typeSlug: string;
     /** What is known about this machine's loads, for the Next up box (ADR 0028). */
     ladder: LoadLadder | null;
+    /**
+     * The best working load this exercise has been lifted at on this machine, across every
+     * session: the heaviest, or the least help on an assisted machine (ADR 0048). Next up asks
+     * for the stop above it. Null before anything is lifted.
+     */
+    best?: number | null;
   } | null;
   planned: {
     programExerciseId: string | null;
@@ -421,6 +482,8 @@ export type SessionDetail = {
     /** How long the day takes, as the programme says it ("70–90 min"). */
     timeNote: string | null;
   } | null;
+  /** The saved routine's name it was started from, as it was then; null for any other. */
+  title: string | null;
   cycleIndex: number | null;
   /** How many cycles the session's programme runs, for "Cycle 1 of 8"; null when it has none. */
   cycles?: number | null;
@@ -452,6 +515,25 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * What a session goes by (`sessionName`): the programme day it was started for, and the saved
+ * routine's name it was started from. Both null for an unplanned one.
+ */
+export async function sessionNameParts(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<{ dayName: string | null; title: string | null }> {
+  const [row] = await db
+    .select({ dayName: programDays.name, title: activities.title })
+    .from(workoutSessions)
+    .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(activities, strengthParent)
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
+    .limit(1);
+  return { dayName: row?.dayName ?? null, title: row?.title ?? null };
 }
 
 /** The exercises a session already holds, in its order: Add exercise says which are in it. */
@@ -495,12 +577,17 @@ export async function getSessionDetail(
         timeNote: programDays.timeNote,
         warmupProtocolId: programDays.warmupProtocolId,
       },
-      cycles: programs.weeks,
+      title: activities.title,
+      programWeeks: programs.weeks,
+      programRepeats: programs.repeats,
+      // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
+      programDays: sql<number>`(select count(*)::int from program_days d where d.program_id = programs.id)`,
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
     .leftJoin(programs, eq(programs.id, workoutSessions.programId))
+    .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   if (!session) return null;
@@ -551,12 +638,17 @@ export async function getSessionDetail(
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
         },
+        // Beside the machine, not in it: a field from another joined table would make every
+        // one of the machine's nullable.
+        equipmentCategory: equipmentTypes.category,
+        equipmentTypeSlug: equipmentTypes.slug,
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
       })
       .from(workoutExercises)
       .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
       .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
       .leftJoin(
         programExercises,
         eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
@@ -598,10 +690,10 @@ export async function getSessionDetail(
   ]);
   // Plan entries by the slot they were written for; entries without a slot are the plan's
   // additions and are matched to the session's extra rows by exercise, in order.
-  const planBySlot = new Map(
-    (coachPlan?.exercises ?? []).filter((e) => e.slotId).map((e) => [e.slotId!, e]),
+  const planEntries = pairBySlot(
+    rows.map((row) => ({ slotId: row.we.plannedProgramExerciseId, exerciseId: row.exercise.id })),
+    coachPlan?.exercises ?? [],
   );
-  const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
   // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
   // needs equipment and has no machine is asked about, and so is one on a machine before its
@@ -617,7 +709,7 @@ export async function getSessionDetail(
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges, ladders, guidance] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders, best, guidance] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -650,6 +742,14 @@ export async function getSessionDetail(
       db,
       userId,
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
+    ),
+    // The best each exercise has lifted on its machine, where Next up asks from (ADR 0048).
+    bestLoads(
+      db,
+      userId,
+      rows.flatMap((row) =>
+        row.equipment?.id ? [{ machineId: row.equipment.id, exerciseId: row.exercise.id }] : [],
+      ),
     ),
     // Every exercise's guide comes with the page from the cached library (plan: the guide data
     // path, chosen by measurement), so Technique reads even if the connection drops mid-session.
@@ -690,21 +790,14 @@ export async function getSessionDetail(
     });
     const { weightStep, previous, basisPerformance } = rule;
     const decision = decisions.get(row.we.id) ?? null;
-    const entryIndex = row.we.plannedProgramExerciseId
-      ? -1
-      : planAdditions.findIndex((e) => e.exerciseId === row.exercise.id);
-    const entry = row.we.plannedProgramExerciseId
-      ? (planBySlot.get(row.we.plannedProgramExerciseId) ?? null)
-      : entryIndex >= 0
-        ? planAdditions.splice(entryIndex, 1)[0]!
-        : null;
+    const entry = planEntries[index] ?? null;
     const unit =
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
     // What the coach wrote applies while the row does the exercise it was written for: a swap in
     // the workout takes the new exercise's own numbers, rest and notes, not the coach's.
-    const own = entry && entry.exerciseId === row.exercise.id ? entry : null;
+    const own = ownEntry(entry, row.exercise.id);
     // The coach's targets replace the rule's prefill; the rule's basis and history stay visible,
     // so the athlete can still see what the numbers were judged against.
     const targets: ProgressionSuggestion | null =
@@ -777,7 +870,15 @@ export async function getSessionDetail(
             id: row.equipment.id,
             name: row.equipment.name,
             unit: row.equipment.unit,
+            // Joined with its machine: an instance always has a type.
+            typeCategory: row.equipmentCategory!,
+            typeSlug: row.equipmentTypeSlug!,
             ladder: ladders.get(row.equipment.id) ?? null,
+            best: (() => {
+              const lifted = best.get(`${row.equipment.id}:${row.exercise.id}`);
+              if (!lifted) return null;
+              return ladders.get(row.equipment.id)?.assisted ? lifted.lightest : lifted.heaviest;
+            })(),
           }
         : null,
       planned: row.planned
@@ -845,9 +946,12 @@ export async function getSessionDetail(
           timeNote: session.day.timeNote,
         }
       : null,
+    title: session.title,
     cycleIndex: session.session.cycleIndex,
-    // A programme without a length runs 8 cycles, as Today's squares count them (schedule.ts).
-    cycles: session.session.programId ? (session.cycles ?? 8) : null,
+    // A programme without a length runs 8 weeks, as Today's squares count them (schedule.ts).
+    cycles: session.session.programId
+      ? cycleCount(session.programWeeks ?? 8, session.programDays, session.programRepeats)
+      : null,
     startedAt: session.session.startedAt,
     completedAt: session.session.completedAt,
     bodyWeightKg: session.session.bodyWeightKg,
@@ -886,6 +990,47 @@ async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string)
   if (!row) throw new SessionNotFoundError();
   if (row.completedAt) throw new SessionFinishedError();
   return row;
+}
+
+/**
+ * The session, locked, while its sets and exercises can still change: open, or finished within
+ * the last week (ADR 0049). A finished one comes back with its owner's time zone, which both
+ * decided the week and dates the shared stats written again after the change.
+ */
+async function requireEditableSession(db: DbOrTx, userId: string, sessionId: string) {
+  const [row] = await db
+    .select({
+      id: workoutSessions.id,
+      gymId: workoutSessions.gymId,
+      startedAt: workoutSessions.startedAt,
+      completedAt: workoutSessions.completedAt,
+      timeZone: profiles.timeZone,
+    })
+    .from(workoutSessions)
+    .innerJoin(profiles, eq(profiles.id, workoutSessions.userId))
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
+    .limit(1)
+    .for("update", { of: workoutSessions });
+  if (!row) throw new SessionNotFoundError();
+  if (row.completedAt && !canEditWorkout(row.startedAt, row.timeZone))
+    throw new SessionLockedError();
+  return row;
+}
+
+/**
+ * A finished session's shared stats and records, written again from what it holds now, so a
+ * set changed after Finish reaches what friends and the records card read as it reaches
+ * Progress (ADR 0049). The same write Finish makes, which replaces what was there.
+ */
+async function rewriteFinishedStats(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  timeZone: string,
+): Promise<void> {
+  const { workouts } = await readWorkouts(db, userId, null, 0, 1, { sessionId });
+  const workout = workouts[0];
+  if (workout) await writeSessionStats(db, userId, workout, timeZone);
 }
 
 export class WorkoutSelectionError extends Error {
@@ -1011,13 +1156,32 @@ export type LogSetInput = {
   distanceMeters?: number | null;
 };
 
-/** Creates or replaces one set. Raw values are stored exactly as entered. */
+/**
+ * Creates or replaces one set. Raw values are stored exactly as entered. A finished workout
+ * takes sets for a week after its day (ADR 0049): a set saved there unskips its exercise, since
+ * it was done after all, and the session's shared stats are written again.
+ */
 export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SessionSet> {
+  return (await saveSet(db, userId, input)).set;
+}
+
+/** A set saved, and whether its workout was already finished: a change after the fact. */
+export type SavedSet = { set: SessionSet; finished: boolean };
+
+/** `logSet`, saying as well whether the workout was finished (ADR 0049). */
+export async function saveSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SavedSet> {
   const effortReported = input.reps !== null ? input.rir !== null : input.rpe != null;
   const [sessionRow] = await db
-    .select({ completedAt: workoutSessions.completedAt })
+    .select({
+      sessionId: workoutSessions.id,
+      startedAt: workoutSessions.startedAt,
+      completedAt: workoutSessions.completedAt,
+      timeZone: profiles.timeZone,
+      skippedAt: workoutExercises.skippedAt,
+    })
     .from(workoutExercises)
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .innerJoin(profiles, eq(profiles.id, workoutSessions.userId))
     .where(
       and(
         eq(workoutExercises.id, input.workoutExerciseId),
@@ -1028,7 +1192,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
     .limit(1)
     .for("update", { of: workoutSessions });
   if (!sessionRow) throw new SessionNotFoundError();
-  if (sessionRow.completedAt) throw new SessionFinishedError();
+  if (sessionRow.completedAt && !canEditWorkout(sessionRow.startedAt, sessionRow.timeZone))
+    throw new SessionLockedError();
   // Read identity and set values after the lock, including changes committed while we waited.
   const [unitRow] = await db
     .select({
@@ -1081,7 +1246,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       previous.durationSeconds === input.durationSeconds &&
       previous.distanceMeters === (input.distanceMeters ?? null)
     )
-      return previous;
+      return { set: previous, finished: sessionRow.completedAt !== null };
     throw new SetConflictError();
   }
   const now = new Date(Math.max(Date.now(), (previous?.completedAt.getTime() ?? 0) + 1));
@@ -1119,18 +1284,32 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
     })
     .returning(sessionSetColumns);
   if (!row) throw new Error("Set insert returned no row");
-  return row;
+  if (sessionRow.completedAt) {
+    if (sessionRow.skippedAt)
+      await db
+        .update(workoutExercises)
+        .set({ skippedAt: null, notes: unskippedNotes })
+        .where(
+          and(
+            eq(workoutExercises.id, input.workoutExerciseId),
+            eq(workoutExercises.userId, userId),
+          ),
+        );
+    await rewriteFinishedStats(db, userId, sessionRow.sessionId, sessionRow.timeZone);
+  }
+  return { set: row, finished: sessionRow.completedAt !== null };
 }
 
+/** Deletes one set; answers whether its workout was already finished (ADR 0049). */
 export async function deleteSet(
   db: DbOrTx,
   userId: string,
   workoutExerciseId: string,
   setIndex: number,
   expectedCompletedAt?: string,
-): Promise<void> {
+): Promise<{ finished: boolean }> {
   const sessionId = await sessionIdOfExercise(db, userId, workoutExerciseId);
-  await requireOpenSession(db, userId, sessionId);
+  const session = await requireEditableSession(db, userId, sessionId);
   if (expectedCompletedAt !== undefined) {
     const [saved] = await db
       .select({ completedAt: setLogs.completedAt })
@@ -1145,7 +1324,7 @@ export async function deleteSet(
       .limit(1);
     // A retry after a successful delete is harmless. A newer replacement is another set,
     // and the stale screen must not delete it without showing the athlete its saved values.
-    if (!saved) return;
+    if (!saved) return { finished: session.completedAt !== null };
     if (saved.completedAt.toISOString() !== expectedCompletedAt) throw new SetConflictError();
   }
   await db
@@ -1157,7 +1336,16 @@ export async function deleteSet(
         eq(setLogs.setIndex, setIndex),
       ),
     );
+  if (session.completedAt) await rewriteFinishedStats(db, userId, sessionId, session.timeZone);
+  return { finished: session.completedAt !== null };
 }
+
+/**
+ * A skip's reason goes with the skip. The column holds only that reason, and the coach reads it
+ * as the athlete's note on the exercise, so an exercise unskipped and done must not keep saying
+ * why it was left out ("machine taken").
+ */
+const unskippedNotes = sql`case when ${workoutExercises.skippedAt} is null then ${workoutExercises.notes} end`;
 
 export async function setExerciseCompleted(
   db: DbOrTx,
@@ -1169,7 +1357,7 @@ export async function setExerciseCompleted(
   await requireOpenSession(db, userId, sessionId);
   await db
     .update(workoutExercises)
-    .set({ completedAt: completed ? new Date() : null, skippedAt: null })
+    .set({ completedAt: completed ? new Date() : null, skippedAt: null, notes: unskippedNotes })
     .where(and(eq(workoutExercises.id, workoutExerciseId), eq(workoutExercises.userId, userId)));
 }
 
@@ -1222,6 +1410,7 @@ export async function substituteExercise(
       equipmentInstanceId: input.equipmentInstanceId,
       substitutionReason: input.reason,
       skippedAt: null,
+      notes: unskippedNotes,
       completedAt: null,
     })
     .where(
@@ -1241,7 +1430,11 @@ const SUPERSET_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /** This workout's exercises with their grouping, in the order they are performed. */
 async function sessionGroupRows(db: DbOrTx, userId: string, sessionId: string) {
   return db
-    .select({ id: workoutExercises.id, supersetGroup: workoutExercises.supersetGroup })
+    .select({
+      id: workoutExercises.id,
+      supersetGroup: workoutExercises.supersetGroup,
+      orderIndex: workoutExercises.orderIndex,
+    })
     .from(workoutExercises)
     .where(
       and(eq(workoutExercises.workoutSessionId, sessionId), eq(workoutExercises.userId, userId)),
@@ -1251,9 +1444,10 @@ async function sessionGroupRows(db: DbOrTx, userId: string, sessionId: string) {
 
 /**
  * A superset needs at least two exercises, so a group left with one member is no longer a
- * group. This runs after every change rather than being checked at each call site, which
- * keeps "at most one group per exercise, at least two exercises per group" true by
- * construction — including after a member is skipped, substituted or removed.
+ * group. This runs after every change to the grouping rather than being checked at each call
+ * site, which keeps "at most one group per exercise, at least two exercises per group" true by
+ * construction. A member skipped or done stays in its group, so Unskip or Reopen pairs it
+ * again; the logger passes over it meanwhile (`supersetNext`).
  */
 async function pruneLoneSupersets(db: DbOrTx, userId: string, sessionId: string): Promise<void> {
   const rows = await sessionGroupRows(db, userId, sessionId);
@@ -1340,7 +1534,50 @@ export async function saveSupersetGroup(
       ),
     );
   await pruneLoneSupersets(db, userId, input.sessionId);
+  await gatherSuperset(db, userId, input.sessionId, group);
   return { group };
+}
+
+/**
+ * Brings a group's members together at its first member's place, the rest of the workout moving
+ * down after them, so a superset of the first and third exercises is drawn as one, with its
+ * bracket, and done in the order it is listed. Only this workout's order changes. The places are
+ * moved through negative values first: the session's places are unique, and a swap made in one
+ * step would meet itself on the way.
+ */
+async function gatherSuperset(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  group: string,
+): Promise<void> {
+  const rows = await sessionGroupRows(db, userId, sessionId);
+  const first = rows.findIndex((row) => row.supersetGroup === group);
+  if (first === -1) return;
+  const members = rows.filter((row) => row.supersetGroup === group);
+  const others = rows.filter((row) => row.supersetGroup !== group);
+  const order = [...others.slice(0, first), ...members, ...others.slice(first)];
+  const moved = order.flatMap((row, index) =>
+    row.orderIndex === rows[index]!.orderIndex
+      ? []
+      : [{ id: row.id, place: rows[index]!.orderIndex }],
+  );
+  if (moved.length === 0) return;
+  for (const { id, place } of moved)
+    await db
+      .update(workoutExercises)
+      .set({ orderIndex: -place })
+      .where(and(eq(workoutExercises.id, id), eq(workoutExercises.userId, userId)));
+  await db
+    .update(workoutExercises)
+    .set({ orderIndex: sql`-${workoutExercises.orderIndex}` })
+    .where(
+      and(
+        eq(workoutExercises.workoutSessionId, sessionId),
+        eq(workoutExercises.userId, userId),
+        sql`${workoutExercises.orderIndex} < 0`,
+      ),
+    );
 }
 
 /** Drops a superset. Membership goes; the exercises and every logged set stay. */
@@ -1370,7 +1607,8 @@ export type WorkoutSelection = { exerciseId: string; equipmentInstanceId: string
 export const MAX_EXERCISES_PER_ADD = 20;
 
 /**
- * Adds exercises to an open session, after everything it already holds, in the order given
+ * Adds exercises to an open session, or to one finished within the last week (ADR 0049), after
+ * everything it already holds, in the order given
  * (plan: "Add several exercises in one submission"). The whole batch is checked first, then
  * written in one statement with contiguous places; nothing is reordered, and the session's row
  * lock keeps a concurrent addition from taking the same places. A single exercise is a batch of
@@ -1388,7 +1626,7 @@ export async function addExercisesToSession(
     throw new WorkoutSelectionError(`Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`);
   if (new Set(items.map((item) => item.exerciseId)).size !== items.length)
     throw new WorkoutSelectionError("Choose each exercise once.");
-  const session = await requireOpenSession(db, userId, sessionId);
+  const session = await requireEditableSession(db, userId, sessionId);
   await requireWorkoutSelection(db, userId, session.gymId, items);
   const [last] = await db
     .select({ maxOrder: max(workoutExercises.orderIndex) })
@@ -1423,7 +1661,15 @@ export async function addExerciseToSession(
   return { workoutExerciseId: workoutExerciseIds[0]! };
 }
 
-export type FinishInput = { notes: string | null; bodyWeightKg: number | null };
+export type FinishInput = {
+  notes: string | null;
+  bodyWeightKg: number | null;
+  /**
+   * "Finish it as of 19:30": a workout left open ends at its last set, not when it was finished
+   * the next morning (domain/left-open.ts). One that was not left open ends now, as any does.
+   */
+  asOfLastSet?: boolean;
+};
 
 export type FinishedSession = {
   id: string;
@@ -1437,6 +1683,16 @@ export type FinishedSession = {
   records: TrainingRecord[];
 };
 
+/** When the session's latest set was saved; null before any. */
+async function sessionLastSetAt(db: DbOrTx, sessionId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ at: max(setLogs.completedAt) })
+    .from(setLogs)
+    .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+    .where(eq(workoutExercises.workoutSessionId, sessionId));
+  return row?.at ?? null;
+}
+
 /**
  * Finishes the session and, in the same transaction, writes what a follower may see of it:
  * the shared rows are computed from the finished session's own slots and sets, so the
@@ -1449,9 +1705,15 @@ export async function finishSession(
   input: FinishInput,
 ): Promise<FinishedSession> {
   await requireOpenSession(db, userId, sessionId);
+  const now = new Date();
+  // Its end is what every duration reads (the summary, History, the activity, friends), so a
+  // workout left open overnight and finished as of its last set reads start to last set in all.
+  const completedAt = input.asOfLastSet
+    ? finishedAsOf(await sessionLastSetAt(db, sessionId), now)
+    : now;
   const [row] = await db
     .update(workoutSessions)
-    .set({ completedAt: new Date(), notes: input.notes, bodyWeightKg: input.bodyWeightKg })
+    .set({ completedAt, notes: input.notes, bodyWeightKg: input.bodyWeightKg })
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .returning({
       id: workoutSessions.id,
@@ -1466,7 +1728,7 @@ export async function finishSession(
       )`,
     });
   if (!row) throw new SessionNotFoundError();
-  await closeStrengthParent(db, userId, sessionId, new Date());
+  await closeStrengthParent(db, userId, sessionId, completedAt);
   const { workouts } = await readWorkouts(db, userId, null, 0, 1, { sessionId });
   const finished = workouts[0];
   if (!finished) throw new SessionNotFoundError();

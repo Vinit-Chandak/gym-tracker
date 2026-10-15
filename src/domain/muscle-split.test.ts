@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { addMuscleSets, MUSCLE_SPLIT_GROUP, muscleSplit, SPLIT_GROUPS } from "./muscle-split";
+import { MUSCLE_SPLIT_GROUP, muscleSplit, splitGroupOf, SPLIT_GROUPS } from "./muscle-split";
 import { DEFAULT_PERIOD, periodBounds } from "./period";
 import { MUSCLE_GROUPS } from "./types";
 
@@ -14,14 +14,21 @@ describe("muscleSplit", () => {
     expect(MUSCLE_SPLIT_GROUP.forearms).toBe("Arms");
     expect(MUSCLE_SPLIT_GROUP.obliques).toBe("Core");
   });
+  it("files an exercise under one axis, its first primary muscle's", () => {
+    // A squat works quads, glutes and more: one axis, legs, never three.
+    expect(splitGroupOf(["quads", "glutes", "hamstrings"])).toBe("Legs");
+    expect(splitGroupOf(["chest", "triceps"])).toBe("Chest");
+    expect(splitGroupOf(["gills", "lats"])).toBe("Back");
+    expect(splitGroupOf([])).toBeNull();
+  });
   it("shares sum to one", () => {
-    const split = muscleSplit({ chest: 6, triceps: 3, lats: 4, biceps: 2, quads: 5 });
+    const split = muscleSplit({ Chest: 6, Arms: 5, Back: 4, Legs: 5 });
     expect(Object.values(split).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
     expect(split.Chest).toBeCloseTo(0.3, 3);
     expect(split.Arms).toBeCloseTo(0.25, 3);
     expect(split.Shoulders).toBe(0);
   });
-  it("is all zeros with nothing trained, and ignores a muscle it does not know", () => {
+  it("is all zeros with nothing trained, and ignores an axis it does not know", () => {
     expect(muscleSplit({})).toEqual({
       Back: 0,
       Chest: 0,
@@ -30,11 +37,7 @@ describe("muscleSplit", () => {
       Arms: 0,
       Legs: 0,
     });
-    expect(muscleSplit({ neck: 4, chest: 4 } as never).Chest).toBe(1);
-  });
-  it("adds rows into a running total", () => {
-    const total = addMuscleSets(addMuscleSets({}, { chest: 3, triceps: 1.5 }), { chest: 2 });
-    expect(total).toEqual({ chest: 5, triceps: 1.5 });
+    expect(muscleSplit({ Neck: 4, Chest: 4 } as never).Chest).toBe(1);
   });
 });
 
