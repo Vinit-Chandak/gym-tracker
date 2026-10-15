@@ -8,7 +8,7 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
-import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { coachRollout } from "@/lib/coach-rollout";
 import { PLAN_LIMITS } from "@/domain/session-plan";
 import { requireProfiledUser } from "@/server/auth";
@@ -98,8 +98,8 @@ async function requestProgramme(
   if (
     process.env.COACH_WORKFLOW_ENABLED !== "true" ||
     !coachRollout().generation ||
-    !getCoachRoutine() ||
-    !getCoachServiceToken()
+    !canRunCoachJobs() ||
+    !isCoachServiceConfigured()
   )
     return {
       ok: false as const,
@@ -155,8 +155,8 @@ export async function answerCoachQuestionsAction(
 export async function requestProgramReviewAction() {
   if (
     process.env.COACH_WORKFLOW_ENABLED !== "true" ||
-    !getCoachRoutine() ||
-    !getCoachServiceToken()
+    !canRunCoachJobs() ||
+    !isCoachServiceConfigured()
   )
     return {
       ok: false as const,
@@ -189,8 +189,8 @@ export async function requestProgramReviewAction() {
 export async function startWaitingCoachJobAction(id: string) {
   if (
     process.env.COACH_WORKFLOW_ENABLED !== "true" ||
-    !getCoachRoutine() ||
-    !getCoachServiceToken()
+    !canRunCoachJobs() ||
+    !isCoachServiceConfigured()
   )
     return {
       ok: false as const,

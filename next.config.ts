@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: true,
+  outputFileTracingIncludes: {
+    "/api/coach/mcp": ["./docs/coach-workflow.md"],
+  },
   experimental: {
     // The tabs are fully prefetched (bottom-nav.tsx); `static` is how long such a copy may be
     // shown. A minute matches the tabs' own `unstable_dynamicStaleTime`, so a prefetched tab is

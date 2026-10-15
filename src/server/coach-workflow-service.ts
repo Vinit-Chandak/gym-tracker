@@ -26,6 +26,13 @@ import {
 import { dispatchCoachJob } from "./dispatch-coach-job";
 import { recordAttemptDiagnostics } from "./repositories/coach-diagnostics";
 import { assertCoachEnabled, CoachingError } from "./repositories/coaching-state";
+import type { CoachProvider } from "@/domain/coach-failover";
+import {
+  backupCoachJobs,
+  backupDispatchStanding,
+  touchPrimaryBatch,
+  completeCoachBatch,
+} from "./repositories/coach-failover";
 import { PlanValidationError } from "./repositories/coach-plans";
 
 const headers = {
@@ -50,6 +57,8 @@ const exerciseLookup = z.object({
   offset: z.coerce.number().int().min(0).max(10_000).default(0),
 });
 export type CoachWorkflowOptions = {
+  /** Set only by the authenticated transport, never from a request header or model input. */
+  provider?: CoachProvider;
   /** Runs work once the response has gone: Next's `after` in the route, nothing elsewhere. */
   defer?: (work: () => Promise<void>) => void;
 };
@@ -87,6 +96,9 @@ export async function handleCoachWorkflow(
 ): Promise<Response> {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true")
     return json({ error: "The new coaching workflow is not enabled on this server." }, 503);
+  const provider = options.provider ?? "claude";
+  if (provider === "chatgpt" && process.env.COACH_BACKUP_ENABLED !== "true")
+    return json({ error: "The ChatGPT backup is disabled." }, 503);
   try {
     const method = request.method;
     if (path.length === 1 && path[0] === "contract" && method === "GET")
@@ -122,6 +134,10 @@ export async function handleCoachWorkflow(
       const body = z
         .object({ after: z.uuid().nullable().default(null) })
         .parse(await request.json());
+      if (provider === "chatgpt") {
+        const standing = await backupDispatchStanding(db);
+        if (!standing.eligible) return json({ standby: true, ...standing, nextCursor: null });
+      } else await touchPrimaryBatch(db);
       const started = performance.now();
       const page = await dispatchCoachPage(db, body.after);
       console.info(
@@ -136,22 +152,64 @@ export async function handleCoachWorkflow(
       );
       return json(page);
     }
-    if (path.length === 1 && path[0] === "queue" && method === "GET")
+    if (path.length === 1 && path[0] === "complete" && method === "POST") {
+      if (provider === "chatgpt" && !(await backupDispatchStanding(db)).eligible)
+        return json(
+          { error: "The daily batch is healthy or has already completed; do not close it." },
+          409,
+        );
+      return json(await completeCoachBatch(db, provider));
+    }
+    if (path.length === 1 && path[0] === "queue" && method === "GET") {
+      if (provider === "chatgpt") {
+        const after = z.uuid().nullable().parse(new URL(request.url).searchParams.get("after"));
+        return json(await backupCoachJobs(db, after));
+      }
+      await touchPrimaryBatch(db);
       return json({ jobs: await queuedCoachJobs(db) });
+    }
     if (path[0] !== "users" || path[2] !== "jobs")
       return json({ error: "Unknown workflow route." }, 404);
     const userId = z.uuid().parse(path[1]),
       id = z.uuid().parse(path[3]);
     const operation = path[4];
-    if (path.length === 5 && operation === "claim" && method === "POST")
-      return json(
-        await withUser(db, userId, async (tx) => ({ job: await claimCoachJob(tx, userId, id) })),
+    if (path.length === 5 && operation === "claim" && method === "POST") {
+      const job = await withUser(db, userId, (tx) =>
+        claimCoachJob(tx, userId, id, new Date(), provider),
       );
+      if (job && provider === "claude" && !job.dispatchStartedAt && job.target.batchDate)
+        await touchPrimaryBatch(db, new Date(), job.target.batchDate);
+      return json({ job });
+    }
     const attemptId = z.uuid().parse(new URL(request.url).searchParams.get("attemptId"));
     // A worker that is still calling is still working: every read and submission keeps its
     // claim alive, up to the cap. A failure ends the attempt, so there is nothing to renew.
-    if (operation !== "fail")
-      await withUser(db, userId, (tx) => renewCoachLease(tx, userId, id, attemptId));
+    const batchDate = await withUser(db, userId, async (tx) => {
+      const job = await getCoachJob(tx, userId, id);
+      if (job && job.workerProvider !== provider)
+        throw new CoachingError("This attempt belongs to a different coach provider.", 403);
+      if (operation === "fail") return null;
+      await renewCoachLease(tx, userId, id, attemptId);
+      if (
+        provider === "claude" &&
+        job?.status === "claimed" &&
+        job.attemptId === attemptId &&
+        job.leaseUntil &&
+        job.leaseUntil > new Date()
+      ) {
+        await tx
+          .update(coachJobs)
+          .set({ primaryProgressAt: new Date() })
+          .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId)));
+        return !job.dispatchStartedAt ? job.target.batchDate : null;
+      }
+      return null;
+    });
+    if (batchDate) await touchPrimaryBatch(db, new Date(), batchDate);
+    if (path.length === 5 && operation === "heartbeat" && method === "POST") {
+      await withUser(db, userId, (tx) => assertLiveAttempt(tx, userId, id, attemptId));
+      return json({ alive: true });
+    }
     if (path.length === 5 && operation === "context" && method === "GET") {
       const started = performance.now();
       const context = await withUser(db, userId, (tx) =>
@@ -242,7 +300,8 @@ export async function handleCoachWorkflow(
       const accepted = await withUser(db, userId, (tx) =>
         acceptCoachJobResult(tx, userId, id, attemptId, result),
       );
-      startReplan(db, userId, id, ("replan" in accepted && accepted.replan) || [], options.defer);
+      if (provider === "claude")
+        startReplan(db, userId, id, ("replan" in accepted && accepted.replan) || [], options.defer);
       return json(accepted);
     }
     if (path.length === 5 && operation === "fail" && method === "POST") {
@@ -272,6 +331,7 @@ export async function handleCoachWorkflow(
             leaseUntil: null,
             nextAttemptAt: new Date(Date.now() + 60_000),
             completedAt: retry ? null : new Date(),
+            ...(provider === "claude" ? { primaryFailedAt: new Date() } : {}),
           })
           .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId)));
         await recordAttemptDiagnostics(tx, userId, {
@@ -283,9 +343,10 @@ export async function handleCoachWorkflow(
           error: body.error,
         });
         // A review the coach could not finish still leaves the athlete a planned session.
-        return { accepted: true, retry, replan: await replanAfterReview(tx, userId, job) };
+        const replan = await replanAfterReview(tx, userId, job);
+        return { accepted: true, retry, replan };
       });
-      startReplan(db, userId, id, failed.replan, options.defer);
+      if (provider === "claude") startReplan(db, userId, id, failed.replan, options.defer);
       return json(failed);
     }
     return json({ error: "Unknown workflow route." }, 404);

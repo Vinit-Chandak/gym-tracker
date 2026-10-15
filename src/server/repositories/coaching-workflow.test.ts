@@ -82,6 +82,7 @@ import {
 } from "./sessions";
 import { planningContext, planningGym } from "./coach-plans";
 import { handleCoachServiceRequest } from "@/server/coach-service";
+import { handleCoachWorkflow } from "@/server/coach-workflow-service";
 import { todayWorkflowState } from "./coaching-today";
 
 let t: TestDatabase;
@@ -1304,6 +1305,78 @@ it("starts the re-plan of a review the app asked for, once the worker has its an
     vi.unstubAllEnvs();
   }
 });
+
+it.each(["result", "fail", "timeout"] as const)(
+  "keeps a backup review's preparation with ChatGPT after %s",
+  async (ending) => {
+    vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
+    vi.stubEnv("COACH_BACKUP_ENABLED", "true");
+    try {
+      const a = await reviewing();
+      const review = await queueReview(a, `review:backup:${ending}`);
+      await as(a, (tx) =>
+        tx
+          .update(coachJobs)
+          .set({ primaryProgressAt: new Date(Date.now() - 11 * 60_000) })
+          .where(eq(coachJobs.id, review.id)),
+      );
+      const claim = await as(a, (tx) =>
+        claimCoachJob(tx, a.user.id, review.id, new Date(), "chatgpt"),
+      );
+      expect(claim?.workerProvider).toBe("chatgpt");
+      const deferred = vi.fn();
+      if (ending === "timeout") {
+        await as(a, (tx) =>
+          tx
+            .update(coachJobs)
+            .set({ leaseUntil: new Date(Date.now() - 1000) })
+            .where(eq(coachJobs.id, review.id)),
+        );
+        await as(a, (tx) => reconcileCoachJobs(tx, a.user.id));
+      } else {
+        const path = ["users", a.user.id, "jobs", review.id, ending];
+        const response = await handleCoachWorkflow(
+          t.db,
+          new Request(`https://app.test/workflow?attemptId=${claim!.attemptId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              ending === "fail"
+                ? { error: "Temporary connection failure", retryable: true }
+                : {
+                    outcome: "no_change",
+                    rationale: "Holding the programme for another week.",
+                    coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
+                  },
+            ),
+          }),
+          path,
+          { provider: "chatgpt", defer: deferred },
+        );
+        expect(await response.json()).toMatchObject({ accepted: true });
+      }
+      expect(deferred).not.toHaveBeenCalled();
+      const [preparation] = await as(a, (tx) =>
+        tx
+          .select()
+          .from(coachJobs)
+          .where(eq(coachJobs.dedupeKey, replanKey(review))),
+      );
+      expect(preparation).toMatchObject({
+        kind: "prepare_session",
+        status: "queued",
+        workerProvider: "chatgpt",
+        backupTakenAt: expect.any(Date),
+      });
+      expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, preparation!.id))).toBeNull();
+      expect(
+        await as(a, (tx) => claimCoachJob(tx, a.user.id, preparation!.id, new Date(), "chatgpt")),
+      ).toMatchObject({ workerProvider: "chatgpt", attempts: 1 });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  },
+);
 
 it("keeps one review waiting, not one for every night its claim could not be made", async () => {
   const a = await reviewing();

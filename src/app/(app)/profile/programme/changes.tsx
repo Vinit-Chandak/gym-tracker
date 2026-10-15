@@ -15,7 +15,7 @@ import { changeSummaryLine, summariseProgramDiff } from "@/domain/program-change
 import { diffPrograms } from "@/domain/program-diff";
 import { OPEN_REQUEST_STATES } from "@/domain/program-request";
 import { progress } from "@/domain/schedule";
-import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { formatDay, formatIsoDay } from "@/lib/format";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { listOpenRequests } from "@/server/repositories/coach-program-requests";
@@ -212,8 +212,8 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       // something no tap could deliver.
       offered:
         process.env.COACH_WORKFLOW_ENABLED === "true" &&
-        getCoachRoutine() !== null &&
-        getCoachServiceToken() !== null,
+        canRunCoachJobs() &&
+        isCoachServiceConfigured(),
       canAsk: reviewStatus.canAsk,
       running: reviewStatus.running,
       waiting: reviewStatus.waiting ? { attempted: reviewStatus.waiting.attempted } : null,

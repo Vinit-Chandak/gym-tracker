@@ -3,9 +3,9 @@ import { fromDateTimeLocal } from "@/lib/time";
 import { addDays, todayInTimeZone } from "./program-calendar";
 
 export const COACH_TIME_ZONE = "Asia/Kolkata";
-export const COACH_BATCH_LOCAL_TIME = "04:00";
+export const COACH_BATCH_LOCAL_TIME = "05:00";
 /** Bumped when the rule deciding what a review reads and when it runs changes. */
-export const WEEKLY_REVIEW_POLICY_VERSION = 2;
+export const WEEKLY_REVIEW_POLICY_VERSION = 3;
 
 /** No review reads less than a full week of training. */
 export const MIN_REVIEW_INTERVAL_DAYS = 7;
@@ -66,7 +66,9 @@ export function weeklyReviewPeriod(anchor: Date, scheduledBoundary: Date) {
   const reviewDate = todayInTimeZone(COACH_TIME_ZONE, scheduledBoundary);
   const end = boundaryOn(reviewDate);
   if (end.getTime() !== scheduledBoundary.getTime())
-    throw new Error("Use the scheduled 04:00 Asia/Kolkata boundary, not the execution time.");
+    throw new Error(
+      `Use the scheduled ${COACH_BATCH_LOCAL_TIME} ${COACH_TIME_ZONE} boundary, not the execution time.`,
+    );
   if (anchor >= end) throw new Error("A review interval ends after it starts.");
   return {
     policyVersion: WEEKLY_REVIEW_POLICY_VERSION,

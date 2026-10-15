@@ -110,6 +110,8 @@ import {
 } from "./program-drafts";
 import { fromDateTimeLocal } from "@/lib/time";
 import { coachRollout } from "@/lib/coach-rollout";
+import type { CoachProvider } from "@/domain/coach-failover";
+import { backupJobStanding } from "./coach-failover";
 import type { ActivitySport } from "@/domain/activity";
 import { coverageProblems, type SportCoverage } from "@/domain/coach-sport-policy";
 
@@ -304,8 +306,49 @@ function reviewStillAhead(
   );
 }
 
-export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now = new Date()) {
+export async function claimCoachJob(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  now = new Date(),
+  provider: CoachProvider = "claude",
+) {
   await assertCoachEnabled(db, userId);
+  if (provider === "chatgpt" && process.env.COACH_BACKUP_ENABLED !== "true") return null;
+  const original = await getCoachJob(db, userId, id);
+  if (!original) return null;
+  if (provider === "claude" && original.backupTakenAt) return null;
+  if (provider === "chatgpt" && !original.backupTakenAt) {
+    const standing = await backupJobStanding(db, original, now);
+    if (!standing.eligible) return null;
+    // Called under the athlete's write lock, just like Start and result acceptance. Retire
+    // the old attempt before creating the new one; a late Claude callback cannot write.
+    await db
+      .update(coachJobs)
+      .set({
+        status: "queued",
+        attemptId: null,
+        leaseUntil: null,
+        completedAt: null,
+        workerProvider: "chatgpt",
+        backupTakenAt: now,
+        attemptBudget: original.attempts + MAX_JOB_ATTEMPTS,
+        nextAttemptAt: now,
+        result: null,
+        resultDigest: null,
+        error: standing.reason,
+      })
+      .where(
+        and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), isNull(coachJobs.backupTakenAt)),
+      );
+    if (original.status === "claimed")
+      await replanAfterReview(
+        db,
+        userId,
+        { ...original, workerProvider: "chatgpt", backupTakenAt: now },
+        now,
+      );
+  }
   await reconcileCoachJobs(db, userId, now);
   const job = await getCoachJob(db, userId, id);
   if (!job || job.status !== "queued" || job.nextAttemptAt > now) return null;
@@ -360,6 +403,8 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
       leaseUntil: new Date(now.getTime() + JOB_LEASE_MS),
       sourceRevision: await sourceRevision(db, userId),
       error: null,
+      workerProvider: provider,
+      ...(provider === "claude" ? { primaryProgressAt: now, primaryFailedAt: null } : {}),
     })
     .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "queued")))
     .returning();
@@ -1438,12 +1483,26 @@ export async function replanAfterReview(
   const options = { after: review.id };
   const occurrences = await enqueueOccurrencePreparations(db, userId, batchDate, options);
   const strength = await enqueueStrengthSession(db, userId, batchDate, options);
-  return [
+  const ids = [
     ...(strength && pending.includes(strength.job.status as (typeof pending)[number])
       ? [strength.job.id]
       : []),
     ...occurrences,
   ];
+  // Recovery runs here as well as normal results: a backup review's timeout must not
+  // send its preparation back to Claude or impose another ten-minute wait.
+  if (review.backupTakenAt && ids.length > 0)
+    await db
+      .update(coachJobs)
+      .set({ workerProvider: "chatgpt", backupTakenAt: now })
+      .where(
+        and(
+          eq(coachJobs.userId, userId),
+          inArray(coachJobs.id, ids),
+          eq(coachJobs.status, "queued"),
+        ),
+      );
+  return ids;
 }
 
 /**
@@ -1635,6 +1694,7 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
       and(
         eq(profiles.aiCoachEnabled, true),
         eq(coachJobs.status, "queued"),
+        isNull(coachJobs.backupTakenAt),
         lt(coachJobs.attempts, coachJobs.attemptBudget),
         lte(coachJobs.nextAttemptAt, now),
         notExists(

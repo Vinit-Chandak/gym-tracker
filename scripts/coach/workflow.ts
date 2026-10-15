@@ -28,6 +28,7 @@ const checked = (payload: unknown, key: "version" | "contractVersion") => {
 async function main() {
   let result: unknown;
   if (command === "contract") result = checked(await api("workflow/contract"), "version");
+  else if (command === "complete") result = await api("workflow/complete", { method: "POST" });
   else if (command === "dispatch")
     result = await api("workflow/dispatch", {
       method: "POST",
@@ -44,6 +45,8 @@ async function main() {
         query = `?attemptId=${attempt}`;
       if (command === "context")
         result = checked(await api(`${root}/context${query}`), "contractVersion");
+      else if (command === "heartbeat")
+        result = await api(`${root}/heartbeat${query}`, { method: "POST" });
       else if (command === "exercises") {
         // The library, searched by the athlete's own words; nothing matching means no such
         // exercise, never an empty library (ADR 0029).
@@ -96,7 +99,7 @@ async function main() {
         return;
       } else
         fail(
-          "Use contract, dispatch, queue, claim, context, exercises, machines, attachment, result or fail.",
+          "Use contract, dispatch, complete, queue, claim, context, heartbeat, exercises, machines, attachment, result or fail.",
         );
     }
   }

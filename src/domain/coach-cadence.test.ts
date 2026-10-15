@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_REVIEW_INTERVAL_DAYS,
   MIN_REVIEW_INTERVAL_DAYS,
+  lastCoachBoundary,
   reviewStanding,
   reviewWeekdayFor,
   weeklyReviewPeriod,
@@ -10,18 +11,18 @@ import {
 } from "./coach-cadence";
 
 const DAY_MS = 86_400_000;
-// Monday, September 7, 04:00 IST is still Sunday in UTC.
-const MONDAY = new Date("2026-09-06T22:30:00Z");
+// Monday, September 7, 05:00 IST is still Sunday in UTC.
+const MONDAY = new Date("2026-09-06T23:30:00Z");
 const before = (days: number) => new Date(MONDAY.getTime() - days * DAY_MS);
 
 describe("what a review reads", () => {
   it("covers the interval from the previous review's end to this boundary", () => {
     expect(weeklyReviewPeriod(before(7), MONDAY)).toEqual({
-      policyVersion: 2,
+      policyVersion: 3,
       timeZone: "Asia/Kolkata",
       reviewDate: "2026-09-07",
-      start: "2026-08-30T22:30:00.000Z",
-      end: "2026-09-06T22:30:00.000Z",
+      start: "2026-08-30T23:30:00.000Z",
+      end: "2026-09-06T23:30:00.000Z",
     });
   });
 
@@ -35,7 +36,7 @@ describe("what a review reads", () => {
     expect(weeklyReviewPeriod(consented, MONDAY).start).toBe("2026-08-28T09:15:00.000Z");
   });
 
-  it.each(["invalid", "2026-09-07T00:00:00Z", "2026-09-06T22:30:00.001Z"])(
+  it.each(["invalid", "2026-09-07T00:00:00Z", "2026-09-06T23:30:00.001Z"])(
     "rejects an invalid or actual execution timestamp as the boundary: %s",
     (value) => {
       expect(() => weeklyReviewPeriod(before(7), new Date(value))).toThrow(/boundary|required/);
@@ -44,6 +45,23 @@ describe("what a review reads", () => {
 
   it("refuses an interval that would end before it began", () => {
     expect(() => weeklyReviewPeriod(before(-1), MONDAY)).toThrow(/starts/);
+  });
+});
+
+describe("the daily batch boundary", () => {
+  it("waits until five in India before starting the new batch", () => {
+    expect(lastCoachBoundary(new Date("2026-09-06T23:29:59.999Z"))).toEqual({
+      date: "2026-09-06",
+      at: new Date("2026-09-05T23:30:00Z"),
+    });
+    expect(lastCoachBoundary(MONDAY)).toEqual({ date: "2026-09-07", at: MONDAY });
+  });
+
+  it("keeps the scheduled boundary when a backup starts ten minutes later", () => {
+    expect(lastCoachBoundary(new Date("2026-09-06T23:40:00Z"))).toEqual({
+      date: "2026-09-07",
+      at: MONDAY,
+    });
   });
 });
 

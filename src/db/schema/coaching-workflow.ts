@@ -22,7 +22,7 @@ import type {
 import type { ProgramBlueprint } from "../../domain/program-blueprint";
 import type { RequestState } from "../../domain/program-request";
 import type { SavedRoutineDay } from "../../domain/saved-routine";
-import { ownerPolicy, timestamps } from "./common";
+import { ownerPolicy, readAllPolicy, serverWritePolicies, timestamps } from "./common";
 import { profiles } from "./profiles";
 import { programs } from "./programs";
 
@@ -137,6 +137,13 @@ export const coachJobs = pgTable(
     dispatchStartedAt: instant("dispatch_started_at"),
     routineSessionId: text("routine_session_id"),
     routineSessionUrl: text("routine_session_url"),
+    workerProvider: text("worker_provider")
+      .$type<"claude" | "chatgpt">()
+      .notNull()
+      .default("claude"),
+    primaryProgressAt: instant("primary_progress_at"),
+    primaryFailedAt: instant("primary_failed_at"),
+    backupTakenAt: instant("backup_taken_at"),
     result: jsonb("result").$type<CoachJobResult>(),
     resultDigest: text("result_digest"),
     error: text("error"),
@@ -155,7 +162,23 @@ export const coachJobs = pgTable(
       "coach_jobs_kind_chk",
       sql`${t.kind} in ('create_program','prepare_session','review_program')`,
     ),
-    ownerPolicy("coach_jobs"),
+    check("coach_jobs_provider_chk", sql`${t.workerProvider} in ('claude','chatgpt')`),
+    ...serverWritePolicies("coach_jobs"),
+  ],
+).enableRLS();
+
+/** Server-written liveness. Browser clients cannot forge a healthy nightly run. */
+export const coachPrimaryBatches = pgTable(
+  "coach_primary_batches",
+  {
+    batchDate: date("batch_date").primaryKey(),
+    progressAt: instant("progress_at").notNull(),
+    completedAt: instant("completed_at"),
+    completedBy: text("completed_by").$type<"claude" | "chatgpt">(),
+  },
+  (t) => [
+    check("coach_primary_batches_provider_chk", sql`${t.completedBy} in ('claude','chatgpt')`),
+    readAllPolicy("coach_primary_batches"),
   ],
 ).enableRLS();
 
