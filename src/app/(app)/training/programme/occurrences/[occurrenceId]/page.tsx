@@ -137,7 +137,7 @@ export default async function OccurrencePage(
           occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
           `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
         ])}
-        backHref={standalone ? "/training/scheduled" : "/training/programme"}
+        backHref={standalone ? "/training/scheduled" : `/training/programmes/${occurrence.sport}`}
       />
       <PageContent>
         <Card>
@@ -231,7 +231,10 @@ export default async function OccurrencePage(
         ) : (
           <>
             {occurrence.loggable && (
-              <LinkButton href={`/training/new?occurrence=${occurrence.id}`} className="w-full">
+              <LinkButton
+                href={`/training/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}`}
+                className="w-full"
+              >
                 Log it
               </LinkButton>
             )}

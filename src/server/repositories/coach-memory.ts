@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import type { ActivitySport } from "@/domain/activity";
 import {
   activities,
   coachAttachments,
@@ -256,18 +257,34 @@ async function pendingTrainingNotes(db: DbOrTx, userId: string, now: Date) {
   };
 }
 
-export async function readCoachNotes(db: DbOrTx, userId: string, now = new Date()) {
+export async function readCoachNotes(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+  sport?: ActivitySport,
+) {
   const [pending, recent, training] = await Promise.all([
     db
       .select()
       .from(coachNotes)
-      .where(and(eq(coachNotes.userId, userId), isNull(coachNotes.reviewedAt)))
+      .where(
+        and(
+          eq(coachNotes.userId, userId),
+          isNull(coachNotes.reviewedAt),
+          sport ? or(isNull(coachNotes.sport), eq(coachNotes.sport, sport)) : undefined,
+        ),
+      )
       .orderBy(asc(coachNotes.createdAt), asc(coachNotes.id))
       .limit(51),
     db
       .select()
       .from(coachNotes)
-      .where(eq(coachNotes.userId, userId))
+      .where(
+        and(
+          eq(coachNotes.userId, userId),
+          sport ? or(isNull(coachNotes.sport), eq(coachNotes.sport, sport)) : undefined,
+        ),
+      )
       .orderBy(desc(coachNotes.createdAt), desc(coachNotes.id))
       .limit(10),
     pendingTrainingNotes(db, userId, now),
@@ -275,7 +292,12 @@ export async function readCoachNotes(db: DbOrTx, userId: string, now = new Date(
   return { pending: pending.slice(0, 50), hasMorePending: pending.length > 50, recent, training };
 }
 
-export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date()) {
+export async function readCoachMemory(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+  sport?: ActivitySport,
+) {
   const [row] = await db.select().from(coachMemos).where(eq(coachMemos.userId, userId)).limit(1);
   const items = row?.items ?? [];
   const valid = await existingEvidenceIds(
@@ -310,7 +332,7 @@ export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date
     overview: items.length ? memoryOverview(active) : (row?.overview ?? ""),
     legacyOverview: items.length ? "" : (row?.overview ?? ""),
     userNotes: row?.userNotes ?? "",
-    notes: await readCoachNotes(db, userId, now),
+    notes: await readCoachNotes(db, userId, now, sport),
     overviewUpdatedAt: row?.overviewUpdatedAt ?? null,
     items: active,
     reviewDueItems: items.filter((item) => !active.includes(item)),

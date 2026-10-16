@@ -83,6 +83,7 @@ function everyMinute(listener: () => void): () => void {
  * set saved here a moment ago counts.
  */
 export function leftOpenSince(session: SessionVM, now: number): string | null {
+  if (session.loggedRetrospectively) return null;
   const last = session.exercises
     .flatMap((exercise) => exercise.sets.map((set) => set.completedAt))
     .reduce<string | null>((latest, at) => (latest === null || at > latest ? at : latest), null);

@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { readMigrationFiles } from "drizzle-orm/migrator";
 
 import * as schema from "../schema";
 
@@ -40,11 +41,31 @@ export type TestDatabase = {
 };
 
 /** In-process Postgres with the real migrations applied. */
-export async function createTestDatabase(): Promise<TestDatabase> {
+export async function createTestDatabase(
+  options: { throughMigration?: number } = {},
+): Promise<TestDatabase> {
   const client = new PGlite();
   await client.exec(SUPABASE_AUTH_STUB_SQL);
   const db = drizzle(client, { schema });
-  await migrate(db, { migrationsFolder: "src/db/migrations" });
+  if (options.throughMigration === undefined) {
+    await migrate(db, { migrationsFolder: "src/db/migrations" });
+  } else {
+    // Upgrade tests need an actual old schema, not the latest schema with its ledger erased.
+    const migrations = readMigrationFiles({ migrationsFolder: "src/db/migrations" }).slice(
+      0,
+      options.throughMigration + 1,
+    );
+    await client.exec(
+      "CREATE SCHEMA drizzle; CREATE TABLE drizzle.__drizzle_migrations (id serial PRIMARY KEY, hash text NOT NULL, created_at bigint);",
+    );
+    for (const migration of migrations) {
+      await client.exec(migration.sql.join("\n"));
+      await client.query(
+        "INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+        [migration.hash, migration.folderMillis],
+      );
+    }
+  }
   return {
     db,
     client,

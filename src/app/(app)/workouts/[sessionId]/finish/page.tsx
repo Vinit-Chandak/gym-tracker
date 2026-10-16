@@ -14,6 +14,7 @@ import { finishSessionAction } from "@/server/actions/sessions";
 import { setLengthFor } from "@/lib/distance-units";
 import { formatTimeOrDateTime } from "@/lib/format";
 import { fromKilograms, setInUnit } from "@/lib/units";
+import { toDateTimeLocal } from "@/lib/time";
 import { LOAD_UNIT_LABELS, sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -56,7 +57,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
     .reduce<Date | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
   const now = new Date();
   const asOf =
-    lastSetAt && isLeftOpen(session.startedAt, lastSetAt, now)
+    !session.loggedRetrospectively && lastSetAt && isLeftOpen(session.startedAt, lastSetAt, now)
       ? formatTimeOrDateTime(lastSetAt, profile.timeZone, todayInTimeZone(profile.timeZone, now))
       : null;
 
@@ -139,6 +140,15 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           // A warm-up is something logged all the same: only an empty workout is told so.
           nothingLogged={done.length === 0}
           asOf={asOf}
+          recordedStart={
+            session.loggedRetrospectively ||
+            (!asOf &&
+              todayInTimeZone(profile.timeZone, session.startedAt) <
+                todayInTimeZone(profile.timeZone))
+              ? toDateTimeLocal(session.startedAt, profile.timeZone)
+              : undefined
+          }
+          latestFinish={toDateTimeLocal(new Date(), profile.timeZone)}
           action={finishSessionAction.bind(null, sessionId)}
           unit={unit}
           initialBodyWeight={

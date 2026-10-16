@@ -62,6 +62,7 @@ export function ActivityEditor(props: Props) {
     props.sport,
     props.activityId ?? null,
     props.occurrence?.id ?? null,
+    props.initial.entryDate ?? null,
   ]);
   return hydrated ? (
     <StoredEditor key={identity} {...props} />
@@ -120,7 +121,7 @@ function StoredEditor(props: Props) {
     ...newDraft({
       userId: props.userId,
       sport: props.sport,
-      values: props.initial,
+      values: { ...props.initial, entryContextDate: props.initial.entryDate ?? "" },
       activityId: props.activityId ?? null,
       expectedRevision: props.expectedRevision ?? null,
       occurrence: props.occurrence ? { ...props.occurrence, draftToken: null } : null,
@@ -137,7 +138,9 @@ function StoredEditor(props: Props) {
           draft.userId === props.userId &&
           draft.sport === props.sport &&
           draft.activityId === (props.activityId ?? null) &&
-          (draft.occurrence?.id ?? null) === (props.occurrence?.id ?? null),
+          (draft.occurrence?.id ?? null) === (props.occurrence?.id ?? null) &&
+          ((draft.values.entryContextDate ?? draft.values.entryDate) || null) ===
+            (props.initial.entryDate ?? null),
       );
       return stored ? restoreDraft(stored, props.initial) : fresh();
     } catch {
@@ -162,7 +165,7 @@ function StoredEditor(props: Props) {
     opened.current = form ? withoutIdentity(formValues(new FormData(form))) : null;
   }, [initialDraft.draftId]);
   function persist(values: Record<string, string>): ActivityDraft {
-    const raw = withoutIdentity(values);
+    const raw = { ...withoutIdentity(values), entryContextDate: props.initial.entryDate ?? "" };
     // What a restored draft had already changed, and what differs from how the form opened
     // now; a change typed and then undone is no change.
     const dirtyFields = [
@@ -233,7 +236,7 @@ function StoredEditor(props: Props) {
     target: props.target,
     submitLabel: props.submitLabel,
     keptEffort: props.keptEffort ?? null,
-    openDetails: startKept,
+    openDetails: startKept || Boolean(props.initial.entryDate),
   };
   // Said after the last field, so nothing moves down when the first thing typed keeps a draft.
   const draftNotice = notice ? (

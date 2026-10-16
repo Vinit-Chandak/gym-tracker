@@ -7,6 +7,9 @@ marked _(inferred)_ were checked the same day against the code and against the o
 the Form v2 canvas: kept where the code bears them out, corrected where it did not, and marked
 with their evidence. _Undecided_ marks what nobody has decided yet.
 
+Programme ownership and logging were updated on 16 October 2026 against the shipped flows and
+[ADR 0056](docs/decisions/0056-independent-sport-programmes.md).
+
 ## Platform
 
 web
@@ -48,10 +51,10 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
   `src/domain/progression.ts`).
 - **A coach that writes the programme and prepares each session.** It drafts a programme from
   the athlete's answers, prepares each session overnight for the gym the athlete will train at,
-  and reviews the programme each week; a change to the split or schedule waits for the
-  athlete's approval ([ADR 0018](docs/decisions/0018-ai-house-coach.md),
-  `docs/coach-automation.md`, `src/app/(app)/profile/ai-coach/`). Corrected: the first reading
-  had it only planning the next session.
+  and reviews each sport at its own cadence. It reads the other programmes as coordination
+  context; a proposed change to another sport is reviewed separately. Changes to the split or
+  schedule wait for the athlete's approval ([ADR 0018](docs/decisions/0018-ai-house-coach.md),
+  [ADR 0056](docs/decisions/0056-independent-sport-programmes.md), `docs/coach-automation.md`).
 - **One record for every sport a day owes:** lifting, running, cycling, swimming, mobility and
   food on the same day, each its own task.
 
@@ -59,13 +62,22 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
 
 - A phone-first PWA installed from Safari on iPhone and Chrome on Android. Native iOS and
   Android apps are planned, and the design has to translate to them.
-- A session starts on Today at a chosen gym (a gym, outdoors or home), which stays fixed for
-  that session. A short check-in (sleep hours, sleep quality, fatigue, soreness) comes first,
-  then the exercises in any order, then Finish with notes and body weight.
-- Programmes run in cycles of days: "8-Week Strength + Aesthetics Hybrid" is 8 cycles of 7 days,
-  from Lower A to Rest + Mobility. Ad hoc sessions carry no programme.
-- The rest timer, when turned on, runs on every screen and survives reloads. Offline, drafts stay
-  on the device and saving retries when the connection returns.
+- A live lifting session starts on Today at a chosen gym (a gym, outdoors or home), which stays
+  fixed for that session. A short check-in (sleep hours, sleep quality, fatigue, soreness) comes
+  first, then the exercises in any order, then Finish with notes and body weight.
+- Strength, running, cycling and swimming each have at most one active programme and progress
+  independently. Strength follows its sequence of programme days and cycles; endurance follows
+  dated sessions. Today shows the next lifting session and endurance dated today. A missed
+  endurance session stays on its original date, available through Training, and blocks no sport.
+- Training starts with logging: choose a sport and today or an earlier date, then explicitly
+  select a scheduled session or log independently. Only the selected session counts toward its
+  programme; an independent log carries no invented programme, cycle or day.
+- Retrospective logging records the actual training date and time. A lifting entry started from
+  Training's date chooser has no live rest timer or abandoned-workout prompt, asks for its actual
+  finish time, and returns to Training. Prescribed performance is never pre-filled as actuals.
+- The rest timer, when turned on for a live workout, runs on every screen and survives reloads.
+  This is an online PWA: private pages and submissions need a connection, while unsent drafts
+  stay on the device for recovery. Private pages are not cached by the service worker.
 - The coach plans daily at 04:00 and on request (three requests a day), and writes summaries,
   notes, warnings and questions that the app shows as text.
 - Each account sets its units (kilograms and centimetres, or pounds and feet) and its time zone.
@@ -75,6 +87,14 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
 **What it does.** Five destinations: Today, Training, Food, Progress, Profile. What each core
 screen must keep is [the feature inventory](docs/ui-redesign/revamp/features.md): a redesign
 may move, regroup, rename or put behind a tap anything listed there, never drop it.
+
+Training owns logging and programme management. Only existing programmes have cards, each with
+its progress, next session, Edit, Replace programme and any outstanding proposal. Add programme
+offers a sport, then coach or manual creation. General AI coach settings remain in Profile.
+Each sport has its own intake, review cadence and programme requests; the account switch,
+request quota and evidence history remain shared. A standalone coach session saves as a reusable
+lifting routine or endurance template without replacing a programme. Existing drafts and history
+remain reachable ([Training direction](docs/ui-redesign/training-programmes.md)).
 
 **What must not change** ([decisions implementation must preserve](docs/ui-redesign/README.md#decisions-that-implementation-must-preserve)):
 
@@ -86,6 +106,10 @@ may move, regroup, rename or put behind a tap anything listed there, never drop 
 - Exercises are only added or skipped, never reordered or deleted; supersets apply to this
   workout only and never change the programme.
 - Ad hoc sessions carry no invented programme, cycle or day.
+- A scheduled log explicitly names its endurance occurrence and revision or lifting cycle and
+  day. Choosing a date never matches a programme implicitly; changing or completing one sport
+  never replaces or advances another. Past sessions of a continuing programme keep their
+  prescriptions and remain loggable after future edits.
 - Progressive disclosure changes placement, not availability.
 - System, Light and Dark appearance, changed locally and at once.
 

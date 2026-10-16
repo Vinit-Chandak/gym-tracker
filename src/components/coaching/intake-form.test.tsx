@@ -46,6 +46,7 @@ beforeEach(() => {
     value: {
       id,
       userId: id,
+      sport: coachIntakeSchema.parse(input).programmeSport,
       revision: (revision ?? 0) + 1,
       answers: coachIntakeSchema.parse(input),
       confirmedAt: null,

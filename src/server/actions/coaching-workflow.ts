@@ -11,6 +11,7 @@ import { withUser } from "@/db/with-user";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { coachRollout } from "@/lib/coach-rollout";
 import { MAX_CLARIFICATIONS } from "@/domain/coaching-workflow";
+import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
 import { PLAN_LIMITS } from "@/domain/session-plan";
 import { requireProfiledUser } from "@/server/auth";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
@@ -37,6 +38,7 @@ import {
   getProgramDraft,
   refreshProgramDraft,
   saveManualDraft,
+  saveStandaloneDraft,
 } from "@/server/repositories/program-drafts";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 import { removeCoachAttachment } from "@/server/repositories/coach-attachments";
@@ -52,6 +54,8 @@ async function mutate<T>(work: (tx: DbOrTx, userId: string) => Promise<T>): Prom
   const user = await requireProfiledUser();
   try {
     const value = await withUser(getDb(), user.id, (tx) => work(tx, user.id));
+    // Training owns the programme cards, drafts, templates and dated logging choices.
+    revalidatePath("/training", "layout");
     return { ok: true, value };
   } catch (error) {
     if (error instanceof z.ZodError)
@@ -171,7 +175,12 @@ export async function askForFirstProgrammeChangesAction(
     const draft = await getProgramDraft(tx, userId, parsed.draftId);
     if (!draft || draft.baseProgramId !== null || !["editing", "ready"].includes(draft.status))
       throw new CoachingError("That programme is no longer waiting for an answer.");
-    const intake = await latestIntake(tx, userId);
+    const intake = await latestIntake(
+      tx,
+      userId,
+      draft.sport,
+      draft.standalone ? "session" : "programme",
+    );
     if (!intake) throw new CoachingError("Answer the coach's questions first.");
     const clarifications = [
       ...intake.answers.clarifications.filter(
@@ -203,7 +212,7 @@ export async function askForFirstProgrammeChangesAction(
  * plan. This starts that same review against the same evidence, within a fixed allowance over
  * a rolling window. Whatever it proposes still waits for approval.
  */
-export async function requestProgramReviewAction() {
+export async function requestProgramReviewAction(sport: ActivitySport = "strength") {
   if (
     process.env.COACH_WORKFLOW_ENABLED !== "true" ||
     !canRunCoachJobs() ||
@@ -215,7 +224,12 @@ export async function requestProgramReviewAction() {
         "On-demand coaching is not set up on this server. Your next scheduled review still runs.",
     };
   const result = await mutate(async (tx, userId) => {
-    const request = await requestProgramReview(tx, userId);
+    const request = await requestProgramReview(
+      tx,
+      userId,
+      new Date(),
+      z.enum(ACTIVITY_SPORTS).parse(sport),
+    );
     return {
       userId,
       jobId: request.job.id,
@@ -270,6 +284,18 @@ export async function saveProgramDraftAction(blueprint: unknown, id?: string, re
       expectedRevision: z.number().int().positive().optional().parse(revision),
     }),
   );
+}
+export async function saveStandaloneDraftAction(id: string, revision: number) {
+  const result = await mutate((tx, userId) =>
+    saveStandaloneDraft(
+      tx,
+      userId,
+      z.uuid().parse(id),
+      z.number().int().positive().parse(revision),
+    ),
+  );
+  if (result.ok) revalidatePath("/training");
+  return result;
 }
 export async function copyProgramAction(id: string, duplicate: boolean) {
   return mutate((tx, userId) =>
@@ -364,7 +390,8 @@ export async function approveProgramChangeAction(input: {
       : null;
     const transition =
       current &&
-      assessProgramChange(current.blueprint, draft.blueprint, []).structuralChanges.length === 0
+      (draft.sport !== "strength" ||
+        assessProgramChange(current.blueprint, draft.blueprint, []).structuralChanges.length === 0)
         ? "continue"
         : "new_block";
     const activated = await activateProgramDraft(tx, userId, draft.id, {
@@ -416,7 +443,9 @@ export async function requestChangeRevisionsAction(id: string, notes: string, no
         notes: z.string().trim().min(1, "Say what you would like changed.").max(PLAN_LIMITS.memo),
       })
       .parse({ id, noteId, notes });
-    await saveCoachNotes(tx, userId, parsed.notes, parsed.noteId);
+    const draft = await getProgramDraft(tx, userId, parsed.id);
+    if (!draft) throw new CoachingError("That change no longer exists.", 404);
+    await saveCoachNotes(tx, userId, parsed.notes, parsed.noteId, draft.sport);
     const closed = await closeProgramDraft(tx, userId, parsed.id, "revised", parsed.noteId);
     await releaseRequestsForDraft(tx, userId, parsed.id, "waiting", "");
     return closed;

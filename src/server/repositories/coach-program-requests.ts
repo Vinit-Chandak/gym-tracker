@@ -7,6 +7,7 @@ import {
   programDrafts,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { validateMemoryQuote } from "@/domain/coach-memory";
 import {
   OPEN_REQUEST_STATES,
@@ -84,11 +85,22 @@ export async function listRequestsForDraft(
 }
 
 /** Whether the next daily run has an ask to answer, before any model is asked to look. */
-export async function hasActionableRequests(db: DbOrTx, userId: string, today: string) {
+export async function hasActionableRequests(
+  db: DbOrTx,
+  userId: string,
+  today: string,
+  sport: ActivitySport = "strength",
+) {
   const [row] = await db
     .select({ id: coachProgramRequests.id })
     .from(coachProgramRequests)
-    .where(and(eq(coachProgramRequests.userId, userId), actionable(today)))
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.sport, sport),
+        actionable(today),
+      ),
+    )
     .limit(1);
   return Boolean(row);
 }
@@ -106,11 +118,18 @@ export async function claimRequestsForAttempt(
   jobId: string,
   attemptId: string,
   today: string,
+  sport: ActivitySport = "strength",
 ) {
   const open = await db
     .select()
     .from(coachProgramRequests)
-    .where(and(eq(coachProgramRequests.userId, userId), actionable(today)))
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.sport, sport),
+        actionable(today),
+      ),
+    )
     .orderBy(asc(coachProgramRequests.createdAt), asc(coachProgramRequests.id))
     .limit(REQUESTS_PER_JOB + 1);
   const items = open.slice(0, REQUESTS_PER_JOB);
@@ -229,6 +248,7 @@ export async function applyRequestPatch(
   userId: string,
   input: {
     jobId: string;
+    sport?: ActivitySport;
     attemptId: string;
     kind: "create_program" | "prepare_session" | "review_program";
     patch: unknown;
@@ -284,6 +304,7 @@ export async function applyRequestPatch(
         .values({
           id: entry.id,
           userId,
+          sport: input.sport ?? "strength",
           sourceId: entry.sourceId,
           quote: entry.quote,
           summary: entry.summary,
@@ -402,7 +423,13 @@ export async function applyRequestPatch(
   const remaining = await db
     .select({ id: coachProgramRequests.id })
     .from(coachProgramRequests)
-    .where(and(eq(coachProgramRequests.userId, userId), actionable(input.today)));
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.sport, input.sport ?? "strength"),
+        actionable(input.today),
+      ),
+    );
   return {
     opened: patch.open.length,
     decided: decisions.length,

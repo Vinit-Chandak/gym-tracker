@@ -703,7 +703,7 @@ function planFor(ctx: Context, summary: string) {
   };
 }
 
-describe("a day that lifts and runs", () => {
+describe("lifting beside a separate running programme", () => {
   let ctx: Context;
   let programId: string;
 
@@ -740,15 +740,15 @@ describe("a day that lifts and runs", () => {
     ctx = await context();
   });
 
-  it("plans the running day, with the programme's own run and the load behind it", async () => {
+  it("plans lifting while retaining running history as context", async () => {
     expect(ctx.slot).toMatchObject({
       dayIndex: 3,
       name: "Easy Run + Arms",
       includesLifting: true,
-      includesRun: true,
+      includesRun: false,
     });
-    expect(ctx.slot.programRunId).toBeTruthy();
-    expect(ctx.slot.runTarget).toMatchObject({ durationMinMinutes: expect.any(Number) });
+    expect(ctx.slot.programRunId).toBeNull();
+    expect(ctx.slot.runTarget).toBeNull();
     expect(ctx.running.history).toHaveLength(3);
     expect(ctx.running.history[0]?.durationMinutes).toBe(25);
     expect(ctx.running.weeks).toHaveLength(4);
@@ -765,21 +765,14 @@ describe("a day that lifts and runs", () => {
     });
   });
 
-  it("stores the run beside the lifting, against the programme's planned run", async () => {
+  it("stores a lifting plan without asking for or supplying a run", async () => {
     const plan = await withUser(t.db, alice.id, (tx) =>
       storePlan(tx, alice.id, {
         slot: { cycleIndex: 1, dayIndex: 3 },
         gymId: anytimeId,
         trigger: "nightly",
         plan: {
-          summary: "Easy 25 then arms.",
-          run: {
-            durationMinutes: 25,
-            rpe: 3,
-            paceNote: "Nose-breathing pace.",
-            stopRule: "Stop if the ache goes past 3.",
-            programRunId: ctx.slot.programRunId,
-          },
+          summary: "Arms today.",
           exercises: [
             {
               slotId: slotOf(ctx, "preacher-curl"),
@@ -790,78 +783,22 @@ describe("a day that lifts and runs", () => {
         },
       }),
     );
-    expect(plan.run).toMatchObject({
-      mode: "outdoor",
-      durationMinutes: 25,
-      rpe: 3,
-      programRunId: ctx.slot.programRunId,
-      stopRule: "Stop if the ache goes past 3.",
-    });
+    expect(plan.run).toBeNull();
     expect(plan.exercises[0]?.slotLineageId).toBeTruthy();
-    const today = await withUser(t.db, alice.id, (tx) => plannedRunForToday(tx, alice.id));
-    expect(today).toMatchObject({
-      planId: plan.id,
-      dayName: "Easy Run + Arms",
-      summary: "Follow the run targets below.",
-    });
-    expect(today?.run.durationMinutes).toBe(25);
-    await withUser(t.db, alice.id, async (tx) => {
-      const schedule = await getSchedule(tx, alice.id);
-      expect(await plannedRunForToday(tx, alice.id, schedule)).toEqual(today);
-      expect(await plannedRunForToday(tx, alice.id, null)).toBeNull();
-    });
+    expect(await withUser(t.db, alice.id, (tx) => plannedRunForToday(tx, alice.id))).toBeNull();
   });
 
-  it("refuses a run the programme does not have, and a run on a day that does not run", async () => {
+  it.each([3, 4])("refuses embedding a run in lifting day %i", async (dayIndex) => {
     await expect(
       withUser(t.db, alice.id, (tx) =>
         storePlan(tx, alice.id, {
-          slot: { cycleIndex: 1, dayIndex: 3 },
+          slot: { cycleIndex: 1, dayIndex },
           gymId: anytimeId,
           trigger: "nightly",
-          plan: {
-            summary: "x",
-            run: { durationMinutes: 25, programRunId: "00000000-0000-4000-8000-000000000000" },
-          },
-        }),
-      ),
-    ).rejects.toMatchObject({ issues: [{ path: "run.programRunId" }] });
-    await expect(
-      withUser(t.db, alice.id, (tx) =>
-        storePlan(tx, alice.id, {
-          slot: { cycleIndex: 1, dayIndex: 4 },
-          gymId: anytimeId,
-          trigger: "nightly",
-          plan: { summary: "x", run: { durationMinutes: 25 } },
+          plan: { summary: "Wrong sport.", run: { durationMinutes: 25 } },
         }),
       ),
     ).rejects.toThrow(/no run in the programme/);
-  });
-
-  it("stores what it noticed about the plan, without refusing it", async () => {
-    const plan = await withUser(t.db, alice.id, (tx) =>
-      storePlan(tx, alice.id, {
-        slot: { cycleIndex: 1, dayIndex: 3 },
-        gymId: anytimeId,
-        trigger: "nightly",
-        plan: {
-          summary: "A long way out.",
-          // 25 minutes to 50 is a jump the athlete should see before they run it.
-          run: { durationMinutes: 50, programRunId: ctx.slot.programRunId },
-          exercises: [
-            {
-              slotId: slotOf(ctx, "preacher-curl"),
-              exerciseSlug: "preacher-curl",
-              sets: [{ weight: 20, reps: 10, rir: 1 }],
-            },
-          ],
-        },
-      }),
-    );
-    expect(plan.status).toBe("active");
-    expect(plan.warnings.map((warning) => warning.code)).toContain("run_jump");
-    // Unmentioned exercises stay in the workout, so this is not a one-set day.
-    expect(plan.warnings.map((warning) => warning.code)).not.toContain("volume_drift");
   });
 
   it("drops the plan when the slot is skipped instead of trained", async () => {
@@ -900,47 +837,24 @@ describe("a day that only runs", () => {
     );
   });
 
-  it("is due, and plans at a place that is not a gym", async () => {
-    const due = await listDueUsers(t.db);
-    expect(due.find((entry) => entry.userId === runner.id)).toMatchObject({
-      gymName: "Outdoor",
-      slot: { dayIndex: 1, dayName: "Easy run", lifts: false, runs: true },
-    });
-    const ctx = await withUser(t.db, runner.id, (tx) => planningContext(tx, runner.id));
-    if (ctx.reason) throw new Error(ctx.reason);
-    expect(ctx.gym.name).toBe("Outdoor");
-    expect(ctx.exercises).toEqual([]);
-    expect(ctx.slot.programRunId).toBeTruthy();
-  });
-
-  it("takes a run and nothing else", async () => {
-    const ctx = await withUser(t.db, runner.id, (tx) => planningContext(tx, runner.id));
-    if (ctx.reason) throw new Error(ctx.reason);
-    const store = (plan: unknown) =>
-      withUser(t.db, runner.id, (tx) =>
-        storePlan(tx, runner.id, {
-          slot: { cycleIndex: 1, dayIndex: 1 },
-          gymId: outdoorId,
-          trigger: "nightly",
-          plan,
-        }),
+  it("does not dispatch a dedicated running programme through the legacy lifting planner", async () => {
+    const [programme] = await t.db
+      .select()
+      .from((await import("@/db/schema")).programs)
+      .where(
+        eq(
+          (await import("@/db/schema")).programs.id,
+          (await withUser(t.db, runner.id, (tx) => getSchedule(tx, runner.id)))!.program.id,
+        ),
       );
-    await expect(
-      store({
-        summary: "Run and curls.",
-        run: { durationMinutes: 20 },
-        exercises: [{ exerciseSlug: "preacher-curl", sets: [] }],
-      }),
-    ).rejects.toThrow(/no lifting/);
-    const plan = await store({
-      summary: "Easy 20.",
-      run: { durationMinutes: 20, rpe: 3, programRunId: ctx.slot.programRunId },
-    });
-    expect(plan.exercises).toEqual([]);
-    expect(plan.run?.durationMinutes).toBe(20);
+    // The fixture has a lifting day as well: the planner asks for that next, and never the run.
+    expect(programme?.sport).toBe("strength");
     expect(
-      await withUser(t.db, runner.id, (tx) => plannedRunForToday(tx, runner.id)),
-    ).toMatchObject({ dayName: "Easy run" });
+      (await listDueUsers(t.db)).find((entry) => entry.userId === runner.id)?.slot,
+    ).toMatchObject({ dayIndex: 2, lifts: true, runs: false });
+    const ctx = await withUser(t.db, runner.id, (tx) => planningContext(tx, runner.id));
+    if (ctx.reason) throw new Error(ctx.reason);
+    expect(ctx.slot).toMatchObject({ dayIndex: 2, includesRun: false });
   });
 });
 
@@ -1026,8 +940,8 @@ const RUN_ONLY_BLUEPRINT = parseProgramBlueprint({
   ],
 });
 
-describe("a day that runs", () => {
-  it("will not take a plan that answers only the lifting, until the run is logged", async () => {
+describe("a lifting day formerly coupled to running", () => {
+  it("accepts lifting immediately while its old running occurrence remains unanswered", async () => {
     const dana = await t.createAuthUser("runs-and-lifts@example.com");
     const fixture = await withUser(t.db, dana.id, (tx) => seedTestUserData(tx, dana));
     await t.db
@@ -1035,59 +949,29 @@ describe("a day that runs", () => {
       .set({ aiCoachEnabled: true, timeZone: TZ })
       .where(eq(profiles.id, dana.id));
     const gymId = fixture.gymIdBySlug.get("anytime-fitness")!;
-    // Walk the programme on to the first day that both lifts and runs.
-    const schedule = await withUser(t.db, dana.id, (tx) => getSchedule(tx, dana.id));
-    const runningDay = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
-    for (const day of schedule!.days) {
-      if (day.dayIndex >= runningDay.dayIndex) break;
+    for (const dayIndex of [1, 2])
       await withUser(t.db, dana.id, (tx) =>
         recordSlotEvent(
           tx,
           dana.id,
           fixture.programId,
-          { cycleIndex: 1, dayIndex: day.dayIndex },
+          { cycleIndex: 1, dayIndex },
           "session",
           "skipped",
           { occurredOn: "2026-09-08" },
         ),
       );
-    }
-    const ref = { cycleIndex: 1, dayIndex: runningDay.dayIndex };
-    const context = await withUser(t.db, dana.id, (tx) => planningContext(tx, dana.id, { gymId }));
-    if (context.reason) throw new Error(context.reason);
-    expect(context.slot.includesRun).toBe(true);
-    const liftingOnly = {
-      slot: ref,
-      gymId,
-      trigger: "nightly" as const,
-      plan: {
-        summary: "Only half of the day.",
-        // An addition on free weights: what this test is about is the run, not the equipment.
-        exercises: [{ exerciseSlug: "hammer-curl", sets: [] }],
-      },
-    };
-    await expect(
-      withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly)),
-    ).rejects.toThrow(/needs a run/);
-
-    // Once the run has been logged there is nothing left to say about it, and the same plan
-    // stands: the two halves of the day are answered separately.
-    const logged = await withUser(t.db, dana.id, (tx) =>
-      logTestRun(tx, dana.id, {
-        startedAt: new Date(),
-        durationSeconds: 1500,
-        distanceMeters: 4000,
-        rpe: 3,
-        effortReported: true,
+    const ctx = await withUser(t.db, dana.id, (tx) => planningContext(tx, dana.id, { gymId }));
+    if (ctx.reason) throw new Error(ctx.reason);
+    expect(ctx.slot).toMatchObject({ dayIndex: 3, includesRun: false });
+    const stored = await withUser(t.db, dana.id, (tx) =>
+      storePlan(tx, dana.id, {
+        slot: { cycleIndex: 1, dayIndex: 3 },
+        gymId,
+        trigger: "nightly",
+        plan: { summary: "Arms.", exercises: [{ exerciseSlug: "hammer-curl", sets: [] }] },
       }),
     );
-    await withUser(t.db, dana.id, (tx) =>
-      recordSlotEvent(tx, dana.id, fixture.programId, ref, "run", "completed", {
-        occurredOn: "2026-09-12",
-        runId: logged.id,
-      }),
-    );
-    const stored = await withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly));
     expect(stored.run).toBeNull();
   });
 });

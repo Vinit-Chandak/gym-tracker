@@ -381,6 +381,7 @@ export function TodayView({
   // left open empty, the Discard it already offers is the way out.
   const finishLeftOpen =
     inProgress &&
+    !inProgress.loggedRetrospectively &&
     inProgress.setCount > 0 &&
     isLeftOpen(inProgress.startedAt, inProgress.lastSetAt, now) ? (
       <FinishLeftOpenButton

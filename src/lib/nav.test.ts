@@ -25,7 +25,7 @@ it.each([
   ["/gyms/gym/equipment/new", "/profile"],
   ["/exercises", "/profile"],
   ["/exercises/bench", "/profile"],
-  ["/profile/programme", "/profile"],
+  ["/profile/programme", "/training"],
   ["/u/phani03", "/profile"],
   // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
@@ -162,7 +162,7 @@ it.each([
   ["/today", "/today"],
   ["/progress", "/progress"],
   ["/food", "/food"],
-  ["/profile/programme", "/profile"],
+  ["/profile/programme", "/training"],
   ["/exercises/bench", "/profile"],
 ])("lets only a record take an origin, never %s", (pathname, expected) => {
   expect(

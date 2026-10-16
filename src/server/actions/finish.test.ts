@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
-import { exercises, setLogs, workoutSessions } from "@/db/schema";
+import { exercises, profiles, programSlotEvents, setLogs, workoutSessions } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -27,7 +27,13 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { addExerciseToSession, logSet, startAdHocSession } from "@/server/repositories/sessions";
+import {
+  addExerciseToSession,
+  logSet,
+  startAdHocSession,
+  startPlannedSession,
+} from "@/server/repositories/sessions";
+import { getSchedule } from "@/server/repositories/schedule";
 
 import { discardSessionAction, finishLeftOpenAction, finishSessionAction } from "./sessions";
 
@@ -130,4 +136,44 @@ it("takes Discard pressed again after a lost reply to Today, the session gone", 
   const { sessionId } = await as((tx) => startAdHocSession(tx, state.user.id, { gymId }));
   await expect(discardSessionAction(sessionId)).rejects.toThrow("redirect:/today?discarded=1");
   await expect(discardSessionAction(sessionId)).rejects.toThrow("redirect:/today?discarded=1");
+});
+
+it("backdates planned lifting to its actual training date and leaves independent lifting outside the programme", async () => {
+  await t.db.update(profiles).set({ timeZone: "UTC" }).where(eq(profiles.id, state.user.id));
+  const schedule = (await as((tx) => getSchedule(tx, state.user.id)))!;
+  const startedAt = new Date("2026-09-10T08:30:00Z");
+  const planned = await as((tx) =>
+    startPlannedSession(tx, state.user.id, {
+      gymId,
+      programDayId: schedule.days[0]!.id,
+      cycleIndex: 1,
+      startedAt,
+    }),
+  );
+  expect(
+    await finishSessionAction(planned.sessionId, INITIAL_FORM_STATE, new FormData()),
+  ).toMatchObject({ formError: "Enter when this workout actually ended." });
+  await expect(finishLeftOpenAction(planned.sessionId)).rejects.toThrow(
+    `redirect:/workouts/${planned.sessionId}/finish`,
+  );
+  const data = new FormData();
+  data.set("finishedAt", "2026-09-10T09:15");
+  await expect(finishSessionAction(planned.sessionId, INITIAL_FORM_STATE, data)).rejects.toThrow(
+    `redirect:/workouts/${planned.sessionId}?from=training&finished=1`,
+  );
+  expect(await completedAt(planned.sessionId)).toEqual(new Date("2026-09-10T09:15:00Z"));
+  const events = await t.db
+    .select()
+    .from(programSlotEvents)
+    .where(eq(programSlotEvents.userId, state.user.id));
+  expect(events).toContainEqual(
+    expect.objectContaining({ dayIndex: 1, status: "completed", occurredOn: "2026-09-10" }),
+  );
+  const independent = await as((tx) => startAdHocSession(tx, state.user.id, { gymId, startedAt }));
+  await expect(
+    finishSessionAction(independent.sessionId, INITIAL_FORM_STATE, data),
+  ).rejects.toThrow("redirect:");
+  expect(
+    await t.db.select().from(programSlotEvents).where(eq(programSlotEvents.userId, state.user.id)),
+  ).toEqual(events);
 });

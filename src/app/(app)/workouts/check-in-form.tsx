@@ -27,6 +27,7 @@ type Props = {
   mode: "start" | "edit";
   /** The hours given at the last check-in that had them, where a blank's − and + start. */
   lastSleepHours?: number | null;
+  retrospective?: boolean;
 };
 
 /** Skip check-in: a second submit, so the session starts the same way, answering nothing. */
@@ -55,7 +56,13 @@ function SkipButton() {
  * beside 1 fresh to 5 wrecked — and the two answers contradicted each other as often as
  * not. How you feel is now two scales that read the same way: 1 is fine, 5 is the worst.
  */
-export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Props) {
+export function CheckInForm({
+  action,
+  initial,
+  mode,
+  lastSleepHours = null,
+  retrospective = false,
+}: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
 
@@ -66,7 +73,7 @@ export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Pr
           Sleep
         </h2>
         <RowStepper
-          label="Hours last night"
+          label={retrospective ? "Sleep the night before this workout" : "Hours last night"}
           hint={lastSleepHours !== null ? `Last time ${lastSleepHours} h` : undefined}
           name="sleepHours"
           defaultValue={value("sleepHours")}
@@ -91,7 +98,7 @@ export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Pr
 
       <section aria-labelledby="check-in-feel">
         <h2 id="check-in-feel" className="caption-head mt-3.5">
-          How you feel
+          {retrospective ? "How you felt before this workout" : "How you feel"}
         </h2>
         <ScaleField
           label="General fatigue"
@@ -113,7 +120,9 @@ export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Pr
         <FormError message={state.formError} />
         {mode === "start" ? (
           <>
-            <SubmitButton pendingLabel="Starting…">Save and start</SubmitButton>
+            <SubmitButton pendingLabel={retrospective ? "Opening…" : "Starting…"}>
+              {retrospective ? "Save and open workout log" : "Save and start"}
+            </SubmitButton>
             <SkipButton />
           </>
         ) : (

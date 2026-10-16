@@ -49,7 +49,17 @@ export async function adoptProgramTemplateAction(
       const profile = await ensureProfile(tx, user);
       const startDate = parsed.data.startDate ?? todayInTimeZone(profile.timeZone);
       await assertNoOpenWorkout(tx, user.id);
-      await adoptProgramme(tx, user.id, template.blueprint, { startDate });
+      await adoptProgramme(
+        tx,
+        user.id,
+        {
+          ...template.blueprint,
+          sport: "strength",
+          days: template.blueprint.days.map((day) => ({ ...day, includesRun: false })),
+          runs: [],
+        },
+        { startDate },
+      );
       // Adopting a programme finishes setup without requiring optional coaching details.
       if (parsed.data.finishOnboarding && profile.onboardedAt === null) {
         await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));
@@ -63,6 +73,7 @@ export async function adoptProgramTemplateAction(
   }
   if (finishedOnboarding) await profileChanged(user.id);
   revalidatePath("/profile");
+  revalidatePath("/training");
   revalidatePath("/today");
   if (parsed.data.finishOnboarding) redirect("/today");
   return {};

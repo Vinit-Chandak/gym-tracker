@@ -431,7 +431,7 @@ describe("approving a change", () => {
   it("carries both halves of a day that lifts and runs", async () => {
     const schedule = await as((tx) => getSchedule(tx, user.id));
     const programId = schedule!.program.id;
-    const mixed = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
+    const mixed = schedule!.days.find((day) => day.dayIndex === 3 && day.includesLifting)!;
     const ref = { cycleIndex: 1, dayIndex: mixed.dayIndex };
     const logged = await as((tx) =>
       logTestRun(tx, user.id, {

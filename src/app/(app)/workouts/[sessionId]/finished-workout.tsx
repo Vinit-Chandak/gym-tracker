@@ -159,6 +159,7 @@ export function FinishedWorkout({
   edit?: FinishedEdit | null;
 }) {
   const editing = edit?.editing === true && !justFinished;
+  const summaryDestination = session.loggedRetrospectively ? backHref : "/today";
   const done = session.exercises.filter((exercise) => exercise.sets.length > 0);
   const notDone = session.exercises.filter((exercise) => exercise.sets.length === 0);
   // The record as a print, drawn as the day it was done on draws it: the warm-up's fan as it
@@ -222,7 +223,7 @@ export function FinishedWorkout({
           {justFinished ? (
             <>
               <span className="flex-1" />
-              <Link href="/today" aria-label="Close" className="icon-button">
+              <Link href={summaryDestination} aria-label="Close" className="icon-button">
                 <Glyph name="close" className="glyph-22" />
               </Link>
             </>
@@ -277,7 +278,7 @@ export function FinishedWorkout({
           {title}
         </FitTitle>
         <p className="meta-line mt-1">
-          {!justFinished && (
+          {(!justFinished || session.loggedRetrospectively) && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
               {formatIsoDate(day, session.today.slice(0, 4))}
@@ -481,7 +482,7 @@ export function FinishedWorkout({
 
         {justFinished && (
           <PinnedActions stack>
-            <Link href="/today" className={buttonClassName("primary", "lg", "w-full")}>
+            <Link href={summaryDestination} className={buttonClassName("primary", "lg", "w-full")}>
               Done
             </Link>
           </PinnedActions>

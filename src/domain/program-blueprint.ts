@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { programmeEnduranceSessionSchema, programmeSportSchema } from "./programme-sport";
 
 import { PRESCRIBED_EFFORT } from "./activity-limits";
 import { CYCLE_REPEATS, PRESCRIPTION_TYPES } from "./types";
@@ -149,6 +150,9 @@ export const blueprintRunSchema = z.object({
 export const programBlueprintSchema = z
   .object({
     blueprintVersion: z.literal(BLUEPRINT_VERSION),
+    /** Absent only on historical combined blueprints; new authoring always selects a sport. */
+    sport: programmeSportSchema.optional(),
+    enduranceSessions: z.array(programmeEnduranceSessionSchema).max(730).optional(),
     slug: slug.max(60),
     // These four are what someone typing a programme in by hand leaves blank, so they say
     // what to do rather than reporting the shape of the value that was missing.
@@ -161,10 +165,45 @@ export const programBlueprintSchema = z
      */
     repeats: z.enum(CYCLE_REPEATS).optional(),
     notes: z.string().max(2000).default(""),
-    days: z.array(blueprintDaySchema).min(1, "Add at least one day.").max(31),
+    days: z.array(blueprintDaySchema).max(31),
     runs: z.array(blueprintRunSchema).max(200).default([]),
   })
   .superRefine((plan, ctx) => {
+    if ((!plan.sport || plan.sport === "strength") && plan.days.length === 0)
+      ctx.addIssue({ code: "custom", message: "Add at least one day.", path: ["days"] });
+    if (
+      plan.sport === "strength" &&
+      (plan.runs.length ||
+        plan.days.some((day) => day.includesRun) ||
+        plan.enduranceSessions?.length)
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Keep endurance sessions in their own sport programme.",
+        path: ["days"],
+      });
+    if (plan.sport && plan.sport !== "strength") {
+      if (plan.days.length || plan.runs.length)
+        ctx.addIssue({
+          code: "custom",
+          message: "An endurance programme uses its own dated sessions.",
+          path: ["days"],
+        });
+      if (!plan.enduranceSessions?.length)
+        ctx.addIssue({
+          code: "custom",
+          message: "Add at least one scheduled session.",
+          path: ["enduranceSessions"],
+        });
+      plan.enduranceSessions?.forEach((session, index) => {
+        if (session.prescription.sport !== plan.sport || session.weekIndex > plan.weeks)
+          ctx.addIssue({
+            code: "custom",
+            message: "Each session must belong to this sport and programme week.",
+            path: ["enduranceSessions", index],
+          });
+      });
+    }
     const indexes = plan.days.map((d) => d.dayIndex);
     if (new Set(indexes).size !== indexes.length) {
       ctx.addIssue({ code: "custom", message: "Day indexes must be unique", path: ["days"] });

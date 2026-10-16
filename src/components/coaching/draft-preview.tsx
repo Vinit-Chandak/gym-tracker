@@ -10,6 +10,7 @@ import {
   activateProgramDraftAction,
   rejectProgramDraftAction,
   reviewProgramDraftAction,
+  saveStandaloneDraftAction,
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
@@ -20,12 +21,16 @@ import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
+import { ActivityPlan } from "@/components/activities/activity-plan";
+import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 
 /**
  * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
  * with the cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
  */
 function shape(blueprint: ProgramBlueprint): string {
+  if (blueprint.sport && blueprint.sport !== "strength")
+    return `${blueprint.weeks} weeks · ${blueprint.enduranceSessions?.length ?? 0} sessions`;
   const sets = blueprint.days.reduce(
     (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
     0,
@@ -64,6 +69,7 @@ export function DraftPreview({
   machines,
   preferredUnit,
   length,
+  units = DEFAULT_SPORT_UNITS,
 }: {
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
@@ -74,6 +80,7 @@ export function DraftPreview({
   preferredUnit: "kg" | "lb";
   /** What a carry's targets read in: metres, or yards beside miles (ADR 0055). */
   length: SetLengthUnit;
+  units?: SportUnits;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -98,6 +105,20 @@ export function DraftPreview({
   }
   async function activate() {
     setSaving(true);
+    if (current.standalone) {
+      const saved = await coachingAction(() =>
+        saveStandaloneDraftAction(current.id, current.revision),
+      );
+      if (saved.ok)
+        startNavigation(() =>
+          router.push(
+            saved.value.sport === "strength" ? "/profile/routines" : "/training/templates",
+          ),
+        );
+      else setError(saved.error);
+      setSaving(false);
+      return;
+    }
     const result = await coachingAction(() =>
       activateProgramDraftAction({
         id: current.id,
@@ -106,7 +127,7 @@ export function DraftPreview({
         transition: "new_block",
       }),
     );
-    if (result.ok) startNavigation(() => router.push("/today"));
+    if (result.ok) startNavigation(() => router.push("/training"));
     else setError(result.error);
     setSaving(false);
   }
@@ -132,6 +153,22 @@ export function DraftPreview({
           </div>
         )}
       </Card>
+      {(current.blueprint.enduranceSessions ?? []).map((session, index) => (
+        <section key={`${session.lineageId}:${session.weekIndex}:${index}`} className="space-y-2">
+          <h2 className="font-medium">{session.name || `Session ${index + 1}`}</h2>
+          {!current.standalone && (
+            <p className="text-sm text-ink-2">
+              Week {session.weekIndex} · Day {session.dayOffset + 1} from the start
+            </p>
+          )}
+          <ActivityPlan
+            sport={session.prescription.sport}
+            prescription={session.prescription}
+            showSource={false}
+            units={units}
+          />
+        </section>
+      ))}
       {current.blueprint.days.map((day) => (
         <Card key={day.dayIndex}>
           <h2 className="text-lg font-medium [overflow-wrap:break-word]">
@@ -239,7 +276,9 @@ export function DraftPreview({
       )}
       {editable && (
         <Card>
-          <h2 className="font-medium">Start this programme</h2>
+          <h2 className="font-medium">
+            {current.standalone ? "Save this session" : "Start this programme"}
+          </h2>
           {needsCheck && (
             <>
               <p className="text-sm text-ink-muted">
@@ -250,15 +289,26 @@ export function DraftPreview({
               </Button>
             </>
           )}
-          <Field label="Start date">
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </Field>
+          {!current.standalone && (
+            <Field label="Start date">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </Field>
+          )}
           <Button disabled={busy || needsCheck || !startDate} onClick={activate}>
-            {busy ? "Saving…" : "Start my programme"}
+            {busy ? "Saving…" : current.standalone ? "Save session template" : "Start my programme"}
           </Button>
-          <LinkButton href={`${base}/manual?draft=${current.id}` as Route} variant="secondary">
-            Edit the draft
-          </LinkButton>
+          {!current.standalone && (
+            <LinkButton
+              href={
+                (current.sport === "strength"
+                  ? `${base}/manual?draft=${current.id}`
+                  : `/training/programmes/${current.sport}/edit?draft=${current.id}`) as Route
+              }
+              variant="secondary"
+            >
+              Edit the draft
+            </LinkButton>
+          )}
           <Button
             variant="ghost"
             disabled={busy}

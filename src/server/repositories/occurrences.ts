@@ -176,7 +176,11 @@ function occurrenceQuery(tx: DbOrTx, userId: string) {
     )
     .leftJoin(
       programs,
-      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
+      and(
+        eq(programs.userId, plannedOccurrences.userId),
+        eq(programs.familyId, plannedOccurrences.familyId),
+        eq(programs.status, "active"),
+      ),
     )
     .where(eq(plannedOccurrences.userId, userId))
     .$dynamic();
@@ -192,6 +196,25 @@ export async function getOccurrence(
   );
   const row = rows[0] as Row | undefined;
   return row ? hydrate(row) : null;
+}
+
+/** Exact calendar date, across all active programme families and standalone scheduling. */
+export async function occurrencesOnDate(
+  tx: DbOrTx,
+  userId: string,
+  date: string,
+  sport?: ActivitySport,
+): Promise<ProgrammeOccurrence[]> {
+  const rows = await occurrenceQuery(tx, userId)
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        eq(occurrenceVersions.scheduledOn, date),
+        sport ? eq(plannedOccurrences.sport, sport) : undefined,
+      ),
+    )
+    .orderBy(...withinDay);
+  return (rows as Row[]).map(hydrate).filter((row) => !row.closed);
 }
 
 /**
@@ -704,7 +727,11 @@ export async function namedOccurrence(
     )
     .leftJoin(
       programs,
-      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
+      and(
+        eq(programs.userId, plannedOccurrences.userId),
+        eq(programs.familyId, plannedOccurrences.familyId),
+        eq(programs.status, "active"),
+      ),
     )
     .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
     .limit(1);

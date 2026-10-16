@@ -12,7 +12,7 @@ import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 import { requestPatchSchema } from "./program-request";
 
-export const COACH_CONTRACT_VERSION = 6;
+export const COACH_CONTRACT_VERSION = 7;
 
 /**
  * Whether the server is serving a contract this checkout was written against.
@@ -221,6 +221,8 @@ export type SportIntake = z.infer<typeof sportIntakeSchema>;
  * Draft answers may be incomplete. Confirming uses validateIntake, never fabricated defaults.
  */
 export const coachIntakeSchema = z.object({
+  programmeSport: z.enum(ACTIVITY_SPORTS).default("strength"),
+  scope: z.enum(["programme", "session"]).default("programme"),
   track: z.enum(["guided", "detailed"]).nullable().default(null),
   goal: optionalText(1500),
   experience: z
@@ -317,6 +319,15 @@ export type TrainingLocation = NonNullable<CoachIntake["trainingLocation"]>;
 export function validateIntake(input: unknown): CoachIntake {
   return coachIntakeSchema
     .superRefine((answers, ctx) => {
+      if (answers.programmeSport !== "strength") {
+        for (const [key, message] of [
+          ["goal", "Tell the coach your goal."],
+          ["minutesPerSession", "Choose your session length."],
+          ["sessionsPerWeek", "Choose how often you can train."],
+        ] as const)
+          if (!answers[key]) ctx.addIssue({ code: "custom", path: [key], message });
+        return;
+      }
       const required: [keyof CoachIntake, string][] = [
         ["goal", "Tell the coach your main goal."],
         ["sessionsPerWeek", "Choose how often you can train."],
@@ -359,6 +370,7 @@ export function validateIntake(input: unknown): CoachIntake {
 }
 
 export const jobTargetSchema = z.object({
+  scope: z.enum(["programme", "session"]).default("programme"),
   programId: z.uuid().nullable().default(null),
   cycleIndex: z.number().int().min(1).nullable().default(null),
   dayIndex: z.number().int().min(1).nullable().default(null),
@@ -490,6 +502,18 @@ export type SportCoverageEntry = z.infer<typeof sportCoverageSchema>;
 export const HEADLINE_LIMIT = 140;
 
 const explanation = {
+  /** Other sports are proposals only. Approval is always a separate athlete action. */
+  coordinationProposals: z
+    .array(
+      z.object({
+        sport: z.enum(ACTIVITY_SPORTS),
+        blueprint: programBlueprintSchema,
+        headline: z.string().trim().min(1).max(HEADLINE_LIMIT),
+        rationale: z.string().trim().min(1).max(3000),
+      }),
+    )
+    .max(3)
+    .optional(),
   rationale: z.string().trim().min(1).max(3000),
   evidence: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
   uncertainties: z.array(z.string().trim().min(1).max(500)).max(20).default([]),

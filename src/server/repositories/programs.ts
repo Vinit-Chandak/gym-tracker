@@ -8,12 +8,17 @@ import {
   programExercises,
   programRuns,
   programs,
+  plannedOccurrences,
+  occurrenceVersions,
   warmupProtocols,
 } from "@/db/schema";
 import { DRAFT_EXERCISE_SLUGS } from "@/db/seed/data/exercises";
 import type { DbOrTx } from "@/db/types";
 import { cycleRepeatIssues, inferCycleRepeat } from "@/domain/cycle-repeat";
-import { programEndDate } from "@/domain/program-calendar";
+import { daysBetween, programEndDate } from "@/domain/program-calendar";
+import type { ActivitySport } from "@/domain/activity";
+import { programmeSport } from "@/domain/programme-sport";
+import { legacyPlannedDate, legacyProgramRunToPrescription } from "@/domain/legacy-multisport";
 import {
   BLUEPRINT_VERSION,
   prescriptionTypeOf,
@@ -138,6 +143,7 @@ export async function createProgramFromBlueprint(
   blueprint: ProgramBlueprint,
   options: CreateProgramOptions,
 ): Promise<CreatedProgram> {
+  const sport = programmeSport(blueprint);
   // Every programme anybody trains on is written here — a template, an import, a coach's
   // draft — so this is where the endurance half is held to being placeable in the cycle. A
   // run nobody's running day answers for would become an occurrence with no slot, offered by
@@ -145,7 +151,7 @@ export async function createProgramFromBlueprint(
   const issues = enduranceCycleIssues(blueprint);
   if (issues.length > 0)
     throw new Error(`This programme's runs do not fit its days: ${issues.join(" ")}`);
-  const repeatIssues = cycleRepeatIssues(blueprint);
+  const repeatIssues = sport === "strength" ? cycleRepeatIssues(blueprint) : [];
   if (repeatIssues.length > 0)
     throw new Error(`This programme cannot repeat as it says: ${repeatIssues.join(" ")}`);
   const familyId = options.familyId ?? crypto.randomUUID();
@@ -207,15 +213,21 @@ export async function createProgramFromBlueprint(
     await db
       .update(programs)
       .set({ status: "archived" })
-      .where(and(eq(programs.userId, userId), eq(programs.status, "active")));
+      .where(
+        and(eq(programs.userId, userId), eq(programs.sport, sport), eq(programs.status, "active")),
+      );
   }
 
-  const startDayIndex = options.startDayIndex ?? Math.min(...blueprint.days.map((d) => d.dayIndex));
+  const startDayIndex =
+    options.startDayIndex ??
+    (blueprint.days.length ? Math.min(...blueprint.days.map((d) => d.dayIndex)) : 1);
   const [program] = await db
     .insert(programs)
     .values({
       userId,
       familyId,
+      sport,
+      blueprint: sport === "strength" ? null : blueprint,
       slug: blueprint.slug,
       name: blueprint.name,
       version,
@@ -231,25 +243,27 @@ export async function createProgramFromBlueprint(
   if (!program) throw new Error("Programme insert returned no row");
 
   // Rows come back in no guaranteed order, so each is matched by its natural key, not position.
-  const dayRows = await db
-    .insert(programDays)
-    .values(
-      dayValues.map(({ day, warmupProtocolId }) => ({
-        userId,
-        programId: program.id,
-        dayIndex: day.dayIndex,
-        name: day.name,
-        focus: day.focus,
-        dayOfWeek: day.dayOfWeek,
-        includesLifting: day.includesLifting,
-        includesRun: day.includesRun,
-        timeNote: day.timeNote,
-        effortNote: day.effortNote,
-        notes: day.notes,
-        warmupProtocolId,
-      })),
-    )
-    .returning({ id: programDays.id, dayIndex: programDays.dayIndex });
+  const dayRows = dayValues.length
+    ? await db
+        .insert(programDays)
+        .values(
+          dayValues.map(({ day, warmupProtocolId }) => ({
+            userId,
+            programId: program.id,
+            dayIndex: day.dayIndex,
+            name: day.name,
+            focus: day.focus,
+            dayOfWeek: day.dayOfWeek,
+            includesLifting: day.includesLifting,
+            includesRun: day.includesRun,
+            timeNote: day.timeNote,
+            effortNote: day.effortNote,
+            notes: day.notes,
+            warmupProtocolId,
+          })),
+        )
+        .returning({ id: programDays.id, dayIndex: programDays.dayIndex })
+    : [];
   const dayIdByIndex = new Map(dayRows.map((row) => [row.dayIndex, row.id]));
   const dayId = (dayIndex: number): string => {
     const id = dayIdByIndex.get(dayIndex);
@@ -363,6 +377,71 @@ export async function readProgramBlueprint(
     .where(and(eq(programs.id, programId), eq(programs.userId, userId)))
     .limit(1);
   if (!program) return null;
+  if (program.sport !== "strength") {
+    if (program.blueprint)
+      return { blueprint: programBlueprintSchema.parse(program.blueprint), startDayIndex: 1 };
+    const sessions = await db
+      .select({ occurrence: plannedOccurrences, version: occurrenceVersions })
+      .from(plannedOccurrences)
+      .innerJoin(
+        occurrenceVersions,
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+      )
+      .where(
+        and(
+          eq(plannedOccurrences.userId, userId),
+          eq(plannedOccurrences.familyId, program.familyId),
+        ),
+      )
+      .orderBy(asc(occurrenceVersions.scheduledOn), asc(occurrenceVersions.orderIndex));
+    const legacyRuns = sessions.length
+      ? []
+      : await db.select().from(programRuns).where(eq(programRuns.programId, program.id));
+    const startDate = program.startDate ?? sessions[0]?.version.scheduledOn;
+    if (!startDate) return null;
+    const enduranceSessions = sessions.flatMap(({ occurrence, version }) =>
+      version.prescription
+        ? [
+            {
+              lineageId: occurrence.slotLineageId ?? occurrence.id,
+              name: "",
+              weekIndex: occurrence.originalWeekIndex ?? occurrence.cycleIndex ?? 1,
+              dayOffset: daysBetween(startDate, version.scheduledOn),
+              scheduledLocalTime: version.scheduledLocalTime,
+              prescription: version.prescription,
+            },
+          ]
+        : [],
+    );
+    for (const run of legacyRuns)
+      enduranceSessions.push({
+        lineageId: run.id,
+        name: "",
+        weekIndex: run.weekIndex,
+        dayOffset: daysBetween(
+          startDate,
+          legacyPlannedDate(startDate, run.weekIndex, run.dayOfWeek),
+        ),
+        scheduledLocalTime: null,
+        prescription: legacyProgramRunToPrescription(run),
+      });
+    if (!enduranceSessions.length) return null;
+    return {
+      blueprint: programBlueprintSchema.parse({
+        blueprintVersion: 1,
+        sport: program.sport,
+        slug: program.slug,
+        name: program.name,
+        weeks: program.weeks ?? 8,
+        repeats: "weekly",
+        notes: program.notes ?? "",
+        days: [],
+        runs: [],
+        enduranceSessions,
+      }),
+      startDayIndex: 1,
+    };
+  }
   const days = await db
     .select({ day: programDays, warmupSlug: warmupProtocols.slug })
     .from(programDays)
@@ -386,6 +465,18 @@ export async function readProgramBlueprint(
       .orderBy(asc(programRuns.weekIndex), asc(programRuns.dayOfWeek)),
   ]);
   const slotIds = slots.map((row) => row.slot.id);
+  // Pre-split and archived documents retain their original prescription. The active
+  // strength view becomes strength-only once endurance ownership has actually moved.
+  const separated =
+    program.status === "active" &&
+    (runRows.length === 0 ||
+      (
+        await db
+          .select({ id: programs.id })
+          .from(programs)
+          .where(and(eq(programs.userId, userId), eq(programs.splitFromProgramId, program.id)))
+          .limit(1)
+      ).length > 0);
   // Only the programme's own fallbacks. One the athlete added for a gym is theirs, not the
   // programme's: written back without its gym and machine, it would stand in at every gym, and a
   // swap remembered week after week could outgrow the blueprint's limit. A new version gets them
@@ -414,6 +505,7 @@ export async function readProgramBlueprint(
 
   const blueprint = programBlueprintSchema.parse({
     blueprintVersion: BLUEPRINT_VERSION,
+    sport: separated ? "strength" : undefined,
     slug: program.slug,
     name: program.name,
     weeks: program.weeks ?? 8,
@@ -428,7 +520,7 @@ export async function readProgramBlueprint(
       effortNote: day.effortNote ?? "",
       notes: day.notes ?? "",
       includesLifting: day.includesLifting,
-      includesRun: day.includesRun,
+      includesRun: separated ? false : day.includesRun,
       warmupSlug: warmupSlug ?? "",
       exercises: slots
         .filter((row) => row.slot.programDayId === day.id)
@@ -471,7 +563,7 @@ export async function readProgramBlueprint(
             })),
         })),
     })),
-    runs: runRows.map((run) => ({
+    runs: (separated ? [] : runRows).map((run) => ({
       weekIndex: run.weekIndex,
       dayOfWeek: run.dayOfWeek,
       duration: [run.durationMinMinutes, run.durationMaxMinutes],
@@ -493,11 +585,14 @@ export async function readProgramBlueprint(
 export async function getActiveProgram(
   db: DbOrTx,
   userId: string,
+  sport: ActivitySport = "strength",
 ): Promise<{ id: string; slug: string; name: string } | null> {
   const [program] = await db
     .select({ id: programs.id, slug: programs.slug, name: programs.name })
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(eq(programs.userId, userId), eq(programs.sport, sport), eq(programs.status, "active")),
+    )
     .limit(1);
   return program ?? null;
 }

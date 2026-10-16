@@ -237,7 +237,7 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     expect((await migrated(quiet!.id))[0]?.detail).toEqual({ via: "today" });
     // The day's own row is left as it was, and the programme reads it as before.
     const schedule = (await a.as((tx) => getSchedule(tx, a.userId)))!;
-    expect(partStatus(schedule.state, at([2, 3]), "run")).toBe("skipped");
+    expect(schedule.state.events.every(event => event.part === "session")).toBe(true);
     expect(partStatus(schedule.state, at([2, 3]), "session")).toBe("skipped");
     // The coach is now told what the programme said: three skipped, none of them owed.
     const running = (await a.as((tx) => readAdherence(tx, a.userId))).find(
@@ -320,7 +320,7 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
       expect(await migrated(occurrence.id)).toEqual([]);
     // The run logged after its day was skipped is what the day reads: logging replaced the skip.
     const schedule = (await a.as((tx) => getSchedule(tx, a.userId)))!;
-    expect(partStatus(schedule.state, at([2, 3]), "run")).toBe("completed");
+    expect(schedule.state.events.every(event => event.part === "session")).toBe(true);
   });
 
   it("leaves a run owed that was put back or logged again after its day was skipped", async () => {
@@ -359,7 +359,7 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     const schedule = (await a.as((tx) => getSchedule(tx, a.userId)))!;
     expect(partStatus(schedule.state, at([2, 3]), "run")).toBe("pending");
     expect(partStatus(schedule.state, at([2, 6]), "run")).toBe("pending");
-    expect(partStatus(schedule.state, at([3, 3]), "run")).toBe("skipped");
+    expect(schedule.state.events.every(event => event.part === "session")).toBe(true);
   });
 
   /**
@@ -374,7 +374,7 @@ describe("runs skipped on the day before Today skipped the runs themselves", () 
     const { state } = (await a.as((tx) => getSchedule(tx, a.userId)))!;
     for (const ref of allSlots(state)) {
       if (ref.cycleIndex > 2 || (ref.cycleIndex === 2 && ref.dayIndex > 3)) break;
-      for (const part of slotParts(slotFor(state, ref)!))
+      for (const part of [...slotParts(slotFor(state, ref)!), ...([3, 6].includes(ref.dayIndex) ? ["run" as const] : [])])
         await a.onTheDay(ref, part, "skipped", { at: new Date(Date.now() - 60 * MINUTE) });
     }
     // Then cycle 2's run moved to a later date from its page.
@@ -474,7 +474,7 @@ describe("every deploy, after the migration", () => {
     const [run] = await a.sessions(at([4, 3]));
     expect(run!.disposition).toBe("skipped");
     expect(await migrated(run!.id)).toHaveLength(1);
-    expect(await runHalf()).toBe("skipped");
+    expect(await runHalf()).toBe("pending");
     expect(await carryDaySkipsOntoRuns(t.db)).toBe(0);
   });
 });

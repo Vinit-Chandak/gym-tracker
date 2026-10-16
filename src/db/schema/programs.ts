@@ -16,6 +16,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { CycleRepeat, ProgressionRule } from "../../domain/types";
+import type { ProgramBlueprint } from "../../domain/program-blueprint";
+import { activitySportEnum } from "./multisport-enums";
 import { ownerPolicy, timestamps } from "./common";
 import {
   prescriptionTypeEnum,
@@ -41,6 +43,12 @@ export const programs = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     familyId: uuid("family_id").notNull(),
+    sport: activitySportEnum("sport").notNull().default("strength"),
+    /** Immutable authoring document. Older versions are reconstructed from their rows. */
+    blueprint: jsonb("blueprint").$type<ProgramBlueprint>(),
+    splitFromProgramId: uuid("split_from_program_id").references((): AnyPgColumn => programs.id, {
+      onDelete: "set null",
+    }),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     version: integer("version").notNull().default(1),
@@ -64,8 +72,8 @@ export const programs = pgTable(
     uniqueIndex("programs_user_slug_version_uq").on(t.userId, t.slug, t.version),
     // Lets a relation carry the owner in its key, so a foreign programme fails in the database.
     uniqueIndex("programs_owner_id_uq").on(t.userId, t.id),
-    uniqueIndex("programs_one_active_per_user_uq")
-      .on(t.userId)
+    uniqueIndex("programs_one_active_per_sport_uq")
+      .on(t.userId, t.sport)
       .where(sql`status = 'active'`),
     check("programs_repeats_chk", sql`repeats is null or repeats in ('weekly', 'rolling')`),
     index("programs_user_status_idx").on(t.userId, t.status),

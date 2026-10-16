@@ -243,7 +243,11 @@ async function resolveTarget(
     )
     .leftJoin(
       programs,
-      and(eq(programs.userId, plannedOccurrences.userId), eq(programs.status, "active")),
+      and(
+        eq(programs.userId, plannedOccurrences.userId),
+        eq(programs.familyId, plannedOccurrences.familyId),
+        eq(programs.status, "active"),
+      ),
     )
     .where(
       and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, origin.occurrenceId)),

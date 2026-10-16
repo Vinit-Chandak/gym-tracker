@@ -18,7 +18,7 @@ import { todayCoachState, withPreparedTargets } from "@/server/repositories/coac
 import { readLoggedOn } from "@/server/repositories/activity-analytics";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
-import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
+import { occurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 import { enabledSportsFor, unitsBySport } from "@/server/repositories/sport-preferences";
 
@@ -87,34 +87,13 @@ export default async function TodayPage(props: PageProps<"/today">) {
             : await todayCoachState(tx, user.id, coachInput);
         // The two things that can be due today, each asked for the way it is scheduled.
         //
-        // The programme's endurance belongs to the slot the sequence is offering, not to a
-        // date: a block written eight weeks ago dated every run in advance, and an athlete two
-        // days behind would otherwise be handed a session from a day they have not reached
-        // (plan §2.3). The slot is the day's position in the cycle, which is what an occurrence
-        // records; asking by the weekday that day usually falls on is what put a run belonging
-        // to one day on the card of another. Standalone work is asked for by date, because a
-        // date is exactly what the athlete chose when they put it on the calendar. Neither
-        // rolls forward.
-        //
-        // Once today's programme day is finished the sequence offers the next one, so the
-        // endurance the finished day logged is asked for by its own slot, to stay on today.
+        // Endurance belongs to its own calendar date, independently of the lifting sequence.
+        // Earlier unfinished sessions remain accessible from Training's date chooser.
         const date = plan?.today ?? todayInTimeZone(profile.timeZone);
         const [standalone, programme, finished, logged] = await Promise.all([
-          standaloneOccurrencesOnDate(tx, user.id, date),
-          plan?.suggestion && plan.suggestedDay
-            ? occurrencesForSlot(tx, user.id, {
-                familyId: plan.program.familyId,
-                cycleDayIndex: plan.suggestedDay.dayIndex,
-                cycleIndex: plan.suggestion.slot.cycleIndex,
-              })
-            : Promise.resolve([]),
-          plan?.suggestion && plan.finishedToday
-            ? occurrencesForSlot(tx, user.id, {
-                familyId: plan.program.familyId,
-                cycleDayIndex: plan.finishedToday.dayIndex,
-                cycleIndex: plan.finishedToday.cycleIndex,
-              })
-            : Promise.resolve([]),
+          occurrencesOnDate(tx, user.id, date),
+          Promise.resolve([]),
+          Promise.resolve([]),
           // Everything already finished today, so what nothing above answers still has a card:
           // a ride nobody scheduled, an unplanned workout.
           readLoggedOn(tx, user.id, date),

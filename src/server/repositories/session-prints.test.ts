@@ -41,7 +41,7 @@ afterAll(async () => {
 describe("a day of the cycle its workout has done", () => {
   let sessionId: string;
 
-  it("is read with the day, on Today while its run is owed and on Training", async () => {
+  it("keeps the completed workout on its programme while Today advances independently of running", async () => {
     const schedule = (await as((tx) => getSchedule(tx, user.id)))!;
     const programId = schedule.program.id;
     // Lower A and Upper A behind it, so Easy Run + Arms, which lifts and runs, is offered.
@@ -58,7 +58,7 @@ describe("a day of the cycle its workout has done", () => {
         );
     });
     const arms = schedule.days.find((day) => day.dayIndex === 3)!;
-    expect(arms).toMatchObject({ includesLifting: true, includesRun: true });
+    expect(arms).toMatchObject({ includesLifting: true, includesRun: false });
     ({ sessionId } = await as((tx) =>
       startPlannedSession(tx, user.id, { gymId, programDayId: arms.id, cycleIndex: 1 }),
     ));
@@ -93,22 +93,24 @@ describe("a day of the cycle its workout has done", () => {
     });
 
     const today = (await as((tx) => getTodayPlan(tx, user.id, TZ)))!;
-    expect(today.suggestedDay?.dayIndex).toBe(3);
-    expect(today.sessionStatus).toBe("completed");
-    expect(today.sessionPrint).toMatchObject({ completed: true, warmupCompleted: false });
-    expect(today.sessionPrint?.exercises[0]).toMatchObject({
-      slotId: first.planned?.programExerciseId,
-      work: 2,
-      warm: 1,
-    });
-    expect(today.sessionPrint?.exercises.slice(1).every((e) => e.work + e.warm === 0)).toBe(true);
+    expect(today.suggestedDay?.dayIndex).toBe(4);
+    expect(today.sessionStatus).toBe("pending");
+    expect(today.sessionPrint).toBeNull();
 
     // Training asks for the cycle's prints; the day it trained has its own, the rest none.
     const overview = (await as((tx) => getProgramOverview(tx, user.id, TZ, { prints: true })))!;
     expect(overview.days.map((day) => day.print !== null)).toEqual(
       overview.days.map((day) => day.day.dayIndex === 3),
     );
-    expect(overview.days[2]?.print).toEqual(today.sessionPrint);
+    expect(overview.days[2]?.print).toMatchObject({ completed: true, warmupCompleted: false });
+    expect(overview.days[2]?.print?.exercises[0]).toMatchObject({
+      slotId: first.planned?.programExerciseId,
+      work: 2,
+      warm: 1,
+    });
+    expect(overview.days[2]?.print?.exercises.slice(1).every((e) => e.work + e.warm === 0)).toBe(
+      true,
+    );
     // Not asked, it is not read.
     const plain = (await as((tx) => getProgramOverview(tx, user.id, TZ)))!;
     expect(plain.days.every((day) => day.print === null)).toBe(true);

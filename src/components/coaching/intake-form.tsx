@@ -849,7 +849,6 @@ function YouStep({
 }
 
 function WeekStep({ answers, change }: { answers: CoachIntake; change: Change }) {
-  const runs = answers.runsPerWeek ?? 0;
   return (
     <>
       <Card>
@@ -924,35 +923,10 @@ function WeekStep({ answers, change }: { answers: CoachIntake; change: Change })
           </Disclosure>
         )}
       </Card>
-      <Card>
-        <Field label="Runs a week" hint="Leave at zero if you do not run.">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={7}
-            value={answers.runsPerWeek ?? ""}
-            onChange={(event) =>
-              change({
-                runsPerWeek: event.target.value === "" ? null : Number(event.target.value),
-                ...(Number(event.target.value) ? {} : { preferredRunDays: [] }),
-              })
-            }
-          />
-        </Field>
-        {runs > 0 && (
-          <DayPicker
-            legend="Run days"
-            selected={answers.preferredRunDays}
-            onChange={(days) =>
-              change({
-                preferredRunDays: days,
-                runsPerWeek: days.length || answers.runsPerWeek,
-              })
-            }
-          />
-        )}
-      </Card>
+      <p className="text-sm text-ink-2">
+        Running, cycling and swimming have their own programmes in Training. The coach can use them
+        as context for this lifting plan.
+      </p>
       <Card>
         <LocationChoice answers={answers} change={change} />
       </Card>

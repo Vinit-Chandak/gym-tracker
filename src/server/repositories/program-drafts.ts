@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   coachChangeRecords,
   coachIntakes,
   coachJobs,
   coachNotes,
   coachPreferences,
+  sportCoachPreferences,
   exercises,
   programDays,
   programDrafts,
@@ -45,7 +46,14 @@ import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
+import { programmeSport } from "@/domain/programme-sport";
+import { getCoachingPreferences } from "./coaching-state";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
+import { saveRoutine } from "./manual-training";
+import { createTemplate } from "./activity-templates";
+import { keepEnduranceHistory } from "./endurance-history";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { profiles } from "@/db/schema";
 
 export type ProgramDraft = typeof programDrafts.$inferSelect;
 
@@ -63,7 +71,7 @@ export async function copyProgramToDraft(
     blueprint.name = `${blueprint.name.slice(0, 113)} (copy)`;
     for (const day of blueprint.days)
       for (const exercise of day.exercises) delete exercise.lineageId;
-  } else if ((await getActiveProgram(db, userId))?.id !== programId)
+  } else if ((await getActiveProgram(db, userId, programmeSport(blueprint)))?.id !== programId)
     throw new CoachingError(
       "Only the active programme can be edited as a future version. Duplicate an archived programme to start a new block.",
     );
@@ -71,7 +79,11 @@ export async function copyProgramToDraft(
 }
 
 export async function archiveActiveProgram(db: DbOrTx, userId: string, programId: string) {
-  await assertNoOpenWorkout(db, userId);
+  const [programme] = await db
+    .select({ sport: programs.sport })
+    .from(programs)
+    .where(and(eq(programs.id, programId), eq(programs.userId, userId)));
+  if (programme?.sport === "strength") await assertNoOpenWorkout(db, userId);
   const [archived] = await db
     .update(programs)
     .set({ status: "archived" })
@@ -107,7 +119,13 @@ async function retireProgramme(
       completedAt: new Date(),
       leaseUntil: null,
     })
-    .where(and(eq(coachJobs.userId, userId), inArray(coachJobs.status, ["queued", "claimed"])));
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        sql`${coachJobs.target}->>'programId' = ${programme.id}`,
+        inArray(coachJobs.status, ["queued", "claimed"]),
+      ),
+    );
   const closed = await db
     .update(programDrafts)
     .set({ status: "superseded", closedAt: new Date() })
@@ -118,7 +136,7 @@ async function retireProgramme(
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
     )
-    .returning({ id: programDrafts.id });
+    .returning({ id: programDrafts.id, sport: programDrafts.sport });
   // Nothing replaces them: their asks go back to the coach rather than pointing at a
   // proposal for a programme that no longer runs.
   for (const draft of closed)
@@ -155,7 +173,7 @@ export async function adoptProgramme(
   blueprint: ProgramBlueprint,
   options: { startDate: string },
 ) {
-  const active = await getActiveProgram(db, userId);
+  const active = await getActiveProgram(db, userId, programmeSport(blueprint));
   if (active) await retireProgramme(db, userId, active, "The programme was replaced.");
   const created = await createProgramFromBlueprint(db, userId, blueprint, {
     startDate: options.startDate,
@@ -178,6 +196,7 @@ export async function validateBlueprintForAthlete(
   gymId?: string | null,
 ) {
   const blueprint = programBlueprintSchema.parse(input);
+  if (blueprint.sport && blueprint.sport !== "strength") return blueprint;
   const [library, warmups, [preference]] = await Promise.all([
     db
       .select()
@@ -517,7 +536,7 @@ export async function closeProgramDraft(
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
     )
-    .returning({ id: programDrafts.id });
+    .returning({ id: programDrafts.id, sport: programDrafts.sport });
   if (!closed) throw new CoachingError("That change is no longer waiting for an answer.");
   if (as === "revised") {
     if (noteId) {
@@ -527,12 +546,21 @@ export async function closeProgramDraft(
         .where(and(eq(coachNotes.id, noteId), eq(coachNotes.userId, userId)));
       if (!note) throw new CoachingError("Save what you would like changed first.");
     }
-    await db
-      .update(coachPreferences)
-      .set({ reviewRequestedAt: now })
-      .where(eq(coachPreferences.userId, userId));
+    if (closed.sport === "strength")
+      await db
+        .update(coachPreferences)
+        .set({ reviewRequestedAt: now })
+        .where(eq(coachPreferences.userId, userId));
+    else
+      await db
+        .insert(sportCoachPreferences)
+        .values({ userId, sport: closed.sport, reviewRequestedAt: now })
+        .onConflictDoUpdate({
+          target: [sportCoachPreferences.userId, sportCoachPreferences.sport],
+          set: { reviewRequestedAt: now },
+        });
   }
-  return closed;
+  return { id: closed.id };
 }
 
 export async function saveManualDraft(
@@ -543,13 +571,15 @@ export async function saveManualDraft(
 ) {
   const blueprint = programBlueprintSchema.parse(input);
   const source = await sourceRevision(db, userId);
-  const active = await getActiveProgram(db, userId);
+  const sport = programmeSport(blueprint);
+  const active = await getActiveProgram(db, userId, sport);
   if (options.id) {
     const draft = await getProgramDraft(db, userId, options.id);
     if (!draft || !["editing", "ready"].includes(draft.status))
       throw new CoachingError("That draft can no longer be edited.");
     if (draft.revision !== options.expectedRevision)
       throw new CoachingError("The draft changed on another device. Reload before editing.");
+    if (sport !== draft.sport) throw new CoachingError("Create a separate draft to change sports.");
     if (draft.baseProgramId !== (active?.id ?? null))
       throw new CoachingError(
         "Your active programme changed. Create a new draft from the current version.",
@@ -574,6 +604,7 @@ export async function saveManualDraft(
     .values({
       userId,
       source: "manual",
+      sport,
       blueprint,
       sourceRevision: source,
       baseProgramId: active?.id ?? null,
@@ -591,14 +622,11 @@ export async function refreshProgramDraft(
   const draft = await getProgramDraft(db, userId, id);
   if (!draft || !["editing", "ready"].includes(draft.status) || draft.revision !== expectedRevision)
     throw new CoachingError("This draft changed. Reload before reviewing it.");
-  const active = await getActiveProgram(db, userId);
-  if (draft.baseProgramId !== (active?.id ?? null))
+  const active = await getActiveProgram(db, userId, draft.sport);
+  if (!draft.standalone && draft.baseProgramId !== (active?.id ?? null))
     throw new CoachingError("Your active programme changed. Create a new draft from it.");
-  const [preference] = await db
-    .select()
-    .from(coachPreferences)
-    .where(eq(coachPreferences.userId, userId));
-  if (draft.intakeId && draft.intakeId !== preference?.intakeId)
+  const preference = await getCoachingPreferences(db, userId, draft.sport);
+  if (!draft.standalone && draft.intakeId && draft.intakeId !== preference?.intakeId)
     throw new CoachingError(
       "Your coaching answers changed. Generate a programme from your latest answers.",
     );
@@ -625,6 +653,48 @@ export async function refreshProgramDraft(
   return saved!;
 }
 
+/** Saving a one-off prescription creates a reusable session, without touching a programme. */
+export async function saveStandaloneDraft(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  revision: number,
+) {
+  const draft = await getProgramDraft(db, userId, id);
+  if (!draft?.standalone) throw new CoachingError("Standalone session not found.", 404);
+  if (draft.status === "activated" && draft.savedSessionId)
+    return { id: draft.savedSessionId, sport: draft.sport };
+  if (draft.status !== "ready" || draft.revision !== revision)
+    throw new CoachingError("Review the latest session before saving it.");
+  if (draft.sourceRevision !== (await sourceRevision(db, userId)))
+    throw new CoachingError(
+      "Your training data changed. Check this session against your current data before saving it.",
+    );
+  const blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
+  let savedId: string;
+  if (draft.sport === "strength") {
+    const day = blueprint.days.find((day) => day.includesLifting);
+    if (!day || blueprint.days.filter((day) => day.includesLifting).length !== 1)
+      throw new CoachingError("A standalone workout needs one session.");
+    savedId = (await saveRoutine(db, userId, blueprint.name, day)).id;
+  } else {
+    const sessions = blueprint.enduranceSessions ?? [];
+    if (sessions.length !== 1) throw new CoachingError("A standalone request needs one session.");
+    savedId = (
+      await createTemplate(db, userId, {
+        sport: draft.sport,
+        name: blueprint.name,
+        prescription: sessions[0]!.prescription,
+      })
+    ).id;
+  }
+  await db
+    .update(programDrafts)
+    .set({ status: "activated", savedSessionId: savedId, closedAt: new Date() })
+    .where(and(eq(programDrafts.id, id), eq(programDrafts.userId, userId)));
+  return { id: savedId, sport: draft.sport };
+}
+
 export async function activateProgramDraft(
   db: DbOrTx,
   userId: string,
@@ -642,12 +712,14 @@ export async function activateProgramDraft(
     return { programId: draft.activatedProgramId, alreadyActivated: true };
   if (draft.status !== "ready" || draft.revision !== input.expectedRevision)
     throw new CoachingError("Review the latest draft before starting it.");
-  await assertNoOpenWorkout(db, userId);
+  if (draft.standalone)
+    throw new CoachingError("Save this as a standalone session instead of activating a programme.");
+  if (draft.sport === "strength") await assertNoOpenWorkout(db, userId);
   if (draft.sourceRevision !== (await sourceRevision(db, userId)))
     throw new CoachingError(
       "Your training data changed. Check this draft against your current data before starting it.",
     );
-  const active = await getActiveProgram(db, userId);
+  const active = await getActiveProgram(db, userId, draft.sport);
   if (draft.baseProgramId !== (active?.id ?? null))
     throw new CoachingError("Your active programme changed while this draft was waiting.");
   let blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
@@ -659,9 +731,24 @@ export async function activateProgramDraft(
     if (!active?.startDate) throw new CoachingError("There is no running block to continue.");
     const current = await readProgramBlueprint(db, userId, active.id);
     priorBlueprint = current?.blueprint ?? null;
+    if (current && draft.sport !== "strength") {
+      const [athlete] = await db
+        .select({ timeZone: profiles.timeZone })
+        .from(profiles)
+        .where(eq(profiles.id, userId));
+      blueprint = await keepEnduranceHistory(
+        db,
+        userId,
+        active.familyId,
+        todayInTimeZone(athlete?.timeZone ?? "UTC"),
+        current.blueprint,
+        blueprint,
+      );
+    }
     if (
       !current ||
-      assessProgramChange(current.blueprint, blueprint, []).structuralChanges.length > 0
+      (draft.sport === "strength" &&
+        assessProgramChange(current.blueprint, blueprint, []).structuralChanges.length > 0)
     )
       throw new CoachingError(
         "This changes the split or schedule. Start it as a new block after reviewing the new days.",
@@ -808,7 +895,12 @@ export async function activateProgramDraft(
     .update(programDrafts)
     .set({ status: "superseded", closedAt: decidedAt })
     .where(
-      and(eq(programDrafts.userId, userId), inArray(programDrafts.status, ["editing", "ready"])),
+      and(
+        eq(programDrafts.userId, userId),
+        eq(programDrafts.sport, draft.sport),
+        eq(programDrafts.standalone, false),
+        inArray(programDrafts.status, ["editing", "ready"]),
+      ),
     )
     .returning({
       id: programDrafts.id,
@@ -843,6 +935,9 @@ export async function activateProgramDraft(
  * should not leave the review landing on a training day.
  */
 async function moveReviewToARestDay(db: DbOrTx, userId: string, blueprint: ProgramBlueprint) {
+  const sport = programmeSport(blueprint);
+  await db.insert(sportCoachPreferences).values({ userId, sport }).onConflictDoNothing();
+  if (sport !== "strength") return;
   await db
     .update(coachPreferences)
     .set({

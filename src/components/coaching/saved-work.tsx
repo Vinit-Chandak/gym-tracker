@@ -4,7 +4,8 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
 import { tidyCoachJobsLater } from "@/server/coach-tidy";
-import { latestIntake } from "@/server/repositories/coach-intakes";
+import { latestIntake, latestSportIntakes } from "@/server/repositories/coach-intakes";
+import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-jobs";
 
@@ -16,14 +17,22 @@ import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-j
  * They are all the same kind of thing: somewhere you were, one tap away. A ruled list says
  * that, and says what each one is waiting on without the reader opening it.
  */
-export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: boolean }) {
+export async function SavedProgrammeWork({
+  onboarding = false,
+  allSports = false,
+}: {
+  onboarding?: boolean;
+  allSports?: boolean;
+}) {
   const user = await requireProfiledUser();
   const [intake, drafts, stored] = await withUser(
     getDb(),
     user.id,
     (tx) =>
       Promise.all([
-        latestIntake(tx, user.id),
+        allSports
+          ? latestSportIntakes(tx, user.id)
+          : latestIntake(tx, user.id).then((intake) => (intake ? [intake] : [])),
         listProgramDrafts(tx, user.id),
         listCoachJobs(tx, user.id),
       ]),
@@ -45,7 +54,8 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
         job.kind === "create_program" && ["queued", "claimed", "needs_input"].includes(job.status),
     )
     .slice(0, 3);
-  if (!intake && !newProgrammes.length && !waiting.length) return null;
+  const intakes = allSports ? intake.filter((entry) => !entry.confirmedAt) : intake;
+  if (!intakes.length && !newProgrammes.length && !waiting.length) return null;
   return (
     <section aria-labelledby="saved-work">
       <h2 id="saved-work" className="caption-head mt-3.5">
@@ -58,7 +68,11 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
             href={`${base}/drafts/${draft.id}` as Route}
             glyph="table"
             label={draft.blueprint.name}
-            sub="A draft programme, ready for you to review and start"
+            sub={
+              draft.standalone
+                ? "A standalone session, ready to review and save"
+                : "A draft programme, ready for you to review and start"
+            }
           />
         ))}
         {waiting.map((job) => (
@@ -75,14 +89,23 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
             badge={job.status === "needs_input" ? "Needs your answer" : undefined}
           />
         ))}
-        {intake && (
+        {intakes.map((intake) => (
           <NavRow
-            href={`${base}/create` as Route}
+            key={intake.id}
+            href={
+              (allSports
+                ? `/training/programmes/new?sport=${intake.sport}&scope=${intake.answers.scope}&method=coach`
+                : `${base}/create`) as Route
+            }
             glyph="note"
-            label="Your answers to the coach"
+            label={
+              allSports
+                ? `${ACTIVITY_SPORT_LABELS[intake.sport]} ${intake.answers.scope} answers`
+                : "Your answers to the coach"
+            }
             sub="Continue where you left off"
           />
-        )}
+        ))}
       </ul>
     </section>
   );

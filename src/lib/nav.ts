@@ -80,9 +80,11 @@ export function isNavItemActive(
           ? "/today"
           : pathname;
   // Profile's sections keep Profile, whether you are in one or a record was opened from one.
-  const sectionPath = UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
-    ? "/profile"
-    : openedFrom;
+  const sectionPath = withinSection(openedFrom, "/profile/programme")
+    ? "/training"
+    : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
+      ? "/profile"
+      : openedFrom;
   return withinSection(sectionPath, href);
 }
 

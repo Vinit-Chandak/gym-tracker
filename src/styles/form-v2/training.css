@@ -4,6 +4,33 @@
  */
 
 /* ---------- the cycle ---------- */
+.programme-card-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(24rem, calc((100% - 14 * var(--ov-u)) / 2))), 1fr)
+  );
+  gap: calc(14 * var(--ov-u));
+}
+.programme-card-grid > * {
+  min-width: 0;
+}
+.start-tiles.training-log-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.training-log {
+  container: training-log / inline-size;
+}
+@container training-log (width < 14rem) {
+  .start-tiles.training-log-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container training-log (width >= 32rem) {
+  .start-tiles.training-log-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 /* The programme's name, which opens it, and how far through it is, on one line. */
 .cycle-head {
   display: flex;

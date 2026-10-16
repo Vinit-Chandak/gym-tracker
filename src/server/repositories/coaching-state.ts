@@ -1,5 +1,12 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { coachPreferences, coachSourceRevisions, profiles, workoutSessions } from "@/db/schema";
+import {
+  coachPreferences,
+  sportCoachPreferences,
+  coachSourceRevisions,
+  profiles,
+  workoutSessions,
+} from "@/db/schema";
+import type { ActivitySport } from "@/domain/activity";
 import type { DbOrTx } from "@/db/types";
 
 export class CoachingError extends Error {
@@ -48,7 +55,19 @@ export async function assertCoachEnabled(db: DbOrTx, userId: string) {
     throw new CoachingError("The AI coach is switched off for this account.", 403);
   return profile;
 }
-export async function getCoachingPreferences(db: DbOrTx, userId: string) {
+export async function getCoachingPreferences(
+  db: DbOrTx,
+  userId: string,
+  sport: ActivitySport = "strength",
+) {
   const [row] = await db.select().from(coachPreferences).where(eq(coachPreferences.userId, userId));
-  return row ?? null;
+  // Lifting retains its existing intake and review clock. The shared row also owns the
+  // account-wide coaching switch; endurance clocks never overwrite these legacy fields.
+  if (sport === "strength") return row ?? null;
+  const [specific] = await db
+    .select()
+    .from(sportCoachPreferences)
+    .where(and(eq(sportCoachPreferences.userId, userId), eq(sportCoachPreferences.sport, sport)));
+  if (specific) return { ...row, mode: row?.mode ?? ("coach" as const), ...specific };
+  return row ? { ...row, intakeId: null, reviewAnchorAt: null, reviewRequestedAt: null } : null;
 }

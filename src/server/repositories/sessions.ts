@@ -94,6 +94,7 @@ export class SessionHasSetsError extends Error {
 }
 
 export type SessionSummary = {
+  loggedRetrospectively?: boolean;
   id: string;
   gymId: string;
   gymName: string;
@@ -115,6 +116,7 @@ export type SessionSummary = {
 
 function summarySelection() {
   return {
+    loggedRetrospectively: workoutSessions.loggedRetrospectively,
     id: workoutSessions.id,
     gymId: workoutSessions.gymId,
     gymName: gyms.name,
@@ -186,6 +188,7 @@ export type StartPlannedInput = {
   gymId: string;
   programDayId: string;
   cycleIndex: number;
+  startedAt?: Date;
 };
 
 /**
@@ -228,6 +231,8 @@ export async function startPlannedSession(
         programDayId: day.id,
         gymId: input.gymId,
         cycleIndex: input.cycleIndex,
+        startedAt: input.startedAt,
+        loggedRetrospectively: input.startedAt !== undefined,
       })
       .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt }),
   ]);
@@ -324,13 +329,18 @@ export async function startPlannedSession(
 export async function startAdHocSession(
   db: DbOrTx,
   userId: string,
-  input: { gymId: string; title?: string | null },
+  input: { gymId: string; title?: string | null; startedAt?: Date },
 ): Promise<{ sessionId: string }> {
   const gym = await getGym(db, userId, input.gymId);
   if (!gym || !gym.isActive) throw new SessionNotFoundError();
   const [session] = await db
     .insert(workoutSessions)
-    .values({ userId, gymId: input.gymId })
+    .values({
+      userId,
+      gymId: input.gymId,
+      startedAt: input.startedAt,
+      loggedRetrospectively: input.startedAt !== undefined,
+    })
     .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt });
   if (!session) throw new Error("Session insert returned no row");
   await openStrengthParent(db, userId, { ...session, title: input.title ?? null });
@@ -472,6 +482,7 @@ export type ExerciseDefaultsVM = {
 };
 
 export type SessionDetail = {
+  loggedRetrospectively?: boolean;
   id: string;
   gym: { id: string; name: string; kind: typeof gyms.$inferSelect.kind };
   day: {
@@ -953,6 +964,7 @@ export async function getSessionDetail(
       ? cycleCount(session.programWeeks ?? 8, session.programDays, session.programRepeats)
       : null,
     startedAt: session.session.startedAt,
+    loggedRetrospectively: session.session.loggedRetrospectively,
     completedAt: session.session.completedAt,
     bodyWeightKg: session.session.bodyWeightKg,
     sleepHours: session.session.sleepHours,
@@ -963,7 +975,8 @@ export async function getSessionDetail(
     warmupCompleted: session.session.warmupCompleted,
     notes: session.session.notes,
     warmup,
-    restTimerEnabled: profile?.restTimerEnabled ?? false,
+    restTimerEnabled:
+      !session.session.loggedRetrospectively && (profile?.restTimerEnabled ?? false),
     warnings,
     coachPlan: coachPlan
       ? {
@@ -982,6 +995,7 @@ async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string)
       id: workoutSessions.id,
       gymId: workoutSessions.gymId,
       completedAt: workoutSessions.completedAt,
+      startedAt: workoutSessions.startedAt,
     })
     .from(workoutSessions)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
@@ -1662,6 +1676,7 @@ export async function addExerciseToSession(
 }
 
 export type FinishInput = {
+  completedAt?: Date;
   notes: string | null;
   bodyWeightKg: number | null;
   /**
@@ -1704,13 +1719,22 @@ export async function finishSession(
   sessionId: string,
   input: FinishInput,
 ): Promise<FinishedSession> {
-  await requireOpenSession(db, userId, sessionId);
+  const session = await requireOpenSession(db, userId, sessionId);
   const now = new Date();
   // Its end is what every duration reads (the summary, History, the activity, friends), so a
   // workout left open overnight and finished as of its last set reads start to last set in all.
-  const completedAt = input.asOfLastSet
-    ? finishedAsOf(await sessionLastSetAt(db, sessionId), now)
-    : now;
+  if (
+    input.completedAt &&
+    (!Number.isFinite(input.completedAt.getTime()) ||
+      input.completedAt > now ||
+      input.completedAt < session.startedAt)
+  )
+    throw new WorkoutSelectionError(
+      "The finish must be after this workout started and no later than now.",
+    );
+  const completedAt =
+    input.completedAt ??
+    (input.asOfLastSet ? finishedAsOf(await sessionLastSetAt(db, sessionId), now) : now);
   const [row] = await db
     .update(workoutSessions)
     .set({ completedAt, notes: input.notes, bodyWeightKg: input.bodyWeightKg })

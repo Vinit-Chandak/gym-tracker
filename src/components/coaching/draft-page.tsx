@@ -21,6 +21,7 @@ import { getProgramDraft, type ProgramDraft } from "@/server/repositories/progra
 import { readProgramBlueprint } from "@/server/repositories/programs";
 import { getSchedule } from "@/server/repositories/schedule";
 import { sourceRevision } from "@/server/repositories/coaching-state";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { ChangeDetail } from "./change-detail";
 import { DraftPreview } from "./draft-preview";
 
@@ -90,6 +91,7 @@ export async function ProgrammeDraftPage({
           ? progress(schedule.state).currentCycle
           : 1;
       return {
+        units: await readSportUnits(tx, user.id),
         draft,
         library,
         machines,
@@ -100,7 +102,8 @@ export async function ProgrammeDraftPage({
         // Structural changes cannot continue the running block; the athlete is told so rather
         // than being offered a choice the server would refuse.
         canContinue: current
-          ? assessProgramChange(current.blueprint, draft.blueprint, library).structuralChanges
+          ? draft.sport !== "strength" ||
+            assessProgramChange(current.blueprint, draft.blueprint, library).structuralChanges
               .length === 0
           : false,
       };
@@ -110,10 +113,13 @@ export async function ProgrammeDraftPage({
   if (!data) notFound();
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   const today = todayInTimeZone(profile.timeZone);
-  if (!data.currentBlueprint)
+  if (!data.currentBlueprint || data.draft.standalone)
     return (
       <>
-        <PageHeader title="Review programme" backHref={base} />
+        <PageHeader
+          title={data.draft.standalone ? "Review session" : "Review programme"}
+          backHref={onboarding ? base : "/training"}
+        />
         <PageContent>
           <DraftPreview
             draft={data.draft}
@@ -124,6 +130,7 @@ export async function ProgrammeDraftPage({
             today={today}
             preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
             length={setLengthFor(profile)}
+            units={data.units}
           />
         </PageContent>
       </>
@@ -162,6 +169,7 @@ export async function ProgrammeDraftPage({
             }))}
           today={today}
           base={base}
+          sport={data.draft.sport}
         />
       </div>
     </>

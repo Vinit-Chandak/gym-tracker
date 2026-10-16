@@ -1,5 +1,11 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { coachIntakes, equipmentInstances, type CoachingChangeRecord } from "@/db/schema";
+import {
+  coachIntakes,
+  equipmentInstances,
+  programDays,
+  programRuns,
+  type CoachingChangeRecord,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
@@ -927,7 +933,35 @@ export async function assessSessionEvidence(
     try {
       const run = result.plan.run;
       if (run.rpe === null) plan.stop("Include the target effort for the run, out of five.");
-      const runPrescription = context.slot.runTarget;
+      // A retained legacy result may still name the original run row. Assess it against
+      // that exact owned prescription, independently of strength's current progression.
+      const [legacyRun] =
+        !context.slot.runTarget && run.programRunId
+          ? await db
+              .select({ prescription: programRuns })
+              .from(programRuns)
+              .innerJoin(
+                programDays,
+                and(
+                  eq(programDays.programId, programRuns.programId),
+                  eq(programDays.dayOfWeek, programRuns.dayOfWeek),
+                ),
+              )
+              .where(
+                and(
+                  eq(programRuns.id, run.programRunId),
+                  eq(programRuns.userId, userId),
+                  eq(
+                    programRuns.programId,
+                    target.programId ?? "00000000-0000-4000-8000-000000000000",
+                  ),
+                  eq(programRuns.weekIndex, target.cycleIndex ?? -1),
+                  eq(programDays.dayIndex, target.dayIndex ?? -1),
+                ),
+              )
+              .limit(1)
+          : [];
+      const runPrescription = context.slot.runTarget ?? legacyRun?.prescription;
       if (
         runPrescription &&
         ((runPrescription.rpeMax != null && run.rpe > runPrescription.rpeMax) ||

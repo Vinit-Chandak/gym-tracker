@@ -8,6 +8,7 @@ import {
 import { rangeLabel, restLabel, WEEKDAY_NAMES } from "@/lib/labels";
 import { cycleRepeatLabel, programLengthLabel } from "./cycle-repeat";
 import { exerciseTargets } from "./exercise-targets";
+import { describePrescription } from "./activity-prescription";
 
 export { exerciseTargets } from "./exercise-targets";
 
@@ -377,6 +378,22 @@ export function diffPrograms(base: unknown, proposed: unknown): ProgramDiff {
   const before = normalise(base);
   const after = normalise(proposed);
   const program = programFields(before, after);
+  const sessionText = (plan: ProgramBlueprint) =>
+    (plan.enduranceSessions ?? [])
+      .map(
+        (session) =>
+          `Week ${session.weekIndex}, day ${session.dayOffset + 1}${session.name ? ` · ${session.name}` : ""}: ${describePrescription(session.prescription, { distanceUnit: "km", poolUnit: "m" })}${session.prescription.instructions ? ` · ${session.prescription.instructions}` : ""}`,
+      )
+      .join("\n") || "None";
+  if (
+    JSON.stringify(before.enduranceSessions ?? []) !== JSON.stringify(after.enduranceSessions ?? [])
+  )
+    program.push({
+      field: "enduranceSessions",
+      label: "Scheduled sessions",
+      from: sessionText(before),
+      to: sessionText(after),
+    });
 
   const beforeSlots = slotsOf(before);
   const afterSlots = slotsOf(after);

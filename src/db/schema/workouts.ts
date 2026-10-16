@@ -43,6 +43,8 @@ export const workoutSessions = pgTable(
     /** Programme cycle this planned session belongs to; null for ad hoc sessions. */
     cycleIndex: integer("cycle_index"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Entered after training through Training's date chooser, rather than recorded live. */
+    loggedRetrospectively: boolean("logged_retrospectively").notNull().default(false),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     bodyWeightKg: numeric("body_weight_kg", { precision: 5, scale: 2, mode: "number" }),
     sleepHours: numeric("sleep_hours", { precision: 4, scale: 2, mode: "number" }),

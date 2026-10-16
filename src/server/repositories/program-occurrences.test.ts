@@ -145,7 +145,7 @@ describe("starting a template", () => {
    * No run had an occurrence, so the third day's run could never be answered, and the athlete
    * was offered "Easy Run + Arms" every day from then on.
    */
-  it("gives its runs occurrences, so the sequence passes the first running day", async () => {
+  it("retains legacy run occurrences while lifting advances without answering them", async () => {
     const a = await athlete();
     const created = await adopt(a, today);
 
@@ -160,7 +160,7 @@ describe("starting a template", () => {
           occurredOn: today,
         }),
       );
-    expect(await position(a)).toEqual({ cycleIndex: 1, dayIndex: 3 });
+    expect(await position(a)).toEqual({ cycleIndex: 1, dayIndex: 4 });
 
     const run = await runFor(a, created.familyId, { cycleIndex: 1, dayIndex: 3 });
     expect(run.sport).toBe("running");
@@ -393,7 +393,7 @@ describe("changing a programme an athlete is behind on", () => {
 });
 
 describe("repairing a programme started without occurrences", () => {
-  it("writes them once, as the programme would have had them", async () => {
+  it("repairs dated endurance programmes once without recreating runs inside lifting", async () => {
     const a = await athlete();
     // The old template path: the programme's rows and nothing else.
     const created = await as(a, (tx) =>
@@ -401,13 +401,21 @@ describe("repairing a programme started without occurrences", () => {
     );
     expect(await familyOccurrences(a, created.familyId)).toEqual([]);
 
+    expect(await materialiseMissingOccurrences(t.db)).toEqual({
+      programmes: 0,
+      occurrences: 0,
+      failed: [],
+    });
+    // A legacy running programme retained its raw prescriptions after the sport split.
+    await t.db.update(programs).set({ sport: "running" }).where(eq(programs.id, created.id));
+
     const repaired = await materialiseMissingOccurrences(t.db);
     expect(repaired.failed).toEqual([]);
     expect(repaired.programmes).toBe(1);
     expect(repaired.occurrences).toBe(HYBRID.runs.length);
     const rows = await familyOccurrences(a, created.familyId);
     expect(rows).toHaveLength(HYBRID.runs.length);
-    expect(new Set(rows.map((row) => row.cycleDayIndex))).toEqual(new Set(RUN_DAYS));
+    expect(new Set(rows.map((row) => row.cycleDayIndex))).toEqual(new Set([null]));
 
     // Nothing is left to repair, so a second deploy writes nothing.
     expect(await materialiseMissingOccurrences(t.db)).toEqual({

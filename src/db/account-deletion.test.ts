@@ -63,6 +63,8 @@ it("leaves nothing but the shared catalogues without an owner", async () => {
   expect(rows.rows.map((row) => row.table_name)).toEqual([
     // What a kind of location is assumed to have (ADR 0041): shared reference data.
     "assumed_equipment_types",
+    // Provider liveness metadata shared across accounts, with no athlete payload.
+    "coach_primary_batches",
     // The deploy script's ledger of one-off backfills: names and dates, nothing anyone owns.
     "data_backfills",
     // Combination machines and the machines step's presets: shared catalogue rows.
