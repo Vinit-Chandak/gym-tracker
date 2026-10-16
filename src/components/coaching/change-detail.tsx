@@ -12,6 +12,7 @@ import { Field, Input } from "@/components/ui/input";
 import { NavRow } from "@/components/ui/nav-row";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
+import type { ActivitySport } from "@/domain/activity";
 import type { ChangeSummary } from "@/domain/program-change-summary";
 import {
   approveProgramChangeAction,
@@ -31,6 +32,7 @@ export type ChangeRequestTag = {
 };
 
 export type ChangeDetailProps = {
+  sport?: ActivitySport;
   draftId: string;
   revision: number;
   /** `coach` is a proposal waiting on approval; `manual` is the athlete's own edit. */
@@ -109,7 +111,12 @@ export function ChangeDetail(props: ChangeDetailProps) {
     else setError(result.error ?? "Could not save this change. Please retry.");
     setSaving(false);
   };
-  const back = () => startNavigation(() => router.push(`${props.base}?view=changes` as Route));
+  const back = () =>
+    startNavigation(() =>
+      router.push(
+        props.base === "/profile/programme" ? "/training" : (`${props.base}?view=changes` as Route),
+      ),
+    );
 
   return (
     <div>
@@ -246,7 +253,11 @@ export function ChangeDetail(props: ChangeDetailProps) {
                 </button>
               ) : (
                 <Link
-                  href={`${props.base}/manual?draft=${props.draftId}` as Route}
+                  href={
+                    (props.sport && props.sport !== "strength"
+                      ? `/training/programmes/${props.sport}/edit?draft=${props.draftId}`
+                      : `${props.base}/manual?draft=${props.draftId}`) as Route
+                  }
                   className="text-action"
                 >
                   Edit

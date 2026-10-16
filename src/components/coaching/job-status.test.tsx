@@ -28,7 +28,9 @@ it("shows a successful review with no changes without inventing a draft or askin
 it("still offers the draft when one was produced", () => {
   render(
     <CoachJobStatus
-      job={{ status: "succeeded", kind: "review_program" } as CoachJob}
+      job={
+        { status: "succeeded", kind: "review_program", target: { scope: "programme" } } as CoachJob
+      }
       draftId="draft"
       base="/profile/programme"
     />,

@@ -65,6 +65,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         .where(
           and(
             eq(programDrafts.userId, userId),
+            eq(programDrafts.sport, "strength"),
             inArray(programDrafts.status, ["editing", "ready"]),
             isNotNull(programDrafts.baseProgramId),
           ),
@@ -85,6 +86,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         .where(
           and(
             eq(coachWeeklyReviews.userId, userId),
+            eq(coachWeeklyReviews.sport, "strength"),
             eq(coachWeeklyReviews.outcome, "automatic"),
             gte(coachWeeklyReviews.completedAt, since),
           ),
@@ -108,7 +110,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       db
         .select({ completedAt: coachWeeklyReviews.completedAt })
         .from(coachWeeklyReviews)
-        .where(eq(coachWeeklyReviews.userId, userId))
+        .where(and(eq(coachWeeklyReviews.userId, userId), eq(coachWeeklyReviews.sport, "strength")))
         .orderBy(desc(coachWeeklyReviews.completedAt))
         .limit(1),
       athleteReviewStatus(db, userId),

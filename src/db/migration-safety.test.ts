@@ -48,48 +48,48 @@ it("validates a fresh database against the actual application schema", async () 
 });
 
 it("repairs the existing-database upgrade that skipped 0035, without changing job state or retrying work", async () => {
-  const user = await t.createAuthUser("migration-upgrade@example.test");
-  const [job] = await t.db
-    .insert(coachJobs)
-    .values({
-      userId: user.id,
-      kind: "prepare_session",
-      trigger: "daily",
-      dedupeKey: "upgrade",
+  const upgrade = await createTestDatabase({ throughMigration: 34 });
+  try {
+    const t = upgrade;
+    const user = await t.createAuthUser("migration-upgrade@example.test");
+    const jobId = crypto.randomUUID();
+    await t.client.query(
+      `INSERT INTO coach_jobs (id, user_id, kind, trigger, dedupe_key, status, attempts, target, error)
+    VALUES ($1, $2, 'prepare_session', 'daily', 'upgrade', 'failed', 3, $3, 'Retained failure')`,
+      [jobId, user.id, JSON.stringify(jobTargetSchema.parse({}))],
+    );
+    await expect(assertDatabaseSchema(t.db)).rejects.toThrow("public.coach_jobs.attempt_budget");
+
+    await migrate(t.db, { migrationsFolder: "src/db/migrations" });
+    await expect(assertDatabaseSchema(t.db)).resolves.toBeUndefined();
+    const [repaired] = await t.db.select().from(coachJobs).where(eq(coachJobs.id, jobId));
+    expect(repaired).toMatchObject({
+      id: jobId,
       status: "failed",
       attempts: 3,
-      target: jobTargetSchema.parse({}),
       error: "Retained failure",
-    })
-    .returning();
-  // Recreate production's state: 0034 is recorded, 0035 has never run, and 0036 is new.
-  await t.client.exec("ALTER TABLE coach_jobs DROP COLUMN attempt_budget");
-  await t.client.query(
-    "DELETE FROM drizzle.__drizzle_migrations WHERE created_at = ANY($1::bigint[])",
-    [journal.entries.filter((entry) => entry.idx >= 35).map((entry) => entry.when)],
-  );
-  await expect(assertDatabaseSchema(t.db)).rejects.toThrow("public.coach_jobs.attempt_budget");
+      attemptBudget: 3,
+      target: jobTargetSchema.parse({}),
+    });
+    const { rows } = await t.client.query<{ created_at: number }>(
+      "SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 1",
+    );
+    expect(Number(rows[0]!.created_at)).toBe(journal.entries.at(-1)!.when);
 
-  await migrate(t.db, { migrationsFolder: "src/db/migrations" });
-  await expect(assertDatabaseSchema(t.db)).resolves.toBeUndefined();
-  const [repaired] = await t.db.select().from(coachJobs).where(eq(coachJobs.id, job!.id));
-  expect(repaired).toEqual(job);
-  const { rows } = await t.client.query<{ created_at: number }>(
-    "SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 1",
-  );
-  expect(Number(rows[0]!.created_at)).toBe(journal.entries.at(-1)!.when);
-
-  // Fresh installations already ran 0035. Replaying the repair must not reset a raised budget.
-  const [raisedBudgetJob] = await t.db
-    .update(coachJobs)
-    .set({ attemptBudget: 6 })
-    .where(eq(coachJobs.id, job!.id))
-    .returning();
-  await t.client.exec(
-    await readFile("src/db/migrations/0036_repair_coach_attempt_budget.sql", "utf8"),
-  );
-  await migrate(t.db, { migrationsFolder: "src/db/migrations" });
-  expect((await t.db.select().from(coachJobs).where(eq(coachJobs.id, job!.id)))[0]).toEqual(
-    raisedBudgetJob,
-  );
+    // Fresh installations already ran 0035. Replaying the repair must not reset a raised budget.
+    const [raisedBudgetJob] = await t.db
+      .update(coachJobs)
+      .set({ attemptBudget: 6 })
+      .where(eq(coachJobs.id, jobId))
+      .returning();
+    await t.client.exec(
+      await readFile("src/db/migrations/0036_repair_coach_attempt_budget.sql", "utf8"),
+    );
+    await migrate(t.db, { migrationsFolder: "src/db/migrations" });
+    expect((await t.db.select().from(coachJobs).where(eq(coachJobs.id, jobId)))[0]).toEqual(
+      raisedBudgetJob,
+    );
+  } finally {
+    await upgrade.close();
+  }
 });

@@ -1,0 +1,1 @@
+ALTER TABLE "program_drafts" ADD COLUMN "saved_session_id" uuid;

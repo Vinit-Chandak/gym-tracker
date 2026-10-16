@@ -28,7 +28,7 @@ function walk(dir: string): string[] {
 
 it("breaks a word only where it cannot fit a line of its own", () => {
   const offenders = walk(SRC).flatMap((path) => {
-    const file = relative(SRC, path);
+    const file = relative(SRC, path).replaceAll("\\", "/");
     const source = readFileSync(path, "utf8");
     const found: string[] = [];
     if (file.endsWith(".css")) {

@@ -28,6 +28,12 @@ vi.mock("@/server/repositories/occurrences", () => ({
   standaloneSchedule: async () => ({ upcoming: [], earlier: [] }),
 }));
 vi.mock("@/server/repositories/schedule", () => ({ getProgramOverview: async () => null }));
+vi.mock("@/server/repositories/sport-programmes", () => ({ programmeCards: async () => [] }));
+vi.mock("@/components/coaching/saved-work", () => ({ SavedProgrammeWork: () => null }));
+vi.mock("@/server/queries/set-changes", () => ({ seenSetChanges: async () => 0 }));
+vi.mock("@/components/fresh-after-sets", () => ({
+  FreshAfterSets: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("@/server/repositories/sport-preferences", () => ({
   enabledSportsFor: async () => mocks.enabled,
   unitsBySport: async () => ({}),
@@ -60,7 +66,8 @@ it("offers scheduling only to an athlete with a run, ride or swim on", async () 
 
   mocks.enabled = ["strength", "running"];
   expect(renderToStaticMarkup(await ScheduledPage())).toContain('href="/training/schedule"');
-  expect(renderToStaticMarkup(await TrainingPage())).toContain(
-    'href="/training/schedule" aria-label="Schedule an activity"',
-  );
+  const hub = renderToStaticMarkup(await TrainingPage());
+  for (const sport of ["strength", "running", "cycling", "swimming"])
+    expect(hub).toContain(`href="/training/log?sport=${sport}"`);
+  expect(hub).not.toContain("No running programme");
 });

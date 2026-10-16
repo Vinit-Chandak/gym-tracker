@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { fromDateTimeLocal } from "@/lib/time";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
@@ -35,7 +37,14 @@ function startRequest(search: Search): StartRequest | null {
   if (programDayId === undefined) return { kind: "unplanned", gymId };
   const dayIndex = whole(search.index);
   if (dayIndex === undefined) return null;
-  return { kind: "planned", gymId, programDayId, dayIndex, fromCycleIndex: whole(search.cycle) };
+  return {
+    kind: "planned",
+    gymId,
+    programDayId,
+    dayIndex,
+    fromCycleIndex: whole(search.cycle),
+    exactCycleIndex: whole(search.exactCycle),
+  };
 }
 
 const EMPTY = { sleepHours: "", sleepQuality: "", fatigue: "", soreness: "" };
@@ -47,8 +56,17 @@ const EMPTY = { sleepHours: "", sleepQuality: "", fatigue: "", soreness: "" };
  */
 export default async function StartPage(props: PageProps<"/workouts/start">) {
   const user = await requireUser();
-  const start = startRequest(await props.searchParams);
+  const search = await props.searchParams;
+  const start = startRequest(search);
   if (!start) redirect("/today");
+  if (search.date !== undefined || search.time !== undefined) {
+    const profile = await getRequestProfile(user.id, user.email);
+    const at = fromDateTimeLocal(`${one(search.date)}T${one(search.time)}`, profile.timeZone, {
+      rejectNonexistent: true,
+    });
+    if (!at || at > new Date()) notFound();
+    start.startedAt = at.toISOString();
+  }
   const [open, { schedule, sleep }] = await Promise.all([
     getActiveSession(user.id),
     withUser(
@@ -75,15 +93,23 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
 
   return (
     <SessionPage
-      title="How are you today?"
-      meta={joinFacts([`Before ${name}`, "Optional"])}
-      back={{ href: "/today", label: "Today" }}
+      title={start.startedAt ? "Log this workout" : "How are you today?"}
+      meta={joinFacts([
+        start.startedAt ? `${one(search.date)} · ${name}` : `Before ${name}`,
+        "Optional recovery check-in",
+      ])}
+      back={
+        one(search.origin) === "training"
+          ? { href: "/training", label: "Training" }
+          : { href: "/today", label: "Today" }
+      }
     >
       <CheckInForm
         action={startSessionAction.bind(null, start)}
         initial={EMPTY}
         mode="start"
-        lastSleepHours={sleep}
+        lastSleepHours={start.startedAt ? null : sleep}
+        retrospective={Boolean(start.startedAt)}
       />
     </SessionPage>
   );

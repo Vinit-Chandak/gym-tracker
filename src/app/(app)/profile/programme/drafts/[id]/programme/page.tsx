@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PageContent } from "@/components/shell/page-content";
+import { ActivityPlan } from "@/components/activities/activity-plan";
 import { PageHeader } from "@/components/shell/page-header";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -127,6 +128,33 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
     { readOnly: true },
   );
   if (!data) notFound();
+  if (data.draft.sport !== "strength")
+    return (
+      <>
+        <PageHeader
+          title={data.draft.blueprint.name}
+          backHref={`/profile/programme/drafts/${data.draft.id}`}
+        />
+        <PageContent>
+          {(data.draft.blueprint.enduranceSessions ?? []).map((session, index) => (
+            <section
+              key={`${session.lineageId}:${session.weekIndex}:${index}`}
+              className="space-y-2"
+            >
+              <h2 className="font-medium">
+                Week {session.weekIndex} · Day {session.dayOffset + 1}
+              </h2>
+              <ActivityPlan
+                sport={session.prescription.sport}
+                prescription={session.prescription}
+                units={data.runUnits}
+                showSource={false}
+              />
+            </section>
+          ))}
+        </PageContent>
+      </>
+    );
   const days = daysOf(
     data.draft.blueprint,
     new Map(data.library.map((row) => [row.slug, { name: row.name, modality: row.modality }])),

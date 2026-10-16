@@ -24,6 +24,8 @@ type Props = {
   nothingLogged?: boolean;
   /** Left open, the last set's time ("19:30"): Finish ends the workout there, and says so. */
   asOf?: string | null;
+  recordedStart?: string;
+  latestFinish?: string;
 };
 
 export function FinishForm({
@@ -35,6 +37,8 @@ export function FinishForm({
   sessionId,
   nothingLogged = false,
   asOf = null,
+  recordedStart,
+  latestFinish,
 }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -50,6 +54,18 @@ export function FinishForm({
   };
   return (
     <form action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
+      {recordedStart && (
+        <Field label="Finished at" hint="Enter when this workout actually ended.">
+          <Input
+            name="finishedAt"
+            type="datetime-local"
+            min={recordedStart}
+            max={latestFinish}
+            defaultValue={state.values?.finishedAt ?? ""}
+            required
+          />
+        </Field>
+      )}
       {/* Say that the coach reads this. It always could, and people wrote requests here
           expecting an answer; a field that looks like a diary should not be one. */}
       <Field label="Notes" hint="Your coach reads these" error={state.fieldErrors?.notes}>

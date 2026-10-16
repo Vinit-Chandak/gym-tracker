@@ -149,7 +149,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
 
   return (
     <>
-      <PageHeader title="Programme" backHref="/profile" />
+      <PageHeader title="Lifting programme" backHref="/training" />
       <PageContent>
         <SavedProgrammeWork />
         {overview ? (

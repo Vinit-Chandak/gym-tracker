@@ -23,9 +23,18 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn(), unstable_rethrow: vi.fn()
 
 import { startRoutineAction } from "./manual-training";
 import { refreshScreenAction } from "./refresh";
+import { copyProgramAction } from "./coaching-workflow";
 import { deleteSetAction, logSetAction, setExerciseCompletedAction } from "./sessions";
 
 beforeEach(() => vi.resetAllMocks());
+
+it("discards Training's cached programme cards and child screens after making a programme draft", async () => {
+  mocks.withUser.mockResolvedValue({ id: "00000000-0000-4000-8000-000000000004", revision: 1 });
+  expect(await copyProgramAction("00000000-0000-4000-8000-000000000003", false)).toMatchObject({
+    ok: true,
+  });
+  expect(mocks.revalidatePath).toHaveBeenCalledWith("/training", "layout");
+});
 
 const set = {
   id: "00000000-0000-4000-8000-000000000003",

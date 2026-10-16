@@ -267,7 +267,13 @@ export function changedFields(
 }
 
 /** When it started is one answer, in three fields: the time, which of a repeated hour, the zone. */
-const START_FIELDS = ["startedAt", "startedAtOffsetMinutes", "recordedTimeZone"];
+const START_FIELDS = [
+  "startedAt",
+  "startedAtOffsetMinutes",
+  "recordedTimeZone",
+  "entryDate",
+  "entryTime",
+];
 
 /**
  * A stored draft brought up to date with the form it reopens into.

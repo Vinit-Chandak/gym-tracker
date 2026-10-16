@@ -2,8 +2,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { cycleCount } from "@/domain/cycle-repeat";
-import type { OccurrenceDisposition } from "@/domain/occurrences";
 import type { PrintedSession } from "@/domain/session-print";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -26,11 +26,9 @@ import {
   type Progress,
   type ScheduleState,
   type SlotEvent,
-  type SlotOccurrence,
   type SlotRef,
   type SlotStatus,
   type Suggestion,
-  withDerivedRunEvents,
 } from "@/domain/schedule";
 import type { CycleRepeat, ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
@@ -39,7 +37,9 @@ import { skipSlotOccurrences } from "./occurrences";
 import { readSlotPrints } from "./session-prints";
 
 export type ActiveProgram = {
+  splitFromProgramId?: string | null;
   id: string;
+  sport?: ActivitySport;
   /** The lineage across versions: what an occurrence belongs to, rather than one version. */
   familyId: string;
   name: string;
@@ -55,10 +55,16 @@ export type ActiveProgram = {
   notes: string | null;
 };
 
-export async function getActiveProgram(db: DbOrTx, userId: string): Promise<ActiveProgram | null> {
+export async function getActiveProgram(
+  db: DbOrTx,
+  userId: string,
+  sport: ActivitySport = "strength",
+): Promise<ActiveProgram | null> {
   const [row] = await db
     .select({
       id: programs.id,
+      sport: programs.sport,
+      splitFromProgramId: programs.splitFromProgramId,
       familyId: programs.familyId,
       name: programs.name,
       slug: programs.slug,
@@ -71,12 +77,18 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
       dayCount: sql<number>`(select count(*)::int from program_days d where d.program_id = programs.id)`,
     })
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(eq(programs.userId, userId), eq(programs.sport, sport), eq(programs.status, "active")),
+    )
     .limit(1);
   if (!row) return null;
   const { dayCount, ...program } = row;
   const weeks = row.weeks ?? 8;
-  return { ...program, weeks, cycles: cycleCount(weeks, dayCount, row.repeats) };
+  return {
+    ...program,
+    weeks,
+    cycles: row.sport === "strength" ? cycleCount(weeks, dayCount, row.repeats) : weeks,
+  };
 }
 
 export type ScheduleDay = {
@@ -104,10 +116,15 @@ export type Schedule = {
  * come back as JSON built by Postgres, so nothing waits for the programme id to come back before
  * asking for them. Row Level Security applies inside the subqueries exactly as it would outside.
  */
-export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule | null> {
+export async function getSchedule(
+  db: DbOrTx,
+  userId: string,
+  sport: ActivitySport = "strength",
+): Promise<Schedule | null> {
   const [row] = await db
     .select({
       id: programs.id,
+      sport: programs.sport,
       familyId: programs.familyId,
       name: programs.name,
       slug: programs.slug,
@@ -144,47 +161,16 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         ))
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
-      // The programme's own endurance work, as the sequence needs to read it: which slot of
-      // the cycle it belongs to, whether anything still owes an answer, the day a logged one
-      // was done on, and the day a skipped one was skipped: its last skip's date, or, for a
-      // skip made on its page, which carries none, the athlete's date it was made on. Joined
-      // here rather than fetched after, so the day a running slot completes costs no extra
-      // round trip.
-      enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
-        select json_agg(json_build_object(
-          'cycleIndex', o.cycle_index,
-          'cycleDayIndex', o.cycle_day_index,
-          'disposition', o.disposition,
-          'logged', (a.id is not null),
-          'occurredOn', a.occurred_on,
-          'skippedOn', case when o.disposition = 'skipped' then (
-            select coalesce(
-              e.occurred_on,
-              (e.created_at at time zone (
-                select p.time_zone from profiles p where p.id = o.user_id
-              ))::date
-            )
-            from occurrence_events e
-            where e.user_id = o.user_id and e.occurrence_id = o.id and e.kind = 'skipped'
-            order by e.created_at desc
-            limit 1
-          ) end
-        ))
-        from planned_occurrences o
-        left join activities a
-          on a.occurrence_id = o.id and a.user_id = o.user_id
-        where o.user_id = programs.user_id
-          and o.family_id = programs.family_id
-          and o.cycle_index is not null
-          and o.cycle_day_index is not null
-      ), '[]'::json)`,
     })
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(eq(programs.userId, userId), eq(programs.sport, sport), eq(programs.status, "active")),
+    )
     .limit(1);
   if (!row) return null;
   const program: ActiveProgram = {
     id: row.id,
+    sport: row.sport,
     familyId: row.familyId,
     name: row.name,
     slug: row.slug,
@@ -198,70 +184,21 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
   };
   return {
     program,
-    days: row.days,
+    days: row.days.map((day) => ({ ...day, includesRun: false })),
     state: {
       slots: row.days.map((d) => ({
         dayIndex: d.dayIndex,
         name: d.name,
         includesLifting: d.includesLifting,
-        includesRun: d.includesRun,
+        includesRun: false,
         dayOfWeek: d.dayOfWeek,
       })),
       cycles: program.cycles,
       repeats: program.repeats,
       startDayIndex: program.startDayIndex,
-      events: withDerivedRunEvents(row.events, slotOccurrences(row.days, row.enduranceOccurrences)),
+      events: row.events.filter((event) => event.part === "session"),
     },
   };
-}
-
-/** One programme occurrence as the schedule query returns it. */
-type EnduranceRow = {
-  cycleIndex: number;
-  cycleDayIndex: number;
-  disposition: OccurrenceDisposition;
-  logged: boolean;
-  /** The local date of the activity that answered it; null until one has. */
-  occurredOn: string | null;
-  /** The athlete's date it was last skipped on, while it is skipped; null otherwise. */
-  skippedOn: string | null;
-};
-
-/**
- * Which slot of the cycle each endurance occurrence belongs to.
- *
- * The occurrence says so itself. This used to work it out from the weekday its lineage was
- * derived from, which meant a slot answered for any occurrence that shared its weekday —
- * including a run belonging to a different day of the cycle entirely. A row naming a slot the
- * current cycle no longer has (a running day a revision took out, say) belongs to no slot and
- * is left out rather than guessed at.
- */
-function slotOccurrences(
-  days: readonly ScheduleDay[],
-  rows: readonly EnduranceRow[],
-): SlotOccurrence[] {
-  const inCycle = new Set(days.map((day) => day.dayIndex));
-  return rows.flatMap((row) => {
-    if (!inCycle.has(row.cycleDayIndex)) return [];
-    return [
-      {
-        cycleIndex: row.cycleIndex,
-        dayIndex: row.cycleDayIndex,
-        // Same rule as `resolveOccurrence`: the linked activity decides, and a row nobody has
-        // answered yet is owed however long ago it was scheduled for.
-        outcome: row.logged
-          ? ("logged" as const)
-          : row.disposition === "pending"
-            ? ("incomplete" as const)
-            : row.disposition,
-        ...(row.logged && row.occurredOn
-          ? { occurredOn: row.occurredOn }
-          : !row.logged && row.disposition === "skipped" && row.skippedOn
-            ? { occurredOn: row.skippedOn }
-            : {}),
-      },
-    ];
-  });
 }
 
 /** Where a slot's part is answered: one event each, for good. */

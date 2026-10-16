@@ -615,10 +615,15 @@ its key is shown, so two readings of one width can never leave the workout witho
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
-  boxed or carded; rows are separated by `hair` rules. Today's activity cards are the one
+  boxed or carded; rows are separated by `hair` rules. Today's activity cards are a
   deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
   card, and the rows inside a card are ruled like any list.
-  Food rows, wherever food is listed, are the other exception (owner, 8 October 2026): every row
+  Training extends that exception to summaries of existing independent programmes (owner,
+  16 October 2026; ADR 0056), using the incumbent card, control tones and type scale. Programme
+  cards take at most two columns and fold to one when space or text requires; logging shortcuts
+  take four columns where they fit, two on ordinary phones and one on phones at 200% text. This
+  does not make ordinary list rows cards.
+  Food rows, wherever food is listed, are another exception (owner, 8 October 2026): every row
   is led by its tile, the tiles in one column and the names at one edge after them (Rows and
   marks).
 - **Today:** the date and the cycle's squares; the day's print as a band (112 pt; 132 at 900 pt
@@ -1220,6 +1225,6 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
   value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.
-- **Don't** indent a list, box rows into cards (Today's activity cards are the one card, never
-  nested), or add a second shadow.
+- **Don't** indent a list, box rows into cards (Today's activity cards and Training's programme
+  cards are the exceptions in Layout, never nested), or add a second shadow.
 - **Don't** let the art be the brightest thing on a dark screen.

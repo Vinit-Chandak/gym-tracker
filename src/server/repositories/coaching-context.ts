@@ -38,6 +38,7 @@ import { getCoachMemo, planningContext } from "./coach-plans";
 import { listCoachAttachments } from "./coach-attachments";
 import { listGyms } from "./gyms";
 import { getSchedule } from "./schedule";
+import { activeSportProgrammes } from "./sport-programmes";
 import { readProgramBlueprint } from "./programs";
 import {
   readRunActivitiesBetween,
@@ -195,7 +196,7 @@ export async function coachJobContext(
     throw new CoachingError("Claim this job before reading its context.");
   if (job.sourceRevision !== (await sourceRevision(db, userId)))
     throw new CoachingError("This attempt's evidence changed. Release it and use a fresh claim.");
-  await assertNoOpenWorkout(db, userId);
+  if ((job.target.sport ?? "strength") === "strength") await assertNoOpenWorkout(db, userId);
   const [intake] = job.intakeId
     ? await db
         .select()
@@ -229,9 +230,9 @@ export async function coachJobContext(
     listGyms(db, userId),
     listCoachAttachments(db, userId),
     sharedWarmupProtocols(db),
-    getCoachMemo(db, userId),
+    getCoachMemo(db, userId, job.target.sport ?? "strength"),
     job.target.programId ? readProgramBlueprint(db, userId, job.target.programId) : null,
-    getSchedule(db, userId),
+    getSchedule(db, userId, job.target.sport ?? "strength"),
     readWorkouts(db, userId, range, 0, 40),
     // The newest sixty, and whether there were more: what `readRuns` answered here before.
     readRunActivitiesBetween(
@@ -245,11 +246,16 @@ export async function coachJobContext(
     db
       .select()
       .from(coachWeeklyReviews)
-      .where(eq(coachWeeklyReviews.userId, userId))
+      .where(
+        and(
+          eq(coachWeeklyReviews.userId, userId),
+          eq(coachWeeklyReviews.sport, job.target.sport ?? "strength"),
+        ),
+      )
       .orderBy(desc(coachWeeklyReviews.periodEnd))
       .limit(8),
     recentDecisionsForCoach(db, userId, now),
-    getCoachingPreferences(db, userId),
+    getCoachingPreferences(db, userId, job.target.sport ?? "strength"),
     trainingPeriodSummary(
       db,
       userId,
@@ -315,10 +321,31 @@ export async function coachJobContext(
   // and handing it the list would make any tap on Today a trigger for a programme decision.
   const scheduled = job.trigger === "daily" || job.trigger === "weekly";
   const requests = scheduled
-    ? await claimRequestsForAttempt(db, userId, job.id, attemptId, today)
+    ? await claimRequestsForAttempt(
+        db,
+        userId,
+        job.id,
+        attemptId,
+        today,
+        job.target.sport ?? "strength",
+      )
     : { items: [], hasMore: false };
   return {
     contractVersion: COACH_CONTRACT_VERSION,
+    coordination: {
+      targetSport: job.target.sport ?? "strength",
+      scope: job.target.scope,
+      authority:
+        "Write only the target sport in the main blueprint. Plan around all other programmes and recent training. If another sport needs changing, use coordinationProposals with its full explicit-sport blueprint. These always wait for separate athlete approval; never apply them through this result. For scope=session return exactly one session, without replacing a programme. Preserve every lineageId and weekIndex on existing endurance sessions, including when moving their future dates. Dates are dayOffset from the programme start; past and completed prescriptions are immutable.",
+      programmes: await Promise.all(
+        (await activeSportProgrammes(db, userId)).map(async (active) => ({
+          sport: active.sport,
+          id: active.id,
+          startDate: active.startDate,
+          blueprint: (await readProgramBlueprint(db, userId, active.id))?.blueprint ?? null,
+        })),
+      ),
+    },
     /**
      * The shared training guidance, supplied once by the server rather than read from a
      * routine's own checkout, so every run coaches from the deployed text.

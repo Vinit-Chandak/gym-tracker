@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
@@ -10,9 +10,10 @@ import { diffPrograms } from "@/domain/program-diff";
 import { declineProgramChangeAction } from "@/server/actions/coaching-workflow";
 
 import { ChangeDetail, type ChangeDetailProps } from "./change-detail";
+const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: navigation.push, refresh: vi.fn(), replace: vi.fn() }),
   unstable_rethrow: () => {},
 }));
 vi.mock("@/components/ui/app-link", () => ({
@@ -24,7 +25,10 @@ vi.mock("@/server/actions/coaching-workflow", () => ({
   rejectProgramDraftAction: vi.fn(),
   requestChangeRevisionsAction: vi.fn(),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 const CURL = "22222222-2222-4222-8222-222222222222";
 
@@ -84,6 +88,16 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
   today: "2026-09-19",
   base: "/profile/programme",
   ...overrides,
+});
+
+it("returns an endurance programme decision to the Training hub", async () => {
+  vi.mocked(declineProgramChangeAction).mockResolvedValue({
+    ok: true,
+    value: { id: "11111111-1111-4111-8111-111111111111" },
+  });
+  render(<ChangeDetail {...props({ sport: "cycling" })} />);
+  fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+  await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/training"));
 });
 
 it("is the one line, the difference, and three answers — nothing said twice", () => {

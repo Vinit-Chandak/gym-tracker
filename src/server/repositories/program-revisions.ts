@@ -146,7 +146,13 @@ export async function createProposal(
   const [program] = await db
     .select({ id: programs.id })
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(
+        eq(programs.userId, userId),
+        eq(programs.sport, "strength"),
+        eq(programs.status, "active"),
+      ),
+    )
     .limit(1);
   if (!program) throw new ProposalError("There is no active programme to change.");
   const current = await readProgramBlueprint(db, userId, program.id);
@@ -218,9 +224,15 @@ export async function applyProposal(
   const [program] = await db
     .select()
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(
+        eq(programs.userId, userId),
+        eq(programs.id, proposal.programId),
+        eq(programs.status, "active"),
+      ),
+    )
     .limit(1);
-  if (!program) throw new ProposalError("There is no active programme to change.");
+  if (!program) throw new ProposalError("The programme has changed since this was proposed.");
   if (program.id !== proposal.programId)
     throw new ProposalError("The programme has changed since this was proposed.");
 

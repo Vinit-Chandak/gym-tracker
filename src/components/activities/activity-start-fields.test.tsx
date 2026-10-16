@@ -41,3 +41,19 @@ it("preselects a saved activity's actual offset but asks again after the date is
   fireEvent.change(screen.getByLabelText("When"), { target: { value: "2025-11-02T01:45" } });
   expect(screen.getByRole("combobox", { name: "Which time?" })).toHaveProperty("value", "");
 });
+
+it("requires the actual start time for a chosen previous date and posts both parts together", () => {
+  show({
+    entryDate: "2026-10-15",
+    entryTime: "",
+    latestDate: "2026-10-16",
+    recordedTimeZone: "Asia/Kolkata",
+  });
+  const time = screen.getByLabelText("Start time") as HTMLInputElement;
+  expect(time.value).toBe("");
+  expect(time.required).toBe(true);
+  fireEvent.change(time, { target: { value: "08:30" } });
+  expect(new FormData(time.form!).get("startedAt")).toBe("2026-10-15T08:30");
+  fireEvent.change(screen.getByLabelText("Training date"), { target: { value: "2026-10-14" } });
+  expect(new FormData(time.form!).get("startedAt")).toBe("2026-10-14T08:30");
+});

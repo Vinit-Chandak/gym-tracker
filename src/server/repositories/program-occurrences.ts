@@ -16,7 +16,7 @@ import { jsonEqual } from "@/domain/json-equal";
 import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
-import { todayInTimeZone } from "@/domain/program-calendar";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { nextPendingSlot, type SlotRef } from "@/domain/schedule";
 import { supersedeStalePlans } from "./coach-plans";
 import { readProgramBlueprint } from "./programs";
@@ -36,18 +36,10 @@ import { getSchedule } from "./schedule";
  * cycle and the events, it shifts when a day is missed, and nothing here competes with that
  * (plan §2.3). The backfill writes no strength occurrence either, for the same reason.
  *
- * The dates written here are where the block was first placed, not a second schedule running
- * beside that sequence. They are what adherence counts against and what the programme view
- * lays out; they are not what Today offers. Today asks for the slot the sequence has reached
- * — by cycle and cycle day, never by date — because a programme whose strength half shifts and
- * whose endurance half does not is two programmes, and it showed an athlete two days behind a
- * run from a day they had not got to.
- *
- * Which slot that is, is written down here, in `cycle_day_index`. It used to be recomputed
- * from the weekday by every reader, and a weekday is not an identity: the cycle is a sequence,
- * a cycle longer than a week must repeat weekdays, and a lifting day could always share one
- * with a running day. Work whose weekday answers to no running day is written with no slot at
- * all rather than pushed onto whichever day happens to share the date.
+ * Each endurance programme owns its calendar dates. Today reads exactly today's occurrences;
+ * a missed occurrence remains on its own date for retrospective logging. None of these rows
+ * advances or blocks lifting. New dated programmes carry no `cycle_day_index`; legacy adapters
+ * retain that field only to preserve older prescriptions and pre-split migration identity.
  *
  * A revision carries occurrences forward by lineage rather than recreating them. Work that is
  * completed, started or claimed is frozen: its prescription is what was actually on screen,
@@ -154,11 +146,8 @@ function slotBefore(slot: SlotRef, other: SlotRef): boolean {
  * Anything answered, abandoned or already behind the athlete is history. A revision may only
  * change what has not happened yet, which is the whole of COACH-08 in one predicate.
  *
- * "Behind" is where the sequence has got to, not the calendar. Today offers the programme's
- * run by slot, so an athlete a fortnight behind the dates is about to do a run whose date went
- * by a fortnight ago. Freezing that one by its date kept the old target on Today and on the
- * log screen while the programme's own day showed the approved change. Only work no slot
- * owns — or a caller that cannot say where the sequence is — still goes by the date.
+ * Dated endurance uses the calendar. A supplied position applies only to retained legacy
+ * combined rows that still have a cycle day; the independent-sport migration clears that link.
  */
 function frozen(
   occurrence: ExistingOccurrence,
@@ -392,6 +381,13 @@ export async function materialiseOccurrences(
   for (const occurrence of existing) {
     if (seen.has(occurrence.id)) continue;
     if (answered(occurrence)) continue;
+    // A dated sport keeps past unanswered sessions available for retrospective logging.
+    if (
+      input.blueprint.strengthCycle === null &&
+      occurrence.scheduledOn &&
+      occurrence.scheduledOn < input.today
+    )
+      continue;
     await tx
       .update(plannedOccurrences)
       .set({ disposition: "cancelled", updatedAt: new Date() })
@@ -423,6 +419,45 @@ export function occurrencesFromBlueprint(
   blueprint: ProgramBlueprint,
   context: { familyId: string; startDate: string; schedulingTimeZone: string },
 ): ProgramBlueprintV2 {
+  if (blueprint.enduranceSessions?.length) {
+    const namedSessions = blueprint.enduranceSessions.map((session) => ({
+      ...session,
+      prescription: { ...session.prescription, title: session.name || session.prescription.title },
+    }));
+    const slots = new Map(
+      namedSessions.map((session) => [
+        session.lineageId,
+        {
+          lineageId: session.lineageId,
+          sport: session.prescription.sport,
+          name: session.name,
+          prescription: session.prescription,
+        },
+      ]),
+    );
+    return {
+      blueprintVersion: 2,
+      slug: blueprint.slug,
+      name: blueprint.name,
+      notes: blueprint.notes,
+      startDate: context.startDate,
+      schedulingTimeZone: context.schedulingTimeZone,
+      weeks: blueprint.weeks,
+      strengthCycle: null,
+      enduranceSlots: [...slots.values()],
+      legacy: null,
+      occurrences: namedSessions.map((session, index) => ({
+        localId: `${session.lineageId}:${session.weekIndex}:${index}`,
+        slotLineageId: session.lineageId,
+        weekIndex: session.weekIndex,
+        cycleDayIndex: null,
+        scheduledOn: addDays(context.startDate, session.dayOffset),
+        scheduledLocalTime: session.scheduledLocalTime,
+        orderIndex: index,
+        prescription: session.prescription,
+      })),
+    };
+  }
   const {
     blueprint: v2,
     lineageByWeekday,
@@ -513,14 +548,9 @@ export async function materialiseProgramme(
 }
 
 /**
- * Gives every running programme with runs and no occurrences the ones it should have had.
- *
- * Adopting a template wrote the programme and never its occurrences, and the multisport
- * backfill that could have written them had already run. So every athlete who adopted one is
- * held on their first running day, with a run nothing can answer. This writes them now, as a
- * continuation: matched by lineage, placed by where the sequence has got to, and safe to run
- * again. A programme is repaired in its own transaction, so one that cannot be read does not
- * hold back the others; its id is reported instead.
+ * Repairs dated programmes that retained raw legacy runs but have no occurrences. Strength
+ * is excluded: recreating its old raw runs would reintroduce the combined programme after the
+ * sport split. Each repair is idempotent and isolated from the other programmes.
  */
 export async function materialiseMissingOccurrences(
   db: Db,
@@ -536,6 +566,7 @@ export async function materialiseMissingOccurrences(
     .where(
       and(
         eq(programs.status, "active"),
+        sql`${programs.sport} <> 'strength'`,
         isNotNull(programs.startDate),
         // Plain SQL, qualified by hand, so neither subquery's own columns can stand in.
         sql`exists (select 1 from program_runs r where r.program_id = programs.id)`,

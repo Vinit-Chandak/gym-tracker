@@ -40,7 +40,10 @@ export async function ProgrammeJobPage({
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
-      <PageHeader title="Programme request" backHref={base} />
+      <PageHeader
+        title={job.target.scope === "session" ? "Session request" : "Programme request"}
+        backHref={onboarding ? base : "/training"}
+      />
       <PageContent>
         <CoachJobStatus job={job} draftId={data.draftId} base={base} />
       </PageContent>

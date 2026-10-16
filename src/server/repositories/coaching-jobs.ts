@@ -28,6 +28,7 @@ import {
   coachJobAttempts,
   coachJobs,
   coachPreferences,
+  sportCoachPreferences,
   coachWeeklyReviews,
   gyms,
   profiles,
@@ -112,6 +113,10 @@ import { coachRollout } from "@/lib/coach-rollout";
 import type { CoachProvider } from "@/domain/coach-failover";
 import { backupJobStanding } from "./coach-failover";
 import type { ActivitySport } from "@/domain/activity";
+import { programmeSport } from "@/domain/programme-sport";
+import { activeSportProgrammes } from "./sport-programmes";
+import { latestIntake } from "./coach-intakes";
+import { keepEnduranceHistory } from "./endurance-history";
 import { coverageProblems, type SportCoverage } from "@/domain/coach-sport-policy";
 
 export type CoachJob = typeof coachJobs.$inferSelect;
@@ -174,13 +179,17 @@ export async function requestProgramCreation(
       503,
     );
   const profile = await assertCoachEnabled(db, userId);
-  await assertNoOpenWorkout(db, userId);
-  const preference = await getCoachingPreferences(db, userId);
   const [intake] = await db
     .select()
     .from(coachIntakes)
     .where(and(eq(coachIntakes.id, intakeId), eq(coachIntakes.userId, userId)));
-  if (!intake?.confirmedAt || preference?.intakeId !== intake.id)
+  if (!intake) throw new CoachingError("Confirm your coaching answers first.");
+  if (intake.sport === "strength") await assertNoOpenWorkout(db, userId);
+  const preference = await getCoachingPreferences(db, userId, intake.sport);
+  if (
+    !intake?.confirmedAt ||
+    (intake.answers.scope !== "session" && preference?.intakeId !== intake.id)
+  )
     throw new CoachingError("Confirm your latest coaching answers first.");
   const [current] = await db
     .select()
@@ -207,13 +216,19 @@ export async function requestProgramCreation(
     .limit(1);
   if (duplicate[0]) return { job: duplicate[0], created: false };
   await assertCoachRequestAllowance(db, userId, profile.timeZone);
-  const active = await getActiveProgram(db, userId);
+  const active =
+    intake.answers.scope === "session" ? null : await getActiveProgram(db, userId, intake.sport);
   return enqueueCoachJob(db, userId, {
     kind: "create_program",
     trigger: active ? "replacement" : "onboarding",
     dedupeKey: `create:${intake.id}:${requestKey}`,
     intakeId,
-    target: { programId: active?.id ?? null, gymId: intake.answers.gymId },
+    target: {
+      programId: active?.id ?? null,
+      gymId: intake.answers.gymId,
+      sport: intake.sport,
+      scope: intake.answers.scope,
+    },
   });
 }
 
@@ -368,7 +383,13 @@ export async function claimCoachJob(
     const [review] = await db
       .select({ id: coachJobs.id })
       .from(coachJobs)
-      .where(and(eq(coachJobs.userId, userId), reviewStillAhead(coachJobs, now)))
+      .where(
+        and(
+          eq(coachJobs.userId, userId),
+          reviewStillAhead(coachJobs, now),
+          sql`${coachJobs.target}->>'programId' = ${job.target.programId}`,
+        ),
+      )
       .limit(1);
     if (review) return null;
   }
@@ -377,7 +398,7 @@ export async function claimCoachJob(
     .from(workoutSessions)
     .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
     .limit(1);
-  if (open) {
+  if (open && (job.target.sport ?? "strength") === "strength") {
     await db
       .update(coachJobs)
       .set({
@@ -558,15 +579,31 @@ async function sameProgrammeLineage(
 }
 
 async function targetMismatch(db: DbOrTx, userId: string, job: CoachJob): Promise<string | null> {
-  const active = await getActiveProgram(db, userId);
+  let active =
+    job.target.scope === "session"
+      ? null
+      : await getActiveProgram(db, userId, job.target.sport ?? "strength");
+  // Preparations are bound to an exact occurrence, including one retained from a legacy
+  // combined version. Only its family's current version may answer that preparation.
+  if (!active && job.target.occurrenceId && job.target.programId) {
+    const [source] = await db
+      .select({ sport: programs.sport })
+      .from(programs)
+      .where(and(eq(programs.userId, userId), eq(programs.id, job.target.programId)))
+      .limit(1);
+    if (source) active = await getActiveProgram(db, userId, source.sport);
+  }
   if (
     (active?.id ?? null) !== job.target.programId &&
     !(await sameProgrammeLineage(db, userId, job, active))
   )
     return "Your programme changed while this request was waiting.";
-  const preferences = await getCoachingPreferences(db, userId);
-  if (job.intakeId && job.intakeId !== preferences?.intakeId)
-    return "Your confirmed answers changed.";
+  const preferences = await getCoachingPreferences(db, userId, job.target.sport ?? "strength");
+  const currentIntakeId =
+    job.target.scope === "session"
+      ? (await latestIntake(db, userId, job.target.sport ?? "strength", "session"))?.id
+      : preferences?.intakeId;
+  if (job.intakeId && job.intakeId !== currentIntakeId) return "Your confirmed answers changed.";
   if (job.kind !== "prepare_session") return null;
   // An occurrence job answers for one identity, so what could have changed under it is that
   // identity's own state: a newer revision, a log, a skip, a cancellation (COACH-08).
@@ -642,7 +679,7 @@ export async function acceptCoachJobResult(
       replan: await replanAfterReview(db, userId, job, now),
     };
   }
-  await assertNoOpenWorkout(db, userId);
+  if ((job.target.sport ?? "strength") === "strength") await assertNoOpenWorkout(db, userId);
   if (result.outcome === "deferred") {
     await db
       .update(coachJobs)
@@ -691,6 +728,37 @@ export async function acceptCoachJobResult(
     evidenceEnd,
   );
   const cited = await validateCitedEvidence(db, userId, result);
+  const coordinationSports = new Set<ActivitySport>();
+  for (const proposal of result.coordinationProposals ?? []) {
+    if (
+      proposal.sport === (job.target.sport ?? "strength") ||
+      coordinationSports.has(proposal.sport)
+    )
+      throw new CoachingError("Coordination proposals must name distinct other sports.", 422);
+    coordinationSports.add(proposal.sport);
+    const active = await getActiveProgram(db, userId, proposal.sport);
+    if (!active)
+      throw new CoachingError(
+        "A coordination proposal needs an existing programme in that sport.",
+        422,
+      );
+    const blueprint = await validateBlueprintForAthlete(db, userId, {
+      ...proposal.blueprint,
+      sport: proposal.sport,
+    });
+    await db.insert(programDrafts).values({
+      userId,
+      sport: proposal.sport,
+      source: "weekly",
+      status: "ready",
+      blueprint,
+      baseProgramId: active.id,
+      sourceRevision: job.sourceRevision!,
+      headline: proposal.headline,
+      rationale: proposal.rationale,
+      gateReasons: ["A change proposed while planning another sport requires your approval."],
+    });
+  }
   let acceptedChanges: CoachingChangeRecord[] = [];
   let programBefore: ProgramBlueprint | null = null;
   let reviewOutcome: "no_change" | "automatic" | "proposal" = "no_change";
@@ -713,14 +781,39 @@ export async function acceptCoachJobResult(
       result.blueprint,
       job.kind === "create_program" ? job.target.gymId : null,
     );
-    if (job.kind === "create_program" && !result.openingPlan)
+    blueprint = programBlueprintSchema.parse({
+      ...blueprint,
+      sport: job.target.sport ?? "strength",
+    });
+    if (programmeSport(blueprint) !== (job.target.sport ?? "strength"))
+      throw new CoachingError(
+        "A coach result can only change the sport named in this request.",
+        422,
+      );
+    if (
+      job.target.scope === "session" &&
+      blueprint.days.filter((day) => day.includesLifting).length +
+        (blueprint.enduranceSessions?.length ?? 0) !==
+        1
+    )
+      throw new CoachingError("A standalone request needs exactly one training session.", 422);
+    if (
+      job.kind === "create_program" &&
+      programmeSport(blueprint) === "strength" &&
+      !result.openingPlan
+    )
       throw new CoachingError(
         "A new programme needs its opening session, including calibration guidance for unknown loads.",
         422,
       );
-    if (job.kind === "create_program")
+    if (job.kind === "create_program" && programmeSport(blueprint) === "strength")
       await validateOpeningPlan(db, userId, blueprint, result.openingPlan, job.target.gymId);
-    if (job.kind === "create_program" && job.intakeId) {
+    if (
+      job.kind === "create_program" &&
+      job.intakeId &&
+      job.target.scope !== "session" &&
+      programmeSport(blueprint) === "strength"
+    ) {
       const [intake] = await db
         .select()
         .from(coachIntakes)
@@ -730,24 +823,14 @@ export async function acceptCoachJobResult(
       // each. Counting a run as a session made an athlete who lifts four days and runs on two
       // rest days impossible to program for: the runs had to be folded into the lifting days
       // to pass, which lengthened exactly the days whose time the athlete had agreed.
-      const { sessionsPerWeek, preferredDays, runsPerWeek, preferredRunDays } = intake.answers;
+      const { sessionsPerWeek, preferredDays } = intake.answers;
       const liftingDays = blueprint.days.filter((day) => day.includesLifting);
-      const runDays = blueprint.days.filter((day) => day.includesRun);
       if (
         liftingDays.length !== sessionsPerWeek ||
         (preferredDays.length && liftingDays.some((day) => !preferredDays.includes(day.dayOfWeek)))
       )
         throw new CoachingError(
           "The programme must match your confirmed training frequency and preferred days. Ask for clarification if those constraints cannot be met.",
-          422,
-        );
-      if (
-        (runsPerWeek !== null && runDays.length !== runsPerWeek) ||
-        (preferredRunDays.length &&
-          runDays.some((day) => !preferredRunDays.includes(day.dayOfWeek)))
-      )
-        throw new CoachingError(
-          "The running must match the runs a week and run days you confirmed. Ask for clarification if those cannot be met.",
           422,
         );
       const trainingDays = blueprint.days.filter((day) => day.includesLifting || day.includesRun);
@@ -761,6 +844,16 @@ export async function acceptCoachJobResult(
     if (job.kind === "review_program" && job.target.programId && !reviewed)
       throw new CoachingError("The reviewed programme is no longer available.");
     if (reviewed) {
+      const active = await getActiveProgram(db, userId, job.target.sport ?? "strength");
+      if (active && (job.target.sport ?? "strength") !== "strength")
+        blueprint = await keepEnduranceHistory(
+          db,
+          userId,
+          active.familyId,
+          athleteToday,
+          reviewed.blueprint,
+          blueprint,
+        );
       // A week already trained is not part of any change: it is kept exactly as it was, so
       // a proposal is only ever about what is still ahead. A new block starts its weeks
       // again, so there is nothing finished to keep.
@@ -816,9 +909,14 @@ export async function acceptCoachJobResult(
         .values({
           userId,
           source: job.kind === "review_program" ? "weekly" : "ai",
+          sport: programmeSport(blueprint),
+          standalone: job.target.scope === "session",
           status: "ready",
           blueprint,
-          openingPlan: job.kind === "create_program" ? result.openingPlan : null,
+          openingPlan:
+            job.kind === "create_program" && programmeSport(blueprint) === "strength"
+              ? result.openingPlan
+              : null,
           jobId: job.id,
           intakeId: job.intakeId,
           baseProgramId: job.target.programId,
@@ -1004,6 +1102,7 @@ export async function acceptCoachJobResult(
    */
   const requests = await applyRequestPatch(db, userId, {
     jobId: job.id,
+    sport: job.target.sport ?? "strength",
     attemptId,
     kind: job.kind,
     patch: requestPatch ?? {},
@@ -1018,6 +1117,7 @@ export async function acceptCoachJobResult(
     await assertSportCoverage(db, userId, job, result.coverage ?? []);
     await db.insert(coachWeeklyReviews).values({
       userId,
+      sport: job.target.sport ?? "strength",
       jobId: job.id,
       periodStart: new Date(job.target.reviewStart),
       periodEnd: new Date(job.target.reviewEnd),
@@ -1025,25 +1125,39 @@ export async function acceptCoachJobResult(
       rationale: result.rationale,
       draftId,
     });
+    const sport = job.target.sport ?? "strength";
+    await db.insert(sportCoachPreferences).values({ userId, sport }).onConflictDoNothing();
     await db
-      .update(coachPreferences)
+      .update(sportCoachPreferences)
       .set({
-        // A run that only answered the athlete's requests has not read the training week the
-        // scheduled review owes them, so it does not consume it: the anchor stays where it
-        // was and the ordinary review still reads every day since the last one.
-        // Never backwards: an older review finishing after a newer one must not make the next
-        // one read a week that has already been read.
         ...(job.target.purpose === "requests"
           ? {}
           : {
-              reviewAnchorAt: sql`greatest(coalesce(${coachPreferences.reviewAnchorAt}, ${new Date(job.target.reviewEnd).toISOString()}::timestamptz), ${new Date(job.target.reviewEnd).toISOString()}::timestamptz)`,
+              reviewAnchorAt: sql`greatest(coalesce(${sportCoachPreferences.reviewAnchorAt}, ${new Date(job.target.reviewEnd).toISOString()}::timestamptz), ${new Date(job.target.reviewEnd).toISOString()}::timestamptz)`,
             }),
-        // Cleared only when nothing is still waiting. An ask saved after this attempt's
-        // snapshot keeps the flag up, so it is heard at the next daily run instead of being
-        // closed by a review that never saw it.
         ...(requests.remaining === 0 ? { reviewRequestedAt: null } : {}),
       })
-      .where(eq(coachPreferences.userId, userId));
+      .where(and(eq(sportCoachPreferences.userId, userId), eq(sportCoachPreferences.sport, sport)));
+    if (sport === "strength")
+      await db
+        .update(coachPreferences)
+        .set({
+          // A run that only answered the athlete's requests has not read the training week the
+          // scheduled review owes them, so it does not consume it: the anchor stays where it
+          // was and the ordinary review still reads every day since the last one.
+          // Never backwards: an older review finishing after a newer one must not make the next
+          // one read a week that has already been read.
+          ...(job.target.purpose === "requests"
+            ? {}
+            : {
+                reviewAnchorAt: sql`greatest(coalesce(${coachPreferences.reviewAnchorAt}, ${new Date(job.target.reviewEnd).toISOString()}::timestamptz), ${new Date(job.target.reviewEnd).toISOString()}::timestamptz)`,
+              }),
+          // Cleared only when nothing is still waiting. An ask saved after this attempt's
+          // snapshot keeps the flag up, so it is heard at the next daily run instead of being
+          // closed by a review that never saw it.
+          ...(requests.remaining === 0 ? { reviewRequestedAt: null } : {}),
+        })
+        .where(eq(coachPreferences.userId, userId));
   }
   // Whatever the review decided — kept, proposed, or a question asked — the next session is
   // planned again against it.
@@ -1053,7 +1167,7 @@ export async function acceptCoachJobResult(
   // waiting a second night for a handover between two of the coach's own jobs. Only the
   // scheduled daily job does this: an on-demand gym change is not a request for a hearing.
   if (job.kind === "prepare_session" && job.trigger === "daily" && requests.remaining > 0)
-    await enqueueRequestReview(db, userId, now);
+    await enqueueRequestReview(db, userId, now, job.target.sport ?? "strength");
   await retainEvidenceBaselines(db, userId, trainingEvidence);
   if (acceptedChanges.length)
     await db
@@ -1111,40 +1225,23 @@ export async function programmeSports(
   programId: string | null,
 ): Promise<ActivitySport[]> {
   if (!programId) return [];
-  const sports = new Set<ActivitySport>();
-  const days = await db
-    .select({
-      includesLifting: programDays.includesLifting,
-      includesRun: programDays.includesRun,
-    })
-    .from(programDays)
-    .where(and(eq(programDays.userId, userId), eq(programDays.programId, programId)));
-  for (const day of days) {
-    if (day.includesLifting) sports.add("strength");
-    if (day.includesRun) sports.add("running");
-  }
-  // The programme's lineage rather than this one version: a revision carries the work it does
-  // not change forward without rewriting it, so a version's own revisions are only what it
-  // changed, and a ride-only sport fell out of review coverage at the first change elsewhere.
-  const occurrenceSports = await db
+  const [programme] = await db
+    .select({ sport: programs.sport, familyId: programs.familyId })
+    .from(programs)
+    .where(and(eq(programs.userId, userId), eq(programs.id, programId)))
+    .limit(1);
+  if (!programme) return [];
+  const rows = await db
     .selectDistinct({ sport: plannedOccurrences.sport })
     .from(plannedOccurrences)
-    .innerJoin(
-      programs,
-      and(
-        eq(programs.familyId, plannedOccurrences.familyId),
-        eq(programs.userId, plannedOccurrences.userId),
-      ),
-    )
     .where(
       and(
         eq(plannedOccurrences.userId, userId),
-        eq(programs.id, programId),
+        eq(plannedOccurrences.familyId, programme.familyId),
         ne(plannedOccurrences.disposition, "cancelled"),
       ),
     );
-  for (const row of occurrenceSports) sports.add(row.sport);
-  return [...sports];
+  return [...new Set([programme.sport, ...rows.map((row) => row.sport)])];
 }
 
 /**
@@ -1230,11 +1327,12 @@ export async function reviewAnchor(
   db: DbOrTx,
   userId: string,
   now = new Date(),
+  sport: ActivitySport = "strength",
 ): Promise<Date | null> {
-  const preference = await getCoachingPreferences(db, userId);
+  const preference = await getCoachingPreferences(db, userId, sport);
   const recorded = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
   if (recorded) return recorded;
-  const active = await getActiveProgram(db, userId);
+  const active = await getActiveProgram(db, userId, sport);
   if (!active) return null;
   const [program] = await db
     .select({ createdAt: programs.createdAt })
@@ -1246,6 +1344,14 @@ export async function reviewAnchor(
     started && Number.isFinite(started.getTime()) ? started : (program?.createdAt ?? now);
   // Never in the future: an interval has to start before the boundary that ends it.
   const consentedAt = derived < now ? derived : now;
+  await db
+    .insert(sportCoachPreferences)
+    .values({ userId, sport, consentedAt })
+    .onConflictDoUpdate({
+      target: [sportCoachPreferences.userId, sportCoachPreferences.sport],
+      set: { consentedAt, updatedAt: now },
+    });
+  if (sport !== "strength") return consentedAt;
   await db
     .insert(coachPreferences)
     .values({ userId, mode: "coach", consentedAt })
@@ -1291,14 +1397,19 @@ async function openReviewJob(db: DbOrTx, userId: string, programId: string, batc
  * training — but it does not consume the scheduled review's interval, and anything it
  * proposes waits for approval. One review per boundary either way, so the two never race.
  */
-export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new Date()) {
-  const active = await getActiveProgram(db, userId);
+export async function enqueueRequestReview(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+  sport: ActivitySport = "strength",
+) {
+  const active = await getActiveProgram(db, userId, sport);
   if (!active) return null;
   const boundary = lastCoachBoundary(now);
   const waiting = await openReviewJob(db, userId, active.id, boundary.date);
   if (waiting) return waiting;
-  const preference = await getCoachingPreferences(db, userId);
-  const anchor = await reviewAnchor(db, userId, now);
+  const preference = await getCoachingPreferences(db, userId, sport);
+  const anchor = await reviewAnchor(db, userId, now, sport);
   // An interval has to have somewhere to start; a request made since the last boundary is
   // heard at the next one.
   if (!anchor || boundary.at <= anchor) return null;
@@ -1306,10 +1417,11 @@ export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new
   return enqueueCoachJob(db, userId, {
     kind: "review_program",
     trigger: "weekly",
-    dedupeKey: `review:${period.end}`,
+    dedupeKey: `review:${active.familyId}:${period.end}`,
     intakeId: preference?.intakeId,
     target: {
       programId: active.id,
+      sport,
       batchDate: boundary.date,
       reviewStart: period.start,
       reviewEnd: period.end,
@@ -1344,8 +1456,7 @@ export async function enqueueOccurrencePreparations(
   batchDate: string,
   options: Replan = {},
 ): Promise<string[]> {
-  const preferences = await getCoachingPreferences(db, userId);
-  const active = await getActiveProgram(db, userId);
+  const programmes = await activeSportProgrammes(db, userId);
   const occurrences = await openOccurrencesBetween(
     db,
     userId,
@@ -1354,6 +1465,8 @@ export async function enqueueOccurrencePreparations(
   );
   const queued: string[] = [];
   for (const occurrence of occurrences) {
+    const active = programmes.find((programme) => programme.familyId === occurrence.familyId);
+    const preferences = await getCoachingPreferences(db, userId, occurrence.sport as ActivitySport);
     // Only the active programme's work is coached. Standalone scheduled activities are the
     // athlete's own, and adding one to the programme is an explicit act (SCHED-08). Asked by
     // lineage, not version: a revision carries a run it leaves unchanged forward on the
@@ -1616,89 +1729,95 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
     try {
       await withUser(db, athlete.id, async (tx) => {
         await reconcileCoachJobs(tx, athlete.id, now);
-        const preference = await getCoachingPreferences(tx, athlete.id);
-        const active = await getActiveProgram(tx, athlete.id);
-        if (!active) return;
-        let result: Awaited<ReturnType<typeof enqueueCoachJob>> | null = null;
-        // The last review's own end, or the moment coaching was switched on; there is no
-        // missed-week backlog to replay, because one review reads everything since the last.
-        const anchor = await reviewAnchor(tx, athlete.id, now);
-        if (anchor) {
-          const standing = reviewStanding(anchor, boundary.at);
-          // An interval has to have somewhere to start; a request made since the last
-          // boundary is heard at the next one.
-          const heard = boundary.at > anchor;
-          const scheduled =
-            standing === "due" ||
-            (standing === "needs_a_quiet_day" &&
-              !(await trainedOn(
-                tx,
-                athlete.id,
-                athlete.timeZone,
-                addDays(todayInTimeZone(athlete.timeZone, boundary.at), -1),
-              )));
-          // An athlete who has asked for something only a review can grant does not wait out
-          // the cadence for it. The confirmed rule is that this happens at the next scheduled
-          // daily run and nowhere else: saving the request starts nothing, and what the run
-          // buys them is a hearing rather than an outcome — anything structural, and anything
-          // they asked for, still arrives as a proposal they approve.
-          const asked =
-            heard &&
-            (!!(preference?.reviewRequestedAt && preference.reviewRequestedAt > anchor) ||
-              (await hasActionableRequests(
-                tx,
-                athlete.id,
-                todayInTimeZone(athlete.timeZone, boundary.at),
-              )));
-          // A review queued earlier and not yet run is not reused here: it prepares its own
-          // batch's session when it finishes, so this batch would be left with none.
-          if (scheduled || asked) {
-            const period = weeklyReviewPeriod(anchor, boundary.at);
-            result = await enqueueCoachJob(tx, athlete.id, {
-              kind: "review_program",
-              trigger: "weekly",
-              dedupeKey: `review:${period.end}`,
-              intakeId: preference?.intakeId,
-              target: {
-                programId: active.id,
-                batchDate: boundary.date,
-                reviewStart: period.start,
-                reviewEnd: period.end,
-                // A run that only answers requests must not count as the scheduled training
-                // review, or the week it did not read would never be read by anything.
-                purpose: scheduled ? "scheduled" : "requests",
-              },
-            });
-            // One review reads everything since the last, so a review still waiting from an
-            // earlier night reads a shorter stretch of the same days. Left queued, nights of
-            // blocked claims — a workout left open at four, a failing page — came due together
-            // and ran back to back, each over days the one before had read. The newest replaces
-            // them, as a daily preparation does; a claimed one is left to finish, and a review
-            // answering only requests never replaces a scheduled one, whose week it would leave
-            // unread.
-            await tx
-              .update(coachJobs)
-              .set({
-                status: "superseded",
-                error: "A newer review replaced this one.",
-                completedAt: now,
-                leaseUntil: null,
-              })
-              .where(
-                and(
-                  eq(coachJobs.userId, athlete.id),
-                  eq(coachJobs.kind, "review_program"),
-                  eq(coachJobs.status, "queued"),
-                  ne(coachJobs.id, result.job.id),
-                  scheduled ? undefined : sql`${coachJobs.target}->>'purpose' = 'requests'`,
-                ),
-              );
+        for (const active of await activeSportProgrammes(tx, athlete.id)) {
+          const preference = await getCoachingPreferences(tx, athlete.id, active.sport);
+          let result: Awaited<ReturnType<typeof enqueueCoachJob>> | null = null;
+          // The last review's own end, or the moment coaching was switched on; there is no
+          // missed-week backlog to replay, because one review reads everything since the last.
+          const anchor = await reviewAnchor(tx, athlete.id, now, active.sport);
+          if (anchor) {
+            const standing = reviewStanding(anchor, boundary.at);
+            // An interval has to have somewhere to start; a request made since the last
+            // boundary is heard at the next one.
+            const heard = boundary.at > anchor;
+            const scheduled =
+              standing === "due" ||
+              (standing === "needs_a_quiet_day" &&
+                !(await trainedOn(
+                  tx,
+                  athlete.id,
+                  athlete.timeZone,
+                  addDays(todayInTimeZone(athlete.timeZone, boundary.at), -1),
+                )));
+            // An athlete who has asked for something only a review can grant does not wait out
+            // the cadence for it. The confirmed rule is that this happens at the next scheduled
+            // daily run and nowhere else: saving the request starts nothing, and what the run
+            // buys them is a hearing rather than an outcome — anything structural, and anything
+            // they asked for, still arrives as a proposal they approve.
+            const asked =
+              heard &&
+              (!!(preference?.reviewRequestedAt && preference.reviewRequestedAt > anchor) ||
+                (await hasActionableRequests(
+                  tx,
+                  athlete.id,
+                  todayInTimeZone(athlete.timeZone, boundary.at),
+                  active.sport,
+                )));
+            // A review queued earlier and not yet run is not reused here: it prepares its own
+            // batch's session when it finishes, so this batch would be left with none.
+            if (scheduled || asked) {
+              const period = weeklyReviewPeriod(anchor, boundary.at);
+              result = await enqueueCoachJob(tx, athlete.id, {
+                kind: "review_program",
+                trigger: "weekly",
+                dedupeKey: `review:${active.familyId}:${period.end}`,
+                intakeId: preference?.intakeId,
+                target: {
+                  programId: active.id,
+                  sport: active.sport,
+                  batchDate: boundary.date,
+                  reviewStart: period.start,
+                  reviewEnd: period.end,
+                  // A run that only answers requests must not count as the scheduled training
+                  // review, or the week it did not read would never be read by anything.
+                  purpose: scheduled ? "scheduled" : "requests",
+                },
+              });
+              // One review reads everything since the last, so a review still waiting from an
+              // earlier night reads a shorter stretch of the same days. Left queued, nights of
+              // blocked claims — a workout left open at four, a failing page — came due together
+              // and ran back to back, each over days the one before had read. The newest replaces
+              // them, as a daily preparation does; a claimed one is left to finish, and a review
+              // answering only requests never replaces a scheduled one, whose week it would leave
+              // unread.
+              await tx
+                .update(coachJobs)
+                .set({
+                  status: "superseded",
+                  error: "A newer review replaced this one.",
+                  completedAt: now,
+                  leaseUntil: null,
+                })
+                .where(
+                  and(
+                    eq(coachJobs.userId, athlete.id),
+                    eq(coachJobs.kind, "review_program"),
+                    eq(coachJobs.status, "queued"),
+                    sql`${coachJobs.target}->>'programId' = ${active.id}`,
+                    ne(coachJobs.id, result.job.id),
+                    scheduled ? undefined : sql`${coachJobs.target}->>'purpose' = 'requests'`,
+                  ),
+                );
+            }
           }
+          if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;
+          if (active.sport === "strength")
+            result ??= await enqueueDailySession(tx, athlete.id, boundary.date);
+          if (result && pending.includes(result.job.status as "queued" | "claimed"))
+            jobs.push({ userId: athlete.id, jobId: result.job.id, kind: result.job.kind });
         }
-        if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;
-        result ??= await enqueueDailySession(tx, athlete.id, boundary.date);
-        if (result && pending.includes(result.job.status as "queued" | "claimed"))
-          jobs.push({ userId: athlete.id, jobId: result.job.id, kind: result.job.kind });
+        for (const jobId of await enqueueOccurrencePreparations(tx, athlete.id, boundary.date))
+          jobs.push({ userId: athlete.id, jobId, kind: "prepare_session" });
       });
     } catch {
       errors.push({
@@ -1731,16 +1850,19 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
         isNull(coachJobs.backupTakenAt),
         lt(coachJobs.attempts, coachJobs.attemptBudget),
         lte(coachJobs.nextAttemptAt, now),
-        notExists(
-          db
-            .select({ id: workoutSessions.id })
-            .from(workoutSessions)
-            .where(
-              and(
-                eq(workoutSessions.userId, coachJobs.userId),
-                isNull(workoutSessions.completedAt),
+        or(
+          sql`coalesce(${coachJobs.target}->>'sport', 'strength') <> 'strength'`,
+          notExists(
+            db
+              .select({ id: workoutSessions.id })
+              .from(workoutSessions)
+              .where(
+                and(
+                  eq(workoutSessions.userId, coachJobs.userId),
+                  isNull(workoutSessions.completedAt),
+                ),
               ),
-            ),
+          ),
         ),
         notExists(
           db
@@ -1760,7 +1882,13 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
             db
               .select({ id: other.id })
               .from(other)
-              .where(and(eq(other.userId, coachJobs.userId), reviewStillAhead(other, now))),
+              .where(
+                and(
+                  eq(other.userId, coachJobs.userId),
+                  reviewStillAhead(other, now),
+                  sql`${other.target}->>'programId' = ${coachJobs.target}->>'programId'`,
+                ),
+              ),
           ),
         ),
       ),
@@ -1808,7 +1936,12 @@ function askedReviewKey(now: Date): string {
  * is a different question and needs its own answer on screen. Somebody who has just changed
  * gym, or come back from a week away, should not have to guess whether tapping does anything.
  */
-export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new Date()) {
+export async function athleteReviewStatus(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+  sport: ActivitySport = "strength",
+) {
   const windowMs = ATHLETE_REVIEW_WINDOW_DAYS * 86_400_000;
   // Only the asks still inside the window can hold the next one back; anything older has
   // already fallen out of the allowance and is read as history rather than as a block.
@@ -1833,6 +1966,7 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
         eq(coachJobs.userId, userId),
         eq(coachJobs.kind, "review_program"),
         inArray(coachJobs.status, ["queued", "claimed"]),
+        sql`coalesce(${coachJobs.target}->>'sport', 'strength') = ${sport}`,
       ),
     )
     .limit(1);
@@ -1871,7 +2005,12 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
  * queued is returned as it is rather than duplicated — the athlete gets the review they asked
  * for either way.
  */
-export async function requestProgramReview(db: DbOrTx, userId: string, now = new Date()) {
+export async function requestProgramReview(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+  sport: ActivitySport = "strength",
+) {
   await assertCoachEnabled(db, userId);
   // The coach will not claim anything while a workout is open, so a review asked for now
   // would sit in the queue rather than run. Say so, in the terms of what was asked.
@@ -1880,11 +2019,11 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
     .from(workoutSessions)
     .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
     .limit(1);
-  if (open)
+  if (open && sport === "strength")
     throw new CoachingError("Finish or discard your open workout, then ask for the review.");
-  const active = await getActiveProgram(db, userId);
+  const active = await getActiveProgram(db, userId, sport);
   if (!active) throw new CoachingError("There is no programme to review yet.");
-  const status = await athleteReviewStatus(db, userId, now);
+  const status = await athleteReviewStatus(db, userId, now, sport);
   if (status.waiting) {
     const restarted = await restartWaitingJob(db, userId, status.waiting.jobId, now);
     if (restarted) return { job: restarted, created: false, restarted: true };
@@ -1898,6 +2037,7 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
           eq(coachJobs.userId, userId),
           eq(coachJobs.kind, "review_program"),
           inArray(coachJobs.status, ["queued", "claimed"]),
+          sql`coalesce(${coachJobs.target}->>'sport', 'strength') = ${sport}`,
         ),
       )
       .limit(1);
@@ -1908,8 +2048,8 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
       `You have asked for ${ATHLETE_REVIEWS_PER_WINDOW} reviews in the last ${ATHLETE_REVIEW_WINDOW_DAYS} days. The coach reviews your programme on its own schedule too.`,
       429,
     );
-  const preference = await getCoachingPreferences(db, userId);
-  const anchor = await reviewAnchor(db, userId, now);
+  const preference = await getCoachingPreferences(db, userId, sport);
+  const anchor = await reviewAnchor(db, userId, now, sport);
   if (!anchor || anchor >= now)
     throw new CoachingError("There is nothing to review yet. Train a session first.");
   const asked = await enqueueCoachJob(db, userId, {
@@ -1917,10 +2057,11 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
     // Scheduled work, so the review is handed the asks it is meant to answer; the purpose
     // below is what keeps it from consuming the cadence's own review.
     trigger: "weekly",
-    dedupeKey: askedReviewKey(now),
+    dedupeKey: `${askedReviewKey(now)}:${sport}`,
     intakeId: preference?.intakeId,
     target: {
       programId: active.id,
+      sport,
       batchDate: lastCoachBoundary(now).date,
       reviewStart: anchor.toISOString(),
       reviewEnd: now.toISOString(),
@@ -1964,7 +2105,7 @@ export async function restartWaitingJob(
   }
   // The coach will not claim anything while a workout is open, so a run started now would
   // find nothing it may do.
-  await assertNoOpenWorkout(db, userId);
+  if ((job.target.sport ?? "strength") === "strength") await assertNoOpenWorkout(db, userId);
   const [restarted] = await db
     .update(coachJobs)
     .set({ nextAttemptAt: now, error: null, dispatchStartedAt: null })

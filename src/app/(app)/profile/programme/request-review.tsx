@@ -5,6 +5,7 @@ import { useState } from "react";
 import { coachingAction } from "@/components/coaching/client-action";
 import { Button } from "@/components/ui/button";
 import { requestProgramReviewAction } from "@/server/actions/coaching-workflow";
+import type { ActivitySport } from "@/domain/activity";
 
 export type ReviewAvailability = {
   /** False when the coach cannot be started from this server at all. */
@@ -30,7 +31,13 @@ export type ReviewAvailability = {
  * wait for it. The line under the button says the one thing worth knowing at that moment:
  * that a review is running, when the last one was, or when the allowance comes back.
  */
-export function RequestReview({ availability }: { availability: ReviewAvailability }) {
+export function RequestReview({
+  availability,
+  sport = "strength",
+}: {
+  availability: ReviewAvailability;
+  sport?: ActivitySport;
+}) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +46,7 @@ export function RequestReview({ availability }: { availability: ReviewAvailabili
   const ask = async () => {
     setBusy(true);
     setError(null);
-    const result = await coachingAction(() => requestProgramReviewAction());
+    const result = await coachingAction(() => requestProgramReviewAction(sport));
     if (result.ok) {
       setSent(true);
     } else setError(result.error ?? "Could not ask for a review. Please retry.");

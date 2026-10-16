@@ -296,8 +296,12 @@ function performanceSummary(p: ComparablePerformance) {
   };
 }
 
-export async function getCoachMemo(db: DbOrTx, userId: string) {
-  return readCoachMemory(db, userId);
+export async function getCoachMemo(
+  db: DbOrTx,
+  userId: string,
+  sport?: import("@/domain/activity").ActivitySport,
+) {
+  return readCoachMemory(db, userId, new Date(), sport);
 }
 
 export async function saveCoachNotes(
@@ -305,10 +309,11 @@ export async function saveCoachNotes(
   userId: string,
   userNotes: string,
   noteId = crypto.randomUUID(),
+  sport: import("@/domain/activity").ActivitySport | null = null,
 ): Promise<void> {
   const [saved] = await db
     .insert(coachNotes)
-    .values({ id: noteId, userId, text: userNotes })
+    .values({ id: noteId, userId, text: userNotes, sport })
     .onConflictDoNothing()
     .returning();
   // A retried mobile submission is the same message, not another copy.
@@ -317,13 +322,14 @@ export async function saveCoachNotes(
       .select()
       .from(coachNotes)
       .where(and(eq(coachNotes.userId, userId), eq(coachNotes.id, noteId)));
-    if (existing?.text === userNotes) return;
+    if (existing?.text === userNotes && existing.sport === sport) return;
     throw new Error("This note submission was already used. Reload and send a new note.");
   }
-  await db
-    .insert(coachMemos)
-    .values({ userId, userNotes })
-    .onConflictDoUpdate({ target: coachMemos.userId, set: { userNotes } });
+  if (sport === null)
+    await db
+      .insert(coachMemos)
+      .values({ userId, userNotes })
+      .onConflictDoUpdate({ target: coachMemos.userId, set: { userNotes } });
 }
 
 async function saveCoachOverview(db: DbOrTx, userId: string, overview: string): Promise<void> {

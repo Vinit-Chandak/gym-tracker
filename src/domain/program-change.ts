@@ -85,6 +85,9 @@ export function assessProgramChange(
   const structuralChanges: StructuralChange[] = [];
   const doseChanges: string[] = [];
   if (before.slug !== after.slug) structuralChanges.push("program_identity");
+  if (before.sport !== after.sport) structuralChanges.push("program_identity");
+  if (!same(before.enduranceSessions ?? [], after.enduranceSessions ?? []))
+    structuralChanges.push("run_schedule");
   if (before.weeks !== after.weeks) structuralChanges.push("block_length");
   // A repeat left unsaid keeps the one before it, so only a change in what the calendar makes
   // of the cycle — how many cycles, and whether its days sit on weekdays — moves its days.

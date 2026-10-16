@@ -272,26 +272,26 @@ describe("a day that runs, finished today", () => {
    * day as finished only through a workout, so it offered the next day as today's and the run
    * that had just been logged was nowhere on it.
    */
-  it("is a day that only runs, once its run is logged", async () => {
+  it("keeps an independently logged run from completing a strength rest slot", async () => {
     const a = await withRuns("runonly@example.test", true);
     const today = todayInTimeZone(ZONE);
     await logRun(a, today);
 
     const plan = await a.as((tx) => getTodayPlan(tx, a.userId, ZONE));
-    expect(plan?.finishedToday).toMatchObject({ dayIndex: 3, cycleIndex: 1 });
-    expect(plan?.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 4 });
+    expect(plan?.finishedToday).toBeNull();
+    expect(plan?.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 3 });
     // What Today asks for the finished day: the run it logged, so the card stays on the day.
     const finished = await a.as((tx) =>
       occurrencesForSlot(tx, a.userId, {
         familyId: a.familyId,
-        cycleDayIndex: plan!.finishedToday!.dayIndex,
-        cycleIndex: plan!.finishedToday!.cycleIndex,
+        cycleDayIndex: 3,
+        cycleIndex: 1,
       }),
     );
     expect(finished.map((occurrence) => occurrence.resolution.kind)).toEqual(["logged"]);
   });
 
-  it("is a day that lifts and runs, by its run logged today after yesterday's workout", async () => {
+  it("does not mark yesterday's lift as finished today when a run is logged today", async () => {
     const a = await withRuns("liftrun@example.test", false);
     const today = todayInTimeZone(ZONE);
     await a.as((tx) =>
@@ -309,7 +309,7 @@ describe("a day that runs, finished today", () => {
     );
     await logRun(a, today);
     const plan = await a.as((tx) => getTodayPlan(tx, a.userId, ZONE));
-    expect(plan?.finishedToday).toMatchObject({ dayIndex: 3, cycleIndex: 1 });
+    expect(plan?.finishedToday).toBeNull();
   });
 
   it("is nothing when the run was logged on another day", async () => {
@@ -317,7 +317,7 @@ describe("a day that runs, finished today", () => {
     await logRun(a, addDays(todayInTimeZone(ZONE), -1));
     const plan = await a.as((tx) => getTodayPlan(tx, a.userId, ZONE));
     expect(plan?.finishedToday).toBeNull();
-    expect(plan?.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 4 });
+    expect(plan?.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 3 });
   });
 });
 

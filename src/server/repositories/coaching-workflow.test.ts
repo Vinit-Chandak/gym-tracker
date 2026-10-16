@@ -54,6 +54,8 @@ import { coachJobContext } from "./coaching-context";
 import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
 import {
   activateProgramDraft,
+  adoptProgramme,
+  saveStandaloneDraft,
   getProgramDraft,
   refreshProgramDraft,
   saveManualDraft,
@@ -66,6 +68,7 @@ import {
   removeCoachAttachment,
   saveCoachAttachment,
 } from "./coach-attachments";
+import { activeSportProgrammes } from "./sport-programmes";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import { readProgramBlueprint } from "./programs";
 import {
@@ -1794,125 +1797,145 @@ it("pauses generation independently and routes automatic revisions to review dur
   }
 });
 
-/**
- * An athlete who lifts on some days and runs on others.
- *
- * A run used to count against the sessions a week and had to fall on a lifting day, so an
- * athlete who lifts Monday and runs Wednesday could not be programmed for at all: the coach's
- * only way through was to staple the run onto the Monday it did not belong to, lengthening the
- * one day whose time the athlete had agreed. Runs are now counted and placed on their own.
- */
-async function runningAthlete(answers: Record<string, unknown>) {
-  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
-  return withUser(t.db, user.id, async (tx) => {
-    const [gym] = await tx
-      .insert(gyms)
-      .values({ userId: user.id, name: "My gym", slug: "my-gym", isDefault: true })
-      .returning();
-    const intake = await saveIntake(
+async function runningAthlete(scope: "programme" | "session" = "programme") {
+  const a = await athlete();
+  const intake = await as(a, (tx) =>
+    saveIntake(
       tx,
-      user.id,
-      coachIntakeSchema.parse({
-        goal: "Lift twice and keep two easy runs",
-        sessionsPerWeek: 1,
-        minutesPerSession: 45,
-        trainingLocation: "gym",
-        heightCm: 178,
-        weightKg: 74.5,
-        ageYears: 31,
-        gymId: gym!.id,
-        ...answers,
-      }),
-      null,
-    );
-    await confirmIntake(tx, user.id, intake.id);
-    return { user, gym: gym!, intake };
-  });
-}
-
-/** The lifting day, plus a run day of its own on Wednesday. */
-function withRunDay(): ProgramBlueprint {
-  return {
-    ...blueprint,
-    days: [
-      { ...blueprint.days[0]!, dayIndex: 1, dayOfWeek: 1 },
+      a.user.id,
       {
-        ...blueprint.days[0]!,
-        dayIndex: 2,
-        dayOfWeek: 3,
-        name: "Easy run",
-        includesLifting: false,
-        includesRun: true,
-        exercises: [],
+        ...a.intake.answers,
+        programmeSport: "running",
+        scope,
+        sessionsPerWeek: 1,
+        trainingLocation: null,
+        gymId: null,
       },
-    ],
-    runs: Array.from({ length: blueprint.weeks }, (_, week) => ({
-      weekIndex: week + 1,
-      dayOfWeek: 3,
-      duration: [25, 40] as [number, number],
-      rpe: [3, 5] as [number, number],
-      paceNote: "Easy, conversational.",
-      progressionNote: "Hold the distance while it settles.",
-      stopRule: "Stop if the ache worsens as the run goes on.",
+      null,
+    ),
+  );
+  await as(a, (tx) => confirmIntake(tx, a.user.id, intake.id));
+  return { ...a, intake };
+}
+function runningBlueprint(standalone = false): ProgramBlueprint {
+  return {
+    blueprintVersion: 1,
+    sport: "running",
+    slug: "dedicated-running",
+    name: "Easy running",
+    weeks: standalone ? 1 : 8,
+    notes: "",
+    days: [],
+    runs: [],
+    enduranceSessions: Array.from({ length: standalone ? 1 : 8 }, (_, index) => ({
+      lineageId: crypto.randomUUID(),
+      name: "Easy run",
+      weekIndex: index + 1,
+      dayOffset: index * 7,
+      scheduledLocalTime: null,
+      prescription: {
+        prescriptionVersion: 1,
+        sport: "running",
+        structureSource: "authored",
+        title: "Easy run",
+        sessionTargets: {
+          durationMs: [1_800_000, 1_800_000],
+          distanceMetres: null,
+          effort: [2, 3],
+        },
+        nodes: [],
+        running: null,
+        instructions: null,
+        notes: null,
+        legacy: null,
+      },
     })),
   };
 }
+const runningResult = (standalone = false) => ({
+  outcome: "program",
+  headline: "Easy runs around lifting",
+  blueprint: runningBlueprint(standalone),
+  rationale: "Keep the existing lifting programme intact.",
+  evidence: [],
+  uncertainties: [],
+});
 
-it("takes a run on a day of its own, counted against the runs the athlete confirmed", async () => {
-  const a = await runningAthlete({ runsPerWeek: 1, preferredRunDays: [3] });
+it("creates a dedicated running programme without a gym or a lifting opening plan", async () => {
+  const a = await runningAthlete();
   const { job } = await request(a);
+  expect(job.target).toMatchObject({ sport: "running", scope: "programme", gymId: null });
   const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
   const accepted = await as(a, (tx) =>
-    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
-      ...result(a),
-      blueprint: withRunDay(),
-    }),
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, runningResult()),
   );
-  expect(accepted.accepted).toBe(true);
   const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
-  expect(draft!.blueprint.days.filter((day) => day.includesRun)).toHaveLength(1);
-  expect(draft!.blueprint.days.find((day) => day.includesRun)!.dayOfWeek).toBe(3);
+  expect(draft).toMatchObject({ sport: "running", standalone: false, openingPlan: null });
+  expect(draft!.blueprint.days).toEqual([]);
+  expect(draft!.blueprint.enduranceSessions).toHaveLength(8);
 });
 
-it("refuses runs on a weekday the athlete did not name", async () => {
-  const a = await runningAthlete({ runsPerWeek: 1, preferredRunDays: [6] });
+it("refuses a result that tries to change a different sport", async () => {
+  const a = await athlete();
   const { job } = await request(a);
   const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
   await expect(
-    as(a, (tx) =>
-      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
-        ...result(a),
-        blueprint: withRunDay(),
-      }),
-    ),
-  ).rejects.toThrow(/running must match/i);
+    as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, runningResult())),
+  ).rejects.toThrow();
+  expect(await as(a, (tx) => tx.select().from(programDrafts))).toEqual([]);
 });
 
-it("refuses more runs than the athlete asked for", async () => {
-  const a = await runningAthlete({ runsPerWeek: 0 });
+it("saves a standalone running session exactly once and leaves its programme active", async () => {
+  const a = await runningAthlete("session");
+  const active = await as(a, (tx) =>
+    adoptProgramme(tx, a.user.id, runningBlueprint(), { startDate: "2026-09-01" }),
+  );
   const { job } = await request(a);
-  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
-  await expect(
-    as(a, (tx) =>
-      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
-        ...result(a),
-        blueprint: withRunDay(),
-      }),
-    ),
-  ).rejects.toThrow(/running must match/i);
-});
-
-it("leaves the running to the coach when the athlete did not say", async () => {
-  const a = await runningAthlete({});
-  const { job } = await request(a);
+  expect(job.target).toMatchObject({ scope: "session", programId: null });
   const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
   const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, runningResult(true)),
+  );
+  const draft = (await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!)))!;
+  const saved = await as(a, (tx) => saveStandaloneDraft(tx, a.user.id, draft.id, draft.revision));
+  expect(await as(a, (tx) => saveStandaloneDraft(tx, a.user.id, draft.id, draft.revision))).toEqual(
+    saved,
+  );
+  expect(
+    (await as(a, (tx) => activeSportProgrammes(tx, a.user.id))).map((programme) => programme.id),
+  ).toEqual([active.id]);
+});
+
+it("keeps a lifting coordination proposal pending until the athlete approves it", async () => {
+  const a = await runningAthlete();
+  const lifting = await as(a, (tx) =>
+    adoptProgramme(tx, a.user.id, { ...blueprint, sport: "strength" }, { startDate: "2026-09-01" }),
+  );
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
-      ...result(a),
-      blueprint: withRunDay(),
+      ...runningResult(),
+      coordinationProposals: [
+        {
+          sport: "strength",
+          blueprint: { ...blueprint, sport: "strength", name: "Proposed lifting arrangement" },
+          headline: "Leave more recovery before the long run",
+          rationale: "A separate lifting change for athlete approval.",
+        },
+      ],
     }),
   );
-  expect(accepted.accepted).toBe(true);
+  const drafts = await as(a, (tx) => tx.select().from(programDrafts));
+  expect(drafts.find((draft) => draft.sport === "strength")).toMatchObject({
+    baseProgramId: lifting.id,
+    status: "ready",
+  });
+  expect(
+    (await as(a, (tx) => activeSportProgrammes(tx, a.user.id))).find(
+      (programme) => programme.sport === "strength",
+    )!.id,
+  ).toBe(lifting.id);
 });
 
 /**

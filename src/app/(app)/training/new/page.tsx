@@ -11,6 +11,8 @@ import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain
 import { describePrescription } from "@/domain/activity-prescription";
 import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { z } from "zod";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -40,6 +42,12 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
 
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
+  const selectedDate = single(search.date) ?? todayInTimeZone(profile.timeZone);
+  if (
+    !z.iso.date().safeParse(selectedDate).success ||
+    selectedDate > todayInTimeZone(profile.timeZone)
+  )
+    notFound();
   const occurrenceId = single(search.occurrence);
   if (search.occurrence !== undefined && !occurrenceId) notFound();
   if (occurrenceId) requireUuid(occurrenceId);
@@ -104,7 +112,13 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   // a performance never does (ACTUAL-01).
   const initial: Record<string, string> = {
     recordedTimeZone: profile.timeZone,
-    startedAt: toDateTimeLocal(new Date(), profile.timeZone),
+    startedAt:
+      selectedDate < todayInTimeZone(profile.timeZone)
+        ? ""
+        : toDateTimeLocal(new Date(), profile.timeZone),
+    ...(selectedDate < todayInTimeZone(profile.timeZone)
+      ? { entryDate: selectedDate, entryTime: "", latestDate: todayInTimeZone(profile.timeZone) }
+      : {}),
     distanceUnit: sport === "swimming" ? units.poolUnit : units.distanceUnit,
     poolLengthUnit: units.poolUnit,
     distanceValue: "",
@@ -133,7 +147,11 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was
   // opened from (Today for the day's run, Training otherwise), Save pinned at its foot.
   return (
-    <SessionPage title={`Log a ${sportNoun(sport)}`} back={{ href: originPath(origin) as Route }}>
+    <SessionPage
+      title={`Log a ${sportNoun(sport)}`}
+      meta={selectedDate < todayInTimeZone(profile.timeZone) ? `For ${selectedDate}` : undefined}
+      back={{ href: originPath(origin) as Route }}
+    >
       <ActivityEditor
         {...shared}
         origin={origin}

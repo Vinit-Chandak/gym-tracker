@@ -63,17 +63,24 @@ export function ProgramBuilder({
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
   const [routineId, setRoutineId] = useState("");
-  const [plan, setPlan] = useState<ProgramBlueprint>(
-    () =>
-      initial?.blueprint ?? {
-        blueprintVersion: 1,
-        slug: `manual-${crypto.randomUUID().slice(0, 8)}`,
-        name: "",
-        weeks: 0,
-        notes: "",
-        days: [],
-        runs: [],
-      },
+  const [plan, setPlan] = useState<ProgramBlueprint>(() =>
+    initial
+      ? {
+          ...initial.blueprint,
+          sport: "strength",
+          days: initial.blueprint.days.map((day) => ({ ...day, includesRun: false })),
+          runs: [],
+        }
+      : {
+          blueprintVersion: 1,
+          sport: "strength",
+          slug: `manual-${crypto.randomUUID().slice(0, 8)}`,
+          name: "",
+          weeks: 0,
+          notes: "",
+          days: [],
+          runs: [],
+        },
   );
   const [draft, setDraft] = useState(
       initial ? { id: initial.id, revision: initial.revision } : null,
@@ -445,91 +452,6 @@ export function ProgramBuilder({
               dayChange(d, { includesLifting: true, exercises: [...day.exercises, entry] })
             }
           />
-          <label className="flex min-h-[var(--ov-target)] items-center gap-2">
-            <input
-              type="checkbox"
-              className="size-5"
-              checked={day.includesRun}
-              onChange={(e) => {
-                const days = plan.days.map((entry, i) =>
-                  i === d ? { ...entry, includesRun: e.target.checked } : entry,
-                );
-                change({
-                  days,
-                  runs: runsForDays(days, plan.weeks, plan.runs),
-                });
-              }}
-            />
-            Include a run
-          </label>
-          {day.includesRun && (
-            <details open>
-              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2">
-                Running targets by week
-              </summary>
-              <div className="space-y-3">
-                {plan.runs
-                  .filter((r) => r.dayOfWeek === day.dayOfWeek)
-                  .map((run) => (
-                    <fieldset key={run.weekIndex} className="space-y-3 border-t border-line pt-3">
-                      <legend>Week {run.weekIndex}</legend>
-                      <div className="grid grid-cols-2 gap-3">
-                        <RangeFields
-                          label="Kilometres"
-                          value={run.distanceKm ?? [NaN, NaN]}
-                          onChange={(distanceKm) =>
-                            change({
-                              runs: plan.runs.map((r) =>
-                                r === run
-                                  ? {
-                                      ...r,
-                                      // Both ends cleared means the run is set by time alone.
-                                      distanceKm: distanceKm.every(
-                                        (value) => !Number.isFinite(value),
-                                      )
-                                        ? undefined
-                                        : distanceKm,
-                                    }
-                                  : r,
-                              ),
-                            })
-                          }
-                        />
-                        <RangeFields
-                          label="Minutes"
-                          value={run.duration}
-                          onChange={(duration) =>
-                            change({
-                              runs: plan.runs.map((r) => (r === run ? { ...r, duration } : r)),
-                            })
-                          }
-                        />
-                        <RangeFields
-                          label="Effort"
-                          value={run.rpe}
-                          onChange={(rpe) =>
-                            change({ runs: plan.runs.map((r) => (r === run ? { ...r, rpe } : r)) })
-                          }
-                        />
-                      </div>
-                      <Field label="Pace / effort guidance">
-                        <Input
-                          maxLength={300}
-                          value={run.paceNote}
-                          onChange={(e) =>
-                            change({
-                              runs: plan.runs.map((r) =>
-                                r === run ? { ...r, paceNote: e.target.value } : r,
-                              ),
-                            })
-                          }
-                        />
-                      </Field>
-                    </fieldset>
-                  ))}
-              </div>
-            </details>
-          )}
           {!day.includesLifting && !day.includesRun && (
             <p className="text-sm text-ink-muted">This is a rest / mobility day.</p>
           )}

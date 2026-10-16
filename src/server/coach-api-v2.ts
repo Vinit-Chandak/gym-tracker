@@ -312,7 +312,13 @@ export async function v2Program(tx: DbOrTx, userId: string, today: string) {
   const [program] = await tx
     .select()
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(
+        eq(programs.userId, userId),
+        eq(programs.sport, "strength"),
+        eq(programs.status, "active"),
+      ),
+    )
     .limit(1);
   if (!program) return { version: V2_VERSION, today, program: null };
   const rows = await tx
@@ -402,7 +408,13 @@ export async function programmeRepresentableInV1(
   const [program] = await tx
     .select({ familyId: programs.familyId })
     .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .where(
+      and(
+        eq(programs.userId, userId),
+        eq(programs.sport, "strength"),
+        eq(programs.status, "active"),
+      ),
+    )
     .limit(1);
   if (!program) return { ok: true };
   const rows = await tx

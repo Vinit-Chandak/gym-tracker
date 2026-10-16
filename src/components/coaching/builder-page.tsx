@@ -48,7 +48,7 @@ export async function ProgrammeBuilderPage({
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
-      <PageHeader title="Programme builder" backHref={base} />
+      <PageHeader title="Lifting programme builder" backHref={onboarding ? base : "/training"} />
       <PageContent>
         <ProgramBuilder {...data} base={base} />
         {/* The library's own page lies outside setup, which would send an account still in setup

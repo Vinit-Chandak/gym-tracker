@@ -1,12 +1,14 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   date,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -25,6 +27,7 @@ import type { SavedRoutineDay } from "../../domain/saved-routine";
 import { ownerPolicy, readAllPolicy, serverWritePolicies, timestamps } from "./common";
 import { profiles } from "./profiles";
 import { programs } from "./programs";
+import { activitySportEnum } from "./multisport-enums";
 
 const owner = () =>
   uuid("user_id")
@@ -46,6 +49,7 @@ export const coachIntakes = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: owner(),
+    sport: activitySportEnum("sport").notNull().default("strength"),
     revision: integer("revision").notNull(),
     answers: jsonb("answers").$type<CoachIntake>().notNull(),
     confirmedAt: instant("confirmed_at"),
@@ -83,6 +87,22 @@ export const coachPreferences = pgTable(
     ),
     ownerPolicy("coach_preferences"),
   ],
+).enableRLS();
+
+/** Programme briefs and review clocks are independent; the account's coach switch is shared. */
+export const sportCoachPreferences = pgTable(
+  "sport_coach_preferences",
+  {
+    userId: owner(),
+    sport: activitySportEnum("sport").notNull(),
+    intakeId: uuid("intake_id").references(() => coachIntakes.id, { onDelete: "set null" }),
+    reviewWeekday: integer("review_weekday"),
+    reviewAnchorAt: instant("review_anchor_at"),
+    reviewRequestedAt: instant("review_requested_at"),
+    consentedAt: instant("consented_at"),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.sport] }), ownerPolicy("sport_coach_preferences")],
 ).enableRLS();
 
 /** Small private files are streamed through authenticated routes; never public URLs. */
@@ -187,6 +207,9 @@ export const programDrafts = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: owner(),
+    sport: activitySportEnum("sport").notNull().default("strength"),
+    standalone: boolean("standalone").notNull().default(false),
+    savedSessionId: uuid("saved_session_id"),
     source: text("source").$type<"manual" | "ai" | "weekly">().notNull(),
     status: text("status")
       .$type<"editing" | "ready" | "activated" | "rejected" | "superseded">()
@@ -271,6 +294,7 @@ export const coachWeeklyReviews = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: owner(),
+    sport: activitySportEnum("sport").notNull().default("strength"),
     jobId: uuid("job_id")
       .notNull()
       .references(() => coachJobs.id, { onDelete: "cascade" }),
@@ -282,7 +306,7 @@ export const coachWeeklyReviews = pgTable(
     completedAt: instant("completed_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("coach_weekly_reviews_period_uq").on(t.userId, t.periodEnd),
+    uniqueIndex("coach_weekly_reviews_sport_period_uq").on(t.userId, t.sport, t.periodEnd),
     ownerPolicy("coach_weekly_reviews"),
   ],
 ).enableRLS();
@@ -339,6 +363,7 @@ export const coachProgramRequests = pgTable(
     /** Minted by the coaching run, so its own result can decide a request it just opened. */
     id: uuid("id").primaryKey(),
     userId: owner(),
+    sport: activitySportEnum("sport").notNull().default("strength"),
     /** `note:<uuid>`, `workout:<uuid>` or `exercise:<uuid>` — the athlete's own words. */
     sourceId: text("source_id").notNull(),
     quote: text("quote").notNull(),

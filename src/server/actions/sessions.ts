@@ -18,7 +18,8 @@ import { profiles } from "@/db/schema";
 import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
+import { allSlots, isRestSlot, partStatus, pendingParts, pickUpFromToday } from "@/domain/schedule";
+import { fromDateTimeLocal } from "@/lib/time";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { SKIP_CHECK_IN } from "@/lib/check-in";
 import { EDIT_PARAM, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
@@ -149,8 +150,10 @@ export type StartRequest =
       programDayId: string;
       dayIndex: number;
       fromCycleIndex?: number;
+      exactCycleIndex?: number;
+      startedAt?: string;
     }
-  | { kind: "unplanned"; gymId: string };
+  | { kind: "unplanned"; gymId: string; startedAt?: string };
 
 // Bound to the form by the page that read it from the address, so it is checked like any input.
 const startRequestSchema = z.discriminatedUnion("kind", [
@@ -160,8 +163,20 @@ const startRequestSchema = z.discriminatedUnion("kind", [
     programDayId: z.uuid(),
     dayIndex: z.number().int().min(1),
     fromCycleIndex: z.number().int().min(1).optional(),
+    exactCycleIndex: z.number().int().min(1).optional(),
+    startedAt: z.iso
+      .datetime()
+      .refine((at) => new Date(at).getTime() <= Date.now(), "Choose a time in the past.")
+      .optional(),
   }),
-  z.object({ kind: z.literal("unplanned"), gymId: z.uuid() }),
+  z.object({
+    kind: z.literal("unplanned"),
+    gymId: z.uuid(),
+    startedAt: z.iso
+      .datetime()
+      .refine((at) => new Date(at).getTime() <= Date.now())
+      .optional(),
+  }),
 ]);
 
 type Started = { sessionId: string; created: boolean } | null;
@@ -180,7 +195,10 @@ async function startPlanned(
     getSchedule(tx, user.id),
   ]);
   if (open) return { sessionId: open.id, created: false };
-  const today = todayInTimeZone(profile.timeZone);
+  const today = todayInTimeZone(
+    profile.timeZone,
+    start.startedAt ? new Date(start.startedAt) : new Date(),
+  );
   // An older tab can still name a day from the programme that was just replaced. Return
   // to the current plan before advancing any rest days or creating a mismatched workout.
   const day = schedule?.days.find((day) => day.id === programDayId && day.dayIndex === dayIndex);
@@ -195,12 +213,22 @@ async function startPlanned(
   // A skipped day stays skipped while its workout is open: finishing the workout is what turns
   // the skip into a completion (recordSlotEvent), so one discarded before a set leaves the day
   // as it was, reason and all, instead of putting it back in front of the sequence.
-  const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
+  const cycleIndex =
+    start.exactCycleIndex ?? shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
   if (cycleIndex === null) return null;
+  const ref = { cycleIndex, dayIndex };
+  if (
+    !allSlots(schedule.state).some(
+      (slot) => slot.cycleIndex === cycleIndex && slot.dayIndex === dayIndex,
+    ) ||
+    partStatus(schedule.state, ref, "session") === "completed"
+  )
+    return null;
   const { sessionId } = await startPlannedSession(tx, user.id, {
     gymId,
     programDayId,
     cycleIndex,
+    startedAt: start.startedAt ? new Date(start.startedAt) : undefined,
   });
   // In the same transaction as the session, so both land or neither. The rest days passed name
   // the workout that passed them, which is what lets a discard give them back.
@@ -234,7 +262,7 @@ export async function startSessionAction(
       const result =
         start.data.kind === "planned"
           ? await startPlanned(tx, user, start.data)
-          : await startUnplanned(tx, user.id, start.data.gymId);
+          : await startUnplanned(tx, user.id, start.data.gymId, start.data.startedAt);
       if (result?.created && checkIn) await saveCheckIn(tx, user.id, result.sessionId, checkIn);
       return result;
     });
@@ -250,10 +278,18 @@ export async function startSessionAction(
 }
 
 /** A session at a gym with no programme day; the open session instead, if there is one. */
-async function startUnplanned(tx: Tx, userId: string, gymId: string): Promise<Started> {
+async function startUnplanned(
+  tx: Tx,
+  userId: string,
+  gymId: string,
+  startedAt?: string,
+): Promise<Started> {
   const open = await getInProgressSession(tx, userId);
   if (open) return { sessionId: open.id, created: false };
-  const { sessionId } = await startAdHocSession(tx, userId, { gymId });
+  const { sessionId } = await startAdHocSession(tx, userId, {
+    gymId,
+    startedAt: startedAt ? new Date(startedAt) : undefined,
+  });
   return { sessionId, created: true };
 }
 
@@ -751,6 +787,7 @@ const finishSchema = z
     bodyWeight: optionalNumber(0, 2000, false),
     // Sent by a Finish that says "as of" a workout's last set, for one left open.
     asOf: z.literal("last-set").optional().catch(undefined),
+    finishedAt: z.string().optional(),
   })
   .transform((values, ctx) => {
     const bodyWeightKg =
@@ -763,7 +800,12 @@ const finishSchema = z
       });
       return z.NEVER;
     }
-    return { notes: values.notes, bodyWeightKg, asOfLastSet: values.asOf === "last-set" };
+    return {
+      notes: values.notes,
+      bodyWeightKg,
+      asOfLastSet: values.asOf === "last-set",
+      finishedAt: values.finishedAt,
+    };
   });
 
 /**
@@ -789,8 +831,7 @@ async function finishAndRecord(
         weightKg: input.bodyWeightKg,
       });
     }
-    // Only the lifting half of the day. A day that also runs still owes its run, and the
-    // sequence stays on it until that is logged or skipped in its own right.
+    // Only this lifting session advances its programme. Endurance progresses independently.
     //
     // Dated by when the session started, not when it finished, as the session's own
     // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
@@ -821,8 +862,8 @@ async function finishAndRecord(
  * summary names Today as where it was opened, and the past workout its Edit becomes is Today's
  * and goes back there, not to History (NAV-03).
  */
-const summaryPath = (sessionId: string) =>
-  `/workouts/${sessionId}?${ORIGIN_PARAM}=today&finished=1` as const;
+const summaryPath = (sessionId: string, retrospective = false) =>
+  `/workouts/${sessionId}?${ORIGIN_PARAM}=${retrospective ? "training" : "today"}&finished=1` as const;
 
 export async function finishSessionAction(
   sessionId: string,
@@ -832,8 +873,28 @@ export async function finishSessionAction(
   const user = await requireUser();
   const parsed = parseForm(finishSchema, formData);
   if (!parsed.success) return parsed.state;
+  const session = await withUser(
+    getDb(),
+    user.id,
+    (tx) => getSessionRecord(tx, user.id, sessionId),
+    { readOnly: true },
+  );
+  if (session?.loggedRetrospectively && !session.completedAt && !parsed.data.finishedAt)
+    return { formError: "Enter when this workout actually ended.", values: formValues(formData) };
   try {
-    await finishAndRecord(user, sessionId, parsed.data);
+    const profile = await getRequestProfile(user.id, user.email);
+    const completedAt = parsed.data.finishedAt
+      ? fromDateTimeLocal(parsed.data.finishedAt, profile.timeZone, { rejectNonexistent: true })
+      : undefined;
+    if (parsed.data.finishedAt && (!completedAt || completedAt > new Date()))
+      return {
+        formError: "Enter the actual finish time, no later than now.",
+        values: formValues(formData),
+      };
+    await finishAndRecord(user, sessionId, {
+      ...parsed.data,
+      completedAt: completedAt ?? undefined,
+    });
   } catch (error) {
     // Finish pressed again after its first reply was lost: the workout is finished, which is
     // what was asked, so it goes on to the summary rather than stopping at a refusal.
@@ -847,7 +908,7 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
-  redirect(summaryPath(sessionId));
+  redirect(summaryPath(sessionId, session?.loggedRetrospectively));
 }
 
 /**
@@ -856,6 +917,14 @@ export async function finishSessionAction(
  */
 export async function finishLeftOpenAction(sessionId: string): Promise<ActionResult> {
   const user = await requireUser();
+  const session = await withUser(
+    getDb(),
+    user.id,
+    (tx) => getSessionRecord(tx, user.id, sessionId),
+    { readOnly: true },
+  );
+  if (session?.loggedRetrospectively && !session.completedAt)
+    redirect(`/workouts/${sessionId}/finish`);
   try {
     await finishAndRecord(user, sessionId, { notes: null, bodyWeightKg: null, asOfLastSet: true });
   } catch (error) {

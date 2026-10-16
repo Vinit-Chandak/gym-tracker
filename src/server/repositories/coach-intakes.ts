@@ -5,12 +5,14 @@ import {
   coachIntakes,
   coachJobs,
   coachPreferences,
+  sportCoachPreferences,
   exercises,
   gyms,
   profiles,
   programDrafts,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import {
   coachIntakeSchema,
   validateIntake,
@@ -24,7 +26,7 @@ import { TRAINING_GOALS } from "@/domain/types";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { recordBodyWeight } from "./body-weight";
 import { createGym } from "./gyms";
-import { CoachingError } from "./coaching-state";
+import { CoachingError, getCoachingPreferences } from "./coaching-state";
 
 /**
  * The location an answer of "gym" or "home" stands for.
@@ -73,14 +75,35 @@ async function resolveTrainingLocation(
  * schema's own defaults fill those in, so a new question never has to be back-filled into
  * every row that predates it.
  */
-export async function latestIntake(db: DbOrTx, userId: string) {
+export async function latestIntake(
+  db: DbOrTx,
+  userId: string,
+  sport: ActivitySport = "strength",
+  scope: "programme" | "session" = "programme",
+) {
   const [row] = await db
     .select()
     .from(coachIntakes)
-    .where(eq(coachIntakes.userId, userId))
+    .where(
+      and(
+        eq(coachIntakes.userId, userId),
+        eq(coachIntakes.sport, sport),
+        sql`coalesce(${coachIntakes.answers}->>'scope', 'programme') = ${scope}`,
+      ),
+    )
     .orderBy(desc(coachIntakes.revision))
     .limit(1);
   return row ? { ...row, answers: coachIntakeSchema.parse(row.answers) } : null;
+}
+
+export async function latestSportIntakes(db: DbOrTx, userId: string) {
+  const scope = sql<string>`coalesce(${coachIntakes.answers}->>'scope', 'programme')`;
+  const rows = await db
+    .selectDistinctOn([coachIntakes.sport, scope])
+    .from(coachIntakes)
+    .where(eq(coachIntakes.userId, userId))
+    .orderBy(coachIntakes.sport, scope, desc(coachIntakes.revision));
+  return rows.map((row) => ({ ...row, answers: coachIntakeSchema.parse(row.answers) }));
 }
 
 /** Each confirmed intake stays immutable. Further edits receive a new revision. */
@@ -93,23 +116,30 @@ export async function saveIntake(
   const answers = await resolveTrainingLocation(db, userId, coachIntakeSchema.parse(input), {
     create: false,
   });
-  const current = await latestIntake(db, userId);
+  const current = await latestIntake(db, userId, answers.programmeSport, answers.scope);
   if ((current?.revision ?? null) !== expectedRevision)
     throw new CoachingError(
       "Your answers changed on another device. Reload to review them before saving.",
     );
   await checkIntakeReferences(db, userId, answers);
+  const [latestRevision] = await db
+    .select({ revision: coachIntakes.revision })
+    .from(coachIntakes)
+    .where(eq(coachIntakes.userId, userId))
+    .orderBy(desc(coachIntakes.revision))
+    .limit(1);
+  const nextRevision = (latestRevision?.revision ?? 0) + 1;
   if (current && !current.confirmedAt) {
     const [saved] = await db
       .update(coachIntakes)
-      .set({ answers, revision: current.revision + 1 })
+      .set({ answers, revision: nextRevision })
       .where(and(eq(coachIntakes.id, current.id), isNull(coachIntakes.confirmedAt)))
       .returning();
     return saved!;
   }
   const [saved] = await db
     .insert(coachIntakes)
-    .values({ userId, revision: (current?.revision ?? 0) + 1, answers })
+    .values({ userId, sport: answers.programmeSport, revision: nextRevision, answers })
     .returning();
   return saved!;
 }
@@ -153,7 +183,7 @@ export async function answerCoachQuestions(
     .filter((entry) => questions.has(entry.question) && entry.answer !== "");
   if (given.length === 0)
     throw new CoachingError("Answer at least one of the coach's questions before sending.");
-  const intake = await latestIntake(db, userId);
+  const intake = await latestIntake(db, userId, job!.target.sport ?? "strength", job!.target.scope);
   if (!intake) throw new CoachingError("Review your answers before asking again.");
   const kept = intake.answers.clarifications.filter((entry) => !questions.has(entry.question));
   return saveIntake(
@@ -165,13 +195,16 @@ export async function answerCoachQuestions(
 }
 
 export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string) {
-  const intake = await latestIntake(db, userId);
+  const [requested] = await db
+    .select()
+    .from(coachIntakes)
+    .where(and(eq(coachIntakes.userId, userId), eq(coachIntakes.id, intakeId)));
+  const intake = requested
+    ? await latestIntake(db, userId, requested.sport, requested.answers.scope ?? "programme")
+    : null;
   if (!intake || intake.id !== intakeId)
     throw new CoachingError("Review your latest answers before creating a programme.");
-  const [previous] = await db
-    .select()
-    .from(coachPreferences)
-    .where(eq(coachPreferences.userId, userId));
+  const previous = await getCoachingPreferences(db, userId, intake.sport);
   // Confirming the same answers twice is the retry of a dropped response, not a new consent:
   // nothing is re-derived and no location is created a second time.
   if (intake.confirmedAt && previous?.mode === "coach" && previous.intakeId === intake.id)
@@ -185,9 +218,17 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
     .update(coachIntakes)
     .set({ confirmedAt: now, answers })
     .where(eq(coachIntakes.id, intake.id));
+  if (answers.scope === "session") {
+    await db
+      .insert(coachPreferences)
+      .values({ userId, mode: "coach", consentedAt: now })
+      .onConflictDoNothing();
+    await db.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, userId));
+    return { ...intake, confirmedAt: now, answers };
+  }
   // The route chosen here is the answer to "Which sounds like you?": the profile keeps it, so
   // whatever reads the profile next (the machines step, the coach) agrees with the setup.
-  if (answers.track)
+  if (answers.track && intake.sport === "strength")
     await db
       .update(profiles)
       .set({ trainingExperience: answers.track === "guided" ? "new" : "experienced" })
@@ -195,7 +236,14 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
   await db
     .update(coachJobs)
     .set({ status: "superseded", completedAt: now, error: "Your confirmed answers changed." })
-    .where(and(eq(coachJobs.userId, userId), inArray(coachJobs.status, ["queued", "claimed"])));
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        sql`coalesce(${coachJobs.target}->>'sport', 'strength') = ${intake.sport}`,
+        sql`coalesce(${coachJobs.target}->>'scope', 'programme') = 'programme'`,
+        inArray(coachJobs.status, ["queued", "claimed"]),
+      ),
+    );
   // A creation request that asked a question is finished with once the answers have moved on,
   // so it stops offering a link to a question that has already been answered.
   await db
@@ -205,6 +253,8 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
       and(
         eq(coachJobs.userId, userId),
         eq(coachJobs.kind, "create_program"),
+        sql`coalesce(${coachJobs.target}->>'sport', 'strength') = ${intake.sport}`,
+        sql`coalesce(${coachJobs.target}->>'scope', 'programme') = 'programme'`,
         eq(coachJobs.status, "needs_input"),
       ),
     );
@@ -215,6 +265,8 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
       and(
         eq(programDrafts.userId, userId),
         eq(programDrafts.source, "ai"),
+        eq(programDrafts.sport, intake.sport),
+        eq(programDrafts.standalone, false),
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
     );
@@ -228,19 +280,24 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
     .values({
       userId,
       mode: "coach",
-      intakeId,
-      reviewWeekday,
-      consentedAt: now,
+      ...(intake.sport === "strength" ? { intakeId, reviewWeekday, consentedAt: now } : {}),
     })
     .onConflictDoUpdate({
       target: coachPreferences.userId,
       set: {
         mode: "coach",
-        intakeId,
-        reviewWeekday,
-        consentedAt: previous?.consentedAt ?? now,
+        ...(intake.sport === "strength"
+          ? { intakeId, reviewWeekday, consentedAt: previous?.consentedAt ?? now }
+          : {}),
         updatedAt: now,
       },
+    });
+  await db
+    .insert(sportCoachPreferences)
+    .values({ userId, sport: intake.sport, intakeId, reviewWeekday, consentedAt: now })
+    .onConflictDoUpdate({
+      target: [sportCoachPreferences.userId, sportCoachPreferences.sport],
+      set: { intakeId, reviewWeekday, consentedAt: previous?.consentedAt ?? now, updatedAt: now },
     });
   await db.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, userId));
   await copyIntakeToProfile(db, userId, answers);

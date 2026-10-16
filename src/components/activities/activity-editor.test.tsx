@@ -19,6 +19,34 @@ const props = {
   submitLabel: "Save activity",
 };
 
+it("recovers a backdated draft even after its actual training date was corrected", async () => {
+  const initial = {
+    ...props.initial,
+    startedAt: "",
+    entryDate: "2026-10-15",
+    entryTime: "",
+    latestDate: "2026-10-16",
+  };
+  const action = vi.fn().mockResolvedValue({ formError: "Try again" });
+  const first = render(<ActivityEditor {...props} initial={initial} action={action} />);
+  fireEvent.change(await screen.findByLabelText("Training date"), {
+    target: { value: "2026-10-14" },
+  });
+  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "07:30" } });
+  fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "30" } });
+  await waitFor(() =>
+    expect(readDrafts(localStorage, props.userId).drafts[0]?.values.entryContextDate).toBe(
+      "2026-10-15",
+    ),
+  );
+  first.unmount();
+  render(<ActivityEditor {...props} initial={initial} action={action} />);
+  expect(await screen.findByText(/Restored your unsaved/)).toBeTruthy();
+  expect(screen.getByLabelText("Training date")).toHaveProperty("value", "2026-10-14");
+  expect(screen.getByLabelText("Start time")).toHaveProperty("value", "07:30");
+  expect(screen.getByLabelText("Duration")).toHaveProperty("value", "30:00");
+});
+
 it("restores raw inputs and the retry key after unmount, then clears only on acknowledged save", async () => {
   const action = vi.fn().mockResolvedValue({ savedActivityId: "saved-id" });
   const first = render(<ActivityEditor {...props} action={action} />);

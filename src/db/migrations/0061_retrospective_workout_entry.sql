@@ -1,0 +1,1 @@
+ALTER TABLE "workout_sessions" ADD COLUMN "logged_retrospectively" boolean DEFAULT false NOT NULL;

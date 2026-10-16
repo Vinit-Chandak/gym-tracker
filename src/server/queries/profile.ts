@@ -123,7 +123,13 @@ export async function getStarterStatus(db: DbOrTx, userId: string): Promise<Star
         weeks: programs.weeks,
       })
       .from(programs)
-      .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+      .where(
+        and(
+          eq(programs.userId, userId),
+          eq(programs.sport, "strength"),
+          eq(programs.status, "active"),
+        ),
+      )
       .limit(1),
   ]);
 

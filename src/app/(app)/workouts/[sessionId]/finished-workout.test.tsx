@@ -144,6 +144,24 @@ function show(over: Partial<SessionVM> = {}) {
 const stat = (label: string) =>
   screen.getByText(label, { selector: "dt" }).nextElementSibling?.textContent;
 
+it("keeps a retrospective summary's date visible and returns to Training", () => {
+  render(
+    <FinishedWorkout
+      session={session({ loggedRetrospectively: true })}
+      title="Past workout"
+      justFinished
+      backHref="/training"
+      records={null}
+      routine={null}
+      onOpenExercise={() => {}}
+      onOpenDetails={() => {}}
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Close" }).getAttribute("href")).toBe("/training");
+  expect(screen.getByRole("link", { name: "Done" }).getAttribute("href")).toBe("/training");
+  expect(screen.getByText("Tue 8 Sept")).toBeTruthy();
+});
+
 it("counts the sets it lists, warm-ups aside, as its volume does", () => {
   show();
   // Two of the bench press's four, and both of the row's: the back-off is work.

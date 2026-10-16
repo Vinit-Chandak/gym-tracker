@@ -15,7 +15,7 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { nextPendingSlot, partStatus, slotFinishedOn, suggestion } from "@/domain/schedule";
+import { nextPendingSlot, slotFinishedOn, suggestion } from "@/domain/schedule";
 
 import { printedSession } from "@/app/(app)/workouts/[sessionId]/logger-model";
 import { toSessionVM } from "@/app/(app)/workouts/[sessionId]/view-model";
@@ -324,7 +324,7 @@ describe("planned session lifecycle", () => {
     expect(await withUser(t.db, user.id, (tx) => getInProgressSession(tx, user.id))).toBeNull();
   });
 
-  it("keeps a run day on Today after its workout is finished, until the run is logged too", async () => {
+  it("advances lifting when the workout is finished, independently of the run", async () => {
     const s = await schedule();
     // Upper A out of the way, so the day that lifts *and* runs is the one being offered.
     await withUser(t.db, user.id, (tx) =>
@@ -340,7 +340,7 @@ describe("planned session lifecycle", () => {
     );
     const runDay = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     expect(runDay?.suggestedDay?.name).toBe("Easy Run + Arms");
-    expect(runDay?.suggestedDay?.includesRun).toBe(true);
+    expect(runDay?.suggestedDay?.includesRun).toBe(false);
 
     await withUser(t.db, user.id, (tx) =>
       recordSlotEvent(
@@ -355,12 +355,12 @@ describe("planned session lifecycle", () => {
     );
     // This is the bug: the run used to disappear with the day the moment the workout ended.
     const afterWorkout = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
-    expect(afterWorkout?.suggestedDay?.name).toBe("Easy Run + Arms");
-    expect(afterWorkout?.sessionStatus).toBe("completed");
+    expect(afterWorkout?.suggestedDay?.name).toBe("Lower B");
+    expect(afterWorkout?.sessionStatus).toBe("pending");
     // The run half is answered by the sequence itself rather than by a copy on the plan, so
     // that is where it is read: the day is still owed a run, and so is still the day.
     const owing = await withUser(t.db, user.id, (tx) => getSchedule(tx, user.id));
-    expect(partStatus(owing!.state, { cycleIndex: 1, dayIndex: 3 }, "run")).toBe("pending");
+    expect(owing!.state.slots.find((slot) => slot.dayIndex === 3)?.includesRun).toBe(false);
 
     await withUser(t.db, user.id, (tx) =>
       recordSlotEvent(

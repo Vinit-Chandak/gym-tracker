@@ -48,33 +48,71 @@ export function ActivityStartFields({
   values: (key: string) => string;
   errors?: Record<string, string>;
 }) {
-  const [local, setLocal] = useState(() => values("startedAt"));
+  const splitDate = values("entryDate");
+  const [local, setLocal] = useState(() =>
+    splitDate ? `${splitDate}T${values("entryTime")}` : values("startedAt"),
+  );
   const [offset, setOffset] = useState(() => values("startedAtOffsetMinutes"));
   const timeZone = values("recordedTimeZone") || "UTC";
   const choices = dateTimeLocalCandidates(local, timeZone);
   return (
     <>
       <input type="hidden" name="recordedTimeZone" value={timeZone} />
-      <Field
-        label="When"
-        hint={`Date and time in ${timeZone}.`}
-        error={
-          errors?.startedAt ??
-          errors?.recordedTimeZone ??
-          (choices.length <= 1 ? errors?.startedAtOffsetMinutes : undefined)
-        }
-      >
-        <Input
-          name="startedAt"
-          type="datetime-local"
-          value={local}
-          onChange={(event) => {
-            setLocal(event.target.value);
-            setOffset("");
-          }}
-          required
-        />
-      </Field>
+      {splitDate ? (
+        <>
+          <input type="hidden" name="startedAt" value={local} />
+          <Field label="Training date" error={errors?.startedAt}>
+            <Input
+              name="entryDate"
+              type="date"
+              value={local.slice(0, 10)}
+              max={values("latestDate") || undefined}
+              required
+              onChange={(event) => {
+                setLocal(`${event.target.value}T${local.slice(11)}`);
+                setOffset("");
+              }}
+            />
+          </Field>
+          <Field
+            label="Start time"
+            hint={`When you actually trained, in ${timeZone}.`}
+            error={errors?.startedAt ?? errors?.recordedTimeZone}
+          >
+            <Input
+              name="entryTime"
+              type="time"
+              value={local.slice(11)}
+              required
+              onChange={(event) => {
+                setLocal(`${local.slice(0, 10)}T${event.target.value}`);
+                setOffset("");
+              }}
+            />
+          </Field>
+        </>
+      ) : (
+        <Field
+          label="When"
+          hint={`Date and time in ${timeZone}.`}
+          error={
+            errors?.startedAt ??
+            errors?.recordedTimeZone ??
+            (choices.length <= 1 ? errors?.startedAtOffsetMinutes : undefined)
+          }
+        >
+          <Input
+            name="startedAt"
+            type="datetime-local"
+            value={local}
+            onChange={(event) => {
+              setLocal(event.target.value);
+              setOffset("");
+            }}
+            required
+          />
+        </Field>
+      )}
       {choices.length > 1 ? (
         <Field
           label="Which time?"

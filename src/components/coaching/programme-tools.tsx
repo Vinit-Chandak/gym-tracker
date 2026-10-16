@@ -40,7 +40,11 @@ export function ProgrammeTools({
     const result = await coachingAction(() => copyProgramAction(id, duplicate));
     if (result.ok)
       startNavigation(() =>
-        router.push(`/profile/programme/manual?draft=${result.value.id}` as Route),
+        router.push(
+          (result.value.sport === "strength"
+            ? `/profile/programme/manual?draft=${result.value.id}`
+            : `/training/programmes/${result.value.sport}/edit?draft=${result.value.id}`) as Route,
+        ),
       );
     else setError(result.error);
     setBusy(false);

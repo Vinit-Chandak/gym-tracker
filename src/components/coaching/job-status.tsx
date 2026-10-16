@@ -28,7 +28,9 @@ export function CoachJobStatus({
   const router = useRouter();
   const pending = job.status === "queued" || job.status === "claimed";
   const successLabel = draftId
-    ? "Your programme draft is ready"
+    ? job.target.scope === "session"
+      ? "Your session draft is ready"
+      : "Your programme draft is ready"
     : job.kind === "prepare_session"
       ? "Your session preparation is complete"
       : job.result?.outcome === "no_change"
@@ -64,7 +66,7 @@ export function CoachJobStatus({
       {pending && (
         <p className="text-sm text-ink-muted">
           You can leave this screen. Your answers and files are saved, and the draft will appear
-          under Programme when it is ready.
+          under Training when it is ready.
         </p>
       )}
       {job.error && <p className="text-sm text-ink-muted">{job.error}</p>}
@@ -86,7 +88,11 @@ export function CoachJobStatus({
       )}
       {!pending && !draftId && job.status !== "succeeded" && (
         <LinkButton
-          href={`${base}/create` as Route}
+          href={
+            (base === "/welcome/programme"
+              ? `${base}/create`
+              : `/training/programmes/new?sport=${job.target.sport ?? "strength"}&scope=${job.target.scope}&method=coach`) as Route
+          }
           variant={questions ? "secondary" : "primary"}
           className="flex w-full"
         >

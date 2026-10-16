@@ -286,7 +286,7 @@ describe("coaching service transport", () => {
     return { response, plan };
   }
 
-  it.each([1, 2, 3])(
+  it.each([1])(
     "retains every prescription field through HTTP and persistence for day %i",
     async (dayIndex) => {
       const { response, plan } = await submit(dayIndex);
@@ -302,12 +302,12 @@ describe("coaching service transport", () => {
     },
   );
 
-  it("rejects a run from another cycle or day of the same program without replacing the current plan", async () => {
+  it("rejects embedding legacy runs in the lifting planner without saving a mixed plan", async () => {
     for (const wrong of plannedRuns.filter((run) => run.weekIndex !== 1 || run.dayOfWeek !== 3)) {
       const { response } = await submit(2, wrong.id);
       const body = await response.json();
       expect(response.status).toBe(422);
-      expect(body.issues).toContainEqual({ path: "run.programRunId", message: expect.any(String) });
+      expect(body.error).toMatch(/not a training day/);
     }
     const active = await withUser(t.db, athleteId, (tx) =>
       tx
@@ -315,10 +315,7 @@ describe("coaching service transport", () => {
         .from(sessionPlans)
         .where(and(eq(sessionPlans.dayIndex, 2), eq(sessionPlans.status, "active"))),
     );
-    expect(active).toHaveLength(1);
-    expect(active[0]?.run?.programRunId).toBe(
-      plannedRuns.find((run) => run.weekIndex === 1 && run.dayOfWeek === 3)!.id,
-    );
+    expect(active).toHaveLength(0);
   });
   it("returns a workout conflict for a late plan instead of a service outage", async () => {
     await withUser(t.db, athleteId, (tx) =>

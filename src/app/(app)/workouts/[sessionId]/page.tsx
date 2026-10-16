@@ -27,7 +27,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const searchParams = await props.searchParams;
-  const origin = parseOrigin(searchParams[ORIGIN_PARAM]);
+  const requestedOrigin = parseOrigin(searchParams[ORIGIN_PARAM]);
   // Finish session lands here saying so: the summary, once (board Summary).
   const justFinished = searchParams.finished === "1";
   const user = await requireUser();
@@ -66,6 +66,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   );
   if (!found) notFound();
   const { session: data, records } = found;
+  const origin = requestedOrigin ?? (data.loggedRetrospectively ? "training" : null);
 
   const title = sessionName(data.day?.name, data.title);
   // A finished workout can be changed for a week after its day (ADR 0049).
@@ -74,7 +75,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     data.completedAt && canEditWorkout(startedAt, requestProfile.timeZone)
       ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
       : null;
-  const backHref = workoutBackPath(origin, data.completedAt !== null) as Route;
+  const backHref = (
+    data.loggedRetrospectively ? "/training" : workoutBackPath(origin, data.completedAt !== null)
+  ) as Route;
   // Where it was opened from, carried on to its own pages so they keep the tab it lit.
   const carried = originQuery(workoutOrigin(origin, data.completedAt !== null));
   // Remount the client view whenever the server-side shape of the session changes.
