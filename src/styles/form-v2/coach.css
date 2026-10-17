@@ -1,6 +1,8 @@
 /* Three focused workspaces; every message keeps its programme visible. */
 .coach-hub {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 24px;
   padding-top: 8px;
 }
@@ -12,6 +14,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+}
+.coach-hub-heading > div:first-child {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 .coach-eyebrow {
   color: var(--ov-ink-2);
@@ -37,12 +44,15 @@
 }
 .coach-tabs {
   display: grid;
-  grid-template-columns: 0.8fr 1.25fr 1.1fr;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr) minmax(0, 1.1fr);
   border-bottom: 1px solid var(--ov-hair);
   gap: 4px;
 }
 .coach-tabs > button {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -80,6 +90,7 @@
 }
 .coach-section-heading {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 14px;
@@ -116,7 +127,7 @@
 }
 .coach-section-heading > .coach-text-link {
   min-height: 24px;
-  flex-shrink: 0;
+  max-width: 100%;
 }
 .coach-text-link > svg {
   flex-shrink: 0;
@@ -169,6 +180,7 @@
 }
 .coach-programme-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .coach-programme {
