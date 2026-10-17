@@ -260,6 +260,37 @@ describe("a run's distance", () => {
 });
 
 describe("how the cycle repeats", () => {
+  it("stores and reads a 56-day progressive programme as one finite sequence", async () => {
+    const blueprint = parseProgramBlueprint({
+      blueprintVersion: 1,
+      sport: "strength",
+      slug: "finite-progressive",
+      name: "Progressive block",
+      repeats: "once",
+      weeks: 8,
+      days: Array.from({ length: 56 }, (_, index) => ({
+        dayIndex: index + 1,
+        dayOfWeek: (index % 7) + 1,
+        name: `Day ${index + 1}`,
+        includesLifting: true,
+        includesRun: false,
+        exercises: [
+          { exerciseSlug: "high-bar-squat", sets: 1 + (index % 4), reps: [5, 8], rest: [120, 180] },
+        ],
+      })),
+    });
+    const created = await adopt(blueprint, "2027-05-03");
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.repeats).toBe("once");
+    expect(read!.blueprint.days).toHaveLength(56);
+    expect(read!.blueprint.days[39]!.exercises[0]!.sets).toBe(4);
+    const schedule = await withUser(t.db, user.id, (tx) => getSchedule(tx, user.id));
+    expect(schedule!.state.cycles).toBe(1);
+    const [stored] = await t.db.select().from(programs).where(eq(programs.id, created.id));
+    expect(stored!.endDate).toBe("2027-06-27");
+  });
   // Upper, lower, a rest day and a full-body day: four days that do not make a week.
   const fourDays = (repeats?: "weekly" | "rolling"): ProgramBlueprint =>
     parseProgramBlueprint({

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BlueprintDay, BlueprintExercise, ProgramBlueprint } from "./program-blueprint";
+import { endurancePrescriptionSchema } from "./activity-prescription";
 import {
   changeFingerprints,
   diffPrograms,
@@ -52,6 +53,36 @@ function plan(input: Partial<ProgramBlueprint> & { days: BlueprintDay[] }): Prog
     ...input,
   };
 }
+
+it("shows only changed endurance prescriptions, grouping identical repeats", () => {
+  const before = plan({
+    sport: "running",
+    days: [],
+    enduranceSessions: [0, 7, 14].map((dayOffset) => ({
+      lineageId: crypto.randomUUID(),
+      name: "Easy run",
+      weekIndex: Math.floor(dayOffset / 7) + 1,
+      dayOffset,
+      scheduledLocalTime: null,
+      prescription: endurancePrescriptionSchema.parse({
+        prescriptionVersion: 1,
+        sport: "running",
+        sessionTargets: { durationMs: [1800000, 1800000] },
+      }),
+    })),
+  });
+  const after = structuredClone(before);
+  after.enduranceSessions!.slice(1).forEach((session) => {
+    session.name = "Steady run";
+  });
+  const field = diffPrograms(before, after).program.find(
+    (entry) => entry.field === "enduranceSessions",
+  )!;
+  expect(field.from).toContain("2 sessions · Weeks 2, 3");
+  expect(field.to).toContain("Steady run");
+  expect(field.to).not.toContain("Week 1");
+  expect(field.to.split("\n")).toHaveLength(1);
+});
 
 const base = plan({
   days: [

@@ -78,7 +78,7 @@ export const EQUIPMENT_CATEGORIES = [
 export type EquipmentCategory = (typeof EQUIPMENT_CATEGORIES)[number];
 
 /** How a programme's cycle repeats: once a week on its weekdays, or its days back to back. */
-export const CYCLE_REPEATS = ["weekly", "rolling"] as const;
+export const CYCLE_REPEATS = ["weekly", "rolling", "once"] as const;
 export type CycleRepeat = (typeof CYCLE_REPEATS)[number];
 
 export const GYM_KINDS = ["gym", "outdoor", "home"] as const;

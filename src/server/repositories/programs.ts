@@ -15,9 +15,9 @@ import {
 import { DRAFT_EXERCISE_SLUGS } from "@/db/seed/data/exercises";
 import type { DbOrTx } from "@/db/types";
 import { cycleRepeatIssues, inferCycleRepeat } from "@/domain/cycle-repeat";
-import { daysBetween, programEndDate } from "@/domain/program-calendar";
+import { addDays, daysBetween, programEndDate } from "@/domain/program-calendar";
 import type { ActivitySport } from "@/domain/activity";
-import { programmeSport } from "@/domain/programme-sport";
+import { enduranceScheduleIssues, programmeSport } from "@/domain/programme-sport";
 import { legacyPlannedDate, legacyProgramRunToPrescription } from "@/domain/legacy-multisport";
 import {
   BLUEPRINT_VERSION,
@@ -144,6 +144,10 @@ export async function createProgramFromBlueprint(
   options: CreateProgramOptions,
 ): Promise<CreatedProgram> {
   const sport = programmeSport(blueprint);
+  if (sport !== "strength") {
+    const scheduleIssues = enduranceScheduleIssues(blueprint);
+    if (scheduleIssues.length) throw new Error(scheduleIssues.join(" "));
+  }
   // Every programme anybody trains on is written here — a template, an import, a coach's
   // draft — so this is where the endurance half is held to being placeable in the cycle. A
   // run nobody's running day answers for would become an occurrence with no slot, offered by
@@ -233,7 +237,10 @@ export async function createProgramFromBlueprint(
       version,
       status,
       startDate: options.startDate,
-      endDate: programEndDate(options.startDate, blueprint.weeks),
+      endDate:
+        repeats === "once"
+          ? addDays(options.startDate, blueprint.days.length - 1)
+          : programEndDate(options.startDate, blueprint.weeks),
       weeks: blueprint.weeks,
       startDayIndex,
       repeats,
@@ -405,9 +412,15 @@ export async function readProgramBlueprint(
             {
               lineageId: occurrence.slotLineageId ?? occurrence.id,
               name: "",
-              weekIndex: occurrence.originalWeekIndex ?? occurrence.cycleIndex ?? 1,
+              // Older sessions moved beyond the block must remain readable; write validation
+              // asks the editor to bring their dates back within the programme before approval.
+              weekIndex: Math.min(
+                program.weeks ?? 8,
+                Math.max(1, Math.floor(daysBetween(startDate, version.scheduledOn) / 7) + 1),
+              ),
+              originalWeekIndex: occurrence.cycleIndex ?? occurrence.originalWeekIndex ?? 1,
               dayOffset: daysBetween(startDate, version.scheduledOn),
-              scheduledLocalTime: version.scheduledLocalTime,
+              scheduledLocalTime: version.scheduledLocalTime?.slice(0, 5) ?? null,
               prescription: version.prescription,
             },
           ]
@@ -418,6 +431,7 @@ export async function readProgramBlueprint(
         lineageId: run.id,
         name: "",
         weekIndex: run.weekIndex,
+        originalWeekIndex: run.weekIndex,
         dayOffset: daysBetween(
           startDate,
           legacyPlannedDate(startDate, run.weekIndex, run.dayOfWeek),

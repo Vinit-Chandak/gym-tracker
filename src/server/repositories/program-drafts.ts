@@ -46,7 +46,7 @@ import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
-import { programmeSport } from "@/domain/programme-sport";
+import { enduranceScheduleIssues, programmeSport } from "@/domain/programme-sport";
 import { getCoachingPreferences } from "./coaching-state";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import { saveRoutine } from "./manual-training";
@@ -196,7 +196,11 @@ export async function validateBlueprintForAthlete(
   gymId?: string | null,
 ) {
   const blueprint = programBlueprintSchema.parse(input);
-  if (blueprint.sport && blueprint.sport !== "strength") return blueprint;
+  if (blueprint.sport && blueprint.sport !== "strength") {
+    const issues = enduranceScheduleIssues(blueprint);
+    if (issues.length) throw new CoachingError(issues.join(" "), 422);
+    return blueprint;
+  }
   const [library, warmups, [preference]] = await Promise.all([
     db
       .select()
@@ -730,6 +734,10 @@ export async function activateProgramDraft(
   if (input.transition === "continue") {
     if (!active?.startDate) throw new CoachingError("There is no running block to continue.");
     const current = await readProgramBlueprint(db, userId, active.id);
+    if (draft.source === "manual" && current?.blueprint.slug !== blueprint.slug)
+      throw new CoachingError(
+        "This is a replacement programme. Start it as a new block with its own start date.",
+      );
     priorBlueprint = current?.blueprint ?? null;
     if (current && draft.sport !== "strength") {
       const [athlete] = await db

@@ -56,6 +56,17 @@ describe("the repeat a programme is offered", () => {
 });
 
 describe("the cycles a programme's weeks hold", () => {
+  it("keeps a finite progressive sequence to one pass, including beyond 31 days", () => {
+    const days = Array.from({ length: 56 }, (_, index) => day(index + 1, (index % 7) + 1));
+    const finite = { weeks: 8, days, repeats: "once" as const };
+    expect(cycleCount(8, days.length, "once")).toBe(1);
+    expect(cycleLayout(finite)).toEqual({ cycles: 1, byWeekday: false });
+    expect(cycleRepeatLabel(finite)).toBe("Does not repeat");
+    expect(programLengthLabel(finite)).toBe("56 days");
+    expect(cycleRepeatIssues(finite)).toEqual([]);
+    expect(cycleRepeatIssues({ ...finite, weeks: 4 })).toHaveLength(1);
+    expect(cycleRepeatIssues({ ...finite, repeats: "rolling" })).toHaveLength(1);
+  });
   it("is the weeks for a weekly cycle, and for one that predates the choice", () => {
     expect(cycleCount(8, 3, "weekly")).toBe(8);
     expect(cycleCount(8, 4, null)).toBe(8);

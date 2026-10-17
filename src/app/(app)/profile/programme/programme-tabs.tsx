@@ -38,14 +38,14 @@ export function ProgrammeTabs({
           setChosen(next);
           router.replace(
             next === "changes"
-              ? "/profile/programme?view=changes"
-              : "/profile/programme?view=cycle",
+              ? "/training/programmes/strength?view=changes"
+              : "/training/programmes/strength?view=cycle",
             { scroll: false },
           );
         });
       }}
       options={[
-        { value: "cycle", label: "Cycle" },
+        { value: "cycle", label: "Plan" },
         { value: "changes", label: waiting > 0 ? `Changes (${waiting})` : "Changes" },
       ]}
     />

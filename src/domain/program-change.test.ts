@@ -174,13 +174,12 @@ describe("weekly prescription authority", () => {
     });
   });
 
-  it.each(["weekday", "split", "day_count", "run_schedule", "block", "replacement"])(
+  it.each(["weekday", "day_count", "run_schedule", "block", "replacement"])(
     "requires review for a %s change despite an automatic label",
     (change) => {
       const before = blueprint();
       const after = structuredClone(before);
       if (change === "weekday") after.days[0]!.dayOfWeek = 2;
-      if (change === "split") after.days[0]!.focus = "Full body";
       if (change === "day_count")
         after.days.push({ ...after.days[0]!, dayIndex: 3, dayOfWeek: 5, exercises: [] });
       if (change === "run_schedule") after.runs[0]!.dayOfWeek = 5;
@@ -191,6 +190,16 @@ describe("weekly prescription authority", () => {
       expect(assessment.structuralChanges.length).toBeGreaterThan(0);
     },
   );
+
+  it("reviews day descriptions without restarting the programme or its progress", () => {
+    const before = blueprint();
+    const after = structuredClone(before);
+    after.days[0]!.name = "Lower body";
+    after.days[0]!.focus = "Leg strength";
+    const assessment = assessProgramChange(before, after, library);
+    expect(assessment.authority).toBe("review_required");
+    expect(assessment.structuralChanges).toEqual([]);
+  });
 
   it("requires review when slot lineage moves between days, without starting a new block", () => {
     const before = blueprint();

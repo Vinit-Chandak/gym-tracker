@@ -65,13 +65,21 @@ export async function SavedProgrammeWork({
         {newProgrammes.map((draft) => (
           <NavRow
             key={draft.id}
-            href={`${base}/drafts/${draft.id}` as Route}
+            href={
+              (draft.status === "editing"
+                ? draft.sport === "strength"
+                  ? `${base}/manual?draft=${draft.id}`
+                  : `/training/programmes/${draft.sport}/edit?draft=${draft.id}`
+                : `${base}/drafts/${draft.id}`) as Route
+            }
             glyph="table"
             label={draft.blueprint.name}
             sub={
-              draft.standalone
-                ? "A standalone session, ready to review and save"
-                : "A draft programme, ready for you to review and start"
+              draft.status === "editing"
+                ? "Continue editing your draft"
+                : draft.standalone
+                  ? "A standalone session, ready to review and save"
+                  : "A draft programme, ready for you to review and start"
             }
           />
         ))}

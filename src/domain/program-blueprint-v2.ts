@@ -50,6 +50,8 @@ export const blueprintOccurrenceSchema = z.object({
   localId: z.string().min(1).max(64),
   slotLineageId: z.uuid(),
   weekIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.weeks.max),
+  /** Stable matching week when a dated performance has moved across a week boundary. */
+  originalWeekIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.weeks.max).optional(),
   /**
    * The slot of the cycle this performance belongs to, 1-based, or null when it belongs to
    * none. Null is a real answer, not a missing one: legacy programmes planned runs by weekday

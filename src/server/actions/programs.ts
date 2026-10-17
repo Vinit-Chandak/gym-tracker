@@ -76,5 +76,5 @@ export async function adoptProgramTemplateAction(
   revalidatePath("/training");
   revalidatePath("/today");
   if (parsed.data.finishOnboarding) redirect("/today");
-  return {};
+  redirect("/training");
 }
