@@ -184,7 +184,7 @@ export function AiCoachSettings({
               (event.currentTarget.parentElement?.children[next] as HTMLButtonElement)?.focus();
             }}
           >
-            {item.label}
+            <span className="coach-tab-label">{item.label}</span>
             {item.id === "requests" && waiting > 0 && (
               <span className="coach-count">
                 {waiting}

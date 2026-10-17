@@ -18,7 +18,7 @@
 .coach-hub-heading > div:first-child {
   min-width: 0;
   flex: 1;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-eyebrow {
   color: var(--ov-ink-2);
@@ -52,7 +52,7 @@
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -69,6 +69,11 @@
 .coach-tabs > button[aria-selected="true"] {
   color: var(--ov-ink);
   border-bottom-color: var(--ov-ink);
+}
+.coach-tab-label {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 .coach-count {
   display: inline-grid;
@@ -232,7 +237,7 @@
   font-weight: 750;
   line-height: 1.25;
   letter-spacing: -0.035em;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-programme-status {
   color: var(--ov-ink-2);
@@ -401,7 +406,7 @@
   line-height: 1.5;
   color: var(--ov-ink-2);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-scoped-request > .coach-scope-label {
   margin-bottom: 8px;
@@ -436,7 +441,7 @@
   font-size: 0.875rem;
   font-weight: 650;
   margin: 3px 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-change-row .coach-muted {
   font-size: 0.6875rem;
@@ -450,7 +455,7 @@
   padding-bottom: 12px;
   border-bottom: 1px solid var(--ov-hair);
   font-size: 0.8125rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-history-list > li strong {
   display: block;
@@ -471,7 +476,7 @@
   font-size: 0.875rem;
   line-height: 1.6;
   padding-left: 3px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-notes-list {
   display: grid;
@@ -496,7 +501,7 @@
   font-size: 0.875rem;
   line-height: 1.6;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   margin: 10px 0 14px;
 }
 .coach-note-outcome {
@@ -508,7 +513,7 @@
   font-size: 0.6875rem;
   color: var(--ov-ink-2);
   line-height: 1.5;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .coach-note-outcome > svg {
   flex-shrink: 0;
