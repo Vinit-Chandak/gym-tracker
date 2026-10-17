@@ -14,6 +14,7 @@ import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { getActiveProgram } from "@/server/repositories/schedule";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
+import { readProgramBlueprint } from "@/server/repositories/programs";
 
 export default async function EditEnduranceProgrammePage({
   params,
@@ -54,6 +55,17 @@ export default async function EditEnduranceProgrammePage({
   )
     notFound();
   const today = todayInTimeZone(profile.timeZone);
+  const current = data.initial?.baseProgramId
+    ? await withUser(
+        getDb(),
+        user.id,
+        (tx) => readProgramBlueprint(tx, user.id, data.initial!.baseProgramId!),
+        { readOnly: true },
+      )
+    : null;
+  const continuing =
+    !!current &&
+    !(data.initial?.source === "manual" && data.initial.blueprint.slug !== current.blueprint.slug);
   return (
     <>
       <PageHeader title="Programme builder" backHref="/training" />
@@ -61,7 +73,8 @@ export default async function EditEnduranceProgrammePage({
         <EnduranceProgrammeBuilder
           sport={sport}
           {...data}
-          anchorDate={data.initial?.baseProgramId ? (data.active?.startDate ?? today) : today}
+          anchorDate={continuing ? (data.active?.startDate ?? today) : today}
+          continuing={continuing}
           today={today}
         />
       </PageContent>

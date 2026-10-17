@@ -550,6 +550,29 @@ describe("endurance answers the day it belongs to", () => {
 });
 
 describe("a cycle that repeats every week on fewer than seven days", () => {
+  it("ends a nonrepeating progressive sequence after its last distinct day", () => {
+    const finite: ScheduleState = {
+      slots: Array.from({ length: 56 }, (_, index) => lift(index + 1, `Day ${index + 1}`)),
+      cycles: 1,
+      startDayIndex: 1,
+      repeats: "once",
+      events: [],
+    };
+    const dates = slotDates(finite, "2026-09-01");
+    expect(dates).toHaveLength(56);
+    expect(dates.at(-1)!.date).toBe("2026-10-26");
+    expect(projectedEndDate(finite, "2026-09-01")).toBe("2026-10-26");
+    const finished: ScheduleState = {
+      ...finite,
+      events: finite.slots.map((slot) => ({
+        cycleIndex: 1,
+        dayIndex: slot.dayIndex,
+        part: "session",
+        status: "completed",
+      })),
+    };
+    expect(nextPendingSlot(finished)).toBeNull();
+  });
   // Monday, Wednesday and Friday, eight weeks: eight cycles, each day on its weekday.
   const mwf = (events: SlotEvent[] = []): ScheduleState => ({
     slots: [

@@ -4,6 +4,7 @@ import { programs, programDrafts } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
 import { programWeekIndex } from "@/domain/program-calendar";
+import { cycleRepeatLabel } from "@/domain/cycle-repeat";
 import { partStatus, slotDates, suggestion } from "@/domain/schedule";
 import { programmeOccurrences, occurrencesOnDate } from "./occurrences";
 import { getSchedule, getProgramOverview } from "./schedule";
@@ -37,16 +38,31 @@ export async function programmeCards(db: DbOrTx, userId: string, timeZone: strin
     .orderBy(asc(programDrafts.createdAt));
   return Promise.all(
     active.map(async (programme) => {
-      const waiting = drafts.filter((draft) => draft.sport === programme.sport);
+      const waiting = drafts.filter(
+        (draft) => draft.sport === programme.sport && draft.baseProgramId === programme.id,
+      );
       if (programme.sport === "strength") {
         const overview = await getProgramOverview(db, userId, timeZone);
+        const nextDay = overview?.days.find((day) => day.isNext)?.day;
         return {
           programme,
           waiting,
           position: overview
-            ? `Cycle ${overview.currentCycle} of ${overview.program.cycles}`
+            ? programme.repeats === "once"
+              ? `Day ${nextDay?.dayIndex ?? overview.days.length} of ${overview.days.length}`
+              : `Cycle ${overview.currentCycle} of ${overview.program.cycles}`
             : null,
-          next: overview?.days.find((day) => day.isNext)?.day.name ?? null,
+          next: nextDay?.name ?? null,
+          nextTitle: nextDay?.name ?? null,
+          nextDate: null,
+          finished: overview?.complete ?? false,
+          pattern: overview
+            ? cycleRepeatLabel({
+                weeks: programme.weeks ?? 8,
+                repeats: programme.repeats,
+                days: overview.days.map((entry) => entry.day),
+              })
+            : "Repeating cycle",
           completed: overview?.progress.completed ?? 0,
           total: overview?.progress.total ?? 0,
         };
@@ -63,6 +79,12 @@ export async function programmeCards(db: DbOrTx, userId: string, timeZone: strin
         waiting,
         position: week ? `Week ${week} of ${programme.weeks}` : null,
         next: upcoming?.scheduledOn ?? null,
+        nextTitle: upcoming?.prescription?.title ?? null,
+        nextDate: upcoming?.scheduledOn ?? null,
+        finished:
+          sessions.length > 0 &&
+          sessions.every((session) => session.resolution.kind !== "incomplete"),
+        pattern: "Dated sessions",
         completed: sessions.filter(
           (session) =>
             session.resolution.kind === "logged" || session.resolution.kind === "legacy_completed",

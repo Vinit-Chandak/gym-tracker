@@ -1,27 +1,23 @@
 "use client";
-import { coachingAction } from "./client-action";
-import { useState, useTransition } from "react";
+
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input, Textarea } from "@/components/ui/input";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
-import { cycleCount, inferCycleRepeat, weekdayOffsets } from "@/domain/cycle-repeat";
-import {
-  type BlueprintDay,
-  type BlueprintExercise,
-  type BlueprintRun,
-  type ProgramBlueprint,
-} from "@/domain/program-blueprint";
+import { cycleCount, weekdayOffsets } from "@/domain/cycle-repeat";
+import type { BlueprintDay, BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
+import type { SavedRoutineDay } from "@/domain/saved-routine";
+import type { CycleRepeat } from "@/domain/types";
+import { WEEKDAY_NAMES } from "@/lib/labels";
 import {
   saveProgramDraftAction,
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
-import type { CycleRepeat } from "@/domain/types";
-import { WEEKDAY_NAMES } from "@/lib/labels";
+import { coachingAction } from "./client-action";
 
 type LibraryEntry = {
   slug: string;
@@ -36,15 +32,28 @@ type LibraryEntry = {
   defaultRir: number | null;
   defaultRestSeconds: number | null;
 };
-/** What the chosen repeat makes of the weeks, said under the choice. */
+
 function repeatHint(plan: ProgramBlueprint, repeats: CycleRepeat | undefined): string {
-  const weeks = plan.weeks > 0 ? plan.weeks : null;
   if (repeats === undefined)
-    return "Not chosen yet. Until you choose, it counts one cycle a week, its days back to back.";
+    return "This older programme keeps its original schedule until you choose a repeat pattern.";
+  if (repeats === "once")
+    return "Follow each day once, in order. Each day has its own targets, so the programme can build week by week. Include rest days in the sequence.";
   if (repeats === "weekly")
-    return `Each day falls on its weekday and the days between are rest${weeks ? `: ${weeks} ${weeks === 1 ? "cycle" : "cycles"}, one a week` : ""}.`;
-  const cycles = weeks ? cycleCount(weeks, plan.days.length, "rolling") : null;
-  return `The days run back to back, rest days included${cycles ? `: ${cycles} ${cycles === 1 ? "cycle" : "cycles"} in ${weeks} ${weeks === 1 ? "week" : "weeks"}` : ""}.`;
+    return "The same days repeat every week. Days between training days are rest.";
+  return `Follow these ${plan.days.length} days in order, including rest days, then start again.`;
+}
+
+function nextWeekday(days: BlueprintDay[]): number {
+  return ((days.at(-1)?.dayOfWeek ?? 0) % 7) + 1;
+}
+
+/** A copied day starts new exercise slots rather than borrowing another day's history. */
+function independentExercises(exercises: BlueprintExercise[]): BlueprintExercise[] {
+  return exercises.map((exercise) => {
+    const copy = structuredClone(exercise);
+    delete copy.lineageId;
+    return copy;
+  });
 }
 
 export function ProgramBuilder({
@@ -58,11 +67,10 @@ export function ProgramBuilder({
   library: LibraryEntry[];
   warmups: { slug: string; name: string }[];
   base: "/welcome/programme" | "/profile/programme";
-  routines?: { id: string; name: string; day: import("@/domain/saved-routine").SavedRoutineDay }[];
+  routines?: { id: string; name: string; day: SavedRoutineDay }[];
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
-  const [routineId, setRoutineId] = useState("");
   const [plan, setPlan] = useState<ProgramBlueprint>(() =>
     initial
       ? {
@@ -76,47 +84,65 @@ export function ProgramBuilder({
           sport: "strength",
           slug: `manual-${crypto.randomUUID().slice(0, 8)}`,
           name: "",
-          weeks: 0,
+          weeks: 8,
           notes: "",
+          repeats: "rolling",
           days: [],
           runs: [],
         },
   );
   const [draft, setDraft] = useState(
-      initial ? { id: initial.id, revision: initial.revision } : null,
-    ),
-    [saving, setSaving] = useState(false),
-    [error, setError] = useState<string | null>(null),
-    [message, setMessage] = useState<string | null>(null);
+    initial ? { id: initial.id, revision: initial.revision } : null,
+  );
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [routineId, setRoutineId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [removedDay, setRemovedDay] = useState<{ day: BlueprintDay; index: number } | null>(null);
   const busy = saving || navigating;
-  // How the cycle repeats. A plan being built takes the repeat its days suggest until somebody
-  // chooses; a programme that predates the choice keeps none, and so keeps counting as it did,
-  // until somebody does.
-  const unchosen = initial !== null && initial.blueprint.repeats === undefined;
-  const repeats: CycleRepeat | undefined =
-    plan.repeats ?? (unchosen ? undefined : inferCycleRepeat(plan.days));
+  // Historical schedules stay unchanged until the athlete explicitly chooses a cadence.
+  const repeats = plan.repeats;
+  const d = Math.min(selectedDay, Math.max(0, plan.days.length - 1));
+  const day = plan.days[d];
+  const dayLimit = repeats === "once" ? 364 : repeats === "weekly" ? 7 : 31;
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   function change(patch: Partial<ProgramBlueprint>) {
-    setPlan((p) => ({ ...p, ...patch }));
+    setPlan((previous) => {
+      const next = { ...previous, ...patch };
+      if (next.repeats === "once") next.weeks = Math.max(1, Math.ceil(next.days.length / 7));
+      return next;
+    });
+    setDirty(true);
     setMessage(null);
     setError(null);
   }
   function dayChange(index: number, patch: Partial<BlueprintDay>) {
-    change({ days: plan.days.map((day, i) => (i === index ? { ...day, ...patch } : day)) });
+    change({ days: plan.days.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)) });
   }
-  function exerciseChange(d: number, e: number, patch: Partial<BlueprintExercise>) {
-    dayChange(d, {
-      exercises: plan.days[d]!.exercises.map((entry, i) =>
-        i === e ? { ...entry, ...patch } : entry,
-      ),
-    });
+  function appendDay(next: BlueprintDay) {
+    change({ days: [...plan.days, next] });
+    setSelectedDay(plan.days.length);
   }
-  function weeksChange(weeks: number) {
-    change({
-      weeks,
-      runs: runsForDays(plan.days, weeks, plan.runs),
-    });
+  function reorderDay(to: number) {
+    const days = [...plan.days];
+    const [moved] = days.splice(d, 1);
+    days.splice(to, 0, moved!);
+    change({ days: days.map((entry, index) => ({ ...entry, dayIndex: index + 1 })) });
+    setSelectedDay(to);
   }
-  async function save(preview: boolean) {
+  async function save(review: boolean) {
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -126,363 +152,136 @@ export function ProgramBuilder({
       );
       if (!result.ok) throw new Error(result.error);
       setDraft({ id: result.value.id, revision: result.value.revision });
-      if (preview) {
+      setDirty(false);
+      if (review) {
         const checked = await coachingAction(() =>
           reviewProgramDraftAction(result.value.id, result.value.revision),
         );
         if (!checked.ok) throw new Error(checked.error);
         startNavigation(() => router.push(`${base}/drafts/${result.value.id}` as Route));
-      } else setMessage("Draft saved. You can return to it from Programme.");
-    } catch (e) {
-      unstable_rethrow(e);
-      setError(e instanceof Error ? e.message : "Could not save the draft.");
+      } else setMessage("Draft saved. Review it when you’re ready to apply it.");
+    } catch (cause) {
+      unstable_rethrow(cause);
+      setError(cause instanceof Error ? cause.message : "Could not save the draft. Try again.");
     } finally {
       setSaving(false);
     }
   }
-  function reorderDay(from: number, to: number) {
-    const days = [...plan.days];
-    const [day] = days.splice(from, 1);
-    days.splice(to, 0, day!);
-    change({ days: days.map((d, i) => ({ ...d, dayIndex: i + 1 })) });
-  }
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-medium">
-        {initial ? "Edit your programme draft" : "Build your programme"}
-      </h1>
-      <p className="text-sm text-ink-muted">
-        Set your own training days and targets. Preview the complete programme before starting it.
+    <div className="space-y-6">
+      <p className="text-sm text-ink-2">
+        {repeats === "once"
+          ? "Edit one day at a time. Each day has independent targets; completed workouts keep their original prescription."
+          : "Edit the cycle once. Changes apply whenever that day repeats; completed workouts keep their original targets."}
       </p>
-      <Card>
-        <Field label="Programme name">
-          <Input
-            maxLength={120}
-            value={plan.name}
-            onChange={(e) => change({ name: e.target.value })}
-          />
-        </Field>
-        <Field label="Number of weeks">
-          <Input
-            type="number"
-            min={1}
-            max={52}
-            value={plan.weeks || ""}
-            onChange={(e) => weeksChange(Number(e.target.value))}
-          />
-        </Field>
-        {plan.days.length > 0 && plan.days.length < 7 ? (
+      <fieldset disabled={busy} className="min-w-0 space-y-6">
+        <Disclosure
+          summary="Programme settings"
+          meta={plan.name ? `${plan.name} · ${plan.weeks} weeks` : undefined}
+          defaultOpen={!initial || Boolean(error)}
+        >
+          <div className="space-y-4">
+            <Field label="Programme name">
+              <Input
+                maxLength={120}
+                value={plan.name}
+                onChange={(event) => change({ name: event.target.value })}
+              />
+            </Field>
+            {repeats === "once" ? (
+              <p className="text-sm text-ink-2">
+                The programme ends after its {plan.days.length} days. Add rest days wherever you
+                need them.
+              </p>
+            ) : (
+              <Field label="Number of weeks">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={52}
+                  value={plan.weeks || ""}
+                  onChange={(event) => change({ weeks: Number(event.target.value) })}
+                />
+              </Field>
+            )}
+            <Field label="Programme notes">
+              <Textarea
+                maxLength={2000}
+                value={plan.notes}
+                onChange={(event) => change({ notes: event.target.value })}
+              />
+            </Field>
+          </div>
+        </Disclosure>
+
+        <section aria-labelledby="cycle-pattern" className="space-y-4">
+          <h2 id="cycle-pattern" className="text-lg font-medium">
+            {repeats === "once" ? "Your sequence" : "Your cycle"}
+          </h2>
           <Field
-            group
             label="Repeats"
             hint={repeatHint(plan, repeats)}
             error={
-              repeats === "weekly" && weekdayOffsets(plan.days) === null
-                ? "Give each day its own weekday, in order through the week."
-                : repeats === "rolling" && plan.days.some((day) => day.includesRun)
-                  ? "Runs are planned week by week, so a programme with running days repeats every week."
-                  : undefined
+              repeats === "weekly" &&
+              plan.days.length > 0 &&
+              plan.days.length < 7 &&
+              weekdayOffsets(plan.days) === null
+                ? "Choose a different weekday for each day, in the order you train."
+                : undefined
             }
           >
-            <SegmentedControl
-              name="repeats"
-              options={[
-                { value: "weekly", label: "Every week" },
-                {
-                  value: "rolling",
-                  label: `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`,
-                },
-              ]}
-              // Nothing chosen yet reads as no pill in ink, not as either answer.
-              value={repeats ?? ("" as CycleRepeat)}
-              onChange={(value) => change({ repeats: value })}
-              columns={2}
-            />
-          </Field>
-        ) : null}
-        <Field label="Programme notes">
-          <Textarea
-            maxLength={2000}
-            value={plan.notes}
-            onChange={(e) => change({ notes: e.target.value })}
-          />
-        </Field>
-      </Card>
-      {plan.days.map((day, d) => (
-        <Card key={d}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">Day {d + 1}</h2>
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={d === 0}
-                aria-label={`Move day ${d + 1} up`}
-                onClick={() => reorderDay(d, d - 1)}
-              >
-                ↑
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={d === plan.days.length - 1}
-                aria-label={`Move day ${d + 1} down`}
-                onClick={() => reorderDay(d, d + 1)}
-              >
-                ↓
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  const days = plan.days
-                    .filter((_, i) => i !== d)
-                    .map((entry, i) => ({ ...entry, dayIndex: i + 1 }));
-                  change({
-                    days,
-                    runs: runsForDays(days, plan.weeks, plan.runs),
-                  });
-                }}
-              >
-                Remove day
-              </Button>
-            </div>
-          </div>
-          <Field label="Day name">
-            <Input
-              maxLength={80}
-              value={day.name}
-              onChange={(e) => dayChange(d, { name: e.target.value })}
-            />
-          </Field>
-          <Field label="Usual weekday">
             <Select
-              value={day.dayOfWeek || ""}
-              onChange={(e) => {
-                const dayOfWeek = Number(e.target.value);
-                const days = plan.days.map((entry, i) =>
-                  i === d ? { ...entry, dayOfWeek } : entry,
-                );
-                // Run targets belong to a week and weekday. Moving a rest/lifting day
-                // must not move another day's run; repeated weekdays share one target.
-                const moved = day.includesRun
-                  ? plan.runs
-                      .filter((run) => run.dayOfWeek === day.dayOfWeek)
-                      .map((run) => ({ ...run, dayOfWeek }))
-                  : [];
-                change({
-                  days,
-                  runs: runsForDays(days, plan.weeks, [...plan.runs, ...moved]),
-                });
-              }}
+              value={repeats ?? ""}
+              onChange={(event) => change({ repeats: event.target.value as CycleRepeat })}
             >
-              <option value="">Choose a weekday</option>
-              {WEEKDAY_NAMES.slice(1).map((name, i) => (
-                <option key={name} value={i + 1}>
-                  {name}
-                </option>
-              ))}
+              {repeats === undefined && <option value="">Keep original schedule</option>}
+              <option value="weekly" disabled={plan.days.length > 7}>
+                Every week
+              </option>
+              <option value="rolling" disabled={plan.days.length > 31}>
+                {plan.days.length
+                  ? `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`
+                  : "Repeat the cycle"}
+              </option>
+              <option value="once">Does not repeat</option>
             </Select>
           </Field>
-          <Field label="Focus">
-            <Input
-              maxLength={120}
-              value={day.focus}
-              onChange={(e) => dayChange(d, { focus: e.target.value })}
-            />
-          </Field>
-          <Field label="Warm-up (optional)">
-            <Select
-              value={day.warmupSlug}
-              onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
-            >
-              <option value="">No warm-up</option>
-              {warmups.map((w) => (
-                <option key={w.slug} value={w.slug}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Time available / notes">
-            <Input
-              maxLength={120}
-              value={day.timeNote}
-              onChange={(e) => dayChange(d, { timeNote: e.target.value })}
-            />
-          </Field>
-          <Field label="Day notes">
-            <Textarea
-              maxLength={500}
-              value={day.notes}
-              onChange={(e) => dayChange(d, { notes: e.target.value })}
-            />
-          </Field>
-          {day.exercises.map((entry, e) => (
-            <fieldset key={e} className="space-y-3 rounded-control border border-line p-3">
-              <legend className="px-1 font-medium">
-                {library.find((x) => x.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Sets">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={entry.sets}
-                    onChange={(event) => exerciseChange(d, e, { sets: Number(event.target.value) })}
-                  />
-                </Field>
-                <Field label="Count each set in">
-                  <Select
-                    value={entry.reps ? "reps" : entry.duration ? "duration" : "distance"}
-                    onChange={(event) => {
-                      const measure = event.target.value;
-                      exerciseChange(d, e, {
-                        reps: measure === "reps" ? [NaN, NaN] : undefined,
-                        duration: measure === "duration" ? [NaN, NaN] : undefined,
-                        distance: measure === "distance" ? [NaN, NaN] : undefined,
-                      });
-                    }}
-                  >
-                    <option value="reps">Reps</option>
-                    <option value="duration">Seconds</option>
-                    <option value="distance">Metres</option>
-                  </Select>
-                </Field>
-                {(
-                  [
-                    entry.reps ? "reps" : entry.duration ? "duration" : "distance",
-                    "rir",
-                    "rest",
-                  ] as const
-                )
-                  .filter((key) => key !== "rir" || entry.rir !== null)
-                  .map((key) => (
-                    <RangeFields
-                      key={key}
-                      label={
-                        key === "rir"
-                          ? "RIR"
-                          : key === "rest"
-                            ? "Rest seconds"
-                            : key === "reps"
-                              ? "Reps"
-                              : key === "duration"
-                                ? "Seconds"
-                                : "Metres"
-                      }
-                      value={entry[key as "reps"] ?? [NaN, NaN]}
-                      onChange={(range) => exerciseChange(d, e, { [key]: range })}
-                    />
+          {plan.days.length > 0 ? (
+            <>
+              <p className="text-sm text-ink-2">
+                {repeats === "once"
+                  ? `${plan.days.length} days, each followed once`
+                  : `${plan.days.length} ${plan.days.length === 1 ? "day" : "days"} per cycle${plan.weeks > 0 ? ` · ${cycleCount(plan.weeks, plan.days.length, repeats)} cycles in ${plan.weeks} weeks` : ""}`}
+              </p>
+              <Field label="Day to edit">
+                <Select value={d} onChange={(event) => setSelectedDay(Number(event.target.value))}>
+                  {plan.days.map((entry, index) => (
+                    <option key={index} value={index}>
+                      {repeats === "once"
+                        ? `Week ${Math.floor(index / 7) + 1}, day ${(index % 7) + 1}`
+                        : `Day ${index + 1}`}{" "}
+                      · {entry.name || "Unnamed day"} ·{" "}
+                      {entry.exercises.length ? `${entry.exercises.length} exercises` : "Rest"}
+                    </option>
                   ))}
-              </div>
-              <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={entry.rir !== null}
-                  onChange={(event) =>
-                    exerciseChange(d, e, { rir: event.target.checked ? [NaN, NaN] : null })
-                  }
-                />
-                Set a reps-in-reserve target (optional)
-              </label>
-              <label className="flex min-h-[var(--ov-target)] items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="size-5"
-                  checked={entry.perSide ?? false}
-                  onChange={(event) => exerciseChange(d, e, { perSide: event.target.checked })}
-                />
-                Perform each set on both sides
-              </label>
-              <Field label="Superset group (optional)">
-                <Input
-                  maxLength={60}
-                  value={entry.supersetGroup ?? ""}
-                  placeholder="Give paired exercises the same label"
-                  onChange={(event) =>
-                    exerciseChange(d, e, { supersetGroup: event.target.value || undefined })
-                  }
-                />
+                </Select>
               </Field>
-              <Field label="Load / calibration guidance">
-                <Textarea
-                  maxLength={300}
-                  value={entry.targetLoadNote ?? ""}
-                  onChange={(event) => exerciseChange(d, e, { targetLoadNote: event.target.value })}
-                />
-              </Field>
-              <Field label="Exercise notes">
-                <Textarea
-                  maxLength={500}
-                  value={entry.notes ?? ""}
-                  onChange={(event) => exerciseChange(d, e, { notes: event.target.value })}
-                />
-              </Field>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={e === 0}
-                  onClick={() => {
-                    const entries = [...day.exercises];
-                    [entries[e - 1], entries[e]] = [entries[e]!, entries[e - 1]!];
-                    dayChange(d, { exercises: entries });
-                  }}
-                >
-                  Move up
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const entries = day.exercises.filter((_, i) => i !== e);
-                    dayChange(d, { exercises: entries, includesLifting: entries.length > 0 });
-                  }}
-                >
-                  Remove exercise
-                </Button>
-              </div>
-            </fieldset>
-          ))}
-          <AddExercise
-            library={library}
-            onAdd={(entry) =>
-              dayChange(d, { includesLifting: true, exercises: [...day.exercises, entry] })
-            }
-          />
-          {!day.includesLifting && !day.includesRun && (
-            <p className="text-sm text-ink-muted">This is a rest / mobility day.</p>
+            </>
+          ) : (
+            <p className="text-sm text-ink-2">
+              Add training and rest days in the order you follow them.
+            </p>
           )}
-          {day.exercises.length > 0 && (
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={async () => {
-                setSaving(true);
-                const result = await coachingAction(() => saveRoutineAction(day.name, day));
-                setSaving(false);
-                if (result.ok) setMessage(`Saved “${day.name}” to your routines.`);
-                else setError(result.error);
-              }}
-            >
-              Save this day as a routine
-            </Button>
-          )}
-        </Card>
-      ))}
-      <Button
-        variant="secondary"
-        disabled={plan.days.length >= 31}
-        onClick={() =>
-          change({
-            days: [
-              ...plan.days,
-              {
+          <Button
+            variant="secondary"
+            disabled={plan.days.length >= dayLimit}
+            onClick={() =>
+              appendDay({
                 dayIndex: plan.days.length + 1,
-                dayOfWeek: 0,
-                name: "",
+                dayOfWeek: nextWeekday(plan.days),
+                name: `Day ${plan.days.length + 1}`,
                 focus: "",
                 timeNote: "",
                 effortNote: "",
@@ -491,103 +290,433 @@ export function ProgramBuilder({
                 includesRun: false,
                 warmupSlug: "",
                 exercises: [],
-              },
-            ],
-          })
-        }
-      >
-        Add a day
-      </Button>
-      {routines.length > 0 && (
-        <Card>
-          <Field label="Use a saved routine as a programme day">
-            <Select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>
-              <option value="">Choose a routine</option>
-              {routines.map((routine) => (
-                <option key={routine.id} value={routine.id}>
-                  {routine.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Button
-            variant="secondary"
-            disabled={!routineId || plan.days.length >= 31}
-            onClick={() => {
-              const routine = routines.find((entry) => entry.id === routineId)!;
-              change({
-                days: [
-                  ...plan.days,
-                  {
-                    ...routine.day,
-                    dayIndex: plan.days.length + 1,
-                    dayOfWeek: 0,
-                    warmupSlug: warmups.some((warmup) => warmup.slug === routine.day.warmupSlug)
-                      ? routine.day.warmupSlug
-                      : "",
-                    includesRun: false,
-                    exercises: routine.day.exercises.map((entry) =>
-                      "sets" in entry
-                        ? entry
-                        : emptyPrescription(
-                            library.find((exercise) => exercise.slug === entry.exerciseSlug)!,
-                            entry.exerciseSlug,
-                          ),
-                    ),
-                  },
-                ],
-              });
-              setRoutineId("");
-            }}
+              })
+            }
           >
-            Add routine as a day
+            Add a day
           </Button>
-        </Card>
-      )}
+          {plan.days.length >= dayLimit && (
+            <p className="text-sm text-ink-2">
+              {repeats === "once"
+                ? "A programme can hold up to 364 days."
+                : repeats === "weekly"
+                  ? "A week holds seven days. Choose a different repeat pattern for a longer sequence."
+                  : "A repeating cycle can hold up to 31 days."}
+            </p>
+          )}
+          {routines.length > 0 && (
+            <Disclosure summary="Add a saved routine" variant="inline">
+              <div className="space-y-3">
+                <Field label="Routine to add">
+                  <Select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>
+                    <option value="">Choose a routine</option>
+                    {routines.map((routine) => (
+                      <option key={routine.id} value={routine.id}>
+                        {routine.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Button
+                  variant="secondary"
+                  disabled={!routineId || plan.days.length >= dayLimit}
+                  onClick={() => {
+                    const routine = routines.find((entry) => entry.id === routineId)!;
+                    appendDay({
+                      ...routine.day,
+                      name: routine.name || `Day ${plan.days.length + 1}`,
+                      dayIndex: plan.days.length + 1,
+                      dayOfWeek: nextWeekday(plan.days),
+                      warmupSlug: warmups.some((warmup) => warmup.slug === routine.day.warmupSlug)
+                        ? routine.day.warmupSlug
+                        : "",
+                      includesRun: false,
+                      includesLifting: routine.day.exercises.length > 0,
+                      exercises: independentExercises(
+                        routine.day.exercises.map((entry) =>
+                          "sets" in entry
+                            ? entry
+                            : {
+                                ...emptyPrescription(
+                                  library.find((exercise) => exercise.slug === entry.exerciseSlug),
+                                  entry.exerciseSlug,
+                                ),
+                                notes: entry.notes,
+                              },
+                        ),
+                      ),
+                    });
+                    setRoutineId("");
+                  }}
+                >
+                  Add routine as a day
+                </Button>
+              </div>
+            </Disclosure>
+          )}
+        </section>
+
+        {day && (
+          <section
+            key={d}
+            aria-label={`Edit day ${d + 1}`}
+            className="space-y-4 border-t border-line pt-5"
+          >
+            <Field label="Day name">
+              <Input
+                maxLength={80}
+                value={day.name}
+                onChange={(event) => dayChange(d, { name: event.target.value })}
+              />
+            </Field>
+            {repeats === "weekly" && plan.days.length < 7 && (
+              <Field label="Usual weekday">
+                <Select
+                  value={day.dayOfWeek || ""}
+                  onChange={(event) => dayChange(d, { dayOfWeek: Number(event.target.value) })}
+                >
+                  <option value="">Choose a weekday</option>
+                  {WEEKDAY_NAMES.slice(1).map((name, index) => (
+                    <option key={name} value={index + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <Disclosure summary="Day details and options" variant="inline">
+              <div className="space-y-4">
+                <Field label="Focus">
+                  <Input
+                    maxLength={120}
+                    value={day.focus}
+                    onChange={(event) => dayChange(d, { focus: event.target.value })}
+                  />
+                </Field>
+                <Field label="Warm-up (optional)">
+                  <Select
+                    value={day.warmupSlug}
+                    onChange={(event) => dayChange(d, { warmupSlug: event.target.value })}
+                  >
+                    <option value="">No warm-up</option>
+                    {warmups.map((warmup) => (
+                      <option key={warmup.slug} value={warmup.slug}>
+                        {warmup.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Time available / notes">
+                  <Input
+                    maxLength={120}
+                    value={day.timeNote}
+                    onChange={(event) => dayChange(d, { timeNote: event.target.value })}
+                  />
+                </Field>
+                <Field label="Effort guidance">
+                  <Input
+                    maxLength={120}
+                    value={day.effortNote}
+                    onChange={(event) => dayChange(d, { effortNote: event.target.value })}
+                  />
+                </Field>
+                <Field label="Day notes">
+                  <Textarea
+                    maxLength={500}
+                    value={day.notes}
+                    onChange={(event) => dayChange(d, { notes: event.target.value })}
+                  />
+                </Field>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="ghost" disabled={d === 0} onClick={() => reorderDay(d - 1)}>
+                    Move day earlier
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={d === plan.days.length - 1}
+                    onClick={() => reorderDay(d + 1)}
+                  >
+                    Move day later
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={plan.days.length >= dayLimit}
+                    onClick={() =>
+                      appendDay({
+                        ...structuredClone(day),
+                        name: `${day.name.slice(0, 73)} (copy)`,
+                        dayIndex: plan.days.length + 1,
+                        dayOfWeek: nextWeekday(plan.days),
+                        exercises: independentExercises(day.exercises),
+                      })
+                    }
+                  >
+                    Duplicate day
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setRemovedDay({ day, index: d });
+                      change({
+                        days: plan.days
+                          .filter((_, index) => index !== d)
+                          .map((entry, index) => ({ ...entry, dayIndex: index + 1 })),
+                      });
+                      setSelectedDay(Math.max(0, d - 1));
+                    }}
+                  >
+                    Remove day
+                  </Button>
+                </div>
+                {day.exercises.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      setSaving(true);
+                      setError(null);
+                      try {
+                        const result = await coachingAction(() => saveRoutineAction(day.name, day));
+                        if (result.ok) setMessage(`Saved “${day.name}” to your routines.`);
+                        else setError(result.error);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  >
+                    Save this day as a routine
+                  </Button>
+                )}
+              </div>
+            </Disclosure>
+            <div className="space-y-5">
+              {day.exercises.map((entry, index) => (
+                <ExerciseEditor
+                  key={`${entry.lineageId ?? entry.exerciseSlug}:${index}`}
+                  entry={entry}
+                  name={
+                    library.find((exercise) => exercise.slug === entry.exerciseSlug)?.name ??
+                    entry.exerciseSlug
+                  }
+                  first={index === 0}
+                  repeated={repeats !== "once"}
+                  onChange={(patch) =>
+                    dayChange(d, {
+                      exercises: day.exercises.map((exercise, i) =>
+                        i === index ? { ...exercise, ...patch } : exercise,
+                      ),
+                    })
+                  }
+                  onMove={() => {
+                    const exercises = [...day.exercises];
+                    [exercises[index - 1], exercises[index]] = [
+                      exercises[index]!,
+                      exercises[index - 1]!,
+                    ];
+                    dayChange(d, { exercises });
+                  }}
+                  onRemove={() => {
+                    const exercises = day.exercises.filter((_, i) => i !== index);
+                    dayChange(d, { exercises, includesLifting: exercises.length > 0 });
+                  }}
+                />
+              ))}
+            </div>
+            {!day.exercises.length && (
+              <p className="text-sm text-ink-2">
+                A rest day until you add exercises. You can add a warm-up in Day details.
+              </p>
+            )}
+            <AddExercise
+              library={library}
+              onAdd={(entry) =>
+                dayChange(d, { includesLifting: true, exercises: [...day.exercises, entry] })
+              }
+            />
+          </section>
+        )}
+        {removedDay && (
+          <div className="flex flex-wrap items-center gap-2" role="status">
+            <p className="text-sm">Removed “{removedDay.day.name}”.</p>
+            <Button
+              variant="ghost"
+              disabled={plan.days.length >= dayLimit}
+              onClick={() => {
+                const days = [...plan.days];
+                const index = Math.min(removedDay.index, days.length);
+                days.splice(index, 0, removedDay.day);
+                change({ days: days.map((entry, i) => ({ ...entry, dayIndex: i + 1 })) });
+                setSelectedDay(index);
+                setRemovedDay(null);
+              }}
+            >
+              Undo remove day
+            </Button>
+          </div>
+        )}
+      </fieldset>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
       {message && (
-        <p role="status" className="text-sm text-ink-muted">
+        <p role="status" className="text-sm text-ink-2">
           {message}
         </p>
       )}
-      <div className="flex flex-wrap gap-3">
+      <div className="sticky-actions flex flex-wrap gap-2">
+        <Button disabled={busy} onClick={() => save(true)}>
+          {busy ? "Saving…" : "Review programme"}
+        </Button>
         <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
           Save draft
-        </Button>
-        <Button disabled={busy} onClick={() => save(true)}>
-          {busy ? "Saving…" : "Preview programme"}
         </Button>
       </div>
     </div>
   );
 }
-/** Keep one target per week/weekday, including when several cycle days use that weekday. */
-function runsForDays(days: BlueprintDay[], weeks: number, runs: BlueprintRun[]): BlueprintRun[] {
-  const weekdays = new Set(days.filter((day) => day.includesRun).map((day) => day.dayOfWeek));
-  return [...weekdays].flatMap((dayOfWeek) =>
-    Array.from(
-      { length: Math.max(0, Math.min(52, weeks)) },
-      (_, index) =>
-        runs.find((run) => run.weekIndex === index + 1 && run.dayOfWeek === dayOfWeek) ??
-        emptyRun(index + 1, dayOfWeek),
-    ),
+
+function ExerciseEditor({
+  entry,
+  name,
+  first,
+  repeated,
+  onChange,
+  onMove,
+  onRemove,
+}: {
+  entry: BlueprintExercise;
+  name: string;
+  first: boolean;
+  repeated: boolean;
+  onChange: (patch: Partial<BlueprintExercise>) => void;
+  onMove: () => void;
+  onRemove: () => void;
+}) {
+  const measure = entry.reps ? "reps" : entry.duration ? "duration" : "distance";
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  return (
+    <fieldset className="min-w-0 space-y-3 border-b border-line pb-5">
+      <legend className="mb-3 text-lg font-medium [overflow-wrap:anywhere]">{name}</legend>
+      <div className="adaptive-grid">
+        <Field label="Sets">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={20}
+            value={entry.sets}
+            onChange={(event) => onChange({ sets: Number(event.target.value) })}
+          />
+        </Field>
+        <Field label="Count each set in">
+          <Select
+            value={measure}
+            onChange={(event) =>
+              onChange({
+                reps: event.target.value === "reps" ? [NaN, NaN] : undefined,
+                duration: event.target.value === "duration" ? [NaN, NaN] : undefined,
+                distance: event.target.value === "distance" ? [NaN, NaN] : undefined,
+              })
+            }
+          >
+            <option value="reps">Reps</option>
+            <option value="duration">Seconds</option>
+            <option value="distance">Metres</option>
+          </Select>
+        </Field>
+      </div>
+      <RangeFields
+        label={measure === "reps" ? "Reps" : measure === "duration" ? "Seconds" : "Metres"}
+        value={entry[measure] ?? [NaN, NaN]}
+        onChange={(range) => onChange({ [measure]: range })}
+      />
+      <Disclosure summary="Rest, effort and progression" variant="inline">
+        <div className="space-y-4">
+          <RangeFields
+            label="Rest seconds"
+            value={entry.rest}
+            onChange={(rest) => onChange({ rest })}
+          />
+          <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-5 shrink-0"
+              checked={entry.rir !== null}
+              onChange={(event) => onChange({ rir: event.target.checked ? [2, 2] : null })}
+            />
+            Set a reps-in-reserve target
+          </label>
+          {entry.rir && (
+            <RangeFields label="RIR" value={entry.rir} onChange={(rir) => onChange({ rir })} />
+          )}
+          <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-5 shrink-0"
+              checked={entry.perSide ?? false}
+              onChange={(event) => onChange({ perSide: event.target.checked })}
+            />
+            Perform each set on both sides
+          </label>
+          <Field label="Superset group (optional)">
+            <Input
+              maxLength={60}
+              value={entry.supersetGroup ?? ""}
+              placeholder="For example, A…"
+              onChange={(event) => onChange({ supersetGroup: event.target.value || undefined })}
+            />
+          </Field>
+          <Field label="Load / calibration guidance">
+            <Textarea
+              maxLength={300}
+              value={entry.targetLoadNote ?? ""}
+              onChange={(event) => onChange({ targetLoadNote: event.target.value })}
+            />
+          </Field>
+          <Field label="Progression notes">
+            <Textarea
+              maxLength={500}
+              value={entry.progressionNotes ?? ""}
+              onChange={(event) => onChange({ progressionNotes: event.target.value })}
+            />
+          </Field>
+          <Field label="Exercise notes">
+            <Textarea
+              maxLength={500}
+              value={entry.notes ?? ""}
+              onChange={(event) => onChange({ notes: event.target.value })}
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" disabled={first} onClick={onMove}>
+              Move exercise up
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmRemove(true)}>
+              Remove exercise
+            </Button>
+          </div>
+          {confirmRemove && (
+            <div className="space-y-2">
+              <p className="text-sm">
+                Remove {name} from this day{repeated ? " and its future repeats" : ""}?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="danger" onClick={onRemove}>
+                  Remove from day
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmRemove(false)}>
+                  Keep exercise
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Disclosure>
+    </fieldset>
   );
 }
-function emptyRun(weekIndex: number, dayOfWeek: number): BlueprintRun {
-  return {
-    weekIndex,
-    dayOfWeek,
-    duration: [NaN, NaN],
-    rpe: [NaN, NaN],
-    paceNote: "",
-    progressionNote: "",
-    stopRule: "",
-  };
-}
+
 function RangeFields({
   label,
   value,
@@ -598,28 +727,31 @@ function RangeFields({
   onChange: (value: [number, number]) => void;
 }) {
   return (
-    <div className="col-span-2 grid grid-cols-2 gap-3">
+    <div className="adaptive-grid">
       <Field label={`${label} minimum`}>
         <Input
           type="number"
+          inputMode="decimal"
           min={0}
           step="any"
           value={Number.isFinite(value[0]) ? value[0] : ""}
-          onChange={(e) => onChange([e.target.valueAsNumber, value[1]])}
+          onChange={(event) => onChange([event.target.valueAsNumber, value[1]])}
         />
       </Field>
       <Field label={`${label} maximum`}>
         <Input
           type="number"
+          inputMode="decimal"
           min={0}
           step="any"
           value={Number.isFinite(value[1]) ? value[1] : ""}
-          onChange={(e) => onChange([value[0], e.target.valueAsNumber])}
+          onChange={(event) => onChange([value[0], event.target.valueAsNumber])}
         />
       </Field>
     </div>
   );
 }
+
 function AddExercise({
   library,
   onAdd,
@@ -627,28 +759,28 @@ function AddExercise({
   library: LibraryEntry[];
   onAdd: (entry: BlueprintExercise) => void;
 }) {
-  const [query, setQuery] = useState(""),
-    [slug, setSlug] = useState("");
+  const [query, setQuery] = useState("");
+  const [slug, setSlug] = useState("");
   return (
-    <div className="space-y-3 border-t border-line pt-3">
+    <div className="space-y-3 border-t border-line pt-4">
       <Field label="Find an exercise">
         <Input
           type="search"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
+          onChange={(event) => {
+            setQuery(event.target.value);
             setSlug("");
           }}
         />
       </Field>
       <Field label="Exercise to add">
-        <Select value={slug} onChange={(e) => setSlug(e.target.value)}>
+        <Select value={slug} onChange={(event) => setSlug(event.target.value)}>
           <option value="">Choose an exercise</option>
           {library
-            .filter((e) => e.name.toLowerCase().includes(query.toLowerCase()))
-            .map((e) => (
-              <option key={e.slug} value={e.slug}>
-                {e.name}
+            .filter((entry) => entry.name.toLowerCase().includes(query.toLowerCase()))
+            .map((entry) => (
+              <option key={entry.slug} value={entry.slug}>
+                {entry.name}
               </option>
             ))}
         </Select>
@@ -657,8 +789,12 @@ function AddExercise({
         variant="secondary"
         disabled={!slug}
         onClick={() => {
-          const e = library.find((entry) => entry.slug === slug)!;
-          onAdd(emptyPrescription(e, slug));
+          onAdd(
+            emptyPrescription(
+              library.find((entry) => entry.slug === slug),
+              slug,
+            ),
+          );
           setSlug("");
         }}
       >
@@ -667,6 +803,7 @@ function AddExercise({
     </div>
   );
 }
+
 function emptyPrescription(exercise: LibraryEntry | undefined, slug: string): BlueprintExercise {
   const measure = exercise?.defaultPrescriptionType ?? "reps";
   return {

@@ -1,22 +1,25 @@
 # Training and independent programmes
 
 Surface mode: Operate. This extends Form v2; it preserves its fonts, pigments, controls,
-fluid scale, navigation and PWA behaviour. The owner approved implementation on 16 October 2026.
+fluid scale, navigation and PWA behaviour. Rebuilt on 18 October 2026 at the owner's request.
 
 Training owns logging and programme management. Profile keeps general coach settings.
-Logging is first: choose a sport and a date, select an exact scheduled session or log independently.
+Programmes lead: see the active plan and its next session, then view or edit it. Compact logging
+shortcuts follow: choose a sport and a date, select an exact scheduled session or log independently.
 Today shows only the calendar sessions dated today, beside the next lifting session.
 Missed endurance sessions remain available by their original date through Training.
 
 Only existing programmes have cards. A card names its sport, progress and next session, and
-opens its full programme; Edit, Replace programme and any pending proposal belong to that card.
+opens its programme; View, Edit and any pending proposal belong to that card. Replacement,
+duplication and archiving live under More options on the programme. Archives remain reachable
+from the session library for every sport.
 Add programme opens a sport chooser, then coach or manual creation. Standalone coach sessions
 save as reusable templates without replacing a programme. A full agenda, four empty sport cards
 and sport tabs were rejected because they hide logging or duplicate Today.
 
 ## Direction contract
 
-THESIS: A training desk: log first, then maintain each independent plan in place.
+THESIS: Understand a programme at a glance; edit repeated work once.
 
 OWN-WORLD: Form v2's ground and surface, Jost titles and Atkinson text, existing sport pigments
 and marks, native fields and 44-point or larger actions. No new palette or component family.
@@ -24,8 +27,8 @@ and marks, native fields and 44-point or larger actions. No new palette or compo
 STORY: Choose a sport and date, explicitly answer its scheduled session or record independent
 training; return to see that sport's programme progress without blocking another sport.
 
-FIRST VIEWPORT: Training heading, four compact logging shortcuts, then the first existing
-programme cards. Two programme columns on desktop; one on phones and at larger text.
+FIRST VIEWPORT: Training heading and existing programme cards with next session and View/Edit,
+then four compact logging shortcuts. Two programme columns on desktop; one on phones and at larger text.
 The sport shortcuts form four columns where they fit, two on phones, fewer when text needs room.
 
 FORM: Date selection precedes logging. Scheduled and independent options say whether the log
@@ -35,6 +38,14 @@ BEHAVIOUR: One active programme per sport. Lifting follows session order; endura
 dates. Coach context includes the other programmes; changes to them are separate proposals
 for approval. Existing drafts and history stay reachable. Motion follows the existing shell,
 with no new entrance sequence. Reuse the existing online PWA and local draft recovery.
+
+EDITING: One selected day or session. Programme settings and advanced details are disclosed on
+request. Strength distinguishes a rolling cycle, a repeating week, and a finite sequence of
+independent days. Endurance offers a repeating-workout outline and a week view; only identical
+prescriptions are grouped. Choose this session or matching future repeats, with an affected
+count. Four-day repetitions keep separate occurrence identities even when two fall in one week.
+Progressive targets and individual exceptions stay independent. A manual replacement is a new
+block with an explicit start date; an edit keeps the existing start and position. See ADR 0057.
 
 ## Verification
 

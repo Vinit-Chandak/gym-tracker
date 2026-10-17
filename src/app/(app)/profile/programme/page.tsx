@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ProgrammeOptions } from "@/components/coaching/programme-options";
 import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
 import { and, desc, eq } from "drizzle-orm";
@@ -14,23 +13,23 @@ import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Section } from "@/components/ui/section";
-import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
+import { LinkButton } from "@/components/ui/button";
 import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
-import { cycleRepeatLabel } from "@/domain/cycle-repeat";
+import { cycleRepeatLabel, programLengthLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { getProgramOverview } from "@/server/repositories/schedule";
+import { getProgramOverview, type ProgramDayPlan } from "@/server/repositories/schedule";
 import { enabledSportsFor, readSportUnits } from "@/server/repositories/sport-preferences";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
-import { closedByNextBlock, templateOffer } from "./next-block";
+import { templateOffer } from "./next-block";
 import { ProgrammeTabs } from "./programme-tabs";
 import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 
@@ -94,7 +93,13 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
           tx
             .select({ id: programs.id, name: programs.name, version: programs.version })
             .from(programs)
-            .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
+            .where(
+              and(
+                eq(programs.userId, user.id),
+                eq(programs.sport, "strength"),
+                eq(programs.status, "archived"),
+              ),
+            )
             .orderBy(desc(programs.updatedAt))
             .limit(20),
           readSportUnits(tx, user.id),
@@ -109,6 +114,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const offer = templateOffer(PROGRAM_TEMPLATES, enabled);
   const today = todayInTimeZone(profile.timeZone);
   const complete = overview?.complete ?? false;
+  const once = overview?.program.repeats === "once";
   // The sequence waits (owner, 11 October 2026), so the end it was written with is rarely when it
   // ends: a finished programme ends when its last day was answered, one under way when its days
   // left would be done at a day each from today. The written end stays under How it is meant to go.
@@ -119,39 +125,23 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const start = overview?.program.startDate;
   const spanYear =
     start && end && start.slice(0, 4) !== end.slice(0, 4) ? undefined : today.slice(0, 4);
-  // What starting another closes of this one, said under the button that starts it.
-  const closes = closedByNextBlock(
-    overview && {
-      name: overview.program.name,
-      complete,
-      skipped: overview.progress.skipped,
-    },
+  const dayList = (days: readonly ProgramDayPlan[]) => (
+    <ul className="space-y-3">
+      {days.map((plan) => (
+        <li key={plan.day.id}>
+          <CycleDay
+            plan={plan}
+            units={runUnits}
+            open={inProgress !== null && inProgress.programDayId === plan.day.id}
+          />
+        </li>
+      ))}
+    </ul>
   );
-  // Starting over: rarely why anyone comes here, so folded at the foot of the cycle — until the
-  // programme is finished, when it is the next thing to do and opens under the card.
-  const nextBlock = (
-    <div className="space-y-4">
-      <ProgrammeOptions nested />
-      <div className="space-y-2 border-t border-line pt-4">
-        <h3 className="font-medium">{offer.heading}</h3>
-        <ProgramTemplatePicker
-          templates={offer.options}
-          today={today}
-          // A finished programme is not replaced: the next one starts after it.
-          submitLabel={complete ? "Start this programme" : "Replace my programme"}
-          extra={
-            closes && <p className="type-meta [overflow-wrap:break-word] text-ink-2">{closes}</p>
-          }
-        />
-      </div>
-    </div>
-  );
-
   return (
     <>
       <PageHeader title="Lifting programme" backHref="/training" />
       <PageContent>
-        <SavedProgrammeWork />
         {overview ? (
           <>
             {/* What the programme is and how far through it you are. */}
@@ -164,9 +154,18 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                   {/* Today's word for it, "Programme complete", as the card's badge. */}
                   {complete && <Badge tone="success">Complete</Badge>}
                 </div>
-                <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
-                  {start ? formatIsoDate(start, spanYear) : "—"} →{" "}
-                  {end ? formatIsoDate(end, spanYear) : "—"}
+                <p className="mt-1.5 text-sm text-ink-muted">
+                  {cycleRepeatLabel({
+                    weeks: overview.program.weeks,
+                    days: overview.days.map(({ day }) => day),
+                    repeats: overview.program.repeats,
+                  })}
+                  {" · "}
+                  {programLengthLabel({
+                    weeks: overview.program.weeks,
+                    days: overview.days.map(({ day }) => day),
+                    repeats: overview.program.repeats,
+                  })}
                 </p>
               </div>
               <ProgressBar
@@ -176,30 +175,34 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
               />
               {/* Each count kept with its words ("0 to go", never "0 to / go"), and each dot with
                   the fact after it, when the line wraps. */}
-              <p className="text-xs text-ink-muted tabular-nums">
+              <p className="text-sm text-ink-muted tabular-nums">
                 {joinFacts([
                   !complete &&
+                    !once &&
                     `Cycle\u00a0${overview.currentCycle}\u00a0of\u00a0${overview.program.cycles}`,
-                  `${overview.progress.completed}\u00a0of\u00a0${overview.progress.total} programme days`,
-                  !complete && `${overview.progress.remaining}\u00a0to\u00a0go`,
+                  !complete && `${overview.progress.remaining}\u00a0days\u00a0left`,
                   overview.progress.skipped > 0 && `${overview.progress.skipped}\u00a0skipped`,
                 ])}
               </p>
-              <StatTileRow>
-                <StatTile label="Weeks" value={overview.program.weeks} />
-                <StatTile label="Days a cycle" value={overview.days.length} />
-                <StatTile label="Lifting days" value={overview.liftingDays} />
-                <StatTile label="Sets a cycle" value={overview.setsPerCycle} />
-              </StatTileRow>
               <ProgrammeTools id={overview.program.id} finished={complete} />
               {(overview.program.notes || overview.program.endDate) && (
-                <Disclosure summary="How it is meant to go" variant="footer">
+                <Disclosure summary="Programme details" variant="footer">
                   <div className="space-y-3">
                     {overview.program.notes && (
                       <p className="text-sm [overflow-wrap:break-word]">{overview.program.notes}</p>
                     )}
                     <DetailList
                       entries={[
+                        ["Started", start ? formatIsoDate(start, spanYear) : null],
+                        [
+                          complete ? "Finished" : "Estimated finish",
+                          end ? formatIsoDate(end, spanYear) : null,
+                        ],
+                        [
+                          once ? "Lifting days" : "Lifting days per cycle",
+                          `${overview.liftingDays}`,
+                        ],
+                        [once ? "Planned sets" : "Sets per cycle", `${overview.setsPerCycle}`],
                         [
                           "Planned end",
                           overview.program.endDate
@@ -221,16 +224,6 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
               )}
             </Card>
 
-            {/* Where Today's "Plan the next block" leads: the next thing to do, so not folded. */}
-            {complete && (
-              <Section
-                title="Plan the next block"
-                info="Starting another archives this one; logged sessions keep what they were prescribed. Duplicate it above to train it again."
-              >
-                <Card>{nextBlock}</Card>
-              </Section>
-            )}
-
             <ProgrammeTabs view={view} waiting={changes.waiting} />
             <div
               id="programme-panel"
@@ -244,33 +237,39 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                 <>
                   {/* Every session the programme asks for, in the order it asks for them. */}
                   <Section
-                    title="The cycle"
-                    info="One pass through these days is a cycle, and the programme repeats it for its whole length. Open a day to see everything it prescribes."
+                    title={
+                      once
+                        ? "Your training sequence"
+                        : complete
+                          ? "Your training pattern"
+                          : `Cycle ${overview.currentCycle} of ${overview.program.cycles}`
+                    }
+                    description={
+                      once
+                        ? `${overview.days.length} days, trained once in order. Open a day to see its exercises and targets.`
+                        : `${overview.days.length} days in this repeating pattern. Open a day to see its exercises and targets.`
+                    }
                   >
-                    <ul className="space-y-3">
-                      {overview.days.map((plan) => (
-                        <li key={plan.day.id}>
-                          <CycleDay
-                            plan={plan}
-                            units={runUnits}
-                            open={inProgress !== null && inProgress.programDayId === plan.day.id}
-                          />
-                        </li>
-                      ))}
-                    </ul>
+                    {once && overview.days.length > 7
+                      ? Array.from({ length: Math.ceil(overview.days.length / 7) }, (_, index) => {
+                          const days = overview.days.slice(index * 7, index * 7 + 7);
+                          return (
+                            <Disclosure
+                              key={days[0]!.day.id}
+                              summary={`Days ${index * 7 + 1}–${index * 7 + days.length}`}
+                              defaultOpen={
+                                days.some(
+                                  (plan) => plan.isNext || inProgress?.programDayId === plan.day.id,
+                                ) ||
+                                (complete && index === 0)
+                              }
+                            >
+                              {dayList(days)}
+                            </Disclosure>
+                          );
+                        })
+                      : dayList(overview.days)}
                   </Section>
-
-                  {/* Folded away, because starting over is the rarest thing anyone comes here
-                      to do — and open, it is three choices that each need a sentence. */}
-                  {!complete && (
-                    <Section
-                      title="Change programme"
-                      info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
-                    >
-                      <Disclosure summary="Start a new programme">{nextBlock}</Disclosure>
-                    </Section>
-                  )}
-
                   {archived.length > 0 && <Archived programmes={archived} />}
                 </>
               )}
@@ -278,8 +277,11 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
           </>
         ) : (
           <>
+            <SavedProgrammeWork />
             <Section title="Start a programme">
-              <ProgrammeOptions />
+              <LinkButton href="/training/programmes/new?sport=strength">
+                Create a lifting programme
+              </LinkButton>
             </Section>
             <Section title={offer.heading}>
               <Card>

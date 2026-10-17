@@ -35,8 +35,6 @@ function split(plan: ProgramBlueprint) {
   return plan.days.map((day) => ({
     dayIndex: day.dayIndex,
     dayOfWeek: day.dayOfWeek,
-    name: day.name,
-    focus: day.focus,
     includesLifting: day.includesLifting,
     includesRun: day.includesRun,
     hasLiftingPrescription: day.exercises.length > 0,
@@ -97,6 +95,15 @@ export function assessProgramChange(
   )
     structuralChanges.push("split_or_schedule");
   if (!same(runSchedule(before), runSchedule(after))) structuralChanges.push("run_schedule");
+  if (
+    after.days.some((day) => {
+      const old = before.days.find((entry) => entry.dayIndex === day.dayIndex);
+      return old && (old.name !== day.name || old.focus !== day.focus);
+    })
+  )
+    doseChanges.push(
+      "Changes to day names or focus need review, while keeping the current position.",
+    );
   const oldSlotDays = new Map(
     before.days.flatMap((day) =>
       day.exercises

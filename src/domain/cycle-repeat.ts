@@ -75,6 +75,7 @@ export function cycleCount(
   dayCount: number,
   repeats: CycleRepeat | null | undefined,
 ): number {
+  if (repeats === "once") return 1;
   if (repeats !== "rolling" || dayCount <= 0) return weeks;
   return Math.max(1, Math.round((weeks * 7) / dayCount));
 }
@@ -103,12 +104,15 @@ export function cycleLayout(plan: CyclePlan): { cycles: number; byWeekday: boole
 
 /** "Every week", or "Every 4 days" for a cycle laid back to back. */
 export function cycleRepeatLabel(plan: CyclePlan): string {
+  if (plan.repeats === "once") return "Does not repeat";
   if (plan.days.length === 7 || cycleLayout(plan).byWeekday) return "Every week";
   return `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`;
 }
 
 /** "8 weeks", or "8 weeks · 14 cycles" when the weeks do not hold one cycle each. */
 export function programLengthLabel(plan: CyclePlan): string {
+  if (plan.repeats === "once")
+    return `${plan.days.length} ${plan.days.length === 1 ? "day" : "days"}`;
   const { cycles } = cycleLayout(plan);
   const weeks = `${plan.weeks} ${plan.weeks === 1 ? "week" : "weeks"}`;
   return cycles === plan.weeks
@@ -122,6 +126,16 @@ export function programLengthLabel(plan: CyclePlan): string {
  */
 export function cycleRepeatIssues(plan: CyclePlan): string[] {
   const issues: string[] = [];
+  if (plan.repeats === "once") {
+    if (plan.days.length > plan.weeks * 7)
+      issues.push("The programme needs enough weeks to hold every day of its sequence.");
+    if (plan.days.some((day) => day.includesRun))
+      issues.push("Keep dated endurance sessions in their own sport programme.");
+  } else if (plan.days.length > 31) {
+    issues.push(
+      "Use at most 31 days in a repeating cycle, or choose a programme that does not repeat.",
+    );
+  }
   if (plan.repeats === "weekly" && plan.days.length > 7)
     issues.push("A cycle that repeats every week has at most seven days.");
   else if (plan.repeats === "weekly" && plan.days.length < 7 && weekdayOffsets(plan.days) === null)

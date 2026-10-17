@@ -9,6 +9,8 @@ import { rangeLabel, restLabel, WEEKDAY_NAMES } from "@/lib/labels";
 import { cycleRepeatLabel, programLengthLabel } from "./cycle-repeat";
 import { exerciseTargets } from "./exercise-targets";
 import { describePrescription } from "./activity-prescription";
+import { enduranceSessionGroups } from "./endurance-series";
+import { enduranceIdentityWeek } from "./programme-sport";
 
 export { exerciseTargets } from "./exercise-targets";
 
@@ -378,21 +380,39 @@ export function diffPrograms(base: unknown, proposed: unknown): ProgramDiff {
   const before = normalise(base);
   const after = normalise(proposed);
   const program = programFields(before, after);
-  const sessionText = (plan: ProgramBlueprint) =>
-    (plan.enduranceSessions ?? [])
-      .map(
-        (session) =>
-          `Week ${session.weekIndex}, day ${session.dayOffset + 1}${session.name ? ` · ${session.name}` : ""}: ${describePrescription(session.prescription, { distanceUnit: "km", poolUnit: "m" })}${session.prescription.instructions ? ` · ${session.prescription.instructions}` : ""}`,
-      )
-      .join("\n") || "None";
+  const sessionKey = (session: NonNullable<ProgramBlueprint["enduranceSessions"]>[number]) =>
+    `${session.lineageId}:${enduranceIdentityWeek(session)}`;
+  const sessionText = (plan: ProgramBlueprint, other: ProgramBlueprint) => {
+    const opposite = new Map(
+      (other.enduranceSessions ?? []).map((session) => [sessionKey(session), session]),
+    );
+    const changed = (plan.enduranceSessions ?? []).filter(
+      (session) => JSON.stringify(session) !== JSON.stringify(opposite.get(sessionKey(session))),
+    );
+    return (
+      enduranceSessionGroups(changed)
+        .map((group) => {
+          const session = changed[group.indexes[0]!]!;
+          const weeks = [...new Set(group.indexes.map((index) => changed[index]!.weekIndex))].sort(
+            (a, b) => a - b,
+          );
+          const when =
+            group.indexes.length > 1
+              ? `${group.indexes.length} sessions · Weeks ${weeks.join(", ")}`
+              : `Week ${session.weekIndex}, day ${session.dayOffset + 1}`;
+          return `${when}${session.name ? ` · ${session.name}` : ""}: ${describePrescription(session.prescription, { distanceUnit: "km", poolUnit: "m" })}${session.scheduledLocalTime ? ` · ${session.scheduledLocalTime}` : ""}${session.prescription.instructions ? ` · ${session.prescription.instructions}` : ""}`;
+        })
+        .join("\n") || "None"
+    );
+  };
   if (
     JSON.stringify(before.enduranceSessions ?? []) !== JSON.stringify(after.enduranceSessions ?? [])
   )
     program.push({
       field: "enduranceSessions",
       label: "Scheduled sessions",
-      from: sessionText(before),
-      to: sessionText(after),
+      from: sessionText(before, after),
+      to: sessionText(after, before),
     });
 
   const beforeSlots = slotsOf(before);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { programmeEnduranceSessionSchema, programmeSportSchema } from "./programme-sport";
 
-import { PRESCRIBED_EFFORT } from "./activity-limits";
+import { BLUEPRINT_LIMITS, PRESCRIBED_EFFORT } from "./activity-limits";
 import { CYCLE_REPEATS, PRESCRIPTION_TYPES } from "./types";
 
 /**
@@ -96,7 +96,7 @@ export const blueprintExerciseSchema = z
 
 export const blueprintDaySchema = z.object({
   /** Position in the cycle, 1-based and contiguous. */
-  dayIndex: z.number().int().min(1).max(31),
+  dayIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.strengthSlots),
   /** ISO weekday the day usually falls on, 1 = Monday. */
   dayOfWeek: z.number().int().min(1, "Choose the weekday each day falls on.").max(7),
   name: z.string().min(1, "Name every day.").max(80),
@@ -165,7 +165,7 @@ export const programBlueprintSchema = z
      */
     repeats: z.enum(CYCLE_REPEATS).optional(),
     notes: z.string().max(2000).default(""),
-    days: z.array(blueprintDaySchema).max(31),
+    days: z.array(blueprintDaySchema).max(BLUEPRINT_LIMITS.strengthSlots),
     runs: z.array(blueprintRunSchema).max(200).default([]),
   })
   .superRefine((plan, ctx) => {

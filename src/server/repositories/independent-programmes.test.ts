@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { seedLegacyAccount } from "@/db/test/multisport-fixtures";
 import { backfillMultisport } from "@/db/backfill-multisport";
-import { coachJobs, coachProgramRequests, programs } from "@/db/schema";
+import { coachJobs, coachProgramRequests, profiles, programs } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { withUser } from "@/db/with-user";
@@ -12,6 +12,9 @@ import { ensureProfile } from "@/server/queries/profile";
 import { AD_HOC_ORIGIN, UNKNOWN_EFFORT, plannedOrigin } from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { programBlueprintSchema } from "@/domain/program-blueprint";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { endurancePrescriptionSchema } from "@/domain/activity-prescription";
+import { moveEnduranceSession, repeatEnduranceSession } from "@/domain/endurance-series";
 import { createActivity, type SaveActivityInput } from "./activities";
 import { getOccurrence, occurrencesOnDate, programmeOccurrences } from "./occurrences";
 import {
@@ -33,6 +36,287 @@ beforeAll(async () => {
   t = await createTestDatabase();
   await seedReferenceData(t.db);
 }, 90_000);
+
+it("roundtrips repeated series and applies time-only edits without rewriting their history", async () => {
+  const user = await t.createAuthUser("repeated-series@example.test");
+  await ensureProfile(t.db, user);
+  const startDate = addDays(todayInTimeZone("UTC"), 2);
+  const sessions = repeatEnduranceSession(
+    {
+      lineageId: crypto.randomUUID(),
+      name: "Easy run",
+      weekIndex: 1,
+      dayOffset: 0,
+      scheduledLocalTime: "06:00",
+      prescription: endurancePrescriptionSchema.parse({
+        prescriptionVersion: 1,
+        sport: "running",
+        sessionTargets: { durationMs: [1_800_000, 1_800_000] },
+      }),
+    },
+    { everyDays: 4, throughDayOffset: 13 },
+  );
+  const blueprint = programBlueprintSchema.parse({
+    blueprintVersion: 1,
+    sport: "running",
+    slug: "repeated-series",
+    name: "Repeating run",
+    weeks: 2,
+    days: [],
+    enduranceSessions: sessions,
+  });
+  const active = await withUser(t.db, user.id, (tx) =>
+    adoptProgramme(tx, user.id, blueprint, { startDate }),
+  );
+  const before = await programmeOccurrences(t.db, user.id, active.familyId);
+  const read = (await readProgramBlueprint(t.db, user.id, active.id))!.blueprint;
+  expect(read.enduranceSessions).toEqual(sessions);
+  const draft = await withUser(t.db, user.id, (tx) =>
+    saveManualDraft(tx, user.id, {
+      ...read,
+      enduranceSessions: read.enduranceSessions!.map((entry, index) => ({
+        ...entry,
+        scheduledLocalTime: index === 1 ? "07:30" : entry.scheduledLocalTime,
+      })),
+    }),
+  );
+  const ready = await withUser(t.db, user.id, (tx) =>
+    refreshProgramDraft(tx, user.id, draft.id, draft.revision),
+  );
+  await withUser(t.db, user.id, (tx) =>
+    activateProgramDraft(tx, user.id, ready.id, {
+      expectedRevision: ready.revision,
+      startDate,
+      transition: "continue",
+    }),
+  );
+  const after = await programmeOccurrences(t.db, user.id, active.familyId);
+  expect(after.map((entry) => entry.id)).toEqual(before.map((entry) => entry.id));
+  expect(after[1]!.scheduledLocalTime?.slice(0, 5)).toBe("07:30");
+  expect(after[1]!.revisionId).not.toBe(before[1]!.revisionId);
+  expect(after.filter((_, index) => index !== 1).map((entry) => entry.revisionId)).toEqual(
+    before.filter((_, index) => index !== 1).map((entry) => entry.revisionId),
+  );
+});
+
+it("refuses to continue a manual replacement and gives it its own block and start date", async () => {
+  const user = await t.createAuthUser("replace-endurance@example.test");
+  await ensureProfile(t.db, user);
+  const startDate = addDays(todayInTimeZone("UTC"), 2);
+  const blueprint = programBlueprintSchema.parse({
+    blueprintVersion: 1,
+    sport: "cycling",
+    slug: "old-ride",
+    name: "Old ride",
+    weeks: 2,
+    days: [],
+    enduranceSessions: [
+      {
+        lineageId: crypto.randomUUID(),
+        name: "Easy ride",
+        weekIndex: 1,
+        dayOffset: 0,
+        prescription: {
+          prescriptionVersion: 1,
+          sport: "cycling",
+          sessionTargets: { durationMs: [1_800_000, 1_800_000] },
+        },
+      },
+    ],
+  });
+  const original = await withUser(t.db, user.id, (tx) =>
+    adoptProgramme(tx, user.id, blueprint, { startDate }),
+  );
+  const draft = await withUser(t.db, user.id, (tx) =>
+    saveManualDraft(tx, user.id, {
+      ...blueprint,
+      slug: "new-ride",
+      name: "New ride",
+    }),
+  );
+  const ready = await withUser(t.db, user.id, (tx) =>
+    refreshProgramDraft(tx, user.id, draft.id, draft.revision),
+  );
+  await expect(
+    withUser(t.db, user.id, (tx) =>
+      activateProgramDraft(tx, user.id, ready.id, {
+        expectedRevision: ready.revision,
+        startDate,
+        transition: "continue",
+      }),
+    ),
+  ).rejects.toThrow(/replacement programme/);
+  expect((await activeSportProgrammes(t.db, user.id))[0]!.id).toBe(original.id);
+  const replacementDate = addDays(startDate, 7);
+  const replacement = await withUser(t.db, user.id, (tx) =>
+    activateProgramDraft(tx, user.id, ready.id, {
+      expectedRevision: ready.revision,
+      startDate: replacementDate,
+      transition: "new_block",
+    }),
+  );
+  const active = (await activeSportProgrammes(t.db, user.id))[0]!;
+  expect(active.id).toBe(replacement.programId);
+  expect(active.familyId).not.toBe(original.familyId);
+  expect(active.startDate).toBe(replacementDate);
+  expect((await programmeOccurrences(t.db, user.id, active.familyId))[0]!.scheduledOn).toBe(
+    replacementDate,
+  );
+  expect((await programmeOccurrences(t.db, user.id, original.familyId))[0]!.resolution.kind).toBe(
+    "cancelled",
+  );
+});
+
+it("moves a legacy weekly repeat across weeks without replacing either occurrence", async () => {
+  const user = await t.createAuthUser("move-repeat-across-week@example.test");
+  await ensureProfile(t.db, user);
+  const startDate = addDays(todayInTimeZone("UTC"), 2);
+  const lineageId = crypto.randomUUID();
+  const blueprint = programBlueprintSchema.parse({
+    blueprintVersion: 1,
+    sport: "running",
+    slug: "movable-repeat",
+    name: "Weekly repeats",
+    weeks: 3,
+    days: [],
+    enduranceSessions: [0, 7].map((dayOffset) => ({
+      lineageId,
+      name: "Easy run",
+      dayOffset,
+      weekIndex: Math.floor(dayOffset / 7) + 1,
+      prescription: {
+        prescriptionVersion: 1,
+        sport: "running",
+        sessionTargets: { durationMs: [1_800_000, 1_800_000] },
+      },
+    })),
+  });
+  const active = await withUser(t.db, user.id, (tx) =>
+    adoptProgramme(tx, user.id, blueprint, { startDate }),
+  );
+  const before = await programmeOccurrences(t.db, user.id, active.familyId);
+  const first = before.find((entry) => entry.originalWeekIndex === 1)!;
+  const second = before.find((entry) => entry.originalWeekIndex === 2)!;
+  const moved = {
+    ...blueprint,
+    enduranceSessions: [
+      moveEnduranceSession(blueprint.enduranceSessions![0]!, 8),
+      blueprint.enduranceSessions![1]!,
+    ].sort((a, b) => a.dayOffset - b.dayOffset),
+  };
+  const draft = await withUser(t.db, user.id, (tx) => saveManualDraft(tx, user.id, moved));
+  const ready = await withUser(t.db, user.id, (tx) =>
+    refreshProgramDraft(tx, user.id, draft.id, draft.revision),
+  );
+  const revision = await withUser(t.db, user.id, (tx) =>
+    activateProgramDraft(tx, user.id, ready.id, {
+      expectedRevision: ready.revision,
+      startDate,
+      transition: "continue",
+    }),
+  );
+  const after = await programmeOccurrences(t.db, user.id, active.familyId);
+  expect(after).toHaveLength(2);
+  expect(new Set(after.map((entry) => entry.id))).toEqual(new Set(before.map((entry) => entry.id)));
+  expect(after.find((entry) => entry.id === first.id)!.scheduledOn).toBe(addDays(startDate, 8));
+  expect(after.find((entry) => entry.id === second.id)!.scheduledOn).toBe(addDays(startDate, 7));
+  expect(after.every((entry) => entry.resolution.kind === "incomplete")).toBe(true);
+  const read = (await readProgramBlueprint(t.db, user.id, revision.programId))!.blueprint;
+  expect(read.enduranceSessions!.find((entry) => entry.dayOffset === 8)).toMatchObject({
+    weekIndex: 2,
+    originalWeekIndex: 1,
+  });
+});
+
+it("does not duplicate a session logged today when an edit tries to move it into another week", async () => {
+  const user = await t.createAuthUser("move-logged-today@example.test");
+  await ensureProfile(t.db, user);
+  await t.db.update(profiles).set({ timeZone: "UTC" }).where(eq(profiles.id, user.id));
+  const today = todayInTimeZone("UTC");
+  const blueprint = programBlueprintSchema.parse({
+    blueprintVersion: 1,
+    sport: "running",
+    slug: "logged-repeat",
+    name: "Preserve the run",
+    weeks: 2,
+    days: [],
+    enduranceSessions: [0, 7].map((dayOffset) => ({
+      lineageId: crypto.randomUUID(),
+      name: "Easy run",
+      dayOffset,
+      weekIndex: Math.floor(dayOffset / 7) + 1,
+      prescription: {
+        prescriptionVersion: 1,
+        sport: "running",
+        sessionTargets: { durationMs: [1_800_000, 1_800_000] },
+      },
+    })),
+  });
+  const active = await withUser(t.db, user.id, (tx) =>
+    adoptProgramme(tx, user.id, blueprint, { startDate: today }),
+  );
+  const before = await programmeOccurrences(t.db, user.id, active.familyId);
+  const logged = before.find((entry) => entry.scheduledOn === today)!;
+  await withUser(t.db, user.id, (tx) =>
+    createActivity(tx, user.id, {
+      submissionKey: crypto.randomUUID(),
+      origin: plannedOrigin(logged.id, logged.revisionId),
+      actual: {
+        sport: "running",
+        environment: "outdoor",
+        distance: nativeDistance(5, "km"),
+        durationMs: 1_800_000,
+        surface: null,
+        elevationGainMetres: null,
+        treadmillInclinePercent: null,
+        averageHeartRate: null,
+        maxHeartRate: null,
+        cadenceStepsPerMinute: null,
+      },
+      startedAt: new Date(`${today}T00:00:00Z`),
+      recordedTimeZone: "UTC",
+      timeZoneSource: "profile_at_entry",
+      occurredOn: today,
+      effort: UNKNOWN_EFFORT,
+      outcome: "logged",
+      title: null,
+      notes: null,
+    }),
+  );
+  const draft = await withUser(t.db, user.id, (tx) =>
+    saveManualDraft(tx, user.id, {
+      ...blueprint,
+      enduranceSessions: blueprint.enduranceSessions!.map((entry, index) =>
+        index === 0 ? moveEnduranceSession(entry, 8) : entry,
+      ),
+    }),
+  );
+  const ready = await withUser(t.db, user.id, (tx) =>
+    refreshProgramDraft(tx, user.id, draft.id, draft.revision),
+  );
+  const revision = await withUser(t.db, user.id, (tx) =>
+    activateProgramDraft(tx, user.id, ready.id, {
+      expectedRevision: ready.revision,
+      startDate: today,
+      transition: "continue",
+    }),
+  );
+  const after = await programmeOccurrences(t.db, user.id, active.familyId);
+  expect(after).toHaveLength(2);
+  expect(after.find((entry) => entry.id === logged.id)).toMatchObject({
+    scheduledOn: today,
+    revisionId: logged.revisionId,
+    resolution: { kind: "logged" },
+  });
+  expect(after.some((entry) => entry.scheduledOn === addDays(today, 8))).toBe(false);
+  const read = (await readProgramBlueprint(t.db, user.id, revision.programId))!.blueprint;
+  expect(read.enduranceSessions).toHaveLength(2);
+  expect(
+    read.enduranceSessions!.find(
+      (entry) => entry.lineageId === blueprint.enduranceSessions![0]!.lineageId,
+    )!.dayOffset,
+  ).toBe(0);
+});
 
 it("claims coach requests and reads targeted notes only for their own sport", async () => {
   const user = await t.createAuthUser("scoped-coach@example.test");

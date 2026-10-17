@@ -30,6 +30,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("names replacement explicitly and asks for its new start date", () => {
+  render(
+    <ChangeDetail
+      {...props({ author: "manual", headline: "", canContinue: false, replacing: true })}
+    />,
+  );
+  expect(screen.getByRole("heading", { name: "Review replacement" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Replace programme" })).toBeTruthy();
+  expect(screen.getByLabelText("Start date")).toBeTruthy();
+  expect(screen.getByText(/This replaces your current programme for this sport/)).toBeTruthy();
+});
+
 const CURL = "22222222-2222-4222-8222-222222222222";
 
 const base: ProgramBlueprint = {
