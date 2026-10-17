@@ -16,6 +16,7 @@ import { jsonEqual } from "@/domain/json-equal";
 import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { enduranceIdentityWeek } from "@/domain/programme-sport";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { nextPendingSlot, type SlotRef } from "@/domain/schedule";
 import { supersedeStalePlans } from "./coach-plans";
@@ -80,6 +81,8 @@ type ExistingOccurrence = {
   disposition: string;
   currentRevisionId: string | null;
   scheduledOn: string | null;
+  scheduledLocalTime: string | null;
+  orderIndex: number | null;
   prescription: EndurancePrescription | null;
   /** The activity that answered it, if one did. */
   activityId: string | null;
@@ -101,6 +104,8 @@ async function existingOccurrences(
       disposition: plannedOccurrences.disposition,
       currentRevisionId: plannedOccurrences.currentRevisionId,
       scheduledOn: occurrenceVersions.scheduledOn,
+      scheduledLocalTime: occurrenceVersions.scheduledLocalTime,
+      orderIndex: occurrenceVersions.orderIndex,
       prescription: occurrenceVersions.prescription,
       activityId: activities.id,
       // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers, and an
@@ -246,10 +251,11 @@ export async function materialiseOccurrences(
   const seen = new Set<string>();
   const usedOrder = new Map<string, number>();
   for (const occurrence of planned) {
-    const lineageWeek = `${occurrence.slotLineageId}:${occurrence.weekIndex}`;
+    const identityWeek = enduranceIdentityWeek(occurrence);
+    const lineageWeek = `${occurrence.slotLineageId}:${identityWeek}`;
     const ordinal = usedOrder.get(lineageWeek) ?? 0;
     usedOrder.set(lineageWeek, ordinal + 1);
-    const key = plannedKey(occurrence.slotLineageId, occurrence.weekIndex, ordinal);
+    const key = plannedKey(occurrence.slotLineageId, identityWeek, ordinal);
     const current = byKey.get(key);
     if (current) {
       seen.add(current.id);
@@ -270,6 +276,8 @@ export async function materialiseOccurrences(
       // session and superseded the preparation waiting on it. Compare the content (`jsonEqual`).
       const unchanged =
         current.scheduledOn === scheduledOn &&
+        (current.scheduledLocalTime?.slice(0, 5) ?? null) === occurrence.scheduledLocalTime &&
+        current.orderIndex === occurrence.orderIndex &&
         jsonEqual(current.prescription, occurrence.prescription);
       if (unchanged) {
         // The slot it belongs to is not part of what it asks for, so correcting one the
@@ -328,9 +336,9 @@ export async function materialiseOccurrences(
         familyId: input.familyId,
         slotLineageId: occurrence.slotLineageId,
         cycleDayIndex: occurrence.cycleDayIndex,
-        cycleIndex: occurrence.weekIndex,
+        cycleIndex: identityWeek,
         disposition: "pending",
-        originalWeekIndex: occurrence.weekIndex,
+        originalWeekIndex: identityWeek,
         originalScheduledOn: occurrence.scheduledOn,
       })
       .returning({ id: plannedOccurrences.id });
@@ -447,9 +455,12 @@ export function occurrencesFromBlueprint(
       enduranceSlots: [...slots.values()],
       legacy: null,
       occurrences: namedSessions.map((session, index) => ({
-        localId: `${session.lineageId}:${session.weekIndex}:${index}`,
+        localId: `${session.lineageId}:${enduranceIdentityWeek(session)}:${index}`,
         slotLineageId: session.lineageId,
         weekIndex: session.weekIndex,
+        ...(session.originalWeekIndex === undefined
+          ? {}
+          : { originalWeekIndex: session.originalWeekIndex }),
         cycleDayIndex: null,
         scheduledOn: addDays(context.startDate, session.dayOffset),
         scheduledLocalTime: session.scheduledLocalTime,

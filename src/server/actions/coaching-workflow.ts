@@ -390,6 +390,7 @@ export async function approveProgramChangeAction(input: {
       : null;
     const transition =
       current &&
+      !(draft.source === "manual" && draft.blueprint.slug !== current.blueprint.slug) &&
       (draft.sport !== "strength" ||
         assessProgramChange(current.blueprint, draft.blueprint, []).structuralChanges.length === 0)
         ? "continue"

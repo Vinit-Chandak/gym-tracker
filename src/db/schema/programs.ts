@@ -75,7 +75,7 @@ export const programs = pgTable(
     uniqueIndex("programs_one_active_per_sport_uq")
       .on(t.userId, t.sport)
       .where(sql`status = 'active'`),
-    check("programs_repeats_chk", sql`repeats is null or repeats in ('weekly', 'rolling')`),
+    check("programs_repeats_chk", sql`repeats is null or repeats in ('weekly', 'rolling', 'once')`),
     index("programs_user_status_idx").on(t.userId, t.status),
     ownerPolicy("programs"),
   ],

@@ -3,6 +3,7 @@ import { ChevronDown } from "@/components/ui/icons";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import { DetailList } from "@/components/ui/detail-list";
 import { Figures } from "@/components/ui/figures";
 import { setLengthUnit, type SportUnits } from "@/lib/distance-units";
@@ -100,7 +101,7 @@ export function CycleDay({
   if (!expandable) return <div className={cn("box", HEAD)}>{head}</div>;
 
   return (
-    <details className="group box min-w-0">
+    <details className="group box min-w-0" open={open}>
       {/* The day answers a press with its tint, not the controls' 0.97: at large text the head
           is hundreds of points tall, and shrinking it took its rounded corner out from under a
           thumb pressed near it, so the press landed on the card and the day stayed shut. */}
@@ -113,6 +114,11 @@ export function CycleDay({
         {head}
       </summary>
       <div className="space-y-4 border-t border-line px-4 pt-3 pb-4">
+        {day.includesLifting && (
+          <LinkButton href={`/training/days/${day.id}`} variant="secondary">
+            Open workout
+          </LinkButton>
+        )}
         {plan.exercises.length > 0 && (
           <PlannedExerciseList
             exercises={plan.exercises}

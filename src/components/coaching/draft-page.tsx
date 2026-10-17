@@ -102,9 +102,10 @@ export async function ProgrammeDraftPage({
         // Structural changes cannot continue the running block; the athlete is told so rather
         // than being offered a choice the server would refuse.
         canContinue: current
-          ? draft.sport !== "strength" ||
-            assessProgramChange(current.blueprint, draft.blueprint, library).structuralChanges
-              .length === 0
+          ? !(draft.source === "manual" && draft.blueprint.slug !== current.blueprint.slug) &&
+            (draft.sport !== "strength" ||
+              assessProgramChange(current.blueprint, draft.blueprint, library).structuralChanges
+                .length === 0)
           : false,
       };
     },
@@ -159,6 +160,10 @@ export async function ProgrammeDraftPage({
           })}
           names={Object.fromEntries(data.library.map((exercise) => [exercise.slug, exercise.name]))}
           canContinue={data.canContinue}
+          replacing={
+            data.draft.source === "manual" &&
+            data.draft.blueprint.slug !== data.currentBlueprint.slug
+          }
           // Only the asks this change actually answers, to tag the lines they produced.
           requests={data.requests
             .filter((request) => request.draftId === data.draft.id)

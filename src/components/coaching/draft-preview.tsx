@@ -23,6 +23,7 @@ import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 import { ActivityPlan } from "@/components/activities/activity-plan";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
+import { enduranceSessionGroups } from "@/domain/endurance-series";
 
 /**
  * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
@@ -39,6 +40,8 @@ function shape(blueprint: ProgramBlueprint): string {
   // A first programme that has not chosen takes the repeat its days suggest when it starts.
   const plan = { ...blueprint, repeats: blueprint.repeats ?? inferCycleRepeat(blueprint.days) };
   const { cycles, byWeekday } = cycleLayout(plan);
+  if (blueprint.repeats === "once")
+    return `${blueprint.weeks} weeks · ${blueprint.days.length} days · Does not repeat`;
   const days = plural(blueprint.days.length, "day");
   const cycle =
     blueprint.days.length === 7
@@ -153,27 +156,39 @@ export function DraftPreview({
           </div>
         )}
       </Card>
-      {(current.blueprint.enduranceSessions ?? []).map((session, index) => (
-        <section key={`${session.lineageId}:${session.weekIndex}:${index}`} className="space-y-2">
-          <h2 className="font-medium">{session.name || `Session ${index + 1}`}</h2>
-          {!current.standalone && (
-            <p className="text-sm text-ink-2">
-              Week {session.weekIndex} · Day {session.dayOffset + 1} from the start
-            </p>
-          )}
-          <ActivityPlan
-            sport={session.prescription.sport}
-            prescription={session.prescription}
-            showSource={false}
-            units={units}
-          />
-        </section>
-      ))}
+      {enduranceSessionGroups(current.blueprint.enduranceSessions ?? []).map((group) => {
+        const index = group.indexes[0]!;
+        const session = current.blueprint.enduranceSessions![index]!;
+        return (
+          <details key={group.id} className="border-t border-line py-2">
+            <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium [overflow-wrap:break-word]">
+              {session.name || `Session ${index + 1}`}
+              {group.indexes.length > 1
+                ? ` · ${group.indexes.length} sessions${group.intervalDays ? ` · Every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}` : ""}`
+                : ` · Week ${session.weekIndex}`}
+            </summary>
+            {!current.standalone && (
+              <p className="text-sm text-ink-2">
+                Week {session.weekIndex} · Day {session.dayOffset + 1} from the start
+              </p>
+            )}
+            <ActivityPlan
+              sport={session.prescription.sport}
+              prescription={session.prescription}
+              showSource={false}
+              units={units}
+            />
+          </details>
+        );
+      })}
       {current.blueprint.days.map((day) => (
-        <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium [overflow-wrap:break-word]">
+        <details key={day.dayIndex} className="border-t border-line py-2">
+          <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 text-lg font-medium [overflow-wrap:break-word]">
             {day.dayIndex}. {day.name}
-          </h2>
+            <span className="ml-2 text-sm font-normal text-ink-2">
+              {day.exercises.length ? `${day.exercises.length} exercises` : "Rest"}
+            </span>
+          </summary>
           <p className="text-sm text-ink-muted">
             {WEEKDAY_NAMES[day.dayOfWeek]}
             {day.focus ? `${FACT_SEPARATOR}${holdFigures(day.focus)}` : ""}
@@ -222,7 +237,7 @@ export function DraftPreview({
             </details>
           )}
           {day.notes && <p className="text-sm text-ink-muted">{day.notes}</p>}
-        </Card>
+        </details>
       ))}
       {current.openingPlan && (
         <Card>

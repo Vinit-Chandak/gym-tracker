@@ -2,6 +2,7 @@ import { and, eq, isNotNull, lt, or } from "drizzle-orm";
 import { activities, occurrenceVersions, plannedOccurrences } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { enduranceIdentityWeek } from "@/domain/programme-sport";
 
 /** An approval may change future prescriptions, never what was due or already performed. */
 export async function keepEnduranceHistory(
@@ -31,7 +32,7 @@ export async function keepEnduranceHistory(
     );
   const frozen = new Set(rows.map((row) => `${row.lineageId}:${row.week}`));
   const key = (session: NonNullable<ProgramBlueprint["enduranceSessions"]>[number]) =>
-    `${session.lineageId}:${session.weekIndex}`;
+    `${session.lineageId}:${enduranceIdentityWeek(session)}`;
   return {
     ...proposed,
     enduranceSessions: [

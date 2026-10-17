@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PRESCRIBED_EFFORT } from "./activity-limits";
+import { BLUEPRINT_LIMITS, PRESCRIBED_EFFORT } from "./activity-limits";
 import {
   blueprintExerciseSchema,
   type BlueprintExercise,
@@ -51,7 +51,7 @@ export const programPatchOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("remove"), lineageId: z.uuid(), reason }),
   z.object({
     op: z.literal("add"),
-    dayIndex: z.number().int().min(1).max(31),
+    dayIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.strengthSlots),
     /** Place it after this slot; omitted puts it last on the day. */
     afterLineageId: z.uuid().optional(),
     exercise: blueprintExerciseSchema,

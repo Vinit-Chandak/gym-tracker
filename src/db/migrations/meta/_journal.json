@@ -435,6 +435,13 @@
       "when": 1792103112727,
       "tag": "0061_retrospective_workout_entry",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792264820421,
+      "tag": "0062_finite_programme_sequence",
+      "breakpoints": true
     }
   ]
 }

@@ -111,7 +111,7 @@ export const PRESCRIPTION_LIMITS = {
 /** Blueprint payload safeguards (§6.4). */
 export const BLUEPRINT_LIMITS = {
   weeks: { min: 1, max: 52 },
-  strengthSlots: 31,
+  strengthSlots: 364,
   enduranceOccurrences: 10_000,
   payloadBytes: 4 * 1024 * 1024,
 } as const;

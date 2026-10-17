@@ -336,7 +336,7 @@ export async function coachJobContext(
       targetSport: job.target.sport ?? "strength",
       scope: job.target.scope,
       authority:
-        "Write only the target sport in the main blueprint. Plan around all other programmes and recent training. If another sport needs changing, use coordinationProposals with its full explicit-sport blueprint. These always wait for separate athlete approval; never apply them through this result. For scope=session return exactly one session, without replacing a programme. Preserve every lineageId and weekIndex on existing endurance sessions, including when moving their future dates. Dates are dayOffset from the programme start; past and completed prescriptions are immutable.",
+        "Write only the target sport in the main blueprint. Plan around all other programmes and recent training. If another sport needs changing, use coordinationProposals with its full explicit-sport blueprint. These always wait for separate athlete approval; never apply them through this result. For scope=session return exactly one session, without replacing a programme. Preserve every lineageId and originalWeekIndex on existing endurance sessions. When moving a future date, set originalWeekIndex to its existing originalWeekIndex or previous weekIndex, and recalculate weekIndex from dayOffset. Dates are dayOffset from the programme start; past and completed prescriptions are immutable.",
       programmes: await Promise.all(
         (await activeSportProgrammes(db, userId)).map(async (active) => ({
           sport: active.sport,

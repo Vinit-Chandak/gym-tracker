@@ -48,6 +48,8 @@ export type ChangeDetailProps = {
   names: Readonly<Record<string, string>>;
   /** False when the change alters the split or schedule and so has to start a new block. */
   canContinue: boolean;
+  /** A newly authored manual programme replaces the sport's current block. */
+  replacing?: boolean;
   /** The athlete's own asks this change answers, to tag the lines they produced. */
   requests: readonly ChangeRequestTag[];
   today: string;
@@ -122,7 +124,8 @@ export function ChangeDetail(props: ChangeDetailProps) {
     <div>
       {/* The page names itself for screen readers; the change's own line is what is read. */}
       <h2 className="change-headline">
-        {props.headline || (coach ? "The coach's changes" : "Your changes")}
+        {props.headline ||
+          (props.replacing ? "Review replacement" : coach ? "The coach's changes" : "Your changes")}
       </h2>
       {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
       {why && (
@@ -158,7 +161,9 @@ export function ChangeDetail(props: ChangeDetailProps) {
       {open && !props.canContinue && (
         <div className="mt-3.5 space-y-3">
           <p className="type-meta-small text-ink-2">
-            This changes the programme&apos;s structure, so it starts a new block.
+            {props.replacing
+              ? "This replaces your current programme for this sport. The new programme starts on the date below. Your completed history is kept."
+              : "This changes the programme’s structure, so it starts a new block. Your completed history is kept."}
           </p>
           <Field label="Start date">
             <Input
@@ -226,7 +231,13 @@ export function ChangeDetail(props: ChangeDetailProps) {
                     )
                   }
                 >
-                  {busy ? "Saving…" : coach ? "Approve" : "Use these changes"}
+                  {busy
+                    ? "Saving…"
+                    : props.replacing
+                      ? "Replace programme"
+                      : coach
+                        ? "Approve"
+                        : "Use these changes"}
                 </Button>
                 <Button
                   size="lg"

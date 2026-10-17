@@ -4,6 +4,11 @@ import { PageContent } from "@/components/shell/page-content";
 import { LinkButton } from "@/components/ui/button";
 import { NavRow } from "@/components/ui/nav-row";
 import { SportIntakeForm } from "@/components/coaching/sport-intake-form";
+import { ProgramTemplatePicker } from "@/components/program-template-picker";
+import { Disclosure } from "@/components/ui/disclosure";
+import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
+import { templateOffer } from "@/app/(app)/profile/programme/next-block";
+import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS, ACTIVITY_SPORT_LABELS, isActivitySport } from "@/domain/activity";
@@ -34,6 +39,7 @@ export default async function NewProgrammePage({
         async (tx) => ({
           intake: await latestIntake(tx, user.id, selected, scope),
           active: await getActiveProgram(tx, user.id, selected),
+          enabled: await enabledSportsFor(tx, user.id),
         }),
         { readOnly: true },
       )
@@ -103,6 +109,23 @@ export default async function NewProgrammePage({
                   Build it yourself
                 </LinkButton>
               </div>
+            )}
+            {scope === "programme" && selected === "strength" && (
+              <Disclosure summary="Start from a template">
+                {data!.active && (
+                  <p className="mb-4 text-sm text-ink-2">
+                    Starting a template replaces your current lifting programme. Your completed
+                    history is kept.
+                  </p>
+                )}
+                <ProgramTemplatePicker
+                  templates={templateOffer(PROGRAM_TEMPLATES, data!.enabled).options}
+                  today={todayInTimeZone(profile.timeZone)}
+                  submitLabel={
+                    data!.active ? "Replace with this programme" : "Start this programme"
+                  }
+                />
+              </Disclosure>
             )}
             <p className="text-sm text-ink-2">
               {scope === "session"

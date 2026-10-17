@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ACTIVITY_SPORTS, ENDURANCE_SPORTS } from "./activity";
+import { BLUEPRINT_LIMITS } from "./activity-limits";
 import { endurancePrescriptionSchema } from "./activity-prescription";
 import { programBlueprintSchema } from "./program-blueprint";
 import {
@@ -426,7 +427,7 @@ export type OpeningOccurrencePlan = z.infer<typeof openingOccurrencePlanSchema>;
 export const openingPlanSchema = z
   .object({
     /** The strength day this opens on. Null for a programme with no lifting in it at all. */
-    dayIndex: z.number().int().min(1).max(31).nullable().default(null),
+    dayIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.strengthSlots).nullable().default(null),
     /** A strength opening plan needs a gym; an endurance-only one does not (SCOPE-02). */
     gymId: z.uuid().nullable().default(null),
     summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),

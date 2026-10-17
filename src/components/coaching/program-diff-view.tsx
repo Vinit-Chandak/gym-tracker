@@ -61,7 +61,31 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
   return (
     <ul className="diff-lines">
       {lines.map((line) =>
-        line.from !== null ? (
+        line.field === "enduranceSessions" ? (
+          <li key={line.field} className="space-y-2 py-2">
+            <details open={line.to.split("\n").length <= 4}>
+              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2 font-medium">
+                Scheduled session changes
+              </summary>
+              <div className="space-y-3 pb-2">
+                {line.from && line.from !== "None" && (
+                  <div>
+                    <p className="text-sm font-medium">Before</p>
+                    <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line text-ink-2">
+                      {line.from}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium">After</p>
+                  <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line">
+                    {line.to === "None" ? "These sessions are removed." : line.to}
+                  </p>
+                </div>
+              </div>
+            </details>
+          </li>
+        ) : line.from !== null ? (
           <li key={line.field} className="diff-line">
             <span>{line.label}</span> <span className="sr-only">was </span>
             <span className="line-through">{line.from}</span>

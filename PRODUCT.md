@@ -69,7 +69,8 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
   independently. Strength follows its sequence of programme days and cycles; endurance follows
   dated sessions. Today shows the next lifting session and endurance dated today. A missed
   endurance session stays on its original date, available through Training, and blocks no sport.
-- Training starts with logging: choose a sport and today or an earlier date, then explicitly
+- Training leads with active programmes and their next session. Its compact logging shortcuts
+  let the athlete choose a sport and today or an earlier date, then explicitly
   select a scheduled session or log independently. Only the selected session counts toward its
   programme; an independent log carries no invented programme, cycle or day.
 - Retrospective logging records the actual training date and time. A lifting entry started from
@@ -89,7 +90,9 @@ screen must keep is [the feature inventory](docs/ui-redesign/revamp/features.md)
 may move, regroup, rename or put behind a tap anything listed there, never drop it.
 
 Training owns logging and programme management. Only existing programmes have cards, each with
-its progress, next session, Edit, Replace programme and any outstanding proposal. Add programme
+its progress, next session, View, Edit and any outstanding proposal. Replacement, duplication
+and archive live under More options on the programme; archived plans remain in the session library.
+Add programme
 offers a sport, then coach or manual creation. General AI coach settings remain in Profile.
 Each sport has its own intake, review cadence and programme requests; the account switch,
 request quota and evidence history remain shared. A standalone coach session saves as a reusable
