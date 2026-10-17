@@ -597,7 +597,7 @@ function ExerciseEditor({
   const [confirmRemove, setConfirmRemove] = useState(false);
   return (
     <fieldset className="min-w-0 space-y-3 border-b border-line pb-5">
-      <legend className="mb-3 text-lg font-medium [overflow-wrap:anywhere]">{name}</legend>
+      <legend className="mb-3 text-lg font-medium [overflow-wrap:break-word]">{name}</legend>
       <div className="adaptive-grid">
         <Field label="Sets">
           <Input

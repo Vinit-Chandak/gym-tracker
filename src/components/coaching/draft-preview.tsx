@@ -161,7 +161,7 @@ export function DraftPreview({
         const session = current.blueprint.enduranceSessions![index]!;
         return (
           <details key={group.id} className="border-t border-line py-2">
-            <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium [overflow-wrap:anywhere]">
+            <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium [overflow-wrap:break-word]">
               {session.name || `Session ${index + 1}`}
               {group.indexes.length > 1
                 ? ` · ${group.indexes.length} sessions${group.intervalDays ? ` · Every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}` : ""}`

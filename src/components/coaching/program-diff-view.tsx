@@ -71,14 +71,14 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
                 {line.from && line.from !== "None" && (
                   <div>
                     <p className="text-sm font-medium">Before</p>
-                    <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line text-ink-2">
+                    <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line text-ink-2">
                       {line.from}
                     </p>
                   </div>
                 )}
                 <div>
                   <p className="text-sm font-medium">After</p>
-                  <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">
+                  <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line">
                     {line.to === "None" ? "These sessions are removed." : line.to}
                   </p>
                 </div>
