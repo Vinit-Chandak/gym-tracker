@@ -1091,7 +1091,15 @@ export async function acceptCoachJobResult(
   }
   // Before the review below closes out any outstanding request: a review that reads a note and
   // still cannot grant it must not queue itself again, or it would run every night from then on.
-  if (result.memory) await updateCoachMemory(db, userId, result.memory, "coach", now);
+  if (result.memory)
+    await updateCoachMemory(
+      db,
+      userId,
+      result.memory,
+      "coach",
+      now,
+      job.target.sport ?? "strength",
+    );
   /**
    * Every ask this attempt was handed gets an outcome, or the result is refused.
    *
@@ -1301,6 +1309,7 @@ export async function sessionTarget(
   if (!gymId) return null;
   return jobTargetSchema.parse({
     programId: schedule.program.id,
+    sport: "strength",
     cycleIndex: slot.cycleIndex,
     dayIndex: slot.dayIndex,
     gymId,
@@ -1465,6 +1474,7 @@ export async function enqueueOccurrencePreparations(
   );
   const queued: string[] = [];
   for (const occurrence of occurrences) {
+    if (options.sport && occurrence.sport !== options.sport) continue;
     const active = programmes.find((programme) => programme.familyId === occurrence.familyId);
     const preferences = await getCoachingPreferences(db, userId, occurrence.sport as ActivitySport);
     // Only the active programme's work is coached. Standalone scheduled activities are the
@@ -1526,6 +1536,9 @@ export async function enqueueOccurrencePreparations(
         eq(coachJobs.kind, "prepare_session"),
         inArray(coachJobs.status, ["queued", "claimed"]),
         like(coachJobs.dedupeKey, "occurrence:%"),
+        options.sport
+          ? sql`coalesce(${coachJobs.target}->>'sport', 'strength') = ${options.sport}`
+          : undefined,
         notInArray(
           sql`(${coachJobs.target}->>'occurrenceId') || ':' || (${coachJobs.target}->>'occurrenceRevisionId')`,
           occurrences.length > 0
@@ -1606,6 +1619,8 @@ async function enqueueStrengthSession(
 type Replan = {
   /** The review this preparation follows: it gets a key of its own, and replaces what waits. */
   after?: string;
+  /** Independent programmes only re-prepare their own sport after a review. */
+  sport?: ActivitySport;
 };
 const replanSuffix = (options: Replan) => (options.after ? `:after-review:${options.after}` : "");
 
@@ -1627,9 +1642,12 @@ export async function replanAfterReview(
 ): Promise<string[]> {
   if (review.kind !== "review_program") return [];
   const batchDate = lastCoachBoundary(now).date;
-  const options = { after: review.id };
+  const options = { after: review.id, sport: review.target.sport ?? "strength" };
   const occurrences = await enqueueOccurrencePreparations(db, userId, batchDate, options);
-  const strength = await enqueueStrengthSession(db, userId, batchDate, options);
+  const strength =
+    options.sport === "strength"
+      ? await enqueueStrengthSession(db, userId, batchDate, options)
+      : null;
   const ids = [
     ...(strength && pending.includes(strength.job.status as (typeof pending)[number])
       ? [strength.job.id]
@@ -1812,7 +1830,7 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
           }
           if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;
           if (active.sport === "strength")
-            result ??= await enqueueDailySession(tx, athlete.id, boundary.date);
+            result ??= await enqueueStrengthSession(tx, athlete.id, boundary.date, {});
           if (result && pending.includes(result.job.status as "queued" | "claimed"))
             jobs.push({ userId: athlete.id, jobId: result.job.id, kind: result.job.kind });
         }
@@ -2096,7 +2114,13 @@ export async function restartWaitingJob(
     const [review] = await db
       .select()
       .from(coachJobs)
-      .where(and(eq(coachJobs.userId, userId), reviewStillAhead(coachJobs, now)))
+      .where(
+        and(
+          eq(coachJobs.userId, userId),
+          reviewStillAhead(coachJobs, now),
+          sql`${coachJobs.target}->>'programId' = ${job.target.programId}`,
+        ),
+      )
       .limit(1);
     if (review) {
       if (jobProgress(review, now) !== "waiting") return null;
@@ -2190,6 +2214,7 @@ export async function requestGymChange(
         eq(coachJobs.userId, userId),
         eq(coachJobs.kind, "prepare_session"),
         inArray(coachJobs.status, ["queued", "claimed"]),
+        sql`coalesce(${coachJobs.target}->>'sport', 'strength') = 'strength'`,
       ),
     );
   const preference = await getCoachingPreferences(db, userId);

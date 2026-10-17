@@ -25,10 +25,13 @@ import { activePlanForOccurrence, storeOccurrencePlan } from "./coach-plans";
 import { PlanValidationError } from "./coach-plans";
 import {
   claimCoachJob,
+  dispatchCoachPage,
   enqueueCoachJob,
   enqueueOccurrencePreparations,
   programmeSports,
   replanAfterReview,
+  requestGymChange,
+  restartWaitingJob,
 } from "./coaching-jobs";
 import { materialiseOccurrences, openOccurrencesBetween } from "./program-occurrences";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
@@ -253,11 +256,11 @@ it("prepares the next two days and never re-prepares overdue work", async () => 
   expect(jobs).toHaveLength(2);
 });
 
-/** A review re-plans the next session of every sport the programme has scheduled, not only strength. */
-it("re-plans every sport's next session when a review ends", async () => {
+/** Older jobs without a target sport belong to strength, just like their context and requests. */
+it("keeps endurance preparations when a legacy strength review ends", async () => {
   const a = await athlete();
   const created = await programme(a);
-  const occurrences = await schedule(a, created.familyId, created.id, [
+  await schedule(a, created.familyId, created.id, [
     { sport: "running", date: "2026-09-21", week: 2 },
     { sport: "cycling", date: "2026-09-22", week: 2 },
     { sport: "swimming", date: "2026-09-23", week: 2 },
@@ -281,24 +284,123 @@ it("re-plans every sport's next session when a review ends", async () => {
   const replanned = await as(a, (tx) =>
     tx.select().from(coachJobs).where(inArray(coachJobs.id, replan)),
   );
-  const bySession = replanned.filter((job) => job.target.occurrenceId);
-  expect(bySession.map((job) => job.target.sport).sort()).toEqual([
-    "cycling",
-    "running",
-    "swimming",
-  ]);
-  expect(new Set(bySession.map((job) => job.target.occurrenceId))).toEqual(
-    new Set(occurrences.map((occurrence) => occurrence.id)),
-  );
-  for (const job of bySession) {
+  expect(replanned).toHaveLength(1);
+  expect(replanned[0]!.target.sport).toBe("strength");
+  for (const job of replanned) {
     expect(job.status).toBe("queued");
     expect(job.dedupeKey).toMatch(new RegExp(`:after-review:${review.id}$`));
   }
-  // What the night queued for those sessions is replaced, not prepared alongside.
+  // A legacy strength review cannot consume another programme's queued work.
   const before = await as(a, (tx) =>
     tx.select().from(coachJobs).where(inArray(coachJobs.id, nightly)),
   );
-  expect(before.map((job) => job.status)).toEqual(["superseded", "superseded", "superseded"]);
+  expect(before.map((job) => job.status)).toEqual(["queued", "queued", "queued"]);
+});
+
+it("re-plans only the reviewed programme and preserves other programmes' queued sessions", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2 },
+    { sport: "cycling", date: "2026-09-22", week: 2 },
+  ]);
+  const nightly = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+  const { job: review } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.id, {
+      kind: "review_program",
+      trigger: "weekly",
+      dedupeKey: "review:running-only",
+      target: { programId: created.id, sport: "running", batchDate: "2026-09-21" },
+    }),
+  );
+  const ids = await as(a, (tx) =>
+    replanAfterReview(tx, a.id, review, new Date("2026-09-21T06:30:00Z")),
+  );
+  const replanned = await as(a, (tx) =>
+    tx.select().from(coachJobs).where(inArray(coachJobs.id, ids)),
+  );
+  expect(replanned.map((job) => job.target.sport)).toEqual(["running"]);
+  const previous = await as(a, (tx) =>
+    tx.select().from(coachJobs).where(inArray(coachJobs.id, nightly)),
+  );
+  expect(previous.find((job) => job.target.sport === "running")!.status).toBe("superseded");
+  expect(previous.find((job) => job.target.sport === "cycling")!.status).toBe("queued");
+});
+
+it("returns every newly queued endurance preparation from the daily batch alongside strength", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.id)),
+  );
+  await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2 },
+    { sport: "cycling", date: "2026-09-22", week: 2 },
+  ]);
+  // Inside the cadence, so this queues session preparation rather than a weekly review.
+  await as(a, (tx) =>
+    tx.update(programs).set({ startDate: "2026-09-20" }).where(eq(programs.id, created.id)),
+  );
+  const result = await dispatchCoachPage(t.db, null, new Date("2026-09-21T06:30:00Z"));
+  expect(result.errors).toEqual([]);
+  const queued = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.userId, a.id)));
+  const endurance = queued.filter((job) => job.target.occurrenceId);
+  expect(endurance).toHaveLength(2);
+  expect(queued.some((job) => job.kind === "review_program")).toBe(false);
+  expect(result.jobs.filter((job) => job.userId === a.id).map((job) => job.jobId)).toEqual(
+    expect.arrayContaining(endurance.map((job) => job.id)),
+  );
+});
+
+it("changing a strength gym preserves the endurance preparations", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.id)),
+  );
+  await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2 },
+    { sport: "cycling", date: "2026-09-22", week: 2 },
+  ]);
+  const nightly = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+  const changed = await as(a, (tx) => requestGymChange(tx, a.id, a.gym.id));
+  expect(changed.job.target.sport).toBe("strength");
+  const previous = await as(a, (tx) =>
+    tx.select().from(coachJobs).where(inArray(coachJobs.id, nightly)),
+  );
+  expect(previous.map((job) => job.status)).toEqual(["queued", "queued"]);
+});
+
+it("restarting a waiting session cannot start a different programme's review", async () => {
+  const a = await athlete();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.id)),
+  );
+  const { job: unrelatedReview } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.id, {
+      kind: "review_program",
+      trigger: "weekly",
+      dedupeKey: "waiting:strength-review",
+      target: { programId: crypto.randomUUID(), sport: "strength" },
+    }),
+  );
+  const { job: session } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.id, {
+      kind: "prepare_session",
+      trigger: "daily",
+      dedupeKey: "waiting:running-session",
+      target: { programId: crypto.randomUUID(), sport: "running" },
+    }),
+  );
+  const queuedAt = new Date(Date.now() - 2 * 3_600_000);
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ createdAt: queuedAt, nextAttemptAt: queuedAt })
+      .where(inArray(coachJobs.id, [unrelatedReview.id, session.id])),
+  );
+  const restarted = await as(a, (tx) => restartWaitingJob(tx, a.id, session.id));
+  expect(restarted?.id).toBe(session.id);
 });
 
 /** AT-COACH-08: a revision arriving supersedes the job and the preparation written for it. */

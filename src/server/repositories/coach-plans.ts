@@ -310,7 +310,7 @@ export async function saveCoachNotes(
   userNotes: string,
   noteId = crypto.randomUUID(),
   sport: import("@/domain/activity").ActivitySport | null = null,
-): Promise<void> {
+): Promise<boolean> {
   const [saved] = await db
     .insert(coachNotes)
     .values({ id: noteId, userId, text: userNotes, sport })
@@ -322,7 +322,7 @@ export async function saveCoachNotes(
       .select()
       .from(coachNotes)
       .where(and(eq(coachNotes.userId, userId), eq(coachNotes.id, noteId)));
-    if (existing?.text === userNotes && existing.sport === sport) return;
+    if (existing?.text === userNotes && existing.sport === sport) return false;
     throw new Error("This note submission was already used. Reload and send a new note.");
   }
   if (sport === null)
@@ -330,6 +330,7 @@ export async function saveCoachNotes(
       .insert(coachMemos)
       .values({ userId, userNotes })
       .onConflictDoUpdate({ target: coachMemos.userId, set: { userNotes } });
+  return true;
 }
 
 async function saveCoachOverview(db: DbOrTx, userId: string, overview: string): Promise<void> {

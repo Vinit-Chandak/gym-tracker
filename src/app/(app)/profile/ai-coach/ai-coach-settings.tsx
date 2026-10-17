@@ -1,18 +1,29 @@
 "use client";
 
-import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
-
-import { FormError } from "@/components/ui/form";
+import {
+  useActionState,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
+import type { Route } from "next";
+import Link from "@/components/ui/app-link";
+import { Button, LinkButton } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
+import { FormError, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
-import { InfoTip } from "@/components/ui/info-tip";
-import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Switch } from "@/components/ui/switch";
+import { RequestList } from "@/components/coaching/request-list";
+import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
-import { FACT_SEPARATOR } from "@/lib/facts";
 import { attempted, keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
+import type { CoachDashboard } from "@/server/repositories/coach-dashboard";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
+import { RequestReview } from "../programme/request-review";
+import { Proposals } from "../programme/proposals";
 
 export type CoachAttempt = {
   id: string;
@@ -26,29 +37,28 @@ export type CoachAttempt = {
 type Props = {
   workflow?: boolean;
   enabled: boolean;
-  /**
-   * One line under the title, for the two things worth saying: that the coach cannot run on
-   * this server, or what it last did on the older single-plan path. A working coach says
-   * nothing — the switch already reads "on", and when it plans is not the athlete's business.
-   */
   status: string | null;
   noteId: string;
-  /** `outcome` is what the coach did with the note, or null while it is still waiting. */
-  notes: { id: string; text: string; when: string; outcome: string | null }[];
+  notes: {
+    id: string;
+    text: string;
+    when: string;
+    outcome: string | null;
+    sport?: ActivitySport | null;
+  }[];
   overview: string;
-  /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
-  /** What waits on the athlete: a question to answer, a change to decide on. */
-  waiting?: ReactNode;
-  /** Anything the coach could not do lately. */
+  dashboard?: CoachDashboard | null;
   children?: ReactNode;
 };
+type Tab = "overview" | "requests" | "notes";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "requests", label: "Requests & changes" },
+  { id: "notes", label: "Notes & memory" },
+];
 
-/**
- * The coach, on one screen (board AI coach): its name and its switch; what waits on you, a
- * question to answer and a change to decide on; what it knows about you; what you have told
- * it and what became of each; and, pinned at the foot, the place to tell it more.
- */
+/** One task at a time; panels stay mounted so switching views never discards an answer. */
 export function AiCoachSettings({
   workflow = false,
   enabled,
@@ -57,27 +67,29 @@ export function AiCoachSettings({
   notes,
   overview,
   attempts,
-  waiting,
+  dashboard,
   children,
 }: Props) {
+  const [tab, setTab] = useState<Tab>("overview");
+  const [filter, setFilter] = useState("all");
+  const [scope, setScope] = useState("all");
+  const [text, setText] = useState("");
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const form = useKeptForm();
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
   const [error, setError] = useState<string | null>(null);
-  const [state, formAction] = useActionState(
+  const [state, formAction, sending] = useActionState(
     keepsFormOnDisconnect(saveCoachNotesAction),
     INITIAL_FORM_STATE,
   );
   const saved =
-    state !== INITIAL_FORM_STATE &&
-    state.fieldErrors === undefined &&
-    state.formError === undefined &&
-    state.values === undefined;
-  // The note starts afresh, under the new id the page was drawn with, only once one is saved.
-  // The switch's save draws the page again too, with an id of its own, and a note being typed
-  // meanwhile is not to be cleared by it.
+    state !== INITIAL_FORM_STATE && !state.fieldErrors && !state.formError && !state.values;
   const [fresh, setFresh] = useState({ id: noteId, after: state });
-  if (saved && fresh.after !== state) setFresh({ id: noteId, after: state });
-
+  if (saved && fresh.after !== state) {
+    setFresh({ id: noteId, after: state });
+    setText("");
+  }
   const change = (next: boolean) =>
     startTransition(async () => {
       show(next);
@@ -86,177 +98,670 @@ export function AiCoachSettings({
         () => setAiCoachEnabledAction(next),
         "Could not save. Check your connection and try again.",
       );
-      // As in the privacy switches: after an await an update is no longer the transition's
-      // own, so the error is marked as one to arrive with the switch going back.
       if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
-  const known = overview ? memoLines(overview) : [];
-
-  return (
-    <>
-      <div className="coach-title">
-        <h1 className="flex min-w-0 items-center gap-1 type-display">
-          AI coach
-          <InfoTip label="About the AI coach">
-            {workflow ? (
-              <>
-                The coach writes your programme, prepares each session before you train, and reviews
-                the programme every week. A change to your split or schedule waits for your
-                approval; starting a workout fixes its prescription. It plans from your training
-                data and the reports you attach.
-              </>
-            ) : (
-              <>
-                The coach reads your last sessions, check-ins and runs and writes a plan for your
-                next session at your default gym: exercises, machines, sets, reps, RIR, loads and a
-                warm-up. Today shows it, and starting the session uses it. You can ask for a fresh
-                plan at another gym from Today&apos;s More options.
-              </>
-            )}
-          </InfoTip>
-        </h1>
-        <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
-      </div>
-      {shown && status && <p className="type-meta text-ink-2">{status}</p>}
-      {error && (
-        <p role="alert" className="type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
-
-      {waiting}
-      {children}
-
-      <section aria-labelledby="coach-knows">
-        <h2 id="coach-knows" className="caption-head mt-4.5 flex items-center gap-1">
-          What the coach knows
-          <InfoTip label="About what the coach knows">
-            What the coach keeps from your notes and training. To add or correct something, tell the
-            coach below.
-          </InfoTip>
-        </h2>
-        {/* One fact a line in the list it is, read as the paragraph it makes. */}
-        {known.length > 0 ? (
-          <ul className="coach-knows">
-            {known.map((line, index) => (
-              <li key={index}>{line}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1 type-meta text-ink-2">Nothing yet.</p>
-        )}
-      </section>
-
-      {notes.length > 0 && (
-        <section aria-labelledby="coach-told">
-          <h2 id="coach-told" className="caption-head mt-4.5 flex items-center gap-1">
-            Tell the coach
-            <InfoTip label="About telling the coach">
-              Read at the next daily coach run. Anything you ask the programme to do gets its answer
-              under Programme → Changes.
-            </InfoTip>
-          </h2>
-          <ul>
-            {notes.map((note) => (
-              <li key={note.id} className="coach-note">
-                <p className="coach-note-text">{note.text}</p>
-                <p className="type-caption font-medium text-ink-2">
-                  {note.outcome ?? "Not read yet"}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {attempts.length > 0 && (
-        <section aria-labelledby="coach-runs">
-          <h2 id="coach-runs" className="caption-head mt-4.5 flex items-center gap-1">
-            Recent runs
-            <InfoTip label="About recent runs">
-              Every time the coach tried to plan for you, overnight or because you asked. A failure
-              says what went wrong.
-            </InfoTip>
-          </h2>
-          <ul>
-            {attempts.map((attempt) => (
-              <li key={attempt.id} className="coach-note">
-                <p className="flex items-baseline justify-between gap-3">
-                  <span className="coach-note-text">
-                    {attempt.trigger}
-                    {attempt.status === "failed" && `${FACT_SEPARATOR}Failed`}
-                  </span>
-                  <span className="shrink-0 type-caption text-ink-2 tabular-nums">
-                    {attempt.when.split(",")[0]}
-                  </span>
-                </p>
-                <p className="type-caption font-medium [overflow-wrap:break-word] text-ink-2">
-                  {attempt.status === "failed" && attempt.error
-                    ? attempt.error
-                    : [attempt.gymName, attempt.when].filter(Boolean).join(FACT_SEPARATOR)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Telling the coach is always at hand: pinned over the tabs, the note's words and Send. */}
-      <PinnedActions stack>
-        <form key={fresh.id} action={formAction}>
-          <input type="hidden" name="noteId" value={state.values?.noteId ?? fresh.id} />
-          <div className="coach-compose" data-field-error={state.formError ? "true" : undefined}>
-            <label htmlFor="coach-note" className="sr-only">
-              Notes for the coach
-            </label>
-            <textarea
-              id="coach-note"
-              name="userNotes"
-              rows={1}
-              defaultValue={state.values?.userNotes ?? ""}
-              required
-              maxLength={PLAN_LIMITS.memo}
-              placeholder="Notes for the coach"
-              className="coach-compose-input"
-            />
-            <SendNote />
-          </div>
-          <FormError message={state.formError} />
-          <p className="sr-only" role="status">
-            {saved ? "Saved." : ""}
-          </p>
-        </form>
-      </PinnedActions>
-    </>
+  const programmes = dashboard?.programmes ?? [];
+  const scopeName = (sport: ActivitySport | null | undefined) =>
+    sport ? ACTIVITY_SPORT_LABELS[sport] : "General note";
+  const inScope = (item: { sport?: ActivitySport | null }) =>
+    filter === "all" || item.sport === filter || item.sport == null;
+  const proposals = dashboard?.proposals.filter(inScope) ?? [];
+  const needsInput =
+    dashboard?.jobs.filter((job) => job.status === "needs_input" && inScope(job)) ?? [];
+  const requests = dashboard?.requests.filter(inScope) ?? [];
+  const questions = requests.filter((request) => request.state === "needs_answer");
+  const withCoach = requests.filter(
+    (request) => request.state !== "needs_answer" && request.state !== "proposed",
   );
-}
-
-/** Send, as a glyph: waiting grey while a note is on its way. */
-function SendNote() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      aria-label={pending ? "Saving…" : "Send note"}
-      disabled={pending}
-      className="coach-compose-send"
-    >
-      <Glyph name="send" className="glyph-20" />
-    </button>
-  );
-}
-
-/**
- * The memo as a list, one fact a line.
- *
- * The stored overview prefixes each fact with its category — "preference: …", "trend: …" —
- * which is how the coach files them and nothing an athlete needs to read.
- */
-function memoLines(overview: string): string[] {
-  return overview
+  const known = overview
     .split("\n")
     .map((line) =>
       line.replace(/^(preference|trend|observation|experiment|decision):\s*/i, "").trim(),
     )
     .filter(Boolean);
+  const waiting = dashboard?.waiting ?? 0;
+
+  function compose(sport: ActivitySport) {
+    setScope(sport);
+    textarea.current?.focus();
+    textarea.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  return (
+    <div className="coach-hub">
+      <header className="coach-hub-heading">
+        <div>
+          <p className="coach-eyebrow">YOUR TRAINING PARTNER</p>
+          <h1 className="type-display">AI coach</h1>
+          <p className="coach-subtitle">Your programmes. One place to make them work together.</p>
+        </div>
+        <div className="coach-power">
+          <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
+          <span>{shown ? "On" : "Off"}</span>
+        </div>
+      </header>
+      {shown && status && (
+        <p className="coach-notice" role="status">
+          {status}
+        </p>
+      )}
+      {!shown && (
+        <p className="coach-notice">
+          Coaching is paused. Your programmes and saved notes are still here.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="coach-notice">
+          {error}
+        </p>
+      )}
+
+      <div className="coach-tabs" role="tablist" aria-label="AI coach views">
+        {TABS.map((item, index) => (
+          <button
+            key={item.id}
+            id={`coach-tab-${item.id}`}
+            role="tab"
+            type="button"
+            aria-selected={tab === item.id}
+            aria-controls={`coach-panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
+            onClick={() => setTab(item.id)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === "ArrowRight"
+                  ? (index + 1) % TABS.length
+                  : event.key === "ArrowLeft"
+                    ? (index + TABS.length - 1) % TABS.length
+                    : event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? TABS.length - 1
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              setTab(TABS[next]!.id);
+              (event.currentTarget.parentElement?.children[next] as HTMLButtonElement)?.focus();
+            }}
+          >
+            {item.label}
+            {item.id === "requests" && waiting > 0 && (
+              <span className="coach-count">
+                {waiting}
+                <span className="sr-only"> need your attention</span>
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <section
+        id="coach-panel-overview"
+        role="tabpanel"
+        aria-labelledby="coach-tab-overview"
+        hidden={tab !== "overview"}
+        className="coach-panel"
+      >
+        {waiting > 0 && (
+          <button className="coach-attention" type="button" onClick={() => setTab("requests")}>
+            <span className="coach-attention-icon">
+              <Glyph name="note" className="glyph-24" />
+            </span>
+            <span>
+              <strong>
+                {waiting} {waiting === 1 ? "item needs" : "items need"} your attention
+              </strong>
+              <span>Review proposals and answer your coach.</span>
+            </span>
+            <Glyph name="chevronRight" className="glyph-20" />
+          </button>
+        )}
+        {children}
+        {!!dashboard?.jobs.length && (
+          <Disclosure
+            summary="Coach activity"
+            meta={
+              dashboard.jobs.some((job) => job.status === "failed")
+                ? "A run needs attention"
+                : `${dashboard.jobs.length} in progress`
+            }
+          >
+            <ul className="coach-history-list">
+              {dashboard.jobs.map((job) => (
+                <li key={job.id}>
+                  <Link href={`/profile/programme/jobs/${job.id}` as Route}>
+                    <span className="coach-scope-label">{scopeName(job.sport)}</span>
+                    <strong>
+                      {job.kind === "create_program"
+                        ? `Creating a ${job.scope}`
+                        : job.kind === "review_program"
+                          ? "Reviewing your programme"
+                          : "Preparing your next session"}
+                    </strong>
+                    <span className="coach-muted">
+                      {job.status === "failed"
+                        ? "Could not finish · open to see details"
+                        : job.status === "needs_input"
+                          ? "Needs your input"
+                          : job.progress === "waiting"
+                            ? "Queued for the next coach run"
+                            : "In progress"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        )}
+
+        {workflow && (
+          <section aria-labelledby="coach-programmes">
+            <div className="coach-section-heading">
+              <h2 id="coach-programmes">Your programmes</h2>
+              <Link href="/training/programmes/new" className="coach-text-link">
+                <Glyph name="plus" className="glyph-16" />
+                Add programme
+              </Link>
+            </div>
+            {programmes.length > 0 ? (
+              <div className="coach-programme-grid">
+                {programmes.map((programme) => (
+                  <article
+                    className="coach-programme"
+                    data-sport={programme.sport}
+                    key={programme.id}
+                  >
+                    <div className="coach-programme-top">
+                      <span className="coach-sport">
+                        <span />
+                        {ACTIVITY_SPORT_LABELS[programme.sport]}
+                      </span>
+                      <span className="coach-small-status">Active</span>
+                    </div>
+                    <h3>{programme.name}</h3>
+                    <p className="coach-programme-status">
+                      {programme.review.running
+                        ? "Coach review in progress"
+                        : programme.pending > 0
+                          ? `${programme.pending} ${programme.pending === 1 ? "item" : "items"} to review`
+                          : programme.review.waiting
+                            ? "Review queued"
+                            : "Your current programme"}
+                    </p>
+                    <div className="coach-programme-actions">
+                      <Button variant="secondary" onClick={() => compose(programme.sport)}>
+                        Request a change
+                      </Button>
+                      <Link
+                        className="coach-text-link"
+                        href={
+                          (programme.sport === "strength"
+                            ? "/profile/programme"
+                            : `/training/programmes/${programme.sport}`) as Route
+                        }
+                        aria-label={`View ${programme.name}`}
+                      >
+                        View
+                        <Glyph name="chevronRight" className="glyph-16" />
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="coach-empty">
+                <Glyph name="table" className="glyph-24" />
+                <h3>Start with a programme</h3>
+                <p>Create a plan for a sport. You can add other sports whenever you’re ready.</p>
+                <LinkButton href="/training/programmes/new">Create a programme</LinkButton>
+              </div>
+            )}
+            {programmes.length > 0 && <ReviewProgrammes programmes={programmes} enabled={shown} />}
+          </section>
+        )}
+
+        <section className="coach-compose-card" aria-labelledby="tell-coach">
+          <div className="coach-section-heading">
+            <div>
+              <h2 id="tell-coach">Tell your coach</h2>
+              <p className="coach-muted">
+                Ask for a change, share feedback, or add something to remember.
+              </p>
+            </div>
+            <Glyph name="coach" className="glyph-24" />
+          </div>
+          <form ref={form} action={formAction} className="coach-message-form">
+            <input type="hidden" name="noteId" value={state.values?.noteId ?? fresh.id} />
+            {workflow && programmes.length > 0 && (
+              <div className="coach-field">
+                <label htmlFor="coach-scope">Which programme is this for?</label>
+                <select
+                  id="coach-scope"
+                  name="sport"
+                  value={scope}
+                  onChange={(event) => setScope(event.target.value)}
+                  disabled={sending}
+                  aria-describedby="coach-scope-help"
+                >
+                  <option value="all">All my programmes</option>
+                  {programmes.map((programme) => (
+                    <option key={programme.id} value={programme.sport}>
+                      {ACTIVITY_SPORT_LABELS[programme.sport]} · {programme.name}
+                    </option>
+                  ))}
+                </select>
+                <p id="coach-scope-help" className="coach-muted">
+                  {scope === "all"
+                    ? "Each active programme will receive this note."
+                    : `Only your ${ACTIVITY_SPORT_LABELS[scope as ActivitySport]?.toLowerCase()} programme will receive this note.`}
+                </p>
+              </div>
+            )}
+            <div className="coach-field">
+              <label htmlFor="coach-note">Notes for the coach</label>
+              <textarea
+                ref={textarea}
+                id="coach-note"
+                name="userNotes"
+                rows={3}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                required
+                maxLength={PLAN_LIMITS.memo}
+                disabled={sending}
+                placeholder={
+                  scope === "all"
+                    ? "e.g. I have less time next week. Can we adjust my training?"
+                    : "e.g. Can we move this programme’s Thursday session to Friday?"
+                }
+                aria-invalid={Boolean(state.fieldErrors?.userNotes)}
+                aria-describedby={state.fieldErrors?.userNotes ? "coach-note-error" : undefined}
+              />
+              {state.fieldErrors?.userNotes && (
+                <p id="coach-note-error" role="alert">
+                  {state.fieldErrors.userNotes}
+                </p>
+              )}
+            </div>
+            <FormError message={state.formError ?? state.fieldErrors?.sport} />
+            <div className="coach-message-footer">
+              <p className="coach-muted">
+                {shown
+                  ? "Read at the next coach run. Programme changes come back here for review."
+                  : "Saved notes will be read when coaching resumes."}
+              </p>
+              <Button type="submit" disabled={sending || !text.trim()}>
+                <Glyph name="send" className="glyph-18" />
+                {sending ? "Sending…" : "Send note"}
+              </Button>
+            </div>
+            <p className="coach-saved" role="status">
+              {saved && !text ? "Note saved. You can follow its progress in Notes & memory." : ""}
+            </p>
+          </form>
+        </section>
+        {workflow && (
+          <div className="coach-quick-links">
+            <Link href="/training/programmes/new?scope=session">
+              <Glyph name="plus" className="glyph-20" />
+              <span>Create a single session</span>
+              <Glyph name="chevronRight" className="glyph-16" />
+            </Link>
+            <Link href="/profile/programme/create">
+              <Glyph name="sliders" className="glyph-20" />
+              <span>Strength goals & shared reports</span>
+              <Glyph name="chevronRight" className="glyph-16" />
+            </Link>
+          </div>
+        )}
+      </section>
+
+      <section
+        id="coach-panel-requests"
+        role="tabpanel"
+        aria-labelledby="coach-tab-requests"
+        hidden={tab !== "requests"}
+        className="coach-panel"
+      >
+        <div className="coach-section-heading">
+          <div>
+            <h2>Requests & changes</h2>
+            <p className="coach-muted">Your requests and the changes proposed in response.</p>
+          </div>
+        </div>
+        <ScopeFilter value={filter} onChange={setFilter} id="requests-scope" />
+        {needsInput.length > 0 && (
+          <section className="coach-group">
+            <h3>Your coach needs a little more</h3>
+            <ul className="coach-change-list">
+              {needsInput.map((job) => (
+                <li key={job.id}>
+                  <Link
+                    href={`/profile/programme/jobs/${job.id}` as Route}
+                    className="coach-change-row"
+                  >
+                    <span>
+                      <span className="coach-scope-label">{scopeName(job.sport)}</span>
+                      <strong>Finish your {job.scope} brief</strong>
+                      <span className="coach-muted">Open the coach’s question to continue.</span>
+                    </span>
+                    <Glyph name="chevronRight" className="glyph-20" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {questions.length > 0 && (
+          <section className="coach-group">
+            <h3>
+              Needs your answer <span className="coach-count">{questions.length}</span>
+            </h3>
+            {questions.map((request) => (
+              <div key={request.id} className="coach-scoped-request">
+                <p className="coach-scope-label">{scopeName(request.sport)}</p>
+                <RequestList requests={[request]} />
+              </div>
+            ))}
+          </section>
+        )}
+        {proposals.length > 0 && (
+          <section className="coach-group">
+            <h3>
+              Ready for you <span className="coach-count">{proposals.length}</span>
+            </h3>
+            <ul className="coach-change-list">
+              {proposals.map((proposal) => (
+                <li key={proposal.id}>
+                  <Link
+                    href={
+                      (proposal.status === "editing" && !proposal.fromCoach
+                        ? proposal.sport === "strength"
+                          ? `/profile/programme/manual?draft=${proposal.id}`
+                          : `/training/programmes/${proposal.sport}/edit?draft=${proposal.id}`
+                        : `/profile/programme/drafts/${proposal.id}`) as Route
+                    }
+                    className="coach-change-row"
+                  >
+                    <span className="coach-row-icon">
+                      <Glyph
+                        name={proposal.kind === "change" ? "edit" : "plus"}
+                        className="glyph-20"
+                      />
+                    </span>
+                    <span>
+                      <span className="coach-scope-label">{scopeName(proposal.sport)}</span>
+                      <strong>{proposal.title}</strong>
+                      <span className="coach-muted">
+                        {proposal.status === "editing"
+                          ? "Continue draft"
+                          : proposal.kind === "change"
+                            ? "Review programme changes"
+                            : proposal.kind === "session"
+                              ? "Review new session"
+                              : "Review new programme"}
+                        {!proposal.fromCoach ? " · Your draft" : ""}
+                      </span>
+                    </span>
+                    <Glyph name="chevronRight" className="glyph-20" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {!!dashboard?.legacy.length && (filter === "all" || filter === "strength") && (
+          <Disclosure summary="Earlier strength proposals" meta={String(dashboard.legacy.length)}>
+            <Proposals proposals={dashboard.legacy} />
+          </Disclosure>
+        )}
+        {!needsInput.length &&
+          !questions.length &&
+          !proposals.length &&
+          !(dashboard?.legacy.length && (filter === "all" || filter === "strength")) && (
+            <div className="coach-empty coach-empty-compact">
+              <Glyph name="check" className="glyph-24" />
+              <h3>You’re all caught up</h3>
+              <p>Questions and proposed changes will appear here.</p>
+            </div>
+          )}
+        {withCoach.length > 0 && (
+          <Disclosure summary="With your coach" meta={String(withCoach.length)}>
+            <div className="coach-group">
+              {withCoach.map((request) => (
+                <div key={request.id} className="coach-scoped-request">
+                  <p className="coach-scope-label">{scopeName(request.sport)}</p>
+                  <RequestList requests={[request]} />
+                </div>
+              ))}
+            </div>
+          </Disclosure>
+        )}
+        {!!dashboard?.recentChanges.filter(inScope).length && (
+          <Disclosure
+            summary="Recently updated"
+            meta={String(dashboard.recentChanges.filter(inScope).length)}
+          >
+            <ul className="coach-history-list">
+              {dashboard.recentChanges.filter(inScope).map((item) => (
+                <li key={item.id}>
+                  <Link href={`/profile/programme/drafts/${item.id}` as Route}>
+                    <span className="coach-scope-label">{scopeName(item.sport)}</span>
+                    <strong>{item.title}</strong>
+                    <span className="coach-muted">Applied · {item.when}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        )}
+        <Disclosure summary="Past requests & changes">
+          <div className="coach-group">
+            {dashboard?.history.requests.filter(inScope).map((request) => (
+              <div key={request.id}>
+                <p className="coach-scope-label">{scopeName(request.sport)}</p>
+                <RequestList requests={[request]} />
+              </div>
+            ))}
+            <ul className="coach-history-list">
+              {dashboard?.history.changes.filter(inScope).map((item) => (
+                <li key={item.id}>
+                  <Link href={`/profile/programme/drafts/${item.id}` as Route}>
+                    <span className="coach-scope-label">{scopeName(item.sport)}</span>
+                    <strong>{item.title}</strong>
+                    <span className="coach-muted">
+                      {item.outcome} · {item.when}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {!dashboard?.history.requests.filter(inScope).length &&
+              !dashboard?.history.changes.filter(inScope).length && (
+                <p className="coach-muted">No past requests or changes yet.</p>
+              )}
+            <Link href="/profile/programme/history" className="coach-text-link">
+              Programme history
+              <Glyph name="chevronRight" className="glyph-16" />
+            </Link>
+          </div>
+        </Disclosure>
+      </section>
+
+      <section
+        id="coach-panel-notes"
+        role="tabpanel"
+        aria-labelledby="coach-tab-notes"
+        hidden={tab !== "notes"}
+        className="coach-panel"
+      >
+        <section className="coach-memory-card" aria-labelledby="coach-knows">
+          <div className="coach-section-heading">
+            <div>
+              <h2 id="coach-knows">What the coach remembers</h2>
+              <p className="coach-muted">Shared context from your training and feedback.</p>
+            </div>
+            <Glyph name="book" className="glyph-24" />
+          </div>
+          {known.length > 0 ? (
+            <>
+              <ul className="coach-memory-facts">
+                {known.slice(0, 3).map((line, index) => (
+                  <li key={index}>{line}</li>
+                ))}
+              </ul>
+              {known.length > 3 && (
+                <Disclosure summary={`Show ${known.length - 3} more facts`} variant="inline">
+                  <ul className="coach-memory-facts">
+                    {known.slice(3).map((line, index) => (
+                      <li key={index}>{line}</li>
+                    ))}
+                  </ul>
+                </Disclosure>
+              )}
+            </>
+          ) : (
+            <p className="coach-muted">Your coach will build this as you train and share notes.</p>
+          )}
+          <button
+            type="button"
+            className="coach-text-link"
+            onClick={() => {
+              setTab("overview");
+              setScope("all");
+              requestAnimationFrame(() => textarea.current?.focus());
+            }}
+          >
+            Add or correct something
+            <Glyph name="arrowRight" className="glyph-16" />
+          </button>
+        </section>
+        <section aria-labelledby="coach-your-notes">
+          <div className="coach-section-heading">
+            <div>
+              <h2 id="coach-your-notes">Your notes</h2>
+              <p className="coach-muted">What you sent and what your coach did with it.</p>
+            </div>
+          </div>
+          <ScopeFilter value={filter} onChange={setFilter} id="notes-scope" />
+          <div className="coach-notes-list">
+            {notes.filter(inScope).map((note) => (
+              <article key={note.id} className="coach-message">
+                <div className="coach-message-meta">
+                  <span className="coach-scope-label">{scopeName(note.sport)}</span>
+                  <span>{note.when}</span>
+                </div>
+                <p className="coach-message-text">{note.text}</p>
+                <p className="coach-note-outcome">
+                  <Glyph name={note.outcome ? "check" : "timer"} className="glyph-16" />
+                  {note.outcome ?? "Not read yet"}
+                </p>
+              </article>
+            ))}
+            {!notes.filter(inScope).length && (
+              <p className="coach-empty coach-muted">
+                No notes here yet. Use “Tell your coach” to get started.
+              </p>
+            )}
+          </div>
+        </section>
+        {attempts.length > 0 && (
+          <Disclosure summary="Recent coach runs" meta={String(attempts.length)}>
+            <ul className="coach-history-list">
+              {attempts.map((attempt) => (
+                <li key={attempt.id}>
+                  <strong>
+                    {attempt.trigger} · {attempt.status}
+                  </strong>
+                  <span className="coach-muted">
+                    {attempt.when}
+                    {attempt.gymName ? ` · ${attempt.gymName}` : ""}
+                  </span>
+                  {attempt.error && <p>{attempt.error}</p>}
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        )}
+        <Disclosure summary="How your coach works">
+          <p className="coach-muted">
+            {workflow
+              ? "Each sport has its own programme, session preparation and review. The coach considers your overall training when planning, while requests for a particular programme stay with that programme. You review major changes before they take effect. Started workouts keep their original targets."
+              : "Your coach prepares your next session from recent training, check-ins and notes. You can request a new plan from Today."}
+          </p>
+        </Disclosure>
+      </section>
+    </div>
+  );
+}
+
+function ReviewProgrammes({
+  programmes,
+  enabled,
+}: {
+  programmes: CoachDashboard["programmes"];
+  enabled: boolean;
+}) {
+  const [sport, setSport] = useState(programmes[0]!.sport);
+  const programme = programmes.find((item) => item.sport === sport) ?? programmes[0]!;
+  return (
+    <Disclosure
+      summary="Ask for a programme review"
+      variant="inline"
+      className="coach-review-disclosure"
+    >
+      <div className="coach-group">
+        <div className="coach-field">
+          <label htmlFor="coach-review-programme">Programme to review</label>
+          <select
+            id="coach-review-programme"
+            value={programme.sport}
+            onChange={(event) => setSport(event.target.value as ActivitySport)}
+          >
+            {programmes.map((item) => (
+              <option key={item.id} value={item.sport}>
+                {ACTIVITY_SPORT_LABELS[item.sport]} · {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <RequestReview
+          key={programme.id}
+          sport={programme.sport}
+          availability={{ ...programme.review, offered: enabled && programme.review.offered }}
+        />
+        {(!enabled || !programme.review.offered) && (
+          <p className="coach-muted">
+            {enabled
+              ? "On-demand reviews are unavailable here."
+              : "Turn on coaching to request a review."}
+          </p>
+        )}
+      </div>
+    </Disclosure>
+  );
+}
+
+function ScopeFilter({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  id: string;
+}) {
+  return (
+    <div className="coach-filter">
+      <label htmlFor={id}>Show</label>
+      <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="all">All programmes</option>
+        {Object.entries(ACTIVITY_SPORT_LABELS).map(([sport, label]) => (
+          <option key={sport} value={sport}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }

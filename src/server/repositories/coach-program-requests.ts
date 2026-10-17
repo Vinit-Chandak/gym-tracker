@@ -285,6 +285,17 @@ export async function applyRequestPatch(
   // Newly discovered asks. The quote has to be the athlete's own words from a source they
   // own, so a request cannot be invented on their behalf.
   if (patch.open.length) {
+    const noteIds = patch.open
+      .filter((entry) => entry.sourceId.startsWith("note:"))
+      .map((entry) => entry.sourceId.slice(5));
+    const scopedNotes = noteIds.length
+      ? await db
+          .select({ sport: coachNotes.sport })
+          .from(coachNotes)
+          .where(and(eq(coachNotes.userId, userId), inArray(coachNotes.id, noteIds)))
+      : [];
+    if (scopedNotes.some((note) => note.sport && note.sport !== (input.sport ?? "strength")))
+      throw new CoachingError("Open requests only from notes addressed to this programme.", 422);
     const sources = await athleteMemorySources(
       db,
       userId,
@@ -683,7 +694,7 @@ export async function answerProgramRequest(
     throw new CoachingError("The coach is not waiting on an answer for this request.");
   const inserted = await db
     .insert(coachNotes)
-    .values({ id: noteId, userId, text: answer, requestId, createdAt: now })
+    .values({ id: noteId, userId, text: answer, requestId, sport: request.sport, createdAt: now })
     .onConflictDoNothing({ target: coachNotes.id })
     .returning({ id: coachNotes.id });
   if (!inserted.length) throw new CoachingError("Could not save this answer. Reload and retry.");

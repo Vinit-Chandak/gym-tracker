@@ -1,4 +1,5 @@
 import { Glyph } from "@/components/ui/glyphs";
+import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
@@ -18,13 +19,16 @@ export async function CoachingActivity() {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;
   const user = await requireProfiledUser();
   const { jobs, expired } = settleCoachJobs(
-    await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 8), { readOnly: true }),
+    await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 32), { readOnly: true }),
   );
   if (expired) tidyCoachJobsLater(user.id);
   // Only a failure that is still the latest word on that kind of work: once a later attempt at
   // the same thing has succeeded, the old failure is history, not something that needs you.
   const latest = new Map<string, (typeof jobs)[number]>();
-  for (const job of jobs) if (!latest.has(job.kind)) latest.set(job.kind, job);
+  for (const job of jobs) {
+    const key = `${job.kind}:${job.target.sport ?? "strength"}:${job.target.occurrenceId ?? "programme"}`;
+    if (!latest.has(key)) latest.set(key, job);
+  }
   const failed = [...latest.values()].find((job) => job.status === "failed");
   if (!failed) return null;
   return (
@@ -36,6 +40,9 @@ export async function CoachingActivity() {
         <p className="flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
           <span className="min-w-0">
+            <span className="block type-meta-small text-ink-2">
+              {ACTIVITY_SPORT_LABELS[failed.target.sport ?? "strength"]}
+            </span>
             {failed.kind === "create_program"
               ? "Your programme could not be created. You can ask again."
               : failed.kind === "review_program"

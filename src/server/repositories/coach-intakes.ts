@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   coachAttachments,
@@ -374,6 +374,25 @@ async function checkIntakeReferences(db: DbOrTx, userId: string, answers: CoachI
     )
       throw new CoachingError("Choose each exercise to avoid once, from your own library.", 400);
   }
+}
+
+/** Resume existing coaching consent across sports without re-confirming or replacing a brief. */
+export async function resumeCoaching(db: DbOrTx, userId: string): Promise<boolean> {
+  const [confirmed] = await db
+    .select({ id: coachIntakes.id })
+    .from(coachIntakes)
+    .where(and(eq(coachIntakes.userId, userId), isNotNull(coachIntakes.confirmedAt)))
+    .limit(1);
+  if (!confirmed) return false;
+  await db
+    .insert(coachPreferences)
+    .values({ userId, mode: "coach" })
+    .onConflictDoUpdate({
+      target: coachPreferences.userId,
+      set: { mode: "coach", updatedAt: new Date() },
+    });
+  await db.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, userId));
+  return true;
 }
 
 export async function setTrainingMode(db: DbOrTx, userId: string, mode: "manual" | "track") {
