@@ -7,13 +7,14 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { requestGymChange } from "@/server/repositories/coaching-jobs";
-import { confirmIntake, latestIntake, setTrainingMode } from "@/server/repositories/coach-intakes";
+import { resumeCoaching, setTrainingMode } from "@/server/repositories/coach-intakes";
 import { CoachingError } from "@/server/repositories/coaching-state";
 
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { PLAN_LIMITS } from "@/domain/session-plan";
+import { ACTIVITY_SPORTS } from "@/domain/activity";
 import { requireUser } from "@/server/auth";
 import {
   fireCoachRoutine,
@@ -28,8 +29,8 @@ import {
   createCoachRequest,
   markRequestFailed,
   recordRoutineRun,
-  saveCoachNotes,
 } from "@/server/repositories/coach-plans";
+import { saveCoachMessage } from "@/server/repositories/coach-messages";
 import { getGym } from "@/server/repositories/gyms";
 import {
   applyProposal,
@@ -56,11 +57,8 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
   const user = await requireUser();
   if (process.env.COACH_WORKFLOW_ENABLED === "true") {
     if (enabled) {
-      const intake = await withUser(getDb(), user.id, (tx) => latestIntake(tx, user.id), {
-        readOnly: true,
-      });
-      if (!intake?.confirmedAt) redirect("/profile/programme/create");
-      await withUser(getDb(), user.id, (tx) => confirmIntake(tx, user.id, intake.id));
+      const resumed = await withUser(getDb(), user.id, (tx) => resumeCoaching(tx, user.id));
+      if (!resumed) redirect("/training/programmes/new");
     } else await withUser(getDb(), user.id, (tx) => setTrainingMode(tx, user.id, "track"));
     await profileChanged(user.id);
     revalidatePath("/profile/ai-coach");
@@ -77,6 +75,10 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
 
 const notesSchema = z.object({
   noteId: z.preprocess((value) => value || crypto.randomUUID(), z.uuid()),
+  sport: z.preprocess(
+    (value) => (value === "all" || !value ? null : value),
+    z.enum(ACTIVITY_SPORTS).nullable(),
+  ),
   userNotes: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
     z.string().min(1, "Write a note for the coach.").max(PLAN_LIMITS.memo),
@@ -92,11 +94,13 @@ export async function saveCoachNotesAction(
   const parsed = parseForm(notesSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
-    await withUser(getDb(), user.id, (tx) =>
-      saveCoachNotes(tx, user.id, parsed.data.userNotes, parsed.data.noteId),
-    );
-  } catch {
-    return { formError: "Could not save your notes. Please retry.", values: formValues(formData) };
+    await withUser(getDb(), user.id, (tx) => saveCoachMessage(tx, user.id, parsed.data));
+  } catch (error) {
+    return {
+      formError:
+        error instanceof CoachingError ? error.message : "Could not save your notes. Please retry.",
+      values: formValues(formData),
+    };
   }
   revalidatePath("/profile/ai-coach");
   return {};

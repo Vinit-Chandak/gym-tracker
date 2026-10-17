@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { CoachingActivity } from "@/components/coaching/activity";
-
-import type { Route } from "next";
-
-import { RequestList } from "@/components/coaching/request-list";
 import { BackLink } from "@/components/shell/back-link";
-import Link from "@/components/ui/app-link";
-import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { NOTE_DISPOSITION_LABELS } from "@/domain/coach-memory";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
-import { FACT_SEPARATOR } from "@/lib/facts";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
+import { tidyCoachJobsLater } from "@/server/coach-tidy";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   getCoachMemo,
@@ -22,138 +15,72 @@ import {
   pendingRequest,
   recentAttempts,
 } from "@/server/repositories/coach-plans";
-import { countWaitingOnAthlete } from "@/server/repositories/coach-proposals";
-
-import { loadProgrammeChanges } from "../programme/changes";
-import { Proposals } from "../programme/proposals";
+import { loadCoachDashboard } from "@/server/repositories/coach-dashboard";
 import { AiCoachSettings } from "./ai-coach-settings";
-import { CoachLinks } from "./coach-links";
 
 export const metadata: Metadata = { title: "AI coach" };
 
 export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  // A note or a plan from another year says which.
   const year = todayInTimeZone(profile.timeZone).slice(0, 4);
   const workflow = process.env.COACH_WORKFLOW_ENABLED === "true";
-  const { memo, plan, pending, attempts, waiting, changes } = await withUser(
+  const configured = isCoachServiceConfigured();
+  const canRequest = canRunCoachJobs();
+  const { memo, plan, pending, attempts, dashboard } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
-      const now = new Date();
-      if (workflow) {
-        const [memo, waiting, changes] = await Promise.all([
-          getCoachMemo(tx, user.id),
-          countWaitingOnAthlete(tx, user.id),
-          // What waits on the athlete is answered here as well as on the Changes tab.
-          loadProgrammeChanges(tx, user.id, profile.timeZone),
-        ]);
-        return { memo, plan: null, pending: null, attempts: [], waiting, changes };
-      }
-      // Expired requests are shown as the failures they will be recorded as (`recentAttempts`),
-      // so this screen reads without the athlete lock.
-      const [memo, plan, pending, attempts] = await Promise.all([
+      const [memo, dashboard, plan, pending, attempts] = await Promise.all([
         getCoachMemo(tx, user.id),
-        latestPlan(tx, user.id),
-        pendingRequest(tx, user.id, now),
-        recentAttempts(tx, user.id, 8),
+        workflow
+          ? loadCoachDashboard(tx, user.id, {
+              timeZone: profile.timeZone,
+              enabled: profile.aiCoachEnabled,
+              workflow,
+              configured,
+              canRequest,
+            })
+          : null,
+        workflow ? null : latestPlan(tx, user.id),
+        workflow ? null : pendingRequest(tx, user.id, new Date()),
+        workflow ? [] : recentAttempts(tx, user.id, 8),
       ]);
-      return { memo, plan, pending, attempts, waiting: 0, changes: null };
+      return { memo, dashboard, plan, pending, attempts };
     },
     { readOnly: true },
   );
-  // Whether this server can hear from the coach and start it: owner-side setup facts.
-  const configured = isCoachServiceConfigured();
-  const canRequest = canRunCoachJobs();
-  // A coach that is on and working says nothing: the switch is the statement. What is worth a
-  // line is that it cannot run here, or, on the older single-plan path, what it last produced.
+  if (dashboard?.expiredJobs) tidyCoachJobsLater(user.id);
   const status = !configured
-    ? "Not set up on this server yet"
-    : workflow
-      ? null
-      : pending
-        ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone, year)}`
-        : plan
-          ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone, year)}`
-          : "No plan yet; the first arrives after the next overnight run";
+    ? "Coaching is not set up on this server yet."
+    : !canRequest && profile.aiCoachEnabled
+      ? "On-demand coaching is unavailable. Your notes are saved for the next coach run."
+      : workflow
+        ? null
+        : pending
+          ? `Planning now · requested ${formatDateTime(pending.requestedAt, profile.timeZone, year)}`
+          : plan
+            ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone, year)}`
+            : "Your first plan arrives after the next overnight run.";
 
-  const proposals = changes?.proposals ?? [];
-  const waitingOnYou = changes && (
-    <>
-      {changes.questions.length > 0 && (
-        <div className="mt-2">
-          <RequestList requests={changes.questions} label="Needs your answer" />
-        </div>
-      )}
-      {(proposals.length > 0 || changes.legacy.length > 0) && (
-        <section aria-labelledby="coach-waiting">
-          <h2 id="coach-waiting" className="caption-head mt-4.5">
-            Waiting for you
-          </h2>
-          <ul>
-            {proposals.map((proposal) => (
-              <li key={proposal.id}>
-                <Link
-                  href={`/profile/programme/drafts/${proposal.id}` as Route}
-                  className="waiting-row"
-                >
-                  <span className="mark-cell">
-                    <Glyph name={proposal.lead} className="glyph-20" />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="waiting-row-title">
-                      {proposal.answers.length > 0 ? proposal.answers.join(", ") : proposal.title}
-                    </span>
-                    {(proposal.rationale || proposal.asks.length > 0) && (
-                      <span className="waiting-row-sub">
-                        {proposal.rationale ||
-                          `You asked: ${proposal.asks.map((quote) => `“${quote}”`).join(", ")}`}
-                      </span>
-                    )}
-                  </span>
-                  <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {changes.legacy.length > 0 && <Proposals proposals={changes.legacy} />}
-        </section>
-      )}
-    </>
-  );
-
-  // Board AI coach: the way back and More (what it plans from, every change and request).
   return (
     <>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
           <BackLink fallback="/profile" />
-          {workflow && (
-            <div className="page-header-action">
-              <CoachLinks waiting={waiting} />
-            </div>
-          )}
         </div>
       </header>
       <div className="page-width pb-8">
         <AiCoachSettings
           workflow={workflow}
           enabled={profile.aiCoachEnabled}
-          status={
-            configured && !canRequest && profile.aiCoachEnabled
-              ? [status, "On-demand coaching is not set up on this server"]
-                  .filter(Boolean)
-                  .join(FACT_SEPARATOR)
-              : status
-          }
+          status={status}
           noteId={crypto.randomUUID()}
           notes={memo.notes.recent.map((note) => ({
             id: note.id,
             text: note.text,
+            sport: note.sport,
             when: formatDateTime(note.createdAt, profile.timeZone, year),
-            // What became of it, not merely that it was read: a request the coach has parked
-            // until your programme review reads very differently from one it declined.
             outcome:
               note.reviewedAt === null
                 ? null
@@ -173,11 +100,8 @@ export default async function AiCoachSettingsPage() {
             gymName: attempt.gymName,
             error: attempt.error,
           }))}
-          waiting={waitingOnYou}
-        >
-          {/* Only a run that failed: the links it used to list are behind More. */}
-          <CoachingActivity />
-        </AiCoachSettings>
+          dashboard={dashboard}
+        />
       </div>
     </>
   );

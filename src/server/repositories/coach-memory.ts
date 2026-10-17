@@ -9,6 +9,7 @@ import {
   coachNoteReviews,
   coachNotes,
   coachPreferences,
+  sportCoachPreferences,
   dailyRecovery,
   exercises,
   runs,
@@ -346,8 +347,20 @@ export async function updateCoachMemory(
   raw: unknown,
   origin: MemoryItem["origin"],
   now = new Date(),
+  sport?: ActivitySport,
 ) {
   const patch = memoryPatchSchema.parse(raw);
+  const reviewedIds = patch.reviewedNotes
+    .filter((note) => note.id.startsWith("note:"))
+    .map((note) => note.id.slice(5));
+  if (sport && reviewedIds.length) {
+    const notes = await db
+      .select({ sport: coachNotes.sport })
+      .from(coachNotes)
+      .where(and(eq(coachNotes.userId, userId), inArray(coachNotes.id, reviewedIds)));
+    if (notes.some((note) => note.sport && note.sport !== sport))
+      throw new CoachingError("Only answer notes addressed to this programme.", 422);
+  }
   // Ensure a lockable row even for the first memo, then compare after acquiring the lock.
   await db.insert(coachMemos).values({ userId }).onConflictDoNothing();
   const [row] = await db
@@ -412,10 +425,19 @@ export async function updateCoachMemory(
         .onConflictDoNothing({ target: [coachNoteReviews.userId, coachNoteReviews.sourceId] });
   }
   // Something only a programme review can grant stops waiting for the weekly cadence.
-  if (patch.reviewedNotes.some((note) => note.disposition === "queued_for_review"))
+  if (patch.reviewedNotes.some((note) => note.disposition === "queued_for_review")) {
     await db
-      .update(coachPreferences)
-      .set({ reviewRequestedAt: now })
-      .where(eq(coachPreferences.userId, userId));
+      .insert(sportCoachPreferences)
+      .values({ userId, sport: sport ?? "strength", reviewRequestedAt: now })
+      .onConflictDoUpdate({
+        target: [sportCoachPreferences.userId, sportCoachPreferences.sport],
+        set: { reviewRequestedAt: now },
+      });
+    if (!sport || sport === "strength")
+      await db
+        .update(coachPreferences)
+        .set({ reviewRequestedAt: now })
+        .where(eq(coachPreferences.userId, userId));
+  }
   return { items, memoryRevision: row.memoryRevision + 1 };
 }
