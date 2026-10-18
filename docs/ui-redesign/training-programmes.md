@@ -10,9 +10,10 @@ Today shows only the calendar sessions dated today, beside the next lifting sess
 Missed endurance sessions remain available by their original date through Training.
 
 Only existing programmes have cards. A card names its sport, progress and next session, and
-opens its programme; View, Edit and any pending proposal belong to that card. Replacement,
-duplication and archiving live under More options on the programme. Archives remain reachable
-from the session library for every sport.
+opens its programme; View, Edit, Retire programme and any pending proposal belong to that card.
+Retirement asks for confirmation, closes outstanding sessions and preserves completed history.
+Replacement, duplication and retirement also live under More options on the programme. Retired
+programmes remain reachable under Archived programmes in the session library for every sport.
 Add programme opens a sport chooser, then coach or manual creation. Standalone coach sessions
 save as reusable templates without replacing a programme. A full agenda, four empty sport cards
 and sport tabs were rejected because they hide logging or duplicate Today.

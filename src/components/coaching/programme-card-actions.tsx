@@ -6,6 +6,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import type { ActivitySport } from "@/domain/activity";
 import { copyProgramAction } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
+import { RetireProgramme } from "./retire-programme";
 
 export function ProgrammeCardActions({
   id,
@@ -50,6 +51,7 @@ export function ProgrammeCardActions({
             {pending ? "Opening…" : "Edit"}
           </Button>
         )}
+        <RetireProgramme id={id} sport={sport} disabled={pending} />
       </div>
       {error && (
         <p role="alert" className="text-sm text-danger">
