@@ -6,11 +6,12 @@ import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import type { ActivitySport } from "@/domain/activity";
-import { copyProgramAction, archiveProgramAction } from "@/server/actions/coaching-workflow";
+import { copyProgramAction } from "@/server/actions/coaching-workflow";
+import { RetireProgramme } from "./retire-programme";
 
 /**
- * Editing is the everyday action. Replacement, duplication and archiving stay together under
- * More options. Archiving still explains which sessions it closes before it is confirmed.
+ * Editing is the everyday action. Replacement, duplication and retirement stay together under
+ * More options here; retirement is also directly available on Training's programme cards.
  */
 export function ProgrammeTools({
   id,
@@ -27,7 +28,6 @@ export function ProgrammeTools({
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
   const [busy, setBusy] = useState(false),
-    [archive, setArchive] = useState(false),
     [error, setError] = useState<string | null>(null);
   const pending = busy || navigating;
   async function copy(duplicate: boolean) {
@@ -72,44 +72,7 @@ export function ProgrammeTools({
             <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
               Duplicate programme
             </Button>
-            {active &&
-              (archive ? (
-                <div className="space-y-3 rounded-control bg-surface-raised p-3 text-sm">
-                  <p>
-                    Archive this programme and stop scheduling its future sessions? Your completed
-                    workouts remain in history. Its sessions still owed or skipped can then only be
-                    logged on their own. You can duplicate the archived programme later.
-                  </p>
-                  <div className="grid gap-2 min-[420px]:grid-cols-2">
-                    <Button
-                      variant="danger"
-                      disabled={pending}
-                      onClick={async () => {
-                        setBusy(true);
-                        const result = await coachingAction(() => archiveProgramAction(id));
-                        if (!result.ok) setError(result.error);
-                        else router.refresh();
-                        setArchive(false);
-                        setBusy(false);
-                      }}
-                    >
-                      Archive this programme
-                    </Button>
-                    <Button variant="ghost" onClick={() => setArchive(false)}>
-                      Keep it
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  className="flex w-full"
-                  disabled={pending}
-                  onClick={() => setArchive(true)}
-                >
-                  Archive programme
-                </Button>
-              ))}
+            {active && <RetireProgramme id={id} sport={sport} disabled={pending} />}
           </div>
         </Disclosure>
       </div>

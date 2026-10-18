@@ -23,18 +23,25 @@ afterEach(cleanup);
  * only be logged on its own afterwards, and nothing reopens it, so the question says so before
  * it is answered (review of 12 October).
  */
-it("asks before archiving, and says which sessions it closes", () => {
+it("asks before retiring, and says which sessions it closes", () => {
   render(<ProgrammeTools id="programme" />);
   fireEvent.click(screen.getByText("More options"));
-  fireEvent.click(screen.getByRole("button", { name: "Archive programme" }));
+  fireEvent.click(screen.getByRole("button", { name: "Retire programme: strength" }));
   expect(archived).not.toHaveBeenCalled();
   expect(
     screen.getByText(
-      "Archive this programme and stop scheduling its future sessions? Your completed workouts remain in history. Its sessions still owed or skipped can then only be logged on their own. You can duplicate the archived programme later.",
+      /Retire your strength programme.*completed workouts remain in history.*unfinished or skipped sessions can then only be logged on their own.*Archived programmes/,
     ),
   ).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Archive this programme" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Retire this programme" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Keep it" })).toBeTruthy();
+});
+
+it("offers duplication without retirement for an archived programme", () => {
+  render(<ProgrammeTools id="programme" sport="swimming" active={false} />);
+  fireEvent.click(screen.getByText("More options"));
+  expect(screen.getByRole("button", { name: "Duplicate programme" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Retire/ })).toBeNull();
 });
 
 it("keeps replacement separate from editing and preserves its sport", () => {
