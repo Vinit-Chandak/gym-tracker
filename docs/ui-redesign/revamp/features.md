@@ -685,6 +685,6 @@ From `src/app/(preview)/preview/food/page.tsx` (today 25 Sep 2026):
 - Lunch 647.5 kcal: Home food 2 servings (400 kcal, no macros), Cooked chickpea 150 g
   (247.5 kcal).
 - Afternoon snack: Fruit 1 piece (60 kcal).
-- Day: 1,152.5 / 2,300 kcal, 1,147.5 left; carbs 86/297 g, fat 24/64 g, protein 53/134 g.
-- Saved meals: "Post-workout shake" (whey 1.5 scoops and milk 250 ml, 338.5 kcal), "Usual
+- Day: 1,153 / 2,300 kcal, 1,148 left; carbs 86/297 g, fat 24/64 g, protein 53/134 g.
+- Saved meals: "Post-workout shake" (whey 1.5 scoops and milk 250 ml, 339 kcal), "Usual
   breakfast" (3 foods, 445 kcal). Other foods: Oats 100 g 389 kcal, Paneer 100 g 265 kcal.

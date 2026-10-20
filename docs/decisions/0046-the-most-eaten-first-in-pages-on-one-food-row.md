@@ -38,7 +38,9 @@ drawn in DESIGN.md (Rows and marks, Food rows). This records what lies under it.
 2. **Whole figures in a row, tenths in a total.** A row's kcal is rounded to the tenth it is kept
    at and then to the whole (`formatWholeKcal`: 1,000.3 is 1000, 1,000.8 is 1001, never with a
    comma), so four digits always fit the column. Totals (a day's, a meal's, a saved meal's) keep
-   their tenth, so a saved meal whose rows read 209 and 130 kcal comes to 338.5.
+   their tenth, so a saved meal whose rows read 209 and 130 kcal comes to 338.5. Amended by the
+   owner on 20 October 2026: energy is whole kcal everywhere, totals as rows are (338.5 is 339),
+   since a tenth of a kilocalorie is false precision and "77.6" over a row of 78 read as an error.
 3. **Saved meals: the most added first.** `saved_meals` gains `times_logged` and
    `last_logged_at` (migration 0048). Adding a saved meal to a day counts one (`logSavedMeal`).
    So does starring a meal (`saveMeal`), since the meal starred was eaten. Neither touches

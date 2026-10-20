@@ -190,7 +190,7 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   fireEvent.click(inSheet().getByRole("button", { name: "Less Oats" }));
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "150");
   type("Amount eaten", "60");
-  expect(sheet().textContent).toContain("233.4 kcal");
+  expect(sheet().textContent).toContain("233 kcal");
   expect(sheet().textContent).toContain(
     "Carbs 40\u00a0g ·\u00a0Fat 4\u00a0g ·\u00a0Protein 10\u00a0g",
   );
@@ -434,7 +434,7 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
   editor();
   fireEvent.click(screen.getByRole("button", { name: /^Shake/ }));
   expect(sheet().textContent).toContain("Whey 1.5 scoops");
-  expect(sheet().textContent).toContain("208.5 kcal");
+  expect(sheet().textContent).toContain("209 kcal");
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   expect(logSavedMealAction).toHaveBeenCalledWith({

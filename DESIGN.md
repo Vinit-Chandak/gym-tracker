@@ -994,10 +994,11 @@ and every control answers a press.
   figure in Jost over its unit, both centred in a column four tabular digits wide (4 × 0.614 em),
   so every row's words end at one edge: kcal (1,000.8 is 1001, written without a comma), or a
   macronutrient's grams ("<1" under one; a dash for a food logged without it). A five-digit figure
-  widens its own row's column rather than being cut. Totals (a day's, a meal's, a saved meal's)
-  keep their tenth. Saved meals stand under Meals and foods under Foods, each the most eaten
-  first, five meals or ten foods a page with History's page tabs under them (ADR 0044), so Foods
-  starts where it did however many meals there are; a new search starts each at its first page.
+  widens its own row's column rather than being cut. Energy is whole kcal everywhere, totals as
+  rows are (owner, 20 October 2026). Saved meals stand under Meals and foods under Foods, each the
+  most eaten first, five meals or ten foods a page with History's page tabs under them (ADR 0044),
+  so Foods starts where it did however many meals there are; a new search starts each at its first
+  page.
   A section's last row is unruled. Nothing trails a row to say it can be added or opened: the row
   is the control.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
@@ -1277,7 +1278,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
   paper, the day's one figure (the kcal eaten, written against its target as the macronutrients
-  are: "1,152.5 / 2,300 kcal") on the ground above it; the paper keeps air above
+  are: "1,153 / 2,300 kcal") on the ground above it; the paper keeps air above
   the rim, or the heap's height when that is more. A portion being added shows as a thinned layer
   before it is logged.
 

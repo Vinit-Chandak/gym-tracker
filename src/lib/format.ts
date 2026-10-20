@@ -378,9 +378,13 @@ export function formatFoodAmount(value: number): string {
   return (Math.round(value) + 0).toLocaleString("en-GB");
 }
 
-/** Energy retains its stored precision so the displayed total agrees with the goal badge. */
+/**
+ * "2,073": energy in whole kilocalories, totals as rows are (owner, 20 October 2026, amending ADR
+ * 0046): a tenth of a kilocalorie is false precision, and "77.6" over a row reading 78 said one
+ * fact two ways. Rounded from the tenth it is stored to, as `formatWholeKcal` rounds a row.
+ */
 export function formatKcal(value: number): string {
-  return (Math.round(value * 10) / 10 + 0).toLocaleString("en-GB", { maximumFractionDigits: 1 });
+  return (Math.round(Math.round(value * 10) / 10) + 0).toLocaleString("en-GB");
 }
 
 /**
