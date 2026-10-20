@@ -417,6 +417,13 @@
     touch-action: manipulation;
   }
 
+  /* A link that is a control (a row, a card, a tab) is held to scroll or to press, never to
+     preview a web page: no link callout on a long press, and its words are not selected. */
+  :where(.nav-row, .activity-card-link, nav a) {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
   /*
    * Every control answers a press: it scales to 0.97 in 120 ms (none with reduced motion).
    * The individual `scale` property, so a control's own transform is left alone, and

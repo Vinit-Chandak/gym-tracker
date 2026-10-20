@@ -28,7 +28,9 @@ type DisclosureProps = {
 
 /**
  * Progressive disclosure on a native <details>: it takes only its summary row when closed,
- * so a collapsed section never reserves a tall blank panel for content nobody asked for.
+ * so a collapsed section never reserves a tall blank panel for content nobody asked for. The
+ * summary starts at the row's edge with the names around it and the chevron ends the row, as
+ * Today's cards end theirs (DESIGN.md, Folds).
  */
 export function Disclosure({
   summary,
@@ -63,26 +65,24 @@ export function Disclosure({
     >
       <summary
         className={cn(
-          "flex list-none flex-wrap items-center gap-2 font-medium",
-          variant === "box" && "min-h-14 rounded-card px-4 py-3",
-          variant === "inline" && "min-h-[var(--ov-target)] py-2 text-sm",
+          "relative flex list-none flex-wrap items-center gap-2 font-medium",
+          variant === "box" &&
+            "min-h-14 rounded-card py-3 pr-[calc(1rem+var(--ov-icon-control)+var(--spacing)*2)] pl-4",
+          variant === "inline" &&
+            "min-h-[var(--ov-target)] py-2 pr-[calc(var(--ov-icon-control)+var(--spacing)*2)] text-sm",
           variant === "footer" &&
-            "min-h-12 rounded-b-card px-[var(--panel-padding)] py-3 text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+            "min-h-12 rounded-b-card py-3 pr-[calc(var(--panel-padding)+var(--ov-icon-control)+var(--spacing)*2)] pl-[var(--panel-padding)] text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
         )}
       >
-        <ChevronDown
-          className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
-          aria-hidden
-        />
         {/* The summary wraps between its words to keep the count on its line, and lets the
             count go under it only when the summary would have less than its own width or a few
             words' room, whichever is less (large text): "The plan" keeps "5 exercises · 17 sets"
-            beside it at 320 pt. Under it, the count has the row's whole width, and the chevron
-            stays beside the summary. */}
+            beside it at 320 pt. Under it, the count has the row's whole width; the chevron keeps
+            the row's end, in the room the row leaves for it. */}
         <span
           className="min-w-0 shrink grow [overflow-wrap:break-word]"
           style={{
-            flexBasis: `min(8rem, ${(boldEmWidth(summary) * 1.01).toFixed(3)}em, 100% - var(--ov-icon-control) - var(--spacing) * 2)`,
+            flexBasis: `min(8rem, ${(boldEmWidth(summary) * 1.01).toFixed(3)}em, 100%)`,
           }}
         >
           {summary}
@@ -92,6 +92,15 @@ export function Disclosure({
             {meta}
           </span>
         )}
+        <ChevronDown
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 text-ink-subtle transition-[rotate] duration-[var(--ov-duration-feedback)] group-open:rotate-180",
+            variant === "box" && "right-4",
+            variant === "inline" && "right-0",
+            variant === "footer" && "right-[var(--panel-padding)]",
+          )}
+          aria-hidden
+        />
       </summary>
       <div
         className={cn(

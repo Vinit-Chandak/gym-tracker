@@ -1068,10 +1068,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 ### Folds
 
-- One fold, `Disclosure`: its chevron, a summary that names what is inside ("Programme details",
-  "What the coach is unsure about"), and at the end of its row what a reader needs without
-  opening it ("6", "3 runs · 11.5 km · 26 Oct"). `box` stands on the page, `inline` is a ruled row
-  inside a box, `footer` is a box's last row. Never the browser's own triangle.
+- One fold, `Disclosure`: a summary at the row's edge that names what is inside ("Programme
+  details", "What the coach is unsure about"), then what a reader needs without opening it ("6",
+  "3 runs · 11.5 km · 26 Oct"), and its chevron at the end, as an activity card's. `box` stands on
+  the page, `inline` is a ruled row inside a box, `footer` is a box's last row. Never the
+  browser's own triangle.
 - Closed, unless it holds an error to fix, the week under way or the day in progress.
 - A fold holds more than one thing: a single action stands as itself ("Duplicate programme"),
   never alone behind More options.
