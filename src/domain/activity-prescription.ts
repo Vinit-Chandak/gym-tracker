@@ -76,11 +76,21 @@ const effortRange = range(
  * equal to itself once parsed, or every saved session would look changed to the next edit
  * (`jsonEqual` reads a null as a value and an absent key as nothing).
  */
+/**
+ * A pace is kept to a tenth of a second a kilometre, which is what lets one typed per mile come
+ * back as it was typed: a second a mile is 0.62 of one a kilometre, so whole seconds would turn
+ * 9:00 a mile into 9:01.
+ */
+const paceSeconds = z
+  .number()
+  .min(PACE_TARGET_SECONDS_PER_KM.min)
+  .max(PACE_TARGET_SECONDS_PER_KM.max)
+  .refine(
+    (value) => Math.abs(value * 10 - Math.round(value * 10)) < 1e-6,
+    "A pace is kept to a tenth of a second",
+  );
 const paceRange = z
-  .tuple([
-    z.number().int().min(PACE_TARGET_SECONDS_PER_KM.min).max(PACE_TARGET_SECONDS_PER_KM.max),
-    z.number().int().min(PACE_TARGET_SECONDS_PER_KM.min).max(PACE_TARGET_SECONDS_PER_KM.max),
-  ])
+  .tuple([paceSeconds, paceSeconds])
   .refine(([fast, slow]) => fast <= slow, "A pace range reads fastest first");
 const zoneRange = z
   .tuple([

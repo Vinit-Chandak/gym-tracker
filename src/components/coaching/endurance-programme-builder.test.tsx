@@ -81,6 +81,7 @@ it("opens a new programme and adds a valid editable session", () => {
     />,
   );
   expect(screen.getByRole("spinbutton", { name: "Minutes from" })).toHaveProperty("value", "30");
+  expect(screen.getByRole("combobox", { name: "Kind of run" })).toHaveProperty("value", "easy");
   fireEvent.click(screen.getByRole("button", { name: "Add session" }));
   expect(screen.getByRole("textbox", { name: "Session name" })).toHaveProperty(
     "value",
@@ -169,4 +170,33 @@ it("generates four-day repeats with distinct identities and no duplicate on a se
     0, 4, 8, 12, 16, 20, 24,
   ]);
   expect(new Set(result.enduranceSessions!.map((entry) => entry.lineageId)).size).toBe(7);
+});
+it("sets a run's kind, its whole-run pace and its steps, saved with the programme", async () => {
+  setup(blueprint([0]));
+  fireEvent.change(screen.getByRole("combobox", { name: "Kind of run" }), {
+    target: { value: "easy" },
+  });
+  const pace = screen.getByRole("textbox", { name: "Pace per km" });
+  fireEvent.change(pace, { target: { value: "530" } });
+  fireEvent.blur(pace);
+  fireEvent.change(screen.getByRole("combobox", { name: "Zone" }), { target: { value: "2" } });
+  expect((await saved()).enduranceSessions![0]!.prescription).toMatchObject({
+    running: { sessionType: "easy" },
+    sessionTargets: { paceSecondsPerKm: [330, 330], heartRateZones: [2, 2] },
+  });
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Kind of run" }), {
+    target: { value: "intervals" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add step" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add repeats" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add step" }));
+  expect((await saved()).enduranceSessions![0]!.prescription).toMatchObject({
+    running: { sessionType: "intervals" },
+    nodes: [
+      { kind: "step", phase: "warmup" },
+      { kind: "repeat", repetitions: 6 },
+      { kind: "step", phase: "cooldown" },
+    ],
+  });
 });

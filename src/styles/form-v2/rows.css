@@ -1818,6 +1818,51 @@ html:has(.standalone-error) {
   font-size: var(--ov-type-meta-small);
   font-variant-numeric: tabular-nums;
 }
+/* A run's written steps (ADR 0059): each step a box on surface, its title and its moves on one
+   line, then its fields folding into as many columns as fit. A repeated block is outlined, its
+   steps boxes inside it, so what repeats is plain at a glance. */
+.step-editor {
+  display: grid;
+  gap: calc(8 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.step-editor-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: calc(4 * var(--ov-u));
+}
+.step-editor-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+.step-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+.step-editor-more > summary {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.repeat-editor {
+  display: grid;
+  gap: calc(10 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-card);
+}
 /* What the plan asked for, on surface: its figure, then how it is meant to feel. */
 .target-card {
   padding: calc(12 * var(--ov-u)) calc(14 * var(--ov-u));

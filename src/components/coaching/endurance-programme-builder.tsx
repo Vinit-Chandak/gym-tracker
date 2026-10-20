@@ -13,10 +13,12 @@ import {
   endurancePrescriptionSchema,
   describePrescription,
   type EndurancePrescription,
+  type RunningInstructions,
 } from "@/domain/activity-prescription";
 import { addDays, daysBetween } from "@/domain/program-calendar";
 import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import type { ProgrammeEnduranceSession } from "@/domain/programme-sport";
+import { RUN_TYPES, RUN_TYPE_LABELS, isRunType } from "@/domain/run-types";
 import {
   enduranceSessionGroups,
   repeatEnduranceSession,
@@ -28,8 +30,36 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
+import { PaceZoneFields, StepsEditor } from "./steps-editor";
 
 type Scope = "this" | "future_repeats";
+
+const NO_RUNNING_NOTES: RunningInstructions = {
+  paceNote: null,
+  progressionNote: null,
+  symptomStopRule: null,
+  note: null,
+};
+
+/** A new session: half an hour, and for a run, an easy one until it is told otherwise. */
+function newPrescription(sport: EnduranceSport): EndurancePrescription {
+  return endurancePrescriptionSchema.parse({
+    prescriptionVersion: 1,
+    sport,
+    sessionTargets: { durationMs: [1800000, 1800000] },
+    running: sport === "running" ? { ...NO_RUNNING_NOTES, sessionType: "easy" } : null,
+  });
+}
+
+/** The run's kind set or cleared (ADR 0059), its other running instructions kept. */
+function withSessionType(
+  running: RunningInstructions | null,
+  value: string,
+): RunningInstructions | null {
+  const { sessionType: _previous, ...rest } = running ?? NO_RUNNING_NOTES;
+  if (isRunType(value)) return { ...rest, sessionType: value };
+  return Object.values(rest).some((entry) => entry !== null) ? rest : null;
+}
 
 export function EnduranceProgrammeBuilder({
   sport,
@@ -71,11 +101,7 @@ export function EnduranceProgrammeBuilder({
             weekIndex: 1,
             dayOffset: 0,
             scheduledLocalTime: null,
-            prescription: endurancePrescriptionSchema.parse({
-              prescriptionVersion: 1,
-              sport,
-              sessionTargets: { durationMs: [1800000, 1800000] },
-            }),
+            prescription: newPrescription(sport),
           },
         ],
       },
@@ -398,6 +424,31 @@ export function EnduranceProgrammeBuilder({
                     }
                   />
                 </Field>
+                {sport === "running" && (
+                  <Field label="Kind of run">
+                    <Select
+                      value={session.prescription.running?.sessionType ?? ""}
+                      onChange={(event) =>
+                        update({
+                          prescription: {
+                            ...session.prescription,
+                            running: withSessionType(
+                              session.prescription.running,
+                              event.target.value,
+                            ),
+                          },
+                        })
+                      }
+                    >
+                      <option value="">Not said</option>
+                      {RUN_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {RUN_TYPE_LABELS[type]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
                 <div className="adaptive-grid">
                   {(
                     [
@@ -433,6 +484,55 @@ export function EnduranceProgrammeBuilder({
                     </fieldset>
                   ))}
                 </div>
+                {sport === "running" && (
+                  <>
+                    {(session.prescription.nodes.length === 0 ||
+                      session.prescription.sessionTargets.paceSecondsPerKm ||
+                      session.prescription.sessionTargets.heartRateZones) && (
+                      <fieldset className="min-w-0 space-y-2">
+                        <legend className="text-sm font-medium">Whole-run pace and zone</legend>
+                        <PaceZoneFields
+                          pace={session.prescription.sessionTargets.paceSecondsPerKm}
+                          zones={session.prescription.sessionTargets.heartRateZones}
+                          unit={units.distanceUnit}
+                          onChange={({ pace, zones }) => {
+                            const {
+                              paceSecondsPerKm: _pace,
+                              heartRateZones: _zones,
+                              ...targets
+                            } = session.prescription.sessionTargets;
+                            update({
+                              prescription: {
+                                ...session.prescription,
+                                sessionTargets: {
+                                  ...targets,
+                                  ...(pace ? { paceSecondsPerKm: pace } : {}),
+                                  ...(zones ? { heartRateZones: zones } : {}),
+                                },
+                              },
+                            });
+                          }}
+                        />
+                      </fieldset>
+                    )}
+                    <div className="space-y-3">
+                      <h3 className="font-medium">Steps</h3>
+                      <StepsEditor
+                        nodes={session.prescription.nodes}
+                        unit={units.distanceUnit}
+                        onChange={(nodes) =>
+                          update({
+                            prescription: {
+                              ...session.prescription,
+                              structureSource: "authored",
+                              nodes,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </>
+                )}
                 <details>
                   <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium">
                     Date and instructions
@@ -468,7 +568,7 @@ export function EnduranceProgrammeBuilder({
                     <Field label="Instructions">
                       <Textarea
                         value={session.prescription.instructions ?? ""}
-                        maxLength={2000}
+                        maxLength={300}
                         onChange={(event) =>
                           update({
                             prescription: {
@@ -479,7 +579,7 @@ export function EnduranceProgrammeBuilder({
                         }
                       />
                     </Field>
-                    {session.prescription.nodes.length > 0 && (
+                    {sport !== "running" && session.prescription.nodes.length > 0 && (
                       <p className="text-sm text-ink-2">
                         This workout’s structured steps are preserved. These fields edit its overall
                         targets.
@@ -608,13 +708,7 @@ export function EnduranceProgrammeBuilder({
                     weekIndex: Math.floor(offset / 7) + 1,
                     dayOffset: offset,
                     scheduledLocalTime: null,
-                    prescription:
-                      template?.prescription ??
-                      endurancePrescriptionSchema.parse({
-                        prescriptionVersion: 1,
-                        sport,
-                        sessionTargets: { durationMs: [1800000, 1800000] },
-                      }),
+                    prescription: template?.prescription ?? newPrescription(sport),
                   },
                 ],
               });
