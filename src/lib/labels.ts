@@ -118,11 +118,11 @@ export function lengthRangeLabel(
 export function rirMeaning(measure: PrescriptionType): string {
   switch (measure) {
     case "duration":
-      return "Reps in reserve, read as time: 2 RIR means you could have held it roughly two more repetitions' worth — a few more seconds — not that you held to failure.";
+      return "Reps in reserve, read as time: 2 RIR means you could have held it a few seconds more.";
     case "distance":
-      return "Reps in reserve, read as ground: 2 RIR means you could have carried it a fair way further at the same quality. Put it down before the grip or the posture goes, not after.";
+      return "Reps in reserve, read as ground: 2 RIR means you could have carried it a fair way further, as well.";
     default:
-      return "Reps in reserve: how many more good reps you could have done. 2 RIR means you stopped two reps short of failure; 0 RIR means the next rep would not have moved.";
+      return "Reps in reserve: how many more good reps you could have done. 2 RIR means you stopped two short of failure.";
   }
 }
 
