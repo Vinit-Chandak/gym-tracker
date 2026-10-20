@@ -36,6 +36,9 @@ vi.mock("@/server/repositories/coach-plans", () => ({
 vi.mock("@/server/repositories/sport-preferences", () => ({
   readSportUnits: async () => ({ distanceUnit: "km", poolUnit: "m" }),
 }));
+vi.mock("@/server/repositories/heart-rate", () => ({
+  readHeartRate: async () => ({ resolved: null }),
+}));
 vi.mock("@/server/repositories/schedule", () => ({
   getSchedule: async () => ({
     program: { familyId: "family" },

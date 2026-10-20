@@ -24,6 +24,7 @@ import { logTestRun } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { coachIntakeSchema, MAX_COACH_FILE_BYTES } from "@/domain/coaching-workflow";
+import { COACH_RUNNING_REFERENCE_VERSION } from "@/domain/coach-running-reference";
 import { lastCoachBoundary } from "@/domain/coach-cadence";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import {
@@ -216,6 +217,10 @@ it("claims once, accepts an exact duplicate once, and activates an opening sessi
   expect(ctx.athlete).toMatchObject({ bodyWeightKg: 82, heightCm: 181, age: expect.any(Number) });
   expect(ctx.program).toBeNull();
   expect(ctx.policy.rules.length).toBeGreaterThan(0);
+  // A lifting job reads the shared reference, and nothing written for running (ADR 0059).
+  expect(ctx.trainingReference.sport).toBe("general");
+  expect(ctx.runningContext).toBeNull();
+  expect(ctx.policy.rules.map((rule) => rule.id)).not.toContain("running_programme");
   const accepted = await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, one.job.id, claim.attemptId!, result(a)),
   );
@@ -1844,7 +1849,14 @@ function runningBlueprint(standalone = false): ProgramBlueprint {
           effort: [2, 3],
         },
         nodes: [],
-        running: null,
+        // A coach's running session says what kind of run it is (ADR 0059).
+        running: {
+          sessionType: "easy",
+          paceNote: null,
+          progressionNote: null,
+          symptomStopRule: null,
+          note: null,
+        },
         instructions: null,
         notes: null,
         legacy: null,
@@ -1873,6 +1885,49 @@ it("creates a dedicated running programme without a gym or a lifting opening pla
   expect(draft).toMatchObject({ sport: "running", standalone: false, openingPlan: null });
   expect(draft!.blueprint.days).toEqual([]);
   expect(draft!.blueprint.enduranceSessions).toHaveLength(8);
+});
+
+it("gives a running job the running reference, the runner's history and the running rule", async () => {
+  const a = await runningAthlete();
+  await as(a, (tx) =>
+    logTestRun(tx, a.user.id, {
+      startedAt: new Date(),
+      durationSeconds: 2880,
+      distanceMeters: 8000,
+    }),
+  );
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const ctx = await as(a, (tx) => coachJobContext(tx, a.user.id, job.id, claim!.attemptId!));
+  expect(ctx.trainingReference).toMatchObject({
+    sport: "running",
+    version: COACH_RUNNING_REFERENCE_VERSION,
+  });
+  expect(ctx.trainingReference.text).toContain("Writing a session in this app");
+  expect(ctx.runningContext).toMatchObject({
+    weeks: expect.any(Array),
+    peakWeekKm: expect.any(Number),
+    longestRun30Days: { km: 8 },
+  });
+  expect(ctx.runningContext!.weeks).toHaveLength(16);
+  expect(ctx.policy.rules.map((rule) => rule.id)).toContain("running_programme");
+});
+
+it("refuses a coach's running programme that ignores what the athlete confirmed", async () => {
+  const a = await runningAthlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const untyped = runningResult();
+  untyped.blueprint.enduranceSessions = untyped.blueprint.enduranceSessions!.map((session) => ({
+    ...session,
+    prescription: { ...session.prescription, running: null },
+  }));
+  await expect(
+    as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, untyped)),
+  ).rejects.toMatchObject({
+    status: 422,
+    issues: expect.arrayContaining([expect.stringMatching(/sessionType/)]),
+  });
 });
 
 it("refuses a result that tries to change a different sport", async () => {

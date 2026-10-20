@@ -49,6 +49,7 @@ import {
   JOB_LEASE_CAP_MS,
   JOB_LEASE_MS,
   MAX_JOB_ATTEMPTS,
+  coachIntakeSchema,
   coachJobResultSchema,
   jobProgress,
   jobTargetSchema,
@@ -114,6 +115,7 @@ import type { CoachProvider } from "@/domain/coach-failover";
 import { backupJobStanding } from "./coach-failover";
 import type { ActivitySport } from "@/domain/activity";
 import { programmeSport } from "@/domain/programme-sport";
+import { runningProgrammeIssues } from "@/domain/running-programme-checks";
 import { activeSportProgrammes } from "./sport-programmes";
 import { latestIntake } from "./coach-intakes";
 import { keepEnduranceHistory } from "./endurance-history";
@@ -836,6 +838,32 @@ export async function acceptCoachJobResult(
       const trainingDays = blueprint.days.filter((day) => day.includesLifting || day.includesRun);
       if (new Set(trainingDays.map((day) => day.dayOfWeek)).size !== trainingDays.length)
         throw new CoachingError("Use a distinct weekday for each confirmed training day.", 422);
+    }
+    // A running programme is held to the athlete's own answers and to the shape the running
+    // reference asks for (ADR 0059): typed sessions, quality written as steps, no more runs a
+    // week than confirmed, the confirmed days and the race on its date. Every refusal names
+    // its session, so one correction answers them all.
+    if (
+      job.kind === "create_program" &&
+      job.target.scope !== "session" &&
+      programmeSport(blueprint) === "running"
+    ) {
+      const [intake] = job.intakeId
+        ? await db
+            .select()
+            .from(coachIntakes)
+            .where(and(eq(coachIntakes.id, job.intakeId), eq(coachIntakes.userId, userId)))
+        : [];
+      const answers = intake ? coachIntakeSchema.parse(intake.answers) : null;
+      const entry = answers?.sports.find((sport) => sport.sport === "running") ?? null;
+      const issues = runningProgrammeIssues(blueprint, {
+        goal: entry?.running ?? null,
+        runsPerWeek: entry?.sessionsPerWeek ?? answers?.sessionsPerWeek ?? null,
+        runDays: entry?.preferredDays.length
+          ? entry.preferredDays
+          : (answers?.preferredRunDays ?? []),
+      });
+      if (issues.length > 0) throw new CoachingError(issues[0]!, 422, issues);
     }
     const reviewed =
       job.kind === "review_program" && job.target.programId

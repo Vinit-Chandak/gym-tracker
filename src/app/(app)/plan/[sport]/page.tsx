@@ -16,7 +16,10 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
+import { plannedVolume } from "@/domain/planned-volume";
 import { endurancePattern } from "@/domain/programme-pattern";
+import { RUN_TYPE_LABELS } from "@/domain/run-types";
+import { formatSportDistance } from "@/lib/distance-units";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
@@ -193,12 +196,15 @@ export default async function SportProgrammePage({
               const allDone =
                 inWeek.length > 0 &&
                 inWeek.every((session) => session.resolution.kind !== "incomplete");
+              // What the week adds up to, as a running plan is read (ADR 0059).
+              const volume = plannedVolume(inWeek.map((session) => session.prescription));
               return (
                 <li key={week}>
                   <Disclosure
                     summary={`Week ${week}`}
                     meta={joinFacts([
                       sessionCount(sport, inWeek.length),
+                      volume.metres > 0 && formatSportDistance(volume.metres, sport, data.units),
                       week === currentWeek && !finished
                         ? "Now"
                         : allDone
@@ -208,19 +214,28 @@ export default async function SportProgrammePage({
                     defaultOpen={week === currentWeek && !finished}
                   >
                     <ul className="ruled-list">
-                      {inWeek.map((session) => (
-                        <NavRow
-                          key={session.id}
-                          href={`/training/programme/occurrences/${session.id}` as Route}
-                          label={holdHyphens(session.prescription?.title ?? enduranceName(sport))}
-                          sub={
-                            session.prescription
-                              ? describePrescription(session.prescription, data.units)
-                              : undefined
-                          }
-                          value={sessionStatus(session, today)}
-                        />
-                      ))}
+                      {inWeek.map((session) => {
+                        const type = session.prescription?.running?.sessionType;
+                        const name =
+                          session.prescription?.title ??
+                          (type ? RUN_TYPE_LABELS[type] : enduranceName(sport));
+                        return (
+                          <NavRow
+                            key={session.id}
+                            href={`/training/programme/occurrences/${session.id}` as Route}
+                            label={holdHyphens(name)}
+                            sub={
+                              session.prescription
+                                ? joinFacts([
+                                    type && name !== RUN_TYPE_LABELS[type] && RUN_TYPE_LABELS[type],
+                                    describePrescription(session.prescription, data.units),
+                                  ])
+                                : undefined
+                            }
+                            value={sessionStatus(session, today)}
+                          />
+                        );
+                      })}
                     </ul>
                     {inWeek.length === 0 && (
                       <p className="py-2 text-sm text-ink-2">Nothing planned.</p>

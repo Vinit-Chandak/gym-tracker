@@ -27,6 +27,7 @@ import {
 } from "@/server/repositories/occurrences";
 import { getSchedule } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
+import { readHeartRate } from "@/server/repositories/heart-rate";
 import { requireUuid } from "@/server/validation/params";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
 import { holdFigures, joinFacts } from "@/lib/facts";
@@ -48,7 +49,7 @@ export default async function OccurrencePage(
   requireUuid(occurrenceId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { occurrence, plan, units, schedule, named, closure } = await withUser(
+  const { occurrence, plan, units, schedule, named, closure, zones } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -66,6 +67,12 @@ export default async function OccurrencePage(
         closure:
           occurrence && showsClosure(occurrence)
             ? await programmeClosure(tx, user.id, occurrence.familyId, profile.timeZone)
+            : null,
+        // A zone target reads in the athlete's own beats (ADR 0059).
+        zones:
+          occurrence?.sport === "running"
+            ? ((await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))).resolved
+                ?.zones ?? null)
             : null,
       };
     },
@@ -185,6 +192,7 @@ export default async function OccurrencePage(
             preparedByCoach={prepared !== null}
             showSource={!occurrence.closed && (!standalone || prepared !== null)}
             units={units}
+            zones={zones}
           />
         )}
 

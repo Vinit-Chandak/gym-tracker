@@ -16,6 +16,10 @@ import type { DbOrTx } from "@/db/types";
 import { EFFORT } from "@/domain/activity-limits";
 import { COACH_POLICY } from "@/domain/coach-policy";
 import {
+  COACH_RUNNING_REFERENCE,
+  COACH_RUNNING_REFERENCE_VERSION,
+} from "@/domain/coach-running-reference";
+import {
   COACH_TRAINING_REFERENCE,
   COACH_TRAINING_REFERENCE_VERSION,
 } from "@/domain/coach-training-reference";
@@ -48,6 +52,7 @@ import {
 } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 import { readCoachingEvidence } from "./coaching-evidence";
+import { runningCoachContext } from "./running-coach-context";
 import {
   currentCycleFor,
   DECLINE_COOLDOWN_DAYS,
@@ -320,6 +325,16 @@ export async function coachJobContext(
   // on-demand gym change, or a fresh programme, is not the athlete asking for that hearing,
   // and handing it the list would make any tap on Today a trigger for a programme decision.
   const scheduled = job.trigger === "daily" || job.trigger === "weekly";
+  const targetSport = job.target.sport ?? "strength";
+  const programmes = await Promise.all(
+    (await activeSportProgrammes(db, userId)).map(async (active) => ({
+      sport: active.sport,
+      id: active.id,
+      startDate: active.startDate,
+      blueprint: (await readProgramBlueprint(db, userId, active.id))?.blueprint ?? null,
+    })),
+  );
+  const confirmedAnswers = intake ? coachIntakeSchema.parse(intake.answers) : null;
   const requests = scheduled
     ? await claimRequestsForAttempt(
         db,
@@ -337,25 +352,39 @@ export async function coachJobContext(
       scope: job.target.scope,
       authority:
         "Write only the target sport in the main blueprint. Plan around all other programmes and recent training. If another sport needs changing, use coordinationProposals with its full explicit-sport blueprint. These always wait for separate athlete approval; never apply them through this result. For scope=session return exactly one session, without replacing a programme. Preserve every lineageId and originalWeekIndex on existing endurance sessions. When moving a future date, set originalWeekIndex to its existing originalWeekIndex or previous weekIndex, and recalculate weekIndex from dayOffset. Dates are dayOffset from the programme start; past and completed prescriptions are immutable.",
-      programmes: await Promise.all(
-        (await activeSportProgrammes(db, userId)).map(async (active) => ({
-          sport: active.sport,
-          id: active.id,
-          startDate: active.startDate,
-          blueprint: (await readProgramBlueprint(db, userId, active.id))?.blueprint ?? null,
-        })),
-      ),
+      programmes,
     },
     /**
-     * The shared training guidance, supplied once by the server rather than read from a
-     * routine's own checkout, so every run coaches from the deployed text.
+     * The training guidance for this job's sport, supplied once by the server rather than read
+     * from a routine's own checkout, so every run coaches from the deployed text. Running reads
+     * its own (ADR 0059); the shared reference is a lifting document that does not prescribe
+     * running.
      */
-    trainingReference: {
-      version: COACH_TRAINING_REFERENCE_VERSION,
-      text: COACH_TRAINING_REFERENCE,
-      meaning:
-        "General guidance. Server permissions, the policy's numeric limits and this athlete's records outrank it. A broad research range is not an exercise's default target band.",
-    },
+    trainingReference:
+      targetSport === "running"
+        ? {
+            sport: "running",
+            version: COACH_RUNNING_REFERENCE_VERSION,
+            text: COACH_RUNNING_REFERENCE,
+            meaning:
+              "Running guidance. Server permissions, the policy's numeric limits and this athlete's records outrank it. Tags mark the strength of the evidence; a convention is not evidence.",
+          }
+        : {
+            sport: "general",
+            version: COACH_TRAINING_REFERENCE_VERSION,
+            text: COACH_TRAINING_REFERENCE,
+            meaning:
+              "General guidance. Server permissions, the policy's numeric limits and this athlete's records outrank it. A broad research range is not an exercise's default target band.",
+          },
+    /**
+     * A runner's months of running, best efforts, zones, goal and the weekdays their other
+     * programmes load the legs: what a running programme is written from (ADR 0059). Running
+     * jobs only.
+     */
+    runningContext:
+      targetSport === "running"
+        ? await runningCoachContext(db, profile, today, confirmedAnswers, programmes)
+        : null,
     /**
      * Where a rep range starts: a default band per exercise role, for this athlete's goal.
      * Each exercise lookup names its role and band; a review also gets every current slot's.
@@ -363,8 +392,10 @@ export async function coachJobContext(
     repBands: { ...repBandTable(emphasis), slots: slotBands },
     policy: {
       ...COACH_POLICY,
-      rules: COACH_POLICY.rules.filter((rule) =>
-        (rule.tasks as readonly string[]).includes(job.kind),
+      rules: COACH_POLICY.rules.filter(
+        (rule) =>
+          (rule.tasks as readonly string[]).includes(job.kind) &&
+          (!("sports" in rule) || (rule.sports as readonly string[]).includes(targetSport)),
       ),
     },
     job: {
@@ -399,7 +430,7 @@ export async function coachJobContext(
           confirmedAt: intake.confirmedAt,
           // Parsed, so a question added after these answers were saved reaches the coach as
           // its own empty default rather than as a key that is simply not there.
-          answers: coachIntakeSchema.parse(intake.answers),
+          answers: confirmedAnswers!,
         }
       : null,
     // A note that has been answered is already memory, or was already declined in writing.

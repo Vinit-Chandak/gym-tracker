@@ -12,8 +12,15 @@ import {
 import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 import { requestPatchSchema } from "./program-request";
+import { runningIntakeSchema } from "./running-intake";
 
-export const COACH_CONTRACT_VERSION = 7;
+/**
+ * Version 8 (ADR 0059): a running job reads running's own `trainingReference` and a
+ * `runningContext`, and a running programme it writes types every session, writes quality
+ * sessions as steps, may carry pace and heart-rate-zone targets and a `startsOn`, and is held to
+ * the runs a week, days and race date the athlete confirmed.
+ */
+export const COACH_CONTRACT_VERSION = 8;
 
 /**
  * Whether the server is serving a contract this checkout was written against.
@@ -208,6 +215,11 @@ export const sportIntakeSchema = z.object({
   access: optionalText(600),
   /** Anything they want the coach to know about this sport specifically. */
   notes: optionalText(1000),
+  /**
+   * A runner's goal, evidence and schedule, asked as every running plan asks them (ADR 0059).
+   * Only a running entry carries it; a swim's answers are not a race to a date.
+   */
+  running: runningIntakeSchema.nullable().default(null),
 });
 export type SportIntake = z.infer<typeof sportIntakeSchema>;
 

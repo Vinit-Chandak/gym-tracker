@@ -24,6 +24,8 @@ import { WEEKDAY_NAMES } from "@/lib/labels";
 import { ActivityPlan } from "@/components/activities/activity-plan";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { enduranceSessionGroups } from "@/domain/endurance-series";
+import { formatIsoDate } from "@/lib/format";
+import { EnduranceDraftWeeks } from "./endurance-draft-weeks";
 
 /**
  * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
@@ -91,7 +93,12 @@ export function DraftPreview({
   const [navigating, startNavigation] = useTransition();
   const [current, setCurrent] = useState(draft),
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
-    [startDate, setStartDate] = useState(today),
+    // The start the coach counted from, while it is still to come (ADR 0059): a marathon built
+    // to finish on race day finishes there only if it starts where it was counted from.
+    [startDate, setStartDate] = useState(() => {
+      const planned = draft.blueprint.startsOn;
+      return planned && planned >= today ? planned : today;
+    }),
     [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null);
   const busy = saving || navigating;
@@ -162,7 +169,18 @@ export function DraftPreview({
           </div>
         )}
       </Card>
-      {enduranceSessionGroups(current.blueprint.enduranceSessions ?? []).map((group) => {
+      {!current.standalone && current.blueprint.enduranceSessions?.length ? (
+        <EnduranceDraftWeeks
+          sessions={current.blueprint.enduranceSessions}
+          weeks={current.blueprint.weeks}
+          startDate={startDate || null}
+          units={units}
+        />
+      ) : null}
+      {(current.standalone
+        ? enduranceSessionGroups(current.blueprint.enduranceSessions ?? [])
+        : []
+      ).map((group) => {
         const index = group.indexes[0]!;
         const session = current.blueprint.enduranceSessions![index]!;
         return (
@@ -311,7 +329,16 @@ export function DraftPreview({
             </>
           )}
           {!current.standalone && (
-            <Field label="Start date">
+            <Field
+              label="Start date"
+              hint={
+                current.blueprint.startsOn && current.blueprint.startsOn >= today
+                  ? startDate === current.blueprint.startsOn
+                    ? `As the coach planned it, so every session falls on its day.`
+                    : `The coach planned it to start ${formatIsoDate(current.blueprint.startsOn)}; another start moves every session with it.`
+                  : undefined
+              }
+            >
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </Field>
           )}

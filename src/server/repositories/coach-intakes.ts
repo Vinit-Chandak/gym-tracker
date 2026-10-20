@@ -21,6 +21,7 @@ import {
   type TrainingLocation,
 } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
+import { runningIntakeProblems } from "@/domain/running-intake";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { TRAINING_GOALS } from "@/domain/types";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
@@ -213,6 +214,18 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
     create: true,
   });
   await checkIntakeReferences(db, userId, answers);
+  // A running programme's goal is checked against the athlete's own today: a race still to
+  // come, with its distance (ADR 0059). Answers saved before running asked for a goal of its
+  // own carry none, and are confirmed as they always were.
+  const running = answers.sports.find((entry) => entry.sport === "running")?.running ?? null;
+  if (intake.sport === "running" && answers.scope === "programme" && running) {
+    const [profile] = await db
+      .select({ timeZone: profiles.timeZone })
+      .from(profiles)
+      .where(eq(profiles.id, userId));
+    const problems = runningIntakeProblems(running, todayInTimeZone(profile?.timeZone ?? "UTC"));
+    if (problems.length > 0) throw new CoachingError(problems.map((p) => p.message).join(" "));
+  }
   const now = new Date();
   await db
     .update(coachIntakes)

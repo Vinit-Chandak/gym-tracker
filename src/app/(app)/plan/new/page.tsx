@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
 import { Art } from "@/components/art/art";
+import { RunningIntakeForm } from "@/components/coaching/running-intake-form";
 import { SportIntakeForm } from "@/components/coaching/sport-intake-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -21,7 +22,9 @@ import { ageOn } from "@/lib/units";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { latestIntake } from "@/server/repositories/coach-intakes";
+import { runningSnapshot } from "@/server/repositories/running-coach-context";
 import { getActiveProgram } from "@/server/repositories/schedule";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "New programme" };
 
@@ -52,6 +55,8 @@ export default async function NewProgrammePage({
   if (sport !== undefined && (typeof sport !== "string" || !isActivitySport(sport))) notFound();
   const selected = typeof sport === "string" && isActivitySport(sport) ? sport : null;
   const profile = await getRequestProfile(user.id, user.email);
+  const today = todayInTimeZone(profile.timeZone);
+  const asksCoach = search.method === "coach";
   const data = selected
     ? await withUser(
         getDb(),
@@ -59,9 +64,26 @@ export default async function NewProgrammePage({
         async (tx) => ({
           intake: await latestIntake(tx, user.id, selected, "programme"),
           active: await getActiveProgram(tx, user.id, selected),
+          // A runner's logs answer some of the running questions before they are asked.
+          running:
+            selected === "running" && asksCoach
+              ? {
+                  snapshot: await runningSnapshot(tx, user.id, today),
+                  units: await readSportUnits(tx, user.id),
+                }
+              : null,
         }),
         { readOnly: true },
       )
+    : null;
+  const prefill = selected
+    ? coachIntakeSchema.parse({
+        programmeSport: selected,
+        scope: "programme",
+        heightCm: profile.heightCm,
+        weightKg: profile.bodyWeightKg,
+        ageYears: profile.dateOfBirth ? ageOn(profile.dateOfBirth, today) : null,
+      })
     : null;
   return (
     <>
@@ -85,20 +107,20 @@ export default async function NewProgrammePage({
               />
             ))}
           </ul>
-        ) : search.method === "coach" ? (
+        ) : asksCoach && data!.running ? (
+          <RunningIntakeForm
+            initial={data!.intake}
+            prefill={prefill!}
+            snapshot={data!.running.snapshot}
+            unit={data!.running.units.distanceUnit}
+            today={today}
+          />
+        ) : asksCoach ? (
           <SportIntakeForm
             sport={selected}
             scope="programme"
             initial={data!.intake}
-            prefill={coachIntakeSchema.parse({
-              programmeSport: selected,
-              scope: "programme",
-              heightCm: profile.heightCm,
-              weightKg: profile.bodyWeightKg,
-              ageYears: profile.dateOfBirth
-                ? ageOn(profile.dateOfBirth, todayInTimeZone(profile.timeZone))
-                : null,
-            })}
+            prefill={prefill!}
           />
         ) : (
           <div className="space-y-4">
