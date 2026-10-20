@@ -72,7 +72,6 @@ export default async function AiCoachSettingsPage() {
       </header>
       <div className="page-width pb-8">
         <AiCoachSettings
-          workflow={workflow}
           enabled={profile.aiCoachEnabled}
           status={status}
           noteId={crypto.randomUUID()}

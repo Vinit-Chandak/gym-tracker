@@ -89,6 +89,12 @@ const nextConfig: NextConfig = {
       },
       { source: "/profile/programme/jobs/:id", destination: "/plan/requests/:id", permanent: true },
       { source: "/profile/programme/history", destination: "/plan/history", permanent: true },
+      // The coach's questions for a new strength programme are New programme's, as every sport's.
+      {
+        source: "/profile/programme/create",
+        destination: "/plan/new?sport=strength&method=coach",
+        permanent: true,
+      },
       { source: "/training/new", destination: "/today/log/new", permanent: true },
       {
         source: "/training/activities/:activityId",

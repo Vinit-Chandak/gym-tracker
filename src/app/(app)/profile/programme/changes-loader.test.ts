@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
-import { coachJobs, coachProgramRequests, coachWeeklyReviews, programDrafts } from "@/db/schema";
+import {
+  coachJobs,
+  coachProgramRequests,
+  coachWeeklyReviews,
+  programDrafts,
+  programs,
+} from "@/db/schema";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { jobTargetSchema } from "@/domain/coaching-workflow";
 import { seedReferenceData } from "@/db/seed/reference";
@@ -118,6 +124,8 @@ it("gives one proposal one row, carrying the words of the ask it answers", async
     {
       id: draftId,
       title: "Doubles your direct core work: 4 → 8 sets a week.",
+      // A change to the programme it is drafted against, not a new programme.
+      fresh: false,
       fromCoach: true,
       asks: ["more core"],
       answers: ["More direct core work"],
@@ -225,4 +233,132 @@ it("reads a shared base once for headline-free drafts and retains their distinct
   } finally {
     readBase.mockRestore();
   }
+});
+
+/** ADR 0058: each programme's page lists its own requests, changes and history, no other's. */
+it("keeps each programme's changes, asks, coach updates and history to its own page", async () => {
+  const account = await t.createAuthUser("sports-changes@example.com");
+  await withUser(t.db, account.id, (tx) => seedTestUserData(tx, account));
+  const blueprint = {
+    blueprintVersion: 1 as const,
+    slug: "half",
+    name: "Half Marathon Build",
+    weeks: 12,
+    notes: "",
+    days: [],
+    runs: [],
+  };
+  const ids = await withUser(t.db, account.id, async (tx) => {
+    const [running] = await tx
+      .insert(programs)
+      .values({
+        userId: account.id,
+        sport: "running",
+        familyId: crypto.randomUUID(),
+        slug: "half",
+        name: "Half Marathon Build",
+        status: "active",
+      })
+      .returning({ id: programs.id });
+    const draft = async (values: Partial<typeof programDrafts.$inferInsert>) => {
+      const [row] = await tx
+        .insert(programDrafts)
+        .values({
+          userId: account.id,
+          sport: "running",
+          source: "weekly",
+          status: "ready",
+          blueprint,
+          baseProgramId: running!.id,
+          sourceRevision: 1,
+          ...values,
+        })
+        .returning({ id: programDrafts.id });
+      return row!.id;
+    };
+    const proposed = await draft({ headline: "Swaps the Thursday tempo for hills." });
+    // A first programme the coach wrote after this one was started: nothing to compare it with.
+    const fresh = await draft({ source: "ai", baseProgramId: null, headline: "" });
+    const applied = await draft({ status: "activated", headline: "Easy runs a little shorter." });
+    const [job] = await tx
+      .insert(coachJobs)
+      .values({
+        userId: account.id,
+        kind: "review_program",
+        trigger: "weekly",
+        dedupeKey: `weekly:${crypto.randomUUID()}`,
+        status: "succeeded",
+        target: jobTargetSchema.parse({ sport: "running" }),
+      })
+      .returning({ id: coachJobs.id });
+    await tx.insert(coachWeeklyReviews).values({
+      userId: account.id,
+      sport: "running",
+      jobId: job!.id,
+      periodStart: new Date(Date.now() - 7 * 86_400_000),
+      periodEnd: new Date(),
+      outcome: "automatic",
+      rationale: "Easy runs a little shorter.",
+      draftId: applied,
+    });
+    await tx.insert(coachProgramRequests).values([
+      {
+        id: crypto.randomUUID(),
+        userId: account.id,
+        sport: "running",
+        sourceId: `note:${crypto.randomUUID()}`,
+        quote: "fewer intervals",
+        summary: "Fewer intervals",
+        state: "needs_answer",
+        detail: "From next week?",
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: account.id,
+        sport: "running",
+        sourceId: `note:${crypto.randomUUID()}`,
+        quote: "a longer long run",
+        summary: "A longer long run",
+        state: "applied",
+        detail: "",
+      },
+    ]);
+    return { proposed, fresh, applied };
+  });
+  const read = (sport: "strength" | "running") =>
+    withUser(
+      t.db,
+      account.id,
+      (tx) => loadProgrammeChanges(tx, account.id, "Europe/London", { sport }),
+      { readOnly: true },
+    );
+
+  const running = await read("running");
+  expect(running.sport).toBe("running");
+  expect(
+    running.proposals.map((proposal) => [proposal.id, proposal.title, proposal.fresh]),
+  ).toEqual(
+    expect.arrayContaining([
+      [ids.proposed, "Swaps the Thursday tempo for hills.", false],
+      [ids.fresh, "Half Marathon Build", true],
+    ]),
+  );
+  expect(running.proposals).toHaveLength(2);
+  expect(running.questions.map((request) => request.quote)).toEqual(["fewer intervals"]);
+  expect(running.recent).toEqual([
+    expect.objectContaining({ id: ids.applied, title: "Easy runs a little shorter." }),
+  ]);
+  expect(running.history).toEqual({ requests: 1, changes: 1 });
+  expect(running.waiting).toBe(3);
+
+  // The strength programme's page shows none of it.
+  const strength = await read("strength");
+  expect(strength).toMatchObject({
+    proposals: [],
+    questions: [],
+    withCoach: [],
+    recent: [],
+    history: { requests: 0, changes: 0 },
+    waiting: 0,
+  });
 });

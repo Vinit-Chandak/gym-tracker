@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { enduranceTarget, plannedName } from "@/components/activities/endurance-line";
 import { alreadySays } from "@/components/activities/prescription-lines";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
-import { RequestChange } from "@/components/coaching/request-change";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
@@ -22,16 +21,18 @@ import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatIsoShortDay } from "@/lib/format";
-import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
+import { isCoachServiceConfigured } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { athleteReviewStatus } from "@/server/repositories/coaching-jobs";
 import { programmeOccurrences, type ProgrammeOccurrence } from "@/server/repositories/occurrences";
-import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { getActiveProgram } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { endurancePosition } from "@/server/repositories/sport-programmes";
-import { RequestReview } from "@/app/(app)/profile/programme/request-review";
+import {
+  loadProgrammeChanges,
+  ProgrammeCoach,
+  ProgrammeWaiting,
+} from "@/app/(app)/profile/programme/changes";
 
 import { currentProgrammeWeek, sessionsInProgrammeWeek } from "./programme-weeks";
 import { StrengthProgramme } from "./strength-programme";
@@ -59,9 +60,12 @@ function sessionStatus(session: ProgrammeOccurrence, today: string): string | un
 
 /**
  * A run, ride or swim programme (ADR 0058): what it is, how it runs and how far through it you
- * are, then its weeks. Each week says what it asks for and the day it starts, which orients the
- * list (PRODUCT.md, Information map); a session's own date is Plan's week's and its page's, where
- * it opens to move, skip or change it. Strength has its own page, its days in order.
+ * are, what waits for you from the coach, then its weeks. Each week says what it asks for and the
+ * day it starts, which orients the list (PRODUCT.md, Information map); a session's own date is
+ * Plan's week's and its page's, where it opens to move, skip or change it. Under the weeks, the
+ * rest of its dealings with the coach, as the strength programme's Changes holds them: what is
+ * with the coach, what it changed on its own, asking for a change or a review, and the way to
+ * its past requests and changes. Strength has its own page, its days in order.
  */
 export default async function SportProgrammePage({
   params,
@@ -80,18 +84,19 @@ export default async function SportProgrammePage({
     getDb(),
     user.id,
     async (tx) => {
-      const [programme, drafts, units, review] = await Promise.all([
+      const [programme, units, changes] = await Promise.all([
         getActiveProgram(tx, user.id, sport),
-        listProgramDrafts(tx, user.id),
         readSportUnits(tx, user.id),
-        athleteReviewStatus(tx, user.id, new Date(), sport),
+        loadProgrammeChanges(tx, user.id, profile.timeZone, {
+          sport,
+          coachOn: profile.aiCoachEnabled,
+        }),
       ]);
       return {
         programme,
         sessions: programme ? await programmeOccurrences(tx, user.id, programme.familyId) : [],
-        drafts: drafts.filter((draft) => draft.sport === sport && !draft.standalone),
         units,
-        review,
+        changes,
       };
     },
     { readOnly: true },
@@ -130,7 +135,6 @@ export default async function SportProgrammePage({
       withdrawn: session.resolution.kind === "cancelled",
     })),
   );
-  const coachOffered = profile.aiCoachEnabled && canRunCoachJobs() && isCoachServiceConfigured();
   // A note waits for the coach's next run, so it needs the coach on, not this server to start it.
   const changeOffered =
     profile.aiCoachEnabled &&
@@ -168,28 +172,8 @@ export default async function SportProgrammePage({
             </Disclosure>
           )}
         </Card>
-        {data.drafts.length > 0 && (
-          <Section title="Changes">
-            <ul>
-              {data.drafts.map((draft) => (
-                <NavRow
-                  key={draft.id}
-                  href={
-                    (draft.status === "editing"
-                      ? `/plan/${sport}/edit?draft=${draft.id}`
-                      : `/plan/drafts/${draft.id}`) as Route
-                  }
-                  glyph="note"
-                  // Never the programme's own name, which heads the card above.
-                  label={
-                    draft.headline || (draft.source === "manual" ? "Your edit" : "Proposed change")
-                  }
-                  sub={draft.status === "editing" ? "Draft in progress" : "Changes to review"}
-                />
-              ))}
-            </ul>
-          </Section>
-        )}
+        {/* The decisions first: what the coach proposed or asked, before the weeks. */}
+        <ProgrammeWaiting data={data.changes} />
         <Section title="Weeks">
           {/* Ruled rows that share their rules (DESIGN.md, Folds): never a stack of boxes. */}
           <ul className="[&>li+li]:-mt-px">
@@ -256,22 +240,10 @@ export default async function SportProgrammePage({
             })}
           </ul>
         </Section>
-        {changeOffered && <RequestChange sport={sport} noteId={crypto.randomUUID()} />}
-        {/* One action and its state, so it stands as itself rather than folded alone. */}
-        {coachOffered && (
-          <RequestReview
-            sport={sport}
-            availability={{
-              offered: true,
-              canAsk: data.review.canAsk,
-              running: data.review.running,
-              waiting: data.review.waiting,
-              nextOn: data.review.nextAt
-                ? todayInTimeZone(profile.timeZone, data.review.nextAt)
-                : null,
-            }}
-          />
-        )}
+        <ProgrammeCoach
+          data={data.changes}
+          request={changeOffered ? { noteId: crypto.randomUUID() } : null}
+        />
       </PageContent>
     </>
   );

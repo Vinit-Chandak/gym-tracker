@@ -1,7 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
-import { coachJobs, coachWeeklyReviews, programDrafts, programs } from "@/db/schema";
+import {
+  coachJobs,
+  coachProgramRequests,
+  coachWeeklyReviews,
+  programDrafts,
+  programs,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -185,4 +191,68 @@ it("says what each change did, to which programme, and when", async () => {
       on: "Mon\u00a017\u00a0Nov\u00a02025",
     },
   ]);
+});
+
+/** ADR 0058: each programme's page links to its own past requests and changes. */
+it("lists one programme's past requests and changes when a sport is given", async () => {
+  const runningChange = await as(async (tx) => {
+    const [running] = await tx
+      .insert(programs)
+      .values({
+        userId,
+        sport: "running",
+        familyId: crypto.randomUUID(),
+        slug: "half",
+        name: "Half Marathon Build",
+        status: "active",
+      })
+      .returning({ id: programs.id });
+    const [draft] = await tx
+      .insert(programDrafts)
+      .values({
+        userId,
+        sport: "running",
+        source: "ai",
+        status: "rejected",
+        closedAs: "declined",
+        headline: "Swaps the Thursday tempo for hills.",
+        blueprint: { ...current, name: "Half Marathon Build" },
+        baseProgramId: running!.id,
+        sourceRevision: 1,
+        closedAt: new Date("2026-10-05T10:00:00Z"),
+        updatedAt: new Date("2026-10-05T10:00:00Z"),
+      })
+      .returning({ id: programDrafts.id });
+    await tx.insert(coachProgramRequests).values(
+      (["running", "strength"] as const).map((sport) => ({
+        id: crypto.randomUUID(),
+        userId,
+        sport,
+        sourceId: `note:${crypto.randomUUID()}`,
+        quote: `${sport} ask`,
+        summary: `${sport} ask`,
+        state: "withdrawn" as const,
+        resolvedAt: new Date("2026-10-06T10:00:00Z"),
+      })),
+    );
+    return draft!.id;
+  });
+
+  const running = await as((tx) =>
+    loadProgrammeHistory(tx, userId, "Europe/London", NOW, "running"),
+  );
+  expect(running.changes.map((change) => change.id)).toEqual([runningChange]);
+  expect(running.requests.map((request) => request.quote)).toEqual(["running ask"]);
+
+  const strength = await as((tx) =>
+    loadProgrammeHistory(tx, userId, "Europe/London", NOW, "strength"),
+  );
+  expect(strength.changes.map((change) => change.id)).not.toContain(runningChange);
+  expect(strength.changes).toHaveLength(5);
+  expect(strength.requests.map((request) => request.quote)).toEqual(["strength ask"]);
+
+  // Without one, every sport's.
+  const every = await as((tx) => loadProgrammeHistory(tx, userId, "Europe/London", NOW));
+  expect(every.changes).toHaveLength(6);
+  expect(every.requests).toHaveLength(2);
 });

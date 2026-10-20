@@ -10,7 +10,7 @@ import { listCoachTokens } from "@/server/repositories/coach-tokens";
 import { expiresLabel } from "./expires";
 import { TokenManager } from "./token-manager";
 
-export const metadata: Metadata = { title: "Coach access" };
+export const metadata: Metadata = { title: "Access tokens" };
 
 const ENDPOINTS = [
   "/api/coach/summary",
@@ -28,7 +28,8 @@ export default async function CoachSettingsPage() {
   ]);
   return (
     <>
-      <PageHeader title="Coach access" backHref="/profile" />
+      {/* A row of AI coach's (owner, 20 October 2026): back there, by that page's name. */}
+      <PageHeader title="Access tokens" backHref="/profile/ai-coach" backLabel="AI coach" />
       <PageContent>
         <TokenManager
           tokens={tokens.map((t) => ({

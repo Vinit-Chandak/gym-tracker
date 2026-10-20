@@ -13,6 +13,10 @@ import {
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
 
+/**
+ * The short questions a ride or swim programme is asked with. Strength asks its own, whole
+ * (`StrengthCoachIntake`), and running its own (`RunningIntakeForm`).
+ */
 export function SportIntakeForm({
   sport,
   scope,
@@ -44,14 +48,8 @@ export function SportIntakeForm({
       experience: form.get("experience"),
       prompt: form.get("prompt"),
       restrictions: form.get("restrictions"),
-      ...(sport === "strength"
-        ? {
-            trainingLocation: form.get("trainingLocation"),
-            heightCm: number("heightCm"),
-            weightKg: number("weightKg"),
-            ageYears: number("ageYears"),
-          }
-        : { trainingLocation: null, gymId: null }),
+      trainingLocation: null,
+      gymId: null,
       sports: [
         {
           sport,
@@ -150,50 +148,6 @@ export function SportIntakeForm({
           }
         />
       </Field>
-      {sport === "strength" && (
-        <>
-          <Field label="Where you train">
-            <Select name="trainingLocation" defaultValue={values.trainingLocation ?? ""} required>
-              <option value="">Choose</option>
-              <option value="gym">Gym</option>
-              <option value="home">Home</option>
-            </Select>
-          </Field>
-          <div className="adaptive-grid">
-            <Field label="Height (cm)">
-              <Input
-                name="heightCm"
-                type="number"
-                min={50}
-                max={260}
-                defaultValue={values.heightCm ?? ""}
-                required
-              />
-            </Field>
-            <Field label="Weight (kg)">
-              <Input
-                name="weightKg"
-                type="number"
-                step="any"
-                min={20}
-                max={500}
-                defaultValue={values.weightKg ?? ""}
-                required
-              />
-            </Field>
-            <Field label="Age">
-              <Input
-                name="ageYears"
-                type="number"
-                min={10}
-                max={100}
-                defaultValue={values.ageYears ?? ""}
-                required
-              />
-            </Field>
-          </div>
-        </>
-      )}
       <Field label="Anything that limits your training?" aside="Optional">
         <Textarea
           name="restrictions"

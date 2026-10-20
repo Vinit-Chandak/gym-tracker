@@ -19,9 +19,9 @@ export function builderPath(base: ProgrammeBase, query = ""): Route {
 }
 
 /**
- * The coach's questions for a new strength programme. Plan's is still Profile's page until it is
- * replaced; every other sport's are New programme's (`/plan/new?sport=…&method=coach`).
+ * The coach's questions for a new strength programme: New programme's, as every sport's are
+ * (`/plan/new?sport=…&method=coach`), or setup's own screen while the account is being set up.
  */
 export function coachQuestionsPath(base: ProgrammeBase): Route {
-  return (base === "/plan" ? "/profile/programme/create" : `${base}/create`) as Route;
+  return (base === "/plan" ? "/plan/new?sport=strength&method=coach" : `${base}/create`) as Route;
 }

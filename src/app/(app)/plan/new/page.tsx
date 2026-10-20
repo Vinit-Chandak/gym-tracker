@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Art } from "@/components/art/art";
 import { RunningIntakeForm } from "@/components/coaching/running-intake-form";
 import { SportIntakeForm } from "@/components/coaching/sport-intake-form";
+import { StrengthCoachIntake } from "@/components/coaching/strength-coach-intake";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { NavRow } from "@/components/ui/nav-row";
@@ -42,6 +43,8 @@ function builderHref(sport: ActivitySport, mode: "repeating" | "progressive"): R
  * New programme (ADR 0058): a sport, then how it runs. Repeating is the same week or cycle again
  * and again; progressive changes as it builds; or the coach writes it from a few answers. There
  * are no templates for now. A sport that already has a programme says what a new one replaces.
+ * With the coach, strength asks its whole set of questions, with plans and reports to attach,
+ * running its own, and cycling and swimming the short ones.
  */
 export default async function NewProgrammePage({
   searchParams,
@@ -56,25 +59,28 @@ export default async function NewProgrammePage({
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);
   const asksCoach = search.method === "coach";
-  const data = selected
-    ? await withUser(
-        getDb(),
-        user.id,
-        async (tx) => ({
-          intake: await latestIntake(tx, user.id, selected, "programme"),
-          active: await getActiveProgram(tx, user.id, selected),
-          // A runner's logs answer some of the running questions before they are asked.
-          running:
-            selected === "running" && asksCoach
-              ? {
-                  snapshot: await runningSnapshot(tx, user.id, today),
-                  units: await readSportUnits(tx, user.id),
-                }
-              : null,
-        }),
-        { readOnly: true },
-      )
-    : null;
+  // Strength's questions read what they need themselves.
+  const strengthCoach = selected === "strength" && asksCoach;
+  const data =
+    selected && !strengthCoach
+      ? await withUser(
+          getDb(),
+          user.id,
+          async (tx) => ({
+            intake: await latestIntake(tx, user.id, selected, "programme"),
+            active: await getActiveProgram(tx, user.id, selected),
+            // A runner's logs answer some of the running questions before they are asked.
+            running:
+              selected === "running" && asksCoach
+                ? {
+                    snapshot: await runningSnapshot(tx, user.id, today),
+                    units: await readSportUnits(tx, user.id),
+                  }
+                : null,
+          }),
+          { readOnly: true },
+        )
+      : null;
   const prefill = selected
     ? coachIntakeSchema.parse({
         programmeSport: selected,
@@ -92,7 +98,10 @@ export default async function NewProgrammePage({
             ? `New ${ACTIVITY_SPORT_LABELS[selected].toLowerCase()} programme`
             : "New programme"
         }
-        backHref={selected ? "/plan/new" : "/plan"}
+        // The coach's questions go back to the sport's three ways in, not to the sports.
+        backHref={
+          (selected ? (asksCoach ? `/plan/new?sport=${selected}` : "/plan/new") : "/plan") as Route
+        }
       />
       <PageContent>
         {!selected ? (
@@ -106,6 +115,8 @@ export default async function NewProgrammePage({
               />
             ))}
           </ul>
+        ) : strengthCoach ? (
+          <StrengthCoachIntake />
         ) : asksCoach && data!.running ? (
           <RunningIntakeForm
             initial={data!.intake}

@@ -249,7 +249,7 @@ export function CoachIntakeForm({
     setError(null);
     try {
       if (selected.length + current.current.attachmentIds.length > MAX_REQUEST_FILES)
-        throw new Error("Attach up to five files to this request.");
+        throw new Error("Attach up to five files.");
       for (const file of Array.from(selected)) {
         if (file.size > MAX_COACH_FILE_BYTES) throw new Error(`${file.name} is larger than 5 MB.`);
         // A browser that names no type for an export still gets the right one from its suffix,
@@ -502,8 +502,9 @@ function TrackChooser({
       {(
         [
           {
+            // Setup's words for the same answer (Which sounds like you?).
             track: "guided",
-            title: "I’m new to this",
+            title: "New to this",
             line: "A few questions on one screen",
             action: "Start here",
             variant: "primary",
@@ -818,7 +819,7 @@ function WeekStep({ answers, change }: { answers: CoachIntake; change: Change })
     <>
       <Card>
         <DayPicker
-          legend="Training days"
+          legend="Days you can train"
           selected={answers.preferredDays}
           onChange={(days) =>
             change({
@@ -1024,7 +1025,7 @@ function StartingPointStep({
     <>
       <Card>
         <Field
-          label="If you already lift, what are you lifting?"
+          label="What you lift now"
           info="Rough numbers are fine; your logged sets correct them."
         >
           <SpeechTextarea

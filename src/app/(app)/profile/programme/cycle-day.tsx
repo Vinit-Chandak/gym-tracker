@@ -30,15 +30,18 @@ function cost(plan: ProgramDayPlan, units: SportUnits): string | null {
  * asks for; what the day is for and how long it takes are the fold's first line. A day with
  * nothing to open, a plain rest day, is the same row without the fold, rather than a control that
  * does nothing. `open` is a day whose workout is under way, which is in progress rather than next.
+ * `linked` is false for a draft's days, which are not saved days and have no page to open.
  */
 export function CycleDay({
   plan,
   units,
   open = false,
+  linked = true,
 }: {
   plan: ProgramDayPlan;
   units: SportUnits;
   open?: boolean;
+  linked?: boolean;
 }) {
   const { day } = plan;
   const guidance = Boolean(plan.run && hasRunGuidance(plan.run));
@@ -73,7 +76,7 @@ export function CycleDay({
     <Disclosure summary={day.name} meta={meta} defaultOpen={open} variant="inline">
       <div className="space-y-4">
         {about && <p className="text-sm text-ink-muted">{about}</p>}
-        {day.includesLifting && (
+        {linked && day.includesLifting && (
           <LinkButton href={`/plan/strength/days/${day.id}`} variant="secondary">
             Open workout
           </LinkButton>

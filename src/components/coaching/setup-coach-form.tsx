@@ -58,8 +58,7 @@ function problems(answers: CoachIntake, detailed: boolean): Partial<Record<Key, 
   const found: Partial<Record<Key, string>> = {};
   if (!answers.goal.trim()) found.goal = "Choose a goal.";
   if (answers.preferredDays.length === 0) found.preferredDays = "Choose the days you can train.";
-  if (detailed && !answers.minutesPerSession)
-    found.minutesPerSession = "Choose how long a session.";
+  if (detailed && !answers.minutesPerSession) found.minutesPerSession = "Choose a session length.";
   if (answers.heightCm === null) found.heightCm = "Add your height.";
   else if (answers.heightCm < 50 || answers.heightCm > 260)
     found.heightCm = "Enter a height between 50 and 260 cm.";
@@ -108,6 +107,7 @@ function typed(value: string): number | null {
  * The coach's questions inside setup (boards Your first programme, What should the coach plan?):
  * one screen in the setup frame, its answers read back from what setup and the profile already
  * know, and nothing asked that setup asked already (the place, the experience, the running).
+ * A question New programme's strength intake asks too (`CoachIntakeForm`) is asked in its words.
  *
  * New to this: the goal, the days, height, weight and age, and anything that hurts. Already
  * trains: the session's length too, and three optional answers folded under their names (what
@@ -269,7 +269,7 @@ export function SetupCoachForm({
         data-field-error={shown.goal ? "true" : undefined}
         aria-describedby={shown.goal ? "coach-goal-error" : undefined}
       >
-        <legend className="you-label">Your goal</legend>
+        <legend className="you-label">What are you training for?</legend>
         <div className="choice-chips">
           {GOALS.map((goal) => (
             <label key={goal} className="choice-chip">
@@ -328,7 +328,7 @@ export function SetupCoachForm({
           data-field-error={shown.minutesPerSession ? "true" : undefined}
         >
           <p id="coach-length" className="you-label">
-            How long a session
+            Usual session length
           </p>
           <div className="mt-2">
             <SegmentedControl
@@ -434,9 +434,9 @@ export function SetupCoachForm({
               onChange={(event) => change({ recentTraining: event.target.value })}
             />
           </Folded>
-          <Folded title="Anything to avoid?" sub="Optional">
+          <Folded title="Injuries or movements to avoid" sub="Optional">
             <Textarea
-              aria-label="Anything to avoid?"
+              aria-label="Injuries or movements to avoid"
               rows={4}
               maxLength={3000}
               placeholder="For example, no barbell squats"
@@ -445,13 +445,14 @@ export function SetupCoachForm({
             />
           </Folded>
           <Folded
-            title="Attach a plan"
+            title="Reports and plans"
             sub={attached.length > 0 ? attached.map((file) => file.name).join(", ") : "Optional"}
           >
             <label className="setup-file">
               <Glyph name="link" className="glyph-20 shrink-0" />
+              {/* What it takes, and the most it takes, as the strength intake says it. */}
               <span className="min-w-0 flex-1">
-                Add a file: PDF, image, CSV or text, up to 5 MB
+                Add files: PDF, image, CSV or text · 5 MB each, five files
               </span>
               <input
                 type="file"

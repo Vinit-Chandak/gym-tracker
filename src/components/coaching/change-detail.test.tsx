@@ -110,14 +110,21 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
   ...overrides,
 });
 
-it("returns an endurance programme decision to Plan", async () => {
+it("returns a decision to its own programme's page, never another sport's", async () => {
   vi.mocked(declineProgramChangeAction).mockResolvedValue({
     ok: true,
     value: { id: "11111111-1111-4111-8111-111111111111" },
   });
-  render(<ChangeDetail {...props({ sport: "cycling" })} />);
+  const { unmount } = render(<ChangeDetail {...props({ sport: "cycling" })} />);
   fireEvent.click(screen.getByRole("button", { name: "Decline" }));
-  await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/plan"));
+  await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/plan/cycling"));
+  unmount();
+  // The strength programme lists its changes under its Changes tab.
+  render(<ChangeDetail {...props({ sport: "strength" })} />);
+  fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+  await waitFor(() =>
+    expect(navigation.push).toHaveBeenLastCalledWith("/plan/strength?view=changes"),
+  );
 });
 
 it("is the one line, the difference, and three answers — nothing said twice", () => {

@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { coachProgramRequests, programDrafts, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { changeSummaryLine, summariseProgramDiff } from "@/domain/program-change-summary";
 import { diffPrograms } from "@/domain/program-diff";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -53,12 +54,15 @@ export type HistoryChange = {
  * to the running programme says what its difference comes to, as the Changes tab says it of a
  * proposal still waiting ("Swaps 2 exercises, changes runs on 2 days"). A headline the coach
  * wrote still leads where there is one.
+ *
+ * With a sport, only that programme's: each programme's page links to its own (ADR 0058).
  */
 export async function loadProgrammeHistory(
   db: DbOrTx,
   userId: string,
   timeZone: string,
   now: Date = new Date(),
+  sport?: ActivitySport,
 ) {
   const base = alias(programs, "base_program");
   const started = alias(programs, "started_program");
@@ -70,6 +74,7 @@ export async function loadProgrammeHistory(
         and(
           eq(coachProgramRequests.userId, userId),
           notInArray(coachProgramRequests.state, [...OPEN_REQUEST_STATES]),
+          sport ? eq(coachProgramRequests.sport, sport) : undefined,
         ),
       )
       .orderBy(desc(coachProgramRequests.updatedAt))
@@ -109,6 +114,7 @@ export async function loadProgrammeHistory(
           eq(programDrafts.userId, userId),
           isNotNull(programDrafts.baseProgramId),
           inArray(programDrafts.status, [...HISTORY_DRAFT_STATUSES]),
+          sport ? eq(programDrafts.sport, sport) : undefined,
         ),
       )
       .orderBy(desc(programDrafts.updatedAt))

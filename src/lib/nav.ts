@@ -46,12 +46,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
 
 /**
- * The one page of Plan's still under another tab's path: the coach's questions for a new
- * strength programme, kept where it is until it is replaced. It keeps Plan selected.
- */
-const UNDER_PLAN = ["/profile/programme/create"];
-
-/**
  * Records more than one tab opens: a workout, and a logged run, ride or swim. Each can say in
  * its link which tab it was opened from, and that tab stays selected (NAV-03).
  */
@@ -93,11 +87,9 @@ export function isNavItemActive(
           ? "/today"
           : pathname;
   // Profile's sections keep Profile, whether you are in one or a record was opened from one.
-  const sectionPath = UNDER_PLAN.some((section) => withinSection(openedFrom, section))
-    ? "/plan"
-    : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
-      ? "/profile"
-      : openedFrom;
+  const sectionPath = UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
+    ? "/profile"
+    : openedFrom;
   return withinSection(sectionPath, href);
 }
 
@@ -130,6 +122,8 @@ const PAGE_LABELS: Record<string, string> = {
   "/progress/calendar": "Calendar",
   // My foods is a screen of Food's (ADR 0035): a meal kept in it goes back to it by name.
   "/food/my-foods": "My foods",
+  // What AI coach opens (a request, a draft, a programme's page) goes back to it by name.
+  "/profile/ai-coach": "AI coach",
 };
 
 /** Comparing yourself with someone, one exercise of it included: a page named Compare. */

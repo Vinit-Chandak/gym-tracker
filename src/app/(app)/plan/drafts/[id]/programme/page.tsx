@@ -171,7 +171,8 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
           <ul className="[&>li+li]:-mt-px">
             {days.map((plan) => (
               <li key={plan.day.id}>
-                <CycleDay plan={plan} units={data.runUnits} />
+                {/* A draft's days are not saved days: there is no day's page to open yet. */}
+                <CycleDay plan={plan} units={data.runUnits} linked={false} />
               </li>
             ))}
           </ul>

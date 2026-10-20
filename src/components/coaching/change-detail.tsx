@@ -120,9 +120,18 @@ export function ChangeDetail(props: ChangeDetailProps) {
     else setError(result.error ?? "Could not save this change. Please retry.");
     setSaving(false);
   };
+  // Decided, it goes back to its programme's page, where its changes and the coach's answers are
+  // (ADR 0058): the strength programme's at its Changes.
+  const sport = props.sport ?? "strength";
   const back = () =>
     startNavigation(() =>
-      router.push(props.base === "/plan" ? "/plan" : (`${props.base}?view=changes` as Route)),
+      router.push(
+        (props.base !== "/plan"
+          ? `${props.base}?view=changes`
+          : sport === "strength"
+            ? "/plan/strength?view=changes"
+            : `/plan/${sport}`) as Route,
+      ),
     );
 
   return (

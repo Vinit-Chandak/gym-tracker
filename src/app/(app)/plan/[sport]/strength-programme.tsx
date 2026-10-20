@@ -56,7 +56,10 @@ export async function StrengthProgramme({
       async (tx) => {
         const [overview, changes, runUnits] = await Promise.all([
           getProgramOverview(tx, user.id, profile.timeZone),
-          loadProgrammeChanges(tx, user.id, profile.timeZone),
+          loadProgrammeChanges(tx, user.id, profile.timeZone, {
+            sport: "strength",
+            coachOn: profile.aiCoachEnabled,
+          }),
           readSportUnits(tx, user.id),
         ]);
         return { overview, changes, runUnits };

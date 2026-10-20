@@ -31,8 +31,6 @@ it.each([
   ["/plan/drafts/abc/programme", "/plan"],
   ["/plan/requests/abc", "/plan"],
   ["/plan/history", "/plan"],
-  // The coach's questions for a new strength programme, still under Profile's path, are Plan's.
-  ["/profile/programme/create", "/plan"],
   ["/u/phani03", "/profile"],
   // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
@@ -56,6 +54,9 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/gyms/abc/equipment/new")).toBe("Gyms");
   expect(sectionLabel("/workouts/abc")).toBe("Workout");
   expect(sectionLabel("/profile")).toBe("Profile");
+  // What AI coach opens goes back to it by name.
+  expect(sectionLabel("/profile/ai-coach")).toBe("AI coach");
+  expect(sectionLabel("/profile/ai-coach?tab=notes")).toBe("AI coach");
   // A person's page has no section name: "People" is another page, the list you follow them from.
   // What links to their page names them; Comparing with them is a page with a name of its own.
   expect(sectionLabel("/u/phani03")).toBeUndefined();

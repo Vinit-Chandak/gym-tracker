@@ -53,6 +53,11 @@ it("redirects every moved path to where it went", async () => {
     },
     { source: "/profile/programme/jobs/:id", destination: "/plan/requests/:id", permanent: true },
     { source: "/profile/programme/history", destination: "/plan/history", permanent: true },
+    {
+      source: "/profile/programme/create",
+      destination: "/plan/new?sport=strength&method=coach",
+      permanent: true,
+    },
     { source: "/training/new", destination: "/today/log/new", permanent: true },
     {
       source: "/training/activities/:activityId",
@@ -90,6 +95,7 @@ it.each([
   [`/profile/programme/drafts/${ID}/programme`, `/plan/drafts/${ID}/programme`, 308],
   [`/profile/programme/jobs/${ID}`, `/plan/requests/${ID}`, 308],
   ["/profile/programme/history", "/plan/history", 308],
+  ["/profile/programme/create", "/plan/new?sport=strength&method=coach", 308],
   ["/training/new?sport=running", "/today/log/new?sport=running", 308],
   [
     `/training/new?occurrence=${ID}&date=2026-10-17&from=plan`,
