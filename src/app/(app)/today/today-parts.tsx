@@ -1,145 +1,12 @@
-import type { Route } from "next";
 import type { ReactNode } from "react";
 
-import { Art } from "@/components/art/art";
-import type { PrintPart } from "@/components/art/geometry";
-import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
 import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { holdFigures } from "@/lib/facts";
-import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import type { CycleCell, PlanRowModel } from "./today-model";
+import type { PlanRowModel } from "./today-model";
 import { groupRows } from "./today-model";
-
-/**
- * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
- * the days done in ink, today ringed, a skipped day dashed, the rest a hairline. They stay
- * wordless while the programme is on track. Behind is news, so it is said beside them in the
- * training sessions the calendar has passed unanswered ("3 sessions behind"; rest days that
- * simply passed are never counted); their name says it too.
- */
-/** A length that grows by half of the reader's text size: half fixed, half in rem. */
-const grown = (px: number) => `calc(${px / 2}px + ${px / 32}rem)`;
-
-export function CycleMark({
-  cells,
-  label,
-  behind = 0,
-  href = "/profile/programme",
-}: {
-  cells: readonly CycleCell[];
-  label: string;
-  /** Training sessions the programme is behind, said beside the squares when there are any. */
-  behind?: number;
-  href?: Route;
-}) {
-  const sq = 9;
-  const gap = 4;
-  const width = cells.length * sq + (cells.length - 1) * gap;
-  return (
-    // Never wider than the line: at 200% text the words fold, and the squares stand under them,
-    // rather than pushing the page sideways.
-    <Link
-      href={href}
-      aria-label={label}
-      className="ml-auto flex min-h-[var(--ov-target-header)] max-w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
-    >
-      {behind > 0 && (
-        <span className="min-w-0 text-right type-meta-small text-ink-2">
-          <span className="figures">{behind}</span> {behind === 1 ? "session" : "sessions"} behind
-        </span>
-      )}
-      <svg
-        aria-hidden
-        width={width}
-        height={sq + 2}
-        viewBox={`0 0 ${width} ${sq + 2}`}
-        // They grow with the reader's text by half, as glyphs and figures do: 9-pt squares at
-        // 100%, 13.5 at 200%, so the cycle is still read at arm's length. A cycle too long for
-        // the line (a programme may run to 31 days) is drawn smaller to fit it, every square
-        // still there, rather than pushing its first days off the screen.
-        style={{
-          width: grown(width),
-          maxWidth: "100%",
-          height: "auto",
-          aspectRatio: `${width} / ${sq + 2}`,
-        }}
-        className="block min-w-0 text-ink"
-      >
-        {cells.map((cell, index) => {
-          const x = index * (sq + gap);
-          switch (cell) {
-            case "done":
-              return <rect key={index} x={x} y={1} width={sq} height={sq} fill="currentColor" />;
-            case "today":
-              return (
-                <rect
-                  key={index}
-                  x={x + 1}
-                  y={2}
-                  width={sq - 2}
-                  height={sq - 2}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                />
-              );
-            case "skipped":
-              return (
-                <rect
-                  key={index}
-                  x={x + 0.75}
-                  y={1.75}
-                  width={sq - 1.5}
-                  height={sq - 1.5}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.2}
-                  strokeDasharray="2 1.4"
-                />
-              );
-            default:
-              return (
-                <rect
-                  key={index}
-                  x={x + 0.5}
-                  y={1.5}
-                  width={sq - 1}
-                  height={sq - 1}
-                  fill="none"
-                  stroke="var(--ov-control)"
-                  strokeWidth={1}
-                />
-              );
-          }
-        })}
-      </svg>
-    </Link>
-  );
-}
-
-/**
- * The day's print on its paper: a band over the day's cards (DESIGN.md, Today), the whole day
- * at a glance, as tall as its screen gives a band.
- */
-export function TodayPrint({
-  parts,
-  label,
-  className,
-}: {
-  parts: readonly PrintPart[];
-  label: string;
-  className?: string;
-}) {
-  if (parts.length === 0) return null;
-  return (
-    <figure className={cn("today-print m-0", className)}>
-      <Art kind="print" parts={parts} label={label} className="size-full" />
-    </figure>
-  );
-}
 
 /**
  * A meta line: facts, each led by its glyph, in ink 2 (DESIGN.md, Rows and marks). A block
@@ -163,35 +30,6 @@ export function Fact({
       {glyph && <Glyph name={glyph} label={label} className="glyph-16" />}
       {children}
     </span>
-  );
-}
-
-/**
- * A programme with nothing left but rest (ADR 0051), said the same wherever it is shown: Today,
- * Choose a day and Training (its own card says Complete). Finished on the day its last day was
- * answered, which the waiting sequence makes later than the end it was written with whenever a
- * week went missing; named without its year inside `today`'s.
- */
-export function ProgrammeComplete({
-  days,
-  finishedOn,
-  today,
-  className,
-}: {
-  /** Every day the programme had, rest days among them. */
-  days: number;
-  finishedOn: string | null;
-  today: string;
-  className?: string;
-}) {
-  return (
-    <MetaLine className={className}>
-      <Fact glyph="flag">Programme complete</Fact>
-      {finishedOn && (
-        <Fact glyph="calendar">Finished {formatIsoDate(finishedOn, today.slice(0, 4))}</Fact>
-      )}
-      <Fact>{days} programme days</Fact>
-    </MetaLine>
   );
 }
 

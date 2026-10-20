@@ -1,6 +1,8 @@
 # The revamp toolkit: skills and where they live
 
 Prepared 30 September 2026, before any design work. Nothing in the application changed.
+[Updated 20 October 2026](#updated-20-october-2026): Impeccable upgraded to 4.7.0, and three
+skills added for the app's structure and for tasks that cross screens.
 
 The ground-up revamp is designed and built with Claude. This page lists every skill added for
 it, why each earned its place, what was turned down, and the settings that came with them. How
@@ -35,9 +37,19 @@ when typed, such as `/prototype`.
 
 | Skill                   | Use it for                                                                                                                                                                                                                                                                                                                                                                                                  | Runs                                      | Source                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| `impeccable`            | The design lead. `/impeccable init`, `shape`, `critique`, `audit`, `polish`, `bolder`, `quieter`, `distill`, `harden`, `onboard`, `animate`, `colorize`, `typeset`, `layout`, `adapt`, `clarify`, `extract`, `document` and more. Keeps durable product truth in `PRODUCT.md` and the visual system in `DESIGN.md`. Four subagents in `.claude/agents/` do its finish review, documentation and asset work. | Auto, or `/impeccable <command> <target>` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) 4.4.0, Apache-2.0          |
+| `impeccable`            | The design lead. `/impeccable init`, `shape`, `critique`, `audit`, `polish`, `bolder`, `quieter`, `distill`, `harden`, `onboard`, `animate`, `colorize`, `typeset`, `layout`, `adapt`, `clarify`, `extract`, `document` and more. Keeps durable product truth in `PRODUCT.md` and the visual system in `DESIGN.md`. Four subagents in `.claude/agents/` do its finish review, documentation and asset work. | Auto, or `/impeccable <command> <target>` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) 4.7.0, Apache-2.0          |
 | `web-design-guidelines` | A terse `file:line` review against Vercel's Web Interface Guidelines: accessibility, focus, forms, animation, touch, safe areas, dark mode, copy.                                                                                                                                                                                                                                                           | Auto                                      | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills), MIT           |
 | `accessibility`         | An evidence-led WCAG 2.2 pass: audit with Lighthouse or axe, find the failing component, fix it, audit again, and check by keyboard and screen reader.                                                                                                                                                                                                                                                      | Auto                                      | [addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-skills), MIT |
+
+### Structure and flows
+
+Added 20 October 2026; see [why](#three-skills-for-structure-and-flows).
+
+| Skill                               | Use it for                                                                                                                                                                                                                                                    | Runs   | Source                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| `ux-information-architecture-audit` | A severity-rated audit of the app's structure: which screens exist, where each fact lives, whether labels agree across screens, and whether someone dropped on any screen can find their way. Checks each change against the information map in `PRODUCT.md`. | Auto   | [Uxcel-Lab/product-skills](https://github.com/Uxcel-Lab/product-skills), MIT     |
+| `ux-navigation`                     | Choosing and reviewing the navigation model from the shape of the content: tab bar, stacks, tabs, "where am I?" signals, touch targets. Its website conventions do not apply here.                                                                            | Auto   | Uxcel-Lab/product-skills, MIT                                                    |
+| `cognitive-walkthrough`             | Walking one task, action by action, as a first-time user: would they know what to do, see the control, connect it to their goal, and see that it worked?                                                                                                      | Manual | [mastepanoski/claude-skills](https://github.com/mastepanoski/claude-skills), MIT |
 
 ### Motion
 
@@ -114,12 +126,15 @@ Figma, and Expo's official skills, if the app is ever rebuilt natively.
   every skill's description, capped by default at 1% of the context window. Over the cap, the
   least-used skills lose their descriptions first, and new skills are the least used. Doubling
   the cap keeps the design skills discoverable; the listing costs only what it contains.
-- **`IMPECCABLE_NO_TELEMETRY=1`** in the same file's `env`. Impeccable's engine otherwise sends
-  one anonymous ping when a design-direction round resolves.
+- **`IMPECCABLE_NO_TELEMETRY=1`** in the same file's `env`. Impeccable's engine otherwise reports
+  each design-direction choice. Engine 0.1.16 still honours the variable, as it does
+  `DO_NOT_TRACK` and `impeccable telemetry off`: it sends no choice report, and still fetches
+  the direction roll from impeccable.style, marked for the server to record nothing.
 - **Impeccable's engine** is a small binary its launcher downloads once, from the project's
   GitHub releases with a checksum check, into `~/.impeccable/`. It was tested in a cloud
-  session on 30 September 2026 and ran (engine 0.1.8). The skill still works, with less
-  automation, if the download is refused.
+  session on 30 September 2026 and ran (engine 0.1.8). Impeccable 4.7.0 pins engine 0.1.16,
+  which has not been run here yet. The skill still works, with less automation, if the
+  download is refused.
 - **Impeccable's design-detector hooks are not installed.** They re-scan UI files after every
   edit and at the end of every turn. That suits a design session but not the rest of the work
   in this repository, including the coach routine. Turn them on for a session with
@@ -133,6 +148,71 @@ Figma, and Expo's official skills, if the app is ever rebuilt natively.
   sentence case. `modern-web-guidance` searches its pinned guides locally instead of running
   the newest npm package on every call, and no longer tells Claude to run it first for every
   HTML, CSS and JavaScript task.
+
+## Updated 20 October 2026
+
+Impeccable was upgraded and three skills were added. Nothing in the application changed.
+
+### Impeccable 4.7.0
+
+Copied again, with its four subagents, from tag `skill-v4.7.0` (commit `aeeb3d8`, 19 October
+2026). The launcher now pins engine 0.1.16. The copy is still unchanged from upstream, and the
+hooks are still not installed. What changed since 4.4.0:
+
+- **4.5, app screens.** App screens keep the controls people already know; a direction lends
+  only type, palette, density and one signature move, and the alternatives vary how the
+  screen is organised, starting with the navigation model, rather than adding decoration. The
+  rules are in `reference/mode-operate.md`, beside new ones for documents and landing pages.
+- **4.5.2, built in code.** App screens and documents skip the generated image comp. Each
+  direction card shows a quick HTML sketch of the first screen instead, drawn at the device's
+  screen size for phone and native surfaces.
+- **4.6, telemetry with a real off switch.** `impeccable telemetry off`, `DO_NOT_TRACK` or
+  `IMPECCABLE_NO_TELEMETRY` stops every choice report. Engine 0.1.16's source still reads
+  `IMPECCABLE_NO_TELEMETRY`, so [the setting](#settings-that-came-with-them) still applies.
+  Critique also works on native projects: it runs the design review alone instead of
+  reporting an empty web scan as clean.
+- **4.7, a lighter skill.** The description that loads into every session is about 30%
+  shorter; upstream's wording is kept. Two typography checks catch a paragraph that ends on
+  one word and a heading whose last line is a stub, the detector raises fewer false alarms,
+  and polish is no longer cut off after two rounds outside a full build.
+
+Impeccable's engine offers `npx impeccable update` when a newer version is out. Decline it
+here: it rewrites the committed copy in place. Update by copying, as [below](#updating-a-skill).
+
+### Three skills for structure and flows
+
+Impeccable reviews one surface at a time. Nothing installed looked at the whole app's
+structure or at labels across screens, or walked a task from one screen to the next. The
+[structure and flows](#structure-and-flows) skills fill that gap: the information architecture
+audit for the structure and its labels, `ux-navigation` for how people move between screens,
+and the cognitive walkthrough for one task followed across them. The walkthrough is manual: it
+is a deliberate exercise with a named task and user, not a reflex.
+
+They come from [Uxcel-Lab/product-skills](https://github.com/Uxcel-Lab/product-skills) at
+commit `5007cd0` (the head of `main`; both skills are unchanged since v1.0.0) and
+[mastepanoski/claude-skills](https://github.com/mastepanoski/claude-skills) at v1.9.2 (commit
+`b6457af`), both MIT. Each folder carries its upstream licence as `LICENSE`.
+
+The copies are adapted, and say so in `UPSTREAM.md`. The Uxcel skills hand off to the installed
+equivalents (`/impeccable critique`, `/impeccable clarify`, `accessibility`, `mobile-native`)
+instead of sibling Uxcel skills and an orchestrator that are not installed, and offer those
+checks rather than running them unasked. `cognitive-walkthrough` is made manual. Prettier and
+ESLint already skip all three: `.prettierignore` covers every folder in `.claude/skills/` except
+`coach` and `overload-ui`, and ESLint ignores `.claude/skills/` entirely.
+
+### Considered and not installed today
+
+| Candidate                                                           | Why not                                                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Uxcel's `ux-design-review`                                          | An orchestrator over Uxcel's audits; it competes with `/impeccable critique`         |
+| EliaAlberti ux-audit                                                | Little used, and writes report folders into the repository; a second opinion at most |
+| wondelai ux-heuristics                                              | Duplicates critique's Nielsen pass, and carries affiliate links                      |
+| julianoczkowski/designer-skills, phazurlabs/sumi, bitjaru/styleseed | Each keeps a second design memory beside Impeccable's                                |
+| szilu/ux-designer-skill                                             | Competes with Impeccable on every UI request                                         |
+| keysjoao/laws-of-ux                                                 | Scores designs mechanically against the laws of UX                                   |
+| tommyjepsen/awesome-ux-skills                                       | No licence                                                                           |
+| GOV.UK-style writing skills                                         | No licence that allows a committed copy                                              |
+| emilkowalski `break-ui`                                             | Overlaps `/impeccable harden`; a candidate later                                     |
 
 ## Updating a skill
 

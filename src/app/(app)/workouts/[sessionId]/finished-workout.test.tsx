@@ -144,21 +144,21 @@ function show(over: Partial<SessionVM> = {}) {
 const stat = (label: string) =>
   screen.getByText(label, { selector: "dt" }).nextElementSibling?.textContent;
 
-it("keeps a retrospective summary's date visible and returns to Training", () => {
+it("keeps a retrospective summary's date visible and returns to Today", () => {
   render(
     <FinishedWorkout
       session={session({ loggedRetrospectively: true })}
       title="Past workout"
       justFinished
-      backHref="/training"
+      backHref="/today"
       records={null}
       routine={null}
       onOpenExercise={() => {}}
       onOpenDetails={() => {}}
     />,
   );
-  expect(screen.getByRole("link", { name: "Close" }).getAttribute("href")).toBe("/training");
-  expect(screen.getByRole("link", { name: "Done" }).getAttribute("href")).toBe("/training");
+  expect(screen.getByRole("link", { name: "Close" }).getAttribute("href")).toBe("/today");
+  expect(screen.getByRole("link", { name: "Done" }).getAttribute("href")).toBe("/today");
   expect(screen.getByText("Tue 8 Sept")).toBeTruthy();
 });
 

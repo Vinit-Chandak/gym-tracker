@@ -186,7 +186,7 @@ it("says a skipped run is skipped, whichever way it was skipped", async () => {
   });
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain(">Skipped<");
-  expect(html).not.toContain(">Not done<");
+  expect(html).not.toContain(">Missed<");
 });
 
 it("does not call an independently scheduled session part of the athlete's programme", async () => {
@@ -274,8 +274,8 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
   expect(html).toContain("<h1>Easy run</h1>");
   expect(html).toMatch(/<h2[^>]*>Zone 2<\/h2>/);
   expect(html.split(DISTANCE)).toHaveLength(2);
-  // Not done, as it was when the block ended: it is not offered as still to do.
-  expect(html).toContain(">Not done<");
+  // Missed, as it was when the block ended: it is not offered as still to do.
+  expect(html).toContain(">Missed<");
   expect(html).not.toContain("still to do");
   // How the programme ended, which is not said to be a replacement: the one before may have
   // finished weeks before the next began.

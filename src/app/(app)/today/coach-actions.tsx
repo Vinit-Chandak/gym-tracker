@@ -79,13 +79,14 @@ export function CoachPending({
   }, [router, startedAt, workflow]);
   return (
     <CoachNote tone="planning" role="status" small flat={flat}>
-      Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
+      Coach is preparing this session for {gymName}, since {startedAtLabel}. This screen updates
+      itself.
     </CoachNote>
   );
 }
 
 /**
- * The line in place of "Coach is planning" when nothing is: the session's preparation is
+ * The line in place of "Coach is preparing" when nothing is: the session's preparation is
  * queued, but it failed, or the run meant to reach it never did, and the next nightly run is
  * the next to try. Saying it was planning, since four in the morning, told the athlete to
  * wait for something that was not coming; this says what stands and starts it on a tap.
@@ -127,7 +128,7 @@ export function CoachWaiting({
             disabled={busy}
             onClick={start}
           >
-            {busy ? "Starting…" : "Ask the coach to plan it now"}
+            {busy ? "Starting…" : "Ask the coach to prepare it now"}
           </Button>
           {error && (
             <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
@@ -139,10 +140,10 @@ export function CoachWaiting({
       }
     >
       {attempted
-        ? "The coach could not finish planning this session."
-        : "The coach has not planned this session yet."}{" "}
+        ? "The coach could not finish preparing this session."
+        : "The coach has not prepared this session yet."}{" "}
       {hasPlan
-        ? "Its earlier plan stands until it does."
+        ? "What it prepared earlier stands until it does."
         : "Your programme's own targets apply until it does."}{" "}
       It tries again at its next nightly run.
     </CoachNote>

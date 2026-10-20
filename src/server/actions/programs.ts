@@ -73,8 +73,8 @@ export async function adoptProgramTemplateAction(
   }
   if (finishedOnboarding) await profileChanged(user.id);
   revalidatePath("/profile");
-  revalidatePath("/training");
+  revalidatePath("/plan", "layout");
   revalidatePath("/today");
   if (parsed.data.finishOnboarding) redirect("/today");
-  redirect("/training");
+  redirect("/plan");
 }

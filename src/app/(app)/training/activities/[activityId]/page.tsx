@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
+import Link from "@/components/ui/app-link";
 import { BackLink } from "@/components/shell/back-link";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
@@ -215,6 +216,21 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           ) : (
             <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
           ))}
+        {/* What it counts as can change (ADR 0058), unless its session's programme has ended,
+            which keeps its answer (ADR 0054). */}
+        {sport && !answered?.closed && (
+          <p className="mt-2 type-meta text-ink-2">
+            {activity.origin.kind === "planned" ? null : "Unplanned. "}
+            <Link
+              href={`/training/activities/${activity.id}/counts-as` as Route}
+              className="tap-area font-bold underline underline-offset-4"
+            >
+              {activity.origin.kind === "planned"
+                ? "Change what it counts as"
+                : "Count it as a planned session"}
+            </Link>
+          </p>
+        )}
         {actual?.sport === "swimming" && actual.activeMs === null && (
           <p className="mt-3 type-meta text-ink-2">
             Elapsed time only, so there is no swimming pace for this one.

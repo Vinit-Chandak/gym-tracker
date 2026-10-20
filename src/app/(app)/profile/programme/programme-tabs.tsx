@@ -37,15 +37,13 @@ export function ProgrammeTabs({
         startNavigation(() => {
           setChosen(next);
           router.replace(
-            next === "changes"
-              ? "/training/programmes/strength?view=changes"
-              : "/training/programmes/strength?view=cycle",
+            next === "changes" ? "/plan/strength?view=changes" : "/plan/strength?view=cycle",
             { scroll: false },
           );
         });
       }}
       options={[
-        { value: "cycle", label: "Plan" },
+        { value: "cycle", label: "Days" },
         { value: "changes", label: waiting > 0 ? `Changes (${waiting})` : "Changes" },
       ]}
     />

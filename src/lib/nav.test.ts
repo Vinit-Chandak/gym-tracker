@@ -25,7 +25,8 @@ it.each([
   ["/gyms/gym/equipment/new", "/profile"],
   ["/exercises", "/profile"],
   ["/exercises/bench", "/profile"],
-  ["/profile/programme", "/training"],
+  // The strength programme's builder, drafts and history are Plan's (ADR 0058).
+  ["/profile/programme/manual", "/plan"],
   ["/u/phani03", "/profile"],
   // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
@@ -42,7 +43,7 @@ it.each([
 });
 
 it("does not match unrelated path prefixes", () => {
-  expect(isNavItemActive("/training-other", "/training")).toBe(false);
+  expect(isNavItemActive("/plan-other", "/plan")).toBe(false);
 });
 
 it("names the section a detail screen was opened from", () => {
@@ -71,24 +72,29 @@ it("has no section name for a path outside the primary sections", () => {
   expect(sectionLabel("/nowhere")).toBeUndefined();
 });
 
-it("puts Training where Runs was, and Food where History was", () => {
+it("puts Plan where Training and Runs were, and Food where History was", () => {
   expect(NAV_ITEMS.map((item) => item.href)).toEqual([
     "/today",
-    "/training",
+    "/plan",
     "/food",
     "/progress",
     "/profile",
   ]);
   // Still five tabs, and no separate Runs product among them (AT-NAV-01).
   expect(NAV_ITEMS.map((item) => item.label)).not.toContain("Runs");
+  expect(NAV_ITEMS[1]?.label).toBe("Plan");
   // History is reached from Progress now (ADR 0034).
   expect(NAV_ITEMS.map((item) => item.label)).not.toContain("History");
 });
 
 it.each([
-  ["/training", "/training"],
-  ["/training/new", "/training"],
-  ["/training/programme", "/training"],
+  ["/plan", "/plan"],
+  ["/plan/running", "/plan"],
+  ["/plan/new", "/plan"],
+  // A scheduled session's page and a programme day are Plan's; logging a run is Today's.
+  ["/training/programme/occurrences/abc", "/plan"],
+  ["/training/days/abc", "/plan"],
+  ["/training/new", "/today"],
   // The session's own pages are Today's, where a workout is started and finished.
   ["/workouts/abc/check-in", "/today"],
   ["/workouts/abc/add-exercise", "/today"],
@@ -101,13 +107,15 @@ it.each([
 it("accepts only the origins it knows, and never an arbitrary destination", () => {
   expect(parseOrigin("today")).toBe("today");
   expect(parseOrigin("programme")).toBe("programme");
+  // A link written while Plan was Training still means Plan.
+  expect(parseOrigin("training")).toBe("plan");
   expect(parseOrigin("https://example.test/steal")).toBeNull();
   expect(parseOrigin(["today", "history"])).toBeNull();
   expect(parseOrigin(undefined)).toBeNull();
   // A completed record with no stated origin belongs to History (NAV-03), inside Progress.
   expect(originPath(null)).toBe("/progress/history");
-  expect(originPath(null, "training")).toBe("/training");
-  expect(originPath("programme")).toBe("/training/programme");
+  expect(originPath(null, "plan")).toBe("/plan");
+  expect(originPath("programme")).toBe("/plan");
 });
 
 it("sends a finished workout back to History unless its link names where it was opened", () => {
@@ -142,9 +150,9 @@ it.each<[string, NavOrigin, string]>([
   // exercise.
   ["/workouts/abc", "history", "/progress"],
   ["/training/activities/abc", "history", "/progress"],
-  // Correcting a run opened from History does not move you to Training.
+  // Correcting a run opened from History does not move you to Plan.
   ["/training/activities/abc/edit", "history", "/progress"],
-  ["/training/activities/abc", "programme", "/training"],
+  ["/training/activities/abc", "programme", "/plan"],
   // Opened from Today's card, a finished workout or a logged run keeps Today selected.
   ["/workouts/abc", "today", "/today"],
   ["/training/activities/abc", "today", "/today"],
@@ -162,7 +170,7 @@ it.each([
   ["/today", "/today"],
   ["/progress", "/progress"],
   ["/food", "/food"],
-  ["/profile/programme", "/training"],
+  ["/profile/programme/manual", "/plan"],
   ["/exercises/bench", "/profile"],
 ])("lets only a record take an origin, never %s", (pathname, expected) => {
   expect(

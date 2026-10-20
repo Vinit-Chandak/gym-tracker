@@ -27,20 +27,23 @@ When a third-party skill contradicts 1–3, follow 1–3 and say so in one line.
 
 ## One owner per job
 
-| Job                                                              | Owner                           | Supporting                                   |
-| ---------------------------------------------------------------- | ------------------------------- | -------------------------------------------- |
-| Direction, critique, audit, polish, the design memory            | `impeccable`                    |                                              |
-| Where motion belongs in a design                                 | `impeccable`                    | `find-animation-opportunities`               |
-| How an animation is built: curve, duration, spring, interruption | `animate`, `apple-design`       | `emil-design-eng`                            |
-| Planning motion across the app                                   | `improve-animations`            | `find-animation-opportunities`               |
-| Reviewing motion                                                 | `/review-animations`            | `fixing-motion-performance`                  |
-| Route, shared-element and loading transitions                    | `vercel-react-view-transitions` | `modern-web-guidance`                        |
-| Feeling installed on a phone                                     | `mobile-native`, `apple-design` | [the PWA checklist](reference/pwa.md)        |
-| Platform patterns and browser support                            | `modern-web-guidance`           |                                              |
-| Rule-based UI review                                             | `web-design-guidelines`         | `accessibility`                              |
-| Accessibility                                                    | `accessibility`                 | `web-design-guidelines`, `/impeccable audit` |
-| Several versions to choose between                               | `/prototype`                    |                                              |
-| Choosing a library                                               | `/pick-ui-library`              |                                              |
+| Job                                                                                         | Owner                               | Supporting                                    |
+| ------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------- |
+| Direction, critique, audit, polish, the design memory                                       | `impeccable`                        |                                               |
+| Information architecture: which screens exist, where each fact lives, labels across screens | `ux-information-architecture-audit` | `/impeccable critique`, `/impeccable distill` |
+| Navigation model and tab bar                                                                | `ux-navigation`                     | `mobile-native`                               |
+| Walking a task across screens                                                               | `/cognitive-walkthrough`            |                                               |
+| Where motion belongs in a design                                                            | `impeccable`                        | `find-animation-opportunities`                |
+| How an animation is built: curve, duration, spring, interruption                            | `animate`, `apple-design`           | `emil-design-eng`                             |
+| Planning motion across the app                                                              | `improve-animations`                | `find-animation-opportunities`                |
+| Reviewing motion                                                                            | `/review-animations`                | `fixing-motion-performance`                   |
+| Route, shared-element and loading transitions                                               | `vercel-react-view-transitions`     | `modern-web-guidance`                         |
+| Feeling installed on a phone                                                                | `mobile-native`, `apple-design`     | [the PWA checklist](reference/pwa.md)         |
+| Platform patterns and browser support                                                       | `modern-web-guidance`               |                                               |
+| Rule-based UI review                                                                        | `web-design-guidelines`             | `accessibility`                               |
+| Accessibility                                                                               | `accessibility`                     | `web-design-guidelines`, `/impeccable audit`  |
+| Several versions to choose between                                                          | `/prototype`                        |                                               |
+| Choosing a library                                                                          | `/pick-ui-library`                  |                                               |
 
 - The design memory is Impeccable's `PRODUCT.md` and `DESIGN.md`. Do not start another one
   (`.interface-design/`, `MASTER.md`, `.ux-profile.md` and the like).
@@ -50,14 +53,16 @@ When a third-party skill contradicts 1–3, follow 1–3 and say so in one line.
 
 ## Where the skills disagree
 
-| Topic               | The disagreement                                                                                                                                             | The rule here                                                                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reduced motion      | `vercel-react-view-transitions` sets durations to zero; `animate`, `apple-design` and Next.js's own guide prefer short crossfades                            | `DESIGN.md` decides. Until it does, shipped code keeps Overload's current rule: reduced motion zeroes the motion tokens (`docs/ui-redesign/03-themes-and-performance.md`)       |
-| How much to animate | `vercel-react-view-transitions` says to implement every applicable pattern                                                                                   | Animate only what explains navigation or a change of state, and only what the task asks for                                                                                     |
-| Overscroll          | `mobile-native` puts `overscroll-behavior: none` on `html` and `body`, which also removes iPhone rubber-banding; `contain` on the scrolling element keeps it | Keep what `src/app/globals.css` does today; change it only as a decision recorded in the brief                                                                                  |
-| Motion library      | `animate` escalates from CSS to the Web Animations API to Motion; the view-transitions skill needs no library                                                | CSS transitions and React `<ViewTransition>` first. A spring or gesture library is allowed for the revamp, adopted once, app-wide, with its bundle cost recorded in `DESIGN.md` |
-| Typefaces           | Impeccable treats system fonts as an overused default; `apple-design` builds on the system face                                                              | Typography is redesigned from the ground up. Choose faces licensed for the web and for embedding in the iOS and Android apps; do not keep Form's system face by default         |
-| Copy                | `web-design-guidelines` asks for Title Case                                                                                                                  | Sentence case, in British English                                                                                                                                               |
+| Topic                    | The disagreement                                                                                                                                             | The rule here                                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reduced motion           | `vercel-react-view-transitions` sets durations to zero; `animate`, `apple-design` and Next.js's own guide prefer short crossfades                            | `DESIGN.md` decides. Until it does, shipped code keeps Overload's current rule: reduced motion zeroes the motion tokens (`docs/ui-redesign/03-themes-and-performance.md`)                      |
+| How much to animate      | `vercel-react-view-transitions` says to implement every applicable pattern                                                                                   | Animate only what explains navigation or a change of state, and only what the task asks for                                                                                                    |
+| Overscroll               | `mobile-native` puts `overscroll-behavior: none` on `html` and `body`, which also removes iPhone rubber-banding; `contain` on the scrolling element keeps it | Keep what `src/app/globals.css` does today; change it only as a decision recorded in the brief                                                                                                 |
+| Motion library           | `animate` escalates from CSS to the Web Animations API to Motion; the view-transitions skill needs no library                                                | CSS transitions and React `<ViewTransition>` first. A spring or gesture library is allowed for the revamp, adopted once, app-wide, with its bundle cost recorded in `DESIGN.md`                |
+| Typefaces                | Impeccable treats system fonts as an overused default; `apple-design` builds on the system face                                                              | Typography is redesigned from the ground up. Choose faces licensed for the web and for embedding in the iOS and Android apps; do not keep Form's system face by default                        |
+| Copy                     | `web-design-guidelines` asks for Title Case, and the Uxcel skills' examples use it                                                                           | Sentence case, in British English                                                                                                                                                              |
+| Website navigation       | `ux-navigation` teaches website conventions: a logo top-left linking home, breadcrumbs, footers, mega menus                                                  | They do not apply to this phone app's tab bar and stack navigation                                                                                                                             |
+| Information architecture | `ux-information-architecture-audit` accepts an item listed in more than one place                                                                            | `PRODUCT.md`'s information map gives one line per fact, naming the screen it lives on; other screens may link to that fact but never restate it. The audit checks every change against the map |
 
 ## Limits in force
 

@@ -159,7 +159,7 @@ it("backdates planned lifting to its actual training date and leaves independent
   const data = new FormData();
   data.set("finishedAt", "2026-09-10T09:15");
   await expect(finishSessionAction(planned.sessionId, INITIAL_FORM_STATE, data)).rejects.toThrow(
-    `redirect:/workouts/${planned.sessionId}?from=training&finished=1`,
+    `redirect:/workouts/${planned.sessionId}?from=today&finished=1`,
   );
   expect(await completedAt(planned.sessionId)).toEqual(new Date("2026-09-10T09:15:00Z"));
   const events = await t.db

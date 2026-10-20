@@ -43,9 +43,8 @@ function describe(error: unknown): string {
 
 function revalidateSchedule(occurrenceId: string): void {
   revalidatePath("/today");
-  revalidatePath("/training");
-  revalidatePath("/training/scheduled");
-  revalidatePath("/training/programme");
+  // Plan's week and each programme's weeks show where a session stands (ADR 0058).
+  revalidatePath("/plan", "layout");
   revalidatePath(`/training/programme/occurrences/${occurrenceId}`);
 }
 
@@ -86,7 +85,7 @@ export async function removeOccurrenceAction(occurrenceId: string): Promise<Occu
     return { ok: false, error: describe(error) };
   }
   revalidateSchedule(occurrenceId);
-  redirect("/training/scheduled");
+  redirect("/plan");
 }
 
 /** Said where a date that has gone by is refused. */
@@ -220,5 +219,5 @@ export async function scheduleActivityAction(
   if (occurrenceId === null)
     return { fieldErrors: { scheduledOn: SCHEDULE_IN_PAST }, values: formValues(formData) };
   revalidateSchedule(occurrenceId);
-  redirect("/training/scheduled");
+  redirect("/plan");
 }

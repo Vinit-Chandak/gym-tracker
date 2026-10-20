@@ -96,9 +96,8 @@ export async function saveTemplateAction(
       values: formValues(formData),
     };
   }
-  revalidatePath("/training/templates");
-  revalidatePath("/training");
-  redirect("/training/templates");
+  revalidatePath("/plan");
+  redirect("/plan");
 }
 
 export type ArchiveResult = { ok: true } | { ok: false; error: string };
@@ -117,6 +116,6 @@ export async function archiveTemplateAction(templateId: string): Promise<Archive
           : "Something went wrong. Please try again.",
     };
   }
-  revalidatePath("/training/templates");
+  revalidatePath("/plan");
   return { ok: true };
 }

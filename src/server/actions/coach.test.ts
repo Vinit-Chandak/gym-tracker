@@ -327,7 +327,7 @@ it("resumes coaching from an endurance brief without replacing its work or requi
 it("routes an athlete without coaching consent to the sport chooser", async () => {
   await athlete(["cycling"]);
   vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
-  await expect(setAiCoachEnabledAction(true)).rejects.toThrow("redirect:/training/programmes/new");
+  await expect(setAiCoachEnabledAction(true)).rejects.toThrow("redirect:/plan/new");
 });
 
 it("a running note queued for review does not advance the strength review clock", async () => {

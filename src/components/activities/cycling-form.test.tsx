@@ -49,7 +49,8 @@ it("opens a ride in the rider's miles, its climb in feet, and posts both as stor
     />,
   );
   const posted = () => new FormData(container.querySelector("form")!);
-  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("24.85");
+  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("24");
+  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("85");
   expect(screen.getByText("Optional · Entered as 40 km")).toBeTruthy();
   expect([posted().get("distanceValue"), posted().get("distanceUnit")]).toEqual(["40", "km"]);
   // 89 m is 292 ft, said in feet beside miles and kept in metres.

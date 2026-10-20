@@ -819,33 +819,10 @@ html:has(.session-page) .session-fold {
   justify-content: space-between;
   gap: 0 calc(8 * var(--ov-u));
 }
-/* The day's print: a band over the cards, the whole day at a glance. */
-.today-print {
-  height: calc(112 * var(--ov-u));
-  margin-top: 2px;
-}
-@media (height >= 900px) {
-  .today-print {
-    height: calc(132 * var(--ov-u));
-  }
-}
-@media (height < 800px) {
-  .today-print {
-    height: calc(92 * var(--ov-u));
-  }
-}
-@media (height < 600px) {
-  .today-print {
-    height: calc(76 * var(--ov-u));
-  }
-}
-/* "Today" and "Up next" over their cards, once today's day is done. */
+/* "Done" over the day's finished sessions, under its cards (ADR 0058). */
 .today-caption {
   margin-top: calc(18 * var(--ov-u));
   margin-bottom: -2px;
-}
-.today-caption + .today-print {
-  margin-top: calc(8 * var(--ov-u));
 }
 
 /* ---------- one card per activity (DESIGN.md, Today) ---------- */
@@ -869,7 +846,7 @@ html:has(.session-page) .session-fold {
   }
 }
 /* A Today with no card to show keeps its way on at a phone's width, not stretched across a
-   desktop's; so does Choose a day with a programme complete, which says the same (ADR 0052). */
+   desktop's (ADR 0052). */
 .today-empty {
   max-width: calc(32rem - 2 * var(--ov-gutter));
 }
@@ -890,9 +867,6 @@ html:has(.session-page) .session-fold {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
     align-items: start;
-  }
-  .today-print {
-    height: calc(calc(132 * var(--ov-u)) + var(--ov-fluid) * 28);
   }
 }
 .activity-card {
@@ -1326,6 +1300,28 @@ button.activity-card-toggle {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 600;
+}
+/* A distance's figure in parts (DistanceField): the whole, the point drawn, and the digits after
+   it, each typed on the number pad and each a whole target, so the column is wider by one. */
+.row-stepper-figure-parts {
+  width: calc(calc(156 * var(--ov-u)) + var(--ov-grow) * 2);
+  gap: 0;
+}
+/* Each part keeps its whole target, its figure drawn against the point: 5.2, not 5 . 2. */
+.row-stepper-figure-parts > .figure-input:first-child {
+  text-align: right;
+}
+.row-stepper-point + .figure-input {
+  text-align: left;
+}
+.row-stepper-figure-parts > .row-stepper-unit {
+  margin-left: calc(3 * var(--ov-u));
+}
+.row-stepper-point {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-l);
+  font-weight: 600;
+  line-height: 1.1;
 }
 
 /* A 1–5 scale: its name, the five in a tray, and what 1 and 5 mean under their own ends. */

@@ -21,21 +21,19 @@ export type ActivityChange = {
 };
 
 /** The screens that read an athlete's own training, whatever the sport. */
-const OWNED_PATHS = ["/today", "/training", "/progress", "/progress/history", "/profile"];
+const OWNED_PATHS = ["/today", "/plan", "/progress", "/progress/history", "/profile"];
 
 /** Kept while the old Runs pages still resolve, so a bookmarked list is not stale either. */
-const COMPATIBILITY_PATHS = ["/runs", "/profile/programme"];
+const COMPATIBILITY_PATHS = ["/runs"];
 
 export function activityPaths(change: ActivityChange): string[] {
-  const paths = [...OWNED_PATHS, ...COMPATIBILITY_PATHS];
+  // The sport's programme page says which of its sessions are done (ADR 0058).
+  const paths = [...OWNED_PATHS, `/plan/${change.sport}`, ...COMPATIBILITY_PATHS];
   if (change.activityId) {
     paths.push(`/training/activities/${change.activityId}`);
     if (change.sport === "running") paths.push(`/runs/${change.activityId}`);
   }
-  if (change.occurrenceId) {
-    paths.push("/training/programme");
-    paths.push(`/training/programme/occurrences/${change.occurrenceId}`);
-  }
+  if (change.occurrenceId) paths.push(`/training/programme/occurrences/${change.occurrenceId}`);
   if (change.username) paths.push(`/u/${change.username}`);
   return paths;
 }

@@ -1,0 +1,135 @@
+import type { Metadata, Route } from "next";
+import { notFound } from "next/navigation";
+
+import { Art } from "@/components/art/art";
+import { SportIntakeForm } from "@/components/coaching/sport-intake-form";
+import { PageContent } from "@/components/shell/page-content";
+import { PageHeader } from "@/components/shell/page-header";
+import { NavRow } from "@/components/ui/nav-row";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import {
+  ACTIVITY_SPORTS,
+  ACTIVITY_SPORT_LABELS,
+  isActivitySport,
+  type ActivitySport,
+} from "@/domain/activity";
+import { coachIntakeSchema } from "@/domain/coaching-workflow";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { holdHyphens } from "@/lib/facts";
+import { ageOn } from "@/lib/units";
+import { requireProfiledUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
+import { latestIntake } from "@/server/repositories/coach-intakes";
+import { getActiveProgram } from "@/server/repositories/schedule";
+
+export const metadata: Metadata = { title: "New programme" };
+
+const MARK = { strength: "strength", running: "run", cycling: "ride", swimming: "swim" } as const;
+
+/** Where building one by hand starts, already set to run the way it was asked to. */
+function builderHref(sport: ActivitySport, mode: "repeating" | "progressive"): Route {
+  return (
+    sport === "strength"
+      ? `/profile/programme/manual?mode=${mode}`
+      : `/plan/${sport}/edit?mode=${mode}`
+  ) as Route;
+}
+
+/**
+ * New programme (ADR 0058): a sport, then how it runs. Repeating is the same week or cycle again
+ * and again; progressive changes as it builds; or the coach writes it from a few answers. There
+ * are no templates for now. A sport that already has a programme says what a new one replaces.
+ */
+export default async function NewProgrammePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const user = await requireProfiledUser();
+  const search = await searchParams;
+  const sport = search.sport;
+  if (sport !== undefined && (typeof sport !== "string" || !isActivitySport(sport))) notFound();
+  const selected = typeof sport === "string" && isActivitySport(sport) ? sport : null;
+  const profile = await getRequestProfile(user.id, user.email);
+  const data = selected
+    ? await withUser(
+        getDb(),
+        user.id,
+        async (tx) => ({
+          intake: await latestIntake(tx, user.id, selected, "programme"),
+          active: await getActiveProgram(tx, user.id, selected),
+        }),
+        { readOnly: true },
+      )
+    : null;
+  return (
+    <>
+      <PageHeader
+        title={
+          selected
+            ? `New ${ACTIVITY_SPORT_LABELS[selected].toLowerCase()} programme`
+            : "New programme"
+        }
+        backHref={selected ? "/plan/new" : "/plan"}
+      />
+      <PageContent>
+        {!selected ? (
+          <ul>
+            {ACTIVITY_SPORTS.map((item) => (
+              <NavRow
+                key={item}
+                href={`/plan/new?sport=${item}` as Route}
+                lead={<Art kind="mark" sport={MARK[item]} size={20} />}
+                label={ACTIVITY_SPORT_LABELS[item]}
+              />
+            ))}
+          </ul>
+        ) : search.method === "coach" ? (
+          <SportIntakeForm
+            sport={selected}
+            scope="programme"
+            initial={data!.intake}
+            prefill={coachIntakeSchema.parse({
+              programmeSport: selected,
+              scope: "programme",
+              heightCm: profile.heightCm,
+              weightKg: profile.bodyWeightKg,
+              ageYears: profile.dateOfBirth
+                ? ageOn(profile.dateOfBirth, todayInTimeZone(profile.timeZone))
+                : null,
+            })}
+          />
+        ) : (
+          <div className="space-y-4">
+            <ul>
+              <NavRow
+                href={builderHref(selected, "repeating")}
+                glyph="repeat"
+                label="Repeating"
+                sub="The same week or cycle, again and again."
+              />
+              <NavRow
+                href={builderHref(selected, "progressive")}
+                glyph="target"
+                label="Progressive"
+                sub="Each week different, building as it goes."
+              />
+              <NavRow
+                href={`/plan/new?sport=${selected}&method=coach` as Route}
+                glyph="coach"
+                label="With the coach"
+                sub="Answer a few questions and the coach writes it."
+              />
+            </ul>
+            {data!.active && (
+              <p className="text-sm text-ink-2">
+                Replaces {holdHyphens(data!.active.name)} when you start it. Your history stays.
+              </p>
+            )}
+          </div>
+        )}
+      </PageContent>
+    </>
+  );
+}

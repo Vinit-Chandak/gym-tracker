@@ -523,7 +523,7 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 
 ### Hierarchy
 
-- **Title** (700, 36 px, 1; 32 under 360 pt): a destination's name (Training, Profile).
+- **Title** (700, 36 px, 1; 32 under 360 pt): a destination's name (Plan, Profile).
 - **Display** (700, 34 px, 1.05): a nested screen's or an exercise's name. A long name steps
   down 4, then to 26, then wraps to two lines.
 - **Sheet title** (700, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
@@ -618,20 +618,22 @@ its key is shown, so two readings of one width can never leave the workout witho
   boxed or carded; rows are separated by `hair` rules. Today's activity cards are a
   deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
   card, and the rows inside a card are ruled like any list.
-  Training extends that exception to summaries of existing independent programmes (owner,
-  16 October 2026; ADR 0056), using the incumbent card, control tones and type scale. Programme
-  cards take at most two columns and fold to one when space or text requires; logging shortcuts
-  take four columns where they fit, two on ordinary phones and one on phones at 200% text. This
-  does not make ordinary list rows cards.
+  Plan extends that exception to its programme cards, one per programme (owner, 16 October
+  2026; ADR 0056 and 0058), using the incumbent card, control tones and type scale. Programme
+  cards take at most two columns and fold to one when space or text requires. This does not
+  make ordinary list rows cards.
   Food rows, wherever food is listed, are another exception (owner, 8 October 2026): every row
   is led by its tile, the tiles in one column and the names at one edge after them (Rows and
   marks).
-- **Today:** the date and the cycle's squares; the day's print as a band (112 pt; 132 at 900 pt
-  and taller, 92 under 800, 76 under 600); then one card per activity, 12 apart: an open session
-  that is not the day's first, then the workout (or the rest day), then each run, ride and swim
-  still owed, then what is already logged, inked done. Nothing is pinned over the tab bar: each
-  card carries its own next step. Once the day's programme day is done, "Today" holds the
-  finished day and anything else dated today, and "Up next" holds the next day's print and cards.
+- **Today:** the date, with Log beside it; then one card per session still owed, 12 apart: an
+  open session that is not the day's first, then the workout (or the rest day), then each run,
+  ride and swim. Nothing is pinned over the tab bar: each card carries its own next step. Under
+  the cards, "Done" lists what was finished, logged or skipped today as rows, each opening its
+  record. The programme's position and the next day are Plan's, never Today's (ADR 0058); with
+  nothing owed and nothing done, Log a session is the page's own button.
+- **Plan:** This week, Monday to Sunday, every sport's sessions as rows under their day, each with
+  its mark and where it stands (Done, Skipped, Missed, Today); then one card per programme; then
+  Past programmes (ADR 0058).
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
@@ -893,6 +895,11 @@ and every control answers a press.
   never wait on Save.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
+- **Nothing a phone's number pad lacks** (owner, 20 October 2026): a duration is typed in digits,
+  its colons placed from the right as a timer's are (2530 is 25:30, 10530 is 1:05:30), and
+  written as the clock writes it once left (0:75 is 1:15); a distance is two figures, the whole
+  and the digits after the point, each on the number pad, the point drawn between them and the
+  two drawn against it (5.2). A swim's metres or yards is one whole figure.
 
 ### Rest
 
@@ -1034,10 +1041,10 @@ good is the target or the goal, which a rule or the readout says, not a directio
   dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 700, 24), a run's
   figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
 - Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
-  choice while nothing is open; the time; what it aims at; "Planned by the coach" or "Prepared by
-  the coach"; a run's pace note and its time of day); then what is happening now, in ink 2 (In
-  progress · Started 17:23 · 0 sets, Workout logged., Skipped, the coach planning, "Finish or
-  discard your open session to start this one.").
+  choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's pace
+  note and its time of day); then what is happening now, in ink 2 (In progress · Started 17:23 ·
+  0 sets, the coach preparing it, "Finish or discard your open session to start this one."). A
+  session done or skipped today is not a card but a row under Done (ADR 0058).
 - The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
   folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
   with its prescription); a run, ride or swim
@@ -1045,7 +1052,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
   unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
 - The card's next step is its own, the card's full width under its facts: Start workout (primary,
   with More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it
-  asks for, so two runs never share a name), See what you logged. Under it, the quieter way out
+  asks for, so two runs never share a name). Under it, the quieter way out
   that belongs to this card alone: Discard empty session, led by its glyph at the card's left
   edge, only while nothing is logged; or, for a workout left open (nothing logged in it for six
   hours), Finish it as of 19:30, its last set's time, which the workout's own screen offers too
@@ -1082,7 +1089,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 ### Navigation
 
-- **Tab bar:** Today, Training, Food, Progress, Profile on ground under a `hair` rule; 24-pt
+- **Tab bar:** Today, Plan, Food, Progress, Profile on ground under a `hair` rule; 24-pt
   icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
   are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
   sliders. Where you are is the tab the way back leads into (NAV-03): a workout, run, ride or
@@ -1163,32 +1170,30 @@ good is the target or the goal, which a rule or the readout says, not a directio
 ### Prints (signature)
 
 - Drawn from the account's records and nothing else, on print paper with square corners.
-- **The day:** Today's band over its cards and every record's header: thinned parts inking as they are done,
-  centred on the paper. A page of prints (Training's week) shares one module, the smallest any of
-  them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
-  under way) draws the
+- **The day:** every record's header and a programme day's page: thinned parts inking as they
+  are done, centred on the paper. A plan's print (a programme day, the workout under way) draws
+  the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
   sets in grey at the foot of their columns. One workout is drawn the same on every screen that
   prints it (year audit, October 2026), open or finished, whatever its day's state says: the
-  plans its day stands on (Today's band, Training's tile, the programme day) draw each row's
-  column as the workout draws that exercise, and the programme day's fan as its warm-up stands.
+  programme day it stands on draws each row's column as the workout draws that exercise, and
+  its fan as its warm-up stands.
   While it is open they and its day ink its sets as it does and thin what is still owed; once it
   is finished they, its own page and its day all draw what it did, and what it did not do dashed,
-  its warm-up's fan included. Only a record adds its warm-up sets in grey: no plan asks for them,
-  and on Training a tile's tall record would shrink every tile's module. A day done again is
+  its warm-up's fan included. Only a record adds its warm-up sets in grey: no plan asks for
+  them. A day done again is
   drawn from the workout under way, and a day done with no workout to read, all in ink. The rows under a finished workout name its warm-up first,
   as the fan leads its print: its drills when done, "Not done" when not. A programme's rest day
   with nothing in it prints its
-  crescent, on Training's tile and on the day's page, so no day of the cycle is blank paper;
-  Today's band is left off on such a day, as before. On the day's page the crescent alone is
+  crescent on the day's page, so no day of the cycle is blank paper. There the crescent alone is
   held to a 16 px module, about a third of a working day's print there, so it never fills the
   band or outweighs the day's name on a page that asks for nothing. A programme day's parts stand
-  in the order they are done, in its print, its rows and Training's tile alike: the warm-up before
+  in the order they are done, in its print and its rows alike: the warm-up before
   what it warms up for, so a day that only runs draws its fan, then its runner, and lists its
   run's warm-up before the run (year audit, October 2026); a day that lifts and runs keeps its
-  warm-up with the lifting, and the run where the day is written to have it, on Today's band as
-  well ("Lower + easy run" draws its lifting, then its runner). Today's cards keep their own
-  order, the workout first (see Layout).
+  warm-up with the lifting, and the run where the day is written to have it ("Lower + easy run"
+  draws its lifting, then its runner). Today's cards keep their own order, the workout first
+  (see Layout).
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).
@@ -1225,6 +1230,6 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
   value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.
-- **Don't** indent a list, box rows into cards (Today's activity cards and Training's programme
+- **Don't** indent a list, box rows into cards (Today's activity cards and Plan's programme
   cards are the exceptions in Layout, never nested), or add a second shadow.
 - **Don't** let the art be the brightest thing on a dark screen.

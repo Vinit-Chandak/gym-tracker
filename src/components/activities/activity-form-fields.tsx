@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 
+import { FigureInput } from "@/components/ui/figure-input";
 import { FigureText } from "@/components/ui/figure-text";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input, Textarea } from "@/components/ui/input";
-import { RowStepper } from "@/components/ui/row-stepper";
+import { figureWidth, RowStepper } from "@/components/ui/row-stepper";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import {
@@ -215,11 +216,37 @@ export function postedDistance(
   };
 }
 
+/** Digits alone: what a part of a figure typed on the number pad keeps. */
+const digitsOf = (raw: string) => raw.replace(/\D/g, "");
+
+/** A distance's whole as typed, without the zero it stood at before a figure was typed after it. */
+const wholeOf = (raw: string) =>
+  digitsOf(raw)
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, 5);
+
+/** A distance's figure in its two parts: the whole, and the digits after the point. */
+export function distanceParts(value: string): { whole: string; fraction: string } {
+  const [whole = "", fraction = ""] = value.replace(",", ".").split(".");
+  return { whole, fraction };
+}
+
+/** The figure two parts make: "5" and "2" are 5.2, "" and "5" are 0.5, both blank none. */
+export function joinDistance(whole: string, fraction: string): string {
+  if (whole === "" && fraction === "") return "";
+  return fraction === "" ? whole : `${whole || "0"}.${fraction}`;
+}
+
 /**
  * A distance and the unit it was entered in, as a figure in a row (boards Log a run, a ride):
  * − and + by a tenth, the unit beside the figure, pressing it says the distance in the other.
  * Both are stored; neither is re-derived. A recorded distance opened in another unit
  * (`openDistance`) is posted as it was entered until it is changed, and says what that was.
+ *
+ * A phone types it on the number pad, which has no point: the figure is two parts, the whole
+ * and what follows the point, with the point drawn between them ("5" then "2" is 5.2 km). A
+ * point typed into the whole, from a keyboard that has one, moves on to the part after it. A
+ * distance counted in whole units (a swim's metres or yards) is one part.
  */
 export function DistanceField({
   value,
@@ -234,6 +261,7 @@ export function DistanceField({
   name = "distanceValue",
   unitName = "distanceUnit",
   recorded = null,
+  whole = false,
 }: {
   value: string;
   unit: string;
@@ -249,16 +277,20 @@ export function DistanceField({
   unitName?: string;
   /** The entry a recorded distance was opened from, in a unit other than the field's. */
   recorded?: DistanceEntry | null;
+  /** Counted in whole units, a swim's metres or yards: one part, with no point. */
+  whole?: boolean;
 }) {
+  const after = useRef<HTMLInputElement>(null);
   const at = units.findIndex((option) => option.value === unit);
   const other = units[(at + 1) % units.length] ?? units[0]!;
   const shown = units[at]?.label ?? unit;
   const posted = postedDistance(value, unit, recorded);
   const kept = posted.value !== value || posted.unit !== unit;
+  const parts = distanceParts(value);
   return (
     <>
       <input type="hidden" name={unitName} value={posted.unit} />
-      {kept && <input type="hidden" name={name} value={posted.value} />}
+      {(kept || !whole) && <input type="hidden" name={name} value={posted.value} />}
       <RowStepper
         label={label}
         hint={
@@ -272,9 +304,66 @@ export function DistanceField({
             (posted.note ?? hint)
           )
         }
-        name={kept ? undefined : name}
+        name={kept || !whole ? undefined : name}
         value={value}
         onChange={onValueChange}
+        inputMode={whole ? "numeric" : "decimal"}
+        placeholder={whole ? "–" : "0.00"}
+        figure={
+          whole
+            ? undefined
+            : ({ id, describedBy, invalid, fontSize }) => (
+                <>
+                  <FigureInput
+                    id={id}
+                    inputMode="numeric"
+                    value={parts.whole}
+                    placeholder="0"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    onChange={(event) => {
+                      const typed = event.target.value.replace(",", ".");
+                      const point = typed.indexOf(".");
+                      if (point < 0) {
+                        onValueChange(joinDistance(wholeOf(typed), parts.fraction));
+                        return;
+                      }
+                      // A point typed here: what was before it is the whole, and the rest
+                      // comes after it, where the typing goes on.
+                      onValueChange(
+                        joinDistance(
+                          wholeOf(typed.slice(0, point)),
+                          digitsOf(typed.slice(point + 1)).slice(0, DECIMALS.distance),
+                        ),
+                      );
+                      after.current?.focus();
+                    }}
+                    style={{ width: figureWidth(parts.whole || "0"), fontSize }}
+                  />
+                  <span aria-hidden className="row-stepper-point" style={{ fontSize }}>
+                    .
+                  </span>
+                  <FigureInput
+                    ref={after}
+                    inputMode="numeric"
+                    value={parts.fraction}
+                    placeholder="00"
+                    aria-label={`${label}, after the point`}
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    onChange={(event) =>
+                      onValueChange(
+                        joinDistance(
+                          parts.whole,
+                          digitsOf(event.target.value).slice(0, DECIMALS.distance),
+                        ),
+                      )
+                    }
+                    style={{ width: figureWidth(parts.fraction || "00"), fontSize }}
+                  />
+                </>
+              )
+        }
         unit={shown}
         onUnit={
           units.length > 1
@@ -328,6 +417,28 @@ export function parseDuration(value: string): number | null {
   return numbers[0]! * 3600 + numbers[1]! * 60 + numbers[2]!;
 }
 
+/**
+ * Digits typed into a duration, written as a clock writes them: the colons place themselves
+ * from the right, as on a timer's keypad, so the phone's number pad is all it takes. 2530 is
+ * 25:30, 10530 is 1:05:30; anything but a digit is let go, and a seventh digit is not taken.
+ */
+export function clockEntry(raw: string): string {
+  const digits = digitsOf(raw).replace(/^0+/, "").slice(0, 6);
+  if (digits === "") return "";
+  const padded = digits.padStart(3, "0");
+  const seconds = padded.slice(-2);
+  const rest = padded.slice(0, -2);
+  return rest.length <= 2
+    ? `${Number(rest)}:${seconds}`
+    : `${Number(rest.slice(0, -2))}:${rest.slice(-2)}:${seconds}`;
+}
+
+/** A duration as the clock writes it once its field is left: 0:75 is 1:15. */
+function settleDuration(value: string): string {
+  const total = parseDuration(value);
+  return total === null ? value : formatDuration(total);
+}
+
 /** A duration's stored parts, as the form posts them and a record restores them. */
 export type DurationParts = { hours: string; minutes: string; seconds: string };
 
@@ -356,10 +467,10 @@ export function durationFromParts(hours: string, minutes: string, seconds: strin
 }
 
 /**
- * A duration as a figure in a row (boards Log a run, a ride, a swim): typed as the clock writes
- * it, − and + by a minute. The form posts it as hours, minutes and seconds, as it always has;
- * while the figure still reads as the `recorded` parts do, it posts those, so correcting the
- * notes keeps a time stored to the tenth.
+ * A duration as a figure in a row (boards Log a run, a ride, a swim): typed in digits on the
+ * number pad, the colons placing themselves (`clockEntry`), − and + by a minute. The form posts
+ * it as hours, minutes and seconds, as it always has; while the figure still reads as the
+ * `recorded` parts do, it posts those, so correcting the notes keeps a time stored to the tenth.
  */
 export function DurationField({
   label = "Duration",
@@ -395,10 +506,11 @@ export function DurationField({
         onChange={onChange}
         step={60}
         max={24 * 3600 - 1}
-        inputMode="text"
+        inputMode="numeric"
         parse={parseDuration}
         format={formatDuration}
-        sanitize={(raw) => raw.replace(/[^\d:.,]/g, "").slice(0, 10)}
+        sanitize={clockEntry}
+        settle={settleDuration}
         placeholder="0:00"
         less="A minute less"
         more="A minute more"
@@ -572,7 +684,7 @@ export function ElevationField({
     <Field label={`Elevation gain ${unit}`} error={errors?.elevationGainMetres}>
       <Input
         name={unit === "m" ? "elevationGainMetres" : undefined}
-        inputMode="decimal"
+        inputMode="numeric"
         value={figure}
         onChange={(event) => setFigure(event.target.value)}
         placeholder="—"

@@ -11,13 +11,15 @@ import { requireProfiledUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { ProgramBuilder } from "./program-builder";
-import { listSavedRoutines } from "@/server/repositories/manual-training";
 export async function ProgrammeBuilderPage({
   onboarding = false,
   draftId,
+  mode,
 }: {
   onboarding?: boolean;
   draftId?: string;
+  /** Repeating or progressive, as New programme asked (ADR 0058). */
+  mode?: string;
 }) {
   const user = await requireProfiledUser();
   if (draftId && !z.uuid().safeParse(draftId).success) notFound();
@@ -25,7 +27,8 @@ export async function ProgrammeBuilderPage({
     getDb(),
     user.id,
     async (tx) => {
-      const [initial, library, warmups, routines] = await Promise.all([
+      // Saved routines are set aside for now (ADR 0058): no day is copied from one.
+      const [initial, library, warmups] = await Promise.all([
         draftId ? getProgramDraft(tx, user.id, draftId) : null,
         tx
           .select()
@@ -38,9 +41,8 @@ export async function ProgrammeBuilderPage({
           )
           .orderBy(exercises.name),
         sharedWarmupProtocols(tx),
-        listSavedRoutines(tx, user.id),
       ]);
-      return { initial, library, warmups, routines };
+      return { initial, library, warmups };
     },
     { readOnly: true },
   );
@@ -55,9 +57,16 @@ export async function ProgrammeBuilderPage({
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
-      <PageHeader title="Lifting programme builder" backHref={onboarding ? base : "/training"} />
+      <PageHeader
+        title="Strength programme builder"
+        backHref={onboarding ? base : "/plan/strength"}
+      />
       <PageContent>
-        <ProgramBuilder {...data} base={base} />
+        <ProgramBuilder
+          {...data}
+          base={base}
+          startRepeats={mode === "progressive" ? "once" : "rolling"}
+        />
         {/* The library's own page lies outside setup, which would send an account still in setup
             straight back here and lose what was built (audit B5). */}
         {!onboarding && (

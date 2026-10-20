@@ -39,6 +39,7 @@ export function EnduranceProgrammeBuilder({
   units,
   today,
   continuing = false,
+  startView,
 }: {
   sport: EnduranceSport;
   initial: { id: string; revision: number; blueprint: ProgramBlueprint } | null;
@@ -47,6 +48,8 @@ export function EnduranceProgrammeBuilder({
   continuing?: boolean;
   units: SportUnits;
   templates: { id: string; name: string; prescription: EndurancePrescription }[];
+  /** How a new programme opens, as New programme chose (ADR 0058); a draft opens as it reads. */
+  startView?: "pattern" | "week";
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -90,7 +93,11 @@ export function EnduranceProgrammeBuilder({
   );
   const [selected, setSelected] = useState(() => Math.max(0, firstEditable));
   const [view, setView] = useState<"pattern" | "week">(() =>
-    enduranceSessionGroups(sessions).some((group) => group.indexes.length > 1) ? "pattern" : "week",
+    !initial && startView
+      ? startView
+      : enduranceSessionGroups(sessions).some((group) => group.indexes.length > 1)
+        ? "pattern"
+        : "week",
   );
   const [week, setWeek] = useState(() => sessions[Math.max(0, firstEditable)]?.weekIndex ?? 1);
   const [scope, setScope] = useState<Scope>("future_repeats");

@@ -187,86 +187,6 @@
   border-radius: 12px;
   background: var(--ov-surface);
 }
-.coach-programme-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-}
-.coach-programme {
-  --coach-sport: var(--ov-print-strength);
-  padding: 14px 16px;
-  border: 1px solid var(--ov-hair);
-  border-radius: 18px;
-  min-width: 0;
-}
-.coach-programme[data-sport="running"] {
-  --coach-sport: var(--ov-print-run);
-}
-.coach-programme[data-sport="cycling"] {
-  --coach-sport: var(--ov-print-ride);
-}
-.coach-programme[data-sport="swimming"] {
-  --coach-sport: var(--ov-print-swim);
-}
-.coach-programme-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.coach-sport {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.75rem;
-  font-weight: 650;
-}
-.coach-sport > span {
-  width: 8px;
-  height: 8px;
-  background: var(--coach-sport);
-  border-radius: 50%;
-}
-.coach-small-status {
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--ov-ink-2);
-  padding: 3px 7px;
-  border-radius: 5px;
-  background: var(--ov-surface);
-}
-.coach-programme h3 {
-  font-size: 1.125rem;
-  font-weight: 750;
-  line-height: 1.25;
-  letter-spacing: -0.035em;
-  overflow-wrap: break-word;
-}
-.coach-programme-status {
-  color: var(--ov-ink-2);
-  font-size: 0.75rem;
-  margin: 5px 0 10px;
-}
-.coach-programme-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.coach-programme-actions > button {
-  flex: 1;
-  font-size: 0.8125rem;
-}
-.coach-review-disclosure {
-  margin-top: 12px;
-  border-bottom: 0;
-}
-.coach-review-disclosure > summary {
-  font-size: 0.75rem;
-  color: var(--ov-ink-2);
-}
 .coach-compose-card,
 .coach-memory-card {
   border-radius: 18px;
@@ -533,9 +453,6 @@
   outline-offset: 4px;
 }
 @media (min-width: 600px) {
-  .coach-programme-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .coach-tabs > button {
     font-size: 0.875rem;
   }

@@ -69,7 +69,7 @@ export async function SavedProgrammeWork({
               (draft.status === "editing"
                 ? draft.sport === "strength"
                   ? `${base}/manual?draft=${draft.id}`
-                  : `/training/programmes/${draft.sport}/edit?draft=${draft.id}`
+                  : `/plan/${draft.sport}/edit?draft=${draft.id}`
                 : `${base}/drafts/${draft.id}`) as Route
             }
             glyph="table"
@@ -102,7 +102,10 @@ export async function SavedProgrammeWork({
             key={intake.id}
             href={
               (allSports
-                ? `/training/programmes/new?sport=${intake.sport}&scope=${intake.answers.scope}&method=coach`
+                ? intake.answers.scope === "session"
+                  ? // Single coached sessions are set aside for now (ADR 0058).
+                    "/plan"
+                  : `/plan/new?sport=${intake.sport}&method=coach`
                 : `${base}/create`) as Route
             }
             glyph="note"

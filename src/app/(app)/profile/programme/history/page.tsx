@@ -35,7 +35,7 @@ export default async function ProgrammeHistoryPage() {
 
   return (
     <>
-      <PageHeader title="Past requests and changes" backHref="/profile/programme?view=changes" />
+      <PageHeader title="Past requests and changes" backHref="/plan/strength?view=changes" />
       <PageContent>
         {requests.length > 0 && (
           <Section title="Your requests">

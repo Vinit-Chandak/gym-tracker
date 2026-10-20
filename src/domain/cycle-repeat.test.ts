@@ -61,7 +61,7 @@ describe("the cycles a programme's weeks hold", () => {
     const finite = { weeks: 8, days, repeats: "once" as const };
     expect(cycleCount(8, days.length, "once")).toBe(1);
     expect(cycleLayout(finite)).toEqual({ cycles: 1, byWeekday: false });
-    expect(cycleRepeatLabel(finite)).toBe("Does not repeat");
+    expect(cycleRepeatLabel(finite)).toBe("Progressive");
     expect(programLengthLabel(finite)).toBe("56 days");
     expect(cycleRepeatIssues(finite)).toEqual([]);
     expect(cycleRepeatIssues({ ...finite, weeks: 4 })).toHaveLength(1);

@@ -1,7 +1,6 @@
 "use client";
 
 import type { Route } from "next";
-import Link from "@/components/ui/app-link";
 import { useActionState, useState, useTransition, type ReactNode } from "react";
 
 import { Button, LinkButton, type ButtonVariant } from "@/components/ui/button";
@@ -149,17 +148,16 @@ export function StartAdHocButton({
 }
 
 /**
- * Everything Today can do other than the session it is offering: train a different day of
- * the cycle, log something outside the programme, or skip. One quiet control rather than
- * three buttons, because none of them is what the screen is for — and skipping asks for its
- * reason in the same sheet rather than opening a second one on top of it.
+ * What else can be done about the session Today is offering: ask the coach, or skip it. One
+ * quiet control rather than two buttons, because neither is what the screen is for — and
+ * skipping asks for its reason in the same sheet rather than opening a second one on top of it.
+ * Training a different day, or something unplanned, is Log's (ADR 0058). With neither option,
+ * there is no control.
  */
 export function MoreOptions({
-  gymId,
   skip,
   coach = null,
 }: {
-  gymId: string | null;
   /**
    * The session that can be skipped. Null on a rest day, which is completed instead. `runOwed`
    * when the day also asks for a run still to do, which skipping the workout leaves on Today.
@@ -180,19 +178,15 @@ export function MoreOptions({
     setAsking(null);
   };
   const coachRow = coach && !coach.pending;
-  const coachLabel = coach?.workflow
-    ? coach.hasPlan
-      ? "Prepare this session again"
-      : "Prepare this session"
-    : coach?.hasPlan
-      ? "Re-plan with the coach"
-      : "Ask the coach for a plan";
+  // One wording whichever way the coach runs, and none of it "plan", which is Plan's (ADR 0058).
+  const coachLabel = coach?.hasPlan ? "Prepare this session again" : "Prepare this session";
   // Close once per successful skip (each action result is a new object).
   const [handled, setHandled] = useState<ActionResult>(INITIAL);
   if (state !== handled) {
     setHandled(state);
     if (state.ok) close();
   }
+  if (!coachRow && !skip) return null;
 
   const row = (glyph: GlyphName, label: ReactNode, sub?: ReactNode) => (
     <>
@@ -216,7 +210,7 @@ export function MoreOptions({
       <Button
         variant="tonal"
         size="lg"
-        aria-label="More options: another day, unplanned, the coach, skip"
+        aria-label={`More options: ${coachRow && skip ? "the coach, skip" : skip ? "skip" : "the coach"}`}
         aria-haspopup="dialog"
         className="pinned-more w-[var(--ov-button)] shrink-0 px-0"
         onClick={() => setOpen(true)}
@@ -266,22 +260,6 @@ export function MoreOptions({
           </form>
         ) : (
           <ul className="mt-1 min-w-0">
-            <li className="border-b border-hair">
-              <Link href="/today/choose" className={ROW} onClick={close}>
-                {row("calendar", "Train another day")}
-              </Link>
-            </li>
-            <li className={coachRow ? "border-b border-hair" : undefined}>
-              {gymId === null ? (
-                <button type="button" disabled className={ROW}>
-                  {row("plus", "Start an unplanned session")}
-                </button>
-              ) : (
-                <Link href={startHref({ gymId })} className={ROW} onClick={close}>
-                  {row("plus", "Start an unplanned session")}
-                </Link>
-              )}
-            </li>
             {coachRow && (
               <li>
                 <button
@@ -302,9 +280,9 @@ export function MoreOptions({
                 </button>
               </li>
             )}
-            {/* Skipping drops the day's workout, so it stands apart from the rest, under a rule. */}
+            {/* Skipping drops the day's workout, so it stands apart from the coach, under a rule. */}
             {skip && (
-              <li className="mt-3.5 border-t border-hair pt-1.5">
+              <li className={coachRow ? "mt-3.5 border-t border-hair pt-1.5" : undefined}>
                 <button type="button" onClick={() => setAsking("skip")} className={ROW}>
                   {row(
                     "skip",

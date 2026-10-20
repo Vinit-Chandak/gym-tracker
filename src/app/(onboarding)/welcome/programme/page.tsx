@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { SetupCoach } from "@/components/coaching/setup-coach";
 import { NavRow } from "@/components/ui/nav-row";
-import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { placeInSentence } from "@/lib/setup-place";
@@ -23,8 +22,8 @@ export const metadata: Metadata = { title: "Your plan" };
  * - New to this (board Your first programme): the coach's questions, on one screen, with "Just
  *   log workouts for now" as the way past. A beginner is not handed a six-day template.
  * - Already trains (board How do you want to start?): logging their own workouts, the main
- *   action, since most arrive with a plan of their own; or their split, a programme to follow,
- *   or the coach, each on its own screen.
+ *   action, since most arrive with a plan of their own; or their split, or the coach, each on
+ *   its own screen. A ready-made programme to follow is not offered (ADR 0058).
  *
  * A programme the coach is writing, or has written, is listed at the top so it is never lost.
  */
@@ -88,7 +87,6 @@ export default async function WelcomeProgrammePage() {
       </OnboardingFrame>
     );
 
-  const template = PROGRAM_TEMPLATES[0];
   return (
     <OnboardingFrame
       steps={setupStepsOf(state)}
@@ -105,14 +103,6 @@ export default async function WelcomeProgrammePage() {
           label="Set up my split"
           sub="Your days, and the exercises on each."
         />
-        {template && (
-          <NavRow
-            href="/welcome/programme/template"
-            glyph="table"
-            label="Follow a programme"
-            sub={template.name}
-          />
-        )}
         <NavRow
           href="/welcome/programme/create"
           glyph="coach"

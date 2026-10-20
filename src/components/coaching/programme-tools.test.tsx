@@ -23,25 +23,25 @@ afterEach(cleanup);
  * only be logged on its own afterwards, and nothing reopens it, so the question says so before
  * it is answered (review of 12 October).
  */
-it("asks before retiring, and says which sessions it closes", () => {
+it("asks before ending, and says which sessions it closes", () => {
   render(<ProgrammeTools id="programme" />);
   fireEvent.click(screen.getByText("More options"));
-  fireEvent.click(screen.getByRole("button", { name: "Retire programme: strength" }));
+  fireEvent.click(screen.getByRole("button", { name: "End strength programme" }));
   expect(archived).not.toHaveBeenCalled();
   expect(
     screen.getByText(
-      /Retire your strength programme.*completed workouts remain in history.*unfinished or skipped sessions can then only be logged on their own.*Archived programmes/,
+      /End your strength programme.*from today on are removed.*still owes can then only be logged as unplanned.*Everything you logged stays.*Past programmes/,
     ),
   ).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Retire this programme" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "End programme" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Keep it" })).toBeTruthy();
 });
 
-it("offers duplication without retirement for an archived programme", () => {
+it("offers duplication without ending for a past programme", () => {
   render(<ProgrammeTools id="programme" sport="swimming" active={false} />);
   fireEvent.click(screen.getByText("More options"));
   expect(screen.getByRole("button", { name: "Duplicate programme" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Retire/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /End/ })).toBeNull();
 });
 
 it("keeps replacement separate from editing and preserves its sport", () => {
@@ -52,6 +52,6 @@ it("keeps replacement separate from editing and preserves its sport", () => {
   );
   fireEvent.click(screen.getByText("More options"));
   expect(screen.getByRole("link", { name: "Replace programme" }).getAttribute("href")).toBe(
-    "/training/programmes/new?sport=cycling",
+    "/plan/new?sport=cycling",
   );
 });

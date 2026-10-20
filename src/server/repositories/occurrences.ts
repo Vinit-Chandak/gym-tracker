@@ -218,6 +218,29 @@ export async function occurrencesOnDate(
 }
 
 /**
+ * Every sport's dated sessions from `from` up to, not including, `to`: the active programmes'
+ * and what the athlete put on the calendar, as Plan's week shows them (ADR 0058). A closed
+ * programme's sessions are its own record and are left out, as they are of a day.
+ */
+export async function occurrencesBetween(
+  tx: DbOrTx,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<ProgrammeOccurrence[]> {
+  const rows = await occurrenceQuery(tx, userId)
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        gte(occurrenceVersions.scheduledOn, from),
+        lt(occurrenceVersions.scheduledOn, to),
+      ),
+    )
+    .orderBy(asc(occurrenceVersions.scheduledOn), ...withinDay);
+  return (rows as Row[]).map(hydrate).filter((row) => !row.closed);
+}
+
+/**
  * Exactly what the athlete put on the calendar for that date, and nothing the programme
  * placed there.
  *

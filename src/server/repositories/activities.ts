@@ -35,7 +35,7 @@ import {
 } from "@/domain/activity-metrics";
 import { canLog, programmeClosed } from "@/domain/occurrences";
 
-import { OccurrenceClosedError } from "./occurrences";
+import { getOccurrence, OccurrenceClosedError } from "./occurrences";
 import { deleteActivityStats, writeEnduranceStats, writeRunStats } from "./shared-stats";
 
 /**
@@ -585,6 +585,96 @@ export async function updateActivity(
   );
   await writeReceipt(tx, userId, input.submissionKey, digest, activityId, "updated");
   return { id: activityId, status: "updated" };
+}
+
+/**
+ * Changes which planned session a run, ride or swim counts as, or makes it unplanned
+ * (ADR 0058, which amends LIFE-04 for the link alone). Correcting the activity still cannot
+ * change it; this is its own explicit step. The athlete names the session, which is checked as a
+ * new log's is: this sport's, still open, answered by nothing else. A session of a programme
+ * that has ended keeps its answer (ADR 0054). Both sessions' histories say what happened, and
+ * one that had been skipped is done, not skipped and answered. The sport, the date and the
+ * measurements are untouched; a coach preparation shown for the old session no longer applies.
+ */
+export async function relinkActivity(
+  tx: DbOrTx,
+  userId: string,
+  activityId: string,
+  occurrenceId: string | null,
+  expectedRevision: number,
+): Promise<{ sport: EnduranceSport; from: string | null; to: string | null }> {
+  const [existing] = await tx
+    .select({
+      sport: activities.sport,
+      occurrenceId: activities.occurrenceId,
+      occurredOn: activities.occurredOn,
+      revision: activities.revision,
+    })
+    .from(activities)
+    .where(and(eq(activities.userId, userId), eq(activities.id, activityId)))
+    .limit(1);
+  if (!existing) throw new ActivityNotFoundError();
+  // A workout's programme day is chosen when it starts, and finishing it advances the sequence.
+  if (existing.sport === "strength")
+    throw new InvalidActualError([
+      { field: "origin", message: "A workout's programme day is chosen when it starts." },
+    ]);
+  if (existing.revision !== expectedRevision) throw new StaleActivityError();
+  const sport = existing.sport;
+  const from = existing.occurrenceId;
+  if (from === occurrenceId) return { sport, from, to: occurrenceId };
+  if (from && (await getOccurrence(tx, userId, from))?.closed) throw new OccurrenceClosedError();
+  const next = occurrenceId ? await getOccurrence(tx, userId, occurrenceId) : null;
+  if (occurrenceId && !next) throw new OccurrenceNotFoundError();
+  const target = next
+    ? await resolveTarget(
+        tx,
+        userId,
+        {
+          kind: "planned",
+          occurrenceId: next.id,
+          performedRevisionId: next.revisionId,
+          performedPlanId: null,
+        },
+        sport,
+      )
+    : null;
+  await tx
+    .update(activities)
+    .set({
+      occurrenceId: target?.occurrenceId ?? null,
+      performedRevisionId: target?.revisionId ?? null,
+      performedPlanId: null,
+      revision: existing.revision + 1,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(activities.userId, userId), eq(activities.id, activityId)));
+  if (from)
+    await tx.insert(occurrenceEvents).values({
+      userId,
+      occurrenceId: from,
+      kind: "log_deleted",
+      actor: "athlete",
+      // Not deleted: counted as another session, or none. The id stays as provenance.
+      detail: { relinkedActivityId: activityId, to: target?.occurrenceId ?? null },
+    });
+  if (target) {
+    await tx.insert(occurrenceEvents).values({
+      userId,
+      occurrenceId: target.occurrenceId,
+      kind: "logged",
+      activityId,
+      occurredOn: existing.occurredOn,
+      actor: "athlete",
+    });
+    await tx
+      .update(plannedOccurrences)
+      .set({ disposition: "pending" })
+      .where(
+        and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, target.occurrenceId)),
+      );
+  }
+  return { sport, from, to: target?.occurrenceId ?? null };
 }
 
 /**

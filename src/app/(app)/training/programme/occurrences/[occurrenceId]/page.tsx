@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
 import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
@@ -95,7 +95,7 @@ export default async function OccurrencePage(
     standing === "next"
       ? { label: "Next", tone: "accent" as const }
       : standing === "not_done"
-        ? { label: "Not done", tone: "neutral" as const }
+        ? { label: "Missed", tone: "neutral" as const }
         : // As the programme's list says it, whether it was skipped here or from Today.
           standing === "skipped"
           ? { label: "Skipped", tone: "neutral" as const }
@@ -137,7 +137,7 @@ export default async function OccurrencePage(
           occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
           `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
         ])}
-        backHref={standalone ? "/training/scheduled" : `/training/programmes/${occurrence.sport}`}
+        backHref={(standalone ? "/plan" : `/plan/${occurrence.sport}`) as Route}
       />
       <PageContent>
         <Card>
@@ -199,7 +199,7 @@ export default async function OccurrencePage(
                 none, as this page's Back does, so Training stays selected (NAV-03). */}
             <CardLink
               href={`/training/activities/${occurrence.resolution.activityId}${originQuery(
-                standalone ? "training" : "programme",
+                standalone ? "plan" : "programme",
               )}`}
             >
               See what you logged

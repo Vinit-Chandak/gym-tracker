@@ -84,7 +84,7 @@ export async function saveYouStepAction(
   // that names it.
   if (!saved) return { fieldErrors: { timeZone: UNKNOWN_TIME_ZONE }, values: formValues(formData) };
   await profileChanged(user.id);
-  revalidatePath("/training");
+  revalidatePath("/plan");
   revalidatePath("/profile/sports");
   revalidatePath("/today");
   redirect(lifts ? "/welcome/gym" : "/today");

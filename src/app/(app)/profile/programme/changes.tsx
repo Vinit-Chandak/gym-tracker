@@ -2,6 +2,8 @@ import { and, desc, eq, gte, inArray, isNotNull, notInArray, sql } from "drizzle
 import type { Route } from "next";
 
 import { Proposals } from "./proposals";
+import { RequestChange } from "@/components/coaching/request-change";
+
 import { RequestReview, type ReviewAvailability } from "./request-review";
 import { RequestList, type RequestView } from "@/components/coaching/request-list";
 import { Card } from "@/components/ui/card";
@@ -237,9 +239,12 @@ function plural(count: number, noun: string) {
 export function ProgrammeChanges({
   data,
   base = "/profile/programme",
+  request = null,
 }: {
   data: ProgrammeChangesData;
   base?: string;
+  /** Asking the coach for a change, where the coach is on to read it (ADR 0058). */
+  request?: { noteId: string } | null;
 }) {
   const past = data.history.requests + data.history.changes;
   const nothing =
@@ -304,6 +309,7 @@ export function ProgrammeChanges({
         </Card>
       )}
 
+      {request && <RequestChange sport="strength" noteId={request.noteId} />}
       <RequestReview availability={data.review} />
 
       {past > 0 && (

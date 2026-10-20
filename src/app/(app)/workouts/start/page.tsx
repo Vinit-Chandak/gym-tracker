@@ -98,11 +98,8 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
         start.startedAt ? `${one(search.date)} · ${name}` : `Before ${name}`,
         "Optional recovery check-in",
       ])}
-      back={
-        one(search.origin) === "training"
-          ? { href: "/training", label: "Training" }
-          : { href: "/today", label: "Today" }
-      }
+      // Started from a card or from Log, both Today's (ADR 0058).
+      back={{ href: "/today", label: "Today" }}
     >
       <CheckInForm
         action={startSessionAction.bind(null, start)}

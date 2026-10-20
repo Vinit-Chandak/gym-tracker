@@ -1,6 +1,6 @@
 /*
- * Training (boards Training, Programme day): the programme's cycle as its days' prints, the
- * other sports as tiles that start a log, and a programme day read before it is trained.
+ * Programmes (Plan's cards, a programme's page, Programme day): the programme cards' grid, a
+ * programme's own tools, its cycle as its days, and a programme day read before it is trained.
  */
 
 /* ---------- the cycle ---------- */
@@ -15,36 +15,6 @@
 .programme-card-grid > * {
   min-width: 0;
 }
-.training-programme-card {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-.training-programme-card h3 {
-  font-family: var(--ov-font-display);
-  font-size: var(--ov-type-card-title);
-  font-weight: 700;
-  line-height: 1.15;
-}
-.training-programme-next {
-  display: grid;
-  gap: calc(5 * var(--ov-u));
-  border-top: 1px solid var(--ov-hair);
-  padding-top: calc(12 * var(--ov-u));
-}
-.training-programme-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(8 * var(--ov-u));
-  padding-top: calc(4 * var(--ov-u));
-}
-.training-programme-actions > :first-child {
-  flex: 1 1 9rem;
-}
-.training-programme-actions > :last-child {
-  flex: 0 1 auto;
-}
 .programme-management {
   display: grid;
   gap: calc(10 * var(--ov-u));
@@ -55,45 +25,6 @@
 .programme-management-more button,
 .programme-management-more a {
   width: 100%;
-}
-.programme-week-picker {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: calc(8 * var(--ov-u));
-}
-.programme-week-picker select {
-  height: 100%;
-}
-.programme-week-picker > button {
-  min-width: var(--ov-target);
-  padding-inline: calc(10 * var(--ov-u));
-}
-.start-tile.training-log-shortcut {
-  min-height: var(--ov-target);
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  padding: calc(12 * var(--ov-u));
-}
-.training-log-shortcut > :first-child {
-  flex-shrink: 0;
-}
-.start-tiles.training-log-tiles {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.training-log {
-  container: training-log / inline-size;
-}
-@container training-log (width < 14rem) {
-  .start-tiles.training-log-tiles {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-@container training-log (width >= 32rem) {
-  .start-tiles.training-log-tiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 /* The programme's name, which opens it, and how far through it is, on one line. */
 .cycle-head {

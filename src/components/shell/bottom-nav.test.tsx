@@ -63,7 +63,7 @@ it("offers Food where History was, and keeps it for a meal's page", () => {
   render(<BottomNav />);
   expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
     "Today",
-    "Training",
+    "Plan",
     "Food",
     "Progress",
     "Profile",

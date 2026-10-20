@@ -70,7 +70,7 @@ it("refuses a session on a day that has gone by, and says to log it instead", as
 it("schedules today and later, and moves only to today or later", async () => {
   const today = todayInTimeZone(ZONE);
   await scheduleActivityAction({}, form({ sport: "running", scheduledOn: today }));
-  expect(mocks.redirect).toHaveBeenCalledWith("/training/scheduled");
+  expect(mocks.redirect).toHaveBeenCalledWith("/plan");
   const [id] = await scheduled();
 
   const back = await rescheduleOccurrenceAction(id!, {}, form({ scheduledOn: addDays(today, -2) }));
@@ -89,7 +89,7 @@ it("takes a standalone session off the calendar, leaving its history", async () 
   const [id] = await scheduled();
 
   await removeOccurrenceAction(id!);
-  expect(mocks.redirect).toHaveBeenLastCalledWith("/training/scheduled");
+  expect(mocks.redirect).toHaveBeenLastCalledWith("/plan");
   const removed = await withUser(t.db, user.id, (tx) => getOccurrence(tx, user.id, id!));
   expect(removed?.resolution.kind).toBe("cancelled");
   expect(removed?.loggable).toBe(false);

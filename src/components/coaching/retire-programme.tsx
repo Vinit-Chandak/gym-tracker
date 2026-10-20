@@ -3,11 +3,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import type { ActivitySport } from "@/domain/activity";
+import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { archiveProgramAction } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
 
-/** Retiring closes outstanding sessions (ADR 0054), so explain that before confirming. */
+/**
+ * Ending a programme closes its outstanding sessions (ADR 0054), so the confirmation says what
+ * goes and what stays. One verb, End, wherever a programme is ended (ADR 0058).
+ */
 export function RetireProgramme({
   id,
   sport,
@@ -26,7 +29,7 @@ export function RetireProgramme({
     <>
       <Button
         variant="ghost"
-        aria-label={`Retire programme: ${sport}`}
+        aria-label={`End ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme`}
         aria-expanded={confirming}
         aria-controls={confirming ? confirmationId : undefined}
         disabled={disabled || pending}
@@ -35,7 +38,7 @@ export function RetireProgramme({
           setConfirming(!confirming);
         }}
       >
-        Retire programme
+        End programme
       </Button>
       {confirming && (
         <div
@@ -43,9 +46,9 @@ export function RetireProgramme({
           className="w-full space-y-3 rounded-control bg-surface-raised p-3 text-sm"
         >
           <p>
-            Retire your {sport} programme and stop scheduling its future sessions? Your completed
-            workouts remain in history. Its unfinished or skipped sessions can then only be logged
-            on their own. You can find and duplicate the programme later in Archived programmes.
+            End your {ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme? Its sessions from today
+            on are removed, and any it still owes can then only be logged as unplanned. Everything
+            you logged stays, and the programme moves to Past programmes.
           </p>
           <div className="grid gap-2 min-[420px]:grid-cols-2">
             <Button
@@ -63,7 +66,7 @@ export function RetireProgramme({
                 });
               }}
             >
-              {pending ? "Retiring…" : "Retire this programme"}
+              {pending ? "Ending…" : "End programme"}
             </Button>
             <Button
               variant="ghost"

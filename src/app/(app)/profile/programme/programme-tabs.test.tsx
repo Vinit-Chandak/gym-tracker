@@ -10,18 +10,18 @@ afterEach(cleanup);
 
 it("keeps the selected tab in sync when navigation changes the server view", () => {
   const { rerender } = render(<ProgrammeTabs view="cycle" waiting={2} />);
-  expect(screen.getByRole("tab", { name: "Plan" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: "Days" }).getAttribute("aria-selected")).toBe("true");
   rerender(<ProgrammeTabs view="changes" waiting={2} />);
   expect(screen.getByRole("tab", { name: "Changes (2)" }).getAttribute("aria-selected")).toBe(
     "true",
   );
-  expect(screen.getByRole("tab", { name: "Plan" }).getAttribute("aria-selected")).toBe("false");
+  expect(screen.getByRole("tab", { name: "Days" }).getAttribute("aria-selected")).toBe("false");
 });
 
-it("keeps programme navigation under Training", () => {
+it("keeps programme navigation under Plan", () => {
   render(<ProgrammeTabs view="cycle" waiting={0} />);
   fireEvent.click(screen.getByRole("tab", { name: "Changes" }));
-  expect(replace).toHaveBeenCalledWith("/training/programmes/strength?view=changes", {
+  expect(replace).toHaveBeenCalledWith("/plan/strength?view=changes", {
     scroll: false,
   });
 });
