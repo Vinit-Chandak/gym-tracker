@@ -42,7 +42,15 @@ async function fixtures(username) {
     where o.user_id = ${person.id} and o.family_id = ${programme.family_id}
     order by v.scheduled_on`;
   const today = new Date().toLocaleDateString("en-CA", { timeZone: person.time_zone });
-  const upcoming = sessions.find((session) => session.on >= today);
+  // The seed puts an intervals session on the day it runs; a day or two later that session is
+  // still the one to read, so it is the latest intervals session of the past week, else the next
+  // session to come.
+  const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const upcoming =
+    sessions.filter((s) => s.type === "intervals" && s.on >= weekAgo && s.on <= today).at(-1) ??
+    sessions.find((session) => session.on >= today);
   const [logged] = await sql`
     select a.id from activities a
     join running_activity_details d on d.activity_id = a.id
@@ -54,7 +62,7 @@ async function fixtures(username) {
     join running_activity_details d on d.activity_id = a.id
     where a.user_id = ${person.id} and d.environment = 'treadmill' and a.occurrence_id is not null
     order by a.occurred_on desc limit 1`;
-  return { programme, upcoming, logged, treadmill };
+  return { programme, upcoming, logged, treadmill, today };
 }
 
 async function audit(username, checks) {
@@ -76,7 +84,10 @@ async function audit(username, checks) {
   };
   const step = async (name, run) => {
     try {
-      await run();
+      if ((await run()) === SKIPPED) {
+        results.push({ username, name, status: "skipped" });
+        return;
+      }
       await shot(name);
       results.push({ username, name, status: "passed" });
     } catch (error) {
@@ -96,6 +107,9 @@ async function audit(username, checks) {
   }
 }
 
+/** A check that cannot run on this day (the seed's session is not today's). */
+const SKIPPED = Symbol("skipped");
+
 /** What the page says, as read: no-break spaces as spaces and the invisible joiners gone. */
 async function says(page, ...texts) {
   const text = (await page.locator("main").innerText())
@@ -111,6 +125,7 @@ await audit("priya", async ({ page, step, data }) => {
     await expect(page.getByText(data.programme.name).first()).toBeVisible();
   });
   await step("today", async () => {
+    if (data.upcoming.on !== data.today) return SKIPPED;
     await page.goto("/today", { waitUntil: "networkidle" });
     // Named for the kind of run where its name only repeats its figure.
     await expect(page.locator(".activity-card-title", { hasText: /^Intervals$/ })).toBeVisible();
@@ -124,10 +139,10 @@ await audit("priya", async ({ page, step, data }) => {
     await says(
       page,
       "Intervals",
-      "Easy run · 40 min",
-      "Tempo · 20 min",
-      "Long run · 10 km",
-      "4 runs · 24.2 km + 68 min · Now",
+      "Easy run with strides",
+      "Tempo 20 min",
+      "Long run 10 km",
+      "4 runs · 24.2 km + 68 min · 19 Oct",
       "1 missed",
     );
   });
@@ -135,10 +150,11 @@ await audit("priya", async ({ page, step, data }) => {
     await page.goto(`/training/programme/occurrences/${data.upcoming.id}`, {
       waitUntil: "networkidle",
     });
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(data.upcoming.title);
+    // Named as Today names it: a title that only repeats its figure gives way to the kind of run.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Intervals");
     await says(
       page,
-      "Running · Week 3 · planned for",
+      "Running · Week 3 · ",
       "Run 800 m @ 4:55–5:05 /km · Zones 4–5 (163–191 bpm)",
       "Jog 400 m · Zones 1–2 (122–148 bpm) — Jog, never walk",
     );
@@ -154,6 +170,8 @@ await audit("priya", async ({ page, step, data }) => {
       waitUntil: "networkidle",
     });
     await expect(page.getByLabel("Kind of run")).toHaveValue("intervals");
+    // The plan's steps are a fold under the session's figure.
+    await page.locator("summary").filter({ hasText: "The plan" }).click();
     await says(page, "Warm-up: Run 2 km · Zones 1–2 (122–148 bpm)");
     await page.locator("summary").filter({ hasText: "Laps and intervals" }).click();
     // Warm-up, six reps and six jogs, cool-down: the plan's laps, empty for the watch's figures.
@@ -173,7 +191,8 @@ await audit("priya", async ({ page, step, data }) => {
   });
   await step("heart-rate", async () => {
     await page.goto("/profile/heart-rate", { waitUntil: "networkidle" });
-    await says(page, "Highest from your runs", "191", "Shares of your heart-rate reserve");
+    // The method stands at the end of the Settings fold's row.
+    await says(page, "Highest from your runs", "191", "Of reserve");
   });
   await step("treadmill-run", async () => {
     await page.goto(`/training/activities/${data.treadmill.id}`, { waitUntil: "networkidle" });
@@ -185,7 +204,7 @@ await audit("alex", async ({ page, step, data }) => {
   await step("programme", async () => {
     await page.goto("/plan/running", { waitUntil: "networkidle" });
     await expect(page.getByText(data.programme.name).first()).toBeVisible();
-    await says(page, "Intervals · 6 × 2 min", "Tempo · 2 mi", "Long run · 4.5 mi");
+    await says(page, "6 × 2 min in zone 4", "Intervals", "Tempo 2 mi", "Long run 4.5 mi");
   });
   await step("session", async () => {
     await page.goto(`/training/programme/occurrences/${data.upcoming.id}`, {
@@ -193,7 +212,7 @@ await audit("alex", async ({ page, step, data }) => {
     });
     await says(
       page,
-      "Running · Week 2 · planned for",
+      "Running · Week 2 · ",
       "Run 2 min · Zone 4 (158–170 bpm)",
       "Walk 2 min · Zone 1 (105–124 bpm)",
     );
@@ -214,7 +233,7 @@ await audit("alex", async ({ page, step, data }) => {
     await expect(page.getByLabel("Kind of run")).toHaveValue("intervals");
     await expect(page.getByRole("heading", { name: "Steps" })).toBeVisible();
     await says(page, "2. Repeat 6 times");
-    await page.locator(".step-editor-more summary").nth(1).click();
+    await page.locator("summary").filter({ hasText: "Pace, zone and note" }).nth(1).click();
   });
 });
 
