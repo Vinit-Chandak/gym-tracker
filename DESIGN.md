@@ -942,8 +942,8 @@ and every control answers a press.
 
 - **The pill:** surface, 36 pt in a 44-pt target, a dial that empties clockwise from twelve and
   the time. One tap
-  opens +30 s and Stop. At zero it reads Go for 60 s. It lives in the session's header. When a
-  set is saved it starts again, its dial full.
+  opens +30 s and Stop. At zero it reads Go for 60 s, and a screen reader hears "Rest over" once,
+  politely. It lives in the session's header. When a set is saved it starts again, its dial full.
 - **The session strip:** ink, 52 pt, `card` corners: the session's mark and name, the dial and
   the time, Resume on on-ink. The system's one shadow.
 - **The strip, folded** (large text, on a screen with pinned actions): a key on the control
