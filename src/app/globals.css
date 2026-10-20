@@ -997,15 +997,13 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
 }
 
 /*
- * A superset member. The group's hue arrives as --superset-color from the row itself, so
- * one rule serves all eight colours: a rule on the left and a faint wash of the same hue
- * behind the row, which is how two rows say they belong together without a caption.
- * Browsers without color-mix drop the wash and keep the rule. The row sets its own left
- * padding, allowing for the rule, so its text lines up with the rows around it.
+ * A superset member: a 2-px rule in ink at the row's left edge, the bracket that says two rows
+ * belong together without a caption (DESIGN.md, Rows and marks). Every group's colour resolves to
+ * ink in this theme, so the rule is drawn in ink outright, with no wash behind the row. The row
+ * sets its own left padding, allowing for the rule, so its text lines up with the rows around it.
  */
 @utility superset-row {
-  border-left: 3px solid var(--superset-color, var(--ov-accent));
-  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 10%, transparent);
+  border-left: 2px solid var(--ov-ink);
 }
 
 /*
