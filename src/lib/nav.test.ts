@@ -77,8 +77,9 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/plan/running")).toBe("Running programme");
   expect(sectionLabel("/plan/strength?view=changes")).toBe("Strength programme");
   expect(sectionLabel("/plan/swimming")).toBe("Swimming programme");
-  // Plan's other pages, and a programme's own pages, are Plan's.
-  expect(sectionLabel("/plan/new?sport=running")).toBe("Plan");
+  // New programme's steps go back to it by name; Plan's other pages, and a programme's own
+  // pages, are Plan's.
+  expect(sectionLabel("/plan/new?sport=running")).toBe("New programme");
   expect(sectionLabel("/plan/past")).toBe("Plan");
   expect(sectionLabel("/plan/strength/days/abc")).toBe("Plan");
   expect(sectionLabel("/plan/sessions/abc")).toBe("Plan");

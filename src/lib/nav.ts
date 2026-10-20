@@ -128,6 +128,8 @@ const PAGE_LABELS: Record<string, string> = {
   "/today/log": "Log",
   // What AI coach opens (a request, a draft, a programme's page) goes back to it by name.
   "/profile/ai-coach": "AI coach",
+  // New programme's steps, and a builder opened from one, go back to it by name.
+  "/plan/new": "New programme",
 };
 
 /** Comparing yourself with someone, one exercise of it included: a page named Compare. */

@@ -37,7 +37,7 @@ History.
    `/exercises` and `/u` stay sections the shell maps to a tab. Every old path redirects
    permanently, with its query (Redirects, below). A back link names the page it returns to: a
    programme's page by its title ("Running programme"), and History, Calendar, My foods, Targets,
-   Log and AI coach by theirs; a logged run, ride or swim is named by the page linking to it. A
+   Log, New programme and AI coach by theirs; a logged run, ride or swim is named by the page linking to it. A
    draft opened cold goes back to its own programme's page.
 2. **Plan's This week stays a list of days** (M5). A strip of seven days was set aside: it hides
    most of the week behind taps. A day gone by is one closed row naming the day and what became
