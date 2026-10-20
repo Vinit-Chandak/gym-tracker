@@ -82,19 +82,20 @@ longer, and programme management hides below it or behind a control.
 ## Redirects
 
 Permanent: `/training` to `/plan`; `/training/programmes/new`, `/archived`, `/:sport` and
-`/:sport/edit` to their `/plan` pages; `/profile/programme` to `/plan/strength`; `/training/log`
-to `/today/log`; `/today/choose` to `/today/log?sport=strength`. Temporary, as the features may
-return: `/training/schedule`, `/training/scheduled`, `/training/templates` and
-`/training/programme` to `/plan`; `/profile/routines` to `/today`. Links that still say
-`?from=training` mean Plan.
+`/:sport/edit` to their `/plan` pages; `/profile/programme` to `/plan/strength`; `/training/log` to
+`/today/log`; `/today/choose` to `/today/log?sport=strength`. Temporary, as the features may return:
+`/training/schedule`, `/training/scheduled`, `/training/templates` and `/training/programme` to
+`/plan`; `/profile/routines` to `/today`; `/welcome/programme/template` to `/welcome/programme`.
+Links that still say `?from=training` mean Plan.
 
 ## Not changed
 
 Progress, Food and Profile, apart from losing Routines; logging a workout set by set; the
 sequence and its missed days (ADR 0051); a closed programme's sessions (ADR 0054); one
 unfinished workout at a time; an unplanned session carries no programme, cycle or day; a
-scheduled log names its session explicitly, and nothing is matched by date. Onboarding keeps its
-template step until the owner decides.
+scheduled log names its session explicitly, and nothing is matched by date. Setup's Follow a
+programme, its ready-made programme, went too (owner, 20 October 2026): an athlete who
+already trains sets up their split, asks the coach, or logs their own workouts.
 
 ## Follow-ups
 

@@ -46,7 +46,8 @@ it.each([
   ["/training/scheduled", "/plan", 307],
   ["/training/templates/abc/edit", "/plan", 307],
   ["/profile/routines", "/today", 307],
-])("sends %s to Plan's or Today's page for it", async (path, destination, status) => {
+  ["/welcome/programme/template", "/welcome/programme", 307],
+])("sends %s to the page that has it now", async (path, destination, status) => {
   const response = await unstable_getResponseFromNextConfig({
     url: `http://localhost:3101${path}`,
     nextConfig,

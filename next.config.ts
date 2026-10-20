@@ -57,6 +57,12 @@ const nextConfig: NextConfig = {
       // The planned runs list became the running programme's weeks, under Plan.
       { source: "/training/programme", destination: "/plan", permanent: false },
       { source: "/profile/routines", destination: "/today", permanent: false },
+      // Setup no longer offers a ready-made programme to follow (owner, 20 October 2026).
+      {
+        source: "/welcome/programme/template",
+        destination: "/welcome/programme",
+        permanent: false,
+      },
       // Logging anything Today's cards do not offer is Today's Log now (ADR 0058).
       { source: "/training/log", destination: "/today/log", permanent: true },
       { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
