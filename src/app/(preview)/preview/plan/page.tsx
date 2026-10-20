@@ -50,9 +50,10 @@ const session = (
   title,
   status,
   occurrenceId: sport === "strength" ? null : `00000000-0000-4000-8000-0000000001${key}`,
+  dayId: sport === "strength" ? `00000000-0000-4000-8000-0000000002${key}` : null,
 });
 
-/** The week of a Tuesday: Monday lifted and missed its run, today lifts and runs. */
+/** The week of a Tuesday: Monday, gone by, lifted and missed its run; today lifts and runs. */
 const WEEK: WeekSession[] = [
   session("10", MONDAY, "strength", "Upper A", "done"),
   session("11", MONDAY, "running", "Easy run", "missed"),

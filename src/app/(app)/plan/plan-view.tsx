@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
@@ -43,14 +44,13 @@ const STATUS: Record<Exclude<WeekStatus, "planned">, string> = {
 
 /**
  * Where a row of the week leads. Today's session is Today's to start or log, so the row only
- * points there; a run, ride or swim opens its own page, to move or skip it; a lifting day, its
- * programme.
+ * points there; a run, ride or swim opens its own page, to move or skip it; a lifting day, the
+ * day's page.
  */
 function sessionHref(session: WeekSession): Route {
   if (session.status === "today") return "/today";
-  return session.occurrenceId
-    ? (`/plan/sessions/${session.occurrenceId}` as Route)
-    : ("/plan/strength" as Route);
+  if (session.occurrenceId) return `/plan/sessions/${session.occurrenceId}` as Route;
+  return (session.dayId ? `/plan/strength/days/${session.dayId}` : "/plan/strength") as Route;
 }
 
 /**
@@ -70,6 +70,50 @@ function sessionWords(
   return { name, figure: figure && !alreadySays(name, figure) ? figure : null };
 }
 
+/** A day's sessions, each with its sport's mark, its name, its figure and where it stands. */
+function DayRows({ sessions, units }: { sessions: readonly WeekSession[]; units: SportUnits }) {
+  return (
+    <ul className="ruled-list">
+      {sessions.map((session) => {
+        const { name, figure } = sessionWords(session, units);
+        return (
+          <NavRow
+            key={session.key}
+            href={sessionHref(session)}
+            lead={
+              <Art
+                kind="mark"
+                sport={MARK[session.sport]}
+                size={20}
+                state={
+                  session.status === "done"
+                    ? "done"
+                    : session.status === "skipped"
+                      ? "skipped"
+                      : "todo"
+                }
+              />
+            }
+            label={holdHyphens(name)}
+            sub={figure ?? undefined}
+            value={session.status === "planned" ? undefined : STATUS[session.status]}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+/** What became of a day gone by, in the app's words: "2 done", "1 done · 1 skipped". */
+function outcome(sessions: readonly WeekSession[]): string {
+  return joinFacts(
+    (["done", "skipped", "missed"] as const).map((status) => {
+      const count = sessions.filter((session) => session.status === status).length;
+      return count > 0 && `${count}\u00a0${STATUS[status].toLowerCase()}`;
+    }),
+  );
+}
+
 function Week({
   sessions,
   monday,
@@ -82,6 +126,9 @@ function Week({
   units: SportUnits;
 }) {
   const days = byDay(sessions);
+  const gone = days.filter(({ date }) => date < today);
+  const ahead = days.filter(({ date }) => date >= today);
+  const year = today.slice(0, 4);
   const sunday = addDays(monday, 6);
   const thisWeek = monday === weekStartOf(today);
   return (
@@ -113,43 +160,30 @@ function Week({
           </Link>
         </nav>
       </div>
-      {days.length === 0 ? (
-        <p className="type-meta text-ink-2">Nothing planned.</p>
-      ) : (
+      {days.length === 0 && <p className="type-meta text-ink-2">Nothing planned.</p>}
+      {gone.length > 0 && (
+        // A day gone by is one closed row saying what became of it, its sessions a tap away
+        // (DESIGN.md, Folds): ruled rows that share their rules, never a stack of boxes.
+        <ul className="[&>li+li]:-mt-px">
+          {gone.map(({ date, sessions: onDay }) => (
+            <li key={date}>
+              <Disclosure
+                summary={formatIsoDate(date, year)}
+                meta={outcome(onDay)}
+                variant="inline"
+              >
+                <DayRows sessions={onDay} units={units} />
+              </Disclosure>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ahead.length > 0 && (
         <ul className="plan-days">
-          {days.map(({ date, sessions: onDay }) => (
+          {ahead.map(({ date, sessions: onDay }) => (
             <li key={date} className="plan-day">
-              <p className="plan-day-name type-caption tabular-nums">
-                {formatIsoDate(date, today.slice(0, 4))}
-              </p>
-              <ul className="ruled-list">
-                {onDay.map((session) => {
-                  const { name, figure } = sessionWords(session, units);
-                  return (
-                    <NavRow
-                      key={session.key}
-                      href={sessionHref(session)}
-                      lead={
-                        <Art
-                          kind="mark"
-                          sport={MARK[session.sport]}
-                          size={20}
-                          state={
-                            session.status === "done"
-                              ? "done"
-                              : session.status === "skipped"
-                                ? "skipped"
-                                : "todo"
-                          }
-                        />
-                      }
-                      label={holdHyphens(name)}
-                      sub={figure ?? undefined}
-                      value={session.status === "planned" ? undefined : STATUS[session.status]}
-                    />
-                  );
-                })}
-              </ul>
+              <p className="plan-day-name type-caption tabular-nums">{formatIsoDate(date, year)}</p>
+              <DayRows sessions={onDay} units={units} />
             </li>
           ))}
         </ul>
