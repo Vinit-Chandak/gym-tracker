@@ -180,6 +180,7 @@ repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 | How a programme runs and where it has got to                    | Plan › the programme's card and page           |
 | A programme's progress, weeks or days; editing or ending it     | Plan › the programme's page                    |
 | Starting a new programme                                        | Plan › New programme                           |
+| A first programme drafted and waiting to be started             | Plan, beside the programme cards               |
 | Asking the coach for a change; coach review; changes to approve | Plan › the programme's page                    |
 | Programmes ended or replaced                                    | Plan › Past programmes                         |
 | What a logged run, ride or swim counts as                       | Its page › Counts as                           |

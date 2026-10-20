@@ -21,6 +21,7 @@ import { endurancePattern } from "@/domain/programme-pattern";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts, readsAs } from "@/lib/facts";
+import { formatIsoDate } from "@/lib/format";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -205,7 +206,10 @@ export default async function SportProgrammePage({
                       sessionCount(sport, inWeek.length),
                       plannedVolumeLine(volume, sport, data.units),
                       week === currentWeek && !finished
-                        ? "Now"
+                        ? // A block the athlete has not reached yet starts on its day, not now.
+                          start && today < start
+                          ? `Starts ${formatIsoDate(start, today.slice(0, 4))}`
+                          : "Now"
                         : allDone
                           ? "Done"
                           : missed > 0 && `${missed} missed`,

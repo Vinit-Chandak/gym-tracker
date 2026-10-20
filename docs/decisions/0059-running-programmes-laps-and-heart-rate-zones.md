@@ -87,6 +87,20 @@ ADR, with its citations, is in
     its distance and the time of what is run by time, kept apart and never converted at a guessed
     pace ("24.2 km + 68 min"). A session's page is named for the session, placed by its week, and
     lists its steps a line each, a block's rep and recovery on lines of their own.
+11. **A running programme takes over running from its start.** An older combined strength
+    programme still owns the easy runs it was built with; starting a programme of a sport
+    withdraws that sport's pending, unanswered sessions other programmes carry from its start
+    date, so a day never shows two runs. What was logged, skipped or due before the start stays,
+    as do other sports and the athlete's own unplanned sessions.
+12. **A first programme waits on Plan.** A drafted programme of a sport that has none yet (the
+    coach's answer to New programme › With the coach, or one being built by hand) is listed beside
+    the programme cards until it is started or discarded; the request's page says so.
+13. **Tested by coaching it.** A first marathon from about 8 km a week and a 200 m sprint block
+    were written through the real coach workflow against the local app, and the reference was
+    revised where those coaches found it silent or read two ways: sprint goals as their own
+    section, one rule for week one, the single-run step above a marathon's long-run peak, a goal
+    faster than the evidence, and best efforts read with the effort the athlete reported. The
+    conventions this added are listed in the research brief.
 
 ## Consequences
 
