@@ -87,7 +87,8 @@ html:has(.onboarding) .pinned-actions {
 }
 .you-choice {
   display: flex;
-  min-height: calc(116 * var(--ov-u));
+  /* A title and its check: sized for them alone, at least a target tall. */
+  min-height: calc(64 * var(--ov-u));
   flex-direction: column;
   justify-content: space-between;
   padding: calc(14 * var(--ov-u));

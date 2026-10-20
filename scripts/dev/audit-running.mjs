@@ -192,7 +192,7 @@ await audit("priya", async ({ page, step, data }) => {
   await step("heart-rate", async () => {
     await page.goto("/profile/heart-rate", { waitUntil: "networkidle" });
     // The method stands at the end of the Settings fold's row.
-    await says(page, "Highest from your runs", "191", "Of reserve");
+    await says(page, "Highest from your runs", "191", "% of reserve");
   });
   await step("treadmill-run", async () => {
     await page.goto(`/training/activities/${data.treadmill.id}`, { waitUntil: "networkidle" });

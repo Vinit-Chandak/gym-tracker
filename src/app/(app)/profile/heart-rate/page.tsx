@@ -24,6 +24,13 @@ import { readHeartRate } from "@/server/repositories/heart-rate";
 import { HeartRateForm } from "./heart-rate-form";
 import { UseRunMaximum } from "./use-run-maximum";
 
+/** The method in use, at the end of the Settings row: what the zones are shares of. */
+const METHOD_META: Record<keyof typeof ZONE_METHOD_LABELS, string> = {
+  max: "% of maximum",
+  reserve: "% of reserve",
+  custom: "Your own zones",
+};
+
 export const metadata: Metadata = { title: "Heart rate zones" };
 
 /**
@@ -109,7 +116,7 @@ export default async function HeartRatePage() {
             method chosen but not usable (Of reserve, with no resting rate) reads as it is. */}
         <Disclosure
           summary="Settings"
-          meta={resolved ? ZONE_METHOD_LABELS[resolved.method] : undefined}
+          meta={resolved ? METHOD_META[resolved.method] : undefined}
           defaultOpen={!resolved}
         >
           <HeartRateForm

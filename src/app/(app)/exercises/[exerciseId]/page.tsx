@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { ExerciseGraph } from "@/components/graph/exercise-graph";
 import { GraphRangeProvider } from "@/components/graph/graph-range-context";
-import { ExerciseGuide, guideHasContent } from "@/components/exercise-guide";
+import { ExerciseGuide, guideHasContent, guideIsOneLink } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -416,11 +416,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             with where it was checked, folded and closed: the page leads with the athlete's own
             record (DESIGN.md, Guides). A guide still awaiting the owner's review is not announced
             as missing outside review: the fold holds what there is, or is left out. */}
-        {(showsDrafts() || guideHasContent(guidance)) && (
-          <Disclosure summary="How to do it">
-            <ExerciseGuide guidance={guidance} sources={sources} sayMissing={showsDrafts()} />
-          </Disclosure>
-        )}
+        {(showsDrafts() || guideHasContent(guidance)) &&
+          (guideIsOneLink(guidance) && !showsDrafts() ? (
+            <ExerciseGuide guidance={guidance} sources={sources} sayMissing={false} />
+          ) : (
+            <Disclosure summary="How to do it">
+              <ExerciseGuide guidance={guidance} sources={sources} sayMissing={showsDrafts()} />
+            </Disclosure>
+          ))}
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>

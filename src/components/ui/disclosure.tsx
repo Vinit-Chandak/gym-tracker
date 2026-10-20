@@ -66,7 +66,7 @@ export function Disclosure({
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
       className={cn(
-        "group min-w-0",
+        "min-w-0",
         variant === "box" && "box",
         variant === "inline" && "border-y border-line",
         // Full bleed inside a padded box: one rule above it and the box's bottom edge below.
@@ -83,7 +83,7 @@ export function Disclosure({
           variant === "inline" &&
             "min-h-[var(--ov-target)] py-2 pr-[calc(var(--ov-icon-control)+var(--spacing)*2)] text-sm",
           variant === "footer" &&
-            "min-h-12 rounded-b-card py-3 pr-[calc(var(--panel-padding)+var(--ov-icon-control)+var(--spacing)*2)] pl-[var(--panel-padding)] text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+            "min-h-12 rounded-b-card py-3 pr-[calc(var(--panel-padding)+var(--ov-icon-control)+var(--spacing)*2)] pl-[var(--panel-padding)] text-sm transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised [details[open]>&]:rounded-b-none",
         )}
       >
         {/* The summary wraps between its words to keep the count on its line, and lets the
@@ -106,9 +106,10 @@ export function Disclosure({
             {meta}
           </span>
         )}
+        {/* Turned by its own fold alone: a fold inside an open fold keeps its own state. */}
         <ChevronDown
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 text-ink-subtle transition-[rotate] duration-[var(--ov-duration-feedback)] group-open:rotate-180",
+            "absolute top-1/2 -translate-y-1/2 text-ink-subtle transition-[rotate] duration-[var(--ov-duration-feedback)] [details[open]>summary>&]:rotate-180",
             variant === "box" && "right-4",
             variant === "inline" && "right-0",
             variant === "footer" && "right-[var(--panel-padding)]",

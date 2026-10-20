@@ -38,7 +38,7 @@ it("draws one polygon per series inside a scaling box, with the values in a tabl
 it("reads as a table to a screen reader: named disclosure, caption, row and column headers", () => {
   render(<RadarChart title="Muscle split" axes={SPLIT_GROUPS} series={[one]} />);
   expect(screen.getByText("View values").closest("summary")!.textContent).toBe(
-    "View values for Muscle split",
+    "View values for Muscle split, 6",
   );
   expect(screen.getByRole("table", { name: "Muscle split by axis" })).toBeTruthy();
   expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Group", "Alice"]);

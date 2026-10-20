@@ -1761,6 +1761,14 @@ html:has(.standalone-error) {
 .more-details-summary::-webkit-details-marker {
   display: none;
 }
+/* The fold's chevron at the row's end, turned while its own fold is open. */
+.more-details-chevron {
+  color: var(--ov-ink-2);
+  transition: rotate var(--ov-duration-feedback) var(--ov-ease-out);
+}
+details[open] > .more-details-summary > .more-details-chevron {
+  rotate: 180deg;
+}
 /* A run's laps (ADR 0059): one box per lap, its number, kind and remove on one line, then its
    distance, unit, time and heart rate folding into as many columns as fit. */
 .laps-count {

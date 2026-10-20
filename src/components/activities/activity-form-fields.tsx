@@ -663,9 +663,10 @@ export function MoreDetails({
       }}
       className="more-details"
     >
+      {/* Drawn as every fold is: its name at the edge, its chevron at the end (DESIGN.md). */}
       <summary className="more-details-summary">
-        <Glyph name={open ? "minus" : "plus"} className="glyph-20" />
-        Date, notes, heart rate, more
+        <span className="min-w-0 flex-1">Date, notes, heart rate, more</span>
+        <Glyph name="chevronDown" className="more-details-chevron glyph-20 shrink-0" />
       </summary>
       <div className="space-y-4 pt-1 pb-2">{children}</div>
     </details>

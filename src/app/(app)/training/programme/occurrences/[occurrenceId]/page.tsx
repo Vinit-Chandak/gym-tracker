@@ -213,42 +213,50 @@ export default async function OccurrencePage(
         backHref={(standalone ? "/plan" : `/plan/${occurrence.sport}`) as Route}
       />
       <PageContent>
-        {(headline || badge || planned || plannedNote || (waited && !badge) || moved) && (
-          <Card>
-            {(headline || badge) && (
-              // The badge stands at the headline's end while the headline keeps a few words'
-              // room beside it, and goes under it rather than break "Threshold" in two (large
-              // text).
-              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                {headline && (
-                  <h2 className="min-w-0 flex-[1_1_8rem] text-lg font-medium [overflow-wrap:break-word]">
-                    {headline}
-                  </h2>
-                )}
-                {badge && (
-                  // Wrapped under the headline, it starts the line, as the plan card's badge
-                  // does under its words.
-                  <span className={waited ? "inline-flex items-center gap-1" : undefined}>
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
-                    {waitedTip}
-                  </span>
-                )}
-              </div>
-            )}
-            {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
-            {plannedNote && (
-              <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
-            )}
-            {waited && !badge && (
-              <p className="flex items-center gap-1 text-sm text-ink-muted">
-                Still to do
-                {waitedTip}
-              </p>
-            )}
-            {moved && (
-              <p className="text-sm text-ink-muted">Moved from {formatIsoDate(moved, year)}.</p>
-            )}
-          </Card>
+        {/* Where it stands, alone: its chip on the page, not a card holding nothing else. */}
+        {badge && !headline && !planned && !plannedNote && !moved ? (
+          <span className={waited ? "inline-flex items-center gap-1" : undefined}>
+            <Badge tone={badge.tone}>{badge.label}</Badge>
+            {waitedTip}
+          </span>
+        ) : (
+          (headline || badge || planned || plannedNote || (waited && !badge) || moved) && (
+            <Card>
+              {(headline || badge) && (
+                // The badge stands at the headline's end while the headline keeps a few words'
+                // room beside it, and goes under it rather than break "Threshold" in two (large
+                // text).
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                  {headline && (
+                    <h2 className="min-w-0 flex-[1_1_8rem] text-lg font-medium [overflow-wrap:break-word]">
+                      {headline}
+                    </h2>
+                  )}
+                  {badge && (
+                    // Wrapped under the headline, it starts the line, as the plan card's badge
+                    // does under its words.
+                    <span className={waited ? "inline-flex items-center gap-1" : undefined}>
+                      <Badge tone={badge.tone}>{badge.label}</Badge>
+                      {waitedTip}
+                    </span>
+                  )}
+                </div>
+              )}
+              {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
+              {plannedNote && (
+                <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
+              )}
+              {waited && !badge && (
+                <p className="flex items-center gap-1 text-sm text-ink-muted">
+                  Still to do
+                  {waitedTip}
+                </p>
+              )}
+              {moved && (
+                <p className="text-sm text-ink-muted">Moved from {formatIsoDate(moved, year)}.</p>
+              )}
+            </Card>
+          )
         )}
 
         {!logged && (

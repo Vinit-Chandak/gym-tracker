@@ -356,7 +356,6 @@ export function ProfileFields({
                   inputMode="numeric"
                   value={feet}
                   onChange={(event) => setFeet(event.target.value)}
-                  placeholder="5"
                   required
                 />
               </Field>
@@ -368,7 +367,6 @@ export function ProfileFields({
                   inputMode="numeric"
                   value={inches}
                   onChange={(event) => setInches(event.target.value)}
-                  placeholder="10"
                 />
               </Field>
             </div>

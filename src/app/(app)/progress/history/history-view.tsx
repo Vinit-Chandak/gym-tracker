@@ -6,7 +6,7 @@ import { useMemo } from "react";
 
 import { DateRangeFields } from "@/components/date-range-fields";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
@@ -266,10 +266,15 @@ export function HistoryView({
         ) : (
           <div className="mt-6">
             <h2 className="type-heading">No matching activity</h2>
-            {active > 0 && (
+            {/* The way on: the filters that hid it, else logging the first. */}
+            {active > 0 ? (
               <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
                 Clear filters
               </Button>
+            ) : (
+              <LinkButton href="/today/log" variant="tonal" className="mt-3">
+                Log a session
+              </LinkButton>
             )}
           </div>
         )}

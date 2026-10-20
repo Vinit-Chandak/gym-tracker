@@ -221,9 +221,9 @@ export function LapsEditor({
       data-field-error={error ? "true" : undefined}
     >
       <summary className="more-details-summary">
-        <Glyph name={open ? "minus" : "plus"} className="glyph-20" />
-        Laps and intervals
+        <span className="min-w-0 flex-1">Laps and intervals</span>
         {rows.length > 0 && <span className="laps-count">{rows.length}</span>}
+        <Glyph name="chevronDown" className="more-details-chevron glyph-20 shrink-0" />
       </summary>
       <input type="hidden" name="laps" value={rows.length > 0 ? JSON.stringify(postedRows) : ""} />
       {/* Each lap's fields say what they take, and the plan's figures show in them while they

@@ -257,24 +257,20 @@ export default async function SportProgrammePage({
           </ul>
         </Section>
         {changeOffered && <RequestChange sport={sport} noteId={crypto.randomUUID()} />}
+        {/* One action and its state, so it stands as itself rather than folded alone. */}
         {coachOffered && (
-          <Disclosure
-            summary="Coach review"
-            defaultOpen={data.review.running || Boolean(data.review.waiting)}
-          >
-            <RequestReview
-              sport={sport}
-              availability={{
-                offered: true,
-                canAsk: data.review.canAsk,
-                running: data.review.running,
-                waiting: data.review.waiting,
-                nextOn: data.review.nextAt
-                  ? todayInTimeZone(profile.timeZone, data.review.nextAt)
-                  : null,
-              }}
-            />
-          </Disclosure>
+          <RequestReview
+            sport={sport}
+            availability={{
+              offered: true,
+              canAsk: data.review.canAsk,
+              running: data.review.running,
+              waiting: data.review.waiting,
+              nextOn: data.review.nextAt
+                ? todayInTimeZone(profile.timeZone, data.review.nextAt)
+                : null,
+            }}
+          />
         )}
       </PageContent>
     </>

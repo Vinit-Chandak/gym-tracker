@@ -37,6 +37,16 @@ export function guideHasContent(guidance: ExerciseGuidance): boolean {
 }
 
 /**
+ * Whether all there is to the guide is one link (a demonstration, or the form guide where there
+ * is no written guide): one action, which stands as itself rather than folded (DESIGN.md, Folds).
+ */
+export function guideIsOneLink(guidance: ExerciseGuidance): boolean {
+  const { guide, notes, ownNotes, logNote, demonstrations, formUrl } = guidance;
+  const links = demonstrations.length + (!guide && formUrl ? 1 : 0);
+  return !guide && !ownNotes && !notes && !logNote && links === 1;
+}
+
+/**
  * How to do an exercise (plan: exercise technique and media), the same in the workout's
  * Technique tab and in the library: the guide's Setup, Steps, Cues and Common mistakes, then How
  * to log, then the programme's cue when the slot has one, then the demonstration and the way to

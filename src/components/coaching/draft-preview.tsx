@@ -3,6 +3,7 @@ import { coachingAction } from "./client-action";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { ConfirmSheet } from "@/components/confirm-sheet";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
@@ -129,7 +130,9 @@ export function DraftPreview({
       return planned && planned >= today ? planned : today;
     }),
     [saving, setSaving] = useState(false),
-    [error, setError] = useState<string | null>(null);
+    [error, setError] = useState<string | null>(null),
+    // Discarding cannot be undone: the coach's work goes, so it is asked once (DESIGN.md).
+    [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const busy = saving || navigating;
   const editable = ["editing", "ready"].includes(current.status);
   const plannedStart =
@@ -181,8 +184,10 @@ export function DraftPreview({
     setSaving(true);
     setError(null);
     const result = await coachingAction(() => rejectProgramDraftAction(current.id));
-    if (result.ok) startNavigation(() => router.push(base));
-    else setError(result.error);
+    if (result.ok) {
+      setConfirmingDiscard(false);
+      startNavigation(() => router.push(base));
+    } else setError(result.error);
     setSaving(false);
   }
 
@@ -245,9 +250,20 @@ export function DraftPreview({
               Edit draft
             </LinkButton>
           )}
-          <Button variant="ghost" disabled={busy} onClick={discard}>
+          <Button variant="ghost" disabled={busy} onClick={() => setConfirmingDiscard(true)}>
             Discard draft
           </Button>
+          <ConfirmSheet
+            open={confirmingDiscard}
+            onClose={() => setConfirmingDiscard(false)}
+            title="Discard this draft?"
+            description="It cannot be brought back."
+            confirmLabel="Discard draft"
+            pendingLabel="Discarding…"
+            pending={busy}
+            error={confirmingDiscard ? error : null}
+            onConfirm={discard}
+          />
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}
