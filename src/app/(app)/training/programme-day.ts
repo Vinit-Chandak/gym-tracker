@@ -2,6 +2,7 @@ import type { FormState, PrintPart, StrengthColumn } from "@/components/art/geom
 import { exerciseColumn, planColumn, warmupFan, warmupState } from "@/components/art/session-print";
 import type { ActivitySport, EnduranceSport } from "@/domain/activity";
 import { pairBySlot, type PrintedSession } from "@/domain/session-print";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { exerciseOnMachine } from "@/lib/labels";
 import type { PlannedDayResolution } from "@/server/repositories/availability";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
@@ -219,7 +220,8 @@ export function dayPrintLabel(
 /**
  * What a day's exercises become at the athlete's default gym, where that is news: the fallback
  * starting the day there will put in its place ("At Planet Fitness: Smith machine bench press"),
- * or that nothing there will do. Read from the resolution the start itself uses
+ * or that nothing there will do ("Not at Planet Fitness · no fallback"). Read from the resolution
+ * the start itself uses
  * (`resolvePlannedDay`), keyed by the programme's slot. A day page listed Barbell bench to a
  * lifter whose gym has no barbell, with no word of the Smith machine it would be (year audit).
  */
@@ -236,7 +238,7 @@ export function atGymLines(
         `At ${gymName}: ${exerciseOnMachine(decision.resolvedExerciseName, r.equipmentInstance?.name)}`,
       );
     else if (r.status === "unavailable")
-      lines.set(programExerciseId, `At ${gymName}: not available, and no fallback fits`);
+      lines.set(programExerciseId, `Not at ${gymName}${FACT_SEPARATOR}no fallback`);
   }
   return lines;
 }

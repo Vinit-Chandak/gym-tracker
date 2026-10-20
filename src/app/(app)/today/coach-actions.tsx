@@ -6,12 +6,14 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import type { GymKind } from "@/domain/types";
 import { requestCoachPlanAction } from "@/server/actions/coach";
 import { startWaitingCoachJobAction } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "@/components/coaching/client-action";
+import { FACT_SEPARATOR } from "@/lib/facts";
 import { attempted } from "@/lib/offline-submit";
 
 import { GymRows } from "./gym-rows";
@@ -22,9 +24,10 @@ export type CoachGym = { id: string; name: string; isDefault: boolean; kind?: Gy
 const POLL_MS = 15_000;
 
 /**
- * One line under the day's action while the coach is planning. It re-reads the page on a
- * timer until the plan lands or the request times out on the server, so the athlete can
- * leave the app open and come back to a plan.
+ * One line under the day's action while the coach is planning: for which gym, and since when
+ * ("Preparing for Anytime Fitness · since 04:00"), the dial turning beside it. It re-reads the
+ * page on a timer until the plan lands or the request times out on the server, so the athlete
+ * can leave the app open and come back to a plan, and says nothing about doing so.
  */
 export function CoachPending({
   startedAt,
@@ -79,17 +82,17 @@ export function CoachPending({
   }, [router, startedAt, workflow]);
   return (
     <CoachNote tone="planning" role="status" small flat={flat}>
-      Coach is preparing this session for {gymName}, since {startedAtLabel}. This screen updates
-      itself.
+      Preparing for {gymName}
+      {FACT_SEPARATOR}since {startedAtLabel}
     </CoachNote>
   );
 }
 
 /**
- * The line in place of "Coach is preparing" when nothing is: the session's preparation is
- * queued, but it failed, or the run meant to reach it never did, and the next nightly run is
- * the next to try. Saying it was planning, since four in the morning, told the athlete to
- * wait for something that was not coming; this says what stands and starts it on a tap.
+ * The line in place of "Preparing for …" when nothing is: the session's preparation is queued,
+ * but it failed, or the run meant to reach it never did, and the next nightly run is the next to
+ * try. Saying it was planning, since four in the morning, told the athlete to wait for something
+ * that was not coming; this says what stands, in one line, and starts it on a tap.
  */
 export function CoachWaiting({
   jobId,
@@ -128,7 +131,7 @@ export function CoachWaiting({
             disabled={busy}
             onClick={start}
           >
-            {busy ? "Starting…" : "Ask the coach to prepare it now"}
+            {busy ? "Starting…" : "Prepare now"}
           </Button>
           {error && (
             <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
@@ -139,13 +142,8 @@ export function CoachWaiting({
         </>
       }
     >
-      {attempted
-        ? "The coach could not finish preparing this session."
-        : "The coach has not prepared this session yet."}{" "}
-      {hasPlan
-        ? "What it prepared earlier stands until it does."
-        : "Your programme's own targets apply until it does."}{" "}
-      It tries again at its next nightly run.
+      {attempted ? "Preparation failed" : hasPlan ? "Not prepared again yet" : "Not prepared yet"}
+      {hasPlan ? ": the earlier preparation applies." : ": programme targets apply."}
     </CoachNote>
   );
 }
@@ -192,14 +190,8 @@ export function CoachRequestPanel({
 
   return (
     <div className="space-y-4">
-      {workflow && (
-        <p className="type-meta text-ink-2">
-          Daily preparation is automatic. Use this to prepare your next session again — at a
-          different gym, or at this one after something has changed.
-        </p>
-      )}
       <GymRows gyms={gyms} chosenId={gymId || null} onChoose={setGymId} disabled={pending} />
-      <Field label="Anything the coach should know" hint="Optional">
+      <Field label="Note for the coach" aside="Optional">
         <Input
           value={reason}
           onChange={(event) => setReason(event.target.value)}
@@ -216,11 +208,15 @@ export function CoachRequestPanel({
       <Button size="lg" className="w-full" disabled={pending || !gymId} onClick={submit}>
         {pending ? "Asking…" : workflow ? "Prepare for this gym" : "Ask the coach"}
       </Button>
-      <p className="type-meta-small text-ink-2">
-        {requestsLeft} {requestsLeft === 1 ? "request" : "requests"} left today.
-        {workflow
-          ? " Shared with programme creation; resets at midnight in your time zone. You can leave while the coach prepares it."
-          : " The plan arrives in a few minutes."}
+      <p className="flex items-center gap-1 type-meta-small text-ink-2">
+        <span className="min-w-0 [overflow-wrap:break-word]">
+          {requestsLeft} {requestsLeft === 1 ? "request" : "requests"} left today
+        </span>
+        <InfoTip label="About requests">
+          {workflow
+            ? "Shared with new programmes. They reset at midnight in your time zone."
+            : "They reset at midnight in your time zone."}
+        </InfoTip>
       </p>
       <Button variant="text" className="w-full" onClick={onBack}>
         Back

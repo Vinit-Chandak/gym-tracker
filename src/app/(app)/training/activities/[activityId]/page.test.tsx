@@ -6,7 +6,7 @@ import { AD_HOC_ORIGIN, plannedOrigin, reportedEffort } from "@/domain/activity"
 import type { ActivityRecord } from "@/server/repositories/activities";
 import type { NamedOccurrence } from "@/server/repositories/occurrences";
 
-import ActivityPage from "./page";
+import ActivityPage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   activity: vi.fn(),
@@ -170,4 +170,64 @@ it("goes back to the tab its link names, and to History when it names none", asy
   expect(renderToStaticMarkup(await ActivityPage(opened({})))).toContain(
     'data-back="/progress/history"',
   );
+});
+
+/**
+ * What it counts as is one row (Information map: its page › Counts as): the session it answered
+ * and the day it was planned for, or Unplanned, opening Counts as. A session whose programme has
+ * ended keeps its answer (ADR 0054), so its row opens that session's page instead.
+ */
+it("says what it counts as in one row, opening Counts as or its ended session", async () => {
+  const countsAs = (html: string) =>
+    /<a href="([^"]+)">(?:(?!<\/a>).)*Counts as(?:(?!<\/a>).)*?<span class="nav-row-value">([^<]*)</.exec(
+      html,
+    );
+  const planned = countsAs(renderToStaticMarkup(await ActivityPage(props)));
+  expect(planned?.[1]).toBe(`/training/activities/${run.id}/counts-as`);
+  expect(planned?.[2]).toMatch(/^Easy run ·\u00a0Sat\u00a014\u00a0Feb/);
+
+  mocks.named.mockResolvedValue({ ...session, closed: true });
+  expect(countsAs(renderToStaticMarkup(await ActivityPage(props)))?.[1]).toBe(
+    `/training/programme/occurrences/${OCCURRENCE}`,
+  );
+
+  mocks.activity.mockResolvedValue({ ...run, origin: AD_HOC_ORIGIN });
+  const unplanned = countsAs(renderToStaticMarkup(await ActivityPage(props)));
+  expect(unplanned?.[1]).toBe(`/training/activities/${run.id}/counts-as`);
+  expect(unplanned?.[2]).toBe("Unplanned");
+});
+
+/** A swim timed end to end has no pace: its dash says so, and why is a tap away beside it. */
+it("keeps why a swim has no pace behind the info tip beside its dash", async () => {
+  mocks.activity.mockResolvedValue({
+    ...run,
+    sport: "swimming",
+    durationMs: 1_800_000,
+    origin: AD_HOC_ORIGIN,
+    actual: {
+      sport: "swimming",
+      environment: "pool",
+      elapsedMs: 1_800_000,
+      activeMs: null,
+      distanceMethod: "manual",
+      distance: { value: 1000, unit: "m", metres: 1000 },
+      poolLength: null,
+      lengths: null,
+      stroke: "unspecified",
+      strokeCount: null,
+      resourceId: null,
+      averageHeartRate: null,
+      maxHeartRate: null,
+    },
+  });
+  const html = renderToStaticMarkup(await ActivityPage(props));
+  expect(html).toContain('aria-label="About pace"');
+  expect(html).not.toContain("Elapsed time only");
+});
+
+/** The document is named as the screen's title is, which the route announcer reads (m7). */
+it("names the document by the record's own title, else its sport's word", async () => {
+  expect((await generateMetadata(props)).title).toBe("Run");
+  mocks.activity.mockResolvedValue({ ...run, title: "Sunday long run" });
+  expect((await generateMetadata(props)).title).toBe("Sunday long run");
 });

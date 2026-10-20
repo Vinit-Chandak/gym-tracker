@@ -18,6 +18,22 @@ import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
  * zones are known: zone 2 is a number on a watch, not a word.
  */
 
+/**
+ * Whether `text` already says `part`, read as `readsAs` reads text: the joiners and fixed spaces
+ * that hold figures together set aside, case aside. A line under a name leaves out what the name
+ * says ("Long run 4.5 mi" over "45 min", never over "Long run · 4.5 mi").
+ */
+export function alreadySays(text: string | null | undefined, part: string): boolean {
+  const read = (value: string) =>
+    value
+      .replace(/\u2060/g, "")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .toLocaleLowerCase();
+  const said = read(part);
+  return said !== "" && read(text ?? "").includes(said);
+}
+
 export const PHASE_WORDS = {
   warmup: "Warm-up",
   work: "Work",
@@ -41,9 +57,10 @@ export function zoneLine(
   heartRateZones: readonly HeartRateZone[] | null,
 ): string {
   const beats = heartRateZones ? zoneRangeBeats(zones, heartRateZones) : null;
-  return beats
-    ? `${zoneRangeLabel(zones)} (${beats[0]}–${beats[1]}\u00a0bpm)`
-    : zoneRangeLabel(zones);
+  // Each range held at its dash where the line wraps: never "(122–" over "148 bpm)".
+  return holdFigures(
+    beats ? `${zoneRangeLabel(zones)} (${beats[0]}–${beats[1]}\u00a0bpm)` : zoneRangeLabel(zones),
+  );
 }
 
 function targetLine(

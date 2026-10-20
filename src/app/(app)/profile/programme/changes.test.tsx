@@ -76,7 +76,8 @@ it("shows one proposal as one row: what it does, and the ask it answers", () => 
   );
   const row = screen.getByRole("link", { name: /falls back to the 45° machine/ });
   expect(row.getAttribute("href")).toBe(`/profile/programme/drafts/${DRAFT}`);
-  expect(row.textContent).toContain("You asked: “anytime does not have horizontal leg press”");
+  expect(row.textContent).toContain("“anytime does not have horizontal leg press”");
+  expect(row.textContent).not.toContain("You asked");
   // No badge under a heading that already says it waits for them, and no date.
   expect(screen.queryByText("Awaiting your approval")).toBeNull();
   expect(screen.queryByText(/Asked /)).toBeNull();
@@ -138,10 +139,6 @@ it("tells a review waiting for the next nightly run from one running, and offers
     />,
   );
   expect(screen.queryByText("The coach is reviewing your programme.")).toBeNull();
-  expect(
-    screen.getByText(
-      "The coach could not finish your last review. It tries again at its next nightly run, or ask for it now.",
-    ),
-  ).toBeTruthy();
+  expect(screen.getByText("The coach could not finish your last review.")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Ask the coach to review now" })).toBeTruthy();
 });

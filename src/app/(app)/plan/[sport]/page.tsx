@@ -1,7 +1,8 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
-import { enduranceName } from "@/components/activities/endurance-line";
+import { enduranceTarget, plannedName } from "@/components/activities/endurance-line";
+import { alreadySays } from "@/components/activities/prescription-lines";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
 import { RequestChange } from "@/components/coaching/request-change";
 import { PageContent } from "@/components/shell/page-content";
@@ -15,13 +16,12 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type EnduranceSport } from "@/domain/activity";
-import { describePrescription } from "@/domain/activity-prescription";
 import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import { endurancePattern } from "@/domain/programme-pattern";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
-import { todayInTimeZone } from "@/domain/program-calendar";
-import { holdHyphens, joinFacts, readsAs } from "@/lib/facts";
-import { formatIsoDate } from "@/lib/format";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { holdHyphens, joinFacts } from "@/lib/facts";
+import { formatIsoShortDay } from "@/lib/format";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -30,6 +30,7 @@ import { programmeOccurrences, type ProgrammeOccurrence } from "@/server/reposit
 import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { getActiveProgram } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
+import { endurancePosition } from "@/server/repositories/sport-programmes";
 import { RequestReview } from "@/app/(app)/profile/programme/request-review";
 
 import { currentProgrammeWeek, sessionsInProgrammeWeek } from "./programme-weeks";
@@ -58,8 +59,9 @@ function sessionStatus(session: ProgrammeOccurrence, today: string): string | un
 
 /**
  * A run, ride or swim programme (ADR 0058): what it is, how it runs and how far through it you
- * are, then its weeks. The weeks say what each asks for without dates, which are Plan's week:
- * a session opens to move, skip or change it. Strength has its own page, its days in order.
+ * are, then its weeks. Each week says what it asks for and the day it starts, which orients the
+ * list (PRODUCT.md, Information map); a session's own date is Plan's week's and its page's, where
+ * it opens to move, skip or change it. Strength has its own page, its days in order.
  */
 export default async function SportProgrammePage({
   params,
@@ -111,6 +113,9 @@ export default async function SportProgrammePage({
   const weeks = programme.weeks ?? 1;
   const start = programme.startDate ?? null;
   const currentWeek = currentProgrammeWeek(start, weeks, today);
+  // A block not reached yet is not under way: the line under the bar says when it starts, and its
+  // first week carries that day like every other week, never a second "Starts".
+  const waiting = start !== null && today < start;
   const asked = data.sessions.filter((session) => session.resolution.kind !== "cancelled");
   const done = asked.filter(
     (session) =>
@@ -147,22 +152,19 @@ export default async function SportProgrammePage({
             max={asked.length || 1}
             label={`${done} of ${asked.length} sessions done`}
           />
+          {/* Where it has got to in its card's words on Plan, and the bar's figure. */}
+          <p className="text-sm text-ink-muted tabular-nums">
+            {joinFacts([
+              finished ? "Complete" : endurancePosition(start, weeks, today),
+              `${done} of ${asked.length} sessions done`,
+            ])}
+          </p>
           <ProgrammeTools id={programme.id} sport={sport} finished={finished} />
-          {(programme.notes || programme.splitFromProgramId) && (
+          {programme.notes && (
             <Disclosure summary="Programme details" variant="footer">
-              <div className="space-y-3 text-sm">
-                {programme.notes && (
-                  <p className="[overflow-wrap:break-word] whitespace-pre-wrap">
-                    {programme.notes}
-                  </p>
-                )}
-                {programme.splitFromProgramId && (
-                  <p className="text-ink-2">
-                    Separated from your previous combined plan. Your lifting progress and completed
-                    sessions are preserved.
-                  </p>
-                )}
-              </div>
+              <p className="text-sm [overflow-wrap:break-word] whitespace-pre-wrap">
+                {programme.notes}
+              </p>
             </Disclosure>
           )}
         </Card>
@@ -178,7 +180,10 @@ export default async function SportProgrammePage({
                       : `/profile/programme/drafts/${draft.id}`) as Route
                   }
                   glyph="note"
-                  label={draft.headline || draft.blueprint.name}
+                  // Never the programme's own name, which heads the card above.
+                  label={
+                    draft.headline || (draft.source === "manual" ? "Your edit" : "Proposed change")
+                  }
                   sub={draft.status === "editing" ? "Draft in progress" : "Changes to review"}
                 />
               ))}
@@ -186,7 +191,8 @@ export default async function SportProgrammePage({
           </Section>
         )}
         <Section title="Weeks">
-          <ul className="space-y-3">
+          {/* Ruled rows that share their rules (DESIGN.md, Folds): never a stack of boxes. */}
+          <ul className="[&>li+li]:-mt-px">
             {Array.from({ length: weeks }, (_, index) => index + 1).map((week) => {
               const inWeek = sessionsInProgrammeWeek(asked, start, weeks, week);
               const missed = inWeek.filter(
@@ -205,40 +211,37 @@ export default async function SportProgrammePage({
                     meta={joinFacts([
                       sessionCount(sport, inWeek.length),
                       plannedVolumeLine(volume, sport, data.units),
-                      week === currentWeek && !finished
-                        ? // A block the athlete has not reached yet starts on its day, not now.
-                          start && today < start
-                          ? `Starts ${formatIsoDate(start, today.slice(0, 4))}`
-                          : "Now"
+                      // The day it starts orients the list (PRODUCT.md, Information map), so a
+                      // runner finds Thu 10 Dec.
+                      start && formatIsoShortDay(addDays(start, (week - 1) * 7)),
+                      week === currentWeek && !finished && !waiting
+                        ? "Now"
                         : allDone
                           ? "Done"
-                          : missed > 0 && `${missed} missed`,
+                          : missed > 0 && `${missed}\u00a0missed`,
                     ])}
+                    variant="inline"
                     defaultOpen={week === currentWeek && !finished}
                   >
                     <ul className="ruled-list">
                       {inWeek.map((session) => {
+                        // Named as Today and Plan's week name it (ADR 0059), and under the name
+                        // only what it does not already say: "Long run 4.5 mi" over "45 min".
                         const type = session.prescription?.running?.sessionType;
-                        const name =
-                          session.prescription?.title ??
-                          (type ? RUN_TYPE_LABELS[type] : enduranceName(sport));
+                        const name = plannedName(session.prescription, sport, data.units);
+                        const target = enduranceTarget(session.prescription, data.units);
+                        const figure = target && `${target.figure}\u00a0${target.unit}`;
+                        const kind = type ? RUN_TYPE_LABELS[type] : null;
+                        const sub = joinFacts([
+                          kind && !alreadySays(name, kind) && kind,
+                          figure && !alreadySays(name, figure) && figure,
+                        ]);
                         return (
                           <NavRow
                             key={session.id}
                             href={`/training/programme/occurrences/${session.id}` as Route}
                             label={holdHyphens(name)}
-                            sub={
-                              session.prescription
-                                ? joinFacts([
-                                    type && name !== RUN_TYPE_LABELS[type] && RUN_TYPE_LABELS[type],
-                                    // Said once where the name already says it ("6 × 800 m").
-                                    !readsAs(
-                                      name,
-                                      describePrescription(session.prescription, data.units),
-                                    ) && describePrescription(session.prescription, data.units),
-                                  ])
-                                : undefined
-                            }
+                            sub={sub || undefined}
                             value={sessionStatus(session, today)}
                           />
                         );

@@ -1,4 +1,5 @@
 import type { ActivitySport } from "./activity";
+import type { EndurancePrescription } from "./activity-prescription";
 import type { OccurrenceResolution } from "./occurrences";
 import { addDays, isoWeekday } from "./program-calendar";
 import type { SlotRef, SlotStatus } from "./schedule";
@@ -21,6 +22,11 @@ export type WeekSession = {
   status: WeekStatus;
   /** The scheduled session it is, for an endurance session; lifting days have no page of their own. */
   occurrenceId: string | null;
+  /**
+   * What an endurance session asks for, so its row is named as Today names it (ADR 0059: its
+   * name, else its kind of run, else its sport) with its figure beside it.
+   */
+  prescription?: EndurancePrescription | null;
 };
 
 /** The Monday of the week holding `date`: a week runs Monday to Sunday. */

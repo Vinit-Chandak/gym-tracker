@@ -34,7 +34,7 @@ it("sends the change for this programme, then starts the next as a note of its o
     "running",
     "Move Thursday's session to Friday.",
   ]);
-  expect(await screen.findByText("Sent. The coach reads it at its next run.")).toBeTruthy();
+  await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Sent to the coach."));
   const next = container.querySelector<HTMLInputElement>('input[name="noteId"]')!.value;
   expect(next).not.toBe(NOTE);
   expect(next).toMatch(/^[0-9a-f-]{36}$/);

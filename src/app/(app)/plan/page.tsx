@@ -11,7 +11,12 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { planWeek } from "@/server/repositories/plan-week";
-import { newProgrammeDrafts, programmeCards } from "@/server/repositories/sport-programmes";
+import {
+  newProgrammeDrafts,
+  newProgrammeRequests,
+  programmeCards,
+} from "@/server/repositories/sport-programmes";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
 
 import { PlanView } from "./plan-view";
 
@@ -31,22 +36,32 @@ export default async function PlanPage(props: PageProps<"/plan">) {
   const today = todayInTimeZone(profile.timeZone);
   const asked = typeof params.week === "string" ? params.week : undefined;
   const monday = weekStartOf(asked && z.iso.date().safeParse(asked).success ? asked : today);
-  const { cards, drafts, sessions } = await withUser(
+  const { cards, drafts, requests, sessions, units } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
-      const [cards, drafts, sessions] = await Promise.all([
+      const [cards, drafts, requests, sessions, units] = await Promise.all([
         programmeCards(tx, user.id, profile.timeZone, today),
         newProgrammeDrafts(tx, user.id),
+        newProgrammeRequests(tx, user.id),
         planWeek(tx, user.id, monday, today),
+        readSportUnits(tx, user.id),
       ]);
-      return { cards, drafts, sessions };
+      return { cards, drafts, requests, sessions, units };
     },
     { readOnly: true },
   );
   return (
     <FreshAfterSets seen={seen} loading={<LoadingPage title="Plan" />}>
-      <PlanView cards={cards} drafts={drafts} sessions={sessions} monday={monday} today={today} />
+      <PlanView
+        cards={cards}
+        drafts={drafts}
+        requests={requests}
+        sessions={sessions}
+        units={units}
+        monday={monday}
+        today={today}
+      />
     </FreshAfterSets>
   );
 }

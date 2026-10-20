@@ -5,17 +5,63 @@ import type { Route } from "next";
 import { Card } from "@/components/ui/card";
 import { Button, LinkButton } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { Disclosure } from "@/components/ui/disclosure";
 import { answerCoachQuestionsAction } from "@/server/actions/coaching-workflow";
 import type { CoachJob } from "@/server/repositories/coaching-jobs";
 import { coachingAction } from "./client-action";
-const LABELS = {
-  queued: "Your programme request is saved",
-  claimed: "The coach is creating your programme",
-  succeeded: "Your programme draft is ready",
-  failed: "The coach could not finish",
-  superseded: "Your inputs changed",
-  needs_input: "The coach needs a little more information",
-};
+
+/** Where a request stands, in setup's words. */
+function statusLine(job: CoachJob, draftId: string | null): string {
+  const creating = job.kind === "create_program";
+  switch (job.status) {
+    case "queued":
+    case "claimed":
+      return creating
+        ? "The coach is writing your programme"
+        : job.kind === "review_program"
+          ? "The coach is reviewing your programme"
+          : "The coach is preparing your session";
+    case "needs_input":
+      return "The coach has a question";
+    case "failed":
+      return "The coach could not finish";
+    case "superseded":
+      return creating ? "Your answers changed" : "Your programme changed first";
+    case "succeeded":
+      return draftId
+        ? job.target.scope === "session"
+          ? "Your session is ready"
+          : "Your programme is ready"
+        : job.kind === "prepare_session"
+          ? "Session prepared"
+          : job.result?.outcome === "no_change"
+            ? "Your programme stays as it is"
+            : "Review done";
+  }
+}
+
+/**
+ * A failure in the athlete's words: what is unchanged (DESIGN.md, The Need-to-Know Rule). What the
+ * coach or the server wrote for whoever runs them stays under Details.
+ */
+function unchangedLine(job: CoachJob): string {
+  return job.kind === "create_program"
+    ? "Your answers are saved."
+    : job.kind === "review_program"
+      ? "Your programme is unchanged."
+      : "Your programme’s targets apply.";
+}
+
+/** Where trying again starts, for what was asked. */
+function retryHref(job: CoachJob, base: "/welcome/programme" | "/profile/programme"): Route {
+  if (base === "/welcome/programme") return `${base}/create` as Route;
+  if (job.kind === "review_program") return `/plan/${job.target.sport ?? "strength"}` as Route;
+  if (job.kind === "prepare_session") return "/today" as Route;
+  // Single coached sessions are set aside for now (ADR 0058).
+  if (job.target.scope === "session") return "/plan" as Route;
+  return `/plan/new?sport=${job.target.sport ?? "strength"}&method=coach` as Route;
+}
+
 export function CoachJobStatus({
   job,
   draftId,
@@ -27,15 +73,6 @@ export function CoachJobStatus({
 }) {
   const router = useRouter();
   const pending = job.status === "queued" || job.status === "claimed";
-  const successLabel = draftId
-    ? job.target.scope === "session"
-      ? "Your session draft is ready"
-      : "Your programme draft is ready"
-    : job.kind === "prepare_session"
-      ? "Your session preparation is complete"
-      : job.result?.outcome === "no_change"
-        ? "Your programme stays as it is"
-        : "Your programme review is complete";
   const rationale = job.result && "rationale" in job.result ? job.result.rationale : null;
   const questions =
     job.status === "needs_input" && job.result?.outcome === "needs_input"
@@ -57,19 +94,27 @@ export function CoachJobStatus({
   }, [pending, router]);
   return (
     <Card>
-      <h1 className="text-xl font-medium" role="status">
-        {job.status === "succeeded" ? successLabel : LABELS[job.status]}
-      </h1>
+      {/* A line of state under the page's own title, not a second title. */}
+      <p className="text-xl font-medium" role="status">
+        {statusLine(job, draftId)}
+      </p>
       {job.status === "succeeded" && !draftId && rationale && (
         <p className="text-sm text-ink-muted">{rationale}</p>
       )}
-      {pending && (
-        <p className="text-sm text-ink-muted">
-          You can leave this screen. Your answers and files are saved, and the draft will appear on
-          Plan when it is ready.
-        </p>
+      {pending && job.kind === "create_program" && (
+        // A first programme waits on Plan from the moment it is asked for (ADR 0059).
+        <p className="text-sm text-ink-muted">You can leave. It waits on Plan.</p>
       )}
-      {job.error && <p className="text-sm text-ink-muted">{job.error}</p>}
+      {/* An attempt that timed out tries again; one that failed for good says what stands. */}
+      {pending && job.error && (
+        <p className="text-sm text-ink-muted">This may take until tonight.</p>
+      )}
+      {job.status === "failed" && <p className="text-sm text-ink-muted">{unchangedLine(job)}</p>}
+      {job.error && (
+        <Disclosure summary="Details" variant="inline">
+          <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{job.error}</p>
+        </Disclosure>
+      )}
       {questions ? (
         <CoachQuestions jobId={job.id} questions={questions} base={base} />
       ) : (
@@ -88,18 +133,11 @@ export function CoachJobStatus({
       )}
       {!pending && !draftId && job.status !== "succeeded" && (
         <LinkButton
-          href={
-            (base === "/welcome/programme"
-              ? `${base}/create`
-              : job.target.scope === "session"
-                ? // Single coached sessions are set aside for now (ADR 0058).
-                  "/plan"
-                : `/plan/new?sport=${job.target.sport ?? "strength"}&method=coach`) as Route
-          }
+          href={retryHref(job, base)}
           variant={questions ? "secondary" : "primary"}
           className="flex w-full"
         >
-          {questions ? "Change my answers instead" : "Review answers and try again"}
+          {questions ? "Change my answers" : "Try again"}
         </LinkButton>
       )}
       {pending && (
@@ -107,14 +145,6 @@ export function CoachJobStatus({
           Check status
         </Button>
       )}
-      {/* Outside setup, every sport's programmes are Plan's (ADR 0058), whichever one was asked. */}
-      <LinkButton
-        href={(base === "/welcome/programme" ? base : "/plan") as Route}
-        variant="ghost"
-        className="flex w-full"
-      >
-        {base === "/welcome/programme" ? "Back to Programme" : "Back to Plan"}
-      </LinkButton>
     </Card>
   );
 }
@@ -181,11 +211,9 @@ export function CoachQuestions({
           </li>
         ))}
       </ol>
-      <p className="text-xs text-ink-subtle">
-        Answer what you can. Anything you leave blank stays open, and the coach decides it for you.
-      </p>
+      <p className="text-xs text-ink-subtle">Answer what you can; the coach decides the rest.</p>
       <Button className="flex w-full" disabled={busy || !answered} onClick={send}>
-        {busy ? "Sending…" : "Send answers and try again"}
+        {busy ? "Sending…" : "Send answers"}
       </Button>
       {error && (
         <p role="alert" className="text-sm text-danger">

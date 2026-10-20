@@ -9,6 +9,7 @@ import {
 } from "@/components/activities/activity-form-fields";
 import { PHASE_WORDS, paceRangeLine } from "@/components/activities/prescription-lines";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import { Glyph } from "@/components/ui/glyphs";
 import { Select } from "@/components/ui/select";
@@ -178,11 +179,11 @@ export function PaceZoneFields({
 }) {
   return (
     <div className="step-editor-fields">
-      <Field label={`Pace per ${unit}`} aside="Optional">
+      {/* The format is said in the label, before typing: a placeholder goes when typing starts. */}
+      <Field label={`Pace per ${unit}, m:ss`} aside="Optional">
         <TypedInput
           clock
           inputMode="numeric"
-          placeholder="m:ss"
           value={pace ? paceText(pace[0], unit) : ""}
           onCommit={(text) => {
             if (text.trim() === "") return onChange({ pace: undefined, zones });
@@ -191,11 +192,10 @@ export function PaceZoneFields({
           }}
         />
       </Field>
-      <Field label="Pace up to" aside="Optional">
+      <Field label="Pace up to, m:ss" aside="Optional">
         <TypedInput
           clock
           inputMode="numeric"
-          placeholder="m:ss"
           disabled={!pace}
           value={pace && pace[1] !== pace[0] ? paceText(pace[1], unit) : ""}
           onCommit={(text) => {
@@ -244,15 +244,17 @@ export function PaceZoneFields({
   );
 }
 
-/** The step's pace, zone and note in a few words, for the line that folds them away. */
-function intensitySummary(step: PrescriptionStep, unit: DistanceUnit): string {
+/**
+ * What the step's fold holds, set so far, in a few words for the end of its row: "3:50–3:55 /km ·
+ * Zones 4–5", or nothing yet.
+ */
+function intensitySummary(step: PrescriptionStep, unit: DistanceUnit): string | undefined {
   const parts = [
     step.paceSecondsPerKm ? paceRangeLine(step.paceSecondsPerKm, { distanceUnit: unit }) : null,
     step.heartRateZones ? zoneRangeLabel(step.heartRateZones) : null,
     step.notes ? "Note" : null,
   ].filter((part) => part !== null);
-  if (parts.length > 0) return parts.join(" · ");
-  return step.action === "rest" ? "Add a note" : "Add a pace, zone or note";
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 const ACTION_WORDS = (phase: StepPhase) =>
@@ -437,9 +439,13 @@ function StepFields({
           />
         </Field>
       </div>
-      <details className="step-editor-more">
-        <summary>{intensitySummary(step, unit)}</summary>
-        <div className="space-y-3 pt-2">
+      {/* The fold names what is in it; what is set so far stands at the end of its row. */}
+      <Disclosure
+        summary={step.action === "rest" ? "Note" : "Pace, zone and note"}
+        meta={intensitySummary(step, unit)}
+        variant="inline"
+      >
+        <div className="space-y-3">
           {step.action !== "rest" && (
             <PaceZoneFields
               pace={step.paceSecondsPerKm}
@@ -458,13 +464,13 @@ function StepFields({
           <Field label="Note" aside="Optional">
             <TypedInput
               maxLength={TEXT_LIMITS.stepNotes}
-              placeholder="Relaxed and smooth"
+              placeholder="For example, relaxed and smooth"
               value={step.notes ?? ""}
               onCommit={(text) => onChange({ ...step, notes: text.trim() || null })}
             />
           </Field>
         </div>
-      </details>
+      </Disclosure>
     </div>
   );
 }
@@ -519,12 +525,7 @@ export function StepsEditor({
         : "work";
   return (
     <div className="space-y-3">
-      {nodes.length === 0 && (
-        <p className="text-sm text-ink-2">
-          No steps: the run is its overall targets. Add steps for a warm-up, reps by time or
-          distance, and a cool-down.
-        </p>
-      )}
+      {nodes.length === 0 && <p className="text-sm text-ink-2">No steps.</p>}
       <ol className="space-y-3">
         {nodes.map((node, index) =>
           node.kind === "step" ? (
@@ -562,6 +563,7 @@ export function StepsEditor({
                   />
                 </Field>
                 {node.restBetweenMs !== null && (
+                  // What a blank does is said where it is typed, not behind an ⓘ.
                   <Field label="Rest between" hint="Clear it to rest in a recovery step instead.">
                     <TypedInput
                       clock

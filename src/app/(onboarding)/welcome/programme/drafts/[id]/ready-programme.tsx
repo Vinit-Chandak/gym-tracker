@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { Art } from "@/components/art/art";
 import { coachingAction } from "@/components/coaching/client-action";
 import { Button } from "@/components/ui/button";
+import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { Textarea } from "@/components/ui/input";
@@ -72,9 +73,10 @@ function exercisesLine(day: BlueprintDay, names: Record<string, string>): string
 
 /**
  * Board Your programme is ready: the programme the coach wrote, in one screen: its name and
- * shape, each training day as its print with what is on it, why it is built this way, and the
- * first session behind a fold; the day it starts; Start my programme, which ends setup and opens
- * Today, or Ask for changes, which sends the athlete's words back to the coach.
+ * shape, each training day as its print with what is on it, why it is built this way as the
+ * coach's note at two lines, and the first session behind a fold; the day it starts; Start my
+ * programme, which ends setup and opens Today, or Ask for changes, which sends the athlete's
+ * words back to the coach.
  */
 export function ReadyProgramme({
   draft,
@@ -166,7 +168,11 @@ export function ReadyProgramme({
         ))}
       </ul>
 
-      {draft.rationale && <p className="ready-why">{draft.rationale}</p>}
+      {draft.rationale && (
+        <CoachNoteMore size="body" className="mt-3">
+          <span className="whitespace-pre-wrap">{draft.rationale}</span>
+        </CoachNoteMore>
+      )}
 
       <div className="setup-coach-more mt-3">
         {draft.openingPlan && (
@@ -195,9 +201,7 @@ export function ReadyProgramme({
         {training.some((day) => day.exercises.length > 0) && (
           <details className="setup-fold group">
             <summary className="setup-fold-summary">
-              <span className="setup-fold-title min-w-0 flex-1">
-                Every exercise and its targets
-              </span>
+              <span className="setup-fold-title min-w-0 flex-1">Every exercise</span>
               <Glyph name="chevronDown" className="glyph-18 shrink-0 group-open:rotate-180" />
             </summary>
             <div className="pb-3">
@@ -228,6 +232,10 @@ export function ReadyProgramme({
             <summary className="setup-fold-summary">
               <span className="setup-fold-title min-w-0 flex-1">
                 What the coach is unsure about
+              </span>
+              {/* How many, without opening it. */}
+              <span className="type-meta-small text-ink-2 tabular-nums">
+                {draft.uncertainties.length}
               </span>
               <Glyph name="chevronDown" className="glyph-18 shrink-0 group-open:rotate-180" />
             </summary>
@@ -302,12 +310,8 @@ export function ReadyProgramme({
           </div>
         }
       >
-        <p className="type-meta text-ink-2">
-          In your own words. The coach writes the programme again with this in mind.
-        </p>
         <Textarea
           aria-label="What should change?"
-          className="mt-3"
           rows={4}
           maxLength={2000}
           placeholder="Fewer days, no barbell squats, shorter sessions…"

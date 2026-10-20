@@ -1,4 +1,6 @@
 import { DetailList } from "@/components/ui/detail-list";
+import { Disclosure } from "@/components/ui/disclosure";
+import { Glyph } from "@/components/ui/glyphs";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import { formatSportDistance, toMetres, type SportUnits } from "@/lib/distance-units";
 import { holdFigures, joinFacts } from "@/lib/facts";
@@ -80,15 +82,45 @@ export function hasRunGuidance(run: RunTarget): boolean {
   return Boolean(run.paceNote || run.progressionNote || run.stopRule);
 }
 
-/** How to run it, once the duration and effort have already been said. */
-export function RunPlanDetails({ run }: { run: RunTarget }) {
+/**
+ * "Stop if the shin complains.", led by the warning glyph: a safety rule, said where it is seen
+ * rather than folded away. A rule that does not say what it is for says "Stop if" first.
+ */
+export function StopRule({ rule, className }: { rule: string; className?: string }) {
+  const said = /^\s*stop\b/i.test(rule);
   return (
+    <p className={className ?? "flex items-start gap-1.5 type-meta-small text-ink"}>
+      <Glyph name="warn" className="mt-0.5 glyph-16 shrink-0" />
+      <span className="min-w-0 [overflow-wrap:break-word]">{said ? rule : `Stop if: ${rule}`}</span>
+    </p>
+  );
+}
+
+/**
+ * How to run it, once the duration and effort have already been said: when to stop, in view,
+ * and the pace and progression under How to do it, closed (DESIGN.md, The Need-to-Know Rule).
+ * `folded={false}` where the day is itself a fold already opened.
+ */
+export function RunPlanDetails({ run, folded = true }: { run: RunTarget; folded?: boolean }) {
+  const details = (
     <DetailList
       entries={[
         ["Pace", run.paceNote],
         ["Progression", run.progressionNote],
-        ["Stop if", run.stopRule],
       ]}
     />
+  );
+  return (
+    <div className="space-y-2.5">
+      {run.stopRule && <StopRule rule={run.stopRule} />}
+      {(run.paceNote || run.progressionNote) &&
+        (folded ? (
+          <Disclosure summary="How to do it" variant="inline">
+            {details}
+          </Disclosure>
+        ) : (
+          details
+        ))}
+    </div>
   );
 }

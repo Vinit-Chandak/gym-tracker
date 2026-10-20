@@ -53,7 +53,7 @@ export function Connectivity() {
       role="status"
       className="connectivity border-b border-warning bg-surface text-center text-sm text-warning"
     >
-      You&apos;re offline. Set and activity drafts stay on this device; retry saving when connected.
+      You&apos;re offline. Drafts stay on this device.
     </div>
   );
 }

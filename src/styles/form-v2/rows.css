@@ -1834,16 +1834,6 @@ html:has(.standalone-error) {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
   gap: calc(8 * var(--ov-u));
 }
-.step-editor-more > summary {
-  display: flex;
-  min-height: var(--ov-target);
-  align-items: center;
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
 .repeat-editor {
   display: grid;
   gap: calc(10 * var(--ov-u));

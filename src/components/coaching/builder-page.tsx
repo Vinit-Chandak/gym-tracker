@@ -58,7 +58,8 @@ export async function ProgrammeBuilderPage({
   return (
     <>
       <PageHeader
-        title="Strength programme builder"
+        // The run, ride and swim builder's name; the way back names the programme.
+        title="Programme builder"
         backHref={onboarding ? base : "/plan/strength"}
       />
       <PageContent>
@@ -71,7 +72,7 @@ export async function ProgrammeBuilderPage({
             straight back here and lose what was built (audit B5). */}
         {!onboarding && (
           <LinkButton href="/exercises/new" variant="ghost">
-            Add a custom exercise to your library
+            Add your own exercise
           </LinkButton>
         )}
       </PageContent>

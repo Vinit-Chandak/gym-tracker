@@ -15,6 +15,7 @@ import { progress } from "@/domain/schedule";
 import { setLengthFor } from "@/lib/distance-units";
 import { formatDay } from "@/lib/format";
 import { requireProfiledUser } from "@/server/auth";
+import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listRequestsForDraft } from "@/server/repositories/coach-program-requests";
 import { getProgramDraft, type ProgramDraft } from "@/server/repositories/program-drafts";
@@ -40,7 +41,7 @@ function outcomeLine(draft: ProgramDraft, timeZone: string): string | null {
       ? "A newer proposal took its place."
       : draft.closedAs === "outdated"
         ? // Closed by migration 0037: written while run effort was still out of ten.
-          "Closed unanswered: it was written for the old run-effort scale. The coach will propose again if it still holds."
+          "Closed: written for the old effort scale."
         : "No longer open: your programme changed first.";
   return null;
 }
@@ -136,12 +137,23 @@ export async function ProgrammeDraftPage({
         </PageContent>
       </>
     );
-  // Board Programme change: the way back, then the change's own line as the title.
+  // Board Programme change: the way back, named for the programme page it returns to, then the
+  // change's own line as the title.
+  const sport = data.draft.sport;
   return (
     <>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
-          <BackLink fallback={`${base}?view=changes`} />
+          <BackLink
+            fallback={
+              onboarding
+                ? `${base}?view=changes`
+                : sport === "strength"
+                  ? "/plan/strength?view=changes"
+                  : `/plan/${sport}`
+            }
+            label={onboarding ? undefined : `${ACTIVITY_SPORT_LABELS[sport]} programme`}
+          />
         </div>
         <h1 className="sr-only">Programme change</h1>
       </header>

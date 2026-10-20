@@ -47,8 +47,8 @@ export function RouteError({
 
 /**
  * The one error a screen can meet (board Offline): what happened and what is kept, then Try
- * again, which waits for the connection, and one way back. In a workout it is still the
- * session's screen, with no tab bar.
+ * again, which waits for the connection (and so says nothing about reconnecting), and one way
+ * back. In a workout it is still the session's screen, with no tab bar.
  */
 export function ErrorScreen({
   online,
@@ -73,10 +73,10 @@ export function ErrorScreen({
         <h1 className="error-page-title">Something went wrong</h1>
         <p className="error-page-text">
           {online
-            ? "The page could not load. Retry to fetch it again."
+            ? "The page could not load."
             : inWorkout
-              ? "You’re offline. Reconnect and try again. Unsaved set drafts stay on this device."
-              : "You’re offline. Reconnect and try again."}
+              ? "You’re offline. Unsaved sets stay on this device."
+              : "You’re offline."}
         </p>
         {digest && <p className="type-caption font-medium text-ink-2">Reference: {digest}</p>}
       </div>

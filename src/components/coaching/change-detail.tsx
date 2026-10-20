@@ -7,12 +7,12 @@ import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
-import { Glyph } from "@/components/ui/glyphs";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import { NavRow } from "@/components/ui/nav-row";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
-import type { ActivitySport } from "@/domain/activity";
+import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import type { ChangeSummary } from "@/domain/program-change-summary";
 import {
   approveProgramChangeAction,
@@ -72,7 +72,8 @@ function shortQuote(quote: string): string {
  * Nothing else is restated: not the ask (the previous screen showed it), not that approval is
  * needed (the buttons say so), not when it applies (approving updates every week still to
  * come, immediately). The coach's reasoning is offered only when something in the change is
- * the coach's own idea rather than an answer to an ask.
+ * the coach's own idea rather than an answer to an ask, folded under Why and closed: the
+ * difference is the decision (DESIGN.md, Coach note).
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
@@ -134,11 +135,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
       </h2>
       {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
       {why && (
-        <details open className="change-why">
-          <summary className="change-why-summary">
-            <Glyph name="info" className="glyph-18" />
-            Why
-          </summary>
+        <Disclosure summary="Why" variant="inline" className="mt-2.5">
           {props.rationale && (
             <p className="type-meta leading-[1.45] [overflow-wrap:break-word] whitespace-pre-wrap">
               {props.rationale}
@@ -153,7 +150,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
               ))}
             </ul>
           )}
-        </details>
+        </Disclosure>
       )}
 
       <div className="mt-1">
@@ -167,8 +164,8 @@ export function ChangeDetail(props: ChangeDetailProps) {
         <div className="mt-3.5 space-y-3">
           <p className="type-meta-small text-ink-2">
             {props.replacing
-              ? "This replaces your current programme for this sport. The new programme starts on the date below. Your completed history is kept."
-              : "This changes the programme’s structure, so it starts a new block. Your completed history is kept."}
+              ? `Replaces your current ${ACTIVITY_SPORT_LABELS[props.sport ?? "strength"].toLowerCase()} programme. Your history stays.`
+              : "This starts a new block. Your history stays."}
           </p>
           <Field label="Start date">
             <Input
@@ -292,10 +289,10 @@ export function ChangeDetail(props: ChangeDetailProps) {
             glyph="table"
             label={
               open
-                ? "See the full programme with these changes"
+                ? "Full programme with these changes"
                 : props.status === "activated"
-                  ? "See the full programme it made"
-                  : "See the full programme it proposed"
+                  ? "Full programme it made"
+                  : "Full programme it proposed"
             }
           />
         </ul>

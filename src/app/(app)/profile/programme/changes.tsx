@@ -159,7 +159,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         title:
           draft.headline ||
           summary ||
-          (draft.source === "manual" ? "Your edit" : "Open to see what changes"),
+          (draft.source === "manual" ? "Your edit" : "Proposed change"),
         fromCoach: draft.source !== "manual",
         asks: asks.get(draft.id) ?? [],
         answers: answers.get(draft.id) ?? [],
@@ -207,7 +207,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
     withCoach,
     recent: recent.map((row) => ({
       id: row.draftId!,
-      title: row.headline || "The coach adjusted your programme",
+      title: row.headline || "Programme updated",
       when: formatDay(row.completedAt, timeZone),
     })),
     history: { requests: counts?.requests ?? 0, changes: counts?.changes ?? 0 },
@@ -264,9 +264,10 @@ export function ProgrammeChanges({
                   <LinkRow
                     href={`${base}/drafts/${proposal.id}` as Route}
                     title={proposal.title}
+                    // The athlete's own words in their marks, as the change's ask tag shows them.
                     subtitle={
                       proposal.asks.length
-                        ? `You asked: ${proposal.asks.map((quote) => `“${quote}”`).join(", ")}`
+                        ? proposal.asks.map((quote) => `“${quote}”`).join(", ")
                         : proposal.fromCoach
                           ? undefined
                           : "Your edit"

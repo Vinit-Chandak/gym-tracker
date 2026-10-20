@@ -125,7 +125,7 @@ it("can request a programme while the starting point and reports are unknown", a
   render(<CoachIntakeForm {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "Step 5 of 5: Review" }));
   await screen.findByRole("button", { name: "Create my programme" });
-  expect(screen.getByText("Not reported")).toBeTruthy();
+  expect(screen.getByText("Not answered")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Create my programme" }));
   await waitFor(() =>
     expect(createCoachProgramAction).toHaveBeenCalledWith(id, expect.any(String)),

@@ -1,7 +1,7 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
-import { enduranceName } from "@/components/activities/endurance-line";
+import { enduranceName, plannedName } from "@/components/activities/endurance-line";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -69,14 +69,20 @@ export default async function CountsAsPage(
   const choices: CountsAsChoice[] = [
     ...inOrder(data.sessions, activity.occurredOn).map((session) => ({
       occurrenceId: session.id,
-      label: holdHyphens(session.prescription?.title ?? enduranceName(sport)),
+      // Named as Log and Today name it, its figure on the line under it.
+      label: holdHyphens(plannedName(session.prescription, sport, units)),
       sub: joinFacts([
         session.scheduledOn === activity.occurredOn
-          ? `${formatIsoDate(session.scheduledOn, year)}, the day it was done`
+          ? `${formatIsoDate(session.scheduledOn, year)} · same day`
           : standing(session, activity.occurredOn),
         session.prescription && describePrescription(session.prescription, units),
       ]),
       current: session.id === current,
+      // The one it answers opens its page: what was planned, a tap from what was done.
+      href:
+        session.id === current
+          ? (`/training/programme/occurrences/${session.id}` as Route)
+          : undefined,
     })),
     {
       occurrenceId: null,

@@ -44,9 +44,13 @@ it("says a logged session was logged, and offers what answered it", () => {
       })}
     />,
   );
-  expect(screen.getByText("You have already logged this")).toBeTruthy();
-  // Their own session, on a date they recognise — never "does not exist".
-  expect(screen.getByText(/The run scheduled for Tue 22 Sept 2026/)).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Already logged");
+  // Their own session, on a date they recognise — never "does not exist" — and nothing about
+  // how many times a session can be logged.
+  expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
+    "Run ·\u00a0Tue\u00a022\u00a0Sept\u00a02026",
+  );
+  expect(screen.queryByText(/logged once/)).toBeNull();
   expect(screen.getByRole("link", { name: "See what you logged" }).getAttribute("href")).toBe(
     "/training/activities/00000000-0000-4000-8000-00000000000a?from=plan",
   );
@@ -62,8 +66,11 @@ it("says a cancelled session was cancelled, and still offers the sport", () => {
       })}
     />,
   );
-  expect(screen.getByText("This session was cancelled")).toBeTruthy();
-  expect(screen.getByText(/The ride scheduled for Tue 22 Sept 2026/)).toBeTruthy();
+  // Nothing was done about it, so it is not called done.
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Taken off the calendar");
+  expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
+    "Ride ·\u00a0Tue\u00a022\u00a0Sept\u00a02026",
+  );
   expect(screen.getByRole("link", { name: "Log a ride anyway" }).getAttribute("href")).toBe(
     "/training/new?sport=cycling",
   );
@@ -88,11 +95,13 @@ it("says a replaced programme's session can no longer be logged, and offers the 
   expect(screen.queryByText("Already done")).toBeNull();
   // Ended, not replaced: the block it was may have finished long before the next began.
   expect(screen.getByText("Its programme has ended")).toBeTruthy();
+  // How it ended, once; what that means for logging it is the button's to say.
   expect(
     screen.getByText(
-      "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026, so the run scheduled for Sat 27 Jun 2026 can no longer be logged. You can still log a run on its own.",
+      "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026.",
     ),
   ).toBeTruthy();
+  expect(screen.queryByText(/can no longer be logged/)).toBeNull();
   expect(screen.getByRole("link", { name: "Log a run anyway" }).getAttribute("href")).toBe(
     "/training/new?sport=running",
   );
@@ -111,9 +120,7 @@ it("says when an archived programme's session stopped being loggable", () => {
     />,
   );
   expect(screen.getByText("Its programme was archived")).toBeTruthy();
-  expect(
-    screen.getByText(/^Hybrid Half Marathon was archived on Mon 6 Jul 2026, so the run/),
-  ).toBeTruthy();
+  expect(screen.getByText("Hybrid Half Marathon was archived on Mon 6 Jul 2026.")).toBeTruthy();
 });
 
 /**
@@ -131,7 +138,9 @@ it("says a closed session completed before the record was kept is already settle
       })}
     />,
   );
-  expect(screen.getByText("This session is already settled")).toBeTruthy();
-  expect(screen.queryByText(/can no longer be logged/)).toBeNull();
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Already done");
+  expect(screen.queryByText(/made way/)).toBeNull();
   expect(screen.queryByRole("link", { name: "Log a run anyway" })).toBeNull();
+  // Plan is the way back, which the header's back link already is: no button repeats it.
+  expect(screen.queryByRole("link", { name: /Go to/ })).toBeNull();
 });

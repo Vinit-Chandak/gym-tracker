@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Fragment, type ReactNode } from "react";
+import { cache, Fragment, type ReactNode } from "react";
+import { z } from "zod";
 
 import { StartPlannedButton } from "@/app/(app)/today/plan-actions";
 import { Fact, MetaLine, PlanRows } from "@/app/(app)/today/today-parts";
@@ -8,9 +9,11 @@ import { planRows } from "@/app/(app)/today/today-model";
 import { liftingStartOption } from "@/app/(app)/today/start-option";
 import { Art } from "@/components/art/art";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
-import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
+import { runSummary } from "@/components/run-plan";
 import { BackLink } from "@/components/shell/back-link";
 import { LoadingPage } from "@/components/shell/loading-page";
+import { DetailList } from "@/components/ui/detail-list";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
@@ -39,7 +42,63 @@ import {
   programmeDayParts,
 } from "../../programme-day";
 
-export const metadata: Metadata = { title: "Programme day" };
+/**
+ * The day and what starting it would do, read once a request: the document is named from it
+ * too, as the screen is, by the day's name.
+ */
+const readDay = cache(async (dayId: string) => {
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  return withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [overview, schedule, gyms, runUnits] = await Promise.all([
+        getProgramOverview(tx, user.id, profile.timeZone, { prints: true }),
+        getSchedule(tx, user.id),
+        listGyms(tx, user.id),
+        readSportUnits(tx, user.id),
+      ]);
+      const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
+      const gym = gyms.find((each) => each.isActive && each.isDefault) ?? null;
+      const [warmup, resolved] = await Promise.all([
+        plan?.day.warmupProtocolId ? getWarmupProtocol(tx, plan.day.warmupProtocolId) : null,
+        // What Start would do with each exercise at the default gym, as starting it resolves
+        // them: read-only, and only for a day that lifts.
+        plan?.day.includesLifting && gym
+          ? resolvePlannedDay(tx, user.id, gym.id, plan.day.id, {
+              id: gym.id,
+              kind: gym.kind,
+              name: gym.name,
+            })
+          : null,
+      ]);
+      return {
+        overview,
+        plan,
+        warmup,
+        runUnits,
+        start:
+          plan && overview && schedule
+            ? liftingStartOption(schedule.state, overview.currentCycle, plan.day.dayIndex)
+            : null,
+        defaultGymId: gym?.id ?? null,
+        atGym: gym && resolved ? atGymLines(resolved, gym.name) : new Map<string, string>(),
+      };
+    },
+    { readOnly: true },
+  );
+});
+
+export async function generateMetadata(
+  props: PageProps<"/training/days/[dayId]">,
+): Promise<Metadata> {
+  const { dayId } = await props.params;
+  // A malformed address is the page's to refuse; the title only names what is there.
+  if (!z.uuid().safeParse(dayId).success) return { title: "Not found" };
+  const data = await readDay(dayId);
+  return { title: data.overview && data.plan ? data.plan.day.name : "Not found" };
+}
 
 /**
  * A day of the programme, read before it is trained (board Programme day): its print, its name
@@ -60,45 +119,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
   const [inProgress, data] = await Promise.all([
     // The per-request read the session strip also makes.
     getActiveSession(user.id),
-    withUser(
-      getDb(),
-      user.id,
-      async (tx) => {
-        const [overview, schedule, gyms, runUnits] = await Promise.all([
-          getProgramOverview(tx, user.id, profile.timeZone, { prints: true }),
-          getSchedule(tx, user.id),
-          listGyms(tx, user.id),
-          readSportUnits(tx, user.id),
-        ]);
-        const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
-        const gym = gyms.find((each) => each.isActive && each.isDefault) ?? null;
-        const [warmup, resolved] = await Promise.all([
-          plan?.day.warmupProtocolId ? getWarmupProtocol(tx, plan.day.warmupProtocolId) : null,
-          // What Start would do with each exercise at the default gym, as starting it resolves
-          // them: read-only, and only for a day that lifts.
-          plan?.day.includesLifting && gym
-            ? resolvePlannedDay(tx, user.id, gym.id, plan.day.id, {
-                id: gym.id,
-                kind: gym.kind,
-                name: gym.name,
-              })
-            : null,
-        ]);
-        return {
-          overview,
-          plan,
-          warmup,
-          runUnits,
-          start:
-            plan && overview && schedule
-              ? liftingStartOption(schedule.state, overview.currentCycle, plan.day.dayIndex)
-              : null,
-          defaultGymId: gym?.id ?? null,
-          atGym: gym && resolved ? atGymLines(resolved, gym.name) : new Map<string, string>(),
-        };
-      },
-      { readOnly: true },
-    ),
+    readDay(dayId),
   ]);
   // A day of a programme since replaced, or of someone else's, is not one of this cycle's.
   if (!data.overview || !data.plan) notFound();
@@ -200,7 +221,8 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           </MetaLine>
         )}
 
-        {/* A rest day asks for nothing but rest, and the routine when it has one (ADR 0005). */}
+        {/* A rest day asks for nothing but rest, and the routine when it has one (ADR 0005),
+            which its row lists. */}
         {rest &&
           (plan.status === "completed" ? (
             <p className="mt-3 flex items-start gap-2 type-body">
@@ -208,10 +230,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
               <span>Rest day done.</span>
             </p>
           ) : (
-            <p className="mt-3 type-body text-ink-2">
-              {warmup ? "Nothing to train but its routine." : "Nothing to train."} Today offers to
-              mark it done, and starting the next workout passes it.
-            </p>
+            !warmup && <p className="mt-3 type-body text-ink-2">Nothing to train.</p>
           ))}
 
         <ul aria-label={day.name} className="mt-2">
@@ -220,23 +239,38 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
           ))}
         </ul>
 
-        {/* How to run it, once the time and effort are said; and the day's own notes. */}
-        {plan.run && hasRunGuidance(plan.run) && (
+        {/* The run's stop rule in view, as the session's page keeps it: a safety rule is
+            need-to-know. How to run it, and the day's own notes, are a tap away. */}
+        {plan.run?.stopRule && (
           <div className="mt-3">
-            <RunPlanDetails run={plan.run} />
+            <DetailList entries={[["Stop if", plan.run.stopRule]]} />
           </div>
         )}
-        {day.notes && (
-          <p className="mt-3 type-meta [overflow-wrap:break-word] whitespace-pre-wrap text-ink-2">
-            {day.notes}
-          </p>
+        {(plan.run?.paceNote || plan.run?.progressionNote || day.notes) && (
+          <div className="mt-3">
+            {(plan.run?.paceNote || plan.run?.progressionNote) && (
+              <Disclosure summary="How to run it" variant="inline">
+                <DetailList
+                  entries={[
+                    ["Pace", plan.run?.paceNote],
+                    ["Progression", plan.run?.progressionNote],
+                  ]}
+                />
+              </Disclosure>
+            )}
+            {day.notes && (
+              <Disclosure summary="Notes" variant="inline">
+                <p className="type-meta [overflow-wrap:break-word] whitespace-pre-wrap">
+                  {day.notes}
+                </p>
+              </Disclosure>
+            )}
+          </div>
         )}
 
         {/* One workout at a time: while one is open, this day starts nothing (Today's rule). */}
         {inProgress && !open && start && (
-          <p className="mt-3 type-meta text-ink-2">
-            Finish or discard your open session to start this one.
-          </p>
+          <p className="mt-3 type-meta text-ink-2">Finish or discard your open workout first.</p>
         )}
         {!inProgress && start && (
           <PinnedActions stack>

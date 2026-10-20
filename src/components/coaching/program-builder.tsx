@@ -5,6 +5,7 @@ import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cycleCount, weekdayOffsets } from "@/domain/cycle-repeat";
@@ -16,7 +17,6 @@ import {
   saveProgramDraftAction,
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
-import { saveRoutineAction } from "@/server/actions/manual-training";
 import { coachingAction } from "./client-action";
 
 type LibraryEntry = {
@@ -33,14 +33,13 @@ type LibraryEntry = {
   defaultRestSeconds: number | null;
 };
 
-function repeatHint(plan: ProgramBlueprint, repeats: CycleRepeat | undefined): string {
-  if (repeats === undefined)
-    return "This older programme keeps its original schedule until you choose a repeat pattern.";
+/** What each way of repeating does, for the ⓘ beside Repeats. */
+function repeatHint(repeats: CycleRepeat | undefined): string {
+  if (repeats === undefined) return "Keeps its original schedule until you choose.";
   if (repeats === "once")
-    return "Follow each day once, in order. Each day has its own targets, so the programme can build week by week. Include rest days in the sequence.";
-  if (repeats === "weekly")
-    return "The same days repeat every week. Days between training days are rest.";
-  return `Follow these ${plan.days.length} days in order, including rest days, then start again.`;
+    return "Each day once, in order, with its own targets. Include rest days.";
+  if (repeats === "weekly") return "The same weekdays every week; days between are rest.";
+  return "These days in order, rest days included, then again.";
 }
 
 function nextWeekday(days: BlueprintDay[]): number {
@@ -168,7 +167,7 @@ export function ProgramBuilder({
         );
         if (!checked.ok) throw new Error(checked.error);
         startNavigation(() => router.push(`${base}/drafts/${result.value.id}` as Route));
-      } else setMessage("Draft saved. Review it when you’re ready to apply it.");
+      } else setMessage("Draft saved.");
     } catch (cause) {
       unstable_rethrow(cause);
       setError(cause instanceof Error ? cause.message : "Could not save the draft. Try again.");
@@ -179,11 +178,6 @@ export function ProgramBuilder({
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-ink-2">
-        {repeats === "once"
-          ? "Edit one day at a time. Each day has independent targets; completed workouts keep their original prescription."
-          : "Edit the cycle once. Changes apply whenever that day repeats; completed workouts keep their original targets."}
-      </p>
       <fieldset disabled={busy} className="min-w-0 space-y-6">
         <Disclosure
           summary="Programme settings"
@@ -198,12 +192,8 @@ export function ProgramBuilder({
                 onChange={(event) => change({ name: event.target.value })}
               />
             </Field>
-            {repeats === "once" ? (
-              <p className="text-sm text-ink-2">
-                The programme ends after its {plan.days.length} days. Add rest days wherever you
-                need them.
-              </p>
-            ) : (
+            {/* A progressive programme is as long as its days, said under Repeats. */}
+            {repeats !== "once" && (
               <Field label="Number of weeks">
                 <Input
                   type="number"
@@ -215,7 +205,7 @@ export function ProgramBuilder({
                 />
               </Field>
             )}
-            <Field label="Programme notes">
+            <Field label="Programme notes" aside="Optional">
               <Textarea
                 maxLength={2000}
                 value={plan.notes}
@@ -226,12 +216,20 @@ export function ProgramBuilder({
         </Disclosure>
 
         <section aria-labelledby="cycle-pattern" className="space-y-4">
-          <h2 id="cycle-pattern" className="text-lg font-medium">
-            {repeats === "once" ? "Your sequence" : "Your cycle"}
-          </h2>
+          {/* The ⓘ beside the heading, never in it, so the heading reads as its name. */}
+          <div className="flex items-center gap-1">
+            <h2 id="cycle-pattern" className="text-lg font-medium">
+              {repeats === "once" ? "Your sequence" : "Your cycle"}
+            </h2>
+            <InfoTip label={repeats === "once" ? "About your sequence" : "About your cycle"}>
+              {repeats === "once"
+                ? "Each day has its own targets. Finished workouts keep theirs."
+                : "A change applies each time the day comes round. Finished workouts keep their targets."}
+            </InfoTip>
+          </div>
           <Field
             label="Repeats"
-            hint={repeatHint(plan, repeats)}
+            info={repeatHint(repeats)}
             error={
               repeats === "weekly" &&
               plan.days.length > 0 &&
@@ -279,9 +277,7 @@ export function ProgramBuilder({
               </Field>
             </>
           ) : (
-            <p className="text-sm text-ink-2">
-              Add training and rest days in the order you follow them.
-            </p>
+            <p className="text-sm text-ink-2">No days yet.</p>
           )}
           <Button
             variant="secondary"
@@ -307,10 +303,10 @@ export function ProgramBuilder({
           {plan.days.length >= dayLimit && (
             <p className="text-sm text-ink-2">
               {repeats === "once"
-                ? "A programme can hold up to 364 days."
+                ? "364 days at most."
                 : repeats === "weekly"
-                  ? "A week holds seven days. Choose a different repeat pattern for a longer sequence."
-                  : "A repeating cycle can hold up to 31 days."}
+                  ? "A week holds 7 days; change Repeats for more."
+                  : "31 days at most."}
             </p>
           )}
           {routines.length > 0 && (
@@ -393,16 +389,16 @@ export function ProgramBuilder({
                 </Select>
               </Field>
             )}
-            <Disclosure summary="Day details and options" variant="inline">
+            <Disclosure summary="Day details" variant="inline">
               <div className="space-y-4">
-                <Field label="Focus">
+                <Field label="Focus" aside="Optional">
                   <Input
                     maxLength={120}
                     value={day.focus}
                     onChange={(event) => dayChange(d, { focus: event.target.value })}
                   />
                 </Field>
-                <Field label="Warm-up (optional)">
+                <Field label="Warm-up" aside="Optional">
                   <Select
                     value={day.warmupSlug}
                     onChange={(event) => dayChange(d, { warmupSlug: event.target.value })}
@@ -415,21 +411,21 @@ export function ProgramBuilder({
                     ))}
                   </Select>
                 </Field>
-                <Field label="Time available / notes">
+                <Field label="Time" aside="Optional">
                   <Input
                     maxLength={120}
                     value={day.timeNote}
                     onChange={(event) => dayChange(d, { timeNote: event.target.value })}
                   />
                 </Field>
-                <Field label="Effort guidance">
+                <Field label="Effort" aside="Optional">
                   <Input
                     maxLength={120}
                     value={day.effortNote}
                     onChange={(event) => dayChange(d, { effortNote: event.target.value })}
                   />
                 </Field>
-                <Field label="Day notes">
+                <Field label="Day notes" aside="Optional">
                   <Textarea
                     maxLength={500}
                     value={day.notes}
@@ -477,28 +473,6 @@ export function ProgramBuilder({
                     Remove day
                   </Button>
                 </div>
-                {day.exercises.length > 0 && (
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      if (preview) {
-                        setMessage("Preview only — no routine was saved.");
-                        return;
-                      }
-                      setSaving(true);
-                      setError(null);
-                      try {
-                        const result = await coachingAction(() => saveRoutineAction(day.name, day));
-                        if (result.ok) setMessage(`Saved “${day.name}” to your routines.`);
-                        else setError(result.error);
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                  >
-                    Save this day as a routine
-                  </Button>
-                )}
               </div>
             </Disclosure>
             <div className="space-y-5">
@@ -534,11 +508,7 @@ export function ProgramBuilder({
                 />
               ))}
             </div>
-            {!day.exercises.length && (
-              <p className="text-sm text-ink-2">
-                A rest day until you add exercises. You can add a warm-up in Day details.
-              </p>
-            )}
+            {!day.exercises.length && <p className="text-sm text-ink-2">Rest day</p>}
             <AddExercise
               library={library}
               onAdd={(entry) =>
@@ -648,6 +618,7 @@ function ExerciseEditor({
         <div className="space-y-4">
           <RangeFields
             label="Rest seconds"
+            legend="Rest (s)"
             value={entry.rest}
             onChange={(rest) => onChange({ rest })}
           />
@@ -670,9 +641,9 @@ function ExerciseEditor({
               checked={entry.perSide ?? false}
               onChange={(event) => onChange({ perSide: event.target.checked })}
             />
-            Perform each set on both sides
+            Per side
           </label>
-          <Field label="Superset group (optional)">
+          <Field label="Superset" aside="Optional">
             <Input
               maxLength={60}
               value={entry.supersetGroup ?? ""}
@@ -680,21 +651,21 @@ function ExerciseEditor({
               onChange={(event) => onChange({ supersetGroup: event.target.value || undefined })}
             />
           </Field>
-          <Field label="Load / calibration guidance">
+          <Field label="Load note" aside="Optional">
             <Textarea
               maxLength={300}
               value={entry.targetLoadNote ?? ""}
               onChange={(event) => onChange({ targetLoadNote: event.target.value })}
             />
           </Field>
-          <Field label="Progression notes">
+          <Field label="Progression notes" aside="Optional">
             <Textarea
               maxLength={500}
               value={entry.progressionNotes ?? ""}
               onChange={(event) => onChange({ progressionNotes: event.target.value })}
             />
           </Field>
-          <Field label="Exercise notes">
+          <Field label="Exercise notes" aside="Optional">
             <Textarea
               maxLength={500}
               value={entry.notes ?? ""}
@@ -730,38 +701,49 @@ function ExerciseEditor({
   );
 }
 
+/**
+ * A range under one legend ("Reps", "Rest (s)", "RIR") with "From" and "To" under it, each named
+ * whole for a screen reader ("Reps from"), so the legend is not printed three times.
+ */
 function RangeFields({
   label,
+  legend = label,
   value,
   onChange,
 }: {
   label: string;
+  legend?: string;
   value: [number, number];
   onChange: (value: [number, number]) => void;
 }) {
   return (
-    <div className="adaptive-grid">
-      <Field label={`${label} minimum`}>
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="any"
-          value={Number.isFinite(value[0]) ? value[0] : ""}
-          onChange={(event) => onChange([event.target.valueAsNumber, value[1]])}
-        />
-      </Field>
-      <Field label={`${label} maximum`}>
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="any"
-          value={Number.isFinite(value[1]) ? value[1] : ""}
-          onChange={(event) => onChange([value[0], event.target.valueAsNumber])}
-        />
-      </Field>
-    </div>
+    <fieldset className="min-w-0 space-y-2">
+      <legend className="text-sm font-medium">{legend}</legend>
+      <div className="adaptive-grid">
+        <Field label="From">
+          <Input
+            aria-label={`${label} from`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={Number.isFinite(value[0]) ? value[0] : ""}
+            onChange={(event) => onChange([event.target.valueAsNumber, value[1]])}
+          />
+        </Field>
+        <Field label="To">
+          <Input
+            aria-label={`${label} to`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={Number.isFinite(value[1]) ? value[1] : ""}
+            onChange={(event) => onChange([value[0], event.target.valueAsNumber])}
+          />
+        </Field>
+      </div>
+    </fieldset>
   );
 }
 

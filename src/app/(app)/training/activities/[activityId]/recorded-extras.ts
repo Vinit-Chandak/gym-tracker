@@ -4,9 +4,16 @@ import { climbIn, climbUnit, type SportUnits } from "@/lib/distance-units";
 
 /**
  * One figure an activity's page reads two by two: its name, the figure, and its unit, with a
- * word under it where the figure needs one ("Zone 3 · Aerobic").
+ * word under it where the figure needs one ("Zone 3 · Aerobic"), and an ⓘ beside its name where
+ * a dash needs its reason.
  */
-export type ActivityStat = { label: string; figure: string; unit?: string; note?: string };
+export type ActivityStat = {
+  label: string;
+  figure: string;
+  unit?: string;
+  note?: string;
+  info?: string;
+};
 
 /** Where a reading sits against the athlete's zones: "Zone 3 · Aerobic", "Below zone 1". */
 function zoneNote(bpm: number, heartRate: ResolvedHeartRate | null): string | undefined {

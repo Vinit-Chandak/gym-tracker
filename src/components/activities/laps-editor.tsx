@@ -226,25 +226,18 @@ export function LapsEditor({
         {rows.length > 0 && <span className="laps-count">{rows.length}</span>}
       </summary>
       <input type="hidden" name="laps" value={rows.length > 0 ? JSON.stringify(postedRows) : ""} />
+      {/* Each lap's fields say what they take, and the plan's figures show in them while they
+          are empty; nothing here explains the watch. */}
       <div className="space-y-3 pt-1 pb-2">
-        <p className="type-caption text-ink-2">
-          From your watch: each lap or rep as a distance, a time or both. Leave out what it did not
-          record.
-        </p>
         {rows.length === 0 && planned.length > 0 && (
           <Button variant="secondary" onClick={layOut}>
             Lay out the plan’s {planned.length} laps
           </Button>
         )}
         {fillable && (
-          <div className="space-y-1">
-            <Button variant="secondary" onClick={fillPlanned}>
-              Fill in the planned distances and times
-            </Button>
-            <p className="type-caption text-ink-2">
-              Where you ran the laps as planned. Then add what your watch says beside them.
-            </p>
-          </div>
+          <Button variant="secondary" onClick={fillPlanned}>
+            Fill in the planned distances and times
+          </Button>
         )}
         {rows.length > 0 && (
           <ol className="laps" aria-describedby={error ? `${id}-error` : undefined}>

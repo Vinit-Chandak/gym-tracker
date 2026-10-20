@@ -1,5 +1,7 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import { z } from "zod";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
 import { enduranceName } from "@/components/activities/endurance-line";
@@ -19,18 +21,10 @@ import { requireUuid } from "@/server/validation/params";
 
 import { startedAtLine } from "../started-at";
 
-export const metadata: Metadata = { title: "Correct an activity" };
-
-/** Correct the same record, preserving its sport, occurrence, units and opening revision. */
-export default async function EditActivityPage(
-  props: PageProps<"/training/activities/[activityId]/edit">,
-) {
-  const { activityId } = await props.params;
-  requireUuid(activityId);
-  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+/** The record being corrected, read once a request: the document is named from it too. */
+const readActivity = cache(async (activityId: string) => {
   const user = await requireUser();
-  const profile = await getRequestProfile(user.id, user.email);
-  const { activity, units } = await withUser(
+  return withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -44,16 +38,42 @@ export default async function EditActivityPage(
     },
     { readOnly: true },
   );
+});
+
+/** "Correct the run": what the screen's own title says. */
+function correctTitle(sport: "running" | "cycling" | "swimming"): string {
+  return `Correct the ${sport === "running" ? "run" : sport === "cycling" ? "ride" : "swim"}`;
+}
+
+export async function generateMetadata(
+  props: PageProps<"/training/activities/[activityId]/edit">,
+): Promise<Metadata> {
+  const { activityId } = await props.params;
+  // A malformed address is the page's to refuse; the title only names what is there.
+  if (!z.uuid().safeParse(activityId).success) return { title: "Not found" };
+  const { activity } = await readActivity(activityId);
+  return { title: activity?.actual ? correctTitle(activity.actual.sport) : "Not found" };
+}
+
+/** Correct the same record, preserving its sport, occurrence, units and opening revision. */
+export default async function EditActivityPage(
+  props: PageProps<"/training/activities/[activityId]/edit">,
+) {
+  const { activityId } = await props.params;
+  requireUuid(activityId);
+  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  const { activity, units } = await readActivity(activityId);
   if (!activity?.actual) notFound();
   const actual = activity.actual;
-  const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
   return (
     // As it was logged (boards Log a run, a ride, a swim): a layer over the tabs, Save pinned,
     // which run it is said by its day and time as its page says it (the form's own When is
     // folded). Opened from the run, it goes back to the run, and says so: "Training" named the
     // tab its path is under, not where Back went.
     <SessionPage
-      title={`Correct the ${noun}`}
+      title={correctTitle(actual.sport)}
       meta={
         <span className="meta-fact">
           <Glyph name="calendar" label="Date" className="glyph-16" />

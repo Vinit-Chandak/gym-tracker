@@ -7,7 +7,8 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { FigureInput } from "./figure-input";
 import { emWidth, onRamp } from "./fit";
 import { Glyph } from "./glyphs";
-import { aboutLabel, InfoTip } from "./info-tip";
+import { aboutLabel } from "./about-label";
+import { InfoTip } from "./info-tip";
 
 /**
  * A step from `current` in `direction`, on the steps from zero, a typed figure between two of
@@ -86,6 +87,7 @@ export function RowStepper({
   label,
   hint,
   info,
+  aside,
   name,
   defaultValue = "",
   value: controlled,
@@ -112,6 +114,8 @@ export function RowStepper({
   hint?: ReactNode;
   /** Help for the row, behind a tip beside its name (The Need-to-Know Rule). */
   info?: ReactNode;
+  /** A word after its name ("Optional"), read with the row as a field's aside is. */
+  aside?: ReactNode;
   name?: string;
   defaultValue?: string;
   /** Controlled value; pair with `onChange`. */
@@ -192,20 +196,28 @@ export function RowStepper({
       sanitizeNumberEntry(raw, inputMode === "numeric" ? "numeric" : "decimal", max));
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
+  const asideId = `${id}-aside`;
   const describedBy =
-    [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+    [aside ? asideId : null, hint ? hintId : null, error ? errorId : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
   // The ramp has no step between 26 and 20: stepped down, the figure is the 20.
   const fontSize = size < 26 ? "var(--ov-type-figure)" : undefined;
 
   return (
     <div className="row-stepper" data-field-error={error ? "true" : undefined}>
       <span className="row-stepper-text">
-        {info ? (
-          <span className="flex items-center gap-1">
-            <label htmlFor={id} className="min-w-0 font-bold [overflow-wrap:break-word]">
+        {info || aside ? (
+          <span className="flex flex-wrap items-center gap-x-1">
+            <label htmlFor={id} className="max-w-full font-bold [overflow-wrap:break-word]">
               {label}
             </label>
-            <InfoTip label={aboutLabel(label)}>{info}</InfoTip>
+            {info && <InfoTip label={aboutLabel(label)}>{info}</InfoTip>}
+            {aside && (
+              <span id={asideId} className="type-meta-small font-medium text-ink-2">
+                {aside}
+              </span>
+            )}
           </span>
         ) : (
           <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">

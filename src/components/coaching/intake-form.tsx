@@ -2,7 +2,7 @@
 import { coachingAction } from "./client-action";
 import { DayPicker } from "./day-picker";
 
-import { Check, Paperclip } from "@/components/ui/icons";
+import { Paperclip } from "@/components/ui/icons";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
@@ -427,9 +427,6 @@ function StepProgress({
           </button>
         ))}
       </div>
-      <p className="text-xs text-ink-subtle tabular-nums">
-        Step {step + 1} of {STEPS.length}
-      </p>
     </nav>
   );
 }
@@ -480,9 +477,7 @@ function Actions({
 
 function NotConfigured() {
   return (
-    <p className="text-sm text-ink-muted">
-      Programme generation is not available yet. Your answers and files are saved.
-    </p>
+    <p className="text-sm text-ink-muted">The coach is not taking new programmes right now.</p>
   );
 }
 
@@ -508,37 +503,24 @@ function TrackChooser({
           {
             track: "guided",
             title: "I’m new to this",
-            points: [
-              "A few short questions, on one screen",
-              "Say the rest in your own words, typed or spoken",
-              "The coach picks your split, exercises and starting loads",
-            ],
+            line: "A few questions on one screen",
             action: "Start here",
             variant: "primary",
           },
           {
             track: "detailed",
             title: "I already train",
-            points: [
-              "Your days, session length and running",
-              "Injuries, preferences and exercises to leave out",
-              "Attach a plan or a report for the coach to work from",
-            ],
+            line: "Your week, limits and files, in detail",
             action: "Set it up in detail",
             variant: "secondary",
           },
         ] as const
       ).map((option) => (
         <Card key={option.track}>
-          <h3 className="text-lg font-medium">{option.title}</h3>
-          <ul className="space-y-1.5 text-sm text-ink-muted">
-            {option.points.map((point) => (
-              <li key={point} className="flex gap-2">
-                <Check className="mt-0.5 shrink-0 text-accent" aria-hidden />
-                <span className="min-w-0">{point}</span>
-              </li>
-            ))}
-          </ul>
+          <div>
+            <h3 className="text-lg font-medium">{option.title}</h3>
+            <p className="text-sm text-ink-muted">{option.line}</p>
+          </div>
           <Button
             size="lg"
             variant={option.variant}
@@ -562,7 +544,7 @@ function LocationChoice({ answers, change }: { answers: CoachIntake; change: Cha
     <Field
       group
       label="Where you train"
-      info="Home means bodyweight and whatever you own. You can register machines later under Gyms and machines, and the coach will use them."
+      info="Home is your bodyweight and what you own. Machines you add under Gyms and machines count too."
     >
       <SegmentedControl
         name="trainingLocation"
@@ -779,7 +761,7 @@ function GuidedStep({
       <Card>
         <Field
           label="Anything else the coach should know"
-          info="Whatever you would tell a trainer on day one: how active you are, what you have tried, what you want to look and feel like, what you cannot stand doing."
+          info="What you would tell a trainer on day one: how active you are, what you have tried, what you want."
         >
           <SpeechTextarea
             label="anything else"
@@ -813,7 +795,8 @@ function YouStep({
       <Card>
         <Field
           label="Your brief"
-          info="Paste an existing routine, a detailed prompt, or anything you want the coach to work from. Up to 16,000 characters."
+          info="Paste a routine, a detailed prompt, or anything the coach should work from."
+          hint="Up to 16,000 characters"
         >
           <SpeechTextarea
             label="your brief"
@@ -844,10 +827,7 @@ function WeekStep({ answers, change }: { answers: CoachIntake; change: Change })
           }
         />
         {answers.preferredDays.length === 0 && (
-          <Field
-            label="Sessions a week"
-            hint="Pick the days above instead if you train on set days."
-          >
+          <Field label="Sessions a week">
             <Input
               type="number"
               inputMode="numeric"
@@ -904,10 +884,6 @@ function WeekStep({ answers, change }: { answers: CoachIntake; change: Change })
           </Disclosure>
         )}
       </Card>
-      <p className="text-sm text-ink-2">
-        Running, cycling and swimming have their own programmes in Training. The coach can use them
-        as context for this lifting plan.
-      </p>
       <Card>
         <LocationChoice answers={answers} change={change} />
       </Card>
@@ -971,10 +947,7 @@ function TrainingStep({
         </Field>
       </Card>
       <Card>
-        <Field
-          label="Leave these out entirely"
-          info="Chosen movements are excluded from every session the coach writes."
-        >
+        <Field label="Leave these out entirely">
           <Select
             value=""
             onChange={(event) => {
@@ -1051,7 +1024,7 @@ function StartingPointStep({
       <Card>
         <Field
           label="If you already lift, what are you lifting?"
-          info="Rough numbers are enough. The coach treats them as a starting point and corrects them from your logged sets."
+          info="Rough numbers are fine; your logged sets correct them."
         >
           <SpeechTextarea
             label="your current lifts"
@@ -1064,10 +1037,7 @@ function StartingPointStep({
         </Field>
       </Card>
       <Card>
-        <Field
-          label="Reports and plans"
-          info="PDF, JPG, PNG, CSV or text. Up to 5 MB each, five files. Files stay available for later coaching reviews until you remove them."
-        >
+        <Field label="Reports and plans" info="They stay for later reviews until you remove them.">
           <FilePicker busy={busy} onUpload={onUpload} />
         </Field>
         {files.length > 0 && (
@@ -1146,7 +1116,10 @@ function FilePicker({
     >
       <Paperclip className="text-ink-subtle" aria-hidden />
       <span className="text-sm font-medium">Add files</span>
-      <span className="text-xs text-ink-subtle">PDF, image, CSV or text</span>
+      {/* What it takes, and the most it takes: said where the files are added. */}
+      <span className="text-xs text-ink-subtle">
+        PDF, image, CSV or text · 5 MB each, five files
+      </span>
       <input
         type="file"
         accept=".pdf,.jpg,.jpeg,.png,.txt,.md,.csv"
@@ -1214,15 +1187,16 @@ function ReviewStep({
                 .filter(Boolean)
                 .join(FACT_SEPARATOR) || "Not answered",
             ],
-            ["Injuries", answers.restrictions || "None reported"],
-            ["Preferences", answers.preferences || "None reported"],
+            // One word for each kind of blank: None for a list, Not answered for a question.
+            ["Injuries", answers.restrictions || "None"],
+            ["Preferences", answers.preferences || "None"],
             [
               "Left out",
               answers.avoidExerciseSlugs
                 .map((slug) => library.find((e) => e.slug === slug)?.name ?? slug)
-                .join(", ") || "Nothing",
+                .join(", ") || "None",
             ],
-            ["Lifting now", answers.recentTraining || "Not reported"],
+            ["Lifting now", answers.recentTraining || "Not answered"],
             [
               "Files",
               files

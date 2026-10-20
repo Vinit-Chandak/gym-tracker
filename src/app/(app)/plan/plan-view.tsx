@@ -1,19 +1,30 @@
 import type { Route } from "next";
 
 import { Art } from "@/components/art/art";
-import { enduranceName } from "@/components/activities/endurance-line";
+import {
+  enduranceName,
+  enduranceTarget,
+  plannedName,
+} from "@/components/activities/endurance-line";
+import { alreadySays } from "@/components/activities/prescription-lines";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Glyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
-import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
+import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { byDay, weekStartOf, type WeekSession, type WeekStatus } from "@/domain/plan-week";
 import { addDays } from "@/domain/program-calendar";
+import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatDateRange, formatIsoDate } from "@/lib/format";
-import type { NewProgrammeDraft, ProgrammeCard } from "@/server/repositories/sport-programmes";
+import type {
+  NewProgrammeDraft,
+  NewProgrammeRequest,
+  NewProgrammeRequestStatus,
+  ProgrammeCard,
+} from "@/server/repositories/sport-programmes";
 
 /** What a programme card needs of its programme: which it is, its sport and its name. */
 export type PlanCard = Omit<ProgrammeCard, "programme"> & {
@@ -42,14 +53,33 @@ function sessionHref(session: WeekSession): Route {
     : ("/plan/strength" as Route);
 }
 
+/**
+ * A row's name and the figure under it. A run, ride or swim is named as Today names it (ADR
+ * 0059: its name, else its kind of run, else its sport) with what it asks for under it, so two
+ * runs on one day never read the same; the figure is left out where the name already says it.
+ */
+function sessionWords(
+  session: WeekSession,
+  units: SportUnits,
+): { name: string; figure: string | null } {
+  if (session.sport === "strength" || !session.prescription)
+    return { name: session.title ?? enduranceName(session.sport), figure: null };
+  const name = plannedName(session.prescription, session.sport, units);
+  const target = enduranceTarget(session.prescription, units);
+  const figure = target ? `${target.figure}\u00a0${target.unit}` : null;
+  return { name, figure: figure && !alreadySays(name, figure) ? figure : null };
+}
+
 function Week({
   sessions,
   monday,
   today,
+  units,
 }: {
   sessions: readonly WeekSession[];
   monday: string;
   today: string;
+  units: SportUnits;
 }) {
   const days = byDay(sessions);
   const sunday = addDays(monday, 6);
@@ -93,28 +123,32 @@ function Week({
                 {formatIsoDate(date, today.slice(0, 4))}
               </p>
               <ul className="ruled-list">
-                {onDay.map((session) => (
-                  <NavRow
-                    key={session.key}
-                    href={sessionHref(session)}
-                    lead={
-                      <Art
-                        kind="mark"
-                        sport={MARK[session.sport]}
-                        size={20}
-                        state={
-                          session.status === "done"
-                            ? "done"
-                            : session.status === "skipped"
-                              ? "skipped"
-                              : "todo"
-                        }
-                      />
-                    }
-                    label={holdHyphens(session.title ?? enduranceName(session.sport))}
-                    value={session.status === "planned" ? undefined : STATUS[session.status]}
-                  />
-                ))}
+                {onDay.map((session) => {
+                  const { name, figure } = sessionWords(session, units);
+                  return (
+                    <NavRow
+                      key={session.key}
+                      href={sessionHref(session)}
+                      lead={
+                        <Art
+                          kind="mark"
+                          sport={MARK[session.sport]}
+                          size={20}
+                          state={
+                            session.status === "done"
+                              ? "done"
+                              : session.status === "skipped"
+                                ? "skipped"
+                                : "todo"
+                          }
+                        />
+                      }
+                      label={holdHyphens(name)}
+                      sub={figure ?? undefined}
+                      value={session.status === "planned" ? undefined : STATUS[session.status]}
+                    />
+                  );
+                })}
               </ul>
             </li>
           ))}
@@ -149,39 +183,50 @@ function Programme({ card }: { card: PlanCard }) {
   );
 }
 
+/** Where a request for a first programme stands, in the words its request page says it in. */
+const REQUEST_STATE: Record<NewProgrammeRequestStatus, string> = {
+  writing: "Being written",
+  needs_answer: "Needs your answer",
+  failed: "Could not finish",
+};
+
 /**
- * A first programme waiting to be started (ADR 0059), as a programme's card reads: its sport and
- * name, and what it waits for. A ready one opens its review; one being built, its editor.
+ * A first programme on its way (ADR 0059), as a programme's card reads: its sport and name, and
+ * what it waits for. Asked of the coach, it opens its request until a draft answers it; a ready
+ * draft opens its review, one being built its editor.
  */
 function Waiting({
-  draft,
+  href,
+  sport,
+  name,
+  state,
 }: {
-  draft: Pick<NewProgrammeDraft, "id" | "sport" | "status" | "name">;
+  href: string;
+  sport: ActivitySport;
+  name: string | null;
+  state: string;
 }) {
-  const href =
-    draft.status === "ready"
-      ? `/profile/programme/drafts/${draft.id}`
-      : draft.sport === "strength"
-        ? `/profile/programme/manual?draft=${draft.id}`
-        : `/plan/${draft.sport}/edit?draft=${draft.id}`;
   return (
     <li className="min-w-0">
       <Link href={href as Route} className="plan-programme box panel-padding">
         <span className="plan-programme-sport type-meta-small text-ink-2">
-          <Art kind="mark" sport={MARK[draft.sport]} size={20} />
-          {ACTIVITY_SPORT_LABELS[draft.sport]}
+          <Art kind="mark" sport={MARK[sport]} size={20} />
+          {ACTIVITY_SPORT_LABELS[sport]}
         </span>
         <span className="plan-programme-name">
-          {holdHyphens(
-            draft.name || `New ${ACTIVITY_SPORT_LABELS[draft.sport].toLowerCase()} programme`,
-          )}
+          {holdHyphens(name || `New ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme`)}
         </span>
-        <span className="plan-programme-waiting type-meta-small">
-          {draft.status === "ready" ? "New programme to review" : "Draft in progress"}
-        </span>
+        <span className="plan-programme-waiting type-meta-small">{state}</span>
       </Link>
     </li>
   );
+}
+
+function draftHref(draft: Pick<NewProgrammeDraft, "id" | "sport" | "status">): string {
+  if (draft.status === "ready") return `/profile/programme/drafts/${draft.id}`;
+  return draft.sport === "strength"
+    ? `/profile/programme/manual?draft=${draft.id}`
+    : `/plan/${draft.sport}/edit?draft=${draft.id}`;
 }
 
 /**
@@ -192,18 +237,24 @@ function Waiting({
 export function PlanView({
   cards,
   drafts = [],
+  requests = [],
   sessions,
+  units = DEFAULT_SPORT_UNITS,
   monday,
   today,
 }: {
   cards: readonly PlanCard[];
   /** First programmes drafted and not yet started, which no card above can stand for. */
   drafts?: readonly Pick<NewProgrammeDraft, "id" | "sport" | "status" | "name">[];
+  /** First programmes asked of the coach that no draft answers yet. */
+  requests?: readonly NewProgrammeRequest[];
   sessions: readonly WeekSession[];
+  /** How the athlete reads distances, for the figure under a run, ride or swim. */
+  units?: SportUnits;
   monday: string;
   today: string;
 }) {
-  const empty = cards.length === 0 && drafts.length === 0;
+  const empty = cards.length === 0 && drafts.length === 0 && requests.length === 0;
   return (
     <div className="page-wide">
       <PageHeader
@@ -225,7 +276,7 @@ export function PlanView({
           </Card>
         )}
         {(!empty || sessions.length > 0) && (
-          <Week sessions={sessions} monday={monday} today={today} />
+          <Week sessions={sessions} monday={monday} today={today} units={units} />
         )}
         {!empty && (
           <section aria-labelledby="plan-programmes" className="space-y-3">
@@ -237,7 +288,22 @@ export function PlanView({
                 <Programme key={card.programme.id} card={card} />
               ))}
               {drafts.map((draft) => (
-                <Waiting key={draft.id} draft={draft} />
+                <Waiting
+                  key={draft.id}
+                  href={draftHref(draft)}
+                  sport={draft.sport}
+                  name={draft.name}
+                  state={draft.status === "ready" ? "New programme to review" : "Draft in progress"}
+                />
+              ))}
+              {requests.map((request) => (
+                <Waiting
+                  key={request.id}
+                  href={`/profile/programme/jobs/${request.id}`}
+                  sport={request.sport}
+                  name={null}
+                  state={REQUEST_STATE[request.status]}
+                />
               ))}
             </ul>
           </section>

@@ -45,8 +45,8 @@ import { DayPicker } from "./day-picker";
  * builds a plan, in the order a runner thinks about it — what for, how fit, how much now, when.
  *
  * Where the athlete's own logs already answer a question (their usual week, their longest run
- * of the month, a recent fast run), the answer starts filled in and says it came from the logs;
- * it stays theirs to change. The goal is also written out in words for the coach, beside the
+ * of the month, a recent fast run), the answer starts filled in and says so beside its label,
+ * "From your logs", until it is changed; it stays theirs to change. The goal is also written out in words for the coach, beside the
  * athlete's own, so a reader of the request sees "Marathon on Sun 14 Mar 2027, in 3:45:00".
  */
 
@@ -60,7 +60,7 @@ const PLACE_LABELS: Record<RunningPlace, string> = {
 const TERRAIN_LABELS = { flat: "Flat", rolling: "Rolling", hilly: "Hilly" } as const;
 
 const EXPERIENCES = [
-  ["unknown", "Choose or leave unspecified"],
+  ["unknown", "Not sure"],
   ["beginner", "New to running"],
   ["intermediate", "Run regularly"],
   ["experienced", "Experienced, have raced"],
@@ -187,9 +187,10 @@ export function RunningIntakeForm({
   const [message, setMessage] = useState<string | null>(null);
   const [saved, setSaved] = useState(initial);
   const [requestKey] = useState(() => crypto.randomUUID());
-  const [draft, setDraft] = useState<Draft>(() =>
+  const [opened] = useState<Draft>(() =>
     opening(initial?.answers ?? prefill, snapshot, unit, initial !== null),
   );
+  const [draft, setDraft] = useState<Draft>(opened);
   const set = (patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setError(null);
@@ -318,8 +319,9 @@ export function RunningIntakeForm({
     else setError(created.error);
   }
 
-  const fromLogs = (shown: boolean) =>
-    shown && initial === null ? "From your logged runs. Change it if it is not right." : undefined;
+  // Filled in from the logs and not changed since: said in a word or two beside its label.
+  const fromLogs = (key: keyof Draft, filled: boolean) =>
+    filled && initial === null && draft[key] === opened[key] ? "From your logs" : undefined;
 
   return (
     <form
@@ -330,11 +332,6 @@ export function RunningIntakeForm({
       }}
       className="space-y-[var(--section-gap)]"
     >
-      <p className="text-sm text-ink-2">
-        The coach writes your running around your other programmes and your recent runs. Changes to
-        another sport need your approval.
-      </p>
-
       <Section title="Your goal">
         <Card>
           <Field label="What are you training for?">
@@ -400,34 +397,35 @@ export function RunningIntakeForm({
               </Field>
             </div>
           )}
-          <Field
-            label="In your own words"
-            aside="Optional"
-            hint="What success looks like, other races, anything the coach should plan around."
-          >
+          <Field label="In your own words" aside="Optional">
             <Textarea
               value={draft.brief}
               maxLength={16000}
               rows={3}
+              placeholder="For example, a 10K tune-up in May"
               onChange={(event) => set({ brief: event.target.value })}
             />
           </Field>
         </Card>
       </Section>
 
-      <Section
-        title="Your fitness now"
-        info="A recent race or all-out time trial sets your paces. Without one, the coach plans by effort and adds a time trial."
-      >
+      <Section title="Your fitness now">
         <Card>
           <div className="adaptive-grid">
             <Field
               label="A recent race or time trial"
-              aside="Optional"
+              // A logged run is not a race: the coach reads it as a floor unless it was all-out.
+              aside={
+                (draft.effortDistance !== "" &&
+                  fromLogs("effortDistance", snapshot.effort !== null) &&
+                  fromLogs("effortTime", snapshot.effort !== null)) ||
+                "Optional"
+              }
+              info="A recent race or all-out time trial sets your paces."
+              // What a blank does stays in view (DESIGN.md, The Need-to-Know Rule).
               hint={
-                snapshot.effort !== null && draft.effortDistance !== "" && initial === null
-                  ? // A logged run is not a race: the coach reads it as a floor unless it was all-out.
-                    "Your fastest recent run from your logs. A race or an all-out time trial is better, if you have one."
+                draft.effortDistance === ""
+                  ? "Without one, the coach plans by effort and adds a time trial."
                   : undefined
               }
             >
@@ -476,7 +474,10 @@ export function RunningIntakeForm({
             )}
           </div>
           <div className="adaptive-grid">
-            <Field label={`A usual week, in ${unitWord}`} hint={fromLogs(snapshot.weeklyKm > 0)}>
+            <Field
+              label={`A usual week, in ${unitWord}`}
+              aside={fromLogs("weekly", snapshot.weeklyKm > 0)}
+            >
               <Input
                 inputMode="decimal"
                 value={draft.weekly}
@@ -485,7 +486,7 @@ export function RunningIntakeForm({
             </Field>
             <Field
               label={`Longest run this month, in ${unitWord}`}
-              hint={fromLogs(snapshot.longest !== null)}
+              aside={fromLogs("longest", snapshot.longest !== null)}
             >
               <Input
                 inputMode="decimal"
@@ -574,9 +575,8 @@ export function RunningIntakeForm({
       <Section title="Where you run">
         <Card>
           <fieldset className="min-w-0">
-            <legend className="mb-1.5 text-sm font-medium text-ink-muted">
-              Places you can run
-            </legend>
+            {/* The section's name says it; the group keeps its name for screen readers. */}
+            <legend className="sr-only">Places you can run</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               {RUNNING_PLACES.map((place) => (
                 <label key={place} className="check-row">
@@ -610,14 +610,11 @@ export function RunningIntakeForm({
               ))}
             </Select>
           </Field>
-          <Field
-            label="Anything that limits your running?"
-            aside="Optional"
-            hint="Injuries, niggles, or anything to avoid."
-          >
+          <Field label="Anything that limits your running?" aside="Optional">
             <Textarea
               value={draft.restrictions}
               maxLength={3000}
+              placeholder="For example, a tight left calf"
               onChange={(event) => set({ restrictions: event.target.value })}
             />
           </Field>

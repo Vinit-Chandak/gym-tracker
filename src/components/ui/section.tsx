@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { aboutLabel, InfoTip } from "./info-tip";
+import { aboutLabel } from "./about-label";
+import { InfoTip } from "./info-tip";
 
 /**
  * A section's name above its box or list, in the Caption every section's name takes (DESIGN.md,

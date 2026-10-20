@@ -6,7 +6,6 @@ import { SetupCoach } from "@/components/coaching/setup-coach";
 import { NavRow } from "@/components/ui/nav-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { placeInSentence } from "@/lib/setup-place";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { pendingFirstProgramme, readSetupState, setupStepsOf } from "@/server/queries/setup-state";
@@ -54,14 +53,12 @@ export default async function WelcomeProgrammePage() {
           href={`/welcome/programme/drafts/${pending.draftId}` as Route}
           glyph="table"
           label="Your programme is ready"
-          sub="Read it, then start it"
         />
       ) : (
         <NavRow
           href={`/welcome/programme/jobs/${pending.jobId}` as Route}
           glyph="coach"
           label="The coach is writing your programme"
-          sub="See how it is getting on"
         />
       )}
     </ul>
@@ -74,7 +71,6 @@ export default async function WelcomeProgrammePage() {
         current="plan"
         back={back}
         title="Your first programme"
-        sub="The coach writes it around your week. You see it before it starts."
       >
         {waiting}
         <SetupCoach
@@ -93,7 +89,6 @@ export default async function WelcomeProgrammePage() {
       current="start"
       back={back}
       title="How do you want to start?"
-      sub="Logging is enough: suggestions learn from every set you save. A plan can come any time."
     >
       {waiting}
       <ul className="mt-5 border-y border-hair">
@@ -103,12 +98,7 @@ export default async function WelcomeProgrammePage() {
           label="Set up my split"
           sub="Your days, and the exercises on each."
         />
-        <NavRow
-          href="/welcome/programme/create"
-          glyph="coach"
-          label="Let the coach write it"
-          sub={`It already knows ${placeInSentence(place)} and that you train.`}
-        />
+        <NavRow href="/welcome/programme/create" glyph="coach" label="Let the coach write it" />
       </ul>
       <LogOwnWorkouts />
     </OnboardingFrame>

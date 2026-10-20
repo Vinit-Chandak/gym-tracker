@@ -32,6 +32,7 @@ import {
   TargetCard,
   useFormValues,
   type ActivityFormValues,
+  type PlanTarget,
 } from "./activity-form-fields";
 import { LapsEditor } from "./laps-editor";
 
@@ -64,7 +65,7 @@ type Props = {
   /** The occurrence being logged, with the revision pinned when the form opened. */
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
   /** What the plan asked for, kept beside the form rather than inside it. */
-  target?: { title: string; lines: string[] } | null;
+  target?: PlanTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
@@ -130,7 +131,7 @@ export function RunningForm({
       />
       {target && (
         <div className="mt-3">
-          <TargetCard title={target.title} lines={target.lines} />
+          <TargetCard {...target} />
         </div>
       )}
 
@@ -209,7 +210,7 @@ export function RunningForm({
         ].some((field) => Boolean(errors?.[field]))}
       >
         <ActivityStartFields values={values} errors={errors} />
-        <Field label="Surface" hint="Optional" error={errors?.surface}>
+        <Field label="Surface" aside="Optional" error={errors?.surface}>
           <Input
             name="surface"
             list="run-surfaces"

@@ -1,4 +1,5 @@
 import { PHASE_WORDS } from "@/components/activities/prescription-lines";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import {
   formatPaceSeconds,
@@ -18,7 +19,8 @@ import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
  * Five columns fit a phone: the pace's unit is said once, in its heading, and a lap's highest
  * heart rate shows beside its average where there is room for it.
  *
- * Time in zones, under them, is read from each lap's average: an approximation, and said to be.
+ * Time in zones, under them, is read from each lap's average: an approximation, said to be in
+ * the ⓘ beside its caption.
  */
 export function RunLaps({
   laps,
@@ -95,7 +97,13 @@ export function RunLaps({
       </div>
       {timed > 0 && (
         <div className="space-y-1.5">
-          <p className="type-caption text-ink-2">Time in zones, from each lap’s average</p>
+          {/* The ⓘ beside the caption, never inside it (The Need-to-Know Rule). */}
+          <div className="flex items-center gap-1">
+            <p className="type-caption text-ink-2">Time in zones</p>
+            <InfoTip label="About time in zones">
+              Read from each lap’s average heart rate, so it is approximate.
+            </InfoTip>
+          </div>
           <ul className="run-zone-times">
             {zoneTimes.map((entry) => (
               <li key={entry.zone} data-zone={entry.zone}>

@@ -129,19 +129,19 @@ export default async function NewProgrammePage({
                 href={builderHref(selected, "repeating")}
                 glyph="repeat"
                 label="Repeating"
-                sub="The same week or cycle, again and again."
+                sub="Same week or cycle, on repeat"
               />
               <NavRow
                 href={builderHref(selected, "progressive")}
                 glyph="target"
                 label="Progressive"
-                sub="Each week different, building as it goes."
+                sub="Builds week by week"
               />
               <NavRow
                 href={`/plan/new?sport=${selected}&method=coach` as Route}
                 glyph="coach"
                 label="With the coach"
-                sub="Answer a few questions and the coach writes it."
+                sub="Answer a few questions"
               />
             </ul>
             {data!.active && (

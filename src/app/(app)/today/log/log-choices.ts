@@ -50,12 +50,12 @@ export function inOrder<T extends Dated>(sessions: readonly T[], today: string):
 /**
  * A lifting day's line under its name in Counts as, read from the start it would get
  * (`liftingStartOption`): the day the programme offers next, one later in this cycle, one
- * skipped, one done this cycle and trained again, or one of a cycle still to come.
+ * skipped, one done this cycle (choosing it trains it again), or one of a cycle still to come.
  */
 export function liftingSub(option: { next: boolean; label: string; cycleIndex: number }): string {
   if (option.next) return "Next in your programme";
   if (option.label === "Start") return "This cycle";
   if (option.label === "Start skipped workout") return "Skipped this cycle";
-  if (option.label === "Do again") return "Done this cycle; trains it again";
+  if (option.label === "Do again") return "Done this cycle";
   return `Cycle ${option.cycleIndex}`;
 }

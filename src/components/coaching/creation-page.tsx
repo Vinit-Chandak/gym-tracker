@@ -1,6 +1,8 @@
 import { and, eq, isNull, or } from "drizzle-orm";
+import type { Route } from "next";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { LinkButton } from "@/components/ui/button";
 import { getDb } from "@/db/client";
 import { exercises, gyms } from "@/db/schema";
 import { withUser } from "@/db/with-user";
@@ -70,13 +72,20 @@ export async function ProgrammeCreationPage({ onboarding = false }: { onboarding
   const usual = data.locations.find((location) => location.isDefault) ?? data.locations[0];
   return (
     <>
-      <PageHeader title="Create a programme" backHref={base} />
+      {/* Plan's name for it (ADR 0058): "Create a programme" was retired. */}
+      <PageHeader title="New strength programme" backHref={base} />
       <PageContent>
         {!coachRollout().intake && !data.initial ? (
-          <p>
-            New coaching setup is temporarily paused. You can still build a programme or track
-            workouts from the programme choices.
-          </p>
+          // One short line and its action: building it by hand is still open.
+          <div className="space-y-3">
+            <p>The coach is not taking new programmes right now.</p>
+            <LinkButton
+              href={(onboarding ? "/welcome/programme/split" : "/plan/new?sport=strength") as Route}
+              variant="secondary"
+            >
+              Build it yourself
+            </LinkButton>
+          </div>
         ) : (
           <CoachIntakeForm
             initial={data.initial}

@@ -11,25 +11,6 @@
   line-height: 1.15;
   overflow-wrap: break-word;
 }
-.change-why {
-  margin-top: calc(10 * var(--ov-u));
-}
-.change-why-summary {
-  display: flex;
-  min-height: var(--ov-target);
-  align-items: center;
-  gap: calc(6 * var(--ov-u));
-  cursor: pointer;
-  font-size: var(--ov-type-meta);
-  font-weight: 700;
-  list-style: none;
-}
-.change-why-summary::-webkit-details-marker {
-  display: none;
-}
-.change-why > p {
-  margin-bottom: calc(10 * var(--ov-u));
-}
 /* Each part of the change a section under an ink rule, at the gutter, not a card. */
 .diff-section {
   margin-top: calc(14 * var(--ov-u));

@@ -1,44 +1,35 @@
 import type { Route } from "next";
 
-import Link from "@/components/ui/app-link";
+import { enduranceName } from "@/components/activities/endurance-line";
+import { NavRow } from "@/components/ui/nav-row";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import type { NamedOccurrence } from "@/server/repositories/occurrences";
 
-const NOUN = { strength: "session", running: "run", cycling: "ride", swimming: "swim" } as const;
-
-/** A link set in the meta line: ink and underlined, never a pigment (DESIGN.md). */
-const LINK = "tap-area font-bold underline underline-offset-4";
+/**
+ * The scheduled session an activity answered, as its Counts as row names it: its day's name,
+ * else its sport, and the day it was planned for ("Tempo run · Thu 20 Aug"). The planned day is
+ * said because a run done late is still that day's run: it is how a run on 31 August answers a
+ * programme whose dates ran out on the 23rd, the sequence having waited for it.
+ */
+export function answeredName(session: NamedOccurrence, year: string): string {
+  return joinFacts([
+    session.dayName ?? enduranceName(session.sport),
+    formatIsoDate(session.scheduledOn, year),
+  ]);
+}
 
 /**
- * Which scheduled session an activity answered, named and one tap from it: "This answered
- * Tempo run, cycle 10, planned for Thu 20 Aug." It used to say only that it answered "a
- * scheduled session", which named nothing and led nowhere. The planned day is said because a
- * run done late is still that day's run: it is how a run on 31 August answers a programme whose
- * dates ran out on the 23rd, the sequence having waited for it.
+ * What a logged run, ride or swim counts as, in one ruled row (Information map: its page ›
+ * Counts as): the session it answered, or Unplanned, opening Counts as, where it can change and
+ * where the session it answers opens its page. It said "This answered Tempo run, cycle 10,
+ * planned for Thu 20 Aug." over a second line offering to change it: two lines for one fact.
+ * Without Counts as to open (its session's programme has ended, ADR 0054), it opens the session.
  */
-export function AnsweredSession({ session, year }: { session: NamedOccurrence; year: string }) {
-  const href = `/training/programme/occurrences/${session.id}` as Route;
-  const noun = NOUN[session.sport];
-  const on = formatIsoDate(session.scheduledOn, year);
+export function CountsAsRow({ value, href }: { value: string; href: Route | null }) {
   return (
-    <p className="mt-3 type-meta text-ink-2">
-      This answered{" "}
-      {session.familyId === null ? (
-        <>
-          <Link href={href} className={LINK}>
-            the {noun} you scheduled
-          </Link>{" "}
-          for {on}.
-        </>
-      ) : (
-        <>
-          <Link href={href} className={LINK}>
-            {session.dayName ?? `the programme's ${noun}`}
-          </Link>
-          {session.dayName && session.cycleIndex !== null ? `, cycle ${session.cycleIndex},` : ""}{" "}
-          planned for {on}.
-        </>
-      )}
-    </p>
+    <ul className="mt-3 ruled-list">
+      <NavRow href={href ?? undefined} label="Counts as" value={value} />
+    </ul>
   );
 }

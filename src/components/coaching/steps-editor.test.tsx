@@ -59,8 +59,8 @@ it("writes a distance interval session: warm-up, 8 × 800 m with jogs, cool-down
   type(within(block).getByLabelText("Times"), "8");
   const rep = stepBox("Work");
   expect(within(rep).getByLabelText("Metres")).toHaveProperty("value", "800");
-  type(within(rep).getByLabelText("Pace per km"), "350");
-  type(within(rep).getByLabelText("Pace up to"), "355");
+  type(within(rep).getByLabelText("Pace per km, m:ss"), "350");
+  type(within(rep).getByLabelText("Pace up to, m:ss"), "355");
   fireEvent.change(within(rep).getByLabelText("Zone"), { target: { value: "4" } });
   fireEvent.change(within(rep).getByLabelText("Zone up to"), { target: { value: "5" } });
 
@@ -85,7 +85,10 @@ it("writes a distance interval session: warm-up, 8 × 800 m with jogs, cool-down
       { phase: "recovery", action: "run", target: { kind: "duration", ms: [120000, 120000] } },
     ],
   });
-  expect(rep.querySelector("summary")!.textContent).toBe("3:50–3:55\u00a0/km · Zones 4–5");
+  // The fold names what it holds, and what is set so far stands at the end of its row.
+  const fold = rep.querySelector("summary")!;
+  expect(fold.textContent).toContain("Pace, zone and note");
+  expect(fold.textContent).toContain("3:50–3:55\u00a0/km · Zones 4–5");
 });
 
 it("writes timed intervals and walks the recovery, which then has no pace", () => {
@@ -97,9 +100,9 @@ it("writes timed intervals and walks the recovery, which then has no pace", () =
   fireEvent.change(within(rep).getByLabelText("Zone"), { target: { value: "4" } });
 
   const recovery = stepBox("Recovery");
-  type(within(recovery).getByLabelText("Pace per km"), "700");
+  type(within(recovery).getByLabelText("Pace per km, m:ss"), "700");
   fireEvent.change(within(recovery).getByLabelText("Doing"), { target: { value: "rest" } });
-  expect(within(recovery).queryByLabelText("Pace per km")).toBeNull();
+  expect(within(recovery).queryByLabelText("Pace per km, m:ss")).toBeNull();
 
   const block = stored()[0];
   expect(block).toMatchObject({
@@ -119,21 +122,21 @@ it("reads a distance in kilometres or miles, and a pace per mile", () => {
   const step = stepBox("1. Warm-up");
   fireEvent.change(within(step).getByLabelText("Ends after"), { target: { value: "mi" } });
   type(within(step).getByLabelText("Miles"), "1.5");
-  type(within(step).getByLabelText("Pace per mi"), "900");
+  type(within(step).getByLabelText("Pace per mi, m:ss"), "900");
   expect(stored()[0]).toMatchObject({
     target: { kind: "distance", metres: [2414, 2414], unit: "mi" },
     // Nine minutes a mile is 5:35.5 a kilometre, kept to a tenth so it reads back as 9:00.
     paceSecondsPerKm: [335.5, 335.5],
   });
-  expect(within(step).getByLabelText("Pace per mi")).toHaveProperty("value", "9:00");
+  expect(within(step).getByLabelText("Pace per mi, m:ss")).toHaveProperty("value", "9:00");
 });
 
 it("gives back a figure the session cannot hold, and keeps a range low to high", () => {
   render(<Harness />);
   fireEvent.click(screen.getByRole("button", { name: "Add step" }));
   const step = stepBox("1. Warm-up");
-  type(within(step).getByLabelText("Pace per km"), "30");
-  expect(within(step).getByLabelText("Pace per km")).toHaveProperty("value", "");
+  type(within(step).getByLabelText("Pace per km, m:ss"), "30");
+  expect(within(step).getByLabelText("Pace per km, m:ss")).toHaveProperty("value", "");
   type(within(step).getByLabelText("Time"), "1500");
   type(within(step).getByLabelText("Time up to"), "1000");
   expect(stored()[0]).toMatchObject({ target: { kind: "duration", ms: [600000, 900000] } });

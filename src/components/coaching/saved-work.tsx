@@ -74,12 +74,13 @@ export async function SavedProgrammeWork({
             }
             glyph="table"
             label={draft.blueprint.name}
+            // Plan's words for each (ADR 0058).
             sub={
               draft.status === "editing"
-                ? "Continue editing your draft"
+                ? "Draft in progress"
                 : draft.standalone
-                  ? "A standalone session, ready to review and save"
-                  : "A draft programme, ready for you to review and start"
+                  ? "Session to review"
+                  : "New programme to review"
             }
           />
         ))}
@@ -89,11 +90,8 @@ export async function SavedProgrammeWork({
             href={`${base}/jobs/${job.id}` as Route}
             glyph="coach"
             label="Programme request"
-            sub={
-              job.status === "needs_input"
-                ? "The coach has asked you something"
-                : "The coach is writing your programme"
-            }
+            // The badge says the coach asked something; the line is only for the writing.
+            sub={job.status === "needs_input" ? undefined : "Being written"}
             badge={job.status === "needs_input" ? "Needs your answer" : undefined}
           />
         ))}
@@ -114,7 +112,6 @@ export async function SavedProgrammeWork({
                 ? `${ACTIVITY_SPORT_LABELS[intake.sport]} ${intake.answers.scope} answers`
                 : "Your answers to the coach"
             }
-            sub="Continue where you left off"
           />
         ))}
       </ul>

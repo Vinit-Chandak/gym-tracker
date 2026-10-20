@@ -5,7 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { endurancePrescriptionSchema } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
-import NewActivityPage from "./page";
+import NewActivityPage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   occurrence: vi.fn(),
@@ -47,14 +47,18 @@ vi.mock("@/components/activities/activity-editor", () => ({
     occurrence,
     origin,
     target,
+    submitLabel,
   }: {
     occurrence: { id: string } | null;
     origin?: string | null;
-    target?: { lines: string[] } | null;
+    target?: { figure: string; stop: string | null; steps: string[]; notes: string[] } | null;
+    submitLabel: string;
   }) => (
-    <form data-origin={origin ?? ""}>
+    <form data-origin={origin ?? ""} data-submit={submitLabel}>
       Logging {occurrence?.id}
-      {target?.lines.map((line) => (
+      {target && <p data-figure="">{target.figure}</p>}
+      {target?.stop && <p data-stop="">{target.stop}</p>}
+      {target?.steps.map((line) => (
         <p key={line}>{line}</p>
       ))}
     </form>
@@ -146,9 +150,12 @@ it("refuses a closed programme's session, says how its programme ended, and offe
   const html = renderToStaticMarkup(await NewActivityPage(props()));
   expect(html).not.toContain("<form");
   expect(html).toContain("Its programme has ended");
+  // The session, then how its programme ended, once; the way on is the sport on its own.
+  expect(html).toContain("Run · Sat 27 Jun 2026");
   expect(html).toContain(
-    "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026, so the run scheduled for Sat 27 Jun 2026 can no longer be logged. You can still log a run on its own.",
+    "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026.",
   );
+  expect(html).not.toContain("can no longer be logged");
   expect(html).toContain('<a href="/training/new?sport=running">Log a run anyway</a>');
   expect(mocks.closure).toHaveBeenCalledWith({}, "me", "old-block", "UTC");
 });
@@ -160,8 +167,8 @@ it("refuses a closed programme's logged session as logged, without reading how i
     resolution: { kind: "logged", activityId: "a1", outcome: "logged", occurredOn: "2026-06-27" },
   });
   const html = renderToStaticMarkup(await NewActivityPage(props()));
-  expect(html).toContain("You have already logged this");
-  expect(html).not.toContain("can no longer be logged");
+  expect(html).toContain("<h1>Already logged</h1>");
+  expect(html).not.toContain("made way");
   expect(mocks.closure).not.toHaveBeenCalled();
 });
 
@@ -174,6 +181,8 @@ it("opens the form for a session of the athlete's programme", async () => {
   });
   const html = renderToStaticMarkup(await NewActivityPage(props()));
   expect(html).toContain(`>Logging ${ID}</form>`);
+  // Save is named with what it saves, as the header names what it logs.
+  expect(html).toContain('data-submit="Save run"');
   expect(mocks.closure).not.toHaveBeenCalled();
 });
 
@@ -215,6 +224,8 @@ it("shows a planned run's steps, a line each, with its zones in beats", async ()
     }),
   });
   const html = plain(renderToStaticMarkup(await NewActivityPage(props())));
+  // Its figure, then its steps a line each, which the form folds under the figure.
+  expect(html).toContain('<p data-figure="">6 × 800 m</p>');
   expect(html).toContain("<p>Warm-up: Run 2 km · Zones 1–2 (95–132 bpm)</p>");
   expect(html).toContain("<p>6 × Run 800 m · Zone 4 (152–170 bpm)</p>");
 });
@@ -243,4 +254,24 @@ it("names where it was opened from to the activity it saves", async () => {
   // Only an origin it knows: anything else is Today's.
   const unknown = renderToStaticMarkup(await NewActivityPage(props(ID, "https://example.test")));
   expect(unknown).toContain('data-origin="today"');
+});
+
+/** The document is named as the screen's title is, which the route announcer reads (M4). */
+it("names the document as its header does", async () => {
+  const title = async (search: Record<string, string>) =>
+    (
+      await generateMetadata({
+        searchParams: Promise.resolve(search),
+      } as unknown as PageProps<"/training/new">)
+    ).title;
+  // A closed programme's session: what became of it, as the refusal's header says.
+  expect(await title({ occurrence: ID })).toBe("Its programme has ended");
+  mocks.occurrence.mockResolvedValue({
+    ...owed,
+    familyId: "family",
+    closed: false,
+    loggable: true,
+  });
+  expect(await title({ occurrence: ID })).toBe("Log a run");
+  expect(await title({ sport: "swimming" })).toBe("Log a swim");
 });

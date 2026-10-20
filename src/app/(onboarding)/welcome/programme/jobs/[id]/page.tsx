@@ -5,12 +5,14 @@ import { z } from "zod";
 
 import { CoachQuestions } from "@/components/coaching/job-status";
 import { LinkButton } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { SubmitButton } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { getDb } from "@/db/client";
 import { coachIntakes, programDrafts } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { coachIntakeSchema, type CoachIntake } from "@/domain/coaching-workflow";
+import { joinFacts } from "@/lib/facts";
 import { WEEKDAY_SHORT } from "@/lib/labels";
 import { fromKilograms, heightUnitFor, toFeetAndInches } from "@/lib/units";
 import { completeOnboardingAction } from "@/server/actions/profile";
@@ -47,11 +49,12 @@ function bodyLine(answers: CoachIntake, unit: "kg" | "lb"): string {
 }
 
 /**
- * Board The coach is writing your programme: what the coach is working from, while it writes.
- * The screen moves on by itself to the programme once there is one, and setup comes back here
- * if the app is closed meanwhile. "Look around while you wait" ends setup and opens Today; the
- * programme then waits under Profile › Programme. If the coach asks something, it is answered
- * here; if it could not finish, the answers are a tap away.
+ * Board The coach is writing your programme, while it writes. The screen moves on by itself to
+ * the programme once there is one, and setup comes back here if the app is closed meanwhile.
+ * "Open Today" ends setup; the programme then waits on Plan (ADR 0059). If the coach asks
+ * something, it is answered here; if it could not finish, it says so in the athlete's words, the
+ * coach's own folded under Details, and Try again is a tap away. The answers it works from are
+ * folded: the athlete gave them a minute ago.
  */
 export default async function SetupJobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -123,17 +126,10 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
       {writing && (
         <>
           <div className="writing-bar" role="progressbar" aria-label="Writing your programme" />
-          <p className="onboarding-sub">
-            This page moves on by itself when it’s ready. It can take a little while: close the app
-            if you like, and you’ll come back here.
-          </p>
+          <p className="onboarding-sub">This can take a while. You can close the app.</p>
           {/* The dispatcher's own words are for whoever runs the coach; the athlete is told
               what they mean for them. */}
-          {job.error && (
-            <p className="setup-note">
-              The coach may not get to it until tonight. It will be here when you come back.
-            </p>
-          )}
+          {job.error && <p className="setup-note">This may take until tonight.</p>}
         </>
       )}
       {questions && (
@@ -144,18 +140,28 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
       {succeeded && rationale && <p className="onboarding-sub">{rationale}</p>}
       {!writing && !questions && !succeeded && (
         <>
-          {job.error && <p className="onboarding-sub">{job.error}</p>}
+          {job.status === "failed" && <p className="onboarding-sub">Your answers are saved.</p>}
           <LinkButton href={form} size="lg" variant="secondary" className="mt-4 w-full">
-            Change my answers
+            Try again
           </LinkButton>
         </>
       )}
+      {job.error && (
+        <Disclosure summary="Details" variant="inline" className="mt-4">
+          <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">{job.error}</p>
+        </Disclosure>
+      )}
 
       {answers && (
-        <section aria-labelledby="working-from" className="mt-6">
-          <h2 id="working-from" className="caption-head">
-            What the coach is working from
-          </h2>
+        <Disclosure
+          summary="Your answers"
+          meta={joinFacts([
+            daysLine(answers),
+            answers.minutesPerSession ? `${answers.minutesPerSession} min` : null,
+          ])}
+          variant="inline"
+          className="mt-6"
+        >
           <dl className="setup-facts">
             {(
               [
@@ -175,17 +181,14 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </dl>
-        </section>
+        </Disclosure>
       )}
 
       <form action={completeOnboardingAction}>
         <PinnedActions stack>
+          {/* Where it goes, in every state. */}
           <SubmitButton variant="tonal" pendingLabel="Opening Today…">
-            {writing
-              ? "Look around while you wait"
-              : succeeded
-                ? "Open Today"
-                : "Look around meanwhile"}
+            Open Today
           </SubmitButton>
         </PinnedActions>
       </form>

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Switch } from "@/components/ui/switch";
 import { RequestList } from "@/components/coaching/request-list";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
@@ -112,6 +113,7 @@ export function AiCoachSettings({
   const withCoach = requests.filter(
     (request) => request.state !== "needs_answer" && request.state !== "proposed",
   );
+  const recentChanges = dashboard?.recentChanges.filter(inScope) ?? [];
   const known = overview
     .split("\n")
     .map((line) =>
@@ -119,30 +121,26 @@ export function AiCoachSettings({
     )
     .filter(Boolean);
   const waiting = dashboard?.waiting ?? 0;
+  const failed = dashboard?.jobs.filter((job) => job.status === "failed").length ?? 0;
 
   return (
     <div className="coach-hub">
+      {/* Its title, what turning it off does a tap away, and the switch, which is its state. */}
       <header className="coach-hub-heading">
-        <div>
-          <p className="coach-eyebrow">YOUR TRAINING PARTNER</p>
+        <div className="flex items-center gap-1">
           <h1 className="type-display">AI coach</h1>
-          <p className="coach-subtitle">
-            What the coach knows, what it is working on, and what you have asked.
-          </p>
+          <InfoTip label="About the AI coach">
+            Off pauses planning and reviews; your programmes and notes stay. Changes the coach
+            proposes wait for your approval.
+          </InfoTip>
         </div>
         <div className="coach-power">
           <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
-          <span>{shown ? "On" : "Off"}</span>
         </div>
       </header>
       {shown && status && (
         <p className="coach-notice" role="status">
           {status}
-        </p>
-      )}
-      {!shown && (
-        <p className="coach-notice">
-          Coaching is paused. Your programmes and saved notes are still here.
         </p>
       )}
       {error && (
@@ -197,28 +195,12 @@ export function AiCoachSettings({
         hidden={tab !== "overview"}
         className="coach-panel"
       >
-        {waiting > 0 && (
-          <button className="coach-attention" type="button" onClick={() => setTab("requests")}>
-            <span className="coach-attention-icon">
-              <Glyph name="note" className="glyph-24" />
-            </span>
-            <span>
-              <strong>
-                {waiting} {waiting === 1 ? "item needs" : "items need"} your attention
-              </strong>
-              <span>Review proposals and answer your coach.</span>
-            </span>
-            <Glyph name="chevronRight" className="glyph-20" />
-          </button>
-        )}
         {children}
         {!!dashboard?.jobs.length && (
           <Disclosure
             summary="Coach activity"
             meta={
-              dashboard.jobs.some((job) => job.status === "failed")
-                ? "A run needs attention"
-                : `${dashboard.jobs.length} in progress`
+              failed > 0 ? `${failed} could not finish` : `${dashboard.jobs.length} in progress`
             }
           >
             <ul className="coach-history-list">
@@ -226,20 +208,29 @@ export function AiCoachSettings({
                 <li key={job.id}>
                   <Link href={`/profile/programme/jobs/${job.id}` as Route}>
                     <span className="coach-scope-label">{scopeName(job.sport)}</span>
+                    {/* What failed, in plain words, and the way on: the request page offers it. */}
                     <strong>
-                      {job.kind === "create_program"
-                        ? `Creating a ${job.scope}`
-                        : job.kind === "review_program"
-                          ? "Reviewing your programme"
-                          : "Preparing your next session"}
+                      {job.status === "failed"
+                        ? `The coach could not finish ${
+                            job.kind === "create_program"
+                              ? `your ${job.scope}`
+                              : job.kind === "review_program"
+                                ? "reviewing your programme"
+                                : "preparing your next session"
+                          }`
+                        : job.kind === "create_program"
+                          ? `Creating a ${job.scope}`
+                          : job.kind === "review_program"
+                            ? "Reviewing your programme"
+                            : "Preparing your next session"}
                     </strong>
                     <span className="coach-muted">
                       {job.status === "failed"
-                        ? "Could not finish · open to see details"
+                        ? "Try again"
                         : job.status === "needs_input"
                           ? "Needs your input"
                           : job.progress === "waiting"
-                            ? "Queued for the next coach run"
+                            ? "Waiting"
                             : "In progress"}
                     </span>
                   </Link>
@@ -251,12 +242,7 @@ export function AiCoachSettings({
 
         <section className="coach-compose-card" aria-labelledby="tell-coach">
           <div className="coach-section-heading">
-            <div>
-              <h2 id="tell-coach">Tell your coach</h2>
-              <p className="coach-muted">
-                Ask for a change, share feedback, or add something to remember.
-              </p>
-            </div>
+            <h2 id="tell-coach">Tell your coach</h2>
             <Glyph name="coach" className="glyph-24" />
           </div>
           <form ref={form} action={formAction} className="coach-message-form">
@@ -270,7 +256,6 @@ export function AiCoachSettings({
                   value={scope}
                   onChange={(event) => setScope(event.target.value)}
                   disabled={sending}
-                  aria-describedby="coach-scope-help"
                 >
                   <option value="all">All my programmes</option>
                   {programmes.map((programme) => (
@@ -279,11 +264,6 @@ export function AiCoachSettings({
                     </option>
                   ))}
                 </select>
-                <p id="coach-scope-help" className="coach-muted">
-                  {scope === "all"
-                    ? "Each active programme will receive this note."
-                    : `Only your ${ACTIVITY_SPORT_LABELS[scope as ActivitySport]?.toLowerCase()} programme will receive this note.`}
-                </p>
               </div>
             )}
             <div className="coach-field">
@@ -300,8 +280,8 @@ export function AiCoachSettings({
                 disabled={sending}
                 placeholder={
                   scope === "all"
-                    ? "e.g. I have less time next week. Can we adjust my training?"
-                    : "e.g. Can we move this programme’s Thursday session to Friday?"
+                    ? "I have less time next week."
+                    : "Move Thursday’s session to Friday."
                 }
                 aria-invalid={Boolean(state.fieldErrors?.userNotes)}
                 aria-describedby={state.fieldErrors?.userNotes ? "coach-note-error" : undefined}
@@ -314,18 +294,13 @@ export function AiCoachSettings({
             </div>
             <FormError message={state.formError ?? state.fieldErrors?.sport} />
             <div className="coach-message-footer">
-              <p className="coach-muted">
-                {shown
-                  ? "Read at the next coach run. Programme changes come back here for review."
-                  : "Saved notes will be read when coaching resumes."}
-              </p>
-              <Button type="submit" disabled={sending || !text.trim()}>
+              <Button type="submit" disabled={sending || !text.trim()} className="ml-auto">
                 <Glyph name="send" className="glyph-18" />
                 {sending ? "Sending…" : "Send note"}
               </Button>
             </div>
             <p className="coach-saved" role="status">
-              {saved && !text ? "Note saved. You can follow its progress in Notes & memory." : ""}
+              {saved && !text ? "Note sent." : ""}
             </p>
           </form>
         </section>
@@ -333,7 +308,8 @@ export function AiCoachSettings({
           <div className="coach-quick-links">
             <Link href="/profile/programme/create">
               <Glyph name="sliders" className="glyph-20" />
-              <span>Strength goals & shared reports</span>
+              {/* Named for what its page does: it asks the coach for a strength programme. */}
+              <span>New strength programme</span>
               <Glyph name="chevronRight" className="glyph-16" />
             </Link>
           </div>
@@ -347,40 +323,33 @@ export function AiCoachSettings({
         hidden={tab !== "requests"}
         className="coach-panel"
       >
-        <div className="coach-section-heading">
-          <div>
-            <h2>Requests & changes</h2>
-            <p className="coach-muted">Your requests and the changes proposed in response.</p>
-          </div>
-        </div>
+        {/* The tab names the panel: no heading repeats it. */}
         <ScopeFilter value={filter} onChange={setFilter} id="requests-scope" />
-        {needsInput.length > 0 && (
-          <section className="coach-group">
-            <h3>Your coach needs a little more</h3>
-            <ul className="coach-change-list">
-              {needsInput.map((job) => (
-                <li key={job.id}>
-                  <Link
-                    href={`/profile/programme/jobs/${job.id}` as Route}
-                    className="coach-change-row"
-                  >
-                    <span>
-                      <span className="coach-scope-label">{scopeName(job.sport)}</span>
-                      <strong>Finish your {job.scope} brief</strong>
-                      <span className="coach-muted">Open the coach’s question to continue.</span>
-                    </span>
-                    <Glyph name="chevronRight" className="glyph-20" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        {questions.length > 0 && (
+        {/* The coach asking something, whether of a programme's brief or of an ask: one name. */}
+        {needsInput.length + questions.length > 0 && (
           <section className="coach-group">
             <h3>
-              Needs your answer <span className="coach-count">{questions.length}</span>
+              Needs your answer{" "}
+              <span className="coach-count">{needsInput.length + questions.length}</span>
             </h3>
+            {needsInput.length > 0 && (
+              <ul className="coach-change-list">
+                {needsInput.map((job) => (
+                  <li key={job.id}>
+                    <Link
+                      href={`/profile/programme/jobs/${job.id}` as Route}
+                      className="coach-change-row"
+                    >
+                      <span>
+                        <span className="coach-scope-label">{scopeName(job.sport)}</span>
+                        <strong>Finish your {job.scope} brief</strong>
+                      </span>
+                      <Glyph name="chevronRight" className="glyph-20" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
             {questions.map((request) => (
               <div key={request.id} className="coach-scoped-request">
                 <p className="coach-scope-label">{scopeName(request.sport)}</p>
@@ -446,70 +415,57 @@ export function AiCoachSettings({
             <div className="coach-empty coach-empty-compact">
               <Glyph name="check" className="glyph-24" />
               <h3>You’re all caught up</h3>
-              <p>Questions and proposed changes will appear here.</p>
             </div>
           )}
-        {withCoach.length > 0 && (
-          <Disclosure summary="With your coach" meta={String(withCoach.length)}>
-            <div className="coach-group">
-              {withCoach.map((request) => (
-                <div key={request.id} className="coach-scoped-request">
-                  <p className="coach-scope-label">{scopeName(request.sport)}</p>
-                  <RequestList requests={[request]} />
-                </div>
-              ))}
-            </div>
-          </Disclosure>
+        {(withCoach.length > 0 || recentChanges.length > 0) && (
+          // Folds side by side are ruled rows that share their rules, never a stack of boxes.
+          <ul className="[&>li+li]:-mt-px">
+            {withCoach.length > 0 && (
+              <li>
+                <Disclosure
+                  summary="With the coach"
+                  meta={String(withCoach.length)}
+                  variant="inline"
+                >
+                  <div className="coach-group">
+                    {withCoach.map((request) => (
+                      <div key={request.id} className="coach-scoped-request">
+                        <p className="coach-scope-label">{scopeName(request.sport)}</p>
+                        <RequestList requests={[request]} />
+                      </div>
+                    ))}
+                  </div>
+                </Disclosure>
+              </li>
+            )}
+            {recentChanges.length > 0 && (
+              <li>
+                <Disclosure
+                  summary="Updated by the coach"
+                  meta={String(recentChanges.length)}
+                  variant="inline"
+                >
+                  <ul className="coach-history-list">
+                    {recentChanges.map((item) => (
+                      <li key={item.id}>
+                        <Link href={`/profile/programme/drafts/${item.id}` as Route}>
+                          <span className="coach-scope-label">{scopeName(item.sport)}</span>
+                          <strong>{item.title}</strong>
+                          <span className="coach-muted">Applied · {item.when}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </Disclosure>
+              </li>
+            )}
+          </ul>
         )}
-        {!!dashboard?.recentChanges.filter(inScope).length && (
-          <Disclosure
-            summary="Recently updated"
-            meta={String(dashboard.recentChanges.filter(inScope).length)}
-          >
-            <ul className="coach-history-list">
-              {dashboard.recentChanges.filter(inScope).map((item) => (
-                <li key={item.id}>
-                  <Link href={`/profile/programme/drafts/${item.id}` as Route}>
-                    <span className="coach-scope-label">{scopeName(item.sport)}</span>
-                    <strong>{item.title}</strong>
-                    <span className="coach-muted">Applied · {item.when}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Disclosure>
-        )}
-        <Disclosure summary="Past requests & changes">
-          <div className="coach-group">
-            {dashboard?.history.requests.filter(inScope).map((request) => (
-              <div key={request.id}>
-                <p className="coach-scope-label">{scopeName(request.sport)}</p>
-                <RequestList requests={[request]} />
-              </div>
-            ))}
-            <ul className="coach-history-list">
-              {dashboard?.history.changes.filter(inScope).map((item) => (
-                <li key={item.id}>
-                  <Link href={`/profile/programme/drafts/${item.id}` as Route}>
-                    <span className="coach-scope-label">{scopeName(item.sport)}</span>
-                    <strong>{item.title}</strong>
-                    <span className="coach-muted">
-                      {item.outcome} · {item.when}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            {!dashboard?.history.requests.filter(inScope).length &&
-              !dashboard?.history.changes.filter(inScope).length && (
-                <p className="coach-muted">No past requests or changes yet.</p>
-              )}
-            <Link href="/profile/programme/history" className="coach-text-link">
-              Programme history
-              <Glyph name="chevronRight" className="glyph-16" />
-            </Link>
-          </div>
-        </Disclosure>
+        {/* Every sport's settled requests and changes have one home: the history page. */}
+        <Link href="/profile/programme/history" className="coach-text-link">
+          Past requests and changes
+          <Glyph name="chevronRight" className="glyph-16" />
+        </Link>
       </section>
 
       <section
@@ -521,10 +477,7 @@ export function AiCoachSettings({
       >
         <section className="coach-memory-card" aria-labelledby="coach-knows">
           <div className="coach-section-heading">
-            <div>
-              <h2 id="coach-knows">What the coach remembers</h2>
-              <p className="coach-muted">Shared context from your training and feedback.</p>
-            </div>
+            <h2 id="coach-knows">What the coach remembers</h2>
             <Glyph name="book" className="glyph-24" />
           </div>
           {known.length > 0 ? (
@@ -535,7 +488,7 @@ export function AiCoachSettings({
                 ))}
               </ul>
               {known.length > 3 && (
-                <Disclosure summary={`Show ${known.length - 3} more facts`} variant="inline">
+                <Disclosure summary={`${known.length - 3} more`} variant="inline">
                   <ul className="coach-memory-facts">
                     {known.slice(3).map((line, index) => (
                       <li key={index}>{line}</li>
@@ -545,7 +498,7 @@ export function AiCoachSettings({
               )}
             </>
           ) : (
-            <p className="coach-muted">Your coach will build this as you train and share notes.</p>
+            <p className="coach-muted">Nothing yet.</p>
           )}
           <button
             type="button"
@@ -562,10 +515,7 @@ export function AiCoachSettings({
         </section>
         <section aria-labelledby="coach-your-notes">
           <div className="coach-section-heading">
-            <div>
-              <h2 id="coach-your-notes">Your notes</h2>
-              <p className="coach-muted">What you sent and what your coach did with it.</p>
-            </div>
+            <h2 id="coach-your-notes">Your notes</h2>
           </div>
           <ScopeFilter value={filter} onChange={setFilter} id="notes-scope" />
           <div className="coach-notes-list">
@@ -583,14 +533,14 @@ export function AiCoachSettings({
               </article>
             ))}
             {!notes.filter(inScope).length && (
-              <p className="coach-empty coach-muted">
-                No notes here yet. Use “Tell your coach” to get started.
-              </p>
+              <p className="coach-empty coach-muted">No notes yet.</p>
             )}
           </div>
         </section>
         {attempts.length > 0 && (
-          <Disclosure summary="Recent coach runs" meta={String(attempts.length)}>
+          // The same name as the coach's work under the programmes, in the athlete's words;
+          // what the coach or the server wrote stays under Details.
+          <Disclosure summary="Coach activity" meta={String(attempts.length)}>
             <ul className="coach-history-list">
               {attempts.map((attempt) => (
                 <li key={attempt.id}>
@@ -601,19 +551,16 @@ export function AiCoachSettings({
                     {attempt.when}
                     {attempt.gymName ? ` · ${attempt.gymName}` : ""}
                   </span>
-                  {attempt.error && <p>{attempt.error}</p>}
+                  {attempt.error && (
+                    <Disclosure summary="Details" variant="inline">
+                      <p className="coach-muted [overflow-wrap:break-word]">{attempt.error}</p>
+                    </Disclosure>
+                  )}
                 </li>
               ))}
             </ul>
           </Disclosure>
         )}
-        <Disclosure summary="How your coach works">
-          <p className="coach-muted">
-            {workflow
-              ? "Each sport has its own programme, session preparation and review. The coach considers your overall training when planning, while requests for a particular programme stay with that programme. You review major changes before they take effect. Started workouts keep their original targets."
-              : "Your coach prepares your next session from recent training, check-ins and notes. You can request a new plan from Today."}
-          </p>
-        </Disclosure>
       </section>
     </div>
   );

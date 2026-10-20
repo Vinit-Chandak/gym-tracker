@@ -56,6 +56,3 @@ export async function occurrenceForLegacyPlannedRun(
     .limit(1);
   return occurrence?.id ?? null;
 }
-
-export const LEGACY_UNAVAILABLE =
-  "That link points at something this account no longer has. Nothing was opened in its place.";

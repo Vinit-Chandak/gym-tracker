@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { aboutLabel, InfoTip, placeNote } from "./info-tip";
+import { aboutLabel } from "./about-label";
+import { InfoTip, placeNote } from "./info-tip";
 
 afterEach(() => {
   cleanup();

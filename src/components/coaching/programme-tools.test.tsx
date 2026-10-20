@@ -30,17 +30,17 @@ it("asks before ending, and says which sessions it closes", () => {
   expect(archived).not.toHaveBeenCalled();
   expect(
     screen.getByText(
-      /End your strength programme.*from today on are removed.*still owes can then only be logged as unplanned.*Everything you logged stays.*Past programmes/,
+      /End your strength programme\?.*from today on are removed.*not done can then only be logged as unplanned.*Everything you logged stays\./,
     ),
   ).toBeTruthy();
   expect(screen.getByRole("button", { name: "End programme" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Keep it" })).toBeTruthy();
 });
 
-it("offers duplication without ending for a past programme", () => {
+it("offers duplication without ending for a past programme, as itself rather than in a fold", () => {
   render(<ProgrammeTools id="programme" sport="swimming" active={false} />);
-  fireEvent.click(screen.getByText("More options"));
-  expect(screen.getByRole("button", { name: "Duplicate programme" })).toBeTruthy();
+  expect(screen.queryByText("More options")).toBeNull();
+  expect(screen.getByRole("button", { name: "Duplicate programme" }).closest("details")).toBeNull();
   expect(screen.queryByRole("button", { name: /End/ })).toBeNull();
 });
 

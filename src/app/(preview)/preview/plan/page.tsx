@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PlanView, type PlanCard } from "@/app/(app)/plan/plan-view";
 import type { WeekSession } from "@/domain/plan-week";
+import type { NewProgrammeRequest } from "@/server/repositories/sport-programmes";
 
 import { PreviewShell } from "../../preview-shell";
 
@@ -73,6 +74,11 @@ const DRAFTS = [
   },
 ];
 
+/** A first cycling programme asked of the coach, still being written (ADR 0059). */
+const REQUESTS: NewProgrammeRequest[] = [
+  { id: "preview-request", sport: "cycling", status: "writing" },
+];
+
 /** Plan with made-up programmes: `?state=empty` is an account with none yet. */
 export default async function PlanPreviewPage(props: PageProps<"/preview/plan">) {
   const { state } = await props.searchParams;
@@ -82,6 +88,7 @@ export default async function PlanPreviewPage(props: PageProps<"/preview/plan">)
       <PlanView
         cards={empty ? [] : CARDS}
         drafts={empty ? [] : DRAFTS}
+        requests={empty ? [] : REQUESTS}
         sessions={empty ? [] : WEEK}
         monday={MONDAY}
         today={TODAY}

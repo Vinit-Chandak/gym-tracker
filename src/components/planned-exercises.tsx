@@ -71,7 +71,7 @@ function blocks(exercises: readonly PlannedExercisePreview[]): Block[] {
  * name and a prescription sharing one line only wrap on the long names, so a list of them
  * is part one-line rows and part two, with a rule between each — there is no rhythm to read
  * down. Here the eye finds the prescriptions in one column, and a superset takes a single
- * tinted bracket around its group rather than a marker on each of its rows.
+ * bracket in ink around its group rather than a marker on each of its rows.
  */
 export function PlannedExerciseList({
   exercises,

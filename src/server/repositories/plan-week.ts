@@ -32,6 +32,7 @@ export async function planWeek(
             title: occurrence.prescription?.title ?? null,
             status,
             occurrenceId: occurrence.id,
+            prescription: occurrence.prescription,
           },
         ]
       : [];

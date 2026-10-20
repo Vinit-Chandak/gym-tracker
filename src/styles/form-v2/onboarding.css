@@ -721,12 +721,6 @@ button.equipment-tile:focus-visible {
   pointer-events: none;
   translate: 0 -50%;
 }
-.setup-caption {
-  margin-top: calc(6 * var(--ov-u));
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-caption);
-  font-weight: 500;
-}
 /* Optional answers, each folded under its name and what it is for: ruled rows. */
 .setup-coach-more {
   margin-top: calc(18 * var(--ov-u));
@@ -888,14 +882,6 @@ button.equipment-tile:focus-visible {
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
   overflow-wrap: break-word;
-}
-.ready-why {
-  margin-top: calc(14 * var(--ov-u));
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta);
-  font-weight: 500;
-  line-height: 1.45;
-  white-space: pre-line;
 }
 .ready-start {
   /* Taller than a date row, and still a whole target above its rule at larger text. */

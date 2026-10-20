@@ -60,8 +60,8 @@ export function FinishLeftOpenButton({
       {drafts > 0 && explainHeld && (
         <p className="type-meta-small text-ink-2">
           {drafts === 1
-            ? "A set on this device is not saved yet. Resume to save or remove it first."
-            : "Sets on this device are not saved yet. Resume to save or remove them first."}
+            ? "Unsaved set: resume to save or remove it."
+            : `${drafts} unsaved sets: resume to save or remove them.`}
         </p>
       )}
       {error && (

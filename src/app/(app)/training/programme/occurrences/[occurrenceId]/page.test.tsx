@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ProgrammeOccurrence } from "@/server/repositories/occurrences";
 
-import OccurrencePage from "./page";
+import OccurrencePage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   occurrence: vi.fn(),
@@ -133,7 +133,8 @@ afterEach(() => {
 it("is named for its day, and keeps a line of its plan once it is logged", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("<h1>Tempo run</h1>");
-  expect(html).toContain("Running ·\u00a0Cycle 5 ·\u00a0planned for Thu\u00a023\u00a0Jul");
+  // The sport beside the date, since the name does not say it; "planned" is the page itself.
+  expect(html).toContain("Running ·\u00a0Cycle 5 ·\u00a0Thu\u00a023\u00a0Jul");
   // What was asked for stays beside what was done: how far, how long, how hard, and how, each
   // range held at its dash.
   expect(html).toContain(
@@ -142,8 +143,12 @@ it("is named for its day, and keeps a line of its plan once it is logged", async
   expect(html).toContain("10K effort");
   // Said once: the card is not also headed by the distance the line under it starts with.
   expect(html.split(DISTANCE)).toHaveLength(2);
-  // A date of this year is said without its year.
-  expect(html).toContain("Logged on Thu\u00a06\u00a0Aug.");
+  // A date of this year is said without its year; the day it was logged is said with the way
+  // to what was logged, once.
+  expect(html).toContain(
+    'See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug',
+  );
+  expect(html).not.toContain("Logged on");
   expect(html).not.toContain("2026");
 });
 
@@ -172,7 +177,7 @@ it("is headed by what its day is for, and the target is said once", async () => 
 it("leads into what was logged as Today's card does", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toMatch(
-    /<a href="\/training\/activities\/a1\?from=programme" class="activity-card-link">See what you <span class="activity-card-link-end">logged<svg[^>]*class="[^"]*glyph-18[^"]*"/,
+    /<a href="\/training\/activities\/a1\?from=programme" class="activity-card-link">See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug<svg[^>]*class="[^"]*glyph-18[^"]*"/,
   );
 });
 
@@ -204,7 +209,7 @@ it("does not call an independently scheduled session part of the athlete's progr
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain(DISTANCE);
   expect(html).not.toContain("Your programme");
-  expect(html).toContain("Log it");
+  expect(html).toContain("Log run");
 });
 
 /**
@@ -283,10 +288,12 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
   // How the programme ended, which is not said to be a replacement: the one before may have
   // finished weeks before the next began.
   expect(html).toContain(
-    "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
+    "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon\u00a06\u00a0Jul.",
   );
   expect(html).not.toContain("replaced");
-  expect(html).not.toContain("Log it");
+  // What that means for logging it is the missing Log run: no sentence says it.
+  expect(html).not.toContain("can no longer be logged");
+  expect(html).not.toContain("Log run");
   expect(html).not.toContain("Skip, put back or move.");
   // Its plan is still there to read, no longer called the athlete's programme.
   expect(html).toContain(DISTANCE);
@@ -301,7 +308,7 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
   const skipped = renderToStaticMarkup(await OccurrencePage(props));
   expect(skipped).toContain(">Skipped<");
   expect(skipped).not.toContain("Skip, put back or move.");
-  expect(skipped).toContain("so this session can no longer be logged.");
+  expect(skipped).toContain("made way for Hybrid Half Marathon on Mon\u00a06\u00a0Jul.");
 
   // Archived with nothing in its place; a block followed by a new one of the same programme.
   mocks.closure.mockResolvedValue({
@@ -310,7 +317,7 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
     followedBy: null,
   });
   expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
-    "Hybrid Half Marathon was archived on Mon\u00a06\u00a0Jul, so this session can no longer be logged.",
+    "Hybrid Half Marathon was archived on Mon\u00a06\u00a0Jul.",
   );
   mocks.closure.mockResolvedValue({
     name: "Hybrid Half Marathon",
@@ -318,7 +325,7 @@ it("reads a replaced programme's session as it was, and offers nothing to do abo
     followedBy: "Hybrid Half Marathon",
   });
   expect(renderToStaticMarkup(await OccurrencePage(props))).toContain(
-    "This block of Hybrid Half Marathon made way for a new one on Mon\u00a01\u00a0Dec\u00a02025, so this session can no longer be logged.",
+    "This block of Hybrid Half Marathon made way for a new one on Mon\u00a01\u00a0Dec\u00a02025.",
   );
 });
 
@@ -328,8 +335,8 @@ it("reads a replaced programme's logged session by what was logged", async () =>
   mocks.named.mockResolvedValue({ dayName: "Tempo run", dayFocus: null });
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("<h1>Tempo run</h1>");
-  expect(html).toMatch(/>See what you <span[^>]*>logged</);
-  expect(html).not.toContain("can no longer be logged");
+  expect(html).toContain("See what you logged");
+  expect(html).not.toContain("made way");
   expect(mocks.closure).not.toHaveBeenCalled();
 });
 
@@ -340,9 +347,72 @@ it("offers the running programme's session its actions", async () => {
     loggable: true,
   });
   const html = renderToStaticMarkup(await OccurrencePage(props));
-  expect(html).toContain("Log it");
+  expect(html).toContain("Log run");
   expect(html).toContain("Skip, put back or move.");
-  expect(html).toContain("Your programme");
-  expect(html).not.toContain("can no longer be logged");
+  expect(html).not.toContain("made way");
   expect(mocks.closure).not.toHaveBeenCalled();
+});
+
+/**
+ * ADR 0059 and the year's naming (M4): a session nobody named is called what every screen calls
+ * it, "Run", never the sport's "Running"; its sport is then not said again beside its date. The
+ * document is named as the screen is.
+ */
+it("calls an unnamed run Run, here and in the document's title", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    familyId: null,
+    cycleIndex: null,
+    cycleDayIndex: null,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain("<h1>Run</h1>");
+  expect(html).toContain(`<p>Thu${"\u00a0"}23${"\u00a0"}Jul</p>`);
+  expect(html).not.toContain("Running");
+  expect((await generateMetadata(props)).title).toBe("Run");
+  // Named for its day where it has one.
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  expect((await generateMetadata(props)).title).toBe("Tempo run");
+});
+
+/**
+ * Impeccable review, 20 October 2026: a session seven weeks away offered Log as its primary,
+ * though Log takes a session up to six days ahead. Further off, it leads with its plan.
+ */
+it("offers Log run only as far ahead as Log takes a session", async () => {
+  const ahead = (scheduledOn: string) => ({
+    ...tempo,
+    scheduledOn,
+    originalScheduledOn: scheduledOn,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  mocks.occurrence.mockResolvedValue(ahead("2026-10-17"));
+  expect(renderToStaticMarkup(await OccurrencePage(props))).toContain("Log run");
+  mocks.occurrence.mockResolvedValue(ahead("2026-11-29"));
+  const far = renderToStaticMarkup(await OccurrencePage(props));
+  expect(far).not.toContain("Log run");
+  expect(far).toContain("Skip, put back or move.");
+});
+
+/** Why a date gone by is not missed is a tap away, beside Next, never a sentence on the card. */
+it("keeps why a passed session is still Next behind an info tip", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    scheduledOn: "2026-10-08",
+    originalScheduledOn: "2026-10-08",
+    cycleIndex: 1,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain(">Next<");
+  expect(html).toContain('aria-label="About next"');
+  expect(html).not.toContain("waits for you");
 });

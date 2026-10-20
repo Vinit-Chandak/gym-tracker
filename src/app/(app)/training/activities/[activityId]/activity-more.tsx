@@ -18,6 +18,7 @@ export function ActivityMore({
   title,
   editHref,
   activityId,
+  noun,
   answered,
 }: {
   /** What More is called aloud: "Correct or delete this run". */
@@ -25,6 +26,8 @@ export function ActivityMore({
   title: string;
   editHref: Route;
   activityId: string;
+  /** What it is, as deleting it names it: "run", "ride", "swim". */
+  noun?: string;
   /** What deleting it does to the planned session it answered, said before it is done. */
   answered: AnsweredOnDelete;
 }) {
@@ -50,7 +53,7 @@ export function ActivityMore({
           </li>
         </ul>
         <div className="mt-3">
-          <DeleteActivityButton activityId={activityId} answered={answered} />
+          <DeleteActivityButton activityId={activityId} noun={noun} answered={answered} />
         </div>
       </Sheet>
     </>

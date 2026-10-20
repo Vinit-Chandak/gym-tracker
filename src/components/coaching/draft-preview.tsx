@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CoachNoteMore } from "@/components/ui/coach-note-more";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import {
   activateProgramDraftAction,
@@ -13,14 +15,16 @@ import {
   saveStandaloneDraftAction,
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
-import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import type { BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
 import { EFFORT } from "@/domain/activity-limits";
 import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
 import { rangeLabel } from "@/lib/labels";
-import { WEEKDAY_NAMES } from "@/lib/labels";
+import { WEEKDAY_SHORT } from "@/lib/labels";
+import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
+import { cn } from "@/lib/utils";
 import { ActivityPlan } from "@/components/activities/activity-plan";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { enduranceSessionGroups } from "@/domain/endurance-series";
@@ -28,8 +32,8 @@ import { formatIsoDate } from "@/lib/format";
 import { EnduranceDraftWeeks } from "./endurance-draft-weeks";
 
 /**
- * "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one —
- * with the cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
+ * "6 weeks · 4 days per cycle · 91 sets a cycle", counting one of anything as one — with the
+ * cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
  */
 function shape(blueprint: ProgramBlueprint): string {
   if (blueprint.sport && blueprint.sport !== "strength")
@@ -51,11 +55,29 @@ function shape(blueprint: ProgramBlueprint): string {
       : byWeekday
         ? `${days} a week`
         : `${plural(cycles, "cycle")} of ${days}`;
-  return joinFacts([
-    plural(blueprint.weeks, "week"),
-    cycle,
-    `${plural(sets, "lifting set")} per cycle`,
-  ]);
+  return joinFacts([plural(blueprint.weeks, "week"), cycle, `${plural(sets, "set")} a cycle`]);
+}
+
+/** How a draft stopped being open, in a word or two. */
+const CLOSED: Partial<Record<ProgramDraft["status"], string>> = {
+  activated: "Started",
+  superseded: "Replaced by a newer draft",
+  rejected: "Discarded",
+};
+
+/** Consecutive members of one superset, gathered so the group is drawn once, not per row. */
+function exerciseBlocks(exercises: readonly BlueprintExercise[]) {
+  const hues = supersetHues(
+    exercises.map((exercise) => ({ supersetGroup: exercise.supersetGroup ?? null })),
+  );
+  const blocks: { hue?: SupersetHue; items: { exercise: BlueprintExercise; at: number }[] }[] = [];
+  exercises.forEach((exercise, at) => {
+    const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
+    const last = blocks.at(-1);
+    if (hue && last?.hue === hue) last.items.push({ exercise, at });
+    else blocks.push({ hue, items: [{ exercise, at }] });
+  });
+  return blocks;
 }
 
 /**
@@ -63,7 +85,12 @@ function shape(blueprint: ProgramBlueprint): string {
  *
  * This is the one screen that still prints a whole programme, because there is nothing to
  * compare it against: an athlete with no programme cannot be shown a difference. Every later
- * version arrives as a change detail instead, and the programme itself lives in Cycle.
+ * version arrives as a change detail instead, and the programme itself lives on its page.
+ *
+ * The decision leads (DESIGN.md, The Need-to-Know Rule): the name and its shape, the coach's
+ * reasoning as its note at two lines, its doubts folded with their count, then the start date
+ * and Start programme, Edit draft and Discard draft, all on the first screen. What it is made
+ * of follows, each week or day folded, each session a row that opens on its steps.
  */
 export function DraftPreview({
   draft,
@@ -92,6 +119,8 @@ export function DraftPreview({
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
   const [current, setCurrent] = useState(draft),
+    // Written before the athlete's latest data: checked against it as it starts, not as a step
+    // of its own, as setup's ready programme does.
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
     // The start the coach counted from, while it is still to come (ADR 0059): a marathon built
     // to finish on race day finishes there only if it starts where it was counted from.
@@ -103,32 +132,33 @@ export function DraftPreview({
     [error, setError] = useState<string | null>(null);
   const busy = saving || navigating;
   const editable = ["editing", "ready"].includes(current.status);
-  async function check() {
-    if (preview) {
-      setError("Preview only — no programme was changed.");
-      return;
-    }
-    setSaving(true);
-    const result = await coachingAction(() =>
-      reviewProgramDraftAction(current.id, current.revision),
-    );
-    if (result.ok) {
-      setCurrent(result.value);
-      setNeedsCheck(false);
-      setError(null);
-    } else setError(result.error);
-    setSaving(false);
-  }
+  const plannedStart =
+    current.blueprint.startsOn && current.blueprint.startsOn >= today
+      ? current.blueprint.startsOn
+      : null;
+  const name = (slug: string) => library.find((entry) => entry.slug === slug)?.name ?? slug;
+
   async function activate() {
     if (preview) {
       setError("Preview only — no programme was started.");
       return;
     }
     setSaving(true);
+    setError(null);
+    let revision = current.revision;
+    if (needsCheck) {
+      const checked = await coachingAction(() => reviewProgramDraftAction(current.id, revision));
+      if (!checked.ok) {
+        setError(checked.error);
+        setSaving(false);
+        return;
+      }
+      setCurrent(checked.value);
+      setNeedsCheck(false);
+      revision = checked.value.revision;
+    }
     if (current.standalone) {
-      const saved = await coachingAction(() =>
-        saveStandaloneDraftAction(current.id, current.revision),
-      );
+      const saved = await coachingAction(() => saveStandaloneDraftAction(current.id, revision));
       // Saved routines and templates are set aside for now (ADR 0058): back to Plan.
       if (saved.ok) startNavigation(() => router.push("/plan"));
       else setError(saved.error);
@@ -136,214 +166,70 @@ export function DraftPreview({
       return;
     }
     const result = await coachingAction(() =>
-      activateProgramDraftAction({
-        id: current.id,
-        revision: current.revision,
-        startDate,
-        transition: "new_block",
-      }),
+      activateProgramDraftAction({ id: current.id, revision, startDate, transition: "new_block" }),
     );
     if (result.ok) startNavigation(() => router.push("/plan"));
     else setError(result.error);
     setSaving(false);
   }
+
+  async function discard() {
+    if (preview) {
+      setError("Preview only — no draft was discarded.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const result = await coachingAction(() => rejectProgramDraftAction(current.id));
+    if (result.ok) startNavigation(() => router.push(base));
+    else setError(result.error);
+    setSaving(false);
+  }
+
   return (
     <div className="space-y-4">
-      <Card>
-        <h1 className="text-2xl font-medium [overflow-wrap:break-word]">
+      <div>
+        <h2 className="text-2xl font-medium [overflow-wrap:break-word]">
           {current.blueprint.name}
-        </h1>
+        </h2>
         <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
-        {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
-        {current.blueprint.notes && (
-          <p className="text-sm whitespace-pre-wrap text-ink-muted">{current.blueprint.notes}</p>
-        )}
-        {current.uncertainties.length > 0 && (
-          <div>
-            <h2 className="font-medium">What the coach is unsure about</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-              {current.uncertainties.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </Card>
-      {!current.standalone && current.blueprint.enduranceSessions?.length ? (
-        <EnduranceDraftWeeks
-          sessions={current.blueprint.enduranceSessions}
-          weeks={current.blueprint.weeks}
-          startDate={startDate || null}
-          units={units}
-        />
-      ) : null}
-      {(current.standalone
-        ? enduranceSessionGroups(current.blueprint.enduranceSessions ?? [])
-        : []
-      ).map((group) => {
-        const index = group.indexes[0]!;
-        const session = current.blueprint.enduranceSessions![index]!;
-        return (
-          <details key={group.id} className="border-t border-line py-2">
-            <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium [overflow-wrap:break-word]">
-              {session.name || `Session ${index + 1}`}
-              {group.indexes.length > 1
-                ? ` · ${group.indexes.length} sessions${group.intervalDays ? ` · Every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}` : ""}`
-                : ` · Week ${session.weekIndex}`}
-            </summary>
-            {!current.standalone && (
-              <p className="text-sm text-ink-2">
-                Week {session.weekIndex} · Day {session.dayOffset + 1} from the start
-              </p>
-            )}
-            <ActivityPlan
-              sport={session.prescription.sport}
-              prescription={session.prescription}
-              showSource={false}
-              units={units}
-            />
-          </details>
-        );
-      })}
-      {current.blueprint.days.map((day) => (
-        <details key={day.dayIndex} className="border-t border-line py-2">
-          <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 text-lg font-medium [overflow-wrap:break-word]">
-            {day.dayIndex}. {day.name}
-            <span className="ml-2 text-sm font-normal text-ink-2">
-              {day.exercises.length ? `${day.exercises.length} exercises` : "Rest"}
-            </span>
-          </summary>
-          <p className="text-sm text-ink-muted">
-            {WEEKDAY_NAMES[day.dayOfWeek]}
-            {day.focus ? `${FACT_SEPARATOR}${holdFigures(day.focus)}` : ""}
-            {day.timeNote ? `${FACT_SEPARATOR}${holdFigures(day.timeNote)}` : ""}
-          </p>
-          <ol className="space-y-3">
-            {day.exercises.map((e, i) => (
-              <li key={i}>
-                <p className="font-medium [overflow-wrap:break-word]">
-                  {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
-                </p>
-                <p className="text-sm text-ink-muted">{exerciseTargets(e, length)}</p>
-                {e.supersetGroup && (
-                  <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
-                )}
-                {e.targetLoadNote && <p className="text-sm">{e.targetLoadNote}</p>}
-                {e.notes && <p className="text-sm text-ink-muted">{e.notes}</p>}
-                {e.progressionNotes && (
-                  <p className="text-sm text-ink-muted">{e.progressionNotes}</p>
-                )}
-                {e.keyCue && <p className="text-sm text-ink-muted">{e.keyCue}</p>}
-              </li>
-            ))}
-          </ol>
-          {!day.includesLifting && !day.includesRun && (
-            <p className="text-sm text-ink-muted">Rest / mobility</p>
-          )}
-          {day.includesRun && (
-            <details>
-              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2">
-                Run targets
-              </summary>
-              <ul className="space-y-2 text-sm">
-                {current.blueprint.runs
-                  .filter((r) => r.dayOfWeek === day.dayOfWeek)
-                  .map((r) => (
-                    <li key={r.weekIndex}>
-                      Week {r.weekIndex}: {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
-                      {span(r.duration)} minutes · Effort {span(r.rpe)}
-                      <p className="text-ink-muted">
-                        {r.paceNote} {r.stopRule}
-                      </p>
-                    </li>
-                  ))}
-              </ul>
-            </details>
-          )}
-          {day.notes && <p className="text-sm text-ink-muted">{day.notes}</p>}
-        </details>
-      ))}
-      {current.openingPlan && (
-        <Card>
-          <h2 className="font-medium">Your opening session</h2>
-          <p className="text-sm">{current.openingPlan.summary}</p>
-          {current.openingPlan.warmup.length > 0 && (
-            <p className="text-sm text-ink-muted">
-              Warm-up: {current.openingPlan.warmup.join(" ")}
-            </p>
-          )}
-          <ul className="space-y-2 text-sm">
-            {current.openingPlan.exercises.map((entry, i) => (
-              <li key={i}>
-                <strong>
-                  {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
-                </strong>
-                <p>{entry.note}</p>
-                <p className="text-ink-muted">
-                  {entry.action === "drop"
-                    ? "Left out"
-                    : entry.sets
-                        .map(
-                          (s) =>
-                            `${s.reps !== null ? `${s.reps} reps` : s.durationSeconds !== null ? `${s.durationSeconds} s` : s.distanceMeters !== null ? `${setTargetIn(s.distanceMeters, length)} ${length}` : "Target to calibrate"}${s.weight === null ? " · load to calibrate" : ` @ ${s.weight} ${machines.find((machine) => machine.id === entry.equipmentInstanceId)?.unit ?? preferredUnit}`}${s.rir === null ? "" : ` · RIR ${s.rir}`}`,
-                        )
-                        .join("; ")}
-                </p>
+      </div>
+      {current.rationale && (
+        <CoachNoteMore size="body">
+          <span className="whitespace-pre-wrap">{current.rationale}</span>
+        </CoachNoteMore>
+      )}
+      {current.uncertainties.length > 0 && (
+        <Disclosure
+          summary="What the coach is unsure about"
+          meta={String(current.uncertainties.length)}
+        >
+          <ul className="list-disc space-y-1.5 pl-5 text-sm">
+            {current.uncertainties.map((line, i) => (
+              <li key={i} className="[overflow-wrap:break-word]">
+                {line}
               </li>
             ))}
           </ul>
-          {current.openingPlan.run && (
-            <p className="text-sm">
-              Run:{" "}
-              {current.openingPlan.run.durationMinutes !== null
-                ? `${current.openingPlan.run.durationMinutes} minutes`
-                : "Duration to calibrate"}
-              {current.openingPlan.run.distanceKm !== null
-                ? `${FACT_SEPARATOR}${current.openingPlan.run.distanceKm}\u00a0km`
-                : ""}
-              {current.openingPlan.run.rpe !== null
-                ? `${FACT_SEPARATOR}Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
-                : ""}
-              . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
-            </p>
-          )}
-          <p className="text-xs text-ink-muted">
-            Editing the programme clears this opening session. Your edited programme targets will be
-            used when you start.
-          </p>
-        </Card>
+        </Disclosure>
       )}
-      {editable && (
+
+      {editable ? (
         <Card>
-          <h2 className="font-medium">
-            {current.standalone ? "Save this session" : "Start this programme"}
-          </h2>
-          {needsCheck && (
-            <>
-              <p className="text-sm text-ink-muted">
-                Check this draft against your current training data before starting it.
-              </p>
-              <Button disabled={busy} variant="secondary" onClick={check}>
-                Check current data
-              </Button>
-            </>
-          )}
           {!current.standalone && (
             <Field
               label="Start date"
-              hint={
-                current.blueprint.startsOn && current.blueprint.startsOn >= today
-                  ? startDate === current.blueprint.startsOn
-                    ? `As the coach planned it, so every session falls on its day.`
-                    : `The coach planned it to start ${formatIsoDate(current.blueprint.startsOn)}; another start moves every session with it.`
+              info={
+                plannedStart
+                  ? `The coach planned it from ${formatIsoDate(plannedStart, today.slice(0, 4))}, so each session falls on its day. Another start moves every session with it.`
                   : undefined
               }
             >
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </Field>
           )}
-          <Button disabled={busy || needsCheck || !startDate} onClick={activate}>
-            {busy ? "Saving…" : current.standalone ? "Save session template" : "Start my programme"}
+          <Button disabled={busy || !startDate} onClick={activate}>
+            {busy ? "Saving…" : current.standalone ? "Save session" : "Start programme"}
           </Button>
           {!current.standalone && (
             <LinkButton
@@ -356,33 +242,227 @@ export function DraftPreview({
               }
               variant="secondary"
             >
-              Edit the draft
+              Edit draft
             </LinkButton>
           )}
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={async () => {
-              if (preview) {
-                setError("Preview only — no draft was discarded.");
-                return;
-              }
-              setSaving(true);
-              const result = await coachingAction(() => rejectProgramDraftAction(current.id));
-              if (result.ok) startNavigation(() => router.push(base));
-              else setError(result.error);
-              setSaving(false);
-            }}
-          >
-            Discard this draft
+          <Button variant="ghost" disabled={busy} onClick={discard}>
+            Discard draft
           </Button>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
         </Card>
+      ) : (
+        <p className="text-sm text-ink-muted">{CLOSED[current.status] ?? current.status}</p>
       )}
-      {!editable && <p className="text-sm text-ink-muted">This draft is {current.status}.</p>}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
+
+      {(current.blueprint.notes || current.openingPlan) && (
+        // Folds side by side are ruled rows that share their rules, never a stack of boxes.
+        <ul className="[&>li+li]:-mt-px">
+          {current.blueprint.notes && (
+            <li>
+              <Disclosure summary="Programme details" variant="inline">
+                <p className="text-sm [overflow-wrap:break-word] whitespace-pre-wrap">
+                  {current.blueprint.notes}
+                </p>
+              </Disclosure>
+            </li>
+          )}
+          {current.openingPlan && (
+            <li>
+              <Disclosure summary="Your first session" variant="inline">
+                <div className="space-y-2 text-sm">
+                  <p>{current.openingPlan.summary}</p>
+                  {current.openingPlan.warmup.length > 0 && (
+                    <p className="text-ink-muted">
+                      Warm-up: {current.openingPlan.warmup.join(" ")}
+                    </p>
+                  )}
+                  <ul className="space-y-2">
+                    {current.openingPlan.exercises.map((entry, i) => (
+                      <li key={i}>
+                        <strong>{name(entry.exerciseSlug)}</strong>
+                        <p>{entry.note}</p>
+                        <p className="text-ink-muted">
+                          {entry.action === "drop"
+                            ? "Left out"
+                            : entry.sets
+                                .map(
+                                  (s) =>
+                                    `${s.reps !== null ? `${s.reps} reps` : s.durationSeconds !== null ? `${s.durationSeconds} s` : s.distanceMeters !== null ? `${setTargetIn(s.distanceMeters, length)} ${length}` : "Target to find"}${s.weight === null ? " · load to find" : ` @ ${s.weight} ${machines.find((machine) => machine.id === entry.equipmentInstanceId)?.unit ?? preferredUnit}`}${s.rir === null ? "" : ` · RIR ${s.rir}`}`,
+                                )
+                                .join("; ")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  {current.openingPlan.run && (
+                    <p>
+                      Run:{" "}
+                      {current.openingPlan.run.durationMinutes !== null
+                        ? `${current.openingPlan.run.durationMinutes} min`
+                        : "Time to find"}
+                      {current.openingPlan.run.distanceKm !== null
+                        ? `${FACT_SEPARATOR}${current.openingPlan.run.distanceKm}\u00a0km`
+                        : ""}
+                      {current.openingPlan.run.rpe !== null
+                        ? `${FACT_SEPARATOR}Effort ${current.openingPlan.run.rpe} of ${EFFORT.max}`
+                        : ""}
+                      . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
+                    </p>
+                  )}
+                </div>
+              </Disclosure>
+            </li>
+          )}
+        </ul>
+      )}
+
+      {!current.standalone && current.blueprint.enduranceSessions?.length ? (
+        <EnduranceDraftWeeks
+          sessions={current.blueprint.enduranceSessions}
+          weeks={current.blueprint.weeks}
+          startDate={startDate || null}
+          units={units}
+        />
+      ) : null}
+
+      {current.standalone && (
+        // Ruled rows that share their rules.
+        <ul className="[&>li+li]:-mt-px">
+          {enduranceSessionGroups(current.blueprint.enduranceSessions ?? []).map((group) => {
+            const index = group.indexes[0]!;
+            const session = current.blueprint.enduranceSessions![index]!;
+            return (
+              <li key={group.id}>
+                <Disclosure
+                  summary={session.name || `Session ${index + 1}`}
+                  meta={
+                    group.indexes.length > 1
+                      ? joinFacts([
+                          `${group.indexes.length} sessions`,
+                          group.intervalDays
+                            ? `Every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}`
+                            : null,
+                        ])
+                      : `Week ${session.weekIndex}`
+                  }
+                  variant="inline"
+                >
+                  <ActivityPlan
+                    sport={session.prescription.sport}
+                    prescription={session.prescription}
+                    showSource={false}
+                    units={units}
+                    flat
+                    said={session.name}
+                  />
+                </Disclosure>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {current.blueprint.days.length > 0 && (
+        // Ruled rows that share their rules.
+        <ul className="[&>li+li]:-mt-px">
+          {current.blueprint.days.map((day) => {
+            const runs = current.blueprint.runs.filter((r) => r.dayOfWeek === day.dayOfWeek);
+            return (
+              <li key={day.dayIndex}>
+                <Disclosure
+                  summary={`${day.dayIndex}. ${day.name}`}
+                  meta={joinFacts([
+                    WEEKDAY_SHORT[day.dayOfWeek],
+                    day.exercises.length
+                      ? `${day.exercises.length} exercises`
+                      : day.includesRun
+                        ? "Run"
+                        : "Rest",
+                  ])}
+                  variant="inline"
+                >
+                  <div className="space-y-3">
+                    {(day.focus || day.timeNote) && (
+                      <p className="text-sm text-ink-muted">
+                        {joinFacts([
+                          day.focus && holdFigures(day.focus),
+                          day.timeNote && holdFigures(day.timeNote),
+                        ])}
+                      </p>
+                    )}
+                    {day.exercises.length > 0 && (
+                      <ol className="space-y-3">
+                        {exerciseBlocks(day.exercises).map((block) => (
+                          // A superset is one bracket in ink around its group, as the
+                          // programme's page draws it, not a caption on each of its rows.
+                          <li
+                            key={block.items[0]!.at}
+                            className={cn(
+                              "min-w-0",
+                              block.hue && "space-y-3 rounded-r-control py-2 pl-2.5 superset-row",
+                            )}
+                            style={block.hue ? supersetStyle(block.hue) : undefined}
+                          >
+                            {block.items.map(({ exercise: e, at }) => {
+                              const notes = [
+                                e.targetLoadNote,
+                                e.notes,
+                                e.progressionNotes,
+                                e.keyCue,
+                              ].filter((note): note is string => Boolean(note));
+                              return (
+                                <div key={at} className="min-w-0">
+                                  <p className="font-medium [overflow-wrap:break-word]">
+                                    {name(e.exerciseSlug)}
+                                  </p>
+                                  <p className="text-sm text-ink-muted">
+                                    {exerciseTargets(e, length)}
+                                  </p>
+                                  {notes.length > 0 && (
+                                    <Disclosure summary="Notes" variant="inline" className="mt-1">
+                                      <div className="space-y-1 text-sm text-ink-muted">
+                                        {notes.map((note, i) => (
+                                          <p key={i} className="[overflow-wrap:break-word]">
+                                            {note}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    </Disclosure>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    {day.includesRun && runs.length > 0 && (
+                      <Disclosure summary="Run targets" variant="inline">
+                        <ul className="space-y-2 text-sm">
+                          {runs.map((r) => (
+                            <li key={r.weekIndex}>
+                              Week {r.weekIndex}:{" "}
+                              {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
+                              {span(r.duration)} min · Effort {span(r.rpe)}
+                              <p className="text-ink-muted">
+                                {r.paceNote} {r.stopRule}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </Disclosure>
+                    )}
+                    {day.notes && <p className="text-sm text-ink-muted">{day.notes}</p>}
+                  </div>
+                </Disclosure>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

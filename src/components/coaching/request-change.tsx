@@ -14,7 +14,8 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 /**
  * Asking the coach to change a programme, on the programme's own page (ADR 0058): what should
  * change, in the athlete's words, sent as a note for this programme alone. The coach reads it at
- * its next run, and what it proposes comes back to this page to review.
+ * its next run, and what it proposes comes back to this page to review; the screen says only
+ * that it was sent.
  *
  * `noteId` makes a send that is retried after a dropped connection the same note, as the AI
  * coach page's note is; once one is sent, the next note has an id of its own.
@@ -59,10 +60,8 @@ export function RequestChange({ sport, noteId }: { sport: ActivitySport; noteId:
         <SubmitButton pendingLabel="Sending…" className="w-full" disabled={!text.trim()}>
           Send to the coach
         </SubmitButton>
-        <p role="status" className="text-sm text-ink-2">
-          {sent && !text
-            ? "Sent. The coach reads it at its next run."
-            : "The coach reads it at its next run. What it proposes comes back here to review."}
+        <p role="status" className="text-sm text-ink-2 empty:hidden">
+          {sent && !text ? "Sent to the coach." : ""}
         </p>
       </form>
     </Disclosure>

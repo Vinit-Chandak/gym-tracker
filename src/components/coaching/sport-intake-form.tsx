@@ -100,11 +100,6 @@ export function SportIntakeForm({
       }}
       className="space-y-4"
     >
-      <p className="text-sm text-ink-2">
-        The coach will use your other programmes and recent training to plan this{" "}
-        {ACTIVITY_SPORT_LABELS[sport].toLowerCase()} {scope === "session" ? "session" : "programme"}
-        . Changes to another sport will need your approval.
-      </p>
       <Field label="What are you training for?">
         <Textarea name="goal" defaultValue={values.goal} maxLength={1500} required />
       </Field>
@@ -134,32 +129,30 @@ export function SportIntakeForm({
       </div>
       <Field label={`Your experience in ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()}`}>
         <Select name="experience" defaultValue={values.experience}>
-          <option value="unknown">Choose or leave unspecified</option>
+          <option value="unknown">Not sure</option>
           <option value="beginner">Beginner</option>
           <option value="intermediate">Intermediate</option>
           <option value="experienced">Experienced</option>
           <option value="returning">Returning after a break</option>
         </Select>
       </Field>
-      <Field
-        label="Where and with what can you train?"
-        hint={
-          sport === "swimming"
-            ? "For example, pool access and pool length."
-            : sport === "cycling"
-              ? "For example, bike, terrain, indoor trainer."
-              : "Places, equipment and access the coach should consider."
-        }
-      >
+      <Field label="Where and with what can you train?" aside="Optional">
         <Textarea
           name="access"
           defaultValue={values.sports.find((entry) => entry.sport === sport)?.access ?? ""}
           maxLength={600}
+          placeholder={
+            sport === "swimming"
+              ? "For example, a 25 m pool"
+              : sport === "cycling"
+                ? "For example, a road bike and an indoor trainer"
+                : "For example, a gym near work"
+          }
         />
       </Field>
       {sport === "strength" && (
         <>
-          <Field label="Training location">
+          <Field label="Where you train">
             <Select name="trainingLocation" defaultValue={values.trainingLocation ?? ""} required>
               <option value="">Choose</option>
               <option value="gym">Gym</option>
@@ -201,15 +194,18 @@ export function SportIntakeForm({
           </div>
         </>
       )}
-      <Field
-        label="Anything that limits your training?"
-        hint="Optional. Injuries, pain, or movements to avoid."
-      >
-        <Textarea name="restrictions" defaultValue={values.restrictions} maxLength={3000} />
+      <Field label="Anything that limits your training?" aside="Optional">
+        <Textarea
+          name="restrictions"
+          defaultValue={values.restrictions}
+          maxLength={3000}
+          placeholder="For example, a sore left knee"
+        />
       </Field>
       <Field
         label="Your brief"
-        hint="Available days, recent sessions, preferred structure, event dates, and anything else the coach should know."
+        aside="Optional"
+        info="Days you can train, recent sessions, event dates: anything the coach should know."
       >
         <Textarea name="prompt" defaultValue={values.prompt} maxLength={16000} rows={6} />
       </Field>

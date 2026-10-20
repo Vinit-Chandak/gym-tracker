@@ -231,3 +231,36 @@ it("keeps a note being typed when the page is drawn again for the switch", () =>
     "first",
   );
 });
+
+it("says what the coach could not finish in plain words, with the way to try again", () => {
+  render(
+    <AiCoachSettings
+      {...baseProps}
+      dashboard={{
+        ...dashboard,
+        jobs: [
+          {
+            id: "failed",
+            sport: "running",
+            scope: "programme",
+            kind: "create_program",
+            status: "failed",
+            progress: null,
+            when: "Today",
+            error: "The local audit worker was unavailable.",
+          },
+        ],
+      }}
+    />,
+  );
+  const activity = screen.getByText("Coach activity").closest("details")!;
+  expect(activity.textContent).toContain("1 could not finish");
+  expect(
+    screen
+      .getByRole("link", { name: /The coach could not finish your programme.*Try again/ })
+      .getAttribute("href"),
+  ).toBe("/profile/programme/jobs/failed");
+  // What the worker wrote is for whoever runs the coach, not the athlete.
+  expect(screen.queryByText(/audit worker/)).toBeNull();
+  expect(screen.queryByText(/A run needs attention/)).toBeNull();
+});

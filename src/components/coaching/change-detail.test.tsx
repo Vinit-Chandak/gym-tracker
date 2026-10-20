@@ -47,7 +47,7 @@ it("names replacement explicitly and asks for its new start date", () => {
   expect(screen.getByRole("heading", { name: "Review replacement" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Replace programme" })).toBeTruthy();
   expect(screen.getByLabelText("Start date")).toBeTruthy();
-  expect(screen.getByText(/This replaces your current programme for this sport/)).toBeTruthy();
+  expect(screen.getByText(/Replaces your current strength programme/)).toBeTruthy();
 });
 
 const CURL = "22222222-2222-4222-8222-222222222222";
@@ -142,7 +142,7 @@ it("is the one line, the difference, and three answers — nothing said twice", 
 
 it("puts the whole programme after the difference, as it would be with the change", () => {
   render(<ChangeDetail {...props()} />);
-  const link = screen.getByRole("link", { name: "See the full programme with these changes" });
+  const link = screen.getByRole("link", { name: "Full programme with these changes" });
   expect(link.getAttribute("href")).toBe(
     "/profile/programme/drafts/11111111-1111-4111-8111-111111111111/programme",
   );
@@ -153,7 +153,8 @@ it("puts the whole programme after the difference, as it would be with the chang
 
 it("offers the coach's reasoning only for a change nobody asked for", () => {
   const { unmount } = render(<ChangeDetail {...props()} />);
-  expect(screen.getByText("Why")).toBeTruthy();
+  // Folded and closed: the difference is the decision, its reasons a tap away.
+  expect(screen.getByText("Why").closest("details")?.open).toBe(false);
   unmount();
   render(
     <ChangeDetail
@@ -215,7 +216,7 @@ it("says how a settled change ended, with nothing left to decide", () => {
   render(<ChangeDetail {...props({ status: "activated", outcome: "Applied 19 Sept." })} />);
   expect(screen.getByText("Applied 19 Sept.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
-  expect(screen.getByRole("link", { name: "See the full programme it made" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Full programme it made" })).toBeTruthy();
 });
 
 it("says the programme is unchanged rather than drawing an empty change, and can still be answered", () => {

@@ -2,7 +2,8 @@
 
 import { Children, cloneElement, isValidElement, useId, type ReactNode } from "react";
 
-import { aboutLabel, InfoTip } from "./info-tip";
+import { aboutLabel } from "./about-label";
+import { InfoTip } from "./info-tip";
 
 type ControlProps = {
   id?: string;

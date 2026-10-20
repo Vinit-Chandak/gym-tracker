@@ -7,28 +7,25 @@ import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
-import { describePrescription } from "@/domain/activity-prescription";
+import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
+import {
+  describePrescription,
+  durationTargetParts,
+  type EndurancePrescription,
+} from "@/domain/activity-prescription";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
-import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
-import { holdFigures, readsAs } from "@/lib/facts";
+import { DEFAULT_SPORT_UNITS, sportDistanceParts, type SportUnits } from "@/lib/distance-units";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { ORIGIN_PARAM } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
-import { sessionLine } from "./activity-plan";
-import { enduranceName, enduranceNote, enduranceTarget } from "./endurance-line";
+import { enduranceTarget, LOG_LABEL, plannedName } from "./endurance-line";
 import { sessionIntensityLine, structureLines } from "./prescription-lines";
 
 const MARK: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "swim"> = {
   running: "run",
   cycling: "ride",
   swimming: "swim",
-};
-
-/** "Log run", "Log ride", "Log swim": the action names the sport, so three cards never share it. */
-export const LOG_LABEL: Record<Exclude<ActivitySport, "strength">, string> = {
-  running: "Log run",
-  cycling: "Log ride",
-  swimming: "Log swim",
 };
 
 /** A fact of a card's meta line, led by its glyph (DESIGN.md, Rows and marks). */
@@ -42,23 +39,51 @@ function Fact({ glyph, children }: { glyph: GlyphName; children: React.ReactNode
 }
 
 /**
- * The whole of an endurance session, for its card's fold: the steps as written, the targets for
- * the session, how to run it, and the coach's word on it where the coach wrote one. Then the
- * way to skip or move it, which is its own page (plan §7).
+ * The session's targets its card's head does not already say (`head`, "30 min"): "Effort 2–3 of
+ * 5" under it, or "4.2–5.0 km · Effort 3–4 of 5" under "26–31 min". Each range is held at its
+ * dash and each figure to its unit where the line wraps, as the session's own page writes them.
+ */
+function unsaidTargets(
+  prescription: EndurancePrescription,
+  units: SportUnits,
+  head: string | null,
+): string | null {
+  const { distanceMetres, durationMs, effort } = prescription.sessionTargets;
+  const said = ({ figure, unit }: { figure: string; unit: string }) => `${figure} ${unit}` === head;
+  const distance = distanceMetres
+    ? sportDistanceParts(distanceMetres, prescription.sport, units)
+    : null;
+  const duration = durationMs ? durationTargetParts(durationMs) : null;
+  const facts = [
+    distance && !said(distance) && `${distance.figure} ${distance.unit}`,
+    duration && !said(duration) && `${duration.figure} ${duration.unit}`,
+    effort &&
+      `Effort ${effort[0] === effort[1] ? effort[1] : `${effort[0]}–${effort[1]}`} of\u00a0${PRESCRIBED_EFFORT.max}`,
+  ];
+  return joinFacts(facts.map((fact) => fact && holdFigures(fact))) || null;
+}
+
+/**
+ * The whole of an endurance session, for its card's fold: the targets its head does not already
+ * say, the steps as written, how to run it, and the coach's word on it where the coach wrote
+ * one, each said here once. Then the way to skip or move it, which is its own page (plan §7).
  */
 function EnduranceDetails({
   occurrence,
+  head,
   coachSummary,
   units,
 }: {
   occurrence: ScheduledOccurrence;
+  /** What the card's head already says it asks for: "30 min". */
+  head: string | null;
   coachSummary?: string | null;
   units: SportUnits;
 }) {
   const prescription = occurrence.prescription;
   // A line per step and per repeated block, as the session's own page reads it (ADR 0059).
   const steps = prescription ? structureLines(prescription, units) : [];
-  const overall = prescription ? sessionLine(prescription, units) : null;
+  const overall = prescription ? unsaidTargets(prescription, units, head) : null;
   const intensity = prescription ? sessionIntensityLine(prescription, units) : null;
   const how = [
     ["Pace", prescription?.running?.paceNote],
@@ -111,8 +136,8 @@ function EnduranceDetails({
 /**
  * A run, a ride or a swim owed today, whatever put it there (plan §2.3), as a card of its own
  * in the workout's style (DESIGN.md, Today): the sport's mark in its state, the name and what
- * it asks for, how to do it and when, the whole session folded behind the head, and its own
- * Log button.
+ * it asks for, when, the whole session folded behind the head (how to do it said there, once),
+ * and its own Log button.
  *
  * Two sources meet here and neither is allowed to pretend to be the other. Work the athlete put
  * on the calendar is here because it is dated today. The programme's own endurance is here
@@ -145,15 +170,10 @@ export function EnduranceCard({
   if (occurrence.sport === "strength") return null;
   const sport = occurrence.sport;
   const target = enduranceTarget(occurrence.prescription, units);
-  const note = enduranceNote(occurrence.prescription);
   const runType = occurrence.prescription?.running?.sessionType;
-  // The session's own name, or the kind of run it is, before the sport's bare "Run" (ADR 0059).
-  // A name that only repeats the figure beside it names nothing: the kind of run does.
-  const title = occurrence.prescription?.title;
-  const name =
-    day?.name ??
-    (title && !(target && readsAs(title, `${target.figure} ${target.unit}`)) ? title : null) ??
-    (runType ? RUN_TYPE_LABELS[runType] : enduranceName(sport));
+  // The session's own name, or the kind of run it is, before the sport's bare "Run" (ADR 0059),
+  // as Log and the session's page name it (`plannedName`).
+  const name = day?.name ?? plannedName(occurrence.prescription, sport, units);
   const focus =
     day?.focus ?? (runType && name !== RUN_TYPE_LABELS[runType] ? RUN_TYPE_LABELS[runType] : null);
   const time = occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null;
@@ -188,15 +208,15 @@ export function EnduranceCard({
         ) : null
       }
       facts={
-        (focus || note || time || partOf || occurrence.preparedByCoach) && (
+        (focus || time || partOf || occurrence.preparedByCoach) && (
           <>
             {focus && <Fact glyph="target">{holdFigures(focus)}</Fact>}
-            {note && <Fact glyph="pace">{note}</Fact>}
-            {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
+            {/* A time of day stands without a glyph: the dial is a duration's (70–90 min,
+                3–4 min) and the calendar a date's, and a glyph keeps its one meaning. */}
             {time && (
-              <Fact glyph="calendar">
+              <span className="meta-fact">
                 <Figures>{time}</Figures>
-              </Fact>
+              </span>
             )}
             {partOf && <Fact glyph="training">Part of {partOf}</Fact>}
             {occurrence.preparedByCoach && <Fact glyph="coach">Prepared by the coach</Fact>}
@@ -204,7 +224,12 @@ export function EnduranceCard({
         )
       }
       details={
-        <EnduranceDetails occurrence={occurrence} coachSummary={coachSummary} units={units} />
+        <EnduranceDetails
+          occurrence={occurrence}
+          head={target ? `${target.figure} ${target.unit}` : null}
+          coachSummary={coachSummary}
+          units={units}
+        />
       }
       actions={
         <LinkButton

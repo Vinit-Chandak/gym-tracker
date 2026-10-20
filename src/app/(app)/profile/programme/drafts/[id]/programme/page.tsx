@@ -170,7 +170,8 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
       />
       <PageContent>
         <Section title={`${data.draft.blueprint.name} · week ${data.week}`}>
-          <ul className="space-y-3">
+          {/* A list of folds is ruled rows that share their rules (DESIGN.md, Folds). */}
+          <ul className="[&>li+li]:-mt-px">
             {days.map((plan) => (
               <li key={plan.day.id}>
                 <CycleDay plan={plan} units={data.runUnits} />

@@ -1,13 +1,16 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import { z } from "zod";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
-import Link from "@/components/ui/app-link";
 import { BackLink } from "@/components/shell/back-link";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { aboutLabel } from "@/components/ui/about-label";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { describeEffort } from "@/domain/activity";
@@ -34,13 +37,11 @@ import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
 import { ActivityMore } from "./activity-more";
-import { AnsweredSession } from "./answered-session";
+import { answeredName, CountsAsRow } from "./answered-session";
 import type { AnsweredOnDelete } from "./delete-button";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
 import { RunLaps } from "./run-laps";
 import { startedAtLine } from "./started-at";
-
-export const metadata: Metadata = { title: "Activity" };
 
 const PRINT = { running: "run", cycling: "ride", swimming: "swim" } as const;
 const NOUN = { running: "run", cycling: "ride", swimming: "swim" } as const;
@@ -60,24 +61,11 @@ function split(text: string): { figure: string; unit?: string } {
   return at < 0 ? { figure: text } : { figure: text.slice(0, at), unit: text.slice(at + 1) };
 }
 
-/**
- * One logged activity, whatever sport it is (board Run): its print in full ink, its name, when
- * and where, then what it recorded two by two, and its notes. Correcting and deleting it are
- * behind More.
- *
- * Each sport shows what it actually recorded and nothing more: a ride with no distance shows
- * no speed, a swim timed only end to end shows no pace, and an effort nobody confirmed says
- * so rather than passing for a report (plan §§4, 9.1).
- */
-export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
-  const { activityId } = await props.params;
-  requireUuid(activityId);
-  // Passed on to the correction, so the tab it was opened from stays selected through it, and
-  // where Back goes without a page before it: that tab, or History with none (NAV-03).
-  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+/** The record and what it is read against, once a request: the document is named from it too. */
+const readRecord = cache(async (activityId: string) => {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { activity, units, answered, heartRate } = await withUser(
+  const read = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -97,6 +85,36 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
     },
     { readOnly: true },
   );
+  return { profile, ...read };
+});
+
+/** Named as its title is: its own title, else what History and its day call it ("Ride"). */
+export async function generateMetadata(
+  props: PageProps<"/training/activities/[activityId]">,
+): Promise<Metadata> {
+  const { activityId } = await props.params;
+  // A malformed address is the page's to refuse; the title only names what is there.
+  if (!z.uuid().safeParse(activityId).success) return { title: "Not found" };
+  const { activity } = await readRecord(activityId);
+  return { title: activity ? (activity.title ?? enduranceName(activity.sport)) : "Not found" };
+}
+
+/**
+ * One logged activity, whatever sport it is (board Run): its print in full ink, its name, when
+ * and where, then what it recorded two by two, and its notes. Correcting and deleting it are
+ * behind More.
+ *
+ * Each sport shows what it actually recorded and nothing more: a ride with no distance shows
+ * no speed, a swim timed only end to end shows no pace, and an effort nobody confirmed says
+ * so rather than passing for a report (plan §§4, 9.1).
+ */
+export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
+  const { activityId } = await props.params;
+  requireUuid(activityId);
+  // Passed on to the correction, so the tab it was opened from stays selected through it, and
+  // where Back goes without a page before it: that tab, or History with none (NAV-03).
+  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+  const { profile, activity, units, answered, heartRate } = await readRecord(activityId);
   if (!activity) notFound();
 
   // Read in the athlete's own units: a distance and its pace or speed in km or mi, a swim and
@@ -139,6 +157,11 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       label: "Pace",
       figure: pace === null ? "—" : formatPaceSeconds(pace, 1),
       unit: `/100 ${units.poolUnit}`,
+      // Timed end to end only: its dash says there is no pace, and the ⓘ beside it says why.
+      info:
+        actual.activeMs === null
+          ? "Only its elapsed time was recorded: a pace needs the swimming time, rests left out."
+          : undefined,
     });
   }
   // The day and time it happened where it was recorded, as History dates it and the
@@ -155,6 +178,23 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   // programme has ended, when nothing can be logged against it again (ADR 0054).
   const onDelete: AnsweredOnDelete =
     activity.origin.kind !== "planned" ? null : answered?.closed ? "closed" : "reopens";
+  // What it counts as, in one row: the session it answered, or Unplanned (ADR 0058). The row
+  // opens Counts as, where it can change, unless its session's programme has ended, which keeps
+  // its answer (ADR 0054): then it opens that session's page.
+  const countsAs =
+    activity.origin.kind === "planned"
+      ? answered
+        ? answeredName(answered, todayInTimeZone(profile.timeZone).slice(0, 4))
+        : "A planned session"
+      : sport
+        ? "Unplanned"
+        : null;
+  const countsAsHref =
+    sport && !answered?.closed
+      ? (`/training/activities/${activity.id}/counts-as` as Route)
+      : answered
+        ? (`/training/programme/occurrences/${answered.id}` as Route)
+        : null;
 
   return (
     <>
@@ -167,6 +207,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
               title={title}
               editHref={`/training/activities/${activity.id}/edit${originQuery(origin)}` as Route}
               activityId={activity.id}
+              noun={sport ? NOUN[sport] : undefined}
               answered={onDelete}
             />
           </div>
@@ -216,6 +257,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
                   {stat.figure}
                 </span>
                 {stat.unit && <span className="activity-stat-unit">{stat.unit}</span>}
+                {/* Beside the figure it explains (a dash), never inside the stat's name. */}
+                {stat.info && <InfoTip label={aboutLabel(stat.label)}>{stat.info}</InfoTip>}
                 {stat.note && <span className="activity-stat-note">{stat.note}</span>}
               </dd>
             </div>
@@ -226,35 +269,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           <RunLaps laps={actual.laps} units={units} heartRate={heartRate} />
         )}
 
-        {activity.origin.kind === "planned" &&
-          (answered ? (
-            <AnsweredSession
-              session={answered}
-              year={todayInTimeZone(profile.timeZone).slice(0, 4)}
-            />
-          ) : (
-            <p className="mt-3 type-meta text-ink-2">This answered a scheduled session.</p>
-          ))}
-        {/* What it counts as can change (ADR 0058), unless its session's programme has ended,
-            which keeps its answer (ADR 0054). */}
-        {sport && !answered?.closed && (
-          <p className="mt-2 type-meta text-ink-2">
-            {activity.origin.kind === "planned" ? null : "Unplanned. "}
-            <Link
-              href={`/training/activities/${activity.id}/counts-as` as Route}
-              className="tap-area font-bold underline underline-offset-4"
-            >
-              {activity.origin.kind === "planned"
-                ? "Change what it counts as"
-                : "Count it as a planned session"}
-            </Link>
-          </p>
-        )}
-        {actual?.sport === "swimming" && actual.activeMs === null && (
-          <p className="mt-3 type-meta text-ink-2">
-            Elapsed time only, so there is no swimming pace for this one.
-          </p>
-        )}
+        {countsAs && <CountsAsRow value={countsAs} href={countsAsHref} />}
         {activity.notes && (
           <p className="mt-3.5 type-body [overflow-wrap:break-word] whitespace-pre-wrap">
             {activity.notes}

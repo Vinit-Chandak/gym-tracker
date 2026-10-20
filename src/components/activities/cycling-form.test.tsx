@@ -51,7 +51,13 @@ it("opens a ride in the rider's miles, its climb in feet, and posts both as stor
   const posted = () => new FormData(container.querySelector("form")!);
   expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("24");
   expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("85");
-  expect(screen.getByText("Optional · Entered as 40 km")).toBeTruthy();
+  // Optional at the end of its name and read with it; what was entered under it.
+  expect(screen.getByText("Entered as 40 km")).toBeTruthy();
+  const distance = screen.getByRole("textbox", { name: "Distance" });
+  const said = (distance.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent);
+  expect(said).toContain("Optional");
   expect([posted().get("distanceValue"), posted().get("distanceUnit")]).toEqual(["40", "km"]);
   // 89 m is 292 ft, said in feet beside miles and kept in metres.
   const climb = screen.getByLabelText("Elevation gain ft") as HTMLInputElement;
@@ -78,5 +84,20 @@ it("names the date among what it folds away, so a ride logged late can be dated"
     <CyclingForm {...props} initial={{ startedAt: "2026-10-11T09:48", environment: "indoor" }} />,
   );
   expect(container.querySelector("summary")?.textContent).toBe("Date, notes, heart rate, more");
-  expect(screen.getByLabelText("When")).toBeTruthy();
+  expect(screen.getByLabelText(/^When/)).toBeTruthy();
+});
+
+/**
+ * WCAG review S4: a required field folded away (the date, the start time, which of two repeated
+ * times) left Save doing nothing, the browser unable to show its message. The fold opens itself
+ * when the browser finds one invalid, so it can.
+ */
+it("opens its fold when a required field in it is invalid", () => {
+  const { container } = render(
+    <CyclingForm {...props} initial={{ startedAt: "", environment: "indoor" }} />,
+  );
+  const fold = container.querySelector("details")!;
+  expect(fold.open).toBe(false);
+  expect(container.querySelector("form")!.checkValidity()).toBe(false);
+  expect(fold.open).toBe(true);
 });

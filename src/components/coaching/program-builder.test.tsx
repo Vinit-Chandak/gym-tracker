@@ -8,7 +8,6 @@ import {
   saveProgramDraftAction,
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
-import { saveRoutineAction } from "@/server/actions/manual-training";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), unstable_rethrow: vi.fn() }));
@@ -16,7 +15,6 @@ vi.mock("@/server/actions/coaching-workflow", () => ({
   saveProgramDraftAction: vi.fn(),
   reviewProgramDraftAction: vi.fn(),
 }));
-vi.mock("@/server/actions/manual-training", () => ({ saveRoutineAction: vi.fn() }));
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -112,15 +110,13 @@ async function savedPlan() {
   return vi.mocked(saveProgramDraftAction).mock.calls.at(-1)![0] as ProgramBlueprint;
 }
 
-it("keeps programme and routine saves inside the preview", () => {
+it("keeps programme saves inside the preview, and offers no routine to save (ADR 0058)", () => {
   renderBuilder(blueprint(), { preview: true });
   fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
   expect(screen.getByText("Preview only — no programme was saved.")).toBeTruthy();
-  fireEvent.click(screen.getByText("Day details and options"));
-  fireEvent.click(screen.getByRole("button", { name: "Save this day as a routine" }));
-  expect(screen.getByText("Preview only — no routine was saved.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Day details"));
+  expect(screen.queryByRole("button", { name: /routine/i })).toBeNull();
   expect(saveProgramDraftAction).not.toHaveBeenCalled();
-  expect(saveRoutineAction).not.toHaveBeenCalled();
 });
 
 it("clears the exercise selection when a search would hide it", () => {
@@ -187,7 +183,7 @@ it.each(["change", "remove"])(
         target: { value: "3" },
       });
     else {
-      openDisclosure("Day details and options");
+      openDisclosure("Day details");
       fireEvent.click(screen.getByRole("button", { name: "Remove day" }));
     }
     selectDay(0);
@@ -204,12 +200,12 @@ it.each(["change", "remove"])(
 it("keeps selection with the day being reordered and allows undoing removal", async () => {
   renderBuilder(blueprint());
   selectDay(1);
-  openDisclosure("Day details and options");
+  openDisclosure("Day details");
   fireEvent.click(screen.getByRole("button", { name: "Move day earlier" }));
   expect((screen.getByRole("textbox", { name: "Day name" }) as HTMLInputElement).value).toBe(
     "Session 2",
   );
-  openDisclosure("Day details and options");
+  openDisclosure("Day details");
   fireEvent.click(screen.getByRole("button", { name: "Remove day" }));
   fireEvent.click(screen.getByRole("button", { name: "Undo remove day" }));
   const saved = await savedPlan();
@@ -225,7 +221,7 @@ it("keeps selection with the day being reordered and allows undoing removal", as
 it("duplicates progressive days independently and derives finite sequence length", async () => {
   renderBuilder(blueprint(7));
   setRepeat("once");
-  openDisclosure("Day details and options");
+  openDisclosure("Day details");
   fireEvent.click(screen.getByRole("button", { name: "Duplicate day" }));
   expect(screen.getByRole("option", { name: /Week 2, day 1 · Session 1 \(copy\)/ })).toBeTruthy();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Sets" }), { target: { value: "6" } });
@@ -310,4 +306,13 @@ it("reviews only the acknowledged saved revision", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Review programme" }));
   await waitFor(() => expect(push).toHaveBeenCalledWith("/profile/programme/drafts/saved-draft"));
   expect(reviewProgramDraftAction).toHaveBeenCalledWith("saved-draft", 3);
+});
+
+it("says what a way of repeating does in the ⓘ beside Repeats, not under the field", () => {
+  renderBuilder(blueprint());
+  setRepeat("weekly");
+  const rule = "The same weekdays every week; days between are rest.";
+  expect(screen.queryByText(rule)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "About repeats" }));
+  expect(screen.getByRole("note").textContent).toBe(rule);
 });

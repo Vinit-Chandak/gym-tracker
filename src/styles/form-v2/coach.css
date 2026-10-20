@@ -11,7 +11,7 @@
 }
 .coach-hub-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
 }
@@ -20,27 +20,10 @@
   flex: 1;
   overflow-wrap: break-word;
 }
-.coach-eyebrow {
-  color: var(--ov-ink-2);
-  font-size: 0.625rem;
-  font-weight: 750;
-  letter-spacing: 0.13em;
-  margin-bottom: 8px;
-}
-.coach-subtitle {
-  color: var(--ov-ink-2);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  margin-top: 10px;
-  max-width: 35ch;
-}
+/* The switch alone is the coach's state, level with the title it belongs to. */
 .coach-power {
   display: grid;
   justify-items: center;
-  gap: 6px;
-  padding-top: 22px;
-  font-size: 0.75rem;
-  color: var(--ov-ink-2);
 }
 .coach-tabs {
   display: flex;
@@ -149,35 +132,6 @@
   line-height: 1.5;
   color: var(--ov-ink-2);
 }
-.coach-attention {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--ov-hair);
-  padding: 16px;
-  text-align: left;
-  cursor: pointer;
-}
-.coach-attention > span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-}
-.coach-attention strong {
-  display: block;
-  font-size: 0.875rem;
-}
-.coach-attention span > span {
-  display: block;
-  color: var(--ov-ink-2);
-  font-size: 0.75rem;
-  margin-top: 3px;
-}
-.coach-attention > svg {
-  flex-shrink: 0;
-}
-.coach-attention-icon,
 .coach-row-icon {
   display: grid;
   flex-shrink: 0;

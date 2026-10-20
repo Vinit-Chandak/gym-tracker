@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Glyph } from "@/components/ui/glyphs";
 import type { EnduranceSport } from "@/domain/activity";
 import { DRAFT_LIMITS } from "@/domain/activity-limits";
 import {
@@ -21,6 +22,7 @@ import type { PlannedLap } from "@/lib/run-laps";
 import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
+import type { PlanTarget } from "./activity-form-fields";
 import { RunningForm } from "./running-form";
 import { CyclingForm } from "./cycling-form";
 import { SwimmingForm } from "./swimming-form";
@@ -36,7 +38,7 @@ type Props = {
   origin?: NavOrigin | null;
   expectedRevision?: number;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: PlanTarget | null;
   submitLabel: string;
   /** A corrected record's unconfirmed legacy effort, offered as "As recorded" (LOG-03). */
   keptEffort?: { value: number | null } | null;
@@ -103,20 +105,30 @@ function keptStart(draft: ActivityDraft, opening: Record<string, string>): strin
 }
 
 /**
- * What the form says about a draft it has just restored: that it did, when it says it started
- * if that is not now, and whether it is close to the age at which this device lets it go.
+ * What the form says about its draft, after the last field: kept on this device (the check
+ * glyph), or not kept (the warning glyph, and what to do instead).
  */
-function restoredNotice(draft: ActivityDraft, opening: Record<string, string>): string {
-  const parts = ["Restored your unsaved activity from this device."];
+type DraftNotice = { kept: boolean; text: string };
+
+/**
+ * What the form says about a draft it has just restored: that it did, when it says it started
+ * if that is not now (When opens with it, in view), and whether it is close to the age at which
+ * this device lets it go.
+ */
+function restoredNotice(draft: ActivityDraft, opening: Record<string, string>): DraftNotice {
   const startedAt = keptStart(draft, opening);
-  if (startedAt)
-    parts.push(
-      `It still says it started ${formatIsoDate(startedAt.slice(0, 10))}, ${startedAt.slice(11, 16)}. If that is wrong, change When above.`,
-    );
-  if (ageWarnings([draft]).some((warning) => warning.reason === "expiring"))
-    parts.push(`Save it soon: unsaved activities are kept here for ${DRAFT_LIMITS.ageDays} days.`);
-  return parts.join(" ");
+  const restored = startedAt
+    ? `Draft restored, started ${formatIsoDate(startedAt.slice(0, 10))}, ${startedAt.slice(11, 16)}.`
+    : "Draft restored.";
+  const expiring = ageWarnings([draft]).some((warning) => warning.reason === "expiring");
+  return {
+    kept: true,
+    text: expiring ? `${restored} Save soon: drafts last ${DRAFT_LIMITS.ageDays} days.` : restored,
+  };
 }
+
+/** Not kept, and why where it is known; the page holds what is typed until it is saved. */
+const NOT_KEPT = "Draft not kept. Stay on this page until you save.";
 
 function StoredEditor(props: Props) {
   const router = useRouter();
@@ -151,8 +163,8 @@ function StoredEditor(props: Props) {
     }
   });
   const current = useRef(initialDraft);
-  const [notice, setNotice] = useState(() =>
-    initialDraft.dirtyFields.length ? restoredNotice(initialDraft, props.initial) : "",
+  const [notice, setNotice] = useState<DraftNotice | null>(() =>
+    initialDraft.dirtyFields.length ? restoredNotice(initialDraft, props.initial) : null,
   );
   // A restored log whose start is not now opens the details, so When is in view.
   const [startKept, setStartKept] = useState(
@@ -188,19 +200,23 @@ function StoredEditor(props: Props) {
       // Nothing changed from how the form opened is nothing to keep, and it takes no place.
       if (dirtyFields.length === 0) {
         clearDraft(localStorage, props.userId, draft.draftId);
-        setNotice("");
+        setNotice(null);
         return draft;
       }
       const result = saveDraft(localStorage, draft);
       setNotice(
         result.ok
-          ? "Unsaved activity kept on this device."
-          : result.reason === "too_many"
-            ? `This device already keeps ${DRAFT_LIMITS.perAccount} unsaved activities, so this one is not kept. Keep this page open until you save.`
-            : "Could not keep a draft on this device. Keep this page open until you save.",
+          ? { kept: true, text: "Draft kept" }
+          : {
+              kept: false,
+              text:
+                result.reason === "too_many"
+                  ? `Draft not kept: this device holds ${DRAFT_LIMITS.perAccount} drafts already. Stay on this page until you save.`
+                  : NOT_KEPT,
+            },
       );
     } catch {
-      setNotice("Could not keep a draft on this device. Keep this page open until you save.");
+      setNotice({ kept: false, text: NOT_KEPT });
     }
     return draft;
   }
@@ -244,8 +260,9 @@ function StoredEditor(props: Props) {
   // Said after the last field, so nothing moves down when the first thing typed keeps a draft.
   const draftNotice = notice ? (
     <div className="draft-notice">
-      <p role="status" className="type-meta text-ink-2">
-        {notice}
+      <p role="status" className="flex items-start gap-1.5 type-meta text-ink-2">
+        <Glyph name={notice.kept ? "check" : "warn"} className="mt-0.5 glyph-16" />
+        <span className="min-w-0 [overflow-wrap:break-word]">{notice.text}</span>
       </p>
       <button
         type="button"
@@ -260,10 +277,10 @@ function StoredEditor(props: Props) {
           current.current = next;
           setInitialDraft(next);
           setStartKept(false);
-          setNotice("");
+          setNotice(null);
         }}
       >
-        Discard unsaved changes
+        Discard draft
       </button>
     </div>
   ) : null;

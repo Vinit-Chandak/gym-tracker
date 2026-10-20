@@ -39,16 +39,6 @@ function hasTopLayer(): boolean {
 }
 
 /**
- * "About weekly distance", "About max HR", "About RIR": the label in its own case, its first
- * letter lowered unless it starts an initialism, so a tip's name reads as a phrase without
- * flattening an abbreviation.
- */
-export function aboutLabel(label: string): string {
-  const phrase = /^\p{Lu}{2}/u.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
-  return `About ${phrase}`;
-}
-
-/**
  * Where a short explanation lives, a sentence or two: a small circled "i" that opens a note in
  * place. A longer passage is a `Disclosure`, closed; nothing on a screen explains itself in
  * running text (DESIGN.md, The Need-to-Know Rule).

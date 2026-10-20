@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
+  coachJobs,
   occurrenceEvents,
   occurrenceVersions,
   plannedOccurrences,
@@ -16,8 +17,9 @@ import { programBlueprintSchema } from "@/domain/program-blueprint";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { ensureProfile } from "@/server/queries/profile";
 
+import { enqueueCoachJob } from "./coaching-jobs";
 import { activateProgramDraft, refreshProgramDraft, saveManualDraft } from "./program-drafts";
-import { newProgrammeDrafts } from "./sport-programmes";
+import { newProgrammeDrafts, newProgrammeRequests } from "./sport-programmes";
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -72,6 +74,63 @@ it("lists a first programme's draft until the sport has a programme", async () =
     await saveManualDraft(tx, user.id, plan("Next block"));
     expect(await newProgrammeDrafts(tx, user.id)).toEqual([]);
   });
+});
+
+/**
+ * ADR 0059: a first programme asked of the coach waits on Plan from the moment it is asked, with
+ * where it stands, until a draft answers it; the card is then the draft's. A request for a sport
+ * that already has a programme, or for a single session, is not a first programme.
+ */
+it("lists a first programme's request from the moment it is asked until a draft answers it", async () => {
+  const user = await t.createAuthUser("first-request@example.test");
+  await ensureProfile(t.db, user);
+  const ask = (dedupeKey: string, target: Parameters<typeof enqueueCoachJob>[2]["target"]) =>
+    withUser(t.db, user.id, async (tx) => {
+      const { job } = await enqueueCoachJob(tx, user.id, {
+        kind: "create_program",
+        trigger: "onboarding",
+        dedupeKey,
+        target,
+      });
+      return job;
+    });
+  const job = await ask("create:running", { sport: "running", scope: "programme" });
+  await ask("create:cycling-replacement", {
+    sport: "cycling",
+    scope: "programme",
+    programId: crypto.randomUUID(),
+  });
+  await ask("create:swim-session", { sport: "swimming", scope: "session" });
+  // Asked a minute ago: whatever answers it is written after it, as the coach's draft always is.
+  await t.db
+    .update(coachJobs)
+    .set({ createdAt: new Date(Date.now() - 60_000) })
+    .where(eq(coachJobs.id, job.id));
+  const requests = () =>
+    withUser(t.db, user.id, (tx) => newProgrammeRequests(tx, user.id), { readOnly: true });
+  const standing = async (status: (typeof coachJobs.$inferSelect)["status"]) => {
+    await t.db.update(coachJobs).set({ status }).where(eq(coachJobs.id, job.id));
+    return requests();
+  };
+
+  expect(await requests()).toEqual([{ id: job.id, sport: "running", status: "writing" }]);
+  expect(await standing("claimed")).toEqual([{ id: job.id, sport: "running", status: "writing" }]);
+  expect(await standing("needs_input")).toEqual([
+    { id: job.id, sport: "running", status: "needs_answer" },
+  ]);
+  expect(await standing("failed")).toEqual([{ id: job.id, sport: "running", status: "failed" }]);
+  // Set aside by changed answers, it is finished with.
+  expect(await standing("superseded")).toEqual([]);
+
+  // A draft written since stands for the sport's first programme, whatever the request says.
+  await standing("queued");
+  const draft = await withUser(t.db, user.id, (tx) =>
+    saveManualDraft(tx, user.id, plan("Marathon base")),
+  );
+  expect(await requests()).toEqual([]);
+  expect(
+    await withUser(t.db, user.id, (tx) => newProgrammeDrafts(tx, user.id), { readOnly: true }),
+  ).toEqual([{ id: draft.id, sport: "running", status: "editing", name: "Marathon base" }]);
 });
 
 /**

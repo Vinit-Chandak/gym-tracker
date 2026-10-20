@@ -7,20 +7,23 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays } from "@/components/ui/icons";
 import type { ActivitySport } from "@/domain/activity";
 import type { ProgrammeClosure, ScheduledOccurrence } from "@/server/repositories/occurrences";
+import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
+import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
 
+import { plannedName } from "./endurance-line";
 import { programmeClosureLine, showsClosure } from "./programme-closure";
 
 /**
  * A scheduled session that cannot be logged again, and why.
  *
- * Refusing is right — one occurrence is answered once — but "that page or item does not
- * exist, or it belongs to a different account" is untrue of a session this account owns and
- * has already done. It says what became of it, and offers the thing they probably wanted:
- * what they logged, or the programme the cancelled session came from. One left owed or skipped
- * by a programme the athlete has moved on from says how that programme ended (`closure`, ADR
- * 0054), and offers the sport on its own.
+ * Refusing is right — one occurrence is answered once — but "it does not exist, or it belongs
+ * to another account" is untrue of a session this account owns and has already done. It says
+ * what became of it, names the session, and offers the thing they probably wanted: what they
+ * logged, or the sport on its own. One left owed or skipped by a programme the athlete has moved
+ * on from says how that programme ended (`closure`, ADR 0054). Plan, where the session lives, is
+ * the way back, so nothing repeats it as a button.
  */
 const SPORT_NOUNS: Record<ActivitySport, string> = {
   strength: "session",
@@ -28,6 +31,26 @@ const SPORT_NOUNS: Record<ActivitySport, string> = {
   cycling: "ride",
   swimming: "swim",
 };
+
+/**
+ * What became of it, as the screen's title (and the document's): logged, taken off, its
+ * programme ended, or done before the record was kept.
+ */
+export function settledTitle(
+  occurrence: ScheduledOccurrence,
+  closure: ProgrammeClosure | null = null,
+): string {
+  if (occurrence.resolution.kind === "logged") return "Already logged";
+  if (occurrence.resolution.kind === "cancelled")
+    return occurrence.familyId === null ? "Taken off the calendar" : "Removed from your programme";
+  // Owed or skipped, so nothing was done about it, and it is not said to be.
+  if (showsClosure(occurrence))
+    return closure && closure.followedBy === null
+      ? "Its programme was archived"
+      : "Its programme has ended";
+  // Completed before the record was kept.
+  return "Already done";
+}
 
 export function OccurrenceSettled({
   occurrence,
@@ -38,57 +61,38 @@ export function OccurrenceSettled({
   closure?: ProgrammeClosure | null;
 }) {
   const noun = SPORT_NOUNS[occurrence.sport];
-  const when = formatIsoDate(occurrence.scheduledOn);
-  const settled =
+  // The session, as every screen names it, and the day it was planned for.
+  const session = joinFacts([
+    plannedName(occurrence.prescription, occurrence.sport, DEFAULT_SPORT_UNITS),
+    formatIsoDate(occurrence.scheduledOn),
+  ]);
+  const action =
     occurrence.resolution.kind === "logged"
       ? {
-          header: "Already done",
-          title: "You have already logged this",
-          description: `The ${noun} scheduled for ${when} was answered by an activity you logged. A scheduled session is logged once; correct that activity rather than logging a second one.`,
           // Opened from Plan, whose page this is, it keeps Plan selected (NAV-03).
           href: `/training/activities/${occurrence.resolution.activityId}${originQuery("plan")}` as Route,
           label: "See what you logged",
         }
-      : occurrence.resolution.kind === "cancelled"
+      : occurrence.resolution.kind === "cancelled" || showsClosure(occurrence)
         ? {
-            header: "Already done",
-            title: "This session was cancelled",
-            description: `The ${noun} scheduled for ${when} was removed from your programme, so there is nothing to log against it. You can still log a ${noun} on its own.`,
             href: `/training/new?sport=${occurrence.sport}` as Route,
             label: `Log a ${noun} anyway`,
           }
-        : showsClosure(occurrence)
-          ? {
-              // Owed or skipped, so nothing was done about it, and it is not said to be: it is
-              // named for what it is. One completed before the record was kept is settled.
-              header: "Scheduled session",
-              title:
-                closure && closure.followedBy === null
-                  ? "Its programme was archived"
-                  : "Its programme has ended",
-              description: `${programmeClosureLine(closure)}, so the ${noun} scheduled for ${when} can no longer be logged. You can still log a ${noun} on its own.`,
-              href: `/training/new?sport=${occurrence.sport}` as Route,
-              label: `Log a ${noun} anyway`,
-            }
-          : {
-              header: "Already done",
-              title: "This session is already settled",
-              description: `The ${noun} scheduled for ${when} is no longer waiting to be logged.`,
-              href: "/plan" as Route,
-              label: "Go to Training",
-            };
+        : null;
   return (
     <>
-      <PageHeader title={settled.header} backHref="/plan" />
+      <PageHeader title={settledTitle(occurrence, closure)} backHref="/plan" />
       <PageContent>
         <EmptyState
           icon={CalendarDays}
-          title={settled.title}
-          description={settled.description}
+          title={session}
+          description={showsClosure(occurrence) ? `${programmeClosureLine(closure)}.` : undefined}
           action={
-            <LinkButton href={settled.href} variant="secondary">
-              {settled.label}
-            </LinkButton>
+            action && (
+              <LinkButton href={action.href} variant="secondary">
+                {action.label}
+              </LinkButton>
+            )
           }
         />
       </PageContent>

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 import { Figures } from "@/components/ui/figures";
-import { aboutLabel, InfoTip } from "@/components/ui/info-tip";
+import { aboutLabel } from "@/components/ui/about-label";
+import { InfoTip } from "@/components/ui/info-tip";
 import { cn } from "@/lib/utils";
 
 /**

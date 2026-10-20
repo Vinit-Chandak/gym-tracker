@@ -176,7 +176,7 @@ it("sets a run's kind, its whole-run pace and its steps, saved with the programm
   fireEvent.change(screen.getByRole("combobox", { name: "Kind of run" }), {
     target: { value: "easy" },
   });
-  const pace = screen.getByRole("textbox", { name: "Pace per km" });
+  const pace = screen.getByRole("textbox", { name: "Pace per km, m:ss" });
   fireEvent.change(pace, { target: { value: "530" } });
   fireEvent.blur(pace);
   fireEvent.change(screen.getByRole("combobox", { name: "Zone" }), { target: { value: "2" } });
@@ -199,4 +199,19 @@ it("sets a run's kind, its whole-run pace and its steps, saved with the programm
       { kind: "step", phase: "cooldown" },
     ],
   });
+});
+it("says why a session cannot be added under the length it is about", () => {
+  setup(blueprint([0, 7, 14, 21]));
+  fireEvent.click(screen.getByRole("radio", { name: "By week" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Week" }), { target: { value: "4" } });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Length in weeks" }), {
+    target: { value: "3" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add session" }));
+  const length = screen.getByRole("spinbutton", { name: "Length in weeks" });
+  expect(length.getAttribute("aria-invalid")).toBe("true");
+  expect(length.closest("details")?.open).toBe(true);
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Extend the programme length to add an upcoming session.",
+  );
 });

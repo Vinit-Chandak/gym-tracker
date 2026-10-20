@@ -1,12 +1,15 @@
-import { Badge } from "@/components/ui/badge";
+import { plannedName } from "@/components/activities/endurance-line";
+import { StopRule } from "@/components/run-plan";
 import { Card } from "@/components/ui/card";
+import { CoachNote } from "@/components/ui/coach-note";
 import { DetailList } from "@/components/ui/detail-list";
-import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
+import { Disclosure } from "@/components/ui/disclosure";
+import { Glyph } from "@/components/ui/glyphs";
+import type { ActivitySport } from "@/domain/activity";
 import { PRESCRIBED_EFFORT } from "@/domain/activity-limits";
 import {
   durationTargetParts,
   expandSteps,
-  prescriptionTotals,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
 import type { HeartRateZone } from "@/domain/heart-rate";
@@ -14,20 +17,21 @@ import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
 
-import { sessionIntensityLine, structureLines } from "./prescription-lines";
+import { alreadySays, sessionIntensityLine, structureLines } from "./prescription-lines";
 
 /**
- * What today's endurance session asks for (plan §8.2 item 5).
+ * What a planned endurance session asks for (plan §8.2 item 5).
  *
  * Two things are on screen and they are labelled apart, because conflating them is how a
  * target becomes a measurement. The prescription is what to do; the numbers the athlete
  * enters afterwards are what happened. Nothing here prefills a form, and nothing here is
  * described as a result (ACTUAL-01, AT-STRUCT-08).
  *
- * The card also says, plainly, whether a coach prepared this or whether it is the programme's
- * own approved session. An athlete who can see a plan should be able to see where it came
- * from, and "the coach has not got to this one yet" is a fact worth stating rather than an
- * absence to be papered over.
+ * Only what the screen around it does not already say: no sport and no "planned", which its page
+ * or its row says, and the kind of run only where its name does not. A coach's preparation is
+ * said as news ("Prepared by the coach", its words in the coach's passage); the programme's own
+ * session needs no tag. When to stop stays in view; how to do it is a fold (DESIGN.md, The
+ * Need-to-Know Rule).
  */
 
 export const PHASE_LABELS = {
@@ -44,12 +48,6 @@ const ACTION_LABELS = {
   swim: "Swim",
   rest: "Rest",
 } as const;
-
-function minutes(ms: number): string {
-  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
-  const whole = ms / 60_000;
-  return `${Number.isInteger(whole) ? whole : whole.toFixed(1)} min`;
-}
 
 function range(low: number, high: number, format: (value: number) => string): string {
   return low === high ? format(high) : `${format(low)}–${format(high)}`;
@@ -91,18 +89,23 @@ export function stepLine(
   return parts.join(FACT_SEPARATOR);
 }
 
-/** The whole-session targets, which are stated beside the steps rather than derived from them. */
-export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
+/** The whole-session targets, each on its own: distance, duration and effort. */
+function sessionParts(prescription: EndurancePrescription, units: SportUnits): string[] {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
   // Each range held at its dash where the line wraps, as the programme's run line holds them
   // (`runSummary`): never "4.7–6.0 mi · 37–" over "47 min".
-  const parts = [
+  return [
     distanceMetres
       ? holdFigures(formatSportDistance(distanceMetres, prescription.sport, units))
       : null,
     durationMs ? holdFigures(durationLine(durationMs)) : null,
     effort ? effortLine(effort) : null,
-  ].filter(Boolean);
+  ].filter((part): part is string => part !== null);
+}
+
+/** The whole-session targets, which are stated beside the steps rather than derived from them. */
+export function sessionLine(prescription: EndurancePrescription, units: SportUnits): string | null {
+  const parts = sessionParts(prescription, units);
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
@@ -112,11 +115,11 @@ export type ActivityPlanProps = {
   prescription: EndurancePrescription | null;
   /** The coach's sentences for today, when a preparation exists. */
   preparation?: { summary: string; note: string } | null;
-  /** Said out loud rather than left blank when the coach has not prepared this one. */
+  /** The coach prepared this one, which is news and is said ("Prepared by the coach"). */
   preparedByCoach?: boolean;
   /**
-   * Whose plan it is, said beside it. Off for a session of a programme the athlete has moved on
-   * from (ADR 0054): it is no longer "Your programme", and the line under it names whose it was.
+   * Whether to say who prepared it. Off for a session of a programme the athlete has moved on
+   * from (ADR 0054), where the line under it names whose it was.
    */
   showSource?: boolean;
   /** How the athlete reads this sport's distances. */
@@ -125,6 +128,17 @@ export type ActivityPlanProps = {
   zones?: readonly HeartRateZone[] | null;
   /** False where the page is already headed by the session's name. */
   titled?: boolean;
+  /**
+   * Inside a row or a fold that already names the session: no card and no title, and how to do
+   * it said whole rather than folded again.
+   */
+  flat?: boolean;
+  /**
+   * What the screen already says of the session over the plan, its name and its figure, so the
+   * plan leaves them out ("Long run 4.5 mi" over "45 min"). When not given, the name every screen
+   * gives it (`plannedName`) and its own title.
+   */
+  said?: string | null;
 };
 
 export function ActivityPlan({
@@ -136,45 +150,79 @@ export function ActivityPlan({
   units = DEFAULT_SPORT_UNITS,
   zones = null,
   titled = true,
+  flat = false,
+  said = null,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   // One line per step and one per repeated block, never one per repetition (ADR 0059).
   const lines = prescription ? structureLines(prescription, units, zones) : [];
-  const totals = prescription ? prescriptionTotals(prescription) : null;
-  const overall = prescription ? sessionLine(prescription, units) : null;
+  const heading = said ?? `${plannedName(prescription, sport, units)} ${prescription?.title ?? ""}`;
+  const overall = prescription
+    ? sessionParts(prescription, units).filter((part) => !alreadySays(heading, part))
+    : [];
   const intensity = prescription ? sessionIntensityLine(prescription, units, zones) : null;
   const runType = prescription?.running?.sessionType;
-
-  return (
-    <Card>
-      {/* Whose plan it is stands beside what it asks for, and goes under it before the words
-          beside it would have less than a few words' room (large text), where it ran over them. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <div className="min-w-0 flex-[1_1_8rem]">
-          <p className="type-meta-small text-ink-2">
-            {ACTIVITY_SPORT_LABELS[sport]}
-            {FACT_SEPARATOR}planned
-            {runType && `${FACT_SEPARATOR}${RUN_TYPE_LABELS[runType]}`}
-          </p>
-          {titled && prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
-              {prescription.title}
-            </h2>
-          )}
-          {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
-          {intensity && <p className="mt-0.5 text-sm text-ink-muted tabular-nums">{intensity}</p>}
-        </div>
-        {showSource && (
-          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-            {preparedByCoach ? "From your coach" : "Your programme"}
-          </Badge>
+  const kind =
+    runType && !alreadySays(heading, RUN_TYPE_LABELS[runType]) ? RUN_TYPE_LABELS[runType] : null;
+  const title = titled && !flat ? (prescription?.title ?? null) : null;
+  const prepared = showSource && preparedByCoach;
+  const stop = prescription?.running?.symptomStopRule ?? null;
+  const running = prescription?.running;
+  const how =
+    prescription?.instructions ||
+    running?.paceNote ||
+    running?.progressionNote ||
+    running?.note ||
+    preparation?.note ||
+    prescription?.notes ? (
+      <div className="space-y-2.5">
+        {prescription?.instructions && (
+          <p className="text-sm [overflow-wrap:break-word]">{prescription.instructions}</p>
+        )}
+        <DetailList
+          entries={[
+            ["Pace", running?.paceNote],
+            ["Progression", running?.progressionNote],
+            ["Note", running?.note],
+          ]}
+        />
+        {preparation?.note && (
+          <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{preparation.note}</p>
+        )}
+        {prescription?.notes && (
+          <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{prescription.notes}</p>
         )}
       </div>
+    ) : null;
 
-      {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}
+  const body = (
+    <>
+      {(kind || title || overall.length > 0 || intensity || prepared) && (
+        <div className="min-w-0 space-y-1">
+          {kind && <p className="type-meta-small text-ink-2">{kind}</p>}
+          {title && <h2 className="text-lg font-medium [overflow-wrap:break-word]">{title}</h2>}
+          {overall.length > 0 && (
+            <p className="text-sm text-ink-muted tabular-nums">{overall.join(FACT_SEPARATOR)}</p>
+          )}
+          {intensity && <p className="text-sm text-ink-muted tabular-nums">{intensity}</p>}
+          {prepared && (
+            <p className="flex items-center gap-1.5 type-meta-small text-ink-2">
+              <Glyph name="coach" className="glyph-16 shrink-0" />
+              Prepared by the coach
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* The coach's words for this session: a passage of the card, not a box in it. */}
+      {preparation?.summary && (
+        <CoachNote flat small className="border-t border-hair pt-3">
+          {preparation.summary}
+        </CoachNote>
+      )}
 
       {lines.length > 0 && (
-        <ol className="plan-structure mt-3">
+        <ol className="plan-structure">
           {lines.map((line, index) => (
             <li key={index} className="plan-structure-line">
               <span className="plan-structure-lead">{line.lead}</span>
@@ -193,33 +241,18 @@ export function ActivityPlan({
         </ol>
       )}
 
-      {totals && totals.prescribedRestMs > 0 && (
-        // Named as prescribed rest, not as rest. What is actually rested is not measured, and
-        // the gap between elapsed and active time is not evidence of it (AT-LOG-09).
-        <p className="mt-2 text-xs text-ink-muted tabular-nums">
-          Planned rest between reps: {minutes(totals.prescribedRestMs)}
-        </p>
-      )}
+      {stop && <StopRule rule={stop} />}
 
-      {prescription?.running && (
-        <div className="mt-3">
-          <DetailList
-            entries={[
-              ["Pace", prescription.running.paceNote],
-              ["Progression", prescription.running.progressionNote],
-              ["Stop if", prescription.running.symptomStopRule],
-              ["Note", prescription.running.note],
-            ]}
-          />
-        </div>
-      )}
-      {prescription?.instructions && (
-        <div className="mt-3">
-          <DetailList entries={[["How to run it", prescription.instructions]]} />
-        </div>
-      )}
-      {preparation?.note && <p className="mt-3 text-sm text-ink-muted">{preparation.note}</p>}
-      {prescription?.notes && <p className="mt-3 text-sm text-ink-muted">{prescription.notes}</p>}
-    </Card>
+      {how &&
+        (flat ? (
+          how
+        ) : (
+          <Disclosure summary="How to do it" variant="footer">
+            {how}
+          </Disclosure>
+        ))}
+    </>
   );
+
+  return flat ? <div className="min-w-0 space-y-3">{body}</div> : <Card>{body}</Card>;
 }

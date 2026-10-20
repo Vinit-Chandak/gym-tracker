@@ -415,7 +415,7 @@ describe("a day's exercises at the default gym", () => {
     expect([...lines]).toEqual([
       ["bench", "At Planet Fitness: Smith machine bench press"],
       ["row", "At Planet Fitness: Chest-supported row (machine)"],
-      ["ohp", "At Planet Fitness: not available, and no fallback fits"],
+      ["ohp", "Not at Planet Fitness ·\u00a0no fallback"],
     ]);
   });
 });

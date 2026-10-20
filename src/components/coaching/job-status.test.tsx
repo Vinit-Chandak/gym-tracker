@@ -21,8 +21,28 @@ it("shows a successful review with no changes without inventing a draft or askin
   render(<CoachJobStatus job={job} draftId={null} base="/profile/programme" />);
   expect(screen.getByRole("status").textContent).toBe("Your programme stays as it is");
   expect(screen.getByText("The current plan still fits.")).toBeTruthy();
-  expect(screen.queryByRole("link", { name: /try again|Review the draft/ })).toBeNull();
-  expect(screen.getByRole("link", { name: "Back to Plan" }).getAttribute("href")).toBe("/plan");
+  expect(screen.queryByRole("link", { name: /try again|Review the draft/i })).toBeNull();
+  // The page's own back link goes to Plan; nothing on the screen repeats it.
+  expect(screen.queryByRole("link", { name: /Back to/ })).toBeNull();
+});
+
+it("says a failure in plain words, with what the coach wrote folded under Details", () => {
+  const job = {
+    id: "job",
+    status: "failed",
+    kind: "create_program",
+    target: { scope: "programme", sport: "running" },
+    error: "The local audit worker was unavailable.",
+  } as CoachJob;
+  render(<CoachJobStatus job={job} draftId={null} base="/profile/programme" />);
+  expect(screen.getByRole("status").textContent).toBe("The coach could not finish");
+  expect(screen.getByText("Your answers are saved.")).toBeTruthy();
+  const details = screen.getByText("Details").closest("details")!;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain("The local audit worker was unavailable.");
+  expect(screen.getByRole("link", { name: "Try again" }).getAttribute("href")).toBe(
+    "/plan/new?sport=running&method=coach",
+  );
 });
 
 it("still offers the draft when one was produced", () => {
