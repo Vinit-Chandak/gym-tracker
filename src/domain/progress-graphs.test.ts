@@ -228,6 +228,24 @@ describe("one exercise, workout by workout", () => {
     expect(loaded).toMatchObject({ maxWeight: 45, maxVolume: 450 });
   });
 
+  it("keeps zero assistance as the strongest set rather than an unanswered load", () => {
+    const sessions = exerciseSessions(
+      [set("a", 10, 8), set("b", 0, 8), set("b", null, 6)],
+      "machine",
+      "kg",
+      { assisted: true },
+    );
+    expect(sessions[1]).toMatchObject({
+      maxWeight: 0,
+      maxWeightReps: 8,
+      maxRepsWeight: 0,
+      maxVolume: null,
+      e1rm: null,
+    });
+    expect(bestSession(sessions, "maxWeight", { assisted: true })?.sessionId).toBe("b");
+    expect(bestSession(sessions, "maxReps", { assisted: true })?.sessionId).toBe("b");
+  });
+
   it("names a tied best by the better set behind it, then by the latest workout", () => {
     const rows = (sets: [string, number, number][]): ExerciseSetRow[] =>
       sets.map(([sessionId, weight, reps]) => ({

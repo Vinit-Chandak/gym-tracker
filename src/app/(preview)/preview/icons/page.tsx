@@ -118,9 +118,7 @@ export default function PreviewIconsPage() {
         </Section>
         <Section title="Preferences">
           <List>
-            <li>
-              <AppearanceRow />
-            </li>
+            <AppearanceRow />
           </List>
         </Section>
         <Section title="Account">

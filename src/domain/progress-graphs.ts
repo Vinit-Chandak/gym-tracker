@@ -261,7 +261,9 @@ export function exerciseSessions(
       maxSeconds: null,
       maxMetres: null,
     };
-    const weight = row.weight !== null && row.weight > 0 ? row.weight : null;
+    // No assistance is the strongest assisted set; it is distinct from a missing answer.
+    const weight =
+      row.weight !== null && (row.weight > 0 || (assisted && row.weight === 0)) ? row.weight : null;
     const reps = row.reps !== null && row.reps > 0 ? row.reps : null;
     const e1rm = assisted ? null : estimated1RM(weight, reps, modality, unit);
     if (better(e1rm, session.e1rm)) {

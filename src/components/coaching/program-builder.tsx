@@ -62,12 +62,14 @@ export function ProgramBuilder({
   warmups,
   base,
   routines = [],
+  preview = false,
 }: {
   initial: { id: string; revision: number; blueprint: ProgramBlueprint } | null;
   library: LibraryEntry[];
   warmups: { slug: string; name: string }[];
   base: "/welcome/programme" | "/profile/programme";
   routines?: { id: string; name: string; day: SavedRoutineDay }[];
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -143,6 +145,10 @@ export function ProgramBuilder({
     setSelectedDay(to);
   }
   async function save(review: boolean) {
+    if (preview) {
+      setMessage("Preview only — no programme was saved.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -472,6 +478,10 @@ export function ProgramBuilder({
                   <Button
                     variant="secondary"
                     onClick={async () => {
+                      if (preview) {
+                        setMessage("Preview only — no routine was saved.");
+                        return;
+                      }
                       setSaving(true);
                       setError(null);
                       try {

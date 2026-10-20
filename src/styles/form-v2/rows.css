@@ -417,6 +417,9 @@ li:last-child > .sheet-row {
 }
 
 /* ---------- a person at the head of their page (board Profile) ---------- */
+.person-card {
+  container: person-card / inline-size;
+}
 .person-card-head {
   display: flex;
   align-items: center;
@@ -449,6 +452,23 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.25;
 }
+/* At large text the avatar and Edit must not squeeze the name and follow counts into a
+   narrow middle column. Keep those controls together, with the identity across the next row. */
+@container person-card (width < 15rem) {
+  .person-card-head:has(.round-icon-button) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .person-card-head:has(.round-icon-button) > .person-card-text {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .person-card-head > .round-icon-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
 /* Whatever the screen puts under the person (Following, on someone else's page) stands clear
    of the avatar rather than against it. */
 .person-card-head + * {
@@ -480,12 +500,17 @@ li:last-child > .sheet-row {
 /* The account's email: a fact, not a field, its value at the end of a ruled row. */
 .profile-email {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   padding: calc(10 * var(--ov-u)) 0;
   margin-top: calc(10 * var(--ov-u));
   border-bottom: 1px solid var(--ov-hair);
   font-size: var(--ov-type-meta);
   gap: calc(12 * var(--ov-u));
+}
+.profile-email > dd {
+  max-width: 100%;
+  margin-left: auto;
 }
 .profile-still-to-add {
   display: flex;
@@ -1617,6 +1642,25 @@ li:last-child > .picker-row {
 }
 
 /* ---------- the one error a screen can meet (board Offline) ---------- */
+/* Root boundaries replace the shell, so their actions have no rail or tab bar to clear. */
+html:has(.standalone-error) {
+  --nav-reserve: 0px;
+  --session-chrome-height: 0px;
+}
+.standalone-error {
+  min-height: 100dvh;
+  padding-bottom: calc(
+    var(
+        --pinned-actions-height,
+        calc(var(--ov-button) + var(--ov-target) + calc(16 * var(--ov-u)))
+      ) +
+      calc(32 * var(--ov-u))
+  );
+}
+.standalone-error .pinned-actions {
+  left: 0;
+  bottom: 0;
+}
 .error-page-body {
   display: flex;
   flex-direction: column;

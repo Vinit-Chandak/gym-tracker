@@ -43,14 +43,17 @@
   color: var(--ov-ink-2);
 }
 .coach-tabs {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr) minmax(0, 1.1fr);
+  display: flex;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--ov-hair);
   gap: 4px;
 }
 .coach-tabs > button {
   display: flex;
+  /* Keep each label's words whole; enlarged text can give a tab its own row. */
+  flex: 1 1 max-content;
   min-width: 0;
+  max-width: 100%;
   flex-wrap: wrap;
   overflow-wrap: break-word;
   align-items: center;
@@ -90,6 +93,7 @@
 }
 .coach-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   min-width: 0;
 }
@@ -297,6 +301,8 @@
   line-height: 1.5;
 }
 .coach-field > select {
+  max-width: 100%;
+  white-space: normal;
   text-overflow: ellipsis;
 }
 .coach-field > textarea {
@@ -370,6 +376,7 @@
 }
 .coach-filter {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -378,8 +385,10 @@
   color: var(--ov-ink-2);
 }
 .coach-filter > select {
+  flex: 1 1 12rem;
   width: auto;
-  max-width: calc(100% - 48px);
+  max-width: 100%;
+  white-space: normal;
   font-size: 0.875rem;
   padding-right: 30px;
   border-color: var(--ov-hair);

@@ -16,6 +16,7 @@ import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import type { SportUnits } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
+import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -41,9 +42,11 @@ export const metadata: Metadata = { title: "Scheduled by you" };
 function OccurrenceRow({
   occurrence,
   units,
+  today,
 }: {
   occurrence: ScheduledOccurrence;
   units: SportUnits;
+  today: string;
 }) {
   const time = occurrence.scheduledLocalTime?.slice(0, 5);
   const page = `/training/programme/occurrences/${occurrence.id}` as Route;
@@ -76,7 +79,7 @@ function OccurrenceRow({
         <div className="flex flex-wrap gap-2">
           {occurrence.loggable && (
             <LinkButton
-              href={`/training/new?occurrence=${occurrence.id}`}
+              href={`/training/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}`}
               variant="secondary"
               className="min-w-0 flex-1"
             >
@@ -89,6 +92,14 @@ function OccurrenceRow({
               : "Skip, move or remove"}
           </LinkButton>
         </div>
+      )}
+      {occurrence.resolution.kind === "logged" && (
+        <LinkButton
+          href={`/training/activities/${occurrence.resolution.activityId}${originQuery("training")}`}
+          variant="secondary"
+        >
+          See what you logged
+        </LinkButton>
       )}
     </Card>
   );
@@ -122,11 +133,15 @@ export default async function ScheduledPage() {
     isOverdue(occurrence, occurrence.resolution, today),
   );
   const done = schedule.earlier.filter((occurrence) => occurrence.resolution.kind === "logged");
+  const skipped = schedule.earlier.filter((occurrence) => occurrence.resolution.kind === "skipped");
 
   return (
     <>
       <PageHeader title="Scheduled by you" backHref="/training" />
       <PageContent>
+        {canSchedule && upcoming.length > 0 && (
+          <LinkButton href="/training/schedule">Schedule an activity</LinkButton>
+        )}
         <Section title="Upcoming">
           {upcoming.length === 0 ? (
             <EmptyState
@@ -149,6 +164,7 @@ export default async function ScheduledPage() {
                 key={occurrence.id}
                 occurrence={occurrence}
                 units={unitsOf(occurrence)}
+                today={today}
               />
             ))
           )}
@@ -160,6 +176,7 @@ export default async function ScheduledPage() {
                 key={occurrence.id}
                 occurrence={occurrence}
                 units={unitsOf(occurrence)}
+                today={today}
               />
             ))}
           </Section>
@@ -171,6 +188,19 @@ export default async function ScheduledPage() {
                 key={occurrence.id}
                 occurrence={occurrence}
                 units={unitsOf(occurrence)}
+                today={today}
+              />
+            ))}
+          </Section>
+        )}
+        {skipped.length > 0 && (
+          <Section title="Skipped">
+            {skipped.map((occurrence) => (
+              <OccurrenceRow
+                key={occurrence.id}
+                occurrence={occurrence}
+                units={unitsOf(occurrence)}
+                today={today}
               />
             ))}
           </Section>

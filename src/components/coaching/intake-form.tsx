@@ -86,6 +86,7 @@ export function CoachIntakeForm({
   configured,
   initialStep = 0,
   preferredUnit = "kg",
+  preview = false,
 }: {
   initial: { id: string; revision: number; answers: CoachIntake; needsSave?: boolean } | null;
   prefill?: CoachIntake;
@@ -95,6 +96,7 @@ export function CoachIntakeForm({
   configured: boolean;
   initialStep?: number;
   preferredUnit?: "kg" | "lb";
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -128,6 +130,11 @@ export function CoachIntakeForm({
 
   async function flush() {
     if (timer.current) clearTimeout(timer.current);
+    if (preview) {
+      saved.current = JSON.stringify(current.current);
+      setSaveState("Preview only — changes stay on this screen.");
+      return;
+    }
     if (saving.current) await saving.current;
     if (saved.current === JSON.stringify(current.current)) return;
     const work = (async () => {
@@ -184,6 +191,10 @@ export function CoachIntakeForm({
     }
   }
   async function create() {
+    if (preview) {
+      setError("Preview only — no programme was requested.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -210,6 +221,11 @@ export function CoachIntakeForm({
     }
   }
   async function exit() {
+    if (preview) {
+      await flush();
+      setStep(0);
+      return;
+    }
     setSubmitting(true);
     try {
       await flush();
@@ -223,6 +239,10 @@ export function CoachIntakeForm({
   }
   async function upload(selected: FileList | null) {
     if (!selected) return;
+    if (preview) {
+      setError("Preview only — files are not uploaded.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -253,6 +273,11 @@ export function CoachIntakeForm({
     }
   }
   async function remove(file: Report) {
+    if (preview) {
+      setFiles((previous) => previous.filter((entry) => entry.id !== file.id));
+      change({ attachmentIds: current.current.attachmentIds.filter((id) => id !== file.id) });
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {

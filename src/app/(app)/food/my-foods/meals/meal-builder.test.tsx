@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
+import { FoodPreview } from "@/components/food/food-actions";
 import { deleteSavedMealAction, saveLibraryMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutrition";
 
@@ -81,6 +82,24 @@ const USUAL: SavedMealRecord = {
 const sheet = () => document.querySelector("dialog")!;
 const inSheet = () => within(sheet());
 const inMeal = () => within(screen.getByRole("list", { name: "In this meal" }));
+
+it("does not save or delete preview meals in the signed-in account", async () => {
+  render(
+    <FoodPreview>
+      <MealBuilder saved={USUAL} foods={[OATS]} />
+    </FoodPreview>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save meal" }));
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    "This is a preview. Changes are not saved.",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete meal" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Delete meal" })).toBeTruthy());
+  expect(saveLibraryMealAction).not.toHaveBeenCalled();
+  expect(deleteSavedMealAction).not.toHaveBeenCalled();
+  expect(router.replace).not.toHaveBeenCalled();
+});
 
 it("builds a new meal from My foods, each food at the amount its sheet is given", async () => {
   render(<MealBuilder saved={null} foods={[OATS, WHEY, MILK]} />);
@@ -179,6 +198,20 @@ it("deletes a saved meal and goes back to My foods", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Delete meal" }));
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(USUAL.id));
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/food/my-foods"));
+});
+
+it("shows a server portion-limit error when a library food changed while the editor was open", async () => {
+  vi.mocked(saveLibraryMealAction).mockResolvedValueOnce({
+    ok: false,
+    fieldErrors: { amount: "That comes to more than 1,000 g of carbs." },
+  });
+  render(<MealBuilder saved={USUAL} foods={[OATS]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Save meal" }));
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    "That comes to more than 1,000 g of carbs.",
+  );
+  expect(router.replace).not.toHaveBeenCalled();
 });
 
 it("says to make a food first when My foods has none", () => {

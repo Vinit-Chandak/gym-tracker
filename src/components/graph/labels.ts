@@ -79,9 +79,13 @@ export function dayHref(date: string): Route {
   return `/progress/day/${date}` as Route;
 }
 
-/** A week or a month of one kind of record, as History lists them. */
-export function historyHref(from: string, to: string, kind: "workout" | "run" | "recovery"): Route {
-  return `/progress/history?from=${from}&to=${to}&kind=${kind}` as Route;
+/** A span of records as History lists them, optionally narrowed to one kind. */
+export function historyHref(
+  from: string,
+  to: string,
+  kind?: "workout" | "run" | "recovery",
+): Route {
+  return `/progress/history?from=${from}&to=${to}${kind ? `&kind=${kind}` : ""}` as Route;
 }
 
 /** A day's food log on the Food tab. */

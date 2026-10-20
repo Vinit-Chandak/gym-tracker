@@ -481,6 +481,8 @@
      * on the right-hand edge instead of trailing the date.
      */
     display: grid;
+    /* Let the native value and picker share the available width at enlarged text sizes. */
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     min-width: 0;
     max-width: 100%;

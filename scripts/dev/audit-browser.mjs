@@ -2,6 +2,8 @@ import { devices } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { launch, skipDevice } from "./audit-engines.mjs";
+import { answerFirstStep, choosePlace, signUp } from "./audit-controls.mjs";
+import { hasUnexpectedErrorScreen } from "./audit-route-matcher.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
@@ -77,11 +79,16 @@ const routes = [
   "/progress?view=running",
   "/progress?view=strength",
   "/progress?view=recovery",
+  "/progress?view=food",
   ...historyWindows.flatMap(({ from, to }) => [
     `/progress?from=${from}&to=${to}`,
     `/progress/history?from=${from}&to=${to}`,
   ]),
   "/profile",
+  "/reset-password",
+  ...(process.env.AUDIT_COACH_BACKUP_OWNER_ID
+    ? ["/oauth/consent?authorization_id=local-screen-audit"]
+    : []),
   "/profile/edit",
   "/profile/privacy",
   "/profile/password",
@@ -126,6 +133,19 @@ const routes = [
   `/exercises/${exercise}`,
   `/workouts/${workout}`,
   "/training",
+  "/training/log",
+  "/training/programmes/new",
+  "/training/programmes/new?scope=session",
+  "/training/programmes/archived",
+  ...["strength", "running", "cycling", "swimming"].flatMap((sport) => [
+    `/training/log?sport=${sport}`,
+    `/training/log?sport=${sport}&date=${fixtures.history.to}`,
+    `/training/programmes/${sport}`,
+    ...(sport === "strength" ? [] : [`/training/programmes/${sport}/edit`]),
+    `/training/programmes/new?sport=${sport}`,
+    `/training/programmes/new?sport=${sport}&method=coach`,
+    `/training/programmes/new?sport=${sport}&scope=session&method=coach`,
+  ]),
   ...(fixtures.programDays ?? [])
     .filter((day) => day.userId === vinit)
     .map((day) => `/training/days/${day.id}`),
@@ -252,6 +272,16 @@ for (const config of configurations.filter((c) =>
           ? page.getByText("Warm.", { exact: true })
           : page.getByRole("heading", { level: 1 }).first()
       ).waitFor({ state: "visible", timeout: 15_000 });
+      // A server heading can arrive before a client editor hydrates or a Suspense body
+      // resolves. Capture the usable screen, not its short-lived loading placeholder.
+      await page.getByText("Opening your activity…", { exact: true }).waitFor({
+        state: "hidden",
+        timeout: 15_000,
+      });
+      await page.locator(".loading-retry, .navigation-progress").first().waitFor({
+        state: "hidden",
+        timeout: 15_000,
+      });
       const durationMs = Math.round(performance.now() - started);
       await page.evaluate(
         ({ fontSize, expand }) => {
@@ -295,6 +325,9 @@ for (const config of configurations.filter((c) =>
       const data = await page.evaluate(() => ({
         title: document.title,
         text: document.body.innerText.slice(0, 18000),
+        errorScreen:
+          document.querySelector(".error-page h1.error-page-title")?.textContent?.trim() ===
+          "Something went wrong",
         overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         overflowing: [...document.querySelectorAll("main *")]
           .filter((e) => {
@@ -316,6 +349,7 @@ for (const config of configurations.filter((c) =>
           }))
         : [];
       const unexpectedDestination = !arrived(new URL(page.url()));
+      const unexpectedErrorScreen = hasUnexpectedErrorScreen({ route, url: page.url(), ...data });
       results.push({
         device: config.name,
         persona,
@@ -330,12 +364,13 @@ for (const config of configurations.filter((c) =>
         accessibility,
         expectedRoute,
         unexpectedDestination,
+        unexpectedErrorScreen,
         unexpectedNotFound: /(^|\n)(?:Not found|This page could not be found)(?:\n|\.|$)/i.test(
           data.text,
         ),
       });
       console.log(
-        `${config.name} ${persona} ${route}: ${response.status()}${data.overflow ? " OVERFLOW" : ""}${errors.length ? ` ERRORS ${errors.length}` : ""}${accessibility.length ? ` A11Y ${accessibility.map((v) => v.id).join(",")}` : ""}`,
+        `${config.name} ${persona} ${route}: ${response.status()}${unexpectedErrorScreen ? " ERROR SCREEN" : ""}${data.overflow ? " OVERFLOW" : ""}${errors.length ? ` ERRORS ${errors.length}` : ""}${accessibility.length ? ` A11Y ${accessibility.map((v) => v.id).join(",")}` : ""}`,
       );
     } catch (error) {
       results.push({ device: config.name, persona, route, screenshots, error: error.message });
@@ -411,6 +446,44 @@ for (const config of configurations.filter((c) =>
             ];
     for (const [i, route] of extra.entries()) await visit(route, persona, i);
   }
+  // The unconfigured Taylor checks the guards, not the screens behind them. Walk setup
+  // with a separate account so a redirect cannot masquerade as coverage of a later step.
+  if (!process.env.AUDIT_ROUTE_FILTER) {
+    for (const experience of ["experienced", "new"]) {
+      await context.clearCookies();
+      await freshPage();
+      await page.goto("/signup", { waitUntil: "networkidle" });
+      await signUp(page, {
+        name: "Screen Audit",
+        email: `screens-${config.name}-${experience}-${Date.now()}@local.test`,
+        password: "ScreenAudit123!",
+      });
+      const persona = `setup-${experience}`;
+      await visit("/welcome", persona, 0);
+      await answerFirstStep(page, {
+        experience,
+        sports: ["Strength", "Running"],
+        timeZone: "Asia/Kolkata",
+      });
+      await visit("/welcome/gym", persona, 1);
+      await choosePlace(page, {
+        kind: experience === "experienced" ? "gym" : "home",
+        name: "Screen audit training place",
+      });
+      await visit("/welcome/equipment", persona, 2);
+      const setupRoutes =
+        experience === "experienced"
+          ? [
+              "/welcome/programme",
+              "/welcome/programme/create",
+              "/welcome/programme/split",
+              "/welcome/programme/template",
+              "/welcome/programme/manual",
+            ]
+          : ["/welcome/programme"];
+      for (const [i, route] of setupRoutes.entries()) await visit(route, persona, i + 3);
+    }
+  }
   await browser.close();
 }
 console.log(`Saved ${results.length} screen checks.`);
@@ -419,6 +492,7 @@ const failures = results.filter(
     result.error ||
     result.status >= 400 ||
     result.unexpectedNotFound ||
+    result.unexpectedErrorScreen ||
     result.unexpectedDestination ||
     result.overflow ||
     result.errors?.length ||

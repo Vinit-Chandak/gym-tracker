@@ -197,6 +197,7 @@ it("leads its links wherever the preview says", () => {
   render(
     <FoodView
       today="2026-09-25"
+      date="2024-09-25"
       day={{
         targets: null,
         entries: [],
@@ -214,13 +215,17 @@ it("leads its links wherever the preview says", () => {
     />,
   );
   expect(screen.getByRole("link", { name: /^Dinner/ }).getAttribute("href")).toBe(
-    "/preview/food?meal=dinner",
+    "/preview/food?meal=dinner&day=2024-09-25",
   );
   expect(screen.getByRole("link", { name: /^My foods/ }).getAttribute("href")).toBe(
     "/preview/food?page=my-foods",
   );
   // With no goal on the profile, targets start from 55 / 25 / 20, each share named.
   expect(screen.getByText(whole(/^Carbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/))).toBeTruthy();
+  // The year remains visible even when the selected day is too old to appear in the strip.
+  expect(
+    screen.getByText("Wed 25 Sept 2024", { normalizer: (text) => text.replace(/\s+/g, " ") }),
+  ).toBeTruthy();
 });
 
 it("puts the last seven days under the header, ending on today, and the month above them", () => {

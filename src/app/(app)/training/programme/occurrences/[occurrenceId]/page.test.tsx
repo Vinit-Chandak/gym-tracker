@@ -189,6 +189,21 @@ it("says a skipped run is skipped, whichever way it was skipped", async () => {
   expect(html).not.toContain(">Not done<");
 });
 
+it("does not call an independently scheduled session part of the athlete's programme", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...tempo,
+    familyId: null,
+    cycleIndex: null,
+    cycleDayIndex: null,
+    resolution: { kind: "incomplete" },
+    loggable: true,
+  });
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).toContain(DISTANCE);
+  expect(html).not.toContain("Your programme");
+  expect(html).toContain("Log it");
+});
+
 /**
  * Review, 12 October 2026: "Put it back" on a run the sequence went past sends the programme
  * back to it, and nothing said so until after the tap. The page tells its actions when it does.

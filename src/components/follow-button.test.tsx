@@ -105,6 +105,26 @@ it("updates a pending request when refreshed server data says it was accepted", 
   expect(screen.queryByRole("dialog", { name: "Cancel request?" })).toBeNull();
 });
 
+it("does not carry a locally acknowledged follow or its confirmation onto another person", async () => {
+  actions.followAction.mockResolvedValue("accepted");
+  const view = render(
+    <FollowButton personId="p1" username="alice" relation={relation({ followApproval: false })} />,
+  );
+  fireEvent.click(button("Follow"));
+  await waitFor(() => expect(button("Following")).toBeTruthy());
+  fireEvent.click(button("Following"));
+  expect(screen.getByRole("dialog", { name: "Unfollow @alice?" })).toBeTruthy();
+
+  view.rerender(
+    <FollowButton personId="p2" username="bea" relation={relation({ followApproval: false })} />,
+  );
+  expect(button("Follow")).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(button("Follow"));
+  await waitFor(() => expect(actions.followAction).toHaveBeenLastCalledWith("p2"));
+  expect(actions.unfollowAction).not.toHaveBeenCalled();
+});
+
 it.each(["pending", "error"])(
   "does not overwrite an accepted refresh with an older %s response",
   async (response) => {

@@ -80,6 +80,21 @@ it("asks which route you want before it asks anything else", async () => {
   );
 });
 
+it("keeps preview edits and navigation local without saving intake or requesting coaching", async () => {
+  render(<CoachIntakeForm {...props} preview />);
+  fireEvent.change(screen.getByLabelText("Your brief"), {
+    target: { value: "Example edits must stay local." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByText("Training days");
+  expect(saveCoachIntakeAction).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Step 5 of 5: Review" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Create my programme" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Preview only");
+  expect(createCoachProgramAction).not.toHaveBeenCalled();
+  expect(push).not.toHaveBeenCalled();
+});
+
 it("creates a programme from the guided route without a session length", async () => {
   render(
     <CoachIntakeForm

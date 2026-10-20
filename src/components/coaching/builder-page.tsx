@@ -44,7 +44,14 @@ export async function ProgrammeBuilderPage({
     },
     { readOnly: true },
   );
-  if (draftId && (!data.initial || !["editing", "ready"].includes(data.initial.status))) notFound();
+  if (
+    draftId &&
+    (!data.initial ||
+      data.initial.sport !== "strength" ||
+      data.initial.standalone ||
+      !["editing", "ready"].includes(data.initial.status))
+  )
+    notFound();
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>

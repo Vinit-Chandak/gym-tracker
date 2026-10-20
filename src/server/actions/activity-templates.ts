@@ -9,6 +9,7 @@ import { requireUser } from "@/server/auth";
 import {
   archiveTemplate,
   createTemplate,
+  getTemplate,
   reviseTemplate,
   TemplateNotFoundError,
 } from "@/server/repositories/activity-templates";
@@ -51,11 +52,24 @@ export async function saveTemplateAction(
   if (!parsed.success) return parsed.state;
   const form = parsed.data;
 
-  const prescription = prescriptionFromForm(form);
-  if (!prescription.ok) return problemsToState(prescription.problems, form, formData);
+  // New templates can be refused before opening a transaction. Edits also need the current
+  // prescription so fields this compact form cannot express survive the correction.
+  const createdPrescription = templateId ? null : prescriptionFromForm(form);
+  if (createdPrescription && !createdPrescription.ok)
+    return problemsToState(createdPrescription.problems, form, formData);
 
   try {
-    await withUser(getDb(), user.id, async (tx) => {
+    const refusal = await withUser(getDb(), user.id, async (tx) => {
+      const existing = templateId ? await getTemplate(tx, user.id, templateId) : null;
+      if (templateId && !existing) throw new TemplateNotFoundError();
+      if (existing && existing.sport !== form.sport)
+        return {
+          formError: "A template's sport cannot change. Create a new template for another sport.",
+          values: formValues(formData),
+        };
+      const prescription =
+        createdPrescription ?? prescriptionFromForm(form, existing?.prescription);
+      if (!prescription.ok) return problemsToState(prescription.problems, form, formData);
       const stored = endurancePrescriptionSchema.parse(prescription.value);
       if (templateId) {
         await reviseTemplate(tx, user.id, templateId, {
@@ -72,6 +86,7 @@ export async function saveTemplateAction(
         prescription: stored,
       });
     });
+    if (refusal) return refusal;
   } catch (error) {
     return {
       formError:

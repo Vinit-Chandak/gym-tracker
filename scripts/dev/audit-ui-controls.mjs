@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { devices } from "@playwright/test";
+import { devices, expect } from "@playwright/test";
 import { assertReadableText } from "./audit-text-readability.mjs";
 import { launch, skipDevice } from "./audit-engines.mjs";
 import { checkFoodLayout } from "./audit-food-layout.mjs";
@@ -131,27 +131,51 @@ for (const config of [
         path: `${folder}/${config.name}-food-header-narrow.png`,
       });
       await visit("/profile/ai-coach", 32);
-      await assertReadableText(page.getByRole("heading", { level: 1 }));
-      await page
-        .getByRole("button", {
-          name: "Goals, availability and reports; programme changes and requests",
-          exact: true,
-        })
-        .click();
-      for (const title of ["Goals, availability and reports", "Programme changes and requests"]) {
-        await assertReadableText(page.getByText(title, { exact: true }));
-      }
+      await assertReadableText(page.getByRole("heading", { name: "AI coach", level: 1 }));
+      // The page renders AiCoachSettings' hub, not the retired CoachLinks menu.
+      const tabs = page.getByRole("tablist", { name: "AI coach views", exact: true });
+      await expect(tabs.getByRole("tab")).toHaveCount(3);
+      await tabs.scrollIntoViewIfNeeded();
+      await assertReadableText(tabs.locator(".coach-tab-label"));
       await page.screenshot({
         animations: "disabled",
         path: `${folder}/${config.name}-coach-narrow.png`,
       });
-      await page
-        .getByText("Programme changes and requests", { exact: true })
-        .scrollIntoViewIfNeeded();
-      await page.screenshot({
-        animations: "disabled",
-        path: `${folder}/${config.name}-coach-links-narrow.png`,
-      });
+      for (const [key, name] of [
+        ["requests", /^Requests & changes/],
+        ["notes", "Notes & memory"],
+        ["overview", "Overview"],
+      ]) {
+        const tab = tabs.getByRole("tab", { name });
+        await tab.click();
+        await expect(tab).toHaveAttribute("aria-selected", "true");
+        const panel = page.getByRole("tabpanel");
+        await expect(panel).toHaveCount(1);
+        await expect(panel).toHaveAttribute("id", `coach-panel-${key}`);
+        if (key === "requests") {
+          await assertReadableText(panel.getByRole("heading", { name: "Requests & changes" }));
+          await panel.locator("summary").filter({ hasText: "Past requests & changes" }).click();
+          const history = panel.getByRole("link", { name: "Programme history", exact: true });
+          await expect(history).toHaveAttribute("href", "/profile/programme/history");
+          await assertReadableText(history);
+          await history.scrollIntoViewIfNeeded();
+        } else if (key === "notes") {
+          await assertReadableText(
+            panel.getByRole("heading", { name: "What the coach remembers", exact: true }),
+          );
+        } else {
+          await expect(panel.getByLabel("Notes for the coach", { exact: true })).toBeVisible();
+        }
+        const width = await page.evaluate(() => ({
+          viewport: document.documentElement.clientWidth,
+          content: document.documentElement.scrollWidth,
+        }));
+        assert.ok(width.content <= width.viewport + 1, `${key}: ${JSON.stringify(width)}`);
+        await page.screenshot({
+          animations: "disabled",
+          path: `${folder}/${config.name}-coach-${key}-narrow.png`,
+        });
+      }
     });
     await check("programme-narrow-large-text", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
@@ -186,23 +210,21 @@ for (const config of [
     await page.setViewportSize(config.options.viewport);
     await check("coach-heading-large-text", async () => {
       await visit("/profile/ai-coach", 32);
-      const lines = await page
-        .getByRole("button", { name: "About the AI coach", exact: true })
-        .evaluate((button) => {
-          const title = button.parentElement.parentElement;
-          const text = [...title.childNodes].find(
-            (node) => node.nodeType === Node.TEXT_NODE && node.textContent.includes("AI coach"),
-          );
-          if (!text) throw new Error("AI coach heading not found");
-          const range = document.createRange();
-          range.selectNode(text);
-          return range.getClientRects().length;
-        });
-      assert.ok(lines <= 2, `AI coach heading broken across ${lines} lines`);
+      const heading = page.getByRole("heading", { name: "AI coach", level: 1, exact: true });
+      await assertReadableText(heading);
+      const lines = await heading.evaluate((title) => {
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+      });
+      assert.ok(lines > 0 && lines <= 2, `AI coach heading broken across ${lines} lines`);
     });
     await check("long-help-large-text", async () => {
-      await visit("/profile/ai-coach", 32);
-      await page.getByRole("button", { name: "About the AI coach", exact: true }).click();
+      // ProgressView mounts MusclesSection for this URL, including its real InfoTip.
+      await visit("/progress?view=muscles", 32);
+      const trigger = page.getByRole("button", { name: "About working sets", exact: true });
+      await trigger.click();
+      await expect(page.getByRole("note")).toContainText("warm-ups are excluded");
       const bounds = await noteBounds();
       assert.ok(bounds.fits && bounds.painted, JSON.stringify(bounds));
       await page.screenshot({
@@ -210,26 +232,33 @@ for (const config of [
         path: `${folder}/${config.name}-help-large-text.png`,
       });
       await page.keyboard.press("Escape");
-      assert.equal(await page.getByRole("note").count(), 0);
+      await expect(page.getByRole("note")).toHaveCount(0);
+      await expect(trigger).toBeFocused();
     });
     await check("long-help-short-viewport", async () => {
-      await page.setViewportSize({ width: 320, height: 360 });
-      await visit("/profile/ai-coach", 32);
-      await page.getByRole("button", { name: "About the AI coach", exact: true }).click();
+      // A short keyboard/landscape viewport must exercise real scrolling, not only fitting.
+      await page.setViewportSize({ width: 320, height: 240 });
+      await visit("/progress?view=muscles", 32);
+      const trigger = page.getByRole("button", { name: "About working sets", exact: true });
+      await trigger.click();
+      await expect(page.getByRole("note")).toContainText("warm-ups are excluded");
       const bounds = await noteBounds();
       assert.ok(bounds.fits && bounds.painted, JSON.stringify(bounds));
-      const scroll = await page.getByRole("note").evaluate((element) => {
-        element.scrollTop = element.scrollHeight;
-        return {
-          scrollable: element.scrollHeight > element.clientHeight,
-          scrolled: element.scrollTop > 0,
-        };
-      });
-      assert.ok(!scroll.scrollable || scroll.scrolled, "Long help cannot be scrolled");
+      const note = page.getByRole("note");
+      await expect(note).toBeFocused();
+      assert.ok(
+        await note.evaluate((element) => element.scrollHeight > element.clientHeight),
+        "Short-viewport fixture must overflow the note to exercise scrolling",
+      );
+      await page.keyboard.press("PageDown");
+      await expect.poll(() => note.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
       await page.screenshot({
         animations: "disabled",
         path: `${folder}/${config.name}-help-short.png`,
       });
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("note")).toHaveCount(0);
+      await expect(trigger).toBeFocused();
     });
     await page.setViewportSize(config.options.viewport);
     await check("chart-values-large-text", async () => {

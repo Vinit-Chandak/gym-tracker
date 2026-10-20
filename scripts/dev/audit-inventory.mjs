@@ -2,6 +2,8 @@
 import { existsSync } from "node:fs";
 import { glob, readFile, readdir, writeFile } from "node:fs/promises";
 
+import { createRouteMatcher, isSuccessfulScreenVisit } from "./audit-route-matcher.mjs";
+
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
 // The build being served, which may have been made in another checkout (AUDIT_BUILD_DIR). With no
 // build here, the pages are listed from this checkout's app directory, as the build lists them.
@@ -21,34 +23,35 @@ const visits = (
     files.map(async (name) => JSON.parse(await readFile(`${output}/${name}`, "utf8"))),
   )
 ).flat();
-const successful = visits.filter(
-  (row) => !row.error && row.status < 400 && !row.unexpectedNotFound && !row.unexpectedDestination,
-);
+const successful = visits.filter(isSuccessfulScreenVisit);
+const redirectOnly = new Set(["/", "/runs", "/runs/new", "/welcome/sports"]);
 const pages = Object.keys(manifest)
   .filter(
-    (path) => path.endsWith("/page") && !path.includes("/(preview)/") && !path.startsWith("/_"),
+    (path) =>
+      path.endsWith("/page") &&
+      (process.env.AUDIT_INCLUDE_PREVIEWS === "true" || !path.includes("/(preview)/")) &&
+      !path.startsWith("/_"),
   )
   .map((path) => path.replace(/\/\([^/]+\)/g, "").replace(/\/page$/, "") || "/")
   .sort();
+const matchTemplate = createRouteMatcher(pages);
 const inventory = pages.map((template) => {
-  const matcher = new RegExp(
-    `^${template
-      .split("/")
-      .map((part) =>
-        part.startsWith("[...")
-          ? ".+"
-          : part.startsWith("[")
-            ? "[^/]+"
-            : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-      )
-      .join("/")}$`,
-  );
   return {
     template,
     cases: [
       ...new Set(
         successful
-          .filter((row) => matcher.test(new URL(row.route, "http://localhost").pathname))
+          .filter((row) => {
+            const requested = new URL(row.route, "http://localhost").pathname;
+            if (matchTemplate(requested) !== template) return false;
+            // A setup guard can redirect to /welcome while the requested screen never renders.
+            // Only routes that exist solely as compatibility redirects count that as coverage.
+            return (
+              redirectOnly.has(template) ||
+              template.startsWith("/runs/") ||
+              (row.url && matchTemplate(new URL(row.url, "http://localhost").pathname) === template)
+            );
+          })
           .map((row) => row.route),
       ),
     ],

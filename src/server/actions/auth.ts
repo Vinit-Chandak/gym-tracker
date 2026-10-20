@@ -94,7 +94,7 @@ export async function signInAction(
   formData: FormData,
 ): Promise<SignInState> {
   const parsed = signInSchema.safeParse({
-    email: formData.get("email"),
+    email: String(formData.get("email") ?? "").trim(),
     password: formData.get("password"),
     next: formData.get("next") ?? undefined,
   });
@@ -212,7 +212,7 @@ export async function requestPasswordResetAction(
   _previous: PasswordResetState,
   formData: FormData,
 ): Promise<PasswordResetState> {
-  const email = z.email().safeParse(formData.get("email"));
+  const email = z.email().safeParse(String(formData.get("email") ?? "").trim());
   if (!email.success) return { error: "Enter the email address you signed up with." };
 
   const supabase = await createSupabaseServerClient();
@@ -268,8 +268,12 @@ export async function updatePasswordAction(
   return { done: true };
 }
 
-export async function signOutAction(): Promise<void> {
+/** The caller clears local drafts only after Auth confirms the session has ended. */
+export async function signOutAction(): Promise<{ error?: string }> {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
-  redirect("/login");
+  const { value, error } = await attempt(supabase.auth.signOut());
+  if (error || value?.error) {
+    return { error: "Could not sign out. Check your connection and try again." };
+  }
+  return {};
 }

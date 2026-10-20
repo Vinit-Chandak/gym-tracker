@@ -26,7 +26,9 @@ export async function readCoachConnectorConsent(authorizationId: string) {
   const user = await requireUser(),
     backup = getCoachBackupConnection();
   if (!backup || user.id !== backup.ownerId) notFound();
-  const id = z.string().min(1).max(200).parse(authorizationId);
+  const parsedId = z.string().min(1).max(200).safeParse(authorizationId);
+  if (!parsedId.success) notFound();
+  const id = parsedId.data;
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(id);
   if (error || !data) notFound();

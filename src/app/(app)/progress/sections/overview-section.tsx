@@ -43,16 +43,26 @@ export function OverviewSection({
   month,
   overview,
   today,
-}: Pick<ProgressData, "month" | "overview" | "today">) {
+  calendarHref = "/progress/calendar",
+  historyHref = "/progress/history",
+  dayHrefs,
+}: Pick<ProgressData, "month" | "overview" | "today"> & {
+  /** Alternate destinations for fixture previews; null omits an unavailable calendar. */
+  calendarHref?: Route | null;
+  historyHref?: Route;
+  dayHrefs?: Record<number, Route>;
+}) {
   const year = month.month.slice(0, 4);
   const name = formatIsoMonth(month.month, year);
   const days = monthDays(month.activities, month.month, month.units);
-  const links = Object.fromEntries(
-    Array.from({ length: month.today }, (_, i) => [
-      i + 1,
-      `/progress/day/${month.month}-${String(i + 1).padStart(2, "0")}` as Route,
-    ]),
-  );
+  const links =
+    dayHrefs ??
+    Object.fromEntries(
+      Array.from({ length: month.today }, (_, i) => [
+        i + 1,
+        `/progress/day/${month.month}-${String(i + 1).padStart(2, "0")}` as Route,
+      ]),
+    );
   const tallies = tally(month.activities);
 
   return (
@@ -64,10 +74,12 @@ export function OverviewSection({
           <section aria-labelledby="progress-month" className="mt-2">
             <h2 id="progress-month" className="month-head">
               <span>{name}</span>
-              <Link href="/progress/calendar" className="month-head-link">
-                Calendar
-                <Glyph name="chevronRight" className="glyph-18" />
-              </Link>
+              {calendarHref && (
+                <Link href={calendarHref} className="month-head-link">
+                  Calendar
+                  <Glyph name="chevronRight" className="glyph-18" />
+                </Link>
+              )}
             </h2>
             <Art
               kind="month"
@@ -115,7 +127,7 @@ export function OverviewSection({
           <section aria-labelledby="progress-history" className="overview-history">
             <h2 id="progress-history" className="month-head">
               <span>History</span>
-              <Link href="/progress/history" aria-label="All history" className="month-head-link">
+              <Link href={historyHref} aria-label="All history" className="month-head-link">
                 All
                 <Glyph name="chevronRight" className="glyph-18" />
               </Link>

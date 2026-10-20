@@ -15,6 +15,7 @@ vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
 
 import { EquipmentStepForm } from "./equipment-step-form";
 import { previewMachinesStep } from "./preview-step";
+import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 
 beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
@@ -52,6 +53,15 @@ function show(step = previewMachinesStep("gym", "new")) {
   };
   return { container, sent };
 }
+
+it("does not submit preview equipment to the current account", async () => {
+  const { container } = render(
+    <EquipmentStepForm preview step={previewMachinesStep("gym", "new")} art={ART} />,
+  );
+  fireEvent.submit(container.querySelector("form")!);
+  expect((await screen.findByRole("alert")).textContent).toContain("Preview only");
+  expect(addStarterEquipmentAction).not.toHaveBeenCalled();
+});
 
 it("shows someone who already trains the basics as one line, then what is often missed", () => {
   const { sent } = show(previewMachinesStep("gym", "experienced"));

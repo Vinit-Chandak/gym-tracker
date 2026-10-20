@@ -102,8 +102,14 @@ describe("what the reader asked for", () => {
     for (const dates of [
       { from: "2026-10-01", to: "2026-09-01" },
       { from: "2026-02-30" },
+      { from: "2026-13-01" },
+      { from: "2026-00-10" },
       { from: "nonsense" },
       { from: "1999-12-31" },
+      { to: "nonsense" },
+      { to: "2026-13-01" },
+      { to: "2026-02-30" },
+      { to: "0000-01-01" },
     ]) {
       const { choice, error } = chooseRange("6m", dates, TODAY);
       expect(choice).toEqual({ preset: "6m" });

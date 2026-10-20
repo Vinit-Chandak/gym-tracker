@@ -579,8 +579,7 @@ export function LoggingPreview({
   useEffect(() => {
     try {
       for (const key of Object.keys(localStorage))
-        if (key.includes(SESSION_ID) || key.startsWith("overload:draft"))
-          localStorage.removeItem(key);
+        if (key.includes(SESSION_ID)) localStorage.removeItem(key);
     } catch {}
     if (rest && scenario !== "superset" && scenario !== "first") {
       startRestTimer(SESSION_ID, 180);

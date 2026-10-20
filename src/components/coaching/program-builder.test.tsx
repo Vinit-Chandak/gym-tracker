@@ -8,6 +8,7 @@ import {
   saveProgramDraftAction,
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
+import { saveRoutineAction } from "@/server/actions/manual-training";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), unstable_rethrow: vi.fn() }));
@@ -110,6 +111,17 @@ async function savedPlan() {
   await waitFor(() => expect(saveProgramDraftAction).toHaveBeenCalled());
   return vi.mocked(saveProgramDraftAction).mock.calls.at(-1)![0] as ProgramBlueprint;
 }
+
+it("keeps programme and routine saves inside the preview", () => {
+  renderBuilder(blueprint(), { preview: true });
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  expect(screen.getByText("Preview only — no programme was saved.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Day details and options"));
+  fireEvent.click(screen.getByRole("button", { name: "Save this day as a routine" }));
+  expect(screen.getByText("Preview only — no routine was saved.")).toBeTruthy();
+  expect(saveProgramDraftAction).not.toHaveBeenCalled();
+  expect(saveRoutineAction).not.toHaveBeenCalled();
+});
 
 it("clears the exercise selection when a search would hide it", () => {
   renderBuilder();

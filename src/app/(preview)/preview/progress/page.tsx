@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 
 import {
   historyClock,
@@ -9,9 +9,10 @@ import {
 } from "@/app/(app)/progress/history/history-items";
 import type { HistoryItem } from "@/app/(app)/progress/history/history-list";
 import { HistoryView } from "@/app/(app)/progress/history/history-view";
-import { ProgressSections } from "@/app/(app)/progress/progress-sections";
 import { OverviewSection } from "@/app/(app)/progress/sections/overview-section";
 import type { DayActivity } from "@/components/progress/calendar";
+import { SectionSelect } from "@/components/ui/section-select";
+import { chooseRange, listWindowOf } from "@/domain/graph-range";
 
 import { PreviewShell } from "../../preview-shell";
 
@@ -129,29 +130,37 @@ function asItem(done: Done): HistoryItem {
       {
         id,
         startedAt: instant(done.at),
+        occurredOn: done.at.slice(0, 10),
+        title: null,
         gymId: GYM.id,
         gymName: GYM.name,
         dayName: done.day,
         sleepHours: done.sleep ?? null,
         setCount: done.sets,
         exercises: [],
-      } as unknown as Parameters<typeof workoutItem>[0],
+      },
       clock,
     );
   return runItem(
     {
       id,
       startedAt: instant(done.at),
+      occurredOn: done.at.slice(0, 10),
       environment: done.where,
       distanceMeters: done.km * 1000,
       durationSeconds: done.seconds,
       averagePaceSecondsPerKm: done.seconds / done.km,
       gymId: null,
+      surface: null,
+      title: null,
+      notes: null,
+      occurrenceId: null,
+      programRunId: null,
       effort:
         done.effort === undefined
           ? { status: "unknown", value: null }
           : { status: "reported", value: done.effort },
-    } as unknown as Parameters<typeof runItem>[0],
+    },
     clock,
   );
 }
@@ -173,31 +182,75 @@ const NOW: Record<string, string> = {
  * (nothing ever). `?view=history` is the page behind Overview's History: every entry, in pages.
  */
 export default async function ProgressPreviewPage(props: PageProps<"/preview/progress">) {
-  const { state: asked, view } = await props.searchParams;
-  const state = typeof asked === "string" && asked in NOW ? asked : "early";
+  const params = await props.searchParams;
+  const { state: asked, view } = params;
+  const state = typeof asked === "string" && Object.hasOwn(NOW, asked) ? asked : "early";
   const now = NOW[state]!;
   const today = now.slice(0, 10);
   const month = today.slice(0, 7);
   const done = state === "new" ? [] : DONE.filter((d) => d.at <= now);
-  const items = done.map(asItem).sort(newestFirst);
+  // These records illustrate a layout; their invented IDs have no real detail pages.
+  const items = done.map((entry) => ({ ...asItem(entry), href: undefined })).sort(newestFirst);
+  const href = (nextView: string, nextState = state) =>
+    `/preview/progress?state=${nextState}&view=${nextView}` as Route;
+  const navigation = (
+    <div className="progress page-width space-y-2 py-3">
+      <SectionSelect
+        label="Progress preview"
+        value={view === "history" ? "history" : "overview"}
+        options={[
+          { value: "overview", label: "Overview", href: href("overview") },
+          { value: "history", label: "History", href: href("history") },
+        ]}
+      />
+      <SectionSelect
+        label="Preview state"
+        value={state}
+        options={[
+          { value: "early", label: "Early month" },
+          { value: "late", label: "Late month" },
+          { value: "first", label: "New month" },
+          { value: "new", label: "No activity yet" },
+        ].map((option) => ({
+          ...option,
+          href: href(view === "history" ? "history" : "overview", option.value),
+        }))}
+      />
+    </div>
+  );
 
-  if (view === "history")
+  if (view === "history") {
+    const { choice, error } = chooseRange(
+      "all",
+      {
+        from: typeof params.from === "string" ? params.from : undefined,
+        to: typeof params.to === "string" ? params.to : undefined,
+      },
+      today,
+    );
+    const window = listWindowOf(choice, today);
+    const listed = items.filter((item) => item.day >= window.from && item.day <= window.to);
     return (
       <PreviewShell tab="/progress">
+        {navigation}
         <HistoryView
+          backHref={href("overview")}
+          error={error}
           today={today}
-          range={{ from: items.at(-1)?.day ?? today, to: today }}
-          items={items}
+          range={choice.custom ?? { from: listed.at(-1)?.day ?? today, to: today }}
+          items={listed}
           gyms={[GYM]}
         />
       </PreviewShell>
     );
+  }
 
   return (
     <PreviewShell tab="/progress">
+      {navigation}
       <div className="progress page-width pt-safe">
         <div className="progress-view">
-          <ProgressSections value="overview" filters={null} />
+          <h1 className="type-title">Progress</h1>
           <section aria-label="Overview" className="min-w-0">
             <OverviewSection
               today={today}
@@ -207,6 +260,9 @@ export default async function ProgressPreviewPage(props: PageProps<"/preview/pro
                 activities: done.filter((d) => d.at.startsWith(month)).map(asActivity),
               }}
               overview={{ latest: items.slice(0, LATEST_COUNT) }}
+              calendarHref={null}
+              dayHrefs={{}}
+              historyHref={href("history")}
             />
           </section>
         </div>

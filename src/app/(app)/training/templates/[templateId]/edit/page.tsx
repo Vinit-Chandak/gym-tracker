@@ -6,6 +6,8 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { ActivityPlan } from "@/components/activities/activity-plan";
+import { canEditTemplateSteps } from "@/domain/template-editor";
 import {
   DISTANCE_UNITS,
   fromMetres,
@@ -43,6 +45,7 @@ export default async function EditTemplatePage(
   if (!template || !units) notFound();
 
   const targets = template.prescription.sessionTargets;
+  const preserveSteps = !canEditTemplateSteps(template.prescription);
   const block = template.prescription.nodes.find((node) => node.kind === "repeat");
   const step = block?.kind === "repeat" ? block.steps[0] : undefined;
   // Each distance comes back in the unit it was typed in, so a five-mile run is still 5 mi
@@ -59,14 +62,23 @@ export default async function EditTemplatePage(
     <>
       <PageHeader title="Edit template" backHref="/training/templates" />
       <PageContent>
+        {preserveSteps && (
+          <ActivityPlan
+            sport={template.sport}
+            prescription={template.prescription}
+            units={units}
+            showSource={false}
+          />
+        )}
         <PrescriptionEditor
           action={saveTemplateAction.bind(null, templateId)}
           sport={template.sport}
           sports={[]}
+          preserveSteps={preserveSteps}
           initial={{
             sport: template.sport,
             name: template.name,
-            notes: template.notes ?? "",
+            notes: template.notes ?? template.prescription.notes ?? "",
             durationMinMinutes: targets.durationMs ? String(targets.durationMs[0] / 60_000) : "",
             durationMaxMinutes: targets.durationMs ? String(targets.durationMs[1] / 60_000) : "",
             distanceMin: targets.distanceMetres
@@ -78,12 +90,13 @@ export default async function EditTemplatePage(
             distanceUnit: unit,
             effortMin: targets.effort ? String(targets.effort[0]) : "",
             effortMax: targets.effort ? String(targets.effort[1]) : "",
-            repetitions: block?.kind === "repeat" ? String(block.repetitions) : "",
+            repetitions:
+              !preserveSteps && block?.kind === "repeat" ? String(block.repetitions) : "",
             restBetweenSeconds:
               block?.kind === "repeat" && block.restBetweenMs !== null
                 ? String(block.restBetweenMs / 1000)
                 : "",
-            stepTargetKind: step ? step.target.kind : "none",
+            stepTargetKind: !preserveSteps && step ? step.target.kind : "none",
             stepDistance:
               step?.target.kind === "distance"
                 ? String(fromMetres(step.target.metres[1], stepUnit))

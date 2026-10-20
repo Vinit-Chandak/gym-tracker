@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
@@ -55,7 +56,9 @@ export function HistoryView({
   items,
   gyms,
   stopsAfter = null,
+  backHref = "/progress",
 }: {
+  backHref?: Route;
   /** A range the reader asked for that could not be read. */
   error?: string | null;
   /** Today in the account's time zone: a day in another year is named with it. */
@@ -159,7 +162,7 @@ export function HistoryView({
       <PageHeader
         title="History"
         meta={formatDateRange(range.from, range.to)}
-        backHref="/progress"
+        backHref={backHref}
         action={
           <FilterSheet
             title="Filters"
@@ -182,8 +185,12 @@ export function HistoryView({
                           Recovery readings of their own are an older account's daily ones: a
                           check-in today is a workout's, and its sleep stands on that row. Kept
                           while chosen, so the select never shows a filter other than the one on. */}
-                      {kinds.has("cycling") && <option value="cycling">Rides</option>}
-                      {kinds.has("swimming") && <option value="swimming">Swims</option>}
+                      {(kinds.has("cycling") || filters.kind === "cycling") && (
+                        <option value="cycling">Rides</option>
+                      )}
+                      {(kinds.has("swimming") || filters.kind === "swimming") && (
+                        <option value="swimming">Swims</option>
+                      )}
                       {(kinds.has("recovery") || filters.kind === "recovery") && (
                         <option value="recovery">Recovery</option>
                       )}

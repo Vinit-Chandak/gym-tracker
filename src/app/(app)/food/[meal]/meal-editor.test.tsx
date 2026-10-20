@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
+import { FoodPreview } from "@/components/food/food-actions";
 import {
   createFoodAction,
   deleteEntryAction,
@@ -28,6 +29,7 @@ vi.mock("@/server/actions/nutrition", () => ({
   logFoodAction: vi.fn(),
   logQuickFoodAction: vi.fn(),
   createFoodAction: vi.fn(),
+  createLibraryFoodAction: vi.fn(),
   updateEntryAction: vi.fn(),
   deleteEntryAction: vi.fn(),
   saveMealAction: vi.fn(),
@@ -149,6 +151,27 @@ const myFoods = () => within(screen.getByRole("group", { name: "Your foods and m
 const inSheet = () => within(sheet());
 const type = (label: string, value: string) =>
   fireEvent.change(inSheet().getByLabelText(label), { target: { value } });
+
+it("does not log a preview quick add to the signed-in account", async () => {
+  render(
+    <FoodPreview>
+      <MealEditor
+        date={TODAY}
+        meal="breakfast"
+        screen={{ entries: [], foods: [], savedMeals: [] }}
+      />
+    </FoodPreview>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /^Quick add/ }));
+  type("kcal", "400");
+  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  expect(await inSheet().findByRole("alert")).toHaveProperty(
+    "textContent",
+    "This is a preview. Changes are not saved.",
+  );
+  expect(logQuickFoodAction).not.toHaveBeenCalled();
+  expect(sheet().open).toBe(true);
+});
 
 it("logs a food from My foods at the amount eaten, a tap or a few digits away", async () => {
   editor();

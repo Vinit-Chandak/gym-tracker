@@ -18,17 +18,11 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { FOOD_UNIT_LABELS } from "@/lib/labels";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
-import {
-  createFoodAction,
-  createLibraryFoodAction,
-  deleteFoodAction,
-  logQuickFoodAction,
-  updateFoodAction,
-} from "@/server/actions/nutrition";
 import type { FoodRecord } from "@/server/repositories/nutrition";
 import type { FoodDraft } from "@/server/validation/nutrition";
 
 import { AmountField, Preview, typedAmount } from "./amount-field";
+import { useFoodActions } from "./food-actions";
 
 /**
  * A new food, logged in a meal as it is made; a food eaten just this once, logged from its
@@ -116,6 +110,13 @@ export function FoodSheet({
   /** Said once the change is made; `added` when a food went into the meal. */
   onDone: (said: string, added: boolean) => void;
 }) {
+  const {
+    createFoodAction,
+    createLibraryFoodAction,
+    deleteFoodAction,
+    logQuickFoodAction,
+    updateFoodAction,
+  } = useFoodActions();
   const formId = useId();
   const [fields, setFields] = useState<FoodDraft>(() => draftOf(target));
   // Null while it follows the portion.

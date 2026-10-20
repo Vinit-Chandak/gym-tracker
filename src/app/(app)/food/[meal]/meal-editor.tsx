@@ -3,6 +3,7 @@
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
 import { FOODS_PER_PAGE, FoodSection, MEALS_PER_PAGE } from "@/components/food/food-section";
+import { useFoodActions } from "@/components/food/food-actions";
 import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
 import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
@@ -10,7 +11,6 @@ import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
-import { deleteEntryAction } from "@/server/actions/nutrition";
 import type {
   EntryRecord,
   FoodRecord,
@@ -72,6 +72,7 @@ export function MealEditor({
   /** The day's meals and target, which a portion is shown going into. */
   day?: FoodDayBowl;
 }) {
+  const { deleteEntryAction } = useFoodActions();
   const label = MEAL_LABELS[meal];
   const [query, setQuery] = useState("");
   const [said, setSaid] = useState("");

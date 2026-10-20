@@ -53,6 +53,7 @@ export function PrescriptionEditor({
   sports,
   initial,
   submitLabel,
+  preserveSteps = false,
 }: {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   sport: EnduranceSport;
@@ -60,6 +61,7 @@ export function PrescriptionEditor({
   sports: readonly EnduranceSport[];
   initial: TemplateFormValues;
   submitLabel: string;
+  preserveSteps?: boolean;
 }) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: string): string => state.values?.[key] ?? initial[key] ?? "";
@@ -155,7 +157,11 @@ export function PrescriptionEditor({
           {/* Out of five, the scale the athlete answers on, and it says so: a target written
               out of ten was refused with nothing on the form to say why. */}
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Effort from" hint="1 to 5, optional" error={state.fieldErrors?.effortMin}>
+            <Field
+              label="Effort from"
+              hint="0 to 5; 0 means not asked. Optional."
+              error={state.fieldErrors?.effortMin}
+            >
               <Input
                 name="effortMin"
                 inputMode="decimal"
@@ -163,7 +169,11 @@ export function PrescriptionEditor({
                 placeholder="3"
               />
             </Field>
-            <Field label="Effort to" hint="1 to 5, optional" error={state.fieldErrors?.effortMax}>
+            <Field
+              label="Effort to"
+              hint="0 to 5; 0 means not asked. Optional."
+              error={state.fieldErrors?.effortMax}
+            >
               <Input
                 name="effortMax"
                 inputMode="decimal"
@@ -178,84 +188,95 @@ export function PrescriptionEditor({
         </Card>
       </Section>
 
-      <Section title="Repeats">
-        <Disclosure summary="One repeated block" meta="Optional" defaultOpen={stepKind !== "none"}>
-          <div className="space-y-3">
-            <Field group label="How the block is measured">
-              <SegmentedControl
-                name="stepTargetKind"
-                aria-label="Block target"
-                options={STEP_KINDS}
-                value={stepKind}
-                onChange={setStepKind}
-                columns={3}
-              />
-            </Field>
-            {stepKind !== "none" && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Repetitions" error={state.fieldErrors?.repetitions}>
-                    <Input
-                      name="repetitions"
-                      inputMode="numeric"
-                      defaultValue={value("repetitions")}
-                      placeholder="8"
-                    />
-                  </Field>
-                  <Field
-                    label="Rest between, seconds"
-                    error={state.fieldErrors?.restBetweenSeconds}
-                  >
-                    <Input
-                      name="restBetweenSeconds"
-                      inputMode="numeric"
-                      defaultValue={value("restBetweenSeconds")}
-                      placeholder="20"
-                    />
-                  </Field>
-                </div>
-                {stepKind === "distance" ? (
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
-                    <Field label="Each repetition" error={state.fieldErrors?.stepDistance}>
+      {preserveSteps ? (
+        <p className="text-sm text-ink-muted">
+          This template has structured steps. They and their instructions stay unchanged when you
+          save its name, overall targets or notes.
+        </p>
+      ) : (
+        <Section title="Repeats">
+          <Disclosure
+            summary="One repeated block"
+            meta="Optional"
+            defaultOpen={stepKind !== "none"}
+          >
+            <div className="space-y-3">
+              <Field group label="How the block is measured">
+                <SegmentedControl
+                  name="stepTargetKind"
+                  aria-label="Block target"
+                  options={STEP_KINDS}
+                  value={stepKind}
+                  onChange={setStepKind}
+                  columns={3}
+                />
+              </Field>
+              {stepKind !== "none" && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Repetitions" error={state.fieldErrors?.repetitions}>
                       <Input
-                        name="stepDistance"
-                        inputMode="decimal"
-                        defaultValue={value("stepDistance")}
-                        placeholder="50"
+                        name="repetitions"
+                        inputMode="numeric"
+                        defaultValue={value("repetitions")}
+                        placeholder="8"
                       />
                     </Field>
-                    <Field group label="Unit">
-                      <SegmentedControl
-                        key={`step-${selectedSport}`}
-                        name="stepDistanceUnit"
-                        aria-label="Repetition unit"
-                        options={units}
-                        defaultValue={initialUnit("stepDistanceUnit")}
-                        columns={units.length}
+                    <Field
+                      label="Rest between, seconds"
+                      error={state.fieldErrors?.restBetweenSeconds}
+                    >
+                      <Input
+                        name="restBetweenSeconds"
+                        inputMode="numeric"
+                        defaultValue={value("restBetweenSeconds")}
+                        placeholder="20"
                       />
                     </Field>
                   </div>
-                ) : (
-                  <Field
-                    label="Each repetition, seconds"
-                    error={state.fieldErrors?.stepDurationSeconds}
-                  >
-                    <Input
-                      name="stepDurationSeconds"
-                      inputMode="numeric"
-                      defaultValue={value("stepDurationSeconds")}
-                      placeholder="120"
-                    />
-                  </Field>
-                )}
-                <p className="text-sm text-ink-muted">
-                  Rest happens between repetitions, so eight of them have seven rests.
-                </p>
-              </>
-            )}
-          </div>
-        </Disclosure>
-      </Section>
+                  {stepKind === "distance" ? (
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Field label="Each repetition" error={state.fieldErrors?.stepDistance}>
+                        <Input
+                          name="stepDistance"
+                          inputMode="decimal"
+                          defaultValue={value("stepDistance")}
+                          placeholder="50"
+                        />
+                      </Field>
+                      <Field group label="Unit">
+                        <SegmentedControl
+                          key={`step-${selectedSport}`}
+                          name="stepDistanceUnit"
+                          aria-label="Repetition unit"
+                          options={units}
+                          defaultValue={initialUnit("stepDistanceUnit")}
+                          columns={units.length}
+                        />
+                      </Field>
+                    </div>
+                  ) : (
+                    <Field
+                      label="Each repetition, seconds"
+                      error={state.fieldErrors?.stepDurationSeconds}
+                    >
+                      <Input
+                        name="stepDurationSeconds"
+                        inputMode="numeric"
+                        defaultValue={value("stepDurationSeconds")}
+                        placeholder="120"
+                      />
+                    </Field>
+                  )}
+                  <p className="text-sm text-ink-muted">
+                    Rest happens between repetitions, so eight of them have seven rests.
+                  </p>
+                </>
+              )}
+            </div>
+          </Disclosure>
+        </Section>
+      )}
 
       <Section title="Notes">
         <Card>

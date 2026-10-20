@@ -14,7 +14,7 @@ vi.mock("@/components/shell/day-rollover", () => ({
   },
 }));
 vi.mock("@/components/shell/back-link", () => ({ BackLink: () => null }));
-vi.mock("@/server/actions/nutrition", () => ({}));
+vi.mock("@/server/actions/nutrition", () => ({ deleteEntryAction: vi.fn() }));
 afterEach(() => {
   cleanup();
   rollover.mockClear();

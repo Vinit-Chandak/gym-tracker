@@ -32,6 +32,7 @@ export type ChangeRequestTag = {
 };
 
 export type ChangeDetailProps = {
+  preview?: boolean;
   sport?: ActivitySport;
   draftId: string;
   revision: number;
@@ -106,6 +107,10 @@ export function ChangeDetail(props: ChangeDetailProps) {
   for (const [id, quote] of attributed) tags[id] = <span className="ask-tag">“{quote}”</span>;
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
+    if (props.preview) {
+      setError("Preview only — no programme was changed.");
+      return;
+    }
     setSaving(true);
     setError(null);
     const result = await work();
@@ -212,11 +217,11 @@ export function ChangeDetail(props: ChangeDetailProps) {
             </>
           ) : (
             <>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="lg"
                   disabled={busy || !startDate}
-                  className="min-w-0 flex-1"
+                  className="min-w-0 flex-1 basis-[max-content]"
                   onClick={() =>
                     run(
                       () =>

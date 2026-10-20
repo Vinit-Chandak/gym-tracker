@@ -21,6 +21,7 @@ type Props = {
   step: MachinesStep;
   /** The drawings this screen may show, by slug; anything missing shows without a picture. */
   art: Record<string, string>;
+  preview?: boolean;
 };
 
 type OpenSheet =
@@ -74,10 +75,14 @@ const listed = (names: readonly string[]) =>
  * Skip that would drop what was ticked (B9). What the place already has shows as such, and an
  * archived machine is restored, not doubled.
  */
-export function EquipmentStepForm({ step, art }: Props) {
+export function EquipmentStepForm({ step, art, preview = false }: Props) {
   const form = useKeptForm();
   const [state, formAction] = useActionState(
-    keepsFormOnDisconnect(addStarterEquipmentAction),
+    keepsFormOnDisconnect(
+      preview
+        ? async () => ({ formError: "Preview only — no equipment was saved." })
+        : addStarterEquipmentAction,
+    ),
     INITIAL_FORM_STATE,
   );
   const atGym = step.gym.kind === "gym";

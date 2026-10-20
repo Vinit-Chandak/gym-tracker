@@ -165,7 +165,15 @@ export function Sheet({
             </button>
           </div>
         </div>
-        <div className="sheet-body min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* Informational sheets may have no controls in their scrolling body. Give keyboard
+            users a named stop so they can scroll the text in browsers that do not make
+            overflow containers focusable automatically. */}
+        <div
+          role="region"
+          aria-label={title}
+          tabIndex={0}
+          className="sheet-body min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        >
           {children}
         </div>
         {footer && (

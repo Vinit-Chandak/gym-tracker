@@ -220,9 +220,12 @@ it("offers Recovery among the activities only where there is a reading of its ow
   );
   expect(choices()).toContain("Recovery");
   // A link that asks for it still shows what is chosen, though nothing matches.
-  navigation.query = "kind=recovery";
-  rerender(<HistoryView {...props} items={[lift]} />);
-  expect(activity().value).toBe("recovery");
+  for (const kind of ["recovery", "cycling", "swimming"]) {
+    navigation.query = `kind=${kind}`;
+    rerender(<HistoryView {...props} items={[lift]} />);
+    expect(activity().value).toBe(kind);
+    expect(screen.getByRole("heading", { name: "No matching activity" })).toBeTruthy();
+  }
   cleanup();
   Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
   Reflect.deleteProperty(HTMLDialogElement.prototype, "close");

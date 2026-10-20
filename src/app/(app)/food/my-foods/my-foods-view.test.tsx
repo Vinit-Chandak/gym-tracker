@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { useSyncExternalStore, type ComponentProps } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -10,11 +10,16 @@ import {
   updateFoodAction,
 } from "@/server/actions/nutrition";
 import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutrition";
+import { subscribeNavigation, trackNavigationHistory } from "@/lib/navigation-history";
+import { FoodPreview } from "@/components/food/food-actions";
 
 import { MyFoodsView } from "./my-foods-view";
 
+const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
+
 vi.mock("@/server/actions/nutrition", () => ({
   createFoodAction: vi.fn(),
+  logQuickFoodAction: vi.fn(),
   createLibraryFoodAction: vi.fn(),
   updateFoodAction: vi.fn(),
   deleteFoodAction: vi.fn(),
@@ -22,7 +27,9 @@ vi.mock("@/server/actions/nutrition", () => ({
 }));
 vi.mock("next/navigation", () => ({
   unstable_rethrow: () => {},
-  useSearchParams: () => new URLSearchParams(window.location.search),
+  useRouter: () => router,
+  useSearchParams: () =>
+    new URLSearchParams(useSyncExternalStore(subscribeNavigation, () => window.location.search)),
 }));
 vi.mock("@/components/ui/app-link", () => ({
   default: ({ prefetch: _prefetch, ...props }: ComponentProps<"a"> & { prefetch?: string }) => (
@@ -32,7 +39,9 @@ vi.mock("@/components/ui/app-link", () => ({
 
 const showModal = HTMLDialogElement.prototype.showModal;
 const close = HTMLDialogElement.prototype.close;
+let stopNavigation: () => void;
 beforeAll(() => {
+  stopNavigation = trackNavigationHistory();
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
     this.open = true;
   };
@@ -42,6 +51,7 @@ beforeAll(() => {
   };
 });
 afterAll(() => {
+  stopNavigation();
   HTMLDialogElement.prototype.showModal = showModal;
   HTMLDialogElement.prototype.close = close;
 });
@@ -155,6 +165,69 @@ it("names a new food after a search that finds nothing", () => {
   expect(inSheet().getByLabelText("Name")).toHaveProperty("value", "granola");
 });
 
+it("does not restore or navigate the same URL while a saved food's refreshed library is pending", async () => {
+  const library = { foods: [OATS], savedMeals: [] };
+  const { rerender } = view(library);
+  const replace = vi.spyOn(window.history, "replaceState");
+  try {
+    fireEvent.click(screen.getByRole("button", { name: "New food" }));
+    type("Name", "Rice");
+    type("kcal", "130");
+    fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
+    await waitFor(() => expect(sheet().open).toBe(false));
+    expect(replace).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+
+    const rice = { ...WHEY, name: "Rice", portionAmount: 100, unit: "g" as const, kcal: 130 };
+    rerender(<MyFoodsView library={{ foods: [OATS, rice], savedMeals: [] }} />);
+    expect(await screen.findByRole("button", { name: /^Rice 100 g/ })).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+  } finally {
+    replace.mockRestore();
+  }
+});
+
+it("clears search and pagination through a fresh router navigation after saving", async () => {
+  window.history.replaceState(null, "", "/food/my-foods?q=oats&meals=2&foods=2&keep=1");
+  const library = { foods: [OATS], savedMeals: [] };
+  const { rerender } = view(library);
+  fireEvent.click(screen.getByRole("button", { name: "New food" }));
+  type("Name", "Rice");
+  type("kcal", "130");
+  fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(router.replace).toHaveBeenCalledWith("/food/my-foods?keep=1", { scroll: false });
+  expect(router.refresh).toHaveBeenCalledOnce();
+  expect(router.replace.mock.invocationCallOrder[0]).toBeLessThan(
+    router.refresh.mock.invocationCallOrder[0]!,
+  );
+  // The router owns this change; no native history restore can replace its pending RSC tree.
+  expect(window.location.search).toBe("?q=oats&meals=2&foods=2&keep=1");
+
+  const rice = { ...WHEY, name: "Rice", portionAmount: 100, unit: "g" as const, kcal: 130 };
+  act(() => window.history.replaceState(null, "", "/food/my-foods?keep=1"));
+  rerender(<MyFoodsView library={{ foods: [OATS, rice], savedMeals: [] }} />);
+  expect(screen.getByRole("searchbox")).toHaveProperty("value", "");
+  expect(screen.getByRole("button", { name: /^Rice 100 g/ })).toBeTruthy();
+});
+
+it("keeps filters after a refused save even if the library later refreshes", async () => {
+  window.history.replaceState(null, "", "/food/my-foods?q=oats");
+  vi.mocked(createLibraryFoodAction).mockResolvedValueOnce({ ok: false, error: "Try again." });
+  const { rerender } = view({ foods: [OATS], savedMeals: [] });
+  fireEvent.click(screen.getByRole("button", { name: "New food" }));
+  type("Name", "Rice");
+  type("kcal", "130");
+  fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
+  expect(await inSheet().findByRole("alert")).toHaveProperty("textContent", "Try again.");
+  rerender(<MyFoodsView library={{ foods: [OATS, WHEY], savedMeals: [] }} />);
+  expect(window.location.search).toBe("?q=oats");
+  expect(sheet().open).toBe(true);
+  expect(router.replace).not.toHaveBeenCalled();
+  expect(router.refresh).not.toHaveBeenCalled();
+});
+
 it("corrects a food from its sheet, or removes it from there", async () => {
   view();
   fireEvent.click(screen.getByRole("button", { name: /^Oats 100 g/ }));
@@ -233,4 +306,36 @@ it("starts empty with New food and New meal alone", () => {
   expect(screen.queryByRole("list", { name: "Foods" })).toBeNull();
   expect(screen.getByRole("button", { name: "New food" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "New meal" })).toBeTruthy();
+});
+
+it("restores the URL's search when navigation preserves the mounted page", () => {
+  window.history.replaceState(null, "", "/food/my-foods?q=oats");
+  const library = { foods: [OATS, WHEY], savedMeals: [] };
+  const { rerender } = view(library);
+  expect(screen.getByRole("searchbox")).toHaveProperty("value", "oats");
+  expect(screen.queryByRole("button", { name: /^Whey 1 scoop/ })).toBeNull();
+
+  act(() => window.history.replaceState(null, "", "/food/my-foods?q=whey"));
+  rerender(<MyFoodsView library={library} />);
+  expect(screen.getByRole("searchbox")).toHaveProperty("value", "whey");
+  expect(screen.getByRole("button", { name: /^Whey 1 scoop/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^Oats 100 g/ })).toBeNull();
+});
+
+it("lets preview food forms explain that they cannot change the signed-in account", async () => {
+  render(
+    <FoodPreview>
+      <MyFoodsView library={{ foods: [OATS], savedMeals: [] }} />
+    </FoodPreview>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "New food" }));
+  type("Name", "Preview oats");
+  type("kcal", "389");
+  fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
+  expect(await inSheet().findByRole("alert")).toHaveProperty(
+    "textContent",
+    "This is a preview. Changes are not saved.",
+  );
+  expect(createLibraryFoodAction).not.toHaveBeenCalled();
+  expect(sheet().open).toBe(true);
 });

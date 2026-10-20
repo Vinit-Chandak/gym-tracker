@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
 import { Glyph } from "@/components/ui/glyphs";
 import { clearAccountDrafts, readDrafts } from "@/lib/activity-drafts";
+import { attempted } from "@/lib/offline-submit";
 import { signOutAction } from "@/server/actions/auth";
 
 function SubmitRow({ unsaved }: { unsaved: number }) {
@@ -54,16 +56,21 @@ function unsavedCount(userId: string): number {
  * the second signs out — they are the only copy of what was typed, so it asks, as deleting does.
  */
 export function SignOutRow({ userId }: { userId: string }) {
+  const router = useRouter();
   const [unsaved, setUnsaved] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   return (
     <li className="nav-row-item">
       <form
-        action={signOutAction}
-        onSubmit={(event) => {
-          const count = unsavedCount(userId);
-          if (count > 0 && unsaved === 0) {
-            event.preventDefault();
-            setUnsaved(count);
+        action={async () => {
+          setError(null);
+          const outcome = await attempted(
+            signOutAction,
+            "Could not sign out. Check your connection and try again.",
+          );
+          const failure = outcome.ok ? outcome.value.error : outcome.message;
+          if (failure) {
+            setError(failure);
             return;
           }
           try {
@@ -71,9 +78,23 @@ export function SignOutRow({ userId }: { userId: string }) {
           } catch {
             // A store that cannot be read holds nothing to clear.
           }
+          router.replace("/login");
+        }}
+        onSubmit={(event) => {
+          const count = unsavedCount(userId);
+          if (count > 0 && unsaved === 0) {
+            event.preventDefault();
+            setUnsaved(count);
+            return;
+          }
         }}
       >
         <SubmitRow unsaved={unsaved} />
+        {error && (
+          <p role="alert" className="pb-2 type-meta-small font-semibold">
+            {error}
+          </p>
+        )}
       </form>
     </li>
   );

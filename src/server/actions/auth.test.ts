@@ -6,6 +6,7 @@ const auth = vi.hoisted(() => ({
   getClaims: vi.fn(),
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
+  signOut: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({ auth }) }));
 vi.mock("@/lib/site-url", () => ({ getSiteUrl: async () => "http://localhost:3010" }));
@@ -20,6 +21,7 @@ import {
   updatePasswordAction,
   signUpAction,
   signInAction,
+  signOutAction,
 } from "./auth";
 import { redirect } from "next/navigation";
 
@@ -200,4 +202,36 @@ it("says which field a sign-in is missing or has wrong, under that field", async
     field: "password",
   });
   expect(auth.signInWithPassword).not.toHaveBeenCalled();
+});
+
+it("accepts pasted email addresses with surrounding whitespace without changing the password", async () => {
+  auth.signInWithPassword.mockResolvedValue({ error: null });
+  await signInAction(
+    {},
+    form({ email: "  athlete@example.test \n", password: " Example-password-1! " }),
+  );
+  expect(auth.signInWithPassword).toHaveBeenCalledWith({
+    email: "athlete@example.test",
+    password: " Example-password-1! ",
+  });
+  expect(redirect).toHaveBeenCalledWith("/today");
+
+  auth.resetPasswordForEmail.mockResolvedValue({ error: null });
+  expect(
+    await requestPasswordResetAction({}, form({ email: "  athlete@example.test \n" })),
+  ).toEqual({ sent: true });
+  expect(auth.resetPasswordForEmail).toHaveBeenCalledWith(
+    "athlete@example.test",
+    expect.any(Object),
+  );
+});
+
+it("reports a failed sign-out so the caller can retain unsaved drafts", async () => {
+  auth.signOut.mockResolvedValueOnce({ error: { status: 503 } });
+  expect((await signOutAction()).error).toMatch(/Could not sign out/);
+  auth.signOut.mockRejectedValueOnce(new TypeError("Lost connection"));
+  expect((await signOutAction()).error).toMatch(/Could not sign out/);
+  expect(redirect).not.toHaveBeenCalled();
+  auth.signOut.mockResolvedValueOnce({ error: null });
+  expect(await signOutAction()).toEqual({});
 });

@@ -69,6 +69,19 @@ it("routes Escape through controlled state and starts focus before the choices",
   expect(dialog.hasAttribute("open")).toBe(false);
 });
 
+it("makes informational sheet content a named keyboard stop without needing child controls", () => {
+  render(
+    <Sheet open title="What RIR means" onClose={vi.fn()}>
+      <p>Estimate how many more reps you could complete with the same technique.</p>
+    </Sheet>,
+  );
+  const content = screen.getByRole("region", { name: "What RIR means" });
+  expect(content.tabIndex).toBe(0);
+  content.focus();
+  expect(document.activeElement).toBe(content);
+  expect(content.textContent).toContain("Estimate how many more reps");
+});
+
 it("keeps pending destructive requests open for Escape, backdrop and close-button taps", () => {
   const onClose = vi.fn();
   render(

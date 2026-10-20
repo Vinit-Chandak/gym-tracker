@@ -4,18 +4,20 @@ import { CheckCircle2 } from "@/components/ui/icons";
 import { useActionState } from "react";
 
 import { LinkButton, Button } from "@/components/ui/button";
+import { useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { updatePasswordAction, type PasswordChangeState } from "@/server/actions/auth";
 
 const INITIAL: PasswordChangeState = {};
 
 export function ResetPasswordForm() {
+  const form = useKeptForm();
   const [state, formAction, pending] = useActionState(updatePasswordAction, INITIAL);
 
   if (state.done) {
     return (
       <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-success">
+        <p role="status" className="flex items-center gap-2 text-sm font-medium text-success">
           <CheckCircle2 className="shrink-0" aria-hidden />
           Password updated
         </p>
@@ -27,7 +29,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={form} action={formAction} className="space-y-4">
       <Field label="New password" hint="At least 8 characters">
         <Input type="password" name="password" autoComplete="new-password" minLength={8} required />
       </Field>

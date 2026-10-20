@@ -10,11 +10,7 @@ import { addUp, eaten, NUTRITION_LIMITS, type LoggedFood, type Meal } from "@/do
 import { joinFacts } from "@/lib/facts";
 import { formatKcal, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
-import {
-  deleteSavedMealAction,
-  logSavedMealAction,
-  saveMealAction,
-} from "@/server/actions/nutrition";
+import { useFoodActions } from "@/components/food/food-actions";
 import type { SavedMealRecord } from "@/server/repositories/nutrition";
 
 import { Preview } from "@/components/food/amount-field";
@@ -53,6 +49,7 @@ export function SaveMealSheet({
   savedNames: readonly string[];
   onDone: (said: string, added: boolean) => void;
 }) {
+  const { saveMealAction } = useFoodActions();
   const formId = useId();
   const [name, setName] = useState("");
   const [submissionKey] = useState(() => crypto.randomUUID());
@@ -146,6 +143,7 @@ export function UnstarMealSheet({
   saved: SavedMealRecord;
   onDone: (said: string, added: boolean) => void;
 }) {
+  const { deleteSavedMealAction } = useFoodActions();
   const [error, setError] = useState<string | null>(null);
   const [pending, startUnstarring] = useTransition();
 
@@ -200,6 +198,7 @@ export function SavedMealSheet({
   /** Said once the change is made; `added` when its foods went into the meal. */
   onDone: (said: string, added: boolean) => void;
 }) {
+  const { logSavedMealAction, deleteSavedMealAction } = useFoodActions();
   const [submissionKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
   const [adding, startAdding] = useTransition();
