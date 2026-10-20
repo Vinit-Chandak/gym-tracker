@@ -65,8 +65,8 @@ export function CoachJobStatus({
       )}
       {pending && (
         <p className="text-sm text-ink-muted">
-          You can leave this screen. Your answers and files are saved, and the draft will appear
-          under Training when it is ready.
+          You can leave this screen. Your answers and files are saved, and the draft will appear on
+          Plan when it is ready.
         </p>
       )}
       {job.error && <p className="text-sm text-ink-muted">{job.error}</p>}
@@ -107,8 +107,13 @@ export function CoachJobStatus({
           Check status
         </Button>
       )}
-      <LinkButton href={base} variant="ghost" className="flex w-full">
-        Back to Programme
+      {/* Outside setup, every sport's programmes are Plan's (ADR 0058), whichever one was asked. */}
+      <LinkButton
+        href={(base === "/welcome/programme" ? base : "/plan") as Route}
+        variant="ghost"
+        className="flex w-full"
+      >
+        {base === "/welcome/programme" ? "Back to Programme" : "Back to Plan"}
       </LinkButton>
     </Card>
   );

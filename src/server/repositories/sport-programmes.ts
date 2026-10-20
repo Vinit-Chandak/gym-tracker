@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { programs, programDrafts } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -91,6 +91,36 @@ export async function programmeCards(db: DbOrTx, userId: string, timeZone: strin
     }),
   );
 }
+
+/**
+ * A first programme of a sport, drafted and not yet started (ADR 0059): the coach's answer to a
+ * request from New programme, or one being built by hand. It belongs to no programme yet, so
+ * no programme's card can say it is waiting; Plan lists it beside them until it is started or
+ * discarded.
+ */
+export async function newProgrammeDrafts(db: DbOrTx, userId: string) {
+  const active = new Set((await activeSportProgrammes(db, userId)).map((row) => row.sport));
+  const drafts = await db
+    .select({
+      id: programDrafts.id,
+      sport: programDrafts.sport,
+      status: programDrafts.status,
+      name: sql<string | null>`${programDrafts.blueprint}->>'name'`,
+    })
+    .from(programDrafts)
+    .where(
+      and(
+        eq(programDrafts.userId, userId),
+        inArray(programDrafts.status, ["editing", "ready"]),
+        eq(programDrafts.standalone, false),
+        isNull(programDrafts.baseProgramId),
+      ),
+    )
+    .orderBy(asc(programDrafts.createdAt));
+  return drafts.filter((draft) => !active.has(draft.sport));
+}
+
+export type NewProgrammeDraft = Awaited<ReturnType<typeof newProgrammeDrafts>>[number];
 
 export type ProgrammeCard = {
   programme: Awaited<ReturnType<typeof activeSportProgrammes>>[number];

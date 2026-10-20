@@ -63,6 +63,16 @@ const WEEK: WeekSession[] = [
   session("60", "2026-10-24", "running", "Long run", "planned"),
 ];
 
+/** A first swimming programme from the coach, waiting to be started (ADR 0059). */
+const DRAFTS = [
+  {
+    id: "preview-draft",
+    sport: "swimming" as const,
+    status: "ready" as const,
+    name: "Swim base: 8 weeks",
+  },
+];
+
 /** Plan with made-up programmes: `?state=empty` is an account with none yet. */
 export default async function PlanPreviewPage(props: PageProps<"/preview/plan">) {
   const { state } = await props.searchParams;
@@ -71,6 +81,7 @@ export default async function PlanPreviewPage(props: PageProps<"/preview/plan">)
     <PreviewShell tab="/plan">
       <PlanView
         cards={empty ? [] : CARDS}
+        drafts={empty ? [] : DRAFTS}
         sessions={empty ? [] : WEEK}
         monday={MONDAY}
         today={TODAY}

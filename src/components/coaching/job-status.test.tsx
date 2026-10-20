@@ -22,7 +22,7 @@ it("shows a successful review with no changes without inventing a draft or askin
   expect(screen.getByRole("status").textContent).toBe("Your programme stays as it is");
   expect(screen.getByText("The current plan still fits.")).toBeTruthy();
   expect(screen.queryByRole("link", { name: /try again|Review the draft/ })).toBeNull();
-  expect(screen.getByRole("link", { name: "Back to Programme" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Back to Plan" }).getAttribute("href")).toBe("/plan");
 });
 
 it("still offers the draft when one was produced", () => {

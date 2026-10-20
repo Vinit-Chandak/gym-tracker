@@ -13,7 +13,7 @@ import { byDay, weekStartOf, type WeekSession, type WeekStatus } from "@/domain/
 import { addDays } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatDateRange, formatIsoDate } from "@/lib/format";
-import type { ProgrammeCard } from "@/server/repositories/sport-programmes";
+import type { NewProgrammeDraft, ProgrammeCard } from "@/server/repositories/sport-programmes";
 
 /** What a programme card needs of its programme: which it is, its sport and its name. */
 export type PlanCard = Omit<ProgrammeCard, "programme"> & {
@@ -150,22 +150,60 @@ function Programme({ card }: { card: PlanCard }) {
 }
 
 /**
+ * A first programme waiting to be started (ADR 0059), as a programme's card reads: its sport and
+ * name, and what it waits for. A ready one opens its review; one being built, its editor.
+ */
+function Waiting({
+  draft,
+}: {
+  draft: Pick<NewProgrammeDraft, "id" | "sport" | "status" | "name">;
+}) {
+  const href =
+    draft.status === "ready"
+      ? `/profile/programme/drafts/${draft.id}`
+      : draft.sport === "strength"
+        ? `/profile/programme/manual?draft=${draft.id}`
+        : `/plan/${draft.sport}/edit?draft=${draft.id}`;
+  return (
+    <li className="min-w-0">
+      <Link href={href as Route} className="plan-programme box panel-padding">
+        <span className="plan-programme-sport type-meta-small text-ink-2">
+          <Art kind="mark" sport={MARK[draft.sport]} size={20} />
+          {ACTIVITY_SPORT_LABELS[draft.sport]}
+        </span>
+        <span className="plan-programme-name">
+          {holdHyphens(
+            draft.name || `New ${ACTIVITY_SPORT_LABELS[draft.sport].toLowerCase()} programme`,
+          )}
+        </span>
+        <span className="plan-programme-waiting type-meta-small">
+          {draft.status === "ready" ? "New programme to review" : "Draft in progress"}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/**
  * Plan (ADR 0058): what comes next and how it is built. This week's sessions for every sport,
  * by date, then one card per programme. Starting, logging and skipping today's sessions are
  * Today's; what has been done is Progress's.
  */
 export function PlanView({
   cards,
+  drafts = [],
   sessions,
   monday,
   today,
 }: {
   cards: readonly PlanCard[];
+  /** First programmes drafted and not yet started, which no card above can stand for. */
+  drafts?: readonly Pick<NewProgrammeDraft, "id" | "sport" | "status" | "name">[];
   sessions: readonly WeekSession[];
   monday: string;
   today: string;
 }) {
-  const empty = cards.length === 0;
+  const empty = cards.length === 0 && drafts.length === 0;
   return (
     <div className="page-wide">
       <PageHeader
@@ -197,6 +235,9 @@ export function PlanView({
             <ul className="programme-card-grid">
               {cards.map((card) => (
                 <Programme key={card.programme.id} card={card} />
+              ))}
+              {drafts.map((draft) => (
+                <Waiting key={draft.id} draft={draft} />
               ))}
             </ul>
           </section>
