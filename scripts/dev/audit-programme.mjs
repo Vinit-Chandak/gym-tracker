@@ -520,21 +520,21 @@ async function runDevice(device) {
       await button(page, "Add a day").click();
       await field(page, "Day name").fill(routineName);
       await field(page, "Usual weekday").selectOption("1");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await field(page, "Focus").fill("Controlled upper-body strength");
-      await field(page, "Time available / notes").fill("45 minutes including a gradual warm-up");
+      await field(page, "Time").fill("45 minutes including a gradual warm-up");
       await field(page, "Find an exercise").fill(customName);
       await field(page, "Exercise to add").selectOption(custom.slug);
       await button(page, "Add exercise").click();
       const press = page.getByRole("group", { name: customName, exact: true });
       await field(press, "Sets").fill("3");
-      await field(press, "Reps minimum").fill("8");
-      await field(press, "Reps maximum").fill("12");
+      await field(press, "Reps from").fill("8");
+      await field(press, "Reps to").fill("12");
       await openDisclosure(press, "Rest, effort and progression");
-      await field(press, "Rest seconds minimum").fill("60");
-      await field(press, "Rest seconds maximum").fill("90");
-      await field(press, "Superset group (optional)").fill("Controlled work and core");
-      await field(press, "Load / calibration guidance").fill(
+      await field(press, "Rest seconds from").fill("60");
+      await field(press, "Rest seconds to").fill("90");
+      await field(press, "Superset").fill("Controlled work and core");
+      await field(press, "Load note").fill(
         "Start with a comfortable machine load, then increase gradually.",
       );
       await field(page, "Find an exercise").fill("Plank");
@@ -542,22 +542,20 @@ async function runDevice(device) {
       await button(page, "Add exercise").click();
       const plank = page.getByRole("group", { name: "Plank", exact: true });
       await field(plank, "Sets").fill("2");
-      await field(plank, "Seconds minimum").fill("30");
-      await field(plank, "Seconds maximum").fill("45");
+      await field(plank, "Seconds from").fill("30");
+      await field(plank, "Seconds to").fill("45");
       await openDisclosure(plank, "Rest, effort and progression");
-      await field(plank, "Rest seconds minimum").fill("45");
-      await field(plank, "Rest seconds maximum").fill("60");
-      await field(plank, "Superset group (optional)").fill("Controlled work and core");
-      await button(page, "Save this day as a routine").click();
-      await expect(page.getByRole("status").filter({ hasText: "to your routines" })).toBeVisible();
+      await field(plank, "Rest seconds from").fill("45");
+      await field(plank, "Rest seconds to").fill("60");
+      await field(plank, "Superset").fill("Controlled work and core");
       await button(page, "Add a day").click();
       await field(page, "Day name").fill("Recovery and mobility");
       await field(page, "Usual weekday").selectOption("3");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await button(page, "Move day earlier").click();
       await expect(field(page, "Day to edit")).toHaveValue("0");
       await expect(field(page, "Day name")).toHaveValue("Recovery and mobility");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await button(page, "Move day later").click();
       await expect(field(page, "Day to edit")).toHaveValue("1");
       await button(page, "Save draft").click();
@@ -575,15 +573,12 @@ async function runDevice(device) {
           ["Recovery and mobility", 3],
         ],
       );
-      const [routines] =
-        await sql`select count(*)::int as count from saved_routines where user_id=${userId}`;
-      assert.equal(routines.count, 1);
       await go(`/profile/programme/manual?draft=${draftId}`);
       await openDisclosure(page, "Programme settings");
       await expect(field(page, "Programme name")).toHaveValue(programmeName);
       await expect(field(page, "Number of weeks")).toHaveValue("4");
       await expect(
-        field(page.getByRole("group", { name: customName, exact: true }), "Reps maximum"),
+        field(page.getByRole("group", { name: customName, exact: true }), "Reps to"),
       ).toHaveValue("12");
       await field(page, "Programme notes").fill(
         "Edited after reloading; retain the saved prescriptions and day order.",
@@ -603,8 +598,8 @@ async function runDevice(device) {
       );
       await page.waitForURL(`/profile/programme/drafts/${draftId}`);
       await expect(page.getByRole("heading", { name: programmeName, exact: true })).toBeVisible();
-      await expect(button(page, "Start my programme")).toBeEnabled();
-      await button(page, "Start my programme").click();
+      await expect(button(page, "Start programme")).toBeEnabled();
+      await button(page, "Start programme").click();
       await page.waitForURL(/\/training$/);
       [activeProgram] =
         await sql`select id,family_id,version from programs where user_id=${userId} and status='active'`;
@@ -653,7 +648,7 @@ async function runDevice(device) {
       const proposal = await cloneProposal();
       await go(`/profile/programme/drafts/${proposal.id}`);
       await page
-        .getByRole("link", { name: "See the full programme with these changes", exact: true })
+        .getByRole("link", { name: "Full programme with these changes", exact: true })
         .click();
       await page.waitForURL(`/profile/programme/drafts/${proposal.id}/programme`);
       await page.locator("summary").filter({ hasText: routineName }).click();

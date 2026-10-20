@@ -123,9 +123,11 @@ for (const [engine, device, repetitions] of [
         await expect(
           page.getByRole("heading", { name: "Not available", exact: true }),
         ).toBeVisible();
-        await expect(
-          page.getByRole("link", { name: "Go to Training", exact: true }),
-        ).toHaveAttribute("href", "/training");
+        // The only way on is back, into Plan: the header's back link.
+        await expect(page.getByRole("link", { name: "Plan", exact: true })).toHaveAttribute(
+          "href",
+          "/plan",
+        );
         await expect(page.getByRole("navigation")).toHaveCount(0);
         expect(page.url()).toBe(new URL(route, baseURL).href);
         result.url = page.url();

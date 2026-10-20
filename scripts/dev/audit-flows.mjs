@@ -106,8 +106,10 @@ async function login(name) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => url.pathname !== "/login");
 }
-async function save(label = "Save activity") {
-  await page.getByRole("button", { name: label, exact: true }).click();
+// The form's button names what it saves: Save run, Save ride or Save swim; a correction, Save
+// changes.
+async function save(label = /^Save (?:run|ride|swim)$/) {
+  await page.getByRole("button", { name: label, exact: typeof label === "string" }).click();
   await page.waitForURL(/\/training\/activities\/[^/]+$/);
   await page.getByRole("button", { name: /^Correct or delete this / }).waitFor();
   return path().split("/").at(-1);
@@ -154,7 +156,7 @@ try {
       }
       await fill("title", `${prefix} ${sport}`);
       if (sport === "running") {
-        await page.getByRole("button", { name: "Save activity" }).click();
+        await page.getByRole("button", { name: "Save run" }).click();
         await expect(
           page.getByText("Rate the effort from 1 to 5, or choose Not sure."),
         ).toBeVisible();
@@ -174,7 +176,9 @@ try {
             await sql`select distance_metres from cycling_activity_details where activity_id=${id}`
           )[0].distance_metres,
         ).toBeNull();
-      if (sport === "swimming") await expect(page.getByText(/Elapsed time only/)).toBeVisible();
+      // Why a swim has no pace is its ⓘ, beside the pace's dash.
+      if (sport === "swimming")
+        await expect(page.getByRole("button", { name: "About pace" })).toBeVisible();
     });
     await check(`${sport}: edit measurements and notes on the same record`, async () => {
       const id = ids[sport];
@@ -271,7 +275,7 @@ try {
       await fill("title", `${prefix} offline`);
       const key = await page.locator('[name="submissionKey"]').inputValue();
       await context.setOffline(true);
-      await page.getByRole("button", { name: "Save activity" }).click();
+      await page.getByRole("button", { name: "Save run" }).click();
       await expect(page.getByText(/could not confirm the save/)).toBeVisible();
       await context.setOffline(false);
       await page.reload({ waitUntil: "networkidle" });
@@ -386,11 +390,11 @@ try {
       await go(`/training/activities/${ids.scheduled}`);
       await page.getByRole("button", { name: /^Correct or delete this / }).click();
       await page.getByRole("button", { name: "Delete activity", exact: true }).click();
-      await page.getByRole("button", { name: "Tap again to delete" }).click();
+      await page.getByRole("button", { name: "Delete this run" }).click();
       await page.waitForURL("**/progress/history");
       expect(await sql`select id from activities where id=${ids.scheduled}`).toHaveLength(0);
       await go(`/training/new?occurrence=${occurrence.id}`);
-      await expect(page.getByRole("button", { name: "Save activity" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Save run" })).toBeVisible();
     },
   );
   await check("Foreign records, templates and occurrences are not exposed", async () => {

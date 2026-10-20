@@ -48,7 +48,8 @@ longer, and programme management hides below it or behind a control.
    waiting), and Past programmes. New programme asks for a sport, then Repeating, Progressive or
    With the coach. There are no templates.
 6. **Each programme has one page,** `/plan/[sport]`; strength's moved from `/profile/programme`.
-   A run, ride or swim programme shows its weeks without dates, which are This week's. A
+   A run, ride or swim programme shows its weeks with the day each starts, which orients the
+   list; a session's own date is This week's and its page's (amended 20 October 2026). A
    strength programme's "Does not repeat" is called Progressive; an endurance programme is
    Repeating when every session it asks for recurs unchanged, else Progressive (it is not
    stored). Retire is End programme, and Archived programmes are Past programmes.

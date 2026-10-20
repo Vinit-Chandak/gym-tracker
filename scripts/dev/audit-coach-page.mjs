@@ -176,9 +176,7 @@ try {
       await sql`select sport, review_requested_at from sport_coach_preferences where user_id=${person.id} order by sport`;
     await page.getByRole("button", { name: "Send note", exact: true }).click();
     await expect(note()).toHaveValue("");
-    await expect(
-      page.getByText("Note saved. You can follow its progress in Notes & memory.", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText("Note sent.", { exact: true })).toBeVisible();
     const stored =
       await sql`select sport from coach_notes where user_id=${person.id} and text=${scopedText}`;
     assert.deepEqual(
@@ -241,14 +239,12 @@ try {
     );
     const withCoach = page
       .locator("details")
-      .filter({ has: page.locator("summary").filter({ hasText: "With your coach" }) });
+      .filter({ has: page.locator("summary").filter({ hasText: "With the coach" }) });
     if ((await withCoach.count()) && !(await withCoach.evaluate((element) => element.open))) {
       await withCoach.locator("summary").click();
     }
-    await page.getByRole("button", { name: "I no longer want this", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "I no longer want this", exact: true }),
-    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Withdraw", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Withdraw", exact: true })).toHaveCount(0);
     const [withdrawn] = await sql`select state from coach_program_requests where id=${question.id}`;
     assert.equal(withdrawn.state, "withdrawn");
   });

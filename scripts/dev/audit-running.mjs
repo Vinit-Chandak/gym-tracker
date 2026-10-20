@@ -165,13 +165,7 @@ await audit("priya", async ({ page, step, data }) => {
   });
   await step("logged-run", async () => {
     await page.goto(`/training/activities/${data.logged.id}`, { waitUntil: "networkidle" });
-    await says(
-      page,
-      "Laps",
-      "Pace /km",
-      "Time in zones, from each lap’s average",
-      "Zone 5 · Maximum",
-    );
+    await says(page, "Laps", "Pace /km", "Time in zones", "Zone 5 · Maximum");
     // Five columns fit the phone without scrolling sideways.
     const scroll = page.locator(".run-laps-scroll");
     const fits = await scroll.evaluate((box) => box.scrollWidth <= box.clientWidth + 1);

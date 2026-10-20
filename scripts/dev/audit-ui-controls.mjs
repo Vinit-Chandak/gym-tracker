@@ -154,8 +154,10 @@ for (const config of [
         await expect(panel).toHaveAttribute("id", `coach-panel-${key}`);
         if (key === "requests") {
           await assertReadableText(panel.getByRole("heading", { name: "Requests & changes" }));
-          await panel.locator("summary").filter({ hasText: "Past requests & changes" }).click();
-          const history = panel.getByRole("link", { name: "Programme history", exact: true });
+          const history = panel.getByRole("link", {
+            name: "Past requests and changes",
+            exact: true,
+          });
           await expect(history).toHaveAttribute("href", "/profile/programme/history");
           await assertReadableText(history);
           await history.scrollIntoViewIfNeeded();

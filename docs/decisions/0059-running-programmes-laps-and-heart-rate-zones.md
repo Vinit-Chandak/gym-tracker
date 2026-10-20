@@ -92,9 +92,13 @@ ADR, with its citations, is in
     withdraws that sport's pending, unanswered sessions other programmes carry from its start
     date, so a day never shows two runs. What was logged, skipped or due before the start stays,
     as do other sports and the athlete's own unplanned sessions.
-12. **A first programme waits on Plan.** A drafted programme of a sport that has none yet (the
-    coach's answer to New programme › With the coach, or one being built by hand) is listed beside
-    the programme cards until it is started or discarded; the request's page says so.
+12. **A first programme waits on Plan.** From the moment the coach is asked for a programme of a
+    sport that has none yet (New programme › With the coach), Plan lists it beside the programme
+    cards with where it stands, Being written, Needs your answer or Could not finish, opening its
+    request. Once a draft exists, the coach's answer or one being built by hand, the card is the
+    draft's (New programme to review, Draft in progress) until it is started or discarded. Only the
+    sport's latest request counts, and a draft or programme made since it was asked ends it. The
+    request's page says it waits on Plan.
 13. **Tested by coaching it.** A first marathon from about 8 km a week and a 200 m sprint block
     were written through the real coach workflow against the local app, and the reference was
     revised where those coaches found it silent or read two ways: sprint goals as their own

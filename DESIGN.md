@@ -859,7 +859,7 @@ and every control answers a press.
 
 - **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it);
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log run on Today's card);
   on a card, the control surface on a surface (Do again, Save under a select).
   **Waiting:** surface with ink 2, surface 2 on a card, for a button waiting on something (Save
   while RIR is empty, Saving…, Send answer with no answer, Try again offline). **Outline:** a
@@ -1106,7 +1106,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
   figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
 - Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
   choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's time
-  of day); then, only when it is news, one line of state in ink 2 (In progress · Started 17:23 ·
+  of day, which takes no glyph: the dial is a duration's, the calendar a date's); then, only when it is news, one line of state in ink 2 (In progress · Started 17:23 ·
   0 sets; Preparing for Anytime Fitness · since 04:00; "Finish or discard your open workout
   first."). A card never says how or when the coach works, or where a control is; a run's pace
   note and how to do it are the fold's, said once. A session done or skipped today is not a card
@@ -1133,11 +1133,13 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
-  value comes to, in caption. A placeholder is an example that could not be taken for an answer;
+  value comes to, in caption. A placeholder is an example that could not be taken for an answer
+  ("For example, a sore left knee");
   a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
   the label's aside on every optional field, inside a fold of optional fields too, read with the
-  field and never the line under it. Effort is dressed as the check-in's
-  scales are, its ends named under 1 and 5, with no sentence under the tray. A search field leads
+  field and never the line under it. Effort names its ends on its
+  label's line ("1 very easy to 5 maximal"), with no sentence under the tray, save on a correction
+  that offers As recorded: the line under the tray says what that pre-chosen answer keeps. A search field leads
   with the glyph.
 - **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
   is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds

@@ -38,9 +38,7 @@ export function hasUnexpectedErrorScreen(row) {
   // so an ordinary note containing the heading does not invalidate an otherwise good visit.
   return (
     /(^|\n)Something went wrong(\n|$)/.test(row.text ?? "") &&
-    /(?:The page could not load\.|The app could not start\.|You’re offline\. Reconnect and)/.test(
-      row.text ?? "",
-    )
+    /(?:The page could not load\.|The app could not start\.|You’re offline\.)/.test(row.text ?? "")
   );
 }
 

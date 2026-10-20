@@ -152,7 +152,9 @@ To failure. Targets read "3 × 8–12 @ 1–2 RIR"; a programme's place reads
 "Every week · Week 3 of 8" or "Progressive · Day 12 of 40". A planned session is Done, Skipped
 or Missed, and one no programme planned is Unplanned. A planned session is named by its title,
 else its kind, else its sport ("Tempo run", "Easy run", "Run"), the same on Today, Plan, Log and
-its page, with its figure beside it ("30 min", "2.5–3.0 km"), never in its place. The words Today
+its page, with its figure beside it ("30 min", "2.5–3.0 km"), never in its place. The coach's
+settled requests and changes are "Past requests and changes", never History, which is
+Progress's. The words Today
 and Plan replaced are listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
 
 **Technical.** Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase and Drizzle. The
@@ -185,7 +187,7 @@ stands.
 | How a programme runs and where it has got to                    | Plan › the programme's card and page           |
 | A programme's progress, weeks or days; editing or ending it     | Plan › the programme's page                    |
 | Starting a new programme                                        | Plan › New programme                           |
-| A first programme drafted and waiting to be started             | Plan, beside the programme cards               |
+| A first programme, from the request to its start                | Plan, beside the programme cards               |
 | Asking the coach for a change; coach review; changes to approve | Plan › the programme's page                    |
 | Programmes ended or replaced                                    | Plan › Past programmes                         |
 | What a logged run, ride or swim counts as                       | Its page › Counts as                           |
