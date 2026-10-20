@@ -446,6 +446,8 @@
   input,
   select,
   textarea {
+    /* The app's face, not the browser's (a textarea defaults to monospace in Chrome). */
+    font-family: inherit;
     /* iOS Safari zooms into inputs smaller than 16px. Keep them at 16px+. */
     font-size: var(--ov-text-input);
   }
