@@ -605,7 +605,10 @@ it. A row that opens a choice may carry one line under its name saying what the 
 few words, never how it works. A value the app filled in from the profile or the logs says so in
 a word or two beside its label ("From your logs"), never in a sentence under it. A failure is said
 in the athlete's words: what failed, what is unchanged, what to do; text the coach or the server
-wrote for whoever runs them is never the message, and may sit folded under Details.
+wrote for whoever runs them is never the message, and may sit folded under Details. A safety
+instruction from the coach ("Stop if…") is need-to-know and stays in view, one line; the coach's
+other notes on a session (pace, progression, how to run it) fold under its plan. A date reads in
+the app's notation ("Thu 10 Dec"), never raw or ISO.
 
 ## Layout
 
@@ -860,7 +863,8 @@ and every control answers a press.
   (48 dp on Android), the control surface (on a card, the control surface on a surface), a
   glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
-  confirmed, never in the primary place. An option that discards a day (Skip this session) stands
+  confirmed, never in the primary place while it would lose a record. One that loses nothing
+  (discarding an empty session or an untouched draft) may be the primary. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
 - **Press:** scale 0.97 in 120 ms, `cubic-bezier(0.23, 1, 0.32, 1)`; none with reduced motion.
 - **Focus:** a 3-px ink outline at 2-px offset, ringed in ground so it shows on ink.
@@ -964,7 +968,9 @@ and every control answers a press.
   warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
   opens the drills in a sheet.
 - A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
-  words do not name it (History, a day, Friends). A setting or a menu option is led by its glyph.
+  words do not name it (History, a day, Friends). A chooser of sports (Log, New programme, setup)
+  leads each row with its sport's mark drawn as a session still to do: full and dashed are for
+  sessions done and skipped. A setting or a menu option is led by its glyph.
 - A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
 - A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 RIR · [dial] 3–4 min"; a run's
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
@@ -1074,6 +1080,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   the page, `inline` is a ruled row inside a box, `footer` is a box's last row. Never the
   browser's own triangle.
 - Closed, unless it holds an error to fix, the week under way or the day in progress.
+- A list of folds (weeks, days, steps) is ruled `inline` rows inside one section, never a stack of
+  boxes; `box` is for a fold standing alone on a page.
 - A fold holds more than one thing: a single action stands as itself ("Duplicate programme"),
   never alone behind More options.
 - Inside a card the note is a passage of the card, not a box: no surface, the caption and the

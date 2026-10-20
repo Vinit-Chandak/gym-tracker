@@ -150,8 +150,10 @@ harder run, or estimated from age), the resting heart rate and how the zones are
 An exercise counts reps, seconds or metres. Set types: Warm-up, Working, Back-off, Drop, AMRAP,
 To failure. Targets read "3 × 8–12 @ 1–2 RIR"; a programme's place reads
 "Every week · Week 3 of 8" or "Progressive · Day 12 of 40". A planned session is Done, Skipped
-or Missed, and one no programme planned is Unplanned. The words Today and Plan replaced are
-listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
+or Missed, and one no programme planned is Unplanned. A planned session is named by its title,
+else its kind, else its sport ("Tempo run", "Easy run", "Run"), the same on Today, Plan, Log and
+its page, with its figure beside it ("30 min", "2.5–3.0 km"), never in its place. The words Today
+and Plan replaced are listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
 
 **Technical.** Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase and Drizzle. The
 JavaScript budgets are targets: +5 KiB gzip on the shared shell and +15 KiB per route, with any
@@ -165,7 +167,9 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 ## Information map
 
 Where each fact lives. Another screen may link to it by name, never restate its details or
-repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)). A date that orients a list
+(a week's range, a session's weekday) is not a restated fact, and stands wherever the list
+stands.
 
 | Fact                                                            | Home                                           |
 | --------------------------------------------------------------- | ---------------------------------------------- |
