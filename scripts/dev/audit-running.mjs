@@ -147,7 +147,7 @@ await audit("priya", async ({ page, step, data }) => {
     );
   });
   await step("session", async () => {
-    await page.goto(`/training/programme/occurrences/${data.upcoming.id}`, {
+    await page.goto(`/plan/sessions/${data.upcoming.id}`, {
       waitUntil: "networkidle",
     });
     // Named as Today names it: a title that only repeats its figure gives way to the kind of run.
@@ -166,7 +166,7 @@ await audit("priya", async ({ page, step, data }) => {
       throw new Error("A step's words run into what the line is.");
   });
   await step("log-form", async () => {
-    await page.goto(`/training/new?sport=running&occurrence=${data.upcoming.id}`, {
+    await page.goto(`/today/log/new?sport=running&occurrence=${data.upcoming.id}`, {
       waitUntil: "networkidle",
     });
     await expect(page.getByLabel("Kind of run")).toHaveValue("intervals");
@@ -182,7 +182,7 @@ await audit("priya", async ({ page, step, data }) => {
     await expect(page.locator(".lap-row input[inputmode=decimal]").nth(1)).toHaveValue("800");
   });
   await step("logged-run", async () => {
-    await page.goto(`/training/activities/${data.logged.id}`, { waitUntil: "networkidle" });
+    await page.goto(`/progress/activities/${data.logged.id}`, { waitUntil: "networkidle" });
     await says(page, "Laps", "Pace /km", "Time in zones", "Zone 5 · Maximum");
     // Five columns fit the phone without scrolling sideways.
     const scroll = page.locator(".run-laps-scroll");
@@ -195,7 +195,7 @@ await audit("priya", async ({ page, step, data }) => {
     await says(page, "Highest from your runs", "191", "% of reserve");
   });
   await step("treadmill-run", async () => {
-    await page.goto(`/training/activities/${data.treadmill.id}`, { waitUntil: "networkidle" });
+    await page.goto(`/progress/activities/${data.treadmill.id}`, { waitUntil: "networkidle" });
     await says(page, "Treadmill", "Long run", "Incline");
   });
 });
@@ -207,7 +207,7 @@ await audit("alex", async ({ page, step, data }) => {
     await says(page, "6 × 2 min in zone 4", "Intervals", "Tempo 2 mi", "Long run 4.5 mi");
   });
   await step("session", async () => {
-    await page.goto(`/training/programme/occurrences/${data.upcoming.id}`, {
+    await page.goto(`/plan/sessions/${data.upcoming.id}`, {
       waitUntil: "networkidle",
     });
     await says(
@@ -218,7 +218,7 @@ await audit("alex", async ({ page, step, data }) => {
     );
   });
   await step("logged-run", async () => {
-    await page.goto(`/training/activities/${data.logged.id}`, { waitUntil: "networkidle" });
+    await page.goto(`/progress/activities/${data.logged.id}`, { waitUntil: "networkidle" });
     await says(page, "Laps", "Pace /mi");
   });
   await step("heart-rate", async () => {

@@ -90,7 +90,7 @@ const readRecord = cache(async (activityId: string) => {
 
 /** Named as its title is: its own title, else what History and its day call it ("Ride"). */
 export async function generateMetadata(
-  props: PageProps<"/training/activities/[activityId]">,
+  props: PageProps<"/progress/activities/[activityId]">,
 ): Promise<Metadata> {
   const { activityId } = await props.params;
   // A malformed address is the page's to refuse; the title only names what is there.
@@ -108,7 +108,7 @@ export async function generateMetadata(
  * no speed, a swim timed only end to end shows no pace, and an effort nobody confirmed says
  * so rather than passing for a report (plan §§4, 9.1).
  */
-export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
+export default async function ActivityPage(props: PageProps<"/progress/activities/[activityId]">) {
   const { activityId } = await props.params;
   requireUuid(activityId);
   // Passed on to the correction, so the tab it was opened from stays selected through it, and
@@ -191,9 +191,9 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         : null;
   const countsAsHref =
     sport && !answered?.closed
-      ? (`/training/activities/${activity.id}/counts-as` as Route)
+      ? (`/progress/activities/${activity.id}/counts-as` as Route)
       : answered
-        ? (`/training/programme/occurrences/${answered.id}` as Route)
+        ? (`/plan/sessions/${answered.id}` as Route)
         : null;
 
   return (
@@ -205,7 +205,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
             <ActivityMore
               label={`Correct or delete this ${sport ? NOUN[sport] : "activity"}`}
               title={title}
-              editHref={`/training/activities/${activity.id}/edit${originQuery(origin)}` as Route}
+              editHref={`/progress/activities/${activity.id}/edit${originQuery(origin)}` as Route}
               activityId={activity.id}
               noun={sport ? NOUN[sport] : undefined}
               answered={onDelete}

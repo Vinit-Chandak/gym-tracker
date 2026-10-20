@@ -11,6 +11,7 @@ import { requireProfiledUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { ProgramBuilder } from "./program-builder";
+import type { ProgrammeBase } from "./programme-paths";
 export async function ProgrammeBuilderPage({
   onboarding = false,
   draftId,
@@ -54,7 +55,7 @@ export async function ProgrammeBuilderPage({
       !["editing", "ready"].includes(data.initial.status))
   )
     notFound();
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   return (
     <>
       <PageHeader

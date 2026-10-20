@@ -173,6 +173,16 @@ repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)). A date th
 (a week's range, a session's weekday) is not a restated fact, and stands wherever the list
 stands.
 
+A page's route begins with its home's tab, and that tab is the one lit: `/today` (Log's form is
+`/today/log/new`), `/plan` (a session `/plan/sessions/…`, a strength day `/plan/strength/days/…`,
+each builder `/plan/[sport]/edit`, drafts, requests and past requests), `/food`, `/progress` and
+`/profile`; or with a section the shell maps to a tab: `/workouts` (a session is Today's), and
+`/gyms`, `/exercises` and `/u` (Profile's). A record more than one tab opens, a finished workout
+or a logged run, ride or swim (`/progress/activities/…`), keeps the tab its link names, else
+Progress. A back link names the page it returns to ("Running programme"). The coach's questions
+for a new strength programme (`/profile/programme/create`) are the one exception until they are
+replaced. Old paths redirect permanently (owner, 20 October 2026).
+
 | Fact                                                            | Home                                           |
 | --------------------------------------------------------------- | ---------------------------------------------- |
 | Today's sessions, every sport's                                 | Today, a card each                             |

@@ -66,7 +66,7 @@ function waitingLine(request: RequestView): string | null {
  */
 export function RequestList({
   requests,
-  base = "/profile/programme",
+  base = "/plan",
   label,
 }: {
   requests: readonly RequestView[];

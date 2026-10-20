@@ -35,13 +35,13 @@ if (error) throw new Error(`Local audit sign-in failed: ${error.message}`);
 const cookie = [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
 const paths = [
   "/today",
-  "/training",
+  "/plan",
   "/food",
   "/progress",
   "/profile",
   "/progress/history",
-  "/profile/programme",
-  "/profile/programme?view=changes",
+  "/plan/strength",
+  "/plan/strength?view=changes",
   "/food/my-foods/meals/new",
   "/exercises",
   "/gyms",

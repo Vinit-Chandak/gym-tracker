@@ -1,11 +1,11 @@
 "use client";
 import { coachingAction } from "./client-action";
+import { requestPath, type ProgrammeBase } from "./programme-paths";
 import { DayPicker } from "./day-picker";
 
 import { Paperclip } from "@/components/ui/icons";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
-import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -93,7 +93,7 @@ export function CoachIntakeForm({
   prefill?: CoachIntake;
   reports: Report[];
   library: { slug: string; name: string }[];
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
   configured: boolean;
   initialStep?: number;
   preferredUnit?: "kg" | "lb";
@@ -207,7 +207,7 @@ export function CoachIntakeForm({
         createCoachProgramAction(savedIntakeId, requestKey),
       );
       if (!result.ok) throw new Error(result.error);
-      startNavigation(() => router.push(`${base}/jobs/${result.value.jobId}` as Route));
+      startNavigation(() => router.push(requestPath(base, result.value.jobId)));
     } catch (e) {
       unstable_rethrow(e);
       setError(
@@ -230,7 +230,8 @@ export function CoachIntakeForm({
     setSubmitting(true);
     try {
       await flush();
-      startNavigation(() => router.push(base));
+      // Out of setup, to the strength programme's page, which lists the answers kept here.
+      startNavigation(() => router.push(base === "/plan" ? "/plan/strength" : base));
     } catch (e) {
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save.");

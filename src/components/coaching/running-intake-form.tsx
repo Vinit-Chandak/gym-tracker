@@ -315,7 +315,7 @@ export function RunningIntakeForm({
     const created = await coachingAction(() =>
       createCoachProgramAction(result.value.id, requestKey),
     );
-    if (created.ok) router.push(`/profile/programme/jobs/${created.value.jobId}` as Route);
+    if (created.ok) router.push(`/plan/requests/${created.value.jobId}` as Route);
     else setError(created.error);
   }
 

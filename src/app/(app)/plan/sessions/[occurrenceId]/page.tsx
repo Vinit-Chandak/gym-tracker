@@ -121,7 +121,7 @@ function sessionTitle(read: SessionRead, occurrence: ProgrammeOccurrence): strin
 }
 
 export async function generateMetadata(
-  props: PageProps<"/training/programme/occurrences/[occurrenceId]">,
+  props: PageProps<"/plan/sessions/[occurrenceId]">,
 ): Promise<Metadata> {
   const { occurrenceId } = await props.params;
   // A malformed address is the page's to refuse; the title only names what is there.
@@ -136,9 +136,7 @@ export async function generateMetadata(
  * programme the athlete has moved on from reads as it did when that programme ended, with one
  * line saying how it ended in place of what could be done (ADR 0054).
  */
-export default async function OccurrencePage(
-  props: PageProps<"/training/programme/occurrences/[occurrenceId]">,
-) {
+export default async function OccurrencePage(props: PageProps<"/plan/sessions/[occurrenceId]">) {
   const { occurrenceId } = await props.params;
   requireUuid(occurrenceId);
   const read = await readSession(occurrenceId);
@@ -278,7 +276,7 @@ export default async function OccurrencePage(
           // of none, as this page's Back does, so Plan stays selected (NAV-03).
           <Card>
             <CardLink
-              href={`/training/activities/${occurrence.resolution.activityId}${originQuery(
+              href={`/progress/activities/${occurrence.resolution.activityId}${originQuery(
                 standalone ? "plan" : "programme",
               )}`}
             >
@@ -308,7 +306,7 @@ export default async function OccurrencePage(
             {/* The page's one primary: logging this session, in its sport's words. */}
             {loggable && (
               <LinkButton
-                href={`/training/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}`}
+                href={`/today/log/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}`}
                 className="w-full"
               >
                 {occurrence.sport === "strength" ? "Log workout" : LOG_LABEL[occurrence.sport]}

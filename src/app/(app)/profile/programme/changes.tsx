@@ -238,7 +238,7 @@ function plural(count: number, noun: string) {
 
 export function ProgrammeChanges({
   data,
-  base = "/profile/programme",
+  base = "/plan",
   request = null,
 }: {
   data: ProgrammeChangesData;

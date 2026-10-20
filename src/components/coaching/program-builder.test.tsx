@@ -83,7 +83,7 @@ function renderBuilder(
   render(
     <ProgramBuilder
       initial={plan ? { id: "draft-id", revision: 2, blueprint: plan } : null}
-      base="/profile/programme"
+      base="/plan"
       warmups={[]}
       library={library}
       {...extra}
@@ -304,7 +304,7 @@ it("reviews only the acknowledged saved revision", async () => {
   } as Awaited<ReturnType<typeof reviewProgramDraftAction>>);
   renderBuilder(blueprint());
   fireEvent.click(screen.getByRole("button", { name: "Review programme" }));
-  await waitFor(() => expect(push).toHaveBeenCalledWith("/profile/programme/drafts/saved-draft"));
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/plan/drafts/saved-draft"));
   expect(reviewProgramDraftAction).toHaveBeenCalledWith("saved-draft", 3);
 });
 

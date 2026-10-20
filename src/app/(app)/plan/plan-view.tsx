@@ -49,7 +49,7 @@ const STATUS: Record<Exclude<WeekStatus, "planned">, string> = {
 function sessionHref(session: WeekSession): Route {
   if (session.status === "today") return "/today";
   return session.occurrenceId
-    ? (`/training/programme/occurrences/${session.occurrenceId}` as Route)
+    ? (`/plan/sessions/${session.occurrenceId}` as Route)
     : ("/plan/strength" as Route);
 }
 
@@ -223,10 +223,9 @@ function Waiting({
 }
 
 function draftHref(draft: Pick<NewProgrammeDraft, "id" | "sport" | "status">): string {
-  if (draft.status === "ready") return `/profile/programme/drafts/${draft.id}`;
-  return draft.sport === "strength"
-    ? `/profile/programme/manual?draft=${draft.id}`
-    : `/plan/${draft.sport}/edit?draft=${draft.id}`;
+  if (draft.status === "ready") return `/plan/drafts/${draft.id}`;
+  // Each sport's builder is under its programme's page, strength's too.
+  return `/plan/${draft.sport}/edit?draft=${draft.id}`;
 }
 
 /**
@@ -299,7 +298,7 @@ export function PlanView({
               {requests.map((request) => (
                 <Waiting
                   key={request.id}
-                  href={`/profile/programme/jobs/${request.id}`}
+                  href={`/plan/requests/${request.id}`}
                   sport={request.sport}
                   name={null}
                   state={REQUEST_STATE[request.status]}

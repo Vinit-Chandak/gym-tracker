@@ -129,7 +129,7 @@ const owed = {
 const props = (occurrence = ID, from?: string) =>
   ({
     searchParams: Promise.resolve(from ? { occurrence, from } : { occurrence }),
-  }) as unknown as PageProps<"/training/new">;
+  }) as unknown as PageProps<"/today/log/new">;
 
 beforeEach(() => {
   mocks.occurrence.mockReset();
@@ -156,7 +156,7 @@ it("refuses a closed programme's session, says how its programme ended, and offe
     "Strength Maintenance + 2 Runs made way for Hybrid Half Marathon on Mon 6 Jul 2026.",
   );
   expect(html).not.toContain("can no longer be logged");
-  expect(html).toContain('<a href="/training/new?sport=running">Log a run anyway</a>');
+  expect(html).toContain('<a href="/today/log/new?sport=running">Log a run anyway</a>');
   expect(mocks.closure).toHaveBeenCalledWith({}, "me", "old-block", "UTC");
 });
 
@@ -262,7 +262,7 @@ it("names the document as its header does", async () => {
     (
       await generateMetadata({
         searchParams: Promise.resolve(search),
-      } as unknown as PageProps<"/training/new">)
+      } as unknown as PageProps<"/today/log/new">)
     ).title;
   // A closed programme's session: what became of it, as the refusal's header says.
   expect(await title({ occurrence: ID })).toBe("Its programme has ended");

@@ -154,7 +154,7 @@ it("uses keyboard tab navigation and does not mislabel new or past programmes wi
     panel
       .getByRole("link", { name: /Running.*Marathon build.*Review new programme/ })
       .getAttribute("href"),
-  ).toBe("/profile/programme/drafts/new");
+  ).toBe("/plan/drafts/new");
   expect(panel.queryByText("My first 5K")).toBeNull();
 });
 
@@ -185,7 +185,7 @@ it("keeps coach questions that block programme creation visible in the inbox", (
     screen
       .getByRole("link", { name: /Swimming.*Finish your programme brief/ })
       .getAttribute("href"),
-  ).toBe("/profile/programme/jobs/question");
+  ).toBe("/plan/requests/question");
   expect(screen.queryByRole("heading", { name: "You’re all caught up" })).toBeNull();
 });
 
@@ -259,7 +259,7 @@ it("says what the coach could not finish in plain words, with the way to try aga
     screen
       .getByRole("link", { name: /The coach could not finish your programme.*Try again/ })
       .getAttribute("href"),
-  ).toBe("/profile/programme/jobs/failed");
+  ).toBe("/plan/requests/failed");
   // What the worker wrote is for whoever runs the coach, not the athlete.
   expect(screen.queryByText(/audit worker/)).toBeNull();
   expect(screen.queryByText(/A run needs attention/)).toBeNull();

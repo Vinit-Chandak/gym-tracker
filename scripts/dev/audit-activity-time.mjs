@@ -66,7 +66,7 @@ async function run(engine) {
   const saveActivity = async (label = "Save run") => {
     await page.getByRole("button", { name: label, exact: true }).click();
     // A run logged from Training opens on Training (?from=training), as its Back leads there.
-    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
+    await page.waitForURL(/\/progress\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
     await page.waitForLoadState("networkidle");
     return new URL(page.url()).pathname.split("/").at(-1);
   };
@@ -95,7 +95,7 @@ async function run(engine) {
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.waitForURL("**/today");
     await page.waitForLoadState("networkidle");
-    await page.goto("/training/new?sport=running", { waitUntil: "networkidle" });
+    await page.goto("/today/log/new?sport=running", { waitUntil: "networkidle" });
 
     await check("Spring clock-change gap is rejected without losing the entered run", async () => {
       await fillRun("2026-03-08T02:30", "Spring gap");
@@ -161,7 +161,7 @@ async function run(engine) {
     await check(
       "Second hour fits small phones and large text, and persists its distinct instant",
       async () => {
-        await page.goto("/training/new?sport=running", { waitUntil: "networkidle" });
+        await page.goto("/today/log/new?sport=running", { waitUntil: "networkidle" });
         await fillRun("2025-11-02T01:30", "Second occurrence");
         await page.getByLabel(/happens twice here\. Which one\?$/).selectOption("-300");
         for (const theme of ["light", "dark"]) {
@@ -206,7 +206,7 @@ async function run(engine) {
         expect(await sql`select time_zone from profiles where id=${id}`).toEqual([
           { time_zone: "America/Los_Angeles" },
         ]);
-        await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.goto(`/progress/activities/${secondId}/edit`, { waitUntil: "networkidle" });
         await page.locator(".more-details-summary").click();
         await expect(
           page.getByText("Date and time in America/New_York.", { exact: true }),
@@ -227,7 +227,7 @@ async function run(engine) {
     await check(
       "An explicit change to the other repeated hour updates the UTC instant",
       async () => {
-        await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.goto(`/progress/activities/${secondId}/edit`, { waitUntil: "networkidle" });
         await page.locator(".more-details-summary").click();
         await page.getByLabel(/happens twice here\. Which one\?$/).selectOption("-240");
         await saveActivity("Save changes");

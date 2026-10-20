@@ -236,7 +236,7 @@ export function EnduranceProgrammeBuilder({
     const checked = await coachingAction(() =>
       reviewProgramDraftAction(result.value.id, result.value.revision),
     );
-    if (checked.ok) router.push(`/profile/programme/drafts/${checked.value.id}` as Route);
+    if (checked.ok) router.push(`/plan/drafts/${checked.value.id}` as Route);
     else setError(checked.error);
   }
   const distanceScale =

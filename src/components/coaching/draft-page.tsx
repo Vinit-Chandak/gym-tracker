@@ -25,6 +25,7 @@ import { sourceRevision } from "@/server/repositories/coaching-state";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { ChangeDetail } from "./change-detail";
 import { DraftPreview } from "./draft-preview";
+import type { ProgrammeBase } from "./programme-paths";
 
 /** How a closed change ended, in the fewest words that are still true. */
 function outcomeLine(draft: ProgramDraft, timeZone: string): string | null {
@@ -113,7 +114,7 @@ export async function ProgrammeDraftPage({
     { readOnly: true },
   );
   if (!data) notFound();
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   const today = todayInTimeZone(profile.timeZone);
   if (!data.currentBlueprint || data.draft.standalone)
     return (
@@ -138,7 +139,9 @@ export async function ProgrammeDraftPage({
       </>
     );
   // Board Programme change: the way back, named for the programme page it returns to, then the
-  // change's own line as the title.
+  // change's own line as the title. Opened cold (the coach's note, an email), it goes to its own
+  // programme's page, never another sport's: the strength programme's at its Changes, where the
+  // change is listed; a run, ride or swim programme lists its changes on the page itself.
   const sport = data.draft.sport;
   return (
     <>

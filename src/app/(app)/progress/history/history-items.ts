@@ -134,7 +134,7 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
       distanceIn(r.distanceMeters, "running", clock),
     ]),
     subtitle: joinFacts([clock.timeOf(r.startedAt), ENDURANCE_PLACE_LABELS[r.environment]]),
-    href: `/training/activities/${r.id}${originQuery("history")}` as const,
+    href: `/progress/activities/${r.id}${originQuery("history")}` as const,
     meta: joinFacts([formatDuration(r.durationSeconds), paceIn(r.averagePaceSecondsPerKm, clock)]),
     gymId: r.gymId,
     exercises: [],
@@ -164,7 +164,7 @@ export function enduranceItem(activity: ActivityListItem, clock: HistoryClock): 
       clock.timeOf(activity.startedAt),
       activity.environment ? ENDURANCE_PLACE_LABELS[activity.environment] : null,
     ]),
-    href: `/training/activities/${activity.id}${originQuery("history")}` as const,
+    href: `/progress/activities/${activity.id}${originQuery("history")}` as const,
     // An unrecorded duration says so rather than reading as zero minutes.
     meta:
       activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),

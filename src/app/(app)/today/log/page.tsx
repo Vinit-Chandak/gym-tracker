@@ -237,7 +237,7 @@ export default async function LogPage(props: PageProps<"/today/log">) {
           backHref={back}
         />
         <PageContent>
-          <form action="/training/new" className="space-y-4">
+          <form action="/today/log/new" className="space-y-4">
             <input type="hidden" name="sport" value={sport} />
             {session && <input type="hidden" name="occurrence" value={session.id} />}
             <input type="hidden" name="from" value="today" />

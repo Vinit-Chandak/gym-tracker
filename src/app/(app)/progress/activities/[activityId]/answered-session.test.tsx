@@ -54,7 +54,7 @@ it("names a session with no day of its own by its sport", () => {
  * Tempo run, cycle 10, planned for Thu 20 Aug." over "Change what it counts as".
  */
 it("says what it counts as in one row that opens where it can change", () => {
-  const href = `/training/activities/a1/counts-as` as Route;
+  const href = `/progress/activities/a1/counts-as` as Route;
   render(<CountsAsRow value="Tempo run · Thu 20 Aug" href={href} />);
   const row = screen.getByRole("link");
   expect(row.textContent).toBe("Counts asTempo run · Thu 20 Aug");

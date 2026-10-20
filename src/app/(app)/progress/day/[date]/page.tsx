@@ -118,7 +118,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         title: joinFacts([name, distance]),
         meta: joinFacts([place, seconds === null ? null : formatDuration(seconds), pace, stroke]),
         // A logged activity is History's, as the day is Progress's (NAV-03).
-        href: `/training/activities/${item.id}${originQuery("history")}` as Route,
+        href: `/progress/activities/${item.id}${originQuery("history")}` as Route,
         piece: { sport: item.sport as Exclude<ActivitySport, "strength"> },
         open: false,
       };

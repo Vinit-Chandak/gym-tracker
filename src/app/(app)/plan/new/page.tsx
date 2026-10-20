@@ -30,13 +30,12 @@ export const metadata: Metadata = { title: "New programme" };
 
 const MARK = { strength: "strength", running: "run", cycling: "ride", swimming: "swim" } as const;
 
-/** Where building one by hand starts, already set to run the way it was asked to. */
+/**
+ * Where building one by hand starts, already set to run the way it was asked to: the sport's
+ * builder, under its programme's page (strength's is a cycle of days, the others' weeks).
+ */
 function builderHref(sport: ActivitySport, mode: "repeating" | "progressive"): Route {
-  return (
-    sport === "strength"
-      ? `/profile/programme/manual?mode=${mode}`
-      : `/plan/${sport}/edit?mode=${mode}`
-  ) as Route;
+  return `/plan/${sport}/edit?mode=${mode}` as Route;
 }
 
 /**

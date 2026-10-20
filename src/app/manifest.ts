@@ -53,7 +53,7 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: "Log a run",
         short_name: "Run",
-        url: "/training/new?sport=running",
+        url: "/today/log/new?sport=running",
         icons: [shortcutIcon("run")],
       },
       { name: "Progress", url: "/progress", icons: [shortcutIcon("progress")] },

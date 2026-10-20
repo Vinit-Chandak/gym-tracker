@@ -43,8 +43,8 @@ const routes = [
   "/today",
   "/today/log",
   "/today/log?sport=strength",
-  `/training/activities/${run}`,
-  `/training/activities/${run}/edit`,
+  `/progress/activities/${run}`,
+  `/progress/activities/${run}/edit`,
   "/food",
   // Keep populated food states in the sweep even when the saved seed anchor is yesterday.
   ...(fixtures.history
@@ -95,13 +95,13 @@ const routes = [
   "/profile/ai-coach",
   "/profile/heart-rate",
   "/profile/programme/create",
-  "/profile/programme/manual",
-  "/profile/programme/history",
-  `/profile/programme/drafts/${draft}`,
-  `/profile/programme/drafts/${draft}/programme`,
+  "/plan/strength/edit",
+  "/plan/history",
+  `/plan/drafts/${draft}`,
+  `/plan/drafts/${draft}/programme`,
   `/welcome/programme/drafts/${draft}`,
   ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/welcome/programme/jobs/${j.id}`),
-  ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/profile/programme/jobs/${j.id}`),
+  ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/plan/requests/${j.id}`),
   "/profile/friends",
   "/profile/friends/people",
   "/profile/friends/people?people=followers",
@@ -142,7 +142,7 @@ const routes = [
   ]),
   ...(fixtures.programDays ?? [])
     .filter((day) => day.userId === vinit)
-    .map((day) => `/training/days/${day.id}`),
+    .map((day) => `/plan/strength/days/${day.id}`),
   `/workouts/start?gym=${gym}`,
   "/profile/sports",
   ...["running", "cycling", "swimming"].flatMap((sport) => {
@@ -151,11 +151,11 @@ const routes = [
       (a) => a.sport === sport && !a.familyId && a.disposition === "pending",
     );
     return [
-      `/training/new?sport=${sport}`,
-      `/training/activities/${activity.id}`,
-      `/training/activities/${activity.id}/edit`,
-      `/training/programme/occurrences/${occurrence.id}`,
-      `/training/new?occurrence=${occurrence.id}`,
+      `/today/log/new?sport=${sport}`,
+      `/progress/activities/${activity.id}`,
+      `/progress/activities/${activity.id}/edit`,
+      `/plan/sessions/${occurrence.id}`,
+      `/today/log/new?occurrence=${occurrence.id}`,
       `/u/shreyash?sport=${sport}`,
       `/profile/friends/leaderboard?sport=${sport}`,
       `/u/shreyash/compare?sport=${sport}`,
@@ -235,16 +235,16 @@ for (const config of configurations.filter((c) =>
           : route === "/runs/new"
             ? "/today/log?sport=running"
             : route.startsWith("/runs/")
-              ? route.replace("/runs/", "/training/activities/")
+              ? route.replace("/runs/", "/progress/activities/")
               : beforeFirstStep
                 ? "/welcome"
                 : route;
     // Setup's draft page reads only a first programme: a revision of a running one, and the job
-    // that wrote it, open on Profile.
+    // that wrote it, open on Plan.
     const arrived = (url) =>
       url.href === new URL(expectedRoute, baseURL).href ||
       (/^\/welcome\/programme\/(?:drafts|jobs)\//.test(route) &&
-        /^\/profile\/programme\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
+        /^\/plan\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
     try {
       await freshPage();
       const started = performance.now();
@@ -412,13 +412,13 @@ for (const config of configurations.filter((c) =>
         : persona === "sam"
           ? [
               "/today",
-              "/training",
+              "/plan",
               "/food",
               "/progress/history",
               "/progress",
               "/progress/calendar",
               `/progress/day/${fixtures.history?.to ?? "2026-10-07"}`,
-              "/profile/programme",
+              "/plan/strength",
               "/gyms",
               "/profile/friends",
             ]

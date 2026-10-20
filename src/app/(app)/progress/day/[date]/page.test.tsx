@@ -109,7 +109,7 @@ it("opens each finished record under History", async () => {
     },
   ];
   const html = renderToStaticMarkup(await DayPage(props));
-  expect(html).toContain('href="/training/activities/ride?from=history"');
+  expect(html).toContain('href="/progress/activities/ride?from=history"');
   expect(html).toContain('href="/workouts/done?from=history"');
   expect(html).toContain(`href="/workouts/${squatDay.id}"`);
 });

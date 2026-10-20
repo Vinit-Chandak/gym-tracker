@@ -48,7 +48,7 @@ export default async function ProgrammeHistoryPage() {
               {changes.map((change) => (
                 <li key={change.id}>
                   <LinkRow
-                    href={`/profile/programme/drafts/${change.id}` as Route}
+                    href={`/plan/drafts/${change.id}` as Route}
                     // A programme's name breaks between its words, never at a hyphen.
                     title={holdHyphens(change.title)}
                     subtitle={holdHyphens(change.subtitle)}

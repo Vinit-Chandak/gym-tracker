@@ -206,7 +206,7 @@ export function AiCoachSettings({
             <ul className="coach-history-list">
               {dashboard.jobs.map((job) => (
                 <li key={job.id}>
-                  <Link href={`/profile/programme/jobs/${job.id}` as Route}>
+                  <Link href={`/plan/requests/${job.id}` as Route}>
                     <span className="coach-scope-label">{scopeName(job.sport)}</span>
                     {/* What failed, in plain words, and the way on: the request page offers it. */}
                     <strong>
@@ -336,10 +336,7 @@ export function AiCoachSettings({
               <ul className="coach-change-list">
                 {needsInput.map((job) => (
                   <li key={job.id}>
-                    <Link
-                      href={`/profile/programme/jobs/${job.id}` as Route}
-                      className="coach-change-row"
-                    >
+                    <Link href={`/plan/requests/${job.id}` as Route} className="coach-change-row">
                       <span>
                         <span className="coach-scope-label">{scopeName(job.sport)}</span>
                         <strong>Finish your {job.scope} brief</strong>
@@ -369,10 +366,8 @@ export function AiCoachSettings({
                   <Link
                     href={
                       (proposal.status === "editing" && !proposal.fromCoach
-                        ? proposal.sport === "strength"
-                          ? `/profile/programme/manual?draft=${proposal.id}`
-                          : `/plan/${proposal.sport}/edit?draft=${proposal.id}`
-                        : `/profile/programme/drafts/${proposal.id}`) as Route
+                        ? `/plan/${proposal.sport}/edit?draft=${proposal.id}`
+                        : `/plan/drafts/${proposal.id}`) as Route
                     }
                     className="coach-change-row"
                   >
@@ -448,7 +443,7 @@ export function AiCoachSettings({
                   <ul className="coach-history-list">
                     {recentChanges.map((item) => (
                       <li key={item.id}>
-                        <Link href={`/profile/programme/drafts/${item.id}` as Route}>
+                        <Link href={`/plan/drafts/${item.id}` as Route}>
                           <span className="coach-scope-label">{scopeName(item.sport)}</span>
                           <strong>{item.title}</strong>
                           <span className="coach-muted">Applied · {item.when}</span>
@@ -462,7 +457,7 @@ export function AiCoachSettings({
           </ul>
         )}
         {/* Every sport's settled requests and changes have one home: the history page. */}
-        <Link href="/profile/programme/history" className="coach-text-link">
+        <Link href="/plan/history" className="coach-text-link">
           Past requests and changes
           <Glyph name="chevronRight" className="glyph-16" />
         </Link>

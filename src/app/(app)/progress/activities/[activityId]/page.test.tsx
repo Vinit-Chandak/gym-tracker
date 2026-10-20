@@ -80,7 +80,7 @@ const session: NamedOccurrence = {
 const props = {
   params: Promise.resolve({ activityId: run.id }),
   searchParams: Promise.resolve({}),
-} as unknown as PageProps<"/training/activities/[activityId]">;
+} as unknown as PageProps<"/progress/activities/[activityId]">;
 
 beforeEach(() => {
   mocks.activity.mockResolvedValue(run);
@@ -183,17 +183,17 @@ it("says what it counts as in one row, opening Counts as or its ended session", 
       html,
     );
   const planned = countsAs(renderToStaticMarkup(await ActivityPage(props)));
-  expect(planned?.[1]).toBe(`/training/activities/${run.id}/counts-as`);
+  expect(planned?.[1]).toBe(`/progress/activities/${run.id}/counts-as`);
   expect(planned?.[2]).toMatch(/^Easy run ·\u00a0Sat\u00a014\u00a0Feb/);
 
   mocks.named.mockResolvedValue({ ...session, closed: true });
   expect(countsAs(renderToStaticMarkup(await ActivityPage(props)))?.[1]).toBe(
-    `/training/programme/occurrences/${OCCURRENCE}`,
+    `/plan/sessions/${OCCURRENCE}`,
   );
 
   mocks.activity.mockResolvedValue({ ...run, origin: AD_HOC_ORIGIN });
   const unplanned = countsAs(renderToStaticMarkup(await ActivityPage(props)));
-  expect(unplanned?.[1]).toBe(`/training/activities/${run.id}/counts-as`);
+  expect(unplanned?.[1]).toBe(`/progress/activities/${run.id}/counts-as`);
   expect(unplanned?.[2]).toBe("Unplanned");
 });
 

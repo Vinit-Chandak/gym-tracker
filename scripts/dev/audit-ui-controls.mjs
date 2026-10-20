@@ -158,7 +158,7 @@ for (const config of [
             name: "Past requests and changes",
             exact: true,
           });
-          await expect(history).toHaveAttribute("href", "/profile/programme/history");
+          await expect(history).toHaveAttribute("href", "/plan/history");
           await assertReadableText(history);
           await history.scrollIntoViewIfNeeded();
         } else if (key === "notes") {
@@ -181,7 +181,7 @@ for (const config of [
     });
     await check("programme-narrow-large-text", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
-      await visit("/profile/programme", 32);
+      await visit("/plan/strength", 32);
       await page.locator("details").evaluateAll((elements) =>
         elements.forEach((element) => {
           element.open = true;

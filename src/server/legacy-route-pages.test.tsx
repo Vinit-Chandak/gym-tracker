@@ -75,7 +75,7 @@ describe("compatibility pages outside the app shell", () => {
     "%s redirects to exactly the current owner's mapped activity",
     async (_name, open, suffix) => {
       await expect(open(runProps())).rejects.toThrow(
-        `redirect:/training/activities/${activityId}${suffix}`,
+        `redirect:/progress/activities/${activityId}${suffix}`,
       );
       expect(mock.activity).toHaveBeenCalledExactlyOnceWith(mock.tx, user.id, runId);
     },
@@ -99,7 +99,7 @@ describe("compatibility pages outside the app shell", () => {
 
   it("keeps the exact planned-run mapping and rejects unavailable plans", async () => {
     await expect(NewRunPage(newProps("saved-plan"))).rejects.toThrow(
-      "redirect:/training/new?occurrence=exact-occurrence",
+      "redirect:/today/log/new?occurrence=exact-occurrence",
     );
     expect(mock.occurrence).toHaveBeenCalledExactlyOnceWith(mock.tx, user.id, "saved-plan");
     mock.occurrence.mockResolvedValue(null);

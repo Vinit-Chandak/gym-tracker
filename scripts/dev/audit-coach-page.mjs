@@ -253,7 +253,7 @@ try {
     const proposal = panel("Requests & changes").locator(".coach-change-row").first();
     await expect(proposal).toBeVisible();
     await proposal.click();
-    await page.waitForURL(/\/profile\/programme\/drafts\/[0-9a-f-]+$/);
+    await page.waitForURL(/\/plan\/drafts\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.goto("/profile/ai-coach", { waitUntil: "networkidle" });
     await page.getByRole("link", { name: "Add programme", exact: true }).click();

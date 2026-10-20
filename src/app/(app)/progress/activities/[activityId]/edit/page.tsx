@@ -46,7 +46,7 @@ function correctTitle(sport: "running" | "cycling" | "swimming"): string {
 }
 
 export async function generateMetadata(
-  props: PageProps<"/training/activities/[activityId]/edit">,
+  props: PageProps<"/progress/activities/[activityId]/edit">,
 ): Promise<Metadata> {
   const { activityId } = await props.params;
   // A malformed address is the page's to refuse; the title only names what is there.
@@ -57,7 +57,7 @@ export async function generateMetadata(
 
 /** Correct the same record, preserving its sport, occurrence, units and opening revision. */
 export default async function EditActivityPage(
-  props: PageProps<"/training/activities/[activityId]/edit">,
+  props: PageProps<"/progress/activities/[activityId]/edit">,
 ) {
   const { activityId } = await props.params;
   requireUuid(activityId);
@@ -81,7 +81,7 @@ export default async function EditActivityPage(
         </span>
       }
       back={{
-        href: `/training/activities/${activityId}${originQuery(origin)}` as Route,
+        href: `/progress/activities/${activityId}${originQuery(origin)}` as Route,
         label: enduranceName(actual.sport),
       }}
     >

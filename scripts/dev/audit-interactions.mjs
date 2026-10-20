@@ -194,7 +194,7 @@ for (const config of [
         const workout = card.getByRole("link", { name: "Open workout", exact: true });
         if (await workout.count()) {
           const href = await workout.getAttribute("href");
-          assert.match(href, /^\/training\/days\/[0-9a-f-]+$/);
+          assert.match(href, /^\/plan\/strength\/days\/[0-9a-f-]+$/);
           await target(workout);
           await workout.tap();
           await page.waitForURL(new URL(href, baseURL).href);
@@ -227,7 +227,7 @@ for (const config of [
     await check("start-and-check-in-actions-clear-the-bottom-navigation", async () => {
       await openStrengthProgramme();
       const day = programmeDays()
-        .filter({ has: page.locator('a[href^="/training/days/"]') })
+        .filter({ has: page.locator('a[href^="/plan/strength/days/"]') })
         .first();
       const workout = day.getByRole("link", { name: "Open workout", exact: true });
       const summary = day.locator(":scope > details > summary");
@@ -236,7 +236,7 @@ for (const config of [
       await expect(day.locator(":scope > details")).toHaveAttribute("open", "");
       await target(workout);
       await workout.tap();
-      await page.waitForURL(/\/training\/days\//);
+      await page.waitForURL(/\/plan\/strength\/days\//);
       await page.waitForLoadState("networkidle");
       const start = page.getByRole("link", { name: "Start workout", exact: true });
       await target(start);
@@ -288,7 +288,7 @@ for (const config of [
       await target(entry);
       await entry.tap();
       // A day's entries say where they were opened from (`?from=history`), so Progress stays lit.
-      await page.waitForURL(/\/(?:workouts|training\/activities)\/[0-9a-f-]+(?:\?from=[a-z]+)?$/);
+      await page.waitForURL(/\/(?:workouts|progress\/activities)\/[0-9a-f-]+(?:\?from=[a-z]+)?$/);
       await page.waitForLoadState("networkidle");
       await target(page.locator("a.back-link"));
       await page.locator("a.back-link").tap();

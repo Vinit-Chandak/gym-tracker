@@ -17,6 +17,7 @@ import { latestIntake } from "@/server/repositories/coach-intakes";
 import { listCoachAttachments } from "@/server/repositories/coach-attachments";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { CoachIntakeForm } from "./intake-form";
+import type { ProgrammeBase } from "./programme-paths";
 
 export async function ProgrammeCreationPage({ onboarding = false }: { onboarding?: boolean }) {
   const user = await requireProfiledUser();
@@ -68,12 +69,13 @@ export async function ProgrammeCreationPage({ onboarding = false }: { onboarding
     },
     { readOnly: true },
   );
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   const usual = data.locations.find((location) => location.isDefault) ?? data.locations[0];
   return (
     <>
       {/* Plan's name for it (ADR 0058): "Create a programme" was retired. */}
-      <PageHeader title="New strength programme" backHref={base} />
+      {/* Back to the programme it would be, as its builder goes back (the strength programme). */}
+      <PageHeader title="New strength programme" backHref={onboarding ? base : "/plan/strength"} />
       <PageContent>
         {!coachRollout().intake && !data.initial ? (
           // One short line and its action: building it by hand is still open.

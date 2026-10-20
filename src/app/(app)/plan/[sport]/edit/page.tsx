@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { z } from "zod";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageContent } from "@/components/shell/page-content";
+import { ProgrammeBuilderPage } from "@/components/coaching/builder-page";
 import { EnduranceProgrammeBuilder } from "@/components/coaching/endurance-programme-builder";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -15,7 +16,13 @@ import { getActiveProgram } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 
-export default async function EditEnduranceProgrammePage({
+/**
+ * A programme's builder, under the programme it builds (owner, 20 October 2026). Strength has
+ * its own, a cycle of days (`ProgrammeBuilderPage`): `?draft=` reopens a draft of it and `?mode=`
+ * starts a new one the way New programme asked, as `/profile/programme/manual` did, which now
+ * redirects here. A run, ride or swim programme is built week by week below.
+ */
+export default async function EditProgrammePage({
   params,
   searchParams,
 }: {
@@ -24,10 +31,7 @@ export default async function EditEnduranceProgrammePage({
 }) {
   const { sport } = await params;
   const { draft, mode } = await searchParams;
-  if (sport === "strength")
-    redirect(
-      `/profile/programme/manual${draft ? `?draft=${draft}` : mode ? `?mode=${mode}` : ""}` as Route,
-    );
+  if (sport === "strength") return <ProgrammeBuilderPage draftId={draft} mode={mode} />;
   if (
     !isActivitySport(sport) ||
     !isEnduranceSport(sport) ||

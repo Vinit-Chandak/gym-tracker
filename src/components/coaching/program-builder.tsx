@@ -18,6 +18,7 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
+import type { ProgrammeBase } from "./programme-paths";
 
 type LibraryEntry = {
   slug: string;
@@ -67,7 +68,7 @@ export function ProgramBuilder({
   initial: { id: string; revision: number; blueprint: ProgramBlueprint } | null;
   library: LibraryEntry[];
   warmups: { slug: string; name: string }[];
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
   routines?: { id: string; name: string; day: SavedRoutineDay }[];
   preview?: boolean;
   /** How a new programme runs, as New programme chose it (ADR 0058); a draft keeps its own. */

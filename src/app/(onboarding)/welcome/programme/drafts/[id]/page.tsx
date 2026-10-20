@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Your programme is ready" };
 
 /**
  * Board Your programme is ready: the first programme, read before it starts, inside setup. A
- * draft written against a running programme is a change, decided under Profile › Programme;
+ * draft written against a running programme is a change, decided on Plan (`/plan/drafts/[id]`);
  * one already started or closed is not offered again.
  */
 export default async function SetupDraftPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +49,7 @@ export default async function SetupDraftPage({ params }: { params: Promise<{ id:
   );
   if (!data) notFound();
   const { draft, state } = data;
-  if (draft.baseProgramId !== null) redirect(`/profile/programme/drafts/${draft.id}`);
+  if (draft.baseProgramId !== null) redirect(`/plan/drafts/${draft.id}`);
   if (draft.status === "activated") redirect("/today");
   if (draft.status !== "editing" && draft.status !== "ready") redirect("/welcome/programme");
   const experienced = state.experience === "experienced";

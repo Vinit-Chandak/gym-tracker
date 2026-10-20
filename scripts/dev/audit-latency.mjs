@@ -114,7 +114,7 @@ async function openHistory() {
   await settled("/progress/history");
 }
 for (const [path, label] of [
-  ["/training", "Training"],
+  ["/plan", "Plan"],
   ["/food", "Food"],
   ["/progress", "Progress"],
   ["/profile", "Profile"],
@@ -127,8 +127,8 @@ wanted = "/progress/history";
 await openHistory();
 // Signing in landed on Today, and the browser keeps a tab's screen for a minute, so a click on
 // it now would ask the server for nothing. A page loaded afresh starts with no screens kept.
-await page.goto("/training");
-await settled("/training");
+await page.goto("/plan");
+await settled("/plan");
 wanted = "/today";
 await nav("Today").click();
 await settled("/today");

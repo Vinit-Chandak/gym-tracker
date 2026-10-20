@@ -106,7 +106,7 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
   canContinue: true,
   requests: [],
   today: "2026-09-19",
-  base: "/profile/programme",
+  base: "/plan",
   ...overrides,
 });
 
@@ -144,7 +144,7 @@ it("puts the whole programme after the difference, as it would be with the chang
   render(<ChangeDetail {...props()} />);
   const link = screen.getByRole("link", { name: "Full programme with these changes" });
   expect(link.getAttribute("href")).toBe(
-    "/profile/programme/drafts/11111111-1111-4111-8111-111111111111/programme",
+    "/plan/drafts/11111111-1111-4111-8111-111111111111/programme",
   );
   // It is the last thing on the screen, below the answers.
   const approve = screen.getByRole("button", { name: "Approve" });

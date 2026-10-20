@@ -33,7 +33,7 @@ afterEach(() => {
 const tiles = (next: number, open?: number): CycleDayTile[] =>
   ["Upper", "Easy run", "Lower", "Tempo run", "Full body", "Long run", "Rest"].map((name, i) => ({
     id: `day-${i + 1}`,
-    href: `/training/days/day-${i + 1}` as Route,
+    href: `/plan/strength/days/day-${i + 1}` as Route,
     name,
     said: name,
     next: i === next,

@@ -177,7 +177,7 @@ export default async function SportProgrammePage({
                   href={
                     (draft.status === "editing"
                       ? `/plan/${sport}/edit?draft=${draft.id}`
-                      : `/profile/programme/drafts/${draft.id}`) as Route
+                      : `/plan/drafts/${draft.id}`) as Route
                   }
                   glyph="note"
                   // Never the programme's own name, which heads the card above.
@@ -239,7 +239,7 @@ export default async function SportProgrammePage({
                         return (
                           <NavRow
                             key={session.id}
-                            href={`/training/programme/occurrences/${session.id}` as Route}
+                            href={`/plan/sessions/${session.id}` as Route}
                             label={holdHyphens(name)}
                             sub={sub || undefined}
                             value={sessionStatus(session, today)}

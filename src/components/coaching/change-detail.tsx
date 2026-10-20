@@ -23,6 +23,7 @@ import {
 
 import { coachingAction } from "./client-action";
 import { ProgramDiffView } from "./program-diff-view";
+import { builderPath, type ProgrammeBase } from "./programme-paths";
 
 export type ChangeRequestTag = {
   id: string;
@@ -54,7 +55,7 @@ export type ChangeDetailProps = {
   /** The athlete's own asks this change answers, to tag the lines they produced. */
   requests: readonly ChangeRequestTag[];
   today: string;
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
 };
 
 /** The athlete's own words, short enough to sit on a line of the diff. */
@@ -121,9 +122,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
   };
   const back = () =>
     startNavigation(() =>
-      router.push(
-        props.base === "/profile/programme" ? "/plan" : (`${props.base}?view=changes` as Route),
-      ),
+      router.push(props.base === "/plan" ? "/plan" : (`${props.base}?view=changes` as Route)),
     );
 
   return (
@@ -269,7 +268,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
                   href={
                     (props.sport && props.sport !== "strength"
                       ? `/plan/${props.sport}/edit?draft=${props.draftId}`
-                      : `${props.base}/manual?draft=${props.draftId}`) as Route
+                      : builderPath(props.base, `?draft=${props.draftId}`)) as Route
                   }
                   className="text-action"
                 >
@@ -282,7 +281,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
       )}
 
       {/* The whole programme as it would be — after the difference, not before it. */}
-      {props.base === "/profile/programme" && (
+      {props.base === "/plan" && (
         <ul className="mt-3">
           <NavRow
             href={`${props.base}/drafts/${props.draftId}/programme` as Route}

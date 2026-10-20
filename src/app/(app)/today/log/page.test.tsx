@@ -214,7 +214,7 @@ describe("Log (ADR 0058)", () => {
       const html = await render({ sport: "running" });
       expect(html).not.toContain("Counts as");
       expect(html).toContain('<p class="meta">Unplanned</p>');
-      expect(html).toContain('action="/training/new"');
+      expect(html).toContain('action="/today/log/new"');
       expect(html).not.toContain('name="occurrence"');
       expect(html).toContain('data-back="/today/log"');
     });

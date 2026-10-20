@@ -275,9 +275,9 @@ async function runDevice(device) {
       await clickWithSlowNavigation(
         page,
         button(page, "Save and exit"),
-        /\/profile\/programme(?:\?|$)/,
+        /\/plan\/strength(?:\?|$)/,
       );
-      await page.waitForURL(/\/profile\/programme$/);
+      await page.waitForURL(/\/plan\/strength$/);
       await go("/profile/programme/create");
       await expect(field(page, "Weight (lb)")).toHaveValue("180");
       const [intake] =
@@ -510,7 +510,7 @@ async function runDevice(device) {
       );
     });
     await step("manual-draft-routine-save-and-reload", async () => {
-      await go("/profile/programme/manual");
+      await go("/plan/strength/edit");
       await field(page, "Programme name").fill(programmeName);
       await field(page, "Number of weeks").fill("4");
       await field(page, "Programme notes").fill(
@@ -573,7 +573,7 @@ async function runDevice(device) {
           ["Recovery and mobility", 3],
         ],
       );
-      await go(`/profile/programme/manual?draft=${draftId}`);
+      await go(`/plan/strength/edit?draft=${draftId}`);
       await openDisclosure(page, "Programme settings");
       await expect(field(page, "Programme name")).toHaveValue(programmeName);
       await expect(field(page, "Number of weeks")).toHaveValue("4");
@@ -594,13 +594,13 @@ async function runDevice(device) {
       await clickWithSlowNavigation(
         page,
         button(page, "Review programme"),
-        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+        /\/plan\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
       );
-      await page.waitForURL(`/profile/programme/drafts/${draftId}`);
+      await page.waitForURL(`/plan/drafts/${draftId}`);
       await expect(page.getByRole("heading", { name: programmeName, exact: true })).toBeVisible();
       await expect(button(page, "Start programme")).toBeEnabled();
       await button(page, "Start programme").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       [activeProgram] =
         await sql`select id,family_id,version from programs where user_id=${userId} and status='active'`;
       assert.equal(activeProgram.version, 1);
@@ -608,18 +608,18 @@ async function runDevice(device) {
         await sql`select status,activated_program_id from program_drafts where id=${draftId}`;
       assert.equal(draft.status, "activated");
       assert.equal(draft.activated_program_id, activeProgram.id);
-      await go("/profile/programme?view=cycle");
+      await go("/plan/strength?view=cycle");
       await expect(page.getByText(programmeName, { exact: true })).toBeVisible();
     });
     await step("cloned-coach-proposal-request-revisions", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Ask for changes").click();
       await field(page, "what you would like changed").fill(
         "Keep three sets for now and review again after a comfortable week.",
       );
       await button(page, "Send").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,closed_as,revision_note_id from program_drafts where id=${proposal.id}`;
       assert.equal(draft.status, "rejected");
@@ -633,29 +633,29 @@ async function runDevice(device) {
     });
     await step("cloned-coach-proposal-decline", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Decline").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,closed_as from program_drafts where id=${proposal.id}`;
       assert.equal(draft.status, "rejected");
       assert.equal(draft.closed_as, "declined");
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await expect(page.getByText(/You declined this on/)).toBeVisible();
       await expect(button(page, "Approve")).toHaveCount(0);
     });
     await step("cloned-coach-proposal-approve-keeps-lineage", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await page
         .getByRole("link", { name: "Full programme with these changes", exact: true })
         .click();
-      await page.waitForURL(`/profile/programme/drafts/${proposal.id}/programme`);
+      await page.waitForURL(`/plan/drafts/${proposal.id}/programme`);
       await page.locator("summary").filter({ hasText: routineName }).click();
       await expect(page.getByText(customName, { exact: true }).first()).toBeVisible();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Approve").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,activated_program_id from program_drafts where id=${proposal.id}`;
       const [active] =
@@ -707,7 +707,7 @@ async function runDevice(device) {
     });
     await step("reuse-and-edit-routine-without-changing-original", async () => {
       const [routine] = await sql`select id,day from saved_routines where user_id=${userId}`;
-      await go("/profile/programme/manual");
+      await go("/plan/strength/edit");
       await field(page, "Programme name").fill(
         "Audit reusable routine — a separate edited programme",
       );
@@ -725,30 +725,30 @@ async function runDevice(device) {
       assert.equal(draft.blueprint.days[0].exercises[0].sets, 5);
       const [unchanged] = await sql`select day from saved_routines where id=${routine.id}`;
       assert.deepEqual(unchanged.day, routine.day);
-      await go(`/profile/programme/manual?draft=${draft.id}`);
+      await go(`/plan/strength/edit?draft=${draft.id}`);
       await expect(
         field(page.getByRole("group", { name: customName, exact: true }), "Sets"),
       ).toHaveValue("5");
       await clickWithSlowNavigation(
         page,
         button(page, "Review programme"),
-        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+        /\/plan\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
       );
-      await page.waitForURL(`/profile/programme/drafts/${draft.id}`);
+      await page.waitForURL(`/plan/drafts/${draft.id}`);
       await button(page, "Discard").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [discarded] = await sql`select status from program_drafts where id=${draft.id}`;
       assert.equal(discarded.status, "rejected");
     });
     await step("duplicate-programme-waits-for-slow-navigation", async () => {
-      await go("/profile/programme");
+      await go("/plan/strength");
       await openDisclosure(page.locator(".programme-management").first(), "More options");
       await clickWithSlowNavigation(
         page,
         button(page, "Duplicate programme").first(),
-        "**/profile/programme/manual?draft=*",
+        "**/plan/strength/edit?draft=*",
       );
-      await page.waitForURL(/\/profile\/programme\/manual\?draft=/);
+      await page.waitForURL(/\/plan\/strength\/edit\?draft=/);
       await openDisclosure(page, "Programme settings");
       await expect(field(page, "Programme name")).toBeVisible();
     });

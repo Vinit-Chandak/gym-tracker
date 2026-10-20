@@ -6,11 +6,14 @@ import {
 
 import nextConfig from "../next.config";
 
+const ID = "11111111-1111-4111-8111-111111111111";
+
 /**
  * The Settings tab became Profile (ADR 0026), Food took History's tab and History moved into
- * Progress (ADR 0034), and Training became Plan (ADR 0058). Every old path — bookmarks, the coach
- * documentation, emailed links — has to land on its new one, permanently. Order matters: a route
- * that did not move one-for-one must be matched before the catch-all.
+ * Progress (ADR 0034), Training became Plan (ADR 0058), and each page moved under the tab that
+ * owns it (owner, 20 October 2026). Every old path — bookmarks, the coach's notes and
+ * documentation, emailed links — has to land on its new one, permanently, its query with it.
+ * Order matters: a route that did not move one-for-one must be matched before the catch-all.
  */
 it("redirects every moved path to where it went", async () => {
   expect((await nextConfig.redirects!()).filter((rule) => rule.permanent)).toEqual([
@@ -31,6 +34,41 @@ it("redirects every moved path to where it went", async () => {
     { source: "/profile/programme", destination: "/plan/strength", permanent: true },
     { source: "/training/log", destination: "/today/log", permanent: true },
     { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
+    {
+      source: "/training/programme/occurrences/:occurrenceId",
+      destination: "/plan/sessions/:occurrenceId",
+      permanent: true,
+    },
+    {
+      source: "/training/days/:dayId",
+      destination: "/plan/strength/days/:dayId",
+      permanent: true,
+    },
+    { source: "/profile/programme/manual", destination: "/plan/strength/edit", permanent: true },
+    { source: "/profile/programme/drafts/:id", destination: "/plan/drafts/:id", permanent: true },
+    {
+      source: "/profile/programme/drafts/:id/programme",
+      destination: "/plan/drafts/:id/programme",
+      permanent: true,
+    },
+    { source: "/profile/programme/jobs/:id", destination: "/plan/requests/:id", permanent: true },
+    { source: "/profile/programme/history", destination: "/plan/history", permanent: true },
+    { source: "/training/new", destination: "/today/log/new", permanent: true },
+    {
+      source: "/training/activities/:activityId",
+      destination: "/progress/activities/:activityId",
+      permanent: true,
+    },
+    {
+      source: "/training/activities/:activityId/edit",
+      destination: "/progress/activities/:activityId/edit",
+      permanent: true,
+    },
+    {
+      source: "/training/activities/:activityId/counts-as",
+      destination: "/progress/activities/:activityId/counts-as",
+      permanent: true,
+    },
   ]);
 });
 
@@ -42,6 +80,29 @@ it.each([
   ["/profile/programme?view=changes", "/plan/strength?view=changes", 308],
   ["/training/log?sport=cycling", "/today/log?sport=cycling", 308],
   ["/today/choose", "/today/log?sport=strength", 308],
+  // Each page under the tab that owns it, whatever the old link asked of it.
+  [`/training/programme/occurrences/${ID}`, `/plan/sessions/${ID}`, 308],
+  [`/training/days/${ID}`, `/plan/strength/days/${ID}`, 308],
+  ["/profile/programme/manual", "/plan/strength/edit", 308],
+  [`/profile/programme/manual?draft=${ID}`, `/plan/strength/edit?draft=${ID}`, 308],
+  ["/profile/programme/manual?mode=progressive", "/plan/strength/edit?mode=progressive", 308],
+  [`/profile/programme/drafts/${ID}`, `/plan/drafts/${ID}`, 308],
+  [`/profile/programme/drafts/${ID}/programme`, `/plan/drafts/${ID}/programme`, 308],
+  [`/profile/programme/jobs/${ID}`, `/plan/requests/${ID}`, 308],
+  ["/profile/programme/history", "/plan/history", 308],
+  ["/training/new?sport=running", "/today/log/new?sport=running", 308],
+  [
+    `/training/new?occurrence=${ID}&date=2026-10-17&from=plan`,
+    `/today/log/new?occurrence=${ID}&date=2026-10-17&from=plan`,
+    308,
+  ],
+  [`/training/activities/${ID}?from=today`, `/progress/activities/${ID}?from=today`, 308],
+  [
+    `/training/activities/${ID}/edit?from=history`,
+    `/progress/activities/${ID}/edit?from=history`,
+    308,
+  ],
+  [`/training/activities/${ID}/counts-as`, `/progress/activities/${ID}/counts-as`, 308],
   // Set aside for now, so not for good: they may come back.
   ["/training/scheduled", "/plan", 307],
   ["/training/templates/abc/edit", "/plan", 307],

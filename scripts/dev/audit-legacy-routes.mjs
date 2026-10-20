@@ -88,7 +88,7 @@ for (const [engine, device, repetitions] of [
     for (let iteration = 1; iteration <= repetitions; iteration++) {
       for (const suffix of ["", "/edit"]) {
         const route = `/runs/${run.id}${suffix}`;
-        const destination = `/training/activities/${run.id}${suffix}`;
+        const destination = `/progress/activities/${run.id}${suffix}`;
         await check(`${iteration}: ${route} redirects before rendering`, async (page, result) => {
           const response = await context.request.get(route, { maxRedirects: 0 });
           result.status = response.status();
@@ -157,7 +157,7 @@ for (const [engine, device, repetitions] of [
           await page.getByLabel("Email", { exact: true }).fill("vinit@local.test");
           await page.getByLabel("Password", { exact: true }).fill("password123");
           await page.getByRole("button", { name: "Sign in", exact: true }).click();
-          await page.waitForURL(new URL(`/training/activities/${run.id}`, baseURL).href);
+          await page.waitForURL(new URL(`/progress/activities/${run.id}`, baseURL).href);
           await expect(page.locator("main h1")).toBeVisible();
           await page.waitForLoadState("networkidle");
         },

@@ -75,7 +75,7 @@ it("shows one proposal as one row: what it does, and the ask it answers", () => 
     />,
   );
   const row = screen.getByRole("link", { name: /falls back to the 45° machine/ });
-  expect(row.getAttribute("href")).toBe(`/profile/programme/drafts/${DRAFT}`);
+  expect(row.getAttribute("href")).toBe(`/plan/drafts/${DRAFT}`);
   expect(row.textContent).toContain("“anytime does not have horizontal leg press”");
   expect(row.textContent).not.toContain("You asked");
   // No badge under a heading that already says it waits for them, and no date.
@@ -109,7 +109,7 @@ it("answers a question where it is asked, and folds what is back with the coach"
 it("keeps everything settled behind one row instead of printing it", () => {
   render(<ProgrammeChanges data={data({ history: { requests: 2, changes: 1 } })} />);
   const link = screen.getByRole("link", { name: /Past requests and changes/ });
-  expect(link.getAttribute("href")).toBe("/profile/programme/history");
+  expect(link.getAttribute("href")).toBe("/plan/history");
   expect(link.textContent).toContain("2 requests ·\u00a01 change");
   expect(screen.queryByText("Settled requests")).toBeNull();
   expect(screen.queryByText("Reviews")).toBeNull();

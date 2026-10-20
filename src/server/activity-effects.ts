@@ -30,10 +30,10 @@ export function activityPaths(change: ActivityChange): string[] {
   // The sport's programme page says which of its sessions are done (ADR 0058).
   const paths = [...OWNED_PATHS, `/plan/${change.sport}`, ...COMPATIBILITY_PATHS];
   if (change.activityId) {
-    paths.push(`/training/activities/${change.activityId}`);
+    paths.push(`/progress/activities/${change.activityId}`);
     if (change.sport === "running") paths.push(`/runs/${change.activityId}`);
   }
-  if (change.occurrenceId) paths.push(`/training/programme/occurrences/${change.occurrenceId}`);
+  if (change.occurrenceId) paths.push(`/plan/sessions/${change.occurrenceId}`);
   if (change.username) paths.push(`/u/${change.username}`);
   return paths;
 }

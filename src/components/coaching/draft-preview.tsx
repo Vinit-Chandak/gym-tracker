@@ -31,6 +31,7 @@ import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { enduranceSessionGroups } from "@/domain/endurance-series";
 import { formatIsoDate } from "@/lib/format";
 import { EnduranceDraftWeeks } from "./endurance-draft-weeks";
+import { builderPath, type ProgrammeBase } from "./programme-paths";
 
 /**
  * "6 weeks · 4 days per cycle · 91 sets a cycle", counting one of anything as one — with the
@@ -108,7 +109,7 @@ export function DraftPreview({
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
   today: string;
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
   stale: boolean;
   machines: { id: string; unit: string }[];
   preferredUnit: "kg" | "lb";
@@ -242,7 +243,7 @@ export function DraftPreview({
                 (current.sport === "strength"
                   ? preview
                     ? "/preview/coaching?view=manual"
-                    : `${base}/manual?draft=${current.id}`
+                    : builderPath(base, `?draft=${current.id}`)
                   : `/plan/${current.sport}/edit?draft=${current.id}`) as Route
               }
               variant="secondary"

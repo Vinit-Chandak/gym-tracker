@@ -631,7 +631,7 @@ export function TodayView({
           href={
             (activity.sport === "strength" && activity.sessionId
               ? `/workouts/${activity.sessionId}${originQuery("today")}`
-              : `/training/activities/${activity.id}${originQuery("today")}`) as Route
+              : `/progress/activities/${activity.id}${originQuery("today")}`) as Route
           }
           lead={<Art kind="mark" sport={MARK[activity.sport]} size={20} state="done" />}
           label={holdHyphens(title)}
@@ -642,7 +642,7 @@ export function TodayView({
     ...skippedToday.map((occurrence) => (
       <NavRow
         key={occurrence.id}
-        href={`/training/programme/occurrences/${occurrence.id}` as Route}
+        href={`/plan/sessions/${occurrence.id}` as Route}
         lead={<Art kind="mark" sport={MARK[occurrence.sport]} size={20} state="skipped" />}
         label={holdHyphens(occurrence.prescription?.title ?? enduranceName(occurrence.sport))}
         value="Skipped"

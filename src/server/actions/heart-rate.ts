@@ -19,8 +19,8 @@ import { ageOn } from "@/lib/units";
 /** Every screen that reads a zone: the page itself, a run's page and a plan's targets. */
 function revalidateZones(): void {
   revalidatePath("/profile/heart-rate");
-  revalidatePath("/training/activities/[activityId]", "page");
-  revalidatePath("/training/programme/occurrences/[occurrenceId]", "page");
+  revalidatePath("/progress/activities/[activityId]", "page");
+  revalidatePath("/plan/sessions/[occurrenceId]", "page");
   revalidatePath("/today");
 }
 

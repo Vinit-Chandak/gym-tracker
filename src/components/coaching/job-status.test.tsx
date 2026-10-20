@@ -18,7 +18,7 @@ it("shows a successful review with no changes without inventing a draft or askin
     kind: "review_program",
     result: { outcome: "no_change", rationale: "The current plan still fits." },
   } as CoachJob;
-  render(<CoachJobStatus job={job} draftId={null} base="/profile/programme" />);
+  render(<CoachJobStatus job={job} draftId={null} base="/plan" />);
   expect(screen.getByRole("status").textContent).toBe("Your programme stays as it is");
   expect(screen.getByText("The current plan still fits.")).toBeTruthy();
   expect(screen.queryByRole("link", { name: /try again|Review the draft/i })).toBeNull();
@@ -34,7 +34,7 @@ it("says a failure in plain words, with what the coach wrote folded under Detail
     target: { scope: "programme", sport: "running" },
     error: "The local audit worker was unavailable.",
   } as CoachJob;
-  render(<CoachJobStatus job={job} draftId={null} base="/profile/programme" />);
+  render(<CoachJobStatus job={job} draftId={null} base="/plan" />);
   expect(screen.getByRole("status").textContent).toBe("The coach could not finish");
   expect(screen.getByText("Your answers are saved.")).toBeTruthy();
   const details = screen.getByText("Details").closest("details")!;
@@ -52,10 +52,10 @@ it("still offers the draft when one was produced", () => {
         { status: "succeeded", kind: "review_program", target: { scope: "programme" } } as CoachJob
       }
       draftId="draft"
-      base="/profile/programme"
+      base="/plan"
     />,
   );
   expect(screen.getByRole("link", { name: "Review the draft" }).getAttribute("href")).toBe(
-    "/profile/programme/drafts/draft",
+    "/plan/drafts/draft",
   );
 });

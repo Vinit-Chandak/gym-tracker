@@ -114,7 +114,7 @@ const DISTANCE = "4.2\u2060–\u20605.0\u00a0km";
 
 const props = {
   params: Promise.resolve({ occurrenceId: tempo.id }),
-} as unknown as PageProps<"/training/programme/occurrences/[occurrenceId]">;
+} as unknown as PageProps<"/plan/sessions/[occurrenceId]">;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -177,7 +177,7 @@ it("is headed by what its day is for, and the target is said once", async () => 
 it("leads into what was logged as Today's card does", async () => {
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toMatch(
-    /<a href="\/training\/activities\/a1\?from=programme" class="activity-card-link">See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug<svg[^>]*class="[^"]*glyph-18[^"]*"/,
+    /<a href="\/progress\/activities\/a1\?from=programme" class="activity-card-link">See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug<svg[^>]*class="[^"]*glyph-18[^"]*"/,
   );
 });
 

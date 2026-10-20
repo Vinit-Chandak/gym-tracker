@@ -133,7 +133,7 @@ it("says what a settled ask came to, with the change one tap away", () => {
   expect(screen.getByText(/Done — Doubles your direct core work\./)).toBeTruthy();
   expect(screen.getByText(/You withdrew it/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "See the change" }).getAttribute("href")).toBe(
-    "/profile/programme/drafts/00000000-0000-4000-8000-000000000009",
+    "/plan/drafts/00000000-0000-4000-8000-000000000009",
   );
   expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull();
 });

@@ -91,11 +91,11 @@ const readDay = cache(async (dayId: string) => {
 });
 
 export async function generateMetadata(
-  props: PageProps<"/training/days/[dayId]">,
+  props: PageProps<"/plan/[sport]/days/[dayId]">,
 ): Promise<Metadata> {
-  const { dayId } = await props.params;
+  const { sport, dayId } = await props.params;
   // A malformed address is the page's to refuse; the title only names what is there.
-  if (!z.uuid().safeParse(dayId).success) return { title: "Not found" };
+  if (sport !== "strength" || !z.uuid().safeParse(dayId).success) return { title: "Not found" };
   const data = await readDay(dayId);
   return { title: data.overview && data.plan ? data.plan.day.name : "Not found" };
 }
@@ -107,9 +107,13 @@ export async function generateMetadata(
  * prescription. Start workout starts this day at the default gym, as Train another day does; a
  * day already done is done again as its next cycle's. While a workout is open nothing starts
  * another: the session strip is the way back to it. A rest day says what it is, as Today does.
+ *
+ * Only the strength programme has days; a run, ride or swim programme has dated sessions, each
+ * with a page of its own (`/plan/sessions/[occurrenceId]`).
  */
-export default async function ProgrammeDayPage(props: PageProps<"/training/days/[dayId]">) {
-  const { dayId } = await props.params;
+export default async function ProgrammeDayPage(props: PageProps<"/plan/[sport]/days/[dayId]">) {
+  const { sport, dayId } = await props.params;
+  if (sport !== "strength") notFound();
   requireUuid(dayId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);

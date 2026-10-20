@@ -128,7 +128,7 @@ function EnduranceDetails({
           ))}
         </dl>
       )}
-      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>Skip or move</CardLink>
+      <CardLink href={`/plan/sessions/${occurrence.id}`}>Skip or move</CardLink>
     </div>
   );
 }
@@ -233,7 +233,7 @@ export function EnduranceCard({
       }
       actions={
         <LinkButton
-          href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
+          href={`/today/log/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
           variant="tonal"
           className="w-full"
           aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}

@@ -74,7 +74,7 @@ export function CycleDay({
       <div className="space-y-4">
         {about && <p className="text-sm text-ink-muted">{about}</p>}
         {day.includesLifting && (
-          <LinkButton href={`/training/days/${day.id}`} variant="secondary">
+          <LinkButton href={`/plan/strength/days/${day.id}`} variant="secondary">
             Open workout
           </LinkButton>
         )}

@@ -71,7 +71,7 @@ export function workoutHref(sessionId: string, origin: NavOrigin | null): Route 
 
 /** A logged run, ride or swim. */
 export function activityHref(id: string, origin: NavOrigin | null): Route {
-  return `/training/activities/${id}${originQuery(origin)}` as Route;
+  return `/progress/activities/${id}${originQuery(origin)}` as Route;
 }
 
 /** A day with more than one record: its page lists each. */

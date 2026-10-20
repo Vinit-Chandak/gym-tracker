@@ -237,7 +237,7 @@ function StoredEditor(props: Props) {
         /* Saving the activity succeeded even if storage is blocked. */
       }
       router.replace(
-        `/training/activities/${result.savedActivityId}${originQuery(props.origin ?? null)}`,
+        `/progress/activities/${result.savedActivityId}${originQuery(props.origin ?? null)}`,
       );
     }
     return result;

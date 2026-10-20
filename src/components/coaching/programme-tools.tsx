@@ -38,11 +38,8 @@ export function ProgrammeTools({
     const result = await coachingAction(() => copyProgramAction(id, duplicate));
     if (result.ok)
       startNavigation(() =>
-        router.push(
-          (result.value.sport === "strength"
-            ? `/profile/programme/manual?draft=${result.value.id}`
-            : `/plan/${result.value.sport}/edit?draft=${result.value.id}`) as Route,
-        ),
+        // Each sport's builder is under its programme's page, strength's too.
+        router.push(`/plan/${result.value.sport}/edit?draft=${result.value.id}` as Route),
       );
     else setError(result.error);
     setBusy(false);

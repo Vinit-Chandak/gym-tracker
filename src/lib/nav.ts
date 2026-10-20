@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import type { Destination } from "@/components/ui/glyphs";
+import { ACTIVITY_SPORT_LABELS, isActivitySport } from "@/domain/activity";
 
 export type NavItem = {
   href: Route;
@@ -36,24 +37,25 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/profile", label: "Profile", glyph: "profile" },
 ];
 
-/** Sections reached from Profile, which keep Profile selected while you are in them. */
+/**
+ * Each page's path begins with its tab's (owner, 20 October 2026): a scheduled session, a
+ * programme day, drafts, requests and the builders are Plan's (`/plan/…`), logging a run, ride
+ * or swim is Today's (`/today/log/new`), and a logged one is Progress's (`/progress/…`). The
+ * sections Profile reaches keep their own paths, and keep Profile selected while you are in them.
+ */
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
 
 /**
- * Pages of Plan's that live under other paths (ADR 0058): the strength programme's builder,
- * drafts and history, a scheduled session's page, and a programme day read before it is
- * trained. They keep Plan selected.
+ * The one page of Plan's still under another tab's path: the coach's questions for a new
+ * strength programme, kept where it is until it is replaced. It keeps Plan selected.
  */
-const UNDER_PLAN = ["/profile/programme", "/training/programme", "/training/days"];
-
-/** Logging a run, ride or swim, which is Today's however it was reached. */
-const UNDER_TODAY = ["/training/new", "/training/log"];
+const UNDER_PLAN = ["/profile/programme/create"];
 
 /**
  * Records more than one tab opens: a workout, and a logged run, ride or swim. Each can say in
  * its link which tab it was opened from, and that tab stays selected (NAV-03).
  */
-const OPENED_FROM_ELSEWHERE = ["/workouts", "/training/activities"];
+const OPENED_FROM_ELSEWHERE = ["/workouts", "/progress/activities"];
 
 const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
@@ -63,7 +65,7 @@ const withinSection = (pathname: string, section: string) =>
  * one of the session's pages under it or the check-in before it.
  */
 const isRecordPage = (pathname: string) =>
-  withinSection(pathname, "/training/activities") ||
+  withinSection(pathname, "/progress/activities") ||
   (/^\/workouts\/[^/]+$/.test(pathname) && pathname !== "/workouts/start");
 
 /**
@@ -93,11 +95,9 @@ export function isNavItemActive(
   // Profile's sections keep Profile, whether you are in one or a record was opened from one.
   const sectionPath = UNDER_PLAN.some((section) => withinSection(openedFrom, section))
     ? "/plan"
-    : UNDER_TODAY.some((section) => withinSection(openedFrom, section))
-      ? "/today"
-      : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
-        ? "/profile"
-        : openedFrom;
+    : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
+      ? "/profile"
+      : openedFrom;
   return withinSection(sectionPath, href);
 }
 
@@ -135,10 +135,23 @@ const PAGE_LABELS: Record<string, string> = {
 /** Comparing yourself with someone, one exercise of it included: a page named Compare. */
 const COMPARE_PAGE = /^\/u\/[^/]+\/compare(?:\/|$)/;
 
+/**
+ * A programme's own page, named as its title is ("Running programme"): what its session, its
+ * days, its builder and its changes go back to (owner, 20 October 2026).
+ */
+function programmeLabel(pathname: string): string | undefined {
+  const sport = /^\/plan\/([^/]+)$/.exec(pathname)?.[1];
+  return sport && isActivitySport(sport) ? `${ACTIVITY_SPORT_LABELS[sport]} programme` : undefined;
+}
+
 export function sectionLabel(path: string): string | undefined {
   const pathname = path.split(/[?#]/)[0]!;
+  // A logged run, ride or swim, its correction and Counts as: named by what it is, which only
+  // the page linking back to it knows (its `backLabel`), never by Progress, which it is not.
+  if (withinSection(pathname, "/progress/activities")) return undefined;
   return (
     PAGE_LABELS[pathname] ??
+    programmeLabel(pathname) ??
     (COMPARE_PAGE.test(pathname) ? "Compare" : SECTION_LABELS[pathname.split("/")[1] ?? ""])
   );
 }

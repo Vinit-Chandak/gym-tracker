@@ -487,7 +487,7 @@ it("keeps what a day finished today did as rows, and leaves the next day to Plan
   const ran = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
     name: /Run/,
   });
-  expect(ran.getAttribute("href")).toBe("/training/activities/activity-1?from=today");
+  expect(ran.getAttribute("href")).toBe("/progress/activities/activity-1?from=today");
   expect(ran.textContent).toContain("5.1");
   expect(ran.textContent).not.toContain("Unplanned");
 });
@@ -573,7 +573,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
   });
   expect(ride.textContent).toContain("Unplanned");
   expect(ride.textContent).toContain("51:32");
-  expect(ride.getAttribute("href")).toBe("/training/activities/ride-1?from=today");
+  expect(ride.getAttribute("href")).toBe("/progress/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
@@ -634,7 +634,7 @@ it("says a run skipped today once, as a row that opens it to undo the skip", () 
     name: /Run/,
   });
   expect(row.textContent).toContain("Skipped");
-  expect(row.getAttribute("href")).toBe("/training/programme/occurrences/run-skipped");
+  expect(row.getAttribute("href")).toBe("/plan/sessions/run-skipped");
 });
 
 it("says skipping a day that also runs skips only its workout", () => {

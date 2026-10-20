@@ -9,6 +9,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { answerCoachQuestionsAction } from "@/server/actions/coaching-workflow";
 import type { CoachJob } from "@/server/repositories/coaching-jobs";
 import { coachingAction } from "./client-action";
+import { coachQuestionsPath, requestPath, type ProgrammeBase } from "./programme-paths";
 
 /** Where a request stands, in setup's words. */
 function statusLine(job: CoachJob, draftId: string | null): string {
@@ -53,8 +54,8 @@ function unchangedLine(job: CoachJob): string {
 }
 
 /** Where trying again starts, for what was asked. */
-function retryHref(job: CoachJob, base: "/welcome/programme" | "/profile/programme"): Route {
-  if (base === "/welcome/programme") return `${base}/create` as Route;
+function retryHref(job: CoachJob, base: ProgrammeBase): Route {
+  if (base === "/welcome/programme") return coachQuestionsPath(base);
   if (job.kind === "review_program") return `/plan/${job.target.sport ?? "strength"}` as Route;
   if (job.kind === "prepare_session") return "/today" as Route;
   // Single coached sessions are set aside for now (ADR 0058).
@@ -69,7 +70,7 @@ export function CoachJobStatus({
 }: {
   job: CoachJob;
   draftId: string | null;
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
 }) {
   const router = useRouter();
   const pending = job.status === "queued" || job.status === "claimed";
@@ -164,7 +165,7 @@ export function CoachQuestions({
 }: {
   jobId: string;
   questions: readonly string[];
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
 }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<string[]>(() => questions.map(() => ""));
@@ -185,7 +186,7 @@ export function CoachQuestions({
       ),
     );
     if (result.ok) {
-      router.replace(`${base}/jobs/${result.value.jobId}` as Route);
+      router.replace(requestPath(base, result.value.jobId));
       return;
     }
     setError(result.error);

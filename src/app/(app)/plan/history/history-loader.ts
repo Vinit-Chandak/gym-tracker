@@ -11,7 +11,7 @@ import { joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 
-import { HISTORY_DRAFT_STATUSES } from "../changes";
+import { HISTORY_DRAFT_STATUSES } from "@/app/(app)/profile/programme/changes";
 
 /** How a past change ended, in a word or two. */
 export function outcomeOf(draft: {

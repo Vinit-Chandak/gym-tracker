@@ -52,7 +52,7 @@ it("says a logged session was logged, and offers what answered it", () => {
   );
   expect(screen.queryByText(/logged once/)).toBeNull();
   expect(screen.getByRole("link", { name: "See what you logged" }).getAttribute("href")).toBe(
-    "/training/activities/00000000-0000-4000-8000-00000000000a?from=plan",
+    "/progress/activities/00000000-0000-4000-8000-00000000000a?from=plan",
   );
 });
 
@@ -72,7 +72,7 @@ it("says a cancelled session was cancelled, and still offers the sport", () => {
     "Ride ·\u00a0Tue\u00a022\u00a0Sept\u00a02026",
   );
   expect(screen.getByRole("link", { name: "Log a ride anyway" }).getAttribute("href")).toBe(
-    "/training/new?sport=cycling",
+    "/today/log/new?sport=cycling",
   );
 });
 
@@ -103,7 +103,7 @@ it("says a replaced programme's session can no longer be logged, and offers the 
   ).toBeTruthy();
   expect(screen.queryByText(/can no longer be logged/)).toBeNull();
   expect(screen.getByRole("link", { name: "Log a run anyway" }).getAttribute("href")).toBe(
-    "/training/new?sport=running",
+    "/today/log/new?sport=running",
   );
 });
 

@@ -83,12 +83,12 @@ await mkdir(bundle);
 function category(route) {
   const path = String(route ?? "");
   if (/^\/(profile\/friends|u\/)/.test(path)) return "People";
-  if (/^\/(profile\/programme|training\/programme)/.test(path)) return "Programme";
+  // Plan's pages, and the coach's questions for a strength programme, still under Profile's path.
+  if (/^\/(?:plan|profile\/programme)(?:[/?]|$)/.test(path)) return "Plan";
   if (path.startsWith("/welcome")) return "Onboarding";
   if (path.startsWith("/food")) return "Food";
   if (path.startsWith("/progress")) return "Progress";
   if (path.startsWith("/workouts")) return "Workout";
-  if (path.startsWith("/training")) return "Training";
   if (/^\/(gyms|exercises)/.test(path)) return "Gyms and exercises";
   if (path.startsWith("/profile")) return "Profile";
   if (/^\/(login|signup|forgot|reset)/.test(path)) return "Account";

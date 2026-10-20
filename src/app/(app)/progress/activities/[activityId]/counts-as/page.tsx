@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: "Counts as" };
  * and Unplanned. Choosing one changes it; the measurements and the date stay as they were.
  */
 export default async function CountsAsPage(
-  props: PageProps<"/training/activities/[activityId]/counts-as">,
+  props: PageProps<"/progress/activities/[activityId]/counts-as">,
 ) {
   const { activityId } = await props.params;
   requireUuid(activityId);
@@ -79,10 +79,7 @@ export default async function CountsAsPage(
       ]),
       current: session.id === current,
       // The one it answers opens its page: what was planned, a tap from what was done.
-      href:
-        session.id === current
-          ? (`/training/programme/occurrences/${session.id}` as Route)
-          : undefined,
+      href: session.id === current ? (`/plan/sessions/${session.id}` as Route) : undefined,
     })),
     {
       occurrenceId: null,
@@ -98,7 +95,9 @@ export default async function CountsAsPage(
           activity.title ?? enduranceName(sport),
           formatIsoDate(activity.occurredOn, year),
         ])}
-        backHref={`/training/activities/${activityId}` as Route}
+        backHref={`/progress/activities/${activityId}` as Route}
+        // Back to the run, ride or swim, named as its correction names it ("Run").
+        backLabel={enduranceName(sport)}
       />
       <PageContent>
         <CountsAsChoices activityId={activity.id} revision={activity.revision} choices={choices} />

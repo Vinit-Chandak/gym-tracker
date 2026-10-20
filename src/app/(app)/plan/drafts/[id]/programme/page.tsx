@@ -19,7 +19,7 @@ import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { getSchedule, type ProgramDayPlan } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 
-import { CycleDay } from "../../../cycle-day";
+import { CycleDay } from "@/app/(app)/profile/programme/cycle-day";
 
 export const metadata: Metadata = { title: "Full programme" };
 
@@ -131,10 +131,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
   if (data.draft.sport !== "strength")
     return (
       <>
-        <PageHeader
-          title={data.draft.blueprint.name}
-          backHref={`/profile/programme/drafts/${data.draft.id}`}
-        />
+        <PageHeader title={data.draft.blueprint.name} backHref={`/plan/drafts/${data.draft.id}`} />
         <PageContent>
           {(data.draft.blueprint.enduranceSessions ?? []).map((session, index) => (
             <section
@@ -166,7 +163,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
     <>
       <PageHeader
         title={open ? "With these changes" : "Full programme"}
-        backHref={`/profile/programme/drafts/${data.draft.id}` as Route}
+        backHref={`/plan/drafts/${data.draft.id}` as Route}
       />
       <PageContent>
         <Section title={`${data.draft.blueprint.name} · week ${data.week}`}>

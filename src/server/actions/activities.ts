@@ -595,7 +595,7 @@ export async function countActivityAsAction(
   }
   for (const occurrence of [moved.from, moved.to])
     revalidateActivity({ sport: moved.sport, activityId, occurrenceId: occurrence });
-  redirect(`/training/activities/${activityId}`);
+  redirect(`/progress/activities/${activityId}`);
 }
 
 export type DeleteActivityResult = { ok: true } | { ok: false; error: string };

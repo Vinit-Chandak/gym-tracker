@@ -19,14 +19,20 @@ it.each([
   ["/workouts/start", "/today"],
   // A record opened with no origin is History's, inside Progress, as its Back is (NAV-03).
   ["/workouts/abc", "/progress"],
-  ["/training/activities/abc", "/progress"],
+  ["/progress/activities/abc", "/progress"],
   // Gyms left the tab bar; its screens keep Profile selected, the way it is reached.
   ["/gyms", "/profile"],
   ["/gyms/gym/equipment/new", "/profile"],
   ["/exercises", "/profile"],
   ["/exercises/bench", "/profile"],
-  // The strength programme's builder, drafts and history are Plan's (ADR 0058).
-  ["/profile/programme/manual", "/plan"],
+  // The strength programme's builder, drafts, requests and history are Plan's, under its path.
+  ["/plan/strength/edit", "/plan"],
+  ["/plan/drafts/abc", "/plan"],
+  ["/plan/drafts/abc/programme", "/plan"],
+  ["/plan/requests/abc", "/plan"],
+  ["/plan/history", "/plan"],
+  // The coach's questions for a new strength programme, still under Profile's path, are Plan's.
+  ["/profile/programme/create", "/plan"],
   ["/u/phani03", "/profile"],
   // A meal's page is the Food tab's; History is Progress's (ADRs 0034, 0045).
   ["/food", "/food"],
@@ -66,6 +72,20 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/progress/history")).toBe("History");
   expect(sectionLabel("/progress/history?from=2026-09-01")).toBe("History");
   expect(sectionLabel("/progress?view=strength")).toBe("Progress");
+  // A programme's page is named as its title is: what its session, days and changes go back to.
+  expect(sectionLabel("/plan/running")).toBe("Running programme");
+  expect(sectionLabel("/plan/strength?view=changes")).toBe("Strength programme");
+  expect(sectionLabel("/plan/swimming")).toBe("Swimming programme");
+  // Plan's other pages, and a programme's own pages, are Plan's.
+  expect(sectionLabel("/plan/new?sport=running")).toBe("Plan");
+  expect(sectionLabel("/plan/past")).toBe("Plan");
+  expect(sectionLabel("/plan/strength/days/abc")).toBe("Plan");
+  expect(sectionLabel("/plan/sessions/abc")).toBe("Plan");
+  // Logging a run, ride or swim is Today's.
+  expect(sectionLabel("/today/log/new?sport=running")).toBe("Today");
+  // A logged run, ride or swim is named by the page linking back to it, never "Progress".
+  expect(sectionLabel("/progress/activities/abc?from=history")).toBeUndefined();
+  expect(sectionLabel("/progress/activities/abc/counts-as")).toBeUndefined();
 });
 
 it("has no section name for a path outside the primary sections", () => {
@@ -92,9 +112,9 @@ it.each([
   ["/plan/running", "/plan"],
   ["/plan/new", "/plan"],
   // A scheduled session's page and a programme day are Plan's; logging a run is Today's.
-  ["/training/programme/occurrences/abc", "/plan"],
-  ["/training/days/abc", "/plan"],
-  ["/training/new", "/today"],
+  ["/plan/sessions/abc", "/plan"],
+  ["/plan/strength/days/abc", "/plan"],
+  ["/today/log/new", "/today"],
   // The session's own pages are Today's, where a workout is started and finished.
   ["/workouts/abc/check-in", "/today"],
   ["/workouts/abc/add-exercise", "/today"],
@@ -136,7 +156,7 @@ const selected = (pathname: string, origin: NavOrigin | null = null) =>
 it.each([null, ...NAV_ORIGINS])("lights the tab a record's Back leads into (%s)", (origin) => {
   // A finished workout and a logged run, ride or swim, with their link's origin or none.
   expect(selected("/workouts/abc", origin)).toEqual(selected(workoutBackPath(origin, true)));
-  expect(selected("/training/activities/abc", origin)).toEqual(selected(originPath(origin)));
+  expect(selected("/progress/activities/abc", origin)).toEqual(selected(originPath(origin)));
   // A finished workout's edit's Add exercise keeps the tab the workout lit, its link naming none
   // included; the open workout's is Today's.
   expect(selected("/workouts/abc/add-exercise", workoutOrigin(origin, true))).toEqual(
@@ -149,13 +169,15 @@ it.each<[string, NavOrigin, string]>([
   // A finished workout opened from History keeps History's tab, Progress, and so does its
   // exercise.
   ["/workouts/abc", "history", "/progress"],
-  ["/training/activities/abc", "history", "/progress"],
+  ["/progress/activities/abc", "history", "/progress"],
   // Correcting a run opened from History does not move you to Plan.
-  ["/training/activities/abc/edit", "history", "/progress"],
-  ["/training/activities/abc", "programme", "/plan"],
+  ["/progress/activities/abc/edit", "history", "/progress"],
+  ["/progress/activities/abc", "programme", "/plan"],
   // Opened from Today's card, a finished workout or a logged run keeps Today selected.
   ["/workouts/abc", "today", "/today"],
-  ["/training/activities/abc", "today", "/today"],
+  ["/progress/activities/abc", "today", "/today"],
+  // What it counts as is the record's too, under the tab it was opened from.
+  ["/progress/activities/abc/counts-as", "today", "/today"],
   ["/workouts/abc", "shared", "/profile"],
   // Year audit, October 2026: a workout opened from an exercise's graph lit Progress while its
   // Back went to the exercise, which is Profile's. The exercise's tab stays selected.
@@ -170,7 +192,10 @@ it.each([
   ["/today", "/today"],
   ["/progress", "/progress"],
   ["/food", "/food"],
-  ["/profile/programme/manual", "/plan"],
+  ["/plan/strength/edit", "/plan"],
+  ["/plan/sessions/abc", "/plan"],
+  // The form says where it was opened from, but logging is Today's however it was reached.
+  ["/today/log/new", "/today"],
   ["/exercises/bench", "/profile"],
 ])("lets only a record take an origin, never %s", (pathname, expected) => {
   expect(

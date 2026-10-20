@@ -418,11 +418,11 @@ function compareRecords(actual, data, expected) {
     }
     const href = new URL(row.href, baseURL);
     assert.equal(href.origin, appAddress.origin);
-    const match = /^\/(workouts|training\/activities)\/([0-9a-f-]{36})$/.exec(href.pathname);
+    const match = /^\/(workouts|progress\/activities)\/([0-9a-f-]{36})$/.exec(href.pathname);
     assert(match, `Unexpected History record link ${row.href}.`);
     const raw = byId.get(match[2]);
     assert(raw, `History displayed an unexpected record ${match[2]}.`);
-    assert.equal(match[1], raw.kind === "workout" ? "workouts" : "training/activities");
+    assert.equal(match[1], raw.kind === "workout" ? "workouts" : "progress/activities");
     assert.equal(href.searchParams.get("from"), "history");
     assert(
       row.badges.includes(labels[raw.kind]),

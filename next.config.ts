@@ -66,6 +66,45 @@ const nextConfig: NextConfig = {
       // Logging anything Today's cards do not offer is Today's Log now (ADR 0058).
       { source: "/training/log", destination: "/today/log", permanent: true },
       { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
+      // Each page moved under the tab that owns it (owner, 20 October 2026): a scheduled session,
+      // a programme day, the strength programme's builder, drafts, requests and past requests
+      // under Plan; logging a run, ride or swim under Today's Log; a logged one under Progress.
+      // The coach's notes, emails and bookmarks still say the old paths.
+      {
+        source: "/training/programme/occurrences/:occurrenceId",
+        destination: "/plan/sessions/:occurrenceId",
+        permanent: true,
+      },
+      {
+        source: "/training/days/:dayId",
+        destination: "/plan/strength/days/:dayId",
+        permanent: true,
+      },
+      { source: "/profile/programme/manual", destination: "/plan/strength/edit", permanent: true },
+      { source: "/profile/programme/drafts/:id", destination: "/plan/drafts/:id", permanent: true },
+      {
+        source: "/profile/programme/drafts/:id/programme",
+        destination: "/plan/drafts/:id/programme",
+        permanent: true,
+      },
+      { source: "/profile/programme/jobs/:id", destination: "/plan/requests/:id", permanent: true },
+      { source: "/profile/programme/history", destination: "/plan/history", permanent: true },
+      { source: "/training/new", destination: "/today/log/new", permanent: true },
+      {
+        source: "/training/activities/:activityId",
+        destination: "/progress/activities/:activityId",
+        permanent: true,
+      },
+      {
+        source: "/training/activities/:activityId/edit",
+        destination: "/progress/activities/:activityId/edit",
+        permanent: true,
+      },
+      {
+        source: "/training/activities/:activityId/counts-as",
+        destination: "/progress/activities/:activityId/counts-as",
+        permanent: true,
+      },
       // Resolve simple run aliases before the app shell streams. A client-side streamed
       // redirect can race that shell's navigation prefetches in WebKit. Planned links and
       // legacy run IDs still need the authenticated identifier lookup in their pages. A new run

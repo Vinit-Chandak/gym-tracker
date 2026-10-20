@@ -70,12 +70,12 @@ export function OccurrenceSettled({
     occurrence.resolution.kind === "logged"
       ? {
           // Opened from Plan, whose page this is, it keeps Plan selected (NAV-03).
-          href: `/training/activities/${occurrence.resolution.activityId}${originQuery("plan")}` as Route,
+          href: `/progress/activities/${occurrence.resolution.activityId}${originQuery("plan")}` as Route,
           label: "See what you logged",
         }
       : occurrence.resolution.kind === "cancelled" || showsClosure(occurrence)
         ? {
-            href: `/training/new?sport=${occurrence.sport}` as Route,
+            href: `/today/log/new?sport=${occurrence.sport}` as Route,
             label: `Log a ${noun} anyway`,
           }
         : null;

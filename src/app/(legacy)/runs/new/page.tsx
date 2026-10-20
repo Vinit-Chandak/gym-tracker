@@ -28,7 +28,7 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
       { readOnly: true },
     );
     if (!occurrenceId) return <LegacyUnavailable />;
-    redirect(`/training/new?occurrence=${occurrenceId}`);
+    redirect(`/today/log/new?occurrence=${occurrenceId}`);
   }
   redirect("/today/log?sport=running");
 }

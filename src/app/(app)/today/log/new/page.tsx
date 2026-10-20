@@ -59,7 +59,7 @@ const readOccurrence = cache(async (occurrenceId: string) => {
 });
 
 /** Named as its header is: "Log a run", or what became of a session that cannot be logged. */
-export async function generateMetadata(props: PageProps<"/training/new">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/today/log/new">): Promise<Metadata> {
   const search = await props.searchParams;
   const occurrenceId = single(search.occurrence);
   const requested = single(search.sport);
@@ -86,7 +86,7 @@ export async function generateMetadata(props: PageProps<"/training/new">): Promi
  * has moved on from is refused rather than swapped for something plausible. With no sport at
  * all, this is the chooser.
  */
-export default async function NewActivityPage(props: PageProps<"/training/new">) {
+export default async function NewActivityPage(props: PageProps<"/today/log/new">) {
   const search = await props.searchParams;
 
   const user = await requireUser();
