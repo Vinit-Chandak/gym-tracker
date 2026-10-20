@@ -184,6 +184,8 @@ export async function seedAuditBoundaries(
               averageHeartRate: null,
               maxHeartRate: null,
               cadenceStepsPerMinute: null,
+              runType: null,
+              laps: [],
             },
             startedAt: new Date(timestamp),
             recordedTimeZone: person.timeZone,

@@ -1773,6 +1773,51 @@ html:has(.standalone-error) {
 .more-details-summary::-webkit-details-marker {
   display: none;
 }
+/* A run's laps (ADR 0059): one box per lap, its number, kind and remove on one line, then its
+   distance, unit, time and heart rate folding into as many columns as fit. */
+.laps-count {
+  margin-left: auto;
+  color: var(--ov-ink-2);
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+}
+.laps {
+  display: grid;
+  gap: calc(10 * var(--ov-u));
+}
+.lap-row {
+  display: grid;
+  gap: calc(8 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.lap-row-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: calc(8 * var(--ov-u));
+}
+.lap-row-number {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lap-row-head > :nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.lap-row-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+.lap-row-pace {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-variant-numeric: tabular-nums;
+}
 /* What the plan asked for, on surface: its figure, then how it is meant to feel. */
 .target-card {
   padding: calc(12 * var(--ov-u)) calc(14 * var(--ov-u));

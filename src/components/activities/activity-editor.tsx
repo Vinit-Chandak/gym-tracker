@@ -17,6 +17,7 @@ import {
 } from "@/lib/activity-drafts";
 import type { SportUnits } from "@/lib/distance-units";
 import { formatIsoDate } from "@/lib/format";
+import type { PlannedLap } from "@/lib/run-laps";
 import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
@@ -44,6 +45,8 @@ type Props = {
    * ride's road unit, a swim's pool unit), and a run's or a ride's climb in feet beside miles.
    */
   units?: SportUnits;
+  /** A planned run's steps, which its laps can be laid out from (ADR 0059). */
+  plannedLaps?: readonly PlannedLap[];
 };
 
 const subscribe = () => () => {};
@@ -272,6 +275,7 @@ function StoredEditor(props: Props) {
           {...shared}
           notice={draftNotice}
           readIn={props.units?.distanceUnit}
+          plannedLaps={props.plannedLaps}
         />
       )}
       {props.sport === "cycling" && (

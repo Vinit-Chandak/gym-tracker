@@ -15,7 +15,14 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { ownerPolicy, timestamps } from "./common";
-import { loadUnitEnum, sexEnum, trainingExperienceEnum, trainingGoalEnum } from "./enums";
+import {
+  heartRateZoneMethodEnum,
+  loadUnitEnum,
+  maxHeartRateSourceEnum,
+  sexEnum,
+  trainingExperienceEnum,
+  trainingGoalEnum,
+} from "./enums";
 import { lengthUnitEnum } from "./multisport-enums";
 
 /**
@@ -65,6 +72,20 @@ export const profiles = pgTable(
      * accounts that never answered; the coach asks them, as it always did.
      */
     trainingExperience: trainingExperienceEnum("training_experience"),
+    /**
+     * Heart-rate zones (ADR 0059). The maximum is one the athlete entered or the highest a run
+     * recorded, with where it came from and when; null reads the estimate for their age, which is
+     * worked out each time rather than stored. `maxHeartRateAuto` lets a higher reading in a newly
+     * logged run raise it. A resting rate turns the zones into shares of the reserve, and five
+     * floors of their own replace them.
+     */
+    maxHeartRate: integer("max_heart_rate"),
+    maxHeartRateSource: maxHeartRateSourceEnum("max_heart_rate_source"),
+    maxHeartRateOn: date("max_heart_rate_on"),
+    maxHeartRateAuto: boolean("max_heart_rate_auto").notNull().default(true),
+    restingHeartRate: integer("resting_heart_rate"),
+    heartRateZoneMethod: heartRateZoneMethodEnum("heart_rate_zone_method").notNull().default("max"),
+    heartRateZoneFloors: integer("heart_rate_zone_floors").array(),
     /** Optional rest timer between sets; off unless the user switches it on. */
     restTimerEnabled: boolean("rest_timer_enabled").notNull().default(false),
     /** Lets the house coach plan this account's sessions. Off unless the user switches it on. */
@@ -90,6 +111,15 @@ export const profiles = pgTable(
       "profiles_measurements_chk",
       sql`(body_weight_kg is null or (body_weight_kg > 0 and body_weight_kg <= 500))
         and (height_cm is null or (height_cm >= 50 and height_cm <= 260))`,
+    ),
+    // The bounds `heart-rate.ts` reads: a maximum a heart reaches, a resting rate that is not
+    // a typo, and five floors for custom zones.
+    check(
+      "profiles_heart_rate_chk",
+      sql`(max_heart_rate is null or max_heart_rate between 100 and 230)
+        and ((max_heart_rate is null) = (max_heart_rate_source is null))
+        and (resting_heart_rate is null or resting_heart_rate between 25 and 120)
+        and (heart_rate_zone_floors is null or cardinality(heart_rate_zone_floors) = 5)`,
     ),
     check(
       "profiles_units_chk",

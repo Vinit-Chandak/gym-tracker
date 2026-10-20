@@ -213,6 +213,8 @@ export async function logTestRun(
       averageHeartRate: null,
       maxHeartRate: null,
       cadenceStepsPerMinute: null,
+      runType: null,
+      laps: [],
     },
     startedAt: run.startedAt,
     recordedTimeZone: timeZone,

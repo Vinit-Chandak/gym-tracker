@@ -7,14 +7,16 @@ import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
-import { describePrescription, expandSteps } from "@/domain/activity-prescription";
+import { describePrescription } from "@/domain/activity-prescription";
+import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
-import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+import { holdFigures } from "@/lib/facts";
 import { ORIGIN_PARAM } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
-import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
+import { sessionLine } from "./activity-plan";
 import { enduranceName, enduranceNote, enduranceTarget } from "./endurance-line";
+import { sessionIntensityLine, structureLines } from "./prescription-lines";
 
 const MARK: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "swim"> = {
   running: "run",
@@ -54,8 +56,10 @@ function EnduranceDetails({
   units: SportUnits;
 }) {
   const prescription = occurrence.prescription;
-  const steps = prescription ? expandSteps(prescription) : [];
+  // A line per step and per repeated block, as the session's own page reads it (ADR 0059).
+  const steps = prescription ? structureLines(prescription, units) : [];
   const overall = prescription ? sessionLine(prescription, units) : null;
+  const intensity = prescription ? sessionIntensityLine(prescription, units) : null;
   const how = [
     ["Pace", prescription?.running?.paceNote],
     ["Progression", prescription?.running?.progressionNote],
@@ -71,23 +75,17 @@ function EnduranceDetails({
           {coachSummary}
         </CoachNote>
       )}
-      {(overall || steps.length > 0) && (
+      {(overall || intensity || steps.length > 0) && (
         <div className="activity-card-passage">
           {overall && <p className="type-meta font-semibold tabular-nums">{overall}</p>}
+          {intensity && <p className="type-meta-small text-ink-2 tabular-nums">{intensity}</p>}
           {steps.length > 0 && (
             <ol className="mt-1 space-y-1">
-              {steps.map((step, index) => (
-                <li
-                  key={`${step.id}-${step.repetition}-${index}`}
-                  className="type-meta-small [overflow-wrap:break-word] tabular-nums"
-                >
-                  <span className="text-ink-2">{PHASE_LABELS[step.phase]}</span>{" "}
-                  {stepLine(step, prescription!.sport, units)}
-                  {step.notes && (
-                    <span className="text-ink-2">
-                      {FACT_SEPARATOR}
-                      {step.notes}
-                    </span>
+              {steps.map((line, index) => (
+                <li key={index} className="type-meta-small [overflow-wrap:break-word] tabular-nums">
+                  <span className="text-ink-2">{line.lead}</span> {line.text}
+                  {line.notes.length > 0 && (
+                    <span className="text-ink-2"> — {line.notes.join(" ")}</span>
                   )}
                 </li>
               ))}
@@ -148,8 +146,14 @@ export function EnduranceCard({
   const sport = occurrence.sport;
   const target = enduranceTarget(occurrence.prescription, units);
   const note = enduranceNote(occurrence.prescription);
-  const name = day?.name ?? enduranceName(sport);
-  const focus = day?.focus ?? null;
+  const runType = occurrence.prescription?.running?.sessionType;
+  // The session's own name, or the kind of run it is, before the sport's bare "Run" (ADR 0059).
+  const name =
+    day?.name ??
+    occurrence.prescription?.title ??
+    (runType ? RUN_TYPE_LABELS[runType] : enduranceName(sport));
+  const focus =
+    day?.focus ?? (runType && name !== RUN_TYPE_LABELS[runType] ? RUN_TYPE_LABELS[runType] : null);
   const time = occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null;
   // What the Log button adds to its words, so two runs on one day are told apart.
   const said = [

@@ -380,6 +380,8 @@ async function main(): Promise<void> {
               averageHeartRate: null,
               maxHeartRate: null,
               cadenceStepsPerMinute: null,
+              runType: null,
+              laps: [],
             },
             // The day it happened on is given here rather than patched afterwards, which is
             // what the back-dated sessions above have to do.

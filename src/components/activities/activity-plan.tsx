@@ -9,8 +9,12 @@ import {
   prescriptionTotals,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
+import type { HeartRateZone } from "@/domain/heart-rate";
+import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
+
+import { sessionIntensityLine, structureLines } from "./prescription-lines";
 
 /**
  * What today's endurance session asks for (plan §8.2 item 5).
@@ -117,6 +121,8 @@ export type ActivityPlanProps = {
   showSource?: boolean;
   /** How the athlete reads this sport's distances. */
   units?: SportUnits;
+  /** The athlete's heart-rate zones, so a zone target reads in their own beats (ADR 0059). */
+  zones?: readonly HeartRateZone[] | null;
 };
 
 export function ActivityPlan({
@@ -126,11 +132,15 @@ export function ActivityPlan({
   preparedByCoach = false,
   showSource = true,
   units = DEFAULT_SPORT_UNITS,
+  zones = null,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
-  const steps = prescription ? expandSteps(prescription) : [];
+  // One line per step and one per repeated block, never one per repetition (ADR 0059).
+  const lines = prescription ? structureLines(prescription, units, zones) : [];
   const totals = prescription ? prescriptionTotals(prescription) : null;
   const overall = prescription ? sessionLine(prescription, units) : null;
+  const intensity = prescription ? sessionIntensityLine(prescription, units, zones) : null;
+  const runType = prescription?.running?.sessionType;
 
   return (
     <Card>
@@ -141,6 +151,7 @@ export function ActivityPlan({
           <p className="type-meta-small text-ink-2">
             {ACTIVITY_SPORT_LABELS[sport]}
             {FACT_SEPARATOR}planned
+            {runType && `${FACT_SEPARATOR}${RUN_TYPE_LABELS[runType]}`}
           </p>
           {prescription?.title && (
             <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
@@ -148,6 +159,7 @@ export function ActivityPlan({
             </h2>
           )}
           {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
+          {intensity && <p className="mt-0.5 text-sm text-ink-muted tabular-nums">{intensity}</p>}
         </div>
         {showSource && (
           <Badge tone={preparedByCoach ? "accent" : "neutral"}>
@@ -158,13 +170,17 @@ export function ActivityPlan({
 
       {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}
 
-      {steps.length > 0 && (
-        <ol className="mt-3 space-y-1.5">
-          {steps.map((step, index) => (
-            <li key={`${step.id}-${step.repetition}-${index}`} className="text-sm">
-              <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>{" "}
-              <span className="tabular-nums">{stepLine(step, prescription!.sport, units)}</span>
-              {step.notes && <span className="text-ink-muted"> — {step.notes}</span>}
+      {lines.length > 0 && (
+        <ol className="plan-structure mt-3">
+          {lines.map((line, index) => (
+            <li key={index} className="plan-structure-line">
+              <span className="plan-structure-lead">{line.lead}</span>
+              <span className="min-w-0 tabular-nums">
+                {line.text}
+                {line.notes.length > 0 && (
+                  <span className="text-ink-muted"> — {line.notes.join(" ")}</span>
+                )}
+              </span>
             </li>
           ))}
         </ol>

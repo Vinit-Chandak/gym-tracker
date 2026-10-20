@@ -19,10 +19,12 @@ import {
   DECIMALS,
   EFFORT,
   FUTURE_START_TOLERANCE_MS,
+  LAP_LIMIT,
   needsDistanceConfirmation,
   needsDurationConfirmation,
   TEXT_LIMITS,
 } from "@/domain/activity-limits";
+import { STEP_PHASES } from "@/domain/activity-prescription";
 import {
   actualDistanceMetres,
   nativeDistance,
@@ -32,9 +34,12 @@ import {
   type SwimmingActualV1,
 } from "@/domain/activity-metrics";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { RUN_TYPES } from "@/domain/run-types";
 import { dateTimeLocalCandidates, timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
+import { profileChanged } from "@/server/queries/request-profile";
+import { raiseMaxHeartRateFromRun, readHeartRate } from "@/server/repositories/heart-rate";
 import { revalidateActivity } from "@/server/activity-effects";
 import {
   ActivityNotFoundError,
@@ -196,6 +201,35 @@ const baseFields = {
 const distanceUnit = z.enum(["km", "mi"]).default("km");
 const poolUnit = z.enum(["m", "yd"]).default("m");
 
+/**
+ * A run's laps, as the laps editor posts them: one JSON list, each lap's figures already read
+ * from what was typed (ADR 0059). The bounds and the sums are `validateActual`'s, as every other
+ * measurement's are; this only checks the shape. A lap's distance may be in metres, the way a
+ * track rep is said, whatever the run's own unit.
+ */
+const lapSchema = z.object({
+  phase: z.enum(STEP_PHASES).nullable().default(null),
+  distanceValue: z.number().nonnegative().nullable().default(null),
+  distanceUnit: z.enum(["m", "km", "mi"]).default("m"),
+  durationMs: z.number().int().nullable().default(null),
+  averageHeartRate: z.number().int().nullable().default(null),
+  maxHeartRate: z.number().int().nullable().default(null),
+});
+
+const lapsField = z.preprocess(
+  (value) => {
+    if (typeof value !== "string" || value.trim() === "") return [];
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  },
+  z
+    .array(lapSchema, { error: "Those laps could not be read. Reload and try again." })
+    .max(LAP_LIMIT, { error: `Keep a run to ${LAP_LIMIT} laps.` }),
+);
+
 const runningSchema = z.object({
   ...baseFields,
   sport: z.literal("running"),
@@ -203,10 +237,15 @@ const runningSchema = z.object({
   distanceValue: optionalNumber("the distance", DECIMALS.distance),
   distanceUnit,
   ...durationFields.shape,
+  runType: z.preprocess(
+    (value) => (typeof value === "string" && value !== "" ? value : null),
+    z.enum(RUN_TYPES, { error: "Choose what kind of run it was." }).nullable(),
+  ),
   surface: trimmed(TEXT_LIMITS.surface),
   elevationGainMetres: optionalNumber("the elevation gain", DECIMALS.elevation),
   treadmillInclinePercent: optionalNumber("the incline", DECIMALS.incline),
   cadenceStepsPerMinute: optionalNumber("the cadence", DECIMALS.cadence),
+  laps: lapsField,
 });
 
 const cyclingSchema = z.object({
@@ -286,12 +325,21 @@ function actualFrom(form: ActivityForm): EnduranceActual {
       environment: form.environment,
       distance: nativeDistance(form.distanceValue ?? 0, form.distanceUnit),
       durationMs,
+      runType: form.runType,
       surface: form.surface,
       elevationGainMetres: form.elevationGainMetres,
       treadmillInclinePercent: form.treadmillInclinePercent,
       averageHeartRate: form.averageHeartRate,
       maxHeartRate: form.maxHeartRate,
       cadenceStepsPerMinute: form.cadenceStepsPerMinute,
+      laps: form.laps.map((lap) => ({
+        phase: lap.phase,
+        distance:
+          lap.distanceValue === null ? null : nativeDistance(lap.distanceValue, lap.distanceUnit),
+        durationMs: lap.durationMs,
+        averageHeartRate: lap.averageHeartRate,
+        maxHeartRate: lap.maxHeartRate,
+      })),
     };
     return running;
   }
@@ -404,7 +452,13 @@ export async function saveActivityAction(
     return { formError: confirmation, values: formValues(formData) };
 
   let result:
-    | { ok: true; id: string; sport: EnduranceSport; occurrenceId: string | null }
+    | {
+        ok: true;
+        id: string;
+        sport: EnduranceSport;
+        occurrenceId: string | null;
+        raisedMaxHeartRate: number | null;
+      }
     | { ok: false; state: FormState };
   try {
     result = await withUser(getDb(), user.id, async (tx): Promise<typeof result> => {
@@ -475,6 +529,11 @@ export async function saveActivityAction(
         title: form.title,
         notes: form.notes,
       };
+      // The maximum in use before this run, which a higher reading in it raises (ADR 0059).
+      const heartRate =
+        actual.sport === "running"
+          ? await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))
+          : null;
       const saved = activityId
         ? await updateActivity(tx, user.id, activityId, input, form.expectedRevision ?? 0)
         : await createActivity(tx, user.id, input);
@@ -484,6 +543,10 @@ export async function saveActivityAction(
         id: saved.id,
         sport: form.sport,
         occurrenceId: record?.origin.occurrenceId ?? null,
+        raisedMaxHeartRate:
+          heartRate && actual.sport === "running"
+            ? await raiseMaxHeartRateFromRun(tx, user.id, heartRate, actual, input.occurredOn)
+            : null,
       };
     });
   } catch (error) {
@@ -499,6 +562,7 @@ export async function saveActivityAction(
     activityId: result.id,
     occurrenceId: result.occurrenceId,
   });
+  if (result.raisedMaxHeartRate !== null) await profileChanged(user.id);
   // The client clears only the acknowledged local draft before opening the saved record.
   return { savedActivityId: result.id };
 }

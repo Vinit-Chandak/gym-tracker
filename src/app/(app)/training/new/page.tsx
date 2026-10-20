@@ -7,8 +7,10 @@ import { showsClosure } from "@/components/activities/programme-closure";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { structureLines } from "@/components/activities/prescription-lines";
 import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
+import { plannedLaps } from "@/lib/run-laps";
 import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -101,6 +103,11 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
         title: occurrence.preparedByCoach ? "Your coach asked for" : "The plan asked for",
         lines: [
           describePrescription(occurrence.prescription, units),
+          // The session's steps, a line per block, so a rep's target is in view while it is
+          // typed (ADR 0059).
+          ...structureLines(occurrence.prescription, units).map(
+            (line) => `${line.lead} ${line.text}`,
+          ),
           occurrence.prescription.running?.paceNote,
           occurrence.prescription.running?.symptomStopRule,
           occurrence.prescription.instructions,
@@ -126,6 +133,8 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     minutes: "",
     seconds: "",
     effort: "",
+    // What kind of run the session is: context, which may preselect, not a performance.
+    runType: occurrence?.prescription?.running?.sessionType ?? "",
   };
   const shared = {
     action: saveActivityAction.bind(null, null),
@@ -138,6 +147,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     target,
     submitLabel: "Save activity",
     units,
+    plannedLaps: plannedLaps(occurrence?.prescription ?? null, units.distanceUnit),
   };
 
   // Where it was opened from: Today unless a link says otherwise. The activity it saves opens

@@ -58,6 +58,8 @@ describe("a clean mixed account", () => {
           averageHeartRate: null,
           maxHeartRate: null,
           cadenceStepsPerMinute: null,
+          runType: null,
+          laps: [],
         },
       }),
     );

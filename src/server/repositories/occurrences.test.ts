@@ -77,6 +77,8 @@ const run = (origin = AD_HOC_ORIGIN) => ({
     averageHeartRate: null,
     maxHeartRate: null,
     cadenceStepsPerMinute: null,
+    runType: null,
+    laps: [],
   },
   startedAt: new Date("2026-09-18T06:00:00Z"),
   recordedTimeZone: "Asia/Kolkata",

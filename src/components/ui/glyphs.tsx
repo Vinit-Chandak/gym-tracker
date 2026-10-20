@@ -287,6 +287,13 @@ const GLYPHS = {
     <path key="b" d="M12 13l3.5-3.5" />,
     <path key="c" d="M10 3.5h4" />,
   ],
+  heart: [
+    <path
+      key="a"
+      d="M12 19.5s-7.5-4.4-7.5-9.9A4 4 0 0 1 12 7.4a4 4 0 0 1 7.5 2.2c0 5.5-7.5 9.9-7.5 9.9z"
+    />,
+    <path key="b" d="M7.5 12.5h2.6l1.3-2.3 1.9 4 1.2-1.7h2" />,
+  ],
   rest: [<circle key="a" cx="12" cy="12" r="8.5" />, <path key="b" d="M12 7.5V12l3 2" />],
   // People.
   trophy: [
@@ -543,6 +550,7 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   indoor: "Indoors",
   distance: "Distance",
   pace: "Pace",
+  heart: "Heart rate",
   trophy: "Leaderboard",
   scales: "Compare",
   personPlus: "Find people",

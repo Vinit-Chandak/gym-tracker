@@ -90,6 +90,8 @@ export default async function ProfilePage() {
           <ul>
             {/* Which sports the app offers, chosen in setup and changed only here. */}
             <NavRow href="/profile/sports" glyph="distance" label="Sports" />
+            {/* The zones a plan's "zone 2" and a run's heart rate are read against (ADR 0059). */}
+            <NavRow href="/profile/heart-rate" glyph="heart" label="Heart rate zones" />
             <NavRow href="/gyms" glyph="pin" label="Gyms and machines" />
             <NavRow href="/exercises" glyph="book" label="Exercise library" />
             <RestTimerSetting enabled={profile.restTimerEnabled} />

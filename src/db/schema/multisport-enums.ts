@@ -16,6 +16,7 @@ import {
   TIME_ZONE_SOURCES,
 } from "../../domain/activity";
 import { OCCURRENCE_DISPOSITIONS, OCCURRENCE_EVENT_KINDS } from "../../domain/occurrences";
+import { RUN_TYPES } from "../../domain/run-types";
 import { LENGTH_UNITS } from "../../lib/distance-units";
 
 /**
@@ -31,6 +32,7 @@ export const timeZoneSourceEnum = pgEnum("time_zone_source", TIME_ZONE_SOURCES);
 export const effortStatusEnum = pgEnum("effort_status", EFFORT_STATUSES);
 export const lengthUnitEnum = pgEnum("length_unit", LENGTH_UNITS);
 export const runningEnvironmentEnum = pgEnum("running_environment", RUNNING_ENVIRONMENTS);
+export const runTypeEnum = pgEnum("run_type", RUN_TYPES);
 export const cyclingEnvironmentEnum = pgEnum("cycling_environment", CYCLING_ENVIRONMENTS);
 export const swimmingEnvironmentEnum = pgEnum("swimming_environment", SWIMMING_ENVIRONMENTS);
 export const cyclingAssistanceEnum = pgEnum("cycling_assistance", CYCLING_ASSISTANCE);

@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -25,11 +26,13 @@ import {
   effortStatusEnum,
   lengthUnitEnum,
   runningEnvironmentEnum,
+  runTypeEnum,
   swimDistanceMethodEnum,
   swimmingEnvironmentEnum,
   swimStrokeEnum,
   timeZoneSourceEnum,
 } from "./multisport-enums";
+import type { RunningLap } from "../../domain/activity-metrics";
 import { activityResources } from "./activity-resources";
 import { profiles } from "./profiles";
 
@@ -147,6 +150,8 @@ export const runningActivityDetails = pgTable(
       mode: "number",
     }).notNull(),
     distanceNativeUnit: lengthUnitEnum("distance_native_unit").notNull(),
+    /** What kind of run it was (ADR 0059); null when nobody said. */
+    runType: runTypeEnum("run_type"),
     surface: text("surface"),
     elevationGainMetres: numeric("elevation_gain_metres", {
       precision: 12,
@@ -165,6 +170,12 @@ export const runningActivityDetails = pgTable(
       scale: 1,
       mode: "number",
     }),
+    /**
+     * The run's laps in order, as `RunningLap`s (ADR 0059): checked by `validateActual` before
+     * every write, as the rest of a run's measurements are. A list, not rows: laps are read and
+     * written only with their run, and a run's laps change together when it is corrected.
+     */
+    laps: jsonb("laps").$type<RunningLap[]>().notNull().default([]),
     /** What the legacy run pointed at, kept only where the link is owner-consistent. */
     legacyGymId: uuid("legacy_gym_id"),
     legacyWorkoutSessionId: uuid("legacy_workout_session_id"),
@@ -192,7 +203,8 @@ export const runningActivityDetails = pgTable(
         and (treadmill_incline_percent is null or treadmill_incline_percent between -100 and 100)
         and (treadmill_incline_percent is null or environment = 'treadmill')
         and (elevation_gain_metres is null or elevation_gain_metres between 0 and 100000)
-        and (surface is null or length(surface) <= 80)`,
+        and (surface is null or length(surface) <= 80)
+        and jsonb_typeof(laps) = 'array' and jsonb_array_length(laps) <= 100`,
     ),
     ...serverWritePolicies("running_activity_details"),
   ],

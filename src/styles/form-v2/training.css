@@ -205,10 +205,161 @@
   font-size: var(--ov-type-caption);
   font-weight: 600;
 }
+/* A word a figure needs, under it: where a heart rate sits in the athlete's zones. */
+.activity-stat-note {
+  flex-basis: 100%;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
 /* Named first, for a screen reader, and drawn under its figure. */
 .activity-stat-label {
   grid-row: 2;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;
+}
+
+/* ---------- heart-rate zones (Profile › Heart rate zones, ADR 0059) ---------- */
+/* Five rows, each zone's name and its beats on one line and how it feels under them. A bar at
+   the start of each row deepens with the zone, in the run's pigment: the order reads at a
+   glance, and the words and numbers carry the meaning for anyone who cannot see the colour. */
+.heart-rate-zones {
+  display: grid;
+  gap: calc(2 * var(--ov-u));
+}
+.heart-rate-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: calc(12 * var(--ov-u));
+  row-gap: calc(2 * var(--ov-u));
+  padding: calc(8 * var(--ov-u)) 0 calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-left: calc(4 * var(--ov-u)) solid
+    color-mix(in srgb, var(--ov-print-run) var(--zone-share), var(--ov-surface-2));
+}
+.heart-rate-zone[data-zone="1"] {
+  --zone-share: 18%;
+}
+.heart-rate-zone[data-zone="2"] {
+  --zone-share: 38%;
+}
+.heart-rate-zone[data-zone="3"] {
+  --zone-share: 58%;
+}
+.heart-rate-zone[data-zone="4"] {
+  --zone-share: 78%;
+}
+.heart-rate-zone[data-zone="5"] {
+  --zone-share: 100%;
+}
+.heart-rate-zone-name {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: break-word;
+}
+.heart-rate-zone-beats {
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.heart-rate-zone-beats::after {
+  content: " bpm";
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+}
+.heart-rate-zone-feel {
+  grid-column: 1 / -1;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  line-height: 1.35;
+}
+/* Five short numbers: in one row where they fit, folding to as many as do. */
+.heart-rate-floors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+
+/* ---------- a run's laps (ADR 0059) ---------- */
+/* A table, because laps are compared down a column: rep 3's time against rep 4's. It keeps its
+   columns and scrolls sideways inside its own box where the screen is narrower than they are,
+   so the page itself never does. */
+.run-laps-scroll {
+  overflow-x: auto;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.run-laps {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ov-type-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.run-laps th,
+.run-laps td {
+  padding: calc(8 * var(--ov-u)) calc(10 * var(--ov-u));
+  text-align: left;
+}
+.run-laps thead th {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+.run-laps tbody tr + tr > * {
+  border-top: 1px solid var(--ov-hair);
+}
+.run-laps tbody th {
+  font-weight: 700;
+}
+.run-laps-number {
+  display: inline-block;
+  min-width: 1.6em;
+}
+.run-laps-phase {
+  color: var(--ov-ink-2);
+  font-weight: 500;
+}
+/* A recovery jog reads quieter than the rep beside it. */
+.run-laps tr[data-phase="recovery"] td,
+.run-laps tr[data-phase="warmup"] td,
+.run-laps tr[data-phase="cooldown"] td {
+  color: var(--ov-ink-2);
+}
+.run-laps-zone {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+}
+.run-zone-times {
+  display: grid;
+  gap: calc(6 * var(--ov-u));
+}
+.run-zone-times > li {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(10 * var(--ov-u));
+  font-size: var(--ov-type-meta-small);
+}
+.run-zone-times-name {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.run-zone-times-bar {
+  display: block;
+  height: calc(8 * var(--ov-u));
+  border-radius: 9999px;
+  background: var(--ov-surface-2);
+}
+.run-zone-times-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ov-print-run);
+}
+.run-zone-times-time {
+  font-weight: 600;
 }

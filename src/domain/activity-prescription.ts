@@ -7,10 +7,13 @@ import type { EnduranceSport } from "./activity";
 import {
   DISTANCE_METRES,
   DURATION_MS,
+  HEART_RATE_ZONE_TARGET,
+  PACE_TARGET_SECONDS_PER_KM,
   PRESCRIBED_EFFORT,
   PRESCRIPTION_LIMITS,
   TEXT_LIMITS,
 } from "./activity-limits";
+import { RUN_TYPES } from "./run-types";
 
 /**
  * What an endurance session asks for (plan §5.1).
@@ -64,6 +67,29 @@ const effortRange = range(
 );
 
 /**
+ * How fast and how hard, beside how much (ADR 0059). A pace reads fastest first, as every range
+ * reads low to high: 4:05–4:15 per kilometre is [245, 255]. Zones are the athlete's own five, so
+ * "zone 2" means their zone 2 whatever their maximum is, and is shown in their own beats.
+ *
+ * Both are optional rather than null by default, unlike the fields above, and on purpose: a
+ * prescription stored before they existed is read back without them and must still compare
+ * equal to itself once parsed, or every saved session would look changed to the next edit
+ * (`jsonEqual` reads a null as a value and an absent key as nothing).
+ */
+const paceRange = z
+  .tuple([
+    z.number().int().min(PACE_TARGET_SECONDS_PER_KM.min).max(PACE_TARGET_SECONDS_PER_KM.max),
+    z.number().int().min(PACE_TARGET_SECONDS_PER_KM.min).max(PACE_TARGET_SECONDS_PER_KM.max),
+  ])
+  .refine(([fast, slow]) => fast <= slow, "A pace range reads fastest first");
+const zoneRange = z
+  .tuple([
+    z.number().int().min(HEART_RATE_ZONE_TARGET.min).max(HEART_RATE_ZONE_TARGET.max),
+    z.number().int().min(HEART_RATE_ZONE_TARGET.min).max(HEART_RATE_ZONE_TARGET.max),
+  ])
+  .refine(([low, high]) => low <= high, "A zone range reads low to high");
+
+/**
  * The unit a distance was written in, so an editor can give it back as it was typed. Only that:
  * every screen reads a target in the athlete's own unit, and the metres are what is compared.
  */
@@ -82,6 +108,9 @@ export const prescriptionStepSchema = z.object({
   /** One primary axis per step: a step is measured by time or by distance, not both. */
   target: stepTargetSchema,
   effort: effortRange.nullable().default(null),
+  /** A run step's pace, per kilometre; read per mile by an athlete in miles. */
+  paceSecondsPerKm: paceRange.optional(),
+  heartRateZones: zoneRange.optional(),
   stroke: z.enum(SWIM_STROKES).nullable().default(null),
   notes: z.string().max(TEXT_LIMITS.stepNotes).nullable().default(null),
 });
@@ -102,6 +131,8 @@ export const prescriptionNodeSchema = z.discriminatedUnion("kind", [
 
 /** The running-specific instructions the old programme wrote, kept as their own fields. */
 export const runningInstructionsSchema = z.object({
+  /** What kind of run it is: easy, long, tempo, intervals… (`run-types.ts`). */
+  sessionType: z.enum(RUN_TYPES).optional(),
   paceNote: z.string().max(300).nullable().default(null),
   progressionNote: z.string().max(300).nullable().default(null),
   /** When to cut the run short, in this runner's own terms. */
@@ -123,6 +154,9 @@ export const endurancePrescriptionSchema = z
         distanceMetres: distanceRange.nullable().default(null),
         distanceUnit: writtenIn,
         effort: effortRange.nullable().default(null),
+        /** An easy run's whole pace or zone, where it has no steps to carry one. */
+        paceSecondsPerKm: paceRange.optional(),
+        heartRateZones: zoneRange.optional(),
       })
       .default({ durationMs: null, distanceMetres: null, effort: null }),
     nodes: z.array(prescriptionNodeSchema).default([]),
@@ -158,6 +192,12 @@ export const endurancePrescriptionSchema = z
           code: "custom",
           message: "Only a swim step has a stroke",
           path: [...path, "stroke"],
+        });
+      if (step.paceSecondsPerKm && (value.sport !== "running" || step.action === "rest"))
+        ctx.addIssue({
+          code: "custom",
+          message: "Only a run or walk step has a pace target",
+          path: [...path, "paceSecondsPerKm"],
         });
       if (
         step.target.kind === "distance" &&
@@ -228,6 +268,12 @@ export const endurancePrescriptionSchema = z
         code: "custom",
         message: "Only a running prescription carries running instructions",
         path: ["running"],
+      });
+    if (value.sessionTargets.paceSecondsPerKm && value.sport !== "running")
+      ctx.addIssue({
+        code: "custom",
+        message: "Only a run has a pace target",
+        path: ["sessionTargets", "paceSecondsPerKm"],
       });
     if (JSON.stringify(value).length > PRESCRIPTION_LIMITS.payloadBytes)
       ctx.addIssue({ code: "custom", message: "That session is too large to store", path: [] });

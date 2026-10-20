@@ -88,6 +88,8 @@ function run(
       averageHeartRate: null,
       maxHeartRate: null,
       cadenceStepsPerMinute: null,
+      runType: null,
+      laps: [],
     },
     // A save derives the local date from the instant, so a fixture that states one states
     // both. Passing `startedAt` on its own is how the tests below put the two out of step

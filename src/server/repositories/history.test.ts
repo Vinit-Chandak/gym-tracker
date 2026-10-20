@@ -177,6 +177,8 @@ function logged(sport: "running" | "cycling", date: string): SaveActivityInput {
             averageHeartRate: null,
             maxHeartRate: null,
             cadenceStepsPerMinute: null,
+            runType: null,
+            laps: [],
           }
         : {
             sport,

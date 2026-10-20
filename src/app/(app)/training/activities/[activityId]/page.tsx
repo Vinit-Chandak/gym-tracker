@@ -26,7 +26,9 @@ import { DEFAULT_SPORT_UNITS, sportDistanceParts } from "@/lib/distance-units";
 import { ORIGIN_PARAM, originPath, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { getActivity } from "@/server/repositories/activities";
+import { readHeartRate } from "@/server/repositories/heart-rate";
 import { namedOccurrence } from "@/server/repositories/occurrences";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
@@ -35,6 +37,7 @@ import { ActivityMore } from "./activity-more";
 import { AnsweredSession } from "./answered-session";
 import type { AnsweredOnDelete } from "./delete-button";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
+import { RunLaps } from "./run-laps";
 import { startedAtLine } from "./started-at";
 
 export const metadata: Metadata = { title: "Activity" };
@@ -74,7 +77,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { activity, units, answered } = await withUser(
+  const { activity, units, answered, heartRate } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -85,6 +88,11 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         answered: activity?.origin.occurrenceId
           ? await namedOccurrence(tx, user.id, activity.origin.occurrenceId)
           : null,
+        // A run's heart rate reads against the athlete's zones (ADR 0059).
+        heartRate:
+          activity?.actual?.sport === "running"
+            ? (await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))).resolved
+            : null,
       };
     },
     { readOnly: true },
@@ -137,7 +145,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   // correction says it over its form.
   const startedAt = startedAtLine(activity.startedAt, activity.recordedTimeZone, profile.timeZone);
   stats.push({ label: "Effort", figure: describeEffort(activity.effort) });
-  if (actual) stats.push(...recordedExtras(actual, units));
+  if (actual) stats.push(...recordedExtras(actual, units, heartRate));
 
   const sport = activity.sport === "strength" ? null : activity.sport;
   // A session's name, as History and its day name it: "Ride", not the sport's "Cycling".
@@ -190,6 +198,12 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
               {where.label}
             </span>
           )}
+          {actual?.sport === "running" && actual.runType && (
+            <span className="meta-fact">
+              <Glyph name="target" className="glyph-16" />
+              {RUN_TYPE_LABELS[actual.runType]}
+            </span>
+          )}
           {activity.outcome === "ended_early" && <span className="meta-fact">Ended early</span>}
         </p>
 
@@ -202,10 +216,15 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
                   {stat.figure}
                 </span>
                 {stat.unit && <span className="activity-stat-unit">{stat.unit}</span>}
+                {stat.note && <span className="activity-stat-note">{stat.note}</span>}
               </dd>
             </div>
           ))}
         </dl>
+
+        {actual?.sport === "running" && (
+          <RunLaps laps={actual.laps} units={units} heartRate={heartRate} />
+        )}
 
         {activity.origin.kind === "planned" &&
           (answered ? (

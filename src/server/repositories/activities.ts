@@ -304,12 +304,14 @@ async function writeDetail(
         distanceMetres: actual.distance.metres,
         distanceNativeValue: actual.distance.value,
         distanceNativeUnit: actual.distance.unit,
+        runType: actual.runType,
         surface: actual.surface,
         elevationGainMetres: actual.elevationGainMetres,
         treadmillInclinePercent: actual.treadmillInclinePercent,
         averageHeartRate: actual.averageHeartRate,
         maxHeartRate: actual.maxHeartRate,
         cadenceStepsPerMinute: actual.cadenceStepsPerMinute,
+        laps: actual.laps,
       })
       .onConflictDoUpdate({
         target: runningActivityDetails.activityId,
@@ -318,12 +320,14 @@ async function writeDetail(
           distanceMetres: actual.distance.metres,
           distanceNativeValue: actual.distance.value,
           distanceNativeUnit: actual.distance.unit,
+          runType: actual.runType,
           surface: actual.surface,
           elevationGainMetres: actual.elevationGainMetres,
           treadmillInclinePercent: actual.treadmillInclinePercent,
           averageHeartRate: actual.averageHeartRate,
           maxHeartRate: actual.maxHeartRate,
           cadenceStepsPerMinute: actual.cadenceStepsPerMinute,
+          laps: actual.laps,
           updatedAt: new Date(),
         },
       });
@@ -759,12 +763,14 @@ const detailFor = async (
         metres: row.distanceMetres,
       },
       durationMs: durationMs ?? 0,
+      runType: row.runType,
       surface: row.surface,
       elevationGainMetres: row.elevationGainMetres,
       treadmillInclinePercent: row.treadmillInclinePercent,
       averageHeartRate: row.averageHeartRate,
       maxHeartRate: row.maxHeartRate,
       cadenceStepsPerMinute: row.cadenceStepsPerMinute,
+      laps: row.laps,
     };
   }
   if (sport === "cycling") {

@@ -17,6 +17,8 @@ const run: RunningActualV1 = {
   averageHeartRate: null,
   maxHeartRate: null,
   cadenceStepsPerMinute: null,
+  runType: null,
+  laps: [],
 };
 
 it("shows the climb in feet beside miles and in metres beside kilometres", () => {

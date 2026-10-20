@@ -104,6 +104,8 @@ export function legacyRunToActivity(
       averageHeartRate: null,
       maxHeartRate: null,
       cadenceStepsPerMinute: null,
+      runType: null,
+      laps: [],
     },
     legacyLinks: {
       programRunId: run.programRunId,
