@@ -1,0 +1,58 @@
+/*
+ * Plan (ADR 0058): this week's sessions for every sport, by date, then one card per programme.
+ * Rows are the shared nav rows; the programme cards are the Training cards' grid and box.
+ */
+
+/* ---------- the week ---------- */
+.plan-week {
+  display: grid;
+  gap: calc(10 * var(--ov-u));
+}
+.plan-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(10 * var(--ov-u));
+}
+.plan-week-steps {
+  display: flex;
+  flex-shrink: 0;
+}
+.plan-days {
+  display: grid;
+  gap: calc(14 * var(--ov-u));
+}
+.plan-day-name {
+  color: var(--ov-ink-2);
+}
+
+/* ---------- the programmes ---------- */
+/* The whole card opens the programme: one target, its name the largest thing in it. */
+.plan-programme {
+  display: grid;
+  min-height: var(--ov-target);
+  gap: calc(6 * var(--ov-u));
+  color: inherit;
+  text-decoration: none;
+}
+.plan-programme-sport {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--ov-u));
+}
+.plan-programme-name {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-card-title);
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+/* Something waiting on the programme: the one fact on the card that asks for a decision. */
+.plan-programme-waiting {
+  justify-self: start;
+  padding: calc(3 * var(--ov-u)) calc(9 * var(--ov-u));
+  border-radius: 10px;
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+  font-weight: 700;
+}

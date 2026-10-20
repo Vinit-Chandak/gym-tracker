@@ -41,7 +41,7 @@ function shape(blueprint: ProgramBlueprint): string {
   const plan = { ...blueprint, repeats: blueprint.repeats ?? inferCycleRepeat(blueprint.days) };
   const { cycles, byWeekday } = cycleLayout(plan);
   if (blueprint.repeats === "once")
-    return `${blueprint.weeks} weeks · ${blueprint.days.length} days · Does not repeat`;
+    return `${blueprint.weeks} weeks · ${blueprint.days.length} days · Progressive`;
   const days = plural(blueprint.days.length, "day");
   const cycle =
     blueprint.days.length === 7
@@ -122,12 +122,8 @@ export function DraftPreview({
       const saved = await coachingAction(() =>
         saveStandaloneDraftAction(current.id, current.revision),
       );
-      if (saved.ok)
-        startNavigation(() =>
-          router.push(
-            saved.value.sport === "strength" ? "/profile/routines" : "/training/templates",
-          ),
-        );
+      // Saved routines and templates are set aside for now (ADR 0058): back to Plan.
+      if (saved.ok) startNavigation(() => router.push("/plan"));
       else setError(saved.error);
       setSaving(false);
       return;
@@ -140,7 +136,7 @@ export function DraftPreview({
         transition: "new_block",
       }),
     );
-    if (result.ok) startNavigation(() => router.push("/training"));
+    if (result.ok) startNavigation(() => router.push("/plan"));
     else setError(result.error);
     setSaving(false);
   }
@@ -329,7 +325,7 @@ export function DraftPreview({
                   ? preview
                     ? "/preview/coaching?view=manual"
                     : `${base}/manual?draft=${current.id}`
-                  : `/training/programmes/${current.sport}/edit?draft=${current.id}`) as Route
+                  : `/plan/${current.sport}/edit?draft=${current.id}`) as Route
               }
               variant="secondary"
             >

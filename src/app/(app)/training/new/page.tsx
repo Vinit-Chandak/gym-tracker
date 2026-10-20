@@ -89,9 +89,9 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
       : null;
 
   // No sport and no occurrence means somebody reached this URL directly: the sports are
-  // offered on Training itself now, so this sends them there rather than asking the same
+  // offered by Today's Log (ADR 0058), so this sends them there rather than asking the same
   // question on a screen of its own.
-  if (!sport) redirect("/training");
+  if (!sport) redirect("/today/log");
 
   const units = await withUser(getDb(), user.id, (tx) => readSportUnits(tx, user.id), {
     readOnly: true,
@@ -140,12 +140,12 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     units,
   };
 
-  // Where it was opened from: Today says so, and anywhere else is Training's. The activity it
-  // saves opens under that tab and goes back to it, as this page does (NAV-03).
-  const origin = parseOrigin(search[ORIGIN_PARAM]) ?? "training";
+  // Where it was opened from: Today unless a link says otherwise. The activity it saves opens
+  // under that tab and goes back to it, as this page does (NAV-03).
+  const origin = parseOrigin(search[ORIGIN_PARAM]) ?? "today";
 
   // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was
-  // opened from (Today for the day's run, Training otherwise), Save pinned at its foot.
+  // opened from, Today unless a link said otherwise (ADR 0058), Save pinned at its foot.
   return (
     <SessionPage
       title={`Log a ${sportNoun(sport)}`}

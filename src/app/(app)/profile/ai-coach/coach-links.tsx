@@ -31,7 +31,7 @@ export function CoachLinks({ waiting }: { waiting: number }) {
             label="Goals, availability and reports"
           />
           <NavRow
-            href="/profile/programme?view=changes"
+            href="/plan/strength?view=changes"
             glyph="note"
             label="Programme changes and requests"
             value={waiting > 0 ? String(waiting) : undefined}

@@ -48,7 +48,7 @@ it("says a logged session was logged, and offers what answered it", () => {
   // Their own session, on a date they recognise — never "does not exist".
   expect(screen.getByText(/The run scheduled for Tue 22 Sept 2026/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "See what you logged" }).getAttribute("href")).toBe(
-    "/training/activities/00000000-0000-4000-8000-00000000000a?from=training",
+    "/training/activities/00000000-0000-4000-8000-00000000000a?from=plan",
   );
 });
 

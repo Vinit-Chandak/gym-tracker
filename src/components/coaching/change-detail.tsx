@@ -121,7 +121,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const back = () =>
     startNavigation(() =>
       router.push(
-        props.base === "/profile/programme" ? "/training" : (`${props.base}?view=changes` as Route),
+        props.base === "/profile/programme" ? "/plan" : (`${props.base}?view=changes` as Route),
       ),
     );
 
@@ -271,7 +271,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
                 <Link
                   href={
                     (props.sport && props.sport !== "strength"
-                      ? `/training/programmes/${props.sport}/edit?draft=${props.draftId}`
+                      ? `/plan/${props.sport}/edit?draft=${props.draftId}`
                       : `${props.base}/manual?draft=${props.draftId}`) as Route
                   }
                   className="text-action"

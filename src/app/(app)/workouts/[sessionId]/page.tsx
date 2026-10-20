@@ -1,5 +1,4 @@
 import type { Metadata, Route } from "next";
-import { SaveWorkoutRoutine } from "@/components/coaching/routines";
 import { notFound } from "next/navigation";
 
 import { SessionRecordsCard } from "@/components/records-card";
@@ -66,7 +65,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   );
   if (!found) notFound();
   const { session: data, records } = found;
-  const origin = requestedOrigin ?? (data.loggedRetrospectively ? "training" : null);
+  const origin = requestedOrigin ?? (data.loggedRetrospectively ? "today" : null);
 
   const title = sessionName(data.day?.name, data.title);
   // A finished workout can be changed for a week after its day (ADR 0049).
@@ -76,7 +75,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       ? lastEditDay(todayInTimeZone(requestProfile.timeZone, startedAt))
       : null;
   const backHref = (
-    data.loggedRetrospectively ? "/training" : workoutBackPath(origin, data.completedAt !== null)
+    data.loggedRetrospectively ? "/today" : workoutBackPath(origin, data.completedAt !== null)
   ) as Route;
   // Where it was opened from, carried on to its own pages so they keep the tab it lit.
   const carried = originQuery(workoutOrigin(origin, data.completedAt !== null));
@@ -102,7 +101,6 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       records={
         <SessionRecordsCard records={records} unit={data.preferredUnit} length={data.length} />
       }
-      routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
       editUntil={editUntil}
       addExerciseHref={`/workouts/${sessionId}/add-exercise${carried}` as Route}
     />

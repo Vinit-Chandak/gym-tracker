@@ -119,7 +119,7 @@ export async function ProgrammeDraftPage({
       <>
         <PageHeader
           title={data.draft.standalone ? "Review session" : "Review programme"}
-          backHref={onboarding ? base : "/training"}
+          backHref={onboarding ? base : "/plan"}
         />
         <PageContent>
           <DraftPreview

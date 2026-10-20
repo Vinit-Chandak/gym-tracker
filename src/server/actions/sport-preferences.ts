@@ -32,7 +32,7 @@ async function save(userId: string, chosen: readonly ActivitySport[]): Promise<v
       await setSportPreference(tx, userId, sport, { enabled: chosen.includes(sport) });
     }
   });
-  revalidatePath("/training");
+  revalidatePath("/plan");
   revalidatePath("/profile/sports");
 }
 

@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Warm" };
 function loadScreens() {
   return Promise.allSettled([
     import("@/app/(app)/today/page"),
-    import("@/app/(app)/training/page"),
+    import("@/app/(app)/plan/page"),
     import("@/app/(app)/food/page"),
     import("@/app/(app)/progress/page"),
     import("@/app/(app)/profile/page"),

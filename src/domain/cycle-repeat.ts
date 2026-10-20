@@ -102,9 +102,12 @@ export function cycleLayout(plan: CyclePlan): { cycles: number; byWeekday: boole
   };
 }
 
-/** "Every week", or "Every 4 days" for a cycle laid back to back. */
+/**
+ * "Every week", or "Every 4 days" for a cycle laid back to back; "Progressive" for days trained
+ * once, in order (ADR 0058).
+ */
 export function cycleRepeatLabel(plan: CyclePlan): string {
-  if (plan.repeats === "once") return "Does not repeat";
+  if (plan.repeats === "once") return "Progressive";
   if (plan.days.length === 7 || cycleLayout(plan).byWeekday) return "Every week";
   return `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`;
 }

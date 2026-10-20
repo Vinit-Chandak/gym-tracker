@@ -18,9 +18,10 @@ export type NavItem = {
  * who you are and, later, the people you follow. Renaming the tab rather than adding a sixth
  * keeps the island at five.
  *
- * The second tab was Runs, a product of its own for one sport. It is Training: where any
- * sport is logged, scheduled and planned, with the programme behind it (plan §2.3). Still
- * five tabs, and each still has one job.
+ * The second tab was Runs, a product of its own for one sport, then Training, where any sport
+ * was logged, scheduled and planned. It is Plan (ADR 0058): what comes next and how it is built.
+ * Today is now, Plan is next, Progress is done, so logging is Today's alone. Still five tabs,
+ * and each still has one job.
  *
  * The third was History. It is Food (ADR 0034): meals are logged several times a day, and a
  * card at the foot of Today put them a scroll away, while History is a look back, which is
@@ -29,7 +30,7 @@ export type NavItem = {
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", glyph: "today" },
-  { href: "/training", label: "Training", glyph: "training" },
+  { href: "/plan", label: "Plan", glyph: "training" },
   { href: "/food", label: "Food", glyph: "food" },
   { href: "/progress", label: "Progress", glyph: "progress" },
   { href: "/profile", label: "Profile", glyph: "profile" },
@@ -37,6 +38,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
+
+/**
+ * Pages of Plan's that live under other paths (ADR 0058): the strength programme's builder,
+ * drafts and history, a scheduled session's page, and a programme day read before it is
+ * trained. They keep Plan selected.
+ */
+const UNDER_PLAN = ["/profile/programme", "/training/programme", "/training/days"];
+
+/** Logging a run, ride or swim, which is Today's however it was reached. */
+const UNDER_TODAY = ["/training/new", "/training/log"];
 
 /**
  * Records more than one tab opens: a workout, and a logged run, ride or swim. Each can say in
@@ -80,11 +91,13 @@ export function isNavItemActive(
           ? "/today"
           : pathname;
   // Profile's sections keep Profile, whether you are in one or a record was opened from one.
-  const sectionPath = withinSection(openedFrom, "/profile/programme")
-    ? "/training"
-    : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
-      ? "/profile"
-      : openedFrom;
+  const sectionPath = UNDER_PLAN.some((section) => withinSection(openedFrom, section))
+    ? "/plan"
+    : UNDER_TODAY.some((section) => withinSection(openedFrom, section))
+      ? "/today"
+      : UNDER_PROFILE.some((section) => withinSection(openedFrom, section))
+        ? "/profile"
+        : openedFrom;
   return withinSection(sectionPath, href);
 }
 
@@ -95,7 +108,7 @@ export function isNavItemActive(
  */
 const SECTION_LABELS: Record<string, string> = {
   today: "Today",
-  training: "Training",
+  plan: "Plan",
   runs: "Runs",
   food: "Food",
   progress: "Progress",
@@ -139,7 +152,7 @@ export function sectionLabel(path: string): string | undefined {
  */
 export const NAV_ORIGINS = [
   "today",
-  "training",
+  "plan",
   "history",
   "programme",
   "shared",
@@ -149,9 +162,10 @@ export type NavOrigin = (typeof NAV_ORIGINS)[number];
 
 const ORIGIN_PATHS: Record<NavOrigin, string> = {
   today: "/today",
-  training: "/training",
+  plan: "/plan",
   history: "/progress/history",
-  programme: "/training/programme",
+  // A session opened from a programme's page goes back to Plan, where that page lives.
+  programme: "/plan",
   shared: "/profile/friends",
   // An exercise's page, which is Profile's: a workout opened from its graph or its latest
   // sessions keeps Profile, as Back to it does (year audit, October 2026).
@@ -169,6 +183,8 @@ export const EDIT_PARAM = "edit";
 
 export function parseOrigin(value: string | string[] | undefined): NavOrigin | null {
   if (typeof value !== "string") return null;
+  // A link written while Plan was Training still says so, and still means Plan (ADR 0058).
+  if (value === "training") return "plan";
   return (NAV_ORIGINS as readonly string[]).includes(value) ? (value as NavOrigin) : null;
 }
 
@@ -180,7 +196,7 @@ export function originQuery(origin: NavOrigin | null): "" | `?${typeof ORIGIN_PA
 /** The path a validated origin goes back to, or the default for a record of this kind. */
 export function originPath(
   origin: NavOrigin | null,
-  fallback: "history" | "training" = "history",
+  fallback: "history" | "plan" = "history",
 ): string {
   return origin ? ORIGIN_PATHS[origin] : ORIGIN_PATHS[fallback];
 }

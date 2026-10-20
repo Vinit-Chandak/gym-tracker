@@ -58,7 +58,7 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
   if (process.env.COACH_WORKFLOW_ENABLED === "true") {
     if (enabled) {
       const resumed = await withUser(getDb(), user.id, (tx) => resumeCoaching(tx, user.id));
-      if (!resumed) redirect("/training/programmes/new");
+      if (!resumed) redirect("/plan/new");
     } else await withUser(getDb(), user.id, (tx) => setTrainingMode(tx, user.id, "track"));
     await profileChanged(user.id);
     revalidatePath("/profile/ai-coach");
@@ -207,7 +207,7 @@ export async function applyProposalAction(proposalId: string): Promise<ActionRes
           : "Could not apply the change. Please retry.",
     };
   }
-  revalidatePath("/profile/programme");
+  revalidatePath("/plan", "layout");
   revalidatePath("/today");
   return { ok: true };
 }
@@ -217,6 +217,6 @@ export async function rejectProposalAction(proposalId: string): Promise<ActionRe
   if (!z.uuid().safeParse(proposalId).success) return { ok: false, error: "Invalid change." };
   const done = await withUser(getDb(), user.id, (tx) => rejectProposal(tx, user.id, proposalId));
   if (!done) return { ok: false, error: "That change is no longer waiting for an answer." };
-  revalidatePath("/profile/programme");
+  revalidatePath("/plan", "layout");
   return { ok: true };
 }

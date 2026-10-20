@@ -45,8 +45,8 @@ export function OccurrenceSettled({
           header: "Already done",
           title: "You have already logged this",
           description: `The ${noun} scheduled for ${when} was answered by an activity you logged. A scheduled session is logged once; correct that activity rather than logging a second one.`,
-          // Opened from Training, whose page this is, it keeps Training selected (NAV-03).
-          href: `/training/activities/${occurrence.resolution.activityId}${originQuery("training")}` as Route,
+          // Opened from Plan, whose page this is, it keeps Plan selected (NAV-03).
+          href: `/training/activities/${occurrence.resolution.activityId}${originQuery("plan")}` as Route,
           label: "See what you logged",
         }
       : occurrence.resolution.kind === "cancelled"
@@ -74,12 +74,12 @@ export function OccurrenceSettled({
               header: "Already done",
               title: "This session is already settled",
               description: `The ${noun} scheduled for ${when} is no longer waiting to be logged.`,
-              href: "/training" as Route,
+              href: "/plan" as Route,
               label: "Go to Training",
             };
   return (
     <>
-      <PageHeader title={settled.header} backHref="/training" />
+      <PageHeader title={settled.header} backHref="/plan" />
       <PageContent>
         <EmptyState
           icon={CalendarDays}

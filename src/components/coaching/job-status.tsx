@@ -91,7 +91,10 @@ export function CoachJobStatus({
           href={
             (base === "/welcome/programme"
               ? `${base}/create`
-              : `/training/programmes/new?sport=${job.target.sport ?? "strength"}&scope=${job.target.scope}&method=coach`) as Route
+              : job.target.scope === "session"
+                ? // Single coached sessions are set aside for now (ADR 0058).
+                  "/plan"
+                : `/plan/new?sport=${job.target.sport ?? "strength"}&method=coach`) as Route
           }
           variant={questions ? "secondary" : "primary"}
           className="flex w-full"

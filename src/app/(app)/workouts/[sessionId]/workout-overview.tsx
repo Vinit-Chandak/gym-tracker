@@ -578,7 +578,7 @@ export function WorkoutOverview({
         {coachPlanned && (
           <span className="meta-fact">
             <Glyph name="coach" className="glyph-16" />
-            Planned by the coach
+            Prepared by the coach
           </span>
         )}
       </p>

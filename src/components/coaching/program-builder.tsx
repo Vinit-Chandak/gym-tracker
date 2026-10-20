@@ -63,6 +63,7 @@ export function ProgramBuilder({
   base,
   routines = [],
   preview = false,
+  startRepeats = "rolling",
 }: {
   initial: { id: string; revision: number; blueprint: ProgramBlueprint } | null;
   library: LibraryEntry[];
@@ -70,6 +71,8 @@ export function ProgramBuilder({
   base: "/welcome/programme" | "/profile/programme";
   routines?: { id: string; name: string; day: SavedRoutineDay }[];
   preview?: boolean;
+  /** How a new programme runs, as New programme chose it (ADR 0058); a draft keeps its own. */
+  startRepeats?: CycleRepeat;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -88,7 +91,7 @@ export function ProgramBuilder({
           name: "",
           weeks: 8,
           notes: "",
-          repeats: "rolling",
+          repeats: startRepeats,
           days: [],
           runs: [],
         },
@@ -251,7 +254,7 @@ export function ProgramBuilder({
                   ? `Every ${plan.days.length === 1 ? "day" : `${plan.days.length} days`}`
                   : "Repeat the cycle"}
               </option>
-              <option value="once">Does not repeat</option>
+              <option value="once">Progressive</option>
             </Select>
           </Field>
           {plan.days.length > 0 ? (

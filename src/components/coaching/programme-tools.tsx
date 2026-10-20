@@ -10,8 +10,8 @@ import { copyProgramAction } from "@/server/actions/coaching-workflow";
 import { RetireProgramme } from "./retire-programme";
 
 /**
- * Editing is the everyday action. Replacement, duplication and retirement stay together under
- * More options here; retirement is also directly available on Training's programme cards.
+ * Editing is the everyday action. Replacement, duplication and ending the programme stay
+ * together under More options, on the programme's own page (ADR 0058).
  */
 export function ProgrammeTools({
   id,
@@ -39,7 +39,7 @@ export function ProgrammeTools({
         router.push(
           (result.value.sport === "strength"
             ? `/profile/programme/manual?draft=${result.value.id}`
-            : `/training/programmes/${result.value.sport}/edit?draft=${result.value.id}`) as Route,
+            : `/plan/${result.value.sport}/edit?draft=${result.value.id}`) as Route,
         ),
       );
     else setError(result.error);
@@ -54,15 +54,13 @@ export function ProgrammeTools({
           </Button>
         )}
         {active && finished && (
-          <LinkButton href={`/training/programmes/new?sport=${sport}`}>
-            Plan your next programme
-          </LinkButton>
+          <LinkButton href={`/plan/new?sport=${sport}` as Route}>New programme</LinkButton>
         )}
         <Disclosure summary="More options" variant="inline" className="programme-management-more">
           <div className="space-y-2">
             {active && !finished && (
               <LinkButton
-                href={`/training/programmes/new?sport=${sport}`}
+                href={`/plan/new?sport=${sport}` as Route}
                 variant="secondary"
                 className="w-full"
               >

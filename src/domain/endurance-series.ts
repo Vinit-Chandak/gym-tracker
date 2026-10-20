@@ -9,7 +9,7 @@ export type EnduranceSessionGroup = {
 };
 
 /** Object key order is not meaningful in prescriptions read back from JSONB. */
-function stable(value: unknown): string {
+export function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (value !== null && typeof value === "object")
     return `{${Object.entries(value)

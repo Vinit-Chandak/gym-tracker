@@ -10,7 +10,7 @@ import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures } from "@/lib/facts";
-import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
+import { ORIGIN_PARAM } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import { PHASE_LABELS, sessionLine, stepLine } from "./activity-plan";
@@ -105,9 +105,7 @@ function EnduranceDetails({
           ))}
         </dl>
       )}
-      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>
-        {occurrence.disposition === "skipped" ? "Undo skip or move" : "Skip or move"}
-      </CardLink>
+      <CardLink href={`/training/programme/occurrences/${occurrence.id}`}>Skip or move</CardLink>
     </div>
   );
 }
@@ -148,8 +146,6 @@ export function EnduranceCard({
 }) {
   if (occurrence.sport === "strength") return null;
   const sport = occurrence.sport;
-  const logged = occurrence.resolution.kind === "logged";
-  const skipped = occurrence.disposition === "skipped";
   const target = enduranceTarget(occurrence.prescription, units);
   const note = enduranceNote(occurrence.prescription);
   const name = day?.name ?? enduranceName(sport);
@@ -169,14 +165,7 @@ export function EnduranceCard({
 
   return (
     <ActivityCard
-      mark={
-        <Art
-          kind="mark"
-          sport={MARK[sport]}
-          size={22}
-          state={logged ? "done" : skipped ? "skipped" : "todo"}
-        />
-      }
+      mark={<Art kind="mark" sport={MARK[sport]} size={22} state="todo" />}
       title={name}
       aside={
         target ? (
@@ -192,9 +181,8 @@ export function EnduranceCard({
           </span>
         ) : null
       }
-      muted={logged || skipped}
       facts={
-        (focus || note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
+        (focus || note || time || partOf || occurrence.preparedByCoach) && (
           <>
             {focus && <Fact glyph="target">{holdFigures(focus)}</Fact>}
             {note && <Fact glyph="pace">{note}</Fact>}
@@ -205,66 +193,36 @@ export function EnduranceCard({
               </Fact>
             )}
             {partOf && <Fact glyph="training">Part of {partOf}</Fact>}
-            {occurrence.preparedByCoach && !skipped && (
-              <Fact glyph="coach">Prepared by the coach</Fact>
-            )}
+            {occurrence.preparedByCoach && <Fact glyph="coach">Prepared by the coach</Fact>}
           </>
         )
       }
-      status={
-        logged ? (
-          <p className="activity-card-state">
-            <Glyph name="check" className="glyph-18 text-ink" />
-            Logged
-          </p>
-        ) : skipped ? (
-          <p className="activity-card-state">
-            <Glyph name="skip" className="glyph-18 text-ink" />
-            Skipped
-          </p>
-        ) : null
-      }
       details={
-        logged ? undefined : (
-          <EnduranceDetails occurrence={occurrence} coachSummary={coachSummary} units={units} />
-        )
+        <EnduranceDetails occurrence={occurrence} coachSummary={coachSummary} units={units} />
       }
       actions={
-        logged && occurrence.resolution.kind === "logged" ? (
-          // Opened from Today, it keeps Today selected and goes back to it (NAV-03).
-          <CardLink
-            href={`/training/activities/${occurrence.resolution.activityId}${originQuery("today")}`}
-          >
-            See what you logged
-          </CardLink>
-        ) : occurrence.loggable && !skipped ? (
-          <LinkButton
-            href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
-            variant="tonal"
-            className="w-full"
-            aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}
-          >
-            <Glyph name="plus" className="glyph-18" />
-            {LOG_LABEL[sport]}
-          </LinkButton>
-        ) : null
+        <LinkButton
+          href={`/training/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
+          variant="tonal"
+          className="w-full"
+          aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}
+        >
+          <Glyph name="plus" className="glyph-18" />
+          {LOG_LABEL[sport]}
+        </LinkButton>
       }
     />
   );
 }
 
 /**
- * Still owed an answer and able to take one: what Today puts on the page.
+ * Still owed an answer and able to take one: what Today gives a card (ADR 0058).
  *
  * `loggable` rather than "not logged", so a session the programme withdrew is not offered
  * with a button that leads to a page explaining it was withdrawn. Work nobody can answer any
- * more is not today's business; it is in the programme, with what became of it.
+ * more is not today's business; it is in the programme, with what became of it. A skipped
+ * session is answered for today: it is a row under Done, which opens it to undo the skip.
  */
 export function isOutstanding(occurrence: ScheduledOccurrence): boolean {
-  return occurrence.loggable;
-}
-
-/** Answered by a log. Its card stays on the day it belongs to, inked as done. */
-export function isAnswered(occurrence: ScheduledOccurrence): boolean {
-  return occurrence.resolution.kind === "logged";
+  return occurrence.loggable && occurrence.disposition !== "skipped";
 }

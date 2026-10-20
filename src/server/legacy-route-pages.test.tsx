@@ -107,7 +107,7 @@ describe("compatibility pages outside the app shell", () => {
   });
 
   it("retains the simple aliases after the onboarding gate", async () => {
-    await expect(RunsPage()).rejects.toThrow("redirect:/training");
+    await expect(RunsPage()).rejects.toThrow("redirect:/plan");
     await expect(NewRunPage(newProps())).rejects.toThrow("redirect:/training/new?sport=running");
     expect(mock.gate).toHaveBeenCalledTimes(2);
     expect(mock.occurrence).not.toHaveBeenCalled();

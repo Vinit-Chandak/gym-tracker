@@ -5,7 +5,7 @@ import { Fragment, type ReactNode } from "react";
 import { StartPlannedButton } from "@/app/(app)/today/plan-actions";
 import { Fact, MetaLine, PlanRows } from "@/app/(app)/today/today-parts";
 import { planRows } from "@/app/(app)/today/today-model";
-import { liftingStartOption } from "@/app/(app)/today/choose/start-option";
+import { liftingStartOption } from "@/app/(app)/today/start-option";
 import { Art } from "@/components/art/art";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
@@ -165,7 +165,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/training/days/
     <FreshAfterSets seen={seen} loading={<LoadingPage />}>
       <header className="page-header page-width pt-safe">
         <div className="page-header-bar">
-          <BackLink fallback="/training" />
+          <BackLink fallback="/plan/strength" />
         </div>
       </header>
       <div className="page-width pb-8">

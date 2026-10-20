@@ -2,7 +2,8 @@ import { ProgrammeBuilderPage } from "@/components/coaching/builder-page";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ draft?: string }>;
+  searchParams: Promise<{ draft?: string; mode?: string }>;
 }) {
-  return <ProgrammeBuilderPage draftId={(await searchParams).draft} />;
+  const { draft, mode } = await searchParams;
+  return <ProgrammeBuilderPage draftId={draft} mode={mode} />;
 }

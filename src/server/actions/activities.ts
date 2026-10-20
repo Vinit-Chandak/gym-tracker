@@ -40,6 +40,7 @@ import {
   ActivityNotFoundError,
   createActivity,
   deleteActivity,
+  relinkActivity,
   getActivity,
   InvalidActualError,
   OccurrenceNotFoundError,
@@ -500,6 +501,37 @@ export async function saveActivityAction(
   });
   // The client clears only the acknowledged local draft before opening the saved record.
   return { savedActivityId: result.id };
+}
+
+export type CountAsResult = { ok: false; error: string };
+
+/**
+ * Counts a run, ride or swim as another planned session, or as none (ADR 0058): its own step,
+ * chosen on the activity's Counts as page, and refused with its reason as a new log would be.
+ * Both sessions' pages, the week and the programme see the change.
+ */
+export async function countActivityAsAction(
+  activityId: string,
+  expectedRevision: number,
+  occurrenceId: string | null,
+): Promise<CountAsResult> {
+  const user = await requireUser();
+  let moved: Awaited<ReturnType<typeof relinkActivity>>;
+  try {
+    moved = await withUser(getDb(), user.id, (tx) =>
+      relinkActivity(tx, user.id, activityId, occurrenceId, expectedRevision),
+    );
+  } catch (error) {
+    if (error instanceof OccurrenceClosedError)
+      return {
+        ok: false,
+        error: "A session of a programme that has ended keeps what answered it.",
+      };
+    return { ok: false, error: describe(error) };
+  }
+  for (const occurrence of [moved.from, moved.to])
+    revalidateActivity({ sport: moved.sport, activityId, occurrenceId: occurrence });
+  redirect(`/training/activities/${activityId}`);
 }
 
 export type DeleteActivityResult = { ok: true } | { ok: false; error: string };

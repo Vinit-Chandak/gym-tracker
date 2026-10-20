@@ -318,7 +318,7 @@ describe("a programme the athlete has moved on from", () => {
         {},
         form({ sport: "running", scheduledOn: addDays(today, 1), scheduledLocalTime: "" }),
       ),
-    ).rejects.toThrow("redirect:/training/scheduled");
+    ).rejects.toThrow("redirect:/plan");
     const [own] = await as(a, (tx) =>
       tx
         .select({ id: plannedOccurrences.id })

@@ -59,25 +59,25 @@ it("refreshes after the server timeout even when it expires in the background, t
   expect(vi.getTimerCount()).toBe(0);
 });
 
-it("says nothing is planning a session the coach did not reach, and starts it on a tap", async () => {
+it("says nothing is preparing a session the coach did not reach, and starts it on a tap", async () => {
   vi.useRealTimers();
   start.mockResolvedValue({ ok: true, value: { jobId: "job-1" } });
   render(<CoachWaiting jobId="job-1" attempted={false} hasPlan={false} />);
   expect(screen.getByRole("status").textContent).toBe(
-    "The coach has not planned this session yet. Your programme's own targets apply until it does. It tries again at its next nightly run.",
+    "The coach has not prepared this session yet. Your programme's own targets apply until it does. It tries again at its next nightly run.",
   );
-  expect(screen.queryByText(/is planning/)).toBeNull();
+  expect(screen.queryByText(/is preparing/)).toBeNull();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Ask the coach to plan it now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask the coach to prepare it now" }));
   });
   expect(start).toHaveBeenCalledWith("job-1");
   // The action's revalidatePath carries the new render; another refresh repeats its reads.
   expect(router.refresh).not.toHaveBeenCalled();
 });
 
-it("says the coach could not finish, and that its earlier plan stands", () => {
+it("says the coach could not finish, and that what it prepared earlier stands", () => {
   render(<CoachWaiting jobId="job-1" attempted hasPlan />);
   expect(screen.getByRole("status").textContent).toBe(
-    "The coach could not finish planning this session. Its earlier plan stands until it does. It tries again at its next nightly run.",
+    "The coach could not finish preparing this session. What it prepared earlier stands until it does. It tries again at its next nightly run.",
   );
 });

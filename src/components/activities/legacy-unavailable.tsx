@@ -15,14 +15,14 @@ import { LEGACY_UNAVAILABLE } from "@/server/legacy-routes";
 export function LegacyUnavailable() {
   return (
     <>
-      <PageHeader title="Not available" backHref="/training" />
+      <PageHeader title="Not available" backHref="/plan" />
       <PageContent>
         <EmptyState
           icon={CalendarDays}
           title="That link cannot be opened"
           description={LEGACY_UNAVAILABLE}
           action={
-            <LinkButton href="/training" variant="secondary">
+            <LinkButton href="/plan" variant="secondary">
               Go to Training
             </LinkButton>
           }

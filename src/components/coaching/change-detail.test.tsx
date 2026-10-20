@@ -110,14 +110,14 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
   ...overrides,
 });
 
-it("returns an endurance programme decision to the Training hub", async () => {
+it("returns an endurance programme decision to Plan", async () => {
   vi.mocked(declineProgramChangeAction).mockResolvedValue({
     ok: true,
     value: { id: "11111111-1111-4111-8111-111111111111" },
   });
   render(<ChangeDetail {...props({ sport: "cycling" })} />);
   fireEvent.click(screen.getByRole("button", { name: "Decline" }));
-  await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/training"));
+  await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/plan"));
 });
 
 it("is the one line, the difference, and three answers — nothing said twice", () => {

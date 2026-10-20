@@ -152,7 +152,7 @@ it("opens the form for a session of the athlete's programme", async () => {
 
 /**
  * NAV-03: what it saves opens under the tab it was opened from and goes back to it, as this page
- * does: Today's when Today says so, and Training's otherwise.
+ * does: Today's unless a link says otherwise, logging being Today's (ADR 0058).
  */
 it("names where it was opened from to the activity it saves", async () => {
   mocks.occurrence.mockResolvedValue({
@@ -164,10 +164,14 @@ it("names where it was opened from to the activity it saves", async () => {
   const fromToday = renderToStaticMarkup(await NewActivityPage(props(ID, "today")));
   expect(fromToday).toContain('data-back="/today"');
   expect(fromToday).toContain('data-origin="today"');
-  const fromTraining = renderToStaticMarkup(await NewActivityPage(props()));
-  expect(fromTraining).toContain('data-back="/training"');
-  expect(fromTraining).toContain('data-origin="training"');
-  // Only an origin it knows: anything else is Training's.
+  const unnamed = renderToStaticMarkup(await NewActivityPage(props()));
+  expect(unnamed).toContain('data-back="/today"');
+  expect(unnamed).toContain('data-origin="today"');
+  // A link from while Plan was Training still means Plan.
+  const fromTraining = renderToStaticMarkup(await NewActivityPage(props(ID, "training")));
+  expect(fromTraining).toContain('data-back="/plan"');
+  expect(fromTraining).toContain('data-origin="plan"');
+  // Only an origin it knows: anything else is Today's.
   const unknown = renderToStaticMarkup(await NewActivityPage(props(ID, "https://example.test")));
-  expect(unknown).toContain('data-origin="training"');
+  expect(unknown).toContain('data-origin="today"');
 });

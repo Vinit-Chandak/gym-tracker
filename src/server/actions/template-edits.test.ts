@@ -59,7 +59,7 @@ it("saves a correction without discarding coach-written steps or their instructi
       }),
     }),
   );
-  expect(mocks.redirect).toHaveBeenCalledWith("/training/templates");
+  expect(mocks.redirect).toHaveBeenCalledWith("/plan");
 });
 
 it("refuses changing the sport of an existing template", async () => {

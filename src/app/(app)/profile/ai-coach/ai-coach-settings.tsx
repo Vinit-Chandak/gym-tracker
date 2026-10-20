@@ -258,9 +258,9 @@ export function AiCoachSettings({
           <section aria-labelledby="coach-programmes">
             <div className="coach-section-heading">
               <h2 id="coach-programmes">Your programmes</h2>
-              <Link href="/training/programmes/new" className="coach-text-link">
+              <Link href="/plan/new" className="coach-text-link">
                 <Glyph name="plus" className="glyph-16" />
-                Add programme
+                New programme
               </Link>
             </div>
             {programmes.length > 0 ? (
@@ -294,11 +294,7 @@ export function AiCoachSettings({
                       </Button>
                       <Link
                         className="coach-text-link"
-                        href={
-                          (programme.sport === "strength"
-                            ? "/profile/programme"
-                            : `/training/programmes/${programme.sport}`) as Route
-                        }
+                        href={`/plan/${programme.sport}` as Route}
                         aria-label={`View ${programme.name}`}
                       >
                         View
@@ -313,7 +309,7 @@ export function AiCoachSettings({
                 <Glyph name="table" className="glyph-24" />
                 <h3>Start with a programme</h3>
                 <p>Create a plan for a sport. You can add other sports whenever you’re ready.</p>
-                <LinkButton href="/training/programmes/new">Create a programme</LinkButton>
+                <LinkButton href="/plan/new">New programme</LinkButton>
               </div>
             )}
             {programmes.length > 0 && <ReviewProgrammes programmes={programmes} enabled={shown} />}
@@ -402,11 +398,6 @@ export function AiCoachSettings({
         </section>
         {workflow && (
           <div className="coach-quick-links">
-            <Link href="/training/programmes/new?scope=session">
-              <Glyph name="plus" className="glyph-20" />
-              <span>Create a single session</span>
-              <Glyph name="chevronRight" className="glyph-16" />
-            </Link>
             <Link href="/profile/programme/create">
               <Glyph name="sliders" className="glyph-20" />
               <span>Strength goals & shared reports</span>
@@ -478,7 +469,7 @@ export function AiCoachSettings({
                       (proposal.status === "editing" && !proposal.fromCoach
                         ? proposal.sport === "strength"
                           ? `/profile/programme/manual?draft=${proposal.id}`
-                          : `/training/programmes/${proposal.sport}/edit?draft=${proposal.id}`
+                          : `/plan/${proposal.sport}/edit?draft=${proposal.id}`
                         : `/profile/programme/drafts/${proposal.id}`) as Route
                     }
                     className="coach-change-row"

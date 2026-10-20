@@ -54,8 +54,8 @@ async function mutate<T>(work: (tx: DbOrTx, userId: string) => Promise<T>): Prom
   const user = await requireProfiledUser();
   try {
     const value = await withUser(getDb(), user.id, (tx) => work(tx, user.id));
-    // Training owns the programme cards, drafts, templates and dated logging choices.
-    revalidatePath("/training", "layout");
+    // Plan owns the programme cards, their pages and the week's sessions (ADR 0058).
+    revalidatePath("/plan", "layout");
     return { ok: true, value };
   } catch (error) {
     if (error instanceof z.ZodError)
@@ -241,7 +241,6 @@ export async function requestProgramReviewAction(sport: ActivitySport = "strengt
     // A new review, or one that was waiting for the next nightly run: either way, a run now.
     if (result.value.start)
       after(() => dispatchCoachJob(getDb(), result.value.userId, result.value.jobId));
-    revalidatePath("/profile/programme");
     revalidatePath("/profile/ai-coach");
   }
   return result;
@@ -269,7 +268,6 @@ export async function startWaitingCoachJobAction(id: string) {
     const { userId, jobId } = result.value;
     if (jobId) after(() => dispatchCoachJob(getDb(), userId, jobId));
     revalidatePath("/today");
-    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -294,7 +292,7 @@ export async function saveStandaloneDraftAction(id: string, revision: number) {
       z.number().int().positive().parse(revision),
     ),
   );
-  if (result.ok) revalidatePath("/training");
+  if (result.ok) revalidatePath("/plan");
   return result;
 }
 export async function copyProgramAction(id: string, duplicate: boolean) {
@@ -306,7 +304,6 @@ export async function archiveProgramAction(id: string) {
   const result = await mutate((tx, userId) => archiveActiveProgram(tx, userId, z.uuid().parse(id)));
   if (result.ok) {
     revalidatePath("/today");
-    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -349,7 +346,6 @@ export async function activateProgramDraftAction(input: {
   if (result.ok) {
     await profileChanged(result.value.userId);
     revalidatePath("/today");
-    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -357,7 +353,6 @@ export async function rejectProgramDraftAction(id: string) {
   const result = await mutate((tx, userId) =>
     closeProgramDraft(tx, userId, z.uuid().parse(id), "discarded"),
   );
-  if (result.ok) revalidatePath("/profile/programme");
   return result;
 }
 
@@ -405,7 +400,6 @@ export async function approveProgramChangeAction(input: {
   if (result.ok) {
     await profileChanged(result.value.userId);
     revalidatePath("/today");
-    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -423,7 +417,6 @@ export async function declineProgramChangeAction(id: string) {
     await releaseRequestsForDraft(tx, userId, draftId, "declined", "");
     return closed;
   });
-  if (result.ok) revalidatePath("/profile/programme");
   return result;
 }
 
@@ -452,7 +445,6 @@ export async function requestChangeRevisionsAction(id: string, notes: string, no
     return closed;
   });
   if (result.ok) {
-    revalidatePath("/profile/programme");
     revalidatePath("/profile/ai-coach");
   }
   return result;
@@ -477,7 +469,6 @@ export async function answerProgramRequestAction(id: string, answer: string, not
   });
   if (result.ok) {
     revalidatePath("/profile/ai-coach");
-    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -489,7 +480,6 @@ export async function withdrawProgramRequestAction(id: string) {
   );
   if (result.ok) {
     revalidatePath("/profile/ai-coach");
-    revalidatePath("/profile/programme");
   }
   return result;
 }

@@ -3,17 +3,16 @@ import type { ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
 import { enduranceName } from "@/components/activities/endurance-line";
-import { EnduranceCard, isAnswered, isOutstanding } from "@/components/activities/today-activities";
+import { EnduranceCard, isOutstanding } from "@/components/activities/today-activities";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
-import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
-import { FigureText } from "@/components/ui/figure-text";
-import { FitTitle } from "@/components/ui/fit-title";
 import { Figures } from "@/components/ui/figures";
+import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
+import { NavRow } from "@/components/ui/nav-row";
 import type { ActivitySport } from "@/domain/activity";
 import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
 import { formatDuration } from "@/domain/pace";
@@ -25,17 +24,17 @@ import {
   type SetLengthUnit,
   type SportUnits,
 } from "@/lib/distance-units";
-import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
+import { FACT_SEPARATOR, holdFigures, holdHyphens, joinFacts } from "@/lib/facts";
 import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
-import { sessionName } from "@/lib/labels";
-import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
+import { sessionName, UNPLANNED_SESSION } from "@/lib/labels";
+import { originQuery } from "@/lib/nav";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { OpenSessionSummary, SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
-import { startDayLabel } from "./choose/start-option";
+import { startDayLabel } from "./start-option";
 import { CoachPending, CoachWaiting, type CoachGym } from "./coach-actions";
 import { DiscardedNote } from "./discarded-note";
 import { GymChoice, type SwitcherGym } from "./gym-switcher";
@@ -43,19 +42,10 @@ import {
   CompleteRestButton,
   MoreOptions,
   PickUpFromToday,
-  StartAdHocButton,
   StartPlannedButton,
 } from "./plan-actions";
-import {
-  cycleCells,
-  cycleLabel,
-  loggedBesides,
-  planRows,
-  printLabel,
-  todayParts,
-  type PlanRowModel,
-} from "./today-model";
-import { CycleMark, Fact, PlanRows, ProgrammeComplete, TodayPrint } from "./today-parts";
+import { planRows } from "./today-model";
+import { Fact, PlanRows } from "./today-parts";
 
 /**
  * One missed session is ordinary: the waiting sequence simply offers it next. From the second,
@@ -82,13 +72,13 @@ export type TodayViewProps = {
   length?: SetLengthUnit;
   /** The programme's endurance work for the slot being offered — by sequence, not by date. */
   programmeOccurrences?: readonly ScheduledOccurrence[];
-  /** What the athlete put on the calendar for today, which is dated today by definition. */
+  /** What is dated today, whatever scheduled it. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
-  /** The programme's endurance for the day finished today, which stays on today with it. */
+  /** Kept for the preview's fixtures; what a finished day logged is a row of what was done. */
   finishedOccurrences?: readonly ScheduledOccurrence[];
   /** How the athlete reads each sport's distances, which the endurance cards say targets in. */
   distanceUnits?: Partial<Record<ActivitySport, SportUnits>>;
-  /** Everything finished today, scheduled or not: what no other card shows gets one of its own. */
+  /** Everything finished today, scheduled or not: each is a row of what was done. */
   logged?: readonly LoggedActivity[];
   /** An empty session was just discarded, which Today says once. */
   discarded?: boolean;
@@ -97,13 +87,6 @@ export type TodayViewProps = {
   /** The athlete chose to log their own workouts rather than follow a programme. */
   tracking?: boolean;
 };
-
-/** Each endurance sport's way to log one, as Training's new activity page asks for it. */
-const LOG_SPORT: { sport: ActivitySport; label: string; query: string }[] = [
-  { sport: "running", label: "Log a run", query: "running" },
-  { sport: "cycling", label: "Log a ride", query: "cycling" },
-  { sport: "swimming", label: "Log a swim", query: "swimming" },
-];
 
 /**
  * What the coach is doing about the day, only when there is something to say: that it is
@@ -147,8 +130,9 @@ function CoachStatus({
   if (coach.plan && !coach.matchesGym) {
     return (
       <CoachNote small flat>
-        The coach planned this for {coach.plan.gymName}
-        {gymName ? `, not ${gymName}` : ""}. Re-plan from More options, or start by the rule.
+        The coach prepared this for {coach.plan.gymName}
+        {gymName ? `, not ${gymName}` : ""}. Prepare it again from More options, or start by the
+        rule.
       </CoachNote>
     );
   }
@@ -165,17 +149,16 @@ function CoachStatus({
   return null;
 }
 
-/** Where a card stands, in words, when that is news: in progress, done, skipped, waiting. */
-function State({ glyph, children }: { glyph?: "check" | "skip"; children: ReactNode }) {
+/** Where a card stands, in words, when that is news: in progress, waiting. */
+function State({ children }: { children: ReactNode }) {
   return (
     <p className="activity-card-state">
-      {glyph && <Glyph name={glyph} className="glyph-18 text-ink" />}
       <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
     </p>
   );
 }
 
-/** A caption over a part of the page that is not the day on offer: "Today", "Up next". */
+/** A caption over a part of the page: "Done". */
 function Caption({ id, children }: { id?: string; children: ReactNode }) {
   return (
     <h2 id={id} className="today-caption type-caption text-ink-2">
@@ -184,113 +167,9 @@ function Caption({ id, children }: { id?: string; children: ReactNode }) {
   );
 }
 
-/** A screen that has nothing to offer yet: what is missing, and the way to it. */
-function Empty({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <section className="today-empty mt-3">
-      <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>{title}</FitTitle>
-      {children}
-    </section>
-  );
-}
+const MARK = { strength: "strength", running: "run", cycling: "ride", swimming: "swim" } as const;
 
-const LOGGED_MARK = { running: "run", cycling: "ride", swimming: "swim" } as const;
-
-/**
- * Something finished today that no other card stands for (`loggedBesides`): a ride nobody
- * scheduled, an unplanned workout. A card inked done like the others that stay on the day, with
- * what it came to, when it began, and the way to what was logged.
- */
-function LoggedCard({
-  logged,
-  timeZone,
-  units,
-}: {
-  logged: LoggedActivity;
-  timeZone: string;
-  units?: SportUnits;
-}) {
-  const strength = logged.sport === "strength";
-  const seconds = logged.durationMs === null ? null : logged.durationMs / 1000;
-  // A run, ride or swim says how far, else how long; a workout, where and how long.
-  const distance =
-    !strength && logged.distanceMetres !== null
-      ? sportDistanceParts(logged.distanceMetres, logged.sport, units ?? DEFAULT_SPORT_UNITS)
-      : null;
-  const time = strength
-    ? seconds === null
-      ? null
-      : `${Math.round(seconds / 60)}\u00a0min`
-    : seconds === null
-      ? null
-      : formatDuration(seconds);
-  // As History and the calendar's day name it: a workout by its day or routine, a run, ride
-  // or swim by its own title, else by its sport.
-  const name = strength
-    ? sessionName(logged.dayName, logged.title)
-    : (logged.title ?? enduranceName(logged.sport));
-  return (
-    <ActivityCard
-      mark={
-        <Art
-          kind="mark"
-          sport={logged.sport === "strength" ? "strength" : LOGGED_MARK[logged.sport]}
-          size={22}
-          state="done"
-        />
-      }
-      title={name}
-      aside={
-        distance ? (
-          <span className="whitespace-nowrap">
-            <span className="type-figure">
-              <FigureText>{distance.figure}</FigureText>
-            </span>{" "}
-            <span className="type-meta-small font-semibold text-ink-2">{distance.unit}</span>
-          </span>
-        ) : !strength && time ? (
-          <span className="type-figure">
-            <FigureText>{time}</FigureText>
-          </span>
-        ) : null
-      }
-      muted
-      facts={
-        <>
-          {strength && logged.gymName && (
-            <Fact glyph="pin" label="Gym">
-              {logged.gymName}
-            </Fact>
-          )}
-          {(strength || distance) && time && (
-            <Fact glyph="rest">
-              <Figures>{time}</Figures>
-            </Fact>
-          )}
-          <Fact glyph="calendar">
-            <Figures>{formatTime(logged.startedAt, timeZone)}</Figures>
-          </Fact>
-        </>
-      }
-      status={<State glyph="check">{strength ? "Workout logged." : "Logged"}</State>}
-      actions={
-        // Opened from Today, it keeps Today selected and goes back to it (NAV-03): with no origin
-        // a finished record is History's.
-        <CardLink
-          href={
-            strength && logged.sessionId
-              ? `/workouts/${logged.sessionId}${originQuery("today")}`
-              : `/training/activities/${logged.id}${originQuery("today")}`
-          }
-        >
-          See what you logged
-        </CardLink>
-      }
-    />
-  );
-}
-
-/** "17:23", or with its day when the session was left open from another one. */
+/** "Started 17:23", or with its day when the session was left open from another one. */
 function startedAt(session: SessionSummary, today: string, timeZone: string): string {
   return formatTimeOrDateTime(session.startedAt, timeZone, today);
 }
@@ -327,6 +206,35 @@ function Progress({
   );
 }
 
+/**
+ * What one finished activity came to, in a row's few words: a run, ride or swim how far, else
+ * how long; a workout how long. Marked unplanned when it answered nothing planned and its name
+ * does not already say so.
+ */
+function doneValue(logged: LoggedActivity, title: string, units: SportUnits): string | undefined {
+  const strength = logged.sport === "strength";
+  const seconds = logged.durationMs === null ? null : logged.durationMs / 1000;
+  const distance =
+    !strength && logged.distanceMetres !== null
+      ? sportDistanceParts(logged.distanceMetres, logged.sport, units)
+      : null;
+  const result = distance
+    ? `${distance.figure} ${distance.unit}`
+    : seconds === null
+      ? null
+      : strength
+        ? `${Math.round(seconds / 60)} min`
+        : formatDuration(seconds);
+  const unplanned = strength ? logged.programDayId === null : logged.occurrenceId === null;
+  return joinFacts([unplanned && title !== UNPLANNED_SESSION && "Unplanned", result]) || undefined;
+}
+
+/**
+ * Today (ADR 0058): what is owed today, one card per session, and then what has been done, a row
+ * each. Nothing that is not today's: where a programme has got to and what comes next are
+ * Plan's, and logging anything else is Log's. Owed first, done after; a session done today stops
+ * being a card and becomes a row that opens its record.
+ */
 export function TodayView({
   today,
   timeZone,
@@ -341,21 +249,26 @@ export function TodayView({
   length = "m",
   programmeOccurrences = [],
   standaloneOccurrences = [],
-  finishedOccurrences = [],
   distanceUnits = {},
   logged = [],
   discarded = false,
   sports = ["strength"],
-  tracking = false,
 }: TodayViewProps) {
   // A gym is a lifter's to add: someone who only runs, rides or swims is never asked for one
-  // (audit B1), and logs their own sport from here instead.
+  // (audit B1).
   const lifts = sports.includes("strength");
-  const logSports = LOG_SPORT.filter((entry) => sports.includes(entry.sport));
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
     null;
-  const day = plan?.suggestedDay ?? null;
+  // Once today's programme day is done, the sequence offers the next one at once. That one is
+  // not today's, so Today does not show it (ADR 0058): it is on Plan, and Log can start it.
+  const finishedToday = plan?.suggestion && plan.suggestedDay ? plan.finishedToday : null;
+  const openHere =
+    inProgress !== null &&
+    plan?.suggestedDay !== null &&
+    plan?.suggestedDay !== undefined &&
+    inProgress.programDayId === plan.suggestedDay.id;
+  const day = plan?.suggestion && (!finishedToday || openHere) ? plan.suggestedDay : null;
   // The coach's plan stands in for the programme's only when it was made for this gym and
   // nothing newer is on its way.
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
@@ -370,9 +283,8 @@ export function TodayView({
 
   const sessionStatus = plan?.sessionStatus ?? "pending";
   const restDay = day !== null && !day.includesLifting && !day.includesRun;
-  // The open session belongs to the day when it was started from it; anything else — an ad hoc
-  // session, or another day started early — is its own thing and gets its own card.
-  const openHere = inProgress !== null && day !== null && inProgress.programDayId === day.id;
+  // The open session belongs to the day when it was started from it; anything else — an
+  // unplanned one, or another day started early — is its own thing and gets its own card.
   const openElsewhere = inProgress !== null && !openHere;
   // One unfinished workout at a time: while one is open, nothing on Today offers to start,
   // skip or re-plan another, and its gym is the session's, fixed (Must survive).
@@ -395,71 +307,33 @@ export function TodayView({
       />
     ) : null;
   // A gym is what a workout is planned for, so without one Today asks for it — but only of a
-  // lifter, and only when there is lifting to plan. A day of endurance alone or of rest, and a
-  // programme already finished, go on without one.
+  // lifter, and only with no programme or with lifting to do today (audit B1).
   const needsGym =
-    lifts &&
-    gyms.length === 0 &&
-    (!plan || (plan.suggestion !== null && day?.includesLifting === true));
+    lifts && gyms.length === 0 && !openHere && (!plan || day?.includesLifting === true);
 
-  // Everything due today, whatever scheduled it: the day's workout, the programme's own
-  // endurance for that same day, and whatever the athlete put on the calendar. What is still
-  // owed comes first; what is already logged stays on the day as a card inked done.
-  const programmeIds = new Set(programmeOccurrences.map((occurrence) => occurrence.id));
-  const isProgramme = (occurrence: ScheduledOccurrence) => programmeIds.has(occurrence.id);
-
-  // Once today's programme day is done, the sequence offers the next one at once. It is still
-  // the next one, not today's: Today keeps what was finished and whatever else is dated today,
-  // and the day on offer, with its own endurance, moves under a heading of its own. A session
-  // already open for it is being trained today, so then it stays today's.
-  const finishedToday = plan?.suggestion && day && !openHere ? plan.finishedToday : null;
-  // What the day on offer lists: everything, unless today has a section of its own.
-  const onOffer = (occurrence: ScheduledOccurrence) => !finishedToday || isProgramme(occurrence);
-  // The programme's own endurance for the day on offer, less what a revision withdrew: that asks
-  // for nothing, has no card, and so is not drawn in the print or counted as the day's either.
-  const programmeOnOffer = programmeOccurrences.filter(
-    (occurrence) => occurrence.resolution.kind !== "cancelled" && onOffer(occurrence),
+  // Everything dated today, whatever scheduled it: the programme's own and the athlete's.
+  const dated = [...programmeOccurrences, ...standaloneOccurrences].filter(
+    (occurrence) => occurrence.resolution.kind !== "cancelled",
   );
+  const owed = dated.filter(isOutstanding);
+  const skippedToday = dated.filter((occurrence) => occurrence.disposition === "skipped");
 
-  const rows: PlanRowModel[] =
+  const rows =
     day?.includesLifting && plan ? planRows(plan.suggestedExercises, coachPlan, unit, length) : [];
   const coachSaid = coachPlan ? writtenSummaryForSport(coachPlan, "workout") : null;
   const coachRun = coachPlan ? writtenSummaryForSport(coachPlan, "run") : null;
 
-  // ---------- the day's print, a band over the cards ----------
-  const parts =
-    day && plan
-      ? todayParts({
-          day,
-          programme: programmeOnOffer,
-          rows,
-          standalone: finishedToday ? [] : standaloneOccurrences,
-          restDrills: restDay ? restProtocol?.drills.length : undefined,
-          lifted: day.includesLifting && sessionStatus === "completed",
-          // The day's workout draws its columns as its own print does: open, set by set as they
-          // are logged; finished (its run still owed), as the record.
-          session: openHere && inProgress ? inProgress.print : plan.sessionPrint,
-        })
-      : [];
-  const print = day && plan && plan.suggestion && (
-    <TodayPrint parts={parts} label={printLabel(day.name, parts)} />
-  );
-
-  // ---------- the cards ----------
+  // ---------- the cards: what is owed ----------
   const more =
-    plan && plan.suggestion && day && !sessionOpen ? (
+    plan && day && !sessionOpen ? (
       <MoreOptions
-        gymId={defaultGym?.id ?? null}
         skip={
           day.includesLifting && sessionStatus === "pending"
             ? {
                 dayIndex: day.dayIndex,
                 dayName: day.name,
                 // Skipping is the workout's alone: a run still owed stays on Today after it.
-                runOwed: programmeOnOffer.some(
-                  (occurrence) =>
-                    occurrence.sport !== "strength" && occurrence.resolution.kind === "incomplete",
-                ),
+                runOwed: owed.some((occurrence) => occurrence.sport === "running"),
               }
             : null
         }
@@ -477,9 +351,9 @@ export function TodayView({
       />
     ) : null;
 
-  /** A session open that is not the day on offer: an ad hoc one, or another day started early. */
+  /** A session open that is not the day on offer: an unplanned one, or another day started early. */
   const elsewhereCard = openElsewhere && inProgress && (
-    <li>
+    <li key="open">
       <ActivityCard
         mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
         title={sessionName(inProgress.dayName, inProgress.title)}
@@ -518,141 +392,125 @@ export function TodayView({
     </li>
   );
 
-  const workoutCard = day && plan && plan.suggestion && day.includesLifting && (
-    <li>
-      <ActivityCard
-        mark={
-          <Art
-            kind="mark"
-            sport="strength"
-            size={22}
-            state={
-              !openHere && sessionStatus === "completed"
-                ? "done"
-                : !openHere && sessionStatus === "skipped"
-                  ? "skipped"
-                  : "todo"
-            }
-          />
-        }
-        title={day.name}
-        muted={!openHere && sessionStatus !== "pending"}
-        facts={
-          <>
-            {openHere && inProgress ? (
-              <Fact glyph="pin" label="Gym">
-                {inProgress.gymName}
-              </Fact>
-            ) : sessionOpen ? (
-              // Another session is open: nothing here can start, so the gym is not a choice.
-              defaultGym && (
-                <Fact glyph="pin" label="Gym">
-                  {defaultGym.name}
-                </Fact>
-              )
-            ) : (
-              gyms.length > 0 &&
-              sessionStatus === "pending" && (
-                <GymChoice
-                  gyms={gyms}
-                  workflow={coach?.workflow}
-                  selectedGymId={coach?.selectedGymId}
-                />
-              )
-            )}
-            {day.timeNote && (
-              <Fact glyph="rest">
-                <Figures>{holdFigures(day.timeNote)}</Figures>
-              </Fact>
-            )}
-            {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
-            {coachPlan && <Fact glyph="coach">Planned by the coach</Fact>}
-          </>
-        }
-        status={
-          openHere && inProgress ? (
-            <State>
-              <Progress session={inProgress} today={today} timeZone={timeZone} />
-            </State>
-          ) : sessionStatus === "completed" ? (
-            <State glyph="check">Workout logged.</State>
-          ) : sessionStatus === "skipped" ? (
-            <State glyph="skip">Workout skipped.</State>
-          ) : openElsewhere ? (
-            <State>Finish or discard your open session to start this one.</State>
-          ) : (
+  // The day's workout, while it is owed or open. Done, it is a row of what was done.
+  const workoutCard = day &&
+    plan &&
+    day.includesLifting &&
+    (openHere || (sessionStatus === "pending" && !needsGym)) && (
+      <li key="workout">
+        <ActivityCard
+          mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
+          title={day.name}
+          facts={
             <>
-              {coach && (
-                <CoachStatus
-                  coach={coach}
-                  gymName={defaultGym?.name ?? null}
-                  gyms={gyms}
-                  timeZone={timeZone}
-                />
+              {openHere && inProgress ? (
+                <Fact glyph="pin" label="Gym">
+                  {inProgress.gymName}
+                </Fact>
+              ) : sessionOpen ? (
+                // Another session is open: nothing here can start, so the gym is not a choice.
+                defaultGym && (
+                  <Fact glyph="pin" label="Gym">
+                    {defaultGym.name}
+                  </Fact>
+                )
+              ) : (
+                gyms.length > 0 && (
+                  <GymChoice
+                    gyms={gyms}
+                    workflow={coach?.workflow}
+                    selectedGymId={coach?.selectedGymId}
+                  />
+                )
               )}
-              {defaultGym === null && <State>Choose a gym to start.</State>}
+              {day.timeNote && (
+                <Fact glyph="rest">
+                  <Figures>{holdFigures(day.timeNote)}</Figures>
+                </Fact>
+              )}
+              {day.focus && <Fact glyph="target">{holdFigures(day.focus)}</Fact>}
+              {coachPlan && <Fact glyph="coach">Prepared by the coach</Fact>}
             </>
-          )
-        }
-        details={
-          rows.length > 0 || coachSaid ? (
-            <div className="activity-card-plan">
-              {coachSaid && (
-                <CoachNote flat small className="activity-card-passage">
-                  {coachSaid}
-                </CoachNote>
-              )}
-              <ul aria-label={`${day.name}: the exercises`} className="activity-card-passage">
-                <PlanRows rows={rows} notes="none" isLast />
-              </ul>
-            </div>
-          ) : undefined
-        }
-        actions={
-          openHere && inProgress ? (
-            <LinkButton
-              href={`/workouts/${inProgress.id}`}
-              prefetch
-              size="lg"
-              className="w-full"
-              aria-label={`Resume session: ${day.name}`}
-            >
-              <Glyph name="play" className="glyph-20" />
-              Resume
-            </LinkButton>
-          ) : sessionStatus === "pending" && !openElsewhere ? (
-            <div className="activity-card-actions-row">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <StartPlannedButton
-                  gymId={defaultGym?.id ?? null}
-                  programDayId={day.id}
-                  dayIndex={day.dayIndex}
-                  label="Start workout"
-                  dayName={day.name}
-                  glyph="play"
-                />
+          }
+          status={
+            openHere && inProgress ? (
+              <State>
+                <Progress session={inProgress} today={today} timeZone={timeZone} />
+              </State>
+            ) : openElsewhere ? (
+              <State>Finish or discard your open session to start this one.</State>
+            ) : (
+              <>
+                {coach && (
+                  <CoachStatus
+                    coach={coach}
+                    gymName={defaultGym?.name ?? null}
+                    gyms={gyms}
+                    timeZone={timeZone}
+                  />
+                )}
+                {defaultGym === null && <State>Choose a gym to start.</State>}
+              </>
+            )
+          }
+          details={
+            rows.length > 0 || coachSaid ? (
+              <div className="activity-card-plan">
+                {coachSaid && (
+                  <CoachNote flat small className="activity-card-passage">
+                    {coachSaid}
+                  </CoachNote>
+                )}
+                <ul aria-label={`${day.name}: the exercises`} className="activity-card-passage">
+                  <PlanRows rows={rows} notes="none" isLast />
+                </ul>
               </div>
-              {more}
-            </div>
-          ) : null
-        }
-        footer={
-          openHere && inProgress && inProgress.setCount === 0 ? (
-            <DiscardSessionButton sessionId={inProgress.id} />
-          ) : openHere ? (
-            finishLeftOpen
-          ) : null
-        }
-      />
-    </li>
-  );
+            ) : undefined
+          }
+          actions={
+            openHere && inProgress ? (
+              <LinkButton
+                href={`/workouts/${inProgress.id}`}
+                prefetch
+                size="lg"
+                className="w-full"
+                aria-label={`Resume session: ${day.name}`}
+              >
+                <Glyph name="play" className="glyph-20" />
+                Resume
+              </LinkButton>
+            ) : !openElsewhere ? (
+              <div className="activity-card-actions-row">
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <StartPlannedButton
+                    gymId={defaultGym?.id ?? null}
+                    programDayId={day.id}
+                    dayIndex={day.dayIndex}
+                    label="Start workout"
+                    dayName={day.name}
+                    glyph="play"
+                  />
+                </div>
+                {more}
+              </div>
+            ) : null
+          }
+          footer={
+            openHere && inProgress && inProgress.setCount === 0 ? (
+              <DiscardSessionButton sessionId={inProgress.id} />
+            ) : openHere ? (
+              finishLeftOpen
+            ) : null
+          }
+        />
+      </li>
+    );
 
   // A rest day: rest, the mobility, and one tick. Resting is the suggestion, not a rule: the
-  // next lifting day stays one tap away. A day that only runs has no workout to start, so it is
-  // not offered here; it comes up with its run's own card once the rest day is done.
+  // next lifting day stays one tap away. Done, it is a row of what was done.
   const startInstead = plan?.nextTrainingDay?.includesLifting ? plan.nextTrainingDay : null;
-  const restCard = day && plan && plan.suggestion && restDay && (
-    <li>
+  const restCard = day && plan && plan.suggestion && restDay && sessionStatus === "pending" && (
+    <li key="rest">
       <ActivityCard
         mark={
           <Art
@@ -660,11 +518,10 @@ export function TodayView({
             sport="mobility"
             size={22}
             segments={restProtocol?.drills.length || 3}
-            state={sessionStatus === "completed" ? "done" : "todo"}
+            state="todo"
           />
         }
         title={day.name}
-        muted={sessionStatus === "completed"}
         facts={
           (day.timeNote || day.focus) && (
             <>
@@ -677,13 +534,12 @@ export function TodayView({
             </>
           )
         }
-        status={sessionStatus === "completed" ? <State glyph="check">Rest day done.</State> : null}
         details={
           restProtocol ? (
             <div className="activity-card-plan">
               <div className="activity-card-passage">
                 <p className="type-meta font-semibold">
-                  {joinFacts([restProtocol.name, `${restProtocol.drills.length}\u00a0drills`])}
+                  {joinFacts([restProtocol.name, `${restProtocol.drills.length} drills`])}
                 </p>
                 <ul className="mt-1">
                   {restProtocol.drills.map((drill, index) => (
@@ -705,23 +561,20 @@ export function TodayView({
           ) : undefined
         }
         actions={
-          (sessionStatus === "pending" || startInstead) && !sessionOpen ? (
+          !sessionOpen ? (
             <div className="flex flex-col gap-2">
-              {sessionStatus === "pending" && (
-                <div className="activity-card-actions-row">
-                  <div className="min-w-0 flex-1">
-                    <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
-                  </div>
-                  {more}
+              <div className="activity-card-actions-row">
+                <div className="min-w-0 flex-1">
+                  <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
                 </div>
-              )}
+                {more}
+              </div>
               {startInstead && (
                 <StartPlannedButton
                   gymId={defaultGym?.id ?? null}
                   programDayId={startInstead.id}
                   dayIndex={startInstead.dayIndex}
                   variant="tonal"
-                  // In the words Choose a day and the day's own page use for the same tap.
                   label={startDayLabel(
                     startInstead.name,
                     startInstead.cycleIndex,
@@ -738,106 +591,89 @@ export function TodayView({
   );
 
   // A day that only runs is its run: its one card takes the day's name and focus ("Tempo run",
-  // "Threshold"), as a lifting day's card does, where it said only "Run" (year audit, October
-  // 2026). Two sessions on such a day keep their sports' names, so neither is called the day.
-  const runDays = new Map<string, { name: string; focus: string | null }>();
-  const nameRunDay = (
-    of: TodayPlan["suggestedDay"] | null,
-    occurrences: readonly ScheduledOccurrence[],
-  ) => {
-    if (!of || of.includesLifting || !of.includesRun) return;
-    const own = occurrences.filter(
-      (occurrence) => occurrence.sport !== "strength" && occurrence.resolution.kind !== "cancelled",
-    );
-    if (own.length === 1) runDays.set(own[0]!.id, { name: of.name, focus: of.focus });
-  };
-  nameRunDay(day, programmeOnOffer);
-  nameRunDay(finishedToday, finishedOccurrences);
-
-  /** `partOf` names the programme day the cards belong to where it is not the day on offer. */
-  const enduranceCards = (occurrences: readonly ScheduledOccurrence[], partOf?: string) =>
-    occurrences.map((occurrence) => (
-      <li key={occurrence.id}>
-        <EnduranceCard
-          occurrence={occurrence}
-          day={runDays.get(occurrence.id)}
-          // A card named for its day needs no "Part of" it.
-          partOf={
-            runDays.has(occurrence.id)
-              ? null
-              : (partOf ?? (isProgramme(occurrence) && finishedToday && day ? day.name : null))
-          }
-          coachSummary={isProgramme(occurrence) && occurrence.sport === "running" ? coachRun : null}
-          units={distanceUnits[occurrence.sport]}
-        />
-      </li>
-    ));
-  /** Still owed first; then what is already logged, inked done. */
-  const dueCards = (occurrences: readonly ScheduledOccurrence[], partOf?: string) => [
-    ...enduranceCards(occurrences.filter(isOutstanding), partOf),
-    ...enduranceCards(
-      occurrences.filter((occurrence) => isAnswered(occurrence) && !isOutstanding(occurrence)),
-      partOf,
-    ),
-  ];
-
-  // Whatever else was finished today stays on the day too, after the rest: a ride nobody
-  // scheduled, an unplanned workout. A day's workout whose card says it is done is that card.
-  const loggedCards = loggedBesides(logged, {
-    occurrences: [...programmeOccurrences, ...standaloneOccurrences, ...finishedOccurrences],
-    doneDayIds: [
-      ...(finishedToday ? [finishedToday.id] : []),
-      ...(day && !openHere && sessionStatus === "completed" ? [day.id] : []),
-    ],
-  }).map((activity) => (
-    <li key={activity.id}>
-      <LoggedCard logged={activity} timeZone={timeZone} units={distanceUnits[activity.sport]} />
+  // "Threshold"), as a lifting day's card does. Two sessions on such a day keep their sports'
+  // names, so neither is called the day.
+  const runDay =
+    day && !day.includesLifting && day.includesRun && owed.length === 1
+      ? { id: owed[0]!.id, name: day.name, focus: day.focus }
+      : null;
+  const enduranceCards = owed.map((occurrence) => (
+    <li key={occurrence.id}>
+      <EnduranceCard
+        occurrence={occurrence}
+        day={runDay?.id === occurrence.id ? runDay : undefined}
+        coachSummary={occurrence.sport === "running" ? coachRun : null}
+        units={distanceUnits[occurrence.sport]}
+      />
     </li>
   ));
 
-  // Without a programme day to stand under, what is due today still has its cards: an athlete
-  // who trains no lifting, has no programme or has finished one still schedules runs, rides
-  // and swims, and Today is where they are logged.
-  const showsDueToday = (occurrences: readonly ScheduledOccurrence[]) =>
-    loggedCards.length > 0 ||
-    occurrences.some((occurrence) => isOutstanding(occurrence) || isAnswered(occurrence));
-  const dueToday = (occurrences: readonly ScheduledOccurrence[]) =>
-    showsDueToday(occurrences) && (
-      <section aria-labelledby="today-due">
-        <Caption id="today-due">Today</Caption>
-        <ul className="today-cards">
-          {dueCards(occurrences)}
-          {loggedCards}
-        </ul>
-      </section>
-    );
+  const cards = [elsewhereCard, workoutCard, restCard, ...enduranceCards].filter(Boolean);
 
-  const daySection = day && plan && plan.suggestion && (
-    <>
-      <ul aria-label={finishedToday ? `Up next: ${day.name}` : "Today"} className="today-cards">
-        {workoutCard}
-        {restCard}
-        {enduranceCards(programmeOnOffer.filter(isOutstanding))}
-        {!finishedToday && enduranceCards(standaloneOccurrences.filter(isOutstanding))}
-        {enduranceCards(
-          [...programmeOnOffer, ...(finishedToday ? [] : standaloneOccurrences)].filter(
-            (occurrence) => isAnswered(occurrence) && !isOutstanding(occurrence),
-          ),
-        )}
-        {/* Once today's day is done, what else was logged is under Today, not Up next. */}
-        {!finishedToday && loggedCards}
-      </ul>
-      {!day.includesLifting && !restDay && programmeOnOffer.length === 0 && (
-        <p className="mt-3 type-meta text-ink-2">No workout planned for this day.</p>
-      )}
-      {/* More still offers another day or an unplanned workout when only the run is owed.
-          Pending workout and rest cards already carry it beside their primary action. */}
-      {((!day.includesLifting && !restDay) || sessionStatus !== "pending") && more && (
-        <div className="mt-3 flex justify-end">{more}</div>
-      )}
-    </>
+  // ---------- the rows: what is done ----------
+  const titles = new Map(
+    dated.map((occurrence) => [occurrence.id, occurrence.prescription?.title ?? null]),
   );
+  const doneRows: ReactNode[] = [
+    ...logged.map((activity) => {
+      const title =
+        activity.sport === "strength"
+          ? sessionName(activity.dayName, activity.title)
+          : ((activity.occurrenceId ? titles.get(activity.occurrenceId) : null) ??
+            activity.title ??
+            enduranceName(activity.sport));
+      return (
+        <NavRow
+          key={activity.id}
+          // Opened from Today, it keeps Today selected and goes back to it (NAV-03).
+          href={
+            (activity.sport === "strength" && activity.sessionId
+              ? `/workouts/${activity.sessionId}${originQuery("today")}`
+              : `/training/activities/${activity.id}${originQuery("today")}`) as Route
+          }
+          lead={<Art kind="mark" sport={MARK[activity.sport]} size={20} state="done" />}
+          label={holdHyphens(title)}
+          value={doneValue(activity, title, distanceUnits[activity.sport] ?? DEFAULT_SPORT_UNITS)}
+        />
+      );
+    }),
+    ...skippedToday.map((occurrence) => (
+      <NavRow
+        key={occurrence.id}
+        href={`/training/programme/occurrences/${occurrence.id}` as Route}
+        lead={<Art kind="mark" sport={MARK[occurrence.sport]} size={20} state="skipped" />}
+        label={holdHyphens(occurrence.prescription?.title ?? enduranceName(occurrence.sport))}
+        value="Skipped"
+      />
+    )),
+    // A rest day leaves nothing logged; its tick is its row.
+    ...((restDay && sessionStatus === "completed") ||
+    (finishedToday && !finishedToday.includesLifting && !finishedToday.includesRun)
+      ? [
+          <NavRow
+            key="rest"
+            lead={<Art kind="mark" sport="mobility" size={20} state="done" />}
+            label={holdHyphens((finishedToday ?? day)?.name ?? "Rest day")}
+            value="Done"
+          />,
+        ]
+      : []),
+  ];
 
+  // ---------- the page ----------
+  const empty = cards.length === 0 && doneRows.length === 0 && !needsGym;
+  // Nothing planned and nothing done: logging is the page itself. Otherwise it waits up top.
+  const logButton = (primary: boolean) => (
+    <LinkButton
+      href="/today/log"
+      size={primary ? "lg" : "sm"}
+      variant={primary ? "primary" : "tonal"}
+      className={primary ? "w-full" : undefined}
+    >
+      <Glyph name="plus" className="glyph-18" />
+      {primary ? "Log a session" : "Log"}
+    </LinkButton>
+  );
   return (
     <>
       {/* Left open overnight, the installed app would go on showing yesterday as today. */}
@@ -845,165 +681,40 @@ export function TodayView({
       <div className="today page-width page-wide">
         <header className="today-head">
           <p className="type-heading tabular-nums">{formatIsoWeekdayDay(today)}</p>
-          {plan && plan.suggestion && day && (
-            <CycleMark
-              cells={cycleCells(plan)}
-              label={cycleLabel(plan)}
-              // Said once: under the date with its way out when there is one, else here.
-              behind={plan.missed.length >= PICK_UP_AFTER && !sessionOpen ? 0 : plan.behind}
-            />
-          )}
+          {!empty && logButton(false)}
         </header>
         {discarded && <DiscardedNote />}
         {/* A gap of more than a session or two: offered once, under the date, never in a card. */}
         {plan && plan.suggestion && plan.missed.length >= PICK_UP_AFTER && !sessionOpen && (
           <PickUpFromToday missed={plan.missed} resumeDayName={plan.pickUpDay?.name ?? null} />
         )}
-
-        {/* The day's print stands over the day it draws: at the top, or under Up next once
-            today's day is done and the next one is on offer. */}
-        {!finishedToday && print}
-
-        {elsewhereCard && <ul className="today-cards">{elsewhereCard}</ul>}
-
-        {needsGym ? (
-          <>
-            {dueToday([...programmeOnOffer, ...standaloneOccurrences])}
-            <Empty title="Add a gym to start training">
-              <p className="mt-2 type-body text-ink-2">
-                Its equipment decides which exercises your plan can use, and how far a load steps
-                up.
-              </p>
-              <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
-                Add your first gym
-              </LinkButton>
-            </Empty>
-          </>
-        ) : !plan && !lifts ? (
-          <>
-            {dueToday(standaloneOccurrences)}
-            <Empty
-              title={showsDueToday(standaloneOccurrences) ? "Anything else?" : "Nothing planned"}
-            >
-              <p className="mt-2 type-body text-ink-2">Log what you do as you do it.</p>
-              <div className="mt-4 flex flex-col gap-2">
-                {logSports.map((entry, i) => (
-                  <LinkButton
-                    key={entry.sport}
-                    href={`/training/new?sport=${entry.query}&${ORIGIN_PARAM}=today` as Route}
-                    size="lg"
-                    variant={i === 0 ? "primary" : "secondary"}
-                    className="w-full"
-                  >
-                    {entry.label}
-                  </LinkButton>
-                ))}
-              </div>
-            </Empty>
-          </>
-        ) : !plan && tracking ? (
-          // The athlete chose to log their own workouts (audit B7): starting one leads, and a
-          // programme is there for whenever they want one.
-          <>
-            {dueToday(standaloneOccurrences)}
-            <Empty title="Ready when you are">
-              <p className="mt-2 type-body text-ink-2">
-                Start a workout and log it as you go. Suggestions learn from every set you save.
-              </p>
-              <div className="mt-4 flex flex-col gap-2">
-                {!sessionOpen && (
-                  <StartAdHocButton gymId={defaultGym?.id ?? gyms[0]?.id ?? null} primary />
-                )}
-                <LinkButton href="/profile/programme" variant="ghost" className="w-full">
-                  Choose a programme
-                </LinkButton>
-              </div>
-            </Empty>
-          </>
-        ) : !plan ? (
-          <>
-            {dueToday(standaloneOccurrences)}
-            <Empty title="No programme">
-              <p className="mt-2 type-body text-ink-2">
-                A programme sets each day&apos;s workout. Without one, start an unplanned session.
-              </p>
-              <div className="mt-4 flex flex-col gap-2">
-                <LinkButton href="/profile/programme" size="lg" className="w-full">
-                  Choose a programme
-                </LinkButton>
-                {!sessionOpen && <StartAdHocButton gymId={defaultGym?.id ?? null} />}
-              </div>
-            </Empty>
-          </>
-        ) : !plan.suggestion || !day ? (
-          <>
-            {dueToday(standaloneOccurrences)}
-            <Empty title={plan.program.name}>
-              <ProgrammeComplete
-                days={plan.progress.total}
-                finishedOn={plan.finishedOn}
-                today={today}
-                className="mt-1"
-              />
-              <div className="mt-4 flex flex-col gap-2">
-                <LinkButton href="/profile/programme" size="lg" className="w-full">
-                  Plan the next block
-                </LinkButton>
-                {!sessionOpen && <StartAdHocButton gymId={defaultGym?.id ?? null} />}
-              </div>
-            </Empty>
-          </>
-        ) : (
-          <>
-            {finishedToday && (
-              <section aria-labelledby="today-finished">
-                <Caption id="today-finished">Today</Caption>
-                <ul className="today-cards">
-                  {/* A day that only runs is its run, whose own card says it is done. */}
-                  {(finishedToday.includesLifting ||
-                    !finishedToday.includesRun ||
-                    !finishedOccurrences.some(
-                      (occurrence) => isOutstanding(occurrence) || isAnswered(occurrence),
-                    )) && (
-                    <li>
-                      <ActivityCard
-                        mark={
-                          <Art
-                            kind="mark"
-                            sport={
-                              finishedToday.includesLifting
-                                ? "strength"
-                                : finishedToday.includesRun
-                                  ? "run"
-                                  : "mobility"
-                            }
-                            size={22}
-                            state="done"
-                          />
-                        }
-                        title={finishedToday.name}
-                        muted
-                        status={
-                          <State glyph="check">
-                            {finishedToday.includesLifting || finishedToday.includesRun
-                              ? "Done."
-                              : "Rest day done."}
-                          </State>
-                        }
-                      />
-                    </li>
-                  )}
-                  {/* What the day logged stays on the day it was logged. */}
-                  {dueCards(finishedOccurrences, finishedToday.name)}
-                  {dueCards(standaloneOccurrences)}
-                  {loggedCards}
-                </ul>
-                <Caption>Up next</Caption>
-                {print}
-              </section>
-            )}
-            {daySection}
-          </>
+        {cards.length > 0 && <ul className="today-cards">{cards}</ul>}
+        {needsGym && (
+          <section className="today-empty mt-3">
+            <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>
+              Add a gym to start training
+            </FitTitle>
+            <p className="mt-2 type-body text-ink-2">
+              Its equipment decides which exercises your plan can use, and how far a load steps up.
+            </p>
+            <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
+              Add your first gym
+            </LinkButton>
+          </section>
+        )}
+        {doneRows.length > 0 && (
+          <section aria-labelledby="today-done" className="mt-4">
+            <Caption id="today-done">Done</Caption>
+            <ul className="ruled-list">{doneRows}</ul>
+          </section>
+        )}
+        {empty && (
+          <section className="today-empty mt-3">
+            <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>
+              {plan && !plan.suggestion ? `${plan.program.name} is complete` : "Nothing planned"}
+            </FitTitle>
+            <div className="mt-4">{logButton(true)}</div>
+          </section>
         )}
       </div>
     </>

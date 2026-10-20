@@ -42,7 +42,7 @@ export async function ProgrammeJobPage({
     <>
       <PageHeader
         title={job.target.scope === "session" ? "Session request" : "Programme request"}
-        backHref={onboarding ? base : "/training"}
+        backHref={onboarding ? base : "/plan"}
       />
       <PageContent>
         <CoachJobStatus job={job} draftId={data.draftId} base={base} />

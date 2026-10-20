@@ -36,10 +36,34 @@ const nextConfig: NextConfig = {
       { source: "/settings/:path*", destination: "/profile/:path*", permanent: true },
       { source: "/history", destination: "/progress/history", permanent: true },
       { source: "/today/food/:path*", destination: "/food/:path*", permanent: true },
+      // Training became Plan (ADR 0058): programmes moved under it, the strength programme
+      // left Profile for Plan, and a bookmark or the coach's notes still say the old paths.
+      { source: "/training", destination: "/plan", permanent: true },
+      { source: "/training/programmes/new", destination: "/plan/new", permanent: true },
+      { source: "/training/programmes/archived", destination: "/plan/past", permanent: true },
+      {
+        source: "/training/programmes/:sport/edit",
+        destination: "/plan/:sport/edit",
+        permanent: true,
+      },
+      { source: "/training/programmes/:sport", destination: "/plan/:sport", permanent: true },
+      { source: "/profile/programme", destination: "/plan/strength", permanent: true },
+      // Set aside for now (ADR 0058): sessions are planned by a programme or logged unplanned,
+      // with no templates, routines or one-off scheduling between. Their data is kept.
+      { source: "/training/schedule", destination: "/plan", permanent: false },
+      { source: "/training/scheduled", destination: "/plan", permanent: false },
+      { source: "/training/templates/:path*", destination: "/plan", permanent: false },
+      { source: "/training/templates", destination: "/plan", permanent: false },
+      // The planned runs list became the running programme's weeks, under Plan.
+      { source: "/training/programme", destination: "/plan", permanent: false },
+      { source: "/profile/routines", destination: "/today", permanent: false },
+      // Logging anything Today's cards do not offer is Today's Log now (ADR 0058).
+      { source: "/training/log", destination: "/today/log", permanent: true },
+      { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
       // Resolve simple run aliases before the app shell streams. A client-side streamed
       // redirect can race that shell's navigation prefetches in WebKit. Planned links and
       // legacy run IDs still need the authenticated identifier lookup in their pages.
-      { source: "/runs", destination: "/training", permanent: false },
+      { source: "/runs", destination: "/plan", permanent: false },
       {
         source: "/runs/new",
         missing: [{ type: "query", key: "planned" }],

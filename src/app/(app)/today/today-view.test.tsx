@@ -207,17 +207,21 @@ it("folds the plan until asked for, then unfolds it in place", () => {
   ).toContain("Rope triceps pushdown");
 });
 
-it("keeps other training accessible after lifting is logged while the run is still owed", () => {
+/** ADR 0058: anything the cards do not offer is Log's, one control at the top of the day. */
+const logLink = () => screen.getByRole("link", { name: "Log" });
+
+it("keeps the run owed, and Log for anything else, once the day's lifting is logged", () => {
   show({ plan: { ...plan(), sessionStatus: "completed" } });
-  expect(screen.getByRole("button", { name: /More options/ })).toBeTruthy();
   expect(screen.getByRole("link", { name: "Log run: 25–30 min" })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Start workout: Easy Run + Arms" })).toBeNull();
+  expect(logLink().getAttribute("href")).toBe("/today/log");
 });
 
-it("keeps other training accessible on a day with only endurance planned", () => {
+it("offers Log for other training on a day with only endurance planned", () => {
   show({ plan: { ...plan(), suggestedDay: { ...DAY, includesLifting: false } } });
-  expect(screen.getByRole("button", { name: /More options/ })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Start workout: Easy Run + Arms" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /More options/ })).toBeNull();
+  expect(logLink().getAttribute("href")).toBe("/today/log");
 });
 
 it("keeps Resume and Discard in the day's card while its session is open, and nothing else", () => {
@@ -345,13 +349,12 @@ it("names a workout started from a saved routine after the routine, open and fin
       },
     ],
   });
-  const lift = card(name);
-  expect(lift.textContent).toContain("Workout logged.");
-  expect(
-    within(lift)
-      .getByRole("link", { name: /See what you logged/ })
-      .getAttribute("href"),
-  ).toBe("/workouts/lift-1?from=today");
+  // Done, it is a row of what was done, named for the routine, opening its record.
+  const done = within(screen.getByRole("region", { name: "Done" }));
+  const lift = done.getByRole("link", { name: new RegExp(name) });
+  expect(lift.getAttribute("href")).toBe("/workouts/lift-1?from=today");
+  expect(lift.textContent).toContain("Unplanned");
+  expect(lift.textContent).toContain("48\u00a0min");
   expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
@@ -371,7 +374,7 @@ describe("what is scheduled today, without a programme day to stand under", () =
     expect(screen.getByRole("heading", { name: "Add a gym to start training" })).toBeTruthy();
   });
 
-  it("is shown above the sports of an athlete who does not lift", () => {
+  it("is shown to an athlete who does not lift, with Log for anything else", () => {
     show({
       gyms: [],
       plan: null,
@@ -380,27 +383,24 @@ describe("what is scheduled today, without a programme day to stand under", () =
       sports: ["running"],
     });
     expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
-    // With the day's run already on screen, the way to log another asks what else.
-    expect(screen.getByRole("heading", { name: "Anything else?" })).toBeTruthy();
+    expect(logLink().getAttribute("href")).toBe("/today/log");
     expect(screen.queryByRole("heading", { name: "Add a gym to start training" })).toBeNull();
   });
 
-  it("is shown to an athlete who logs their own workouts", () => {
+  it("is shown to an athlete who logs their own workouts, who starts one from Log", () => {
     show({ plan: null, programmeOccurrences: [], standaloneOccurrences: [ride], tracking: true });
     expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Start a workout" })).toBeTruthy();
+    expect(logLink().getAttribute("href")).toBe("/today/log");
   });
 
-  it("is shown beside a programme that is finished", () => {
+  it("is shown beside a programme that is finished, whose end is Plan's to say", () => {
     show({
       plan: { ...plan(), suggestion: null, suggestedDay: null, finishedOn: "2026-09-05" },
       programmeOccurrences: [],
       standaloneOccurrences: [ride],
     });
-    expect(screen.getByText("Programme complete")).toBeTruthy();
-    // Finished the day its last day was answered, not the day it was written to end.
-    expect(screen.getByText("Finished Sat 5 Sept")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Log run: 60 min" })).toBeTruthy();
+    expect(screen.queryByText(/complete/)).toBeNull();
   });
 
   it("does not ask for a gym on a day with no lifting", () => {
@@ -459,33 +459,37 @@ it("offers no start on a rest day for a next day that only runs", () => {
   expect(screen.getByRole("link", { name: "Start cycle 2 with Push A" })).toBeTruthy();
 });
 
-it("keeps the run of a day finished today on today, and the next day up next", () => {
-  const logged: ScheduledOccurrence = {
-    ...run("run-done", [30, 30]),
-    familyId: "family",
-    resolution: {
-      kind: "logged",
-      activityId: "activity-1",
-      outcome: "logged",
-      occurredOn: "2026-09-11",
-    },
-    loggable: false,
-  };
+it("keeps what a day finished today did as rows, and leaves the next day to Plan", () => {
   const easyRun = { ...DAY, id: "easy-run", dayIndex: 2, name: "Easy run", includesLifting: false };
   show({
     plan: { ...plan(), finishedToday: { ...easyRun, cycleIndex: 1 } },
-    finishedOccurrences: [logged],
+    programmeOccurrences: [],
+    logged: [
+      {
+        id: "activity-1",
+        sport: "running",
+        startedAt: new Date("2026-09-11T01:30:00.000Z"),
+        durationMs: 1_800_000,
+        distanceMetres: 5_100,
+        environment: "outdoor",
+        occurrenceId: "run-done",
+        sessionId: null,
+        programDayId: null,
+        dayName: null,
+        title: null,
+        gymName: null,
+      },
+    ],
   });
-  const today = within(screen.getByRole("region", { name: "Today" }));
-  const [ran, ...others] = today.getAllByRole("article");
-  expect(others).toHaveLength(0);
-  // A day that only runs is its run: its card is named for the day and says it is done, and no
-  // second card says the same.
-  expect(within(ran!).getByRole("heading").textContent).toContain("Easy run");
-  expect(ran!.textContent).toContain("Logged");
-  expect(ran!.textContent).not.toContain("Part of");
-  expect(within(ran!).getByRole("link", { name: /See what you logged/ })).toBeTruthy();
-  expect(screen.getByRole("list", { name: "Up next: Easy Run + Arms" })).toBeTruthy();
+  // ADR 0058: the next programme day is not today's, so Today shows no card for it.
+  expect(screen.queryAllByRole("article")).toHaveLength(0);
+  expect(screen.queryByText(/Up next/)).toBeNull();
+  const ran = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
+    name: /Run/,
+  });
+  expect(ran.getAttribute("href")).toBe("/training/activities/activity-1?from=today");
+  expect(ran.textContent).toContain("5.1");
+  expect(ran.textContent).not.toContain("Unplanned");
 });
 
 it("names a day that only runs for the day, with its focus, as a lifting day's card is", () => {
@@ -541,15 +545,12 @@ it("keeps what was logged today with no card of its own on the day, inked done",
       },
     ],
   });
-  const ride = card("Ride");
+  const ride = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
+    name: /Ride/,
+  });
+  expect(ride.textContent).toContain("Unplanned");
   expect(ride.textContent).toContain("51:32");
-  expect(ride.textContent).toContain("09:48");
-  expect(ride.textContent).toContain("Logged");
-  expect(
-    within(ride)
-      .getByRole("link", { name: /See what you logged/ })
-      .getAttribute("href"),
-  ).toBe("/training/activities/ride-1?from=today");
+  expect(ride.getAttribute("href")).toBe("/training/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
@@ -575,12 +576,15 @@ it("names a run, ride or swim logged today by its own title, as History does", (
       { ...ride, id: "ride-2", title: null },
     ],
   });
-  expect(card("Sunday spin with the club").textContent).toContain("51:32");
+  const done = within(screen.getByRole("region", { name: "Done" }));
+  expect(done.getByRole("link", { name: /Sunday spin with the club/ }).textContent).toContain(
+    "51:32",
+  );
   // Untitled, it is its sport.
-  expect(card("Ride")).toBeTruthy();
+  expect(done.getByRole("link", { name: /^Ride/ })).toBeTruthy();
 });
 
-it("draws no run in the print for one a revision withdrew", () => {
+it("gives a run a revision withdrew no card and no row", () => {
   const withdrawn: ScheduledOccurrence = {
     ...run("run-cancelled", [25, 30]),
     disposition: "cancelled",
@@ -588,9 +592,26 @@ it("draws no run in the print for one a revision withdrew", () => {
     loggable: false,
   };
   show({ programmeOccurrences: [withdrawn] });
-  expect(screen.getByRole("img", { name: /^Easy Run \+ Arms:/ }).getAttribute("aria-label")).toBe(
-    "Easy Run + Arms: 2 exercises as columns of their sets, to do.",
-  );
+  expect(screen.getAllByRole("article")).toHaveLength(1);
+  expect(screen.queryByRole("link", { name: /^Log run/ })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Done" })).toBeNull();
+});
+
+it("says a run skipped today once, as a row that opens it to undo the skip", () => {
+  // Still loggable, as a skipped session is: logging it would answer it after all.
+  const skipped: ScheduledOccurrence = {
+    ...run("run-skipped", [25, 30]),
+    disposition: "skipped",
+    resolution: { kind: "skipped" },
+  };
+  show({ programmeOccurrences: [skipped] });
+  expect(screen.getAllByRole("article")).toHaveLength(1);
+  expect(screen.queryByRole("link", { name: /^Log run/ })).toBeNull();
+  const row = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
+    name: /Run/,
+  });
+  expect(row.textContent).toContain("Skipped");
+  expect(row.getAttribute("href")).toBe("/training/programme/occurrences/run-skipped");
 });
 
 it("says skipping a day that also runs skips only its workout", () => {
@@ -614,17 +635,15 @@ it("says skipping a day that also runs skips only its workout", () => {
 });
 
 /** Audit B1: an account that only swims was told to add a gym, as its only way forward. */
-it("never asks someone who does not lift for a gym, and offers their own sports instead", () => {
+it("never asks someone who does not lift for a gym, and leads with Log instead", () => {
   show({ gyms: [], plan: null, programmeOccurrences: [], sports: ["swimming", "running"] });
   expect(screen.queryByText("Add a gym to start training")).toBeNull();
   expect(screen.getByText("Nothing planned")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Log a run" }).getAttribute("href")).toBe(
-    "/training/new?sport=running&from=today",
+  // Nothing planned and nothing done: Log is the page itself, its sports their own (ADR 0058).
+  expect(screen.getByRole("link", { name: "Log a session" }).getAttribute("href")).toBe(
+    "/today/log",
   );
-  expect(screen.getByRole("link", { name: "Log a swim" }).getAttribute("href")).toBe(
-    "/training/new?sport=swimming&from=today",
-  );
-  expect(screen.queryByRole("link", { name: "Log a ride" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Log" })).toBeNull();
 });
 
 it("still asks a lifter with nowhere to train to add a gym", () => {
@@ -633,17 +652,17 @@ it("still asks a lifter with nowhere to train to add a gym", () => {
 });
 
 /** Audit B7: after choosing to log their own workouts, Today led with "Choose a programme". */
-it("leads with starting a workout for someone who logs their own", () => {
+it("leads with Log for someone who logs their own workouts", () => {
   show({ plan: null, programmeOccurrences: [], tracking: true });
-  expect(screen.queryByText("No programme")).toBeNull();
-  const start = screen.getByRole("link", { name: "Start a workout" });
-  expect(start.getAttribute("href")).toContain("gym=g1");
-  // A programme is still there for whenever they want one, quieter.
-  expect(screen.getByRole("link", { name: "Choose a programme" })).toBeTruthy();
+  expect(screen.getByText("Nothing planned")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log a session" }).getAttribute("href")).toBe(
+    "/today/log",
+  );
 });
 
-it("keeps choosing a programme first for an account that never said", () => {
+it("leaves choosing a programme to Plan, for an account without one", () => {
   show({ plan: null, programmeOccurrences: [] });
-  expect(screen.getByText("No programme")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Choose a programme" })).toBeTruthy();
+  expect(screen.getByText("Nothing planned")).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /programme/ })).toBeNull();
+  expect(screen.getByRole("link", { name: "Log a session" })).toBeTruthy();
 });

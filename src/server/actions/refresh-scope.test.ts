@@ -28,12 +28,12 @@ import { deleteSetAction, logSetAction, setExerciseCompletedAction } from "./ses
 
 beforeEach(() => vi.resetAllMocks());
 
-it("discards Training's cached programme cards and child screens after making a programme draft", async () => {
+it("discards Plan's cached programme cards and child screens after making a programme draft", async () => {
   mocks.withUser.mockResolvedValue({ id: "00000000-0000-4000-8000-000000000004", revision: 1 });
   expect(await copyProgramAction("00000000-0000-4000-8000-000000000003", false)).toMatchObject({
     ok: true,
   });
-  expect(mocks.revalidatePath).toHaveBeenCalledWith("/training", "layout");
+  expect(mocks.revalidatePath).toHaveBeenCalledWith("/plan", "layout");
 });
 
 const set = {
@@ -117,7 +117,7 @@ it("renders a screen shown from an older copy again, discarding prefetched tabs"
   expect(mocks.refresh).not.toHaveBeenCalled();
 });
 
-it("clears Today and Training once a routine has started a workout", async () => {
+it("clears Today once a routine has started a workout", async () => {
   mocks.withUser.mockResolvedValue({ sessionId: "00000000-0000-4000-8000-000000000004" });
   const result = await startRoutineAction(
     "00000000-0000-4000-8000-000000000005",
@@ -125,7 +125,6 @@ it("clears Today and Training once a routine has started a workout", async () =>
   );
   expect(result).toMatchObject({ ok: true });
   expect(mocks.revalidatePath).toHaveBeenCalledWith("/today");
-  expect(mocks.revalidatePath).toHaveBeenCalledWith("/training");
 });
 
 it("leaves the screens alone when a routine could not start", async () => {

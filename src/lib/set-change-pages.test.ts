@@ -28,8 +28,8 @@ const SHOWS_NO_SETS: Record<string, string> = {
     "the exercise being replaced and the gym",
   "src/components/shell/session-status.tsx": "the open workout's name",
   "src/app/(app)/workouts/start/page.tsx": "nothing of it: an open workout is gone to instead",
-  "src/app/(app)/today/choose/page.tsx": "which day is in progress, so nothing else starts",
-  "src/app/(app)/profile/programme/page.tsx": "which day of the cycle is in progress",
+  "src/app/(app)/today/log/page.tsx": "nothing of it: the open workout is resumed instead",
+  "src/app/(app)/plan/[sport]/strength-programme.tsx": "which day of the cycle is in progress",
 };
 
 const callers = ["src/app", "src/components"]

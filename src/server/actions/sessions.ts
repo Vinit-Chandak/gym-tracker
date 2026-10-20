@@ -87,6 +87,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 
 function revalidateSession(sessionId?: string): void {
   revalidatePath("/today");
+  // Plan's week and the strength programme's page say whether a lifting day is done (ADR 0058).
+  revalidatePath("/plan", "layout");
   revalidatePath("/runs");
   revalidatePath("/progress");
   revalidatePath("/progress/history");
@@ -860,10 +862,11 @@ async function finishAndRecord(
 /**
  * The summary, once (board Summary). A workout is finished in Today's layer over the tabs, so the
  * summary names Today as where it was opened, and the past workout its Edit becomes is Today's
- * and goes back there, not to History (NAV-03).
+ * and goes back there, not to History (NAV-03). One logged afterwards was started from Today's
+ * Log too (ADR 0058), so it goes back there as well.
  */
-const summaryPath = (sessionId: string, retrospective = false) =>
-  `/workouts/${sessionId}?${ORIGIN_PARAM}=${retrospective ? "training" : "today"}&finished=1` as const;
+const summaryPath = (sessionId: string) =>
+  `/workouts/${sessionId}?${ORIGIN_PARAM}=today&finished=1` as const;
 
 export async function finishSessionAction(
   sessionId: string,
@@ -908,7 +911,7 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   // The summary, once: the finished workout says what the session came to (board Summary).
-  redirect(summaryPath(sessionId, session?.loggedRetrospectively));
+  redirect(summaryPath(sessionId));
 }
 
 /**

@@ -1,9 +1,9 @@
 import { LoadingMessage } from "@/components/shell/navigation-feedback";
 
 /**
- * Today while it loads, in Today's own geometry (DESIGN.md, Today): the head's line, the print's
- * band and two cards, so the day arrives into its places rather than replacing a page of rows
- * with a title Today does not have.
+ * Today while it loads, in Today's own geometry (DESIGN.md, Today): the head's line and two
+ * cards, so the day arrives into its places rather than replacing a page of rows with a title
+ * Today does not have.
  */
 export default function Loading() {
   return (
@@ -15,7 +15,6 @@ export default function Loading() {
             <LoadingMessage title="Today" />
           </header>
           <div aria-hidden="true" className="motion-safe:animate-pulse">
-            <div className="today-print rounded-[2px] bg-surface" />
             <ul className="today-cards">
               {[0, 1].map((card) => (
                 <li key={card} className="activity-card">
