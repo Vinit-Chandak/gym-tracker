@@ -404,19 +404,39 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
   serving: "servings",
 };
 
-/** A workout that is not a programme day: its name wherever a day's name would stand. */
+/**
+ * A workout that is not a programme day, while it is open or once finished with nothing logged:
+ * its name wherever a day's name would stand.
+ */
 export const UNPLANNED_SESSION = "Unplanned session";
 
 /**
  * A workout's name on the athlete's own screens: its programme day's; else the saved routine's
- * it was started from, as the routine was named that day (its title); else UNPLANNED_SESSION.
- * A friend reads the day's name or "Workout", never a routine's (ADR 0026).
+ * it was started from, as the routine was named that day (its title); else, once it is finished,
+ * its first two exercises ("Pull-up, Bent-over row", or "Pull-up" alone); else
+ * UNPLANNED_SESSION, which a workout still open keeps (owner, 20 October 2026). A friend reads
+ * the day's name or "Workout", never a routine's or its exercises (ADR 0026).
  */
 export function sessionName(
   dayName: string | null | undefined,
   title: string | null | undefined,
+  /** A finished workout's exercises with a set logged, in its order (`namingExercises`). */
+  logged: readonly string[] = [],
 ): string {
-  return dayName ?? title ?? UNPLANNED_SESSION;
+  return dayName ?? title ?? ([...new Set(logged)].slice(0, 2).join(", ") || UNPLANNED_SESSION);
+}
+
+/**
+ * What a workout is named by once it is finished (`sessionName`): its exercises with a set
+ * logged, in its order, so one added and skipped, or never started, names nothing. A workout
+ * still open is named by none of them.
+ */
+export function namingExercises(workout: {
+  completedAt: Date | string | null;
+  exercises: readonly { exercise: { name: string }; sets: readonly unknown[] }[];
+}): string[] {
+  if (workout.completedAt === null) return [];
+  return workout.exercises.filter((slot) => slot.sets.length > 0).map((slot) => slot.exercise.name);
 }
 
 /**

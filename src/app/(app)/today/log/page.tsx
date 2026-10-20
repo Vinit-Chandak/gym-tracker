@@ -47,11 +47,11 @@ function noun(sport: ActivitySport): string {
 const single = (value: string | string[] | undefined) =>
   typeof value === "string" ? value : undefined;
 
-/** Named as its header is: "Log a session", then "Log a run" once the sport is chosen. */
+/** Named as its header is: "Log", then "Log a run" once the sport is chosen. */
 export async function generateMetadata(props: PageProps<"/today/log">): Promise<Metadata> {
   const sport = single((await props.searchParams).sport);
   return {
-    title: sport && isActivitySport(sport) ? `Log a ${noun(sport).toLowerCase()}` : "Log a session",
+    title: sport && isActivitySport(sport) ? `Log a ${noun(sport).toLowerCase()}` : "Log",
   };
 }
 
@@ -60,7 +60,8 @@ export async function generateMetadata(props: PageProps<"/today/log">): Promise<
  * done; which planned session it counts as, if any, from the last two weeks to the coming week,
  * or none; and when. The training date and the session it answers are separate questions, so a
  * long run missed on Saturday and done on Tuesday counts as Saturday's, logged on Tuesday.
- * Nothing is matched implicitly: the athlete names the session, or names none.
+ * Nothing is matched implicitly: the athlete names the session, or names none. A body weight
+ * reading is logged here too, on a page of its own (IA audit M8).
  */
 export default async function LogPage(props: PageProps<"/today/log">) {
   const user = await requireUser();
@@ -130,7 +131,7 @@ export default async function LogPage(props: PageProps<"/today/log">) {
     const offered = ACTIVITY_SPORTS.filter((item) => data.sports.includes(item));
     return (
       <>
-        <PageHeader title="Log a session" backHref="/today" />
+        <PageHeader title="Log" backHref="/today" />
         <PageContent>
           <ul>
             {(offered.length > 0 ? offered : ACTIVITY_SPORTS).map((item) => (
@@ -142,6 +143,8 @@ export default async function LogPage(props: PageProps<"/today/log">) {
                 label={noun(item)}
               />
             ))}
+            {/* Not a sport, so no mark of one: the scale, the glyph that means body weight. */}
+            <NavRow href="/today/log/body-weight" glyph="scale" label="Body weight" />
           </ul>
         </PageContent>
       </>

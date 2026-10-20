@@ -45,7 +45,12 @@ const squatDay = {
   title: null,
   day: { name: "Squat day" },
   gym: { name: "Tokyo Powerhouse" },
-  exercises: [{ sets: [{ setType: "warmup" }, { setType: "working" }, { setType: "working" }] }],
+  exercises: [
+    {
+      exercise: { name: "High-bar barbell squat" },
+      sets: [{ setType: "warmup" }, { setType: "working" }, { setType: "working" }],
+    },
+  ],
 };
 
 const props = {
@@ -86,6 +91,26 @@ it("keeps a finished workout's figures with their words", async () => {
  * Each record the day opens names History, as the day is Progress's (NAV-03); the open workout
  * is Today's and names nothing.
  */
+it("names a finished unplanned workout by its first two exercises, and an open one as it is", async () => {
+  const unplanned = {
+    ...squatDay,
+    day: null,
+    exercises: [
+      { exercise: { name: "Barbell squat" }, sets: [] },
+      { exercise: { name: "Pull-up" }, sets: [{ setType: "working" }] },
+      { exercise: { name: "Bent-over row" }, sets: [{ setType: "working" }] },
+      { exercise: { name: "Barbell curl" }, sets: [{ setType: "working" }] },
+    ],
+  };
+  mocks.workouts = [{ ...unplanned, completedAt: new Date("2026-10-11T02:42:00Z") }];
+  expect(renderToStaticMarkup(await DayPage(props))).toContain("Pull-up, Bent-over row");
+
+  mocks.workouts = [unplanned];
+  const open = renderToStaticMarkup(await DayPage(props));
+  expect(open).toContain("Unplanned session");
+  expect(open).not.toContain("Pull-up");
+});
+
 it("opens each finished record under History", async () => {
   mocks.workouts = [
     squatDay,

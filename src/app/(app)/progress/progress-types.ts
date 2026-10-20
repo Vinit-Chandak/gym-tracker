@@ -59,6 +59,8 @@ export type ProgressData = {
     /** Readings in the account's own unit, oldest first. */
     points: { date: string; value: number }[];
     unit: BodyLoadUnit;
+    /** Whether any reading is on record, in the range or not: none yet is the empty state. */
+    recorded: boolean;
   };
   /** The body map's week, Monday to Sunday, stepped by its own arrows rather than the span. */
   muscles: { from: string; to: string; volume: MuscleVolume; totalSets: number };

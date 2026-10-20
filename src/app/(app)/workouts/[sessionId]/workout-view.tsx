@@ -8,7 +8,7 @@ import { useSetChanges } from "@/components/set-changes";
 import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDraftExercises, useSessionDrafts } from "@/components/use-session-drafts";
-import { sessionName } from "@/lib/labels";
+import { namingExercises, sessionName } from "@/lib/labels";
 import { EDIT_PARAM } from "@/lib/nav";
 
 import { ExerciseLogger } from "./exercise-logger";
@@ -68,7 +68,10 @@ export function WorkoutView({
   header?: ReactNode;
   /** What stands above the list once the workout is finished: its records, Save as routine. */
   intro?: ReactNode;
-  /** The session's name (`sessionName`): its day's, its routine's, or UNPLANNED_SESSION. */
+  /**
+   * The session's name (`sessionName`): its day's, its routine's, once finished its first two
+   * exercises, or UNPLANNED_SESSION.
+   */
   title?: string;
   /** Where minimising the open workout goes, or Back from a finished one. */
   backHref?: Route;
@@ -167,7 +170,7 @@ export function WorkoutView({
       <>
         <FinishedWorkout
           session={session}
-          title={title ?? sessionName(session.day?.name, session.title)}
+          title={title ?? sessionName(session.day?.name, session.title, namingExercises(session))}
           justFinished={justFinished}
           backHref={backHref ?? "/today"}
           records={records}

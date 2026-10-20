@@ -119,9 +119,10 @@ function useZoneOptions(open: boolean, current: string) {
 }
 
 /**
- * Board Units and time zone: taken from the phone, changed here or later in the profile.
- * Weight; the road's distance where runs or rides were chosen; the pool where swims were; and
- * the zone. What a distance covers and what the zone decides are their ⓘ.
+ * Board Units and time zone: taken from the phone, changed here or later in Profile › Units and
+ * time zone, which checks them as setup does (`unitsInputSchema`). Weight; the road's distance
+ * where runs or rides were chosen; the pool where swims were; and the zone. What a distance
+ * covers and what the zone decides are their ⓘ.
  */
 export function UnitsSheet({
   open,

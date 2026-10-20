@@ -70,7 +70,10 @@ export default async function AddExercisePage(
   const back = finished
     ? {
         href: `/workouts/${sessionId}?${origin ? `${ORIGIN_PARAM}=${origin}&` : ""}${EDIT_PARAM}=1` as Route,
-        label: sessionChromeName(sessionName(data.names?.dayName, data.names?.title)),
+        // Named as the record it returns to (`sessionName`): finished, by what it held.
+        label: sessionChromeName(
+          sessionName(data.names?.dayName, data.names?.title, data.names?.exercises),
+        ),
       }
     : { href: `/workouts/${sessionId}` as Route, label: name };
 

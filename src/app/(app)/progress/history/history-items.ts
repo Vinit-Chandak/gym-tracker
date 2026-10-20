@@ -106,7 +106,11 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     kind: "workout",
     date: w.startedAt.toISOString(),
     day: w.occurredOn ?? clock.dayOf(w.startedAt),
-    title: sessionName(w.dayName, w.title),
+    title: sessionName(
+      w.dayName,
+      w.title,
+      w.exercises.filter((e) => e.logged).map((e) => e.name),
+    ),
     subtitle: joinFacts([clock.timeOf(w.startedAt), w.gymName]),
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.

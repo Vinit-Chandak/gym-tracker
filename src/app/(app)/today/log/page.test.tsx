@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
-import LogPage from "./page";
+import LogPage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   sports: vi.fn(),
@@ -135,12 +135,26 @@ afterEach(() => {
 });
 
 describe("Log (ADR 0058)", () => {
-  it("asks what was done, from the sports the athlete trains", async () => {
+  it("asks what was done, from the sports the athlete trains, then body weight", async () => {
     const html = await render();
-    expect(hrefs(html)).toEqual(["/today/log?sport=strength", "/today/log?sport=running"]);
+    // Named for all it logs, a body weight reading among them (IA audit M8).
+    expect(html).toContain("<h1>Log</h1>");
+    expect(hrefs(html)).toEqual([
+      "/today/log?sport=strength",
+      "/today/log?sport=running",
+      "/today/log/body-weight",
+    ]);
     expect(html).toContain("Workout");
     expect(html).toContain("Run");
     expect(html).not.toContain("Ride");
+    expect(text(html)).toContain("Body weight");
+  });
+
+  it("names the document as its header: Log, then the sport chosen", async () => {
+    const title = async (search: Record<string, string>) =>
+      (await generateMetadata(props(search))).title;
+    expect(await title({})).toBe("Log");
+    expect(await title({ sport: "running" })).toBe("Log a run");
   });
 
   it("refuses a sport it does not know", async () => {

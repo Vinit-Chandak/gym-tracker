@@ -41,6 +41,7 @@ import {
   backToSession,
   LOAD_UNIT_LABELS,
   measureUnitSuffix,
+  namingExercises,
   sessionChromeName,
   sessionName,
   SUGGESTION_KIND_LABELS,
@@ -590,7 +591,8 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const workoutName = sessionName(session.day?.name, session.title);
+  // Its name as the record's title says it once finished (`sessionName`), the way back to it.
+  const workoutName = sessionName(session.day?.name, session.title, namingExercises(session));
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);

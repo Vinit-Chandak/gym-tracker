@@ -309,7 +309,10 @@ it("opens a finished workout for changes within its week, and closes the edit in
   page.rerender(view("2026-09-15"));
   expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Add set" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  // Finished, an unplanned workout goes by what it logged (owner, 20 October 2026), and the way
+  // back to it says so: the bench press, the one exercise with a set.
+  expect(screen.queryByRole("button", { name: BACK })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Bench press" }));
   page.rerender(view("2026-09-15"));
 
   fireEvent.click(screen.getByRole("button", { name: "Done" }));

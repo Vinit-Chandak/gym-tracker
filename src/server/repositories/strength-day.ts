@@ -10,7 +10,7 @@ import type { DateRange } from "@/server/validation/date-range";
  * lift on the day it was done, beside the run of the same morning. A session older than the
  * parents, which has none, is dated by its start in the account's zone, as it always was.
  *
- * Each helper needs the parent joined: `.leftJoin(activities, strengthParent)`.
+ * Each date helper needs the parent joined: `.leftJoin(activities, strengthParent)`.
  */
 
 /** A session's parent activity, joined on the owner as well as the id. */
@@ -54,3 +54,17 @@ export const strengthOnDays = (range: DateRange) =>
       ),
     ),
   );
+
+/**
+ * A workout's exercises with a set logged, by name, in its order: what names a finished workout
+ * no programme day or routine names (`sessionName`), or null with none. The session is read from
+ * `workout_sessions` as the query names it, unaliased: inside a select list Drizzle drops a
+ * column's table, so the correlation is plain SQL.
+ */
+export const loggedExerciseNames = sql<string[] | null>`(
+  select json_agg(x.name order by e.order_index)
+  from workout_exercises e
+  join exercises x on x.id = e.exercise_id
+  where e.workout_session_id = workout_sessions.id
+    and exists (select 1 from set_logs s where s.workout_exercise_id = e.id)
+)`;

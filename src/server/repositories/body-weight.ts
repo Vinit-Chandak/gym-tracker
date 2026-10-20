@@ -31,15 +31,24 @@ export async function recordBodyWeight(
       set: { weightKg: reading.weightKg, updatedAt: new Date() },
     });
 
+  const newest = await latestBodyWeight(db, userId);
+  if (!newest) return;
+  await db.update(profiles).set({ bodyWeightKg: newest.weightKg }).where(eq(profiles.id, userId));
+  await writeBodyWeight(db, userId, newest);
+}
+
+/** The newest reading, which the profile's own weight always is; null before the first. */
+export async function latestBodyWeight(
+  db: DbOrTx,
+  userId: string,
+): Promise<BodyWeightReading | null> {
   const [newest] = await db
     .select({ weightKg: bodyWeightLogs.weightKg, measuredOn: bodyWeightLogs.measuredOn })
     .from(bodyWeightLogs)
     .where(eq(bodyWeightLogs.userId, userId))
     .orderBy(desc(bodyWeightLogs.measuredOn))
     .limit(1);
-  if (!newest) return;
-  await db.update(profiles).set({ bodyWeightKg: newest.weightKg }).where(eq(profiles.id, userId));
-  await writeBodyWeight(db, userId, newest);
+  return newest ?? null;
 }
 
 /** Every reading inside the range, oldest first — the order a trend is drawn in. */

@@ -125,6 +125,8 @@ describe("history projection", () => {
             name: e.exercise.name,
             machineId: e.equipment?.id ?? null,
             machineName: e.equipment?.name ?? null,
+            // What names an unplanned workout: an exercise with a set logged (`sessionName`).
+            logged: e.sets.length > 0,
           })),
         })),
     );

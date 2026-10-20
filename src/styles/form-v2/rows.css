@@ -455,16 +455,16 @@ li:last-child > .sheet-row {
 /* At large text the avatar and Edit must not squeeze the name and follow counts into a
    narrow middle column. Keep those controls together, with the identity across the next row. */
 @container person-card (width < 15rem) {
-  .person-card-head:has(.round-icon-button) {
+  .person-card-head:has(.profile-edit-button) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
-  .person-card-head:has(.round-icon-button) > .person-card-text {
+  .person-card-head:has(.profile-edit-button) > .person-card-text {
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  .person-card-head > .round-icon-button {
+  .person-card-head > .profile-edit-button {
     grid-column: 2;
     grid-row: 1;
   }
@@ -485,13 +485,16 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.3;
 }
-/* A glyph in a round surface button: Edit profile. */
-.round-icon-button {
-  display: grid;
-  width: var(--ov-target);
-  height: var(--ov-target);
+/* Edit profile: its glyph and its word on a surface pill, which grows with the text. */
+.profile-edit-button {
+  display: inline-flex;
+  min-width: var(--ov-target);
+  min-height: var(--ov-target);
   flex-shrink: 0;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--ov-u));
+  padding-inline: calc(14 * var(--ov-u));
   border-radius: 9999px;
   background: var(--ov-surface);
 }

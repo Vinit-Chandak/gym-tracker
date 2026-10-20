@@ -620,7 +620,7 @@ export function TodayView({
     ...logged.map((activity) => {
       const title =
         activity.sport === "strength"
-          ? sessionName(activity.dayName, activity.title)
+          ? sessionName(activity.dayName, activity.title, activity.exercises)
           : ((activity.occurrenceId ? titles.get(activity.occurrenceId) : null) ??
             activity.title ??
             enduranceName(activity.sport));

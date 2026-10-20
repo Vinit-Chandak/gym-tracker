@@ -235,6 +235,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 value: Math.round(fromKilograms(weightKg, unit) * 10) / 10,
               })),
               unit,
+              // The profile's weight is the newest reading (ADR 0020): none means none yet.
+              recorded: profile.bodyWeightKg !== null,
             },
             muscles: { from: week.from, to: week.to, ...data.muscles },
             recovery: {

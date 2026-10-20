@@ -20,7 +20,12 @@ import { workingSetCount } from "@/domain/sets";
 import { DEFAULT_SPORT_UNITS, formatSportDistance, METRES_PER_MILE } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatTime } from "@/lib/format";
-import { ENDURANCE_PLACE_LABELS, sessionName, SWIM_STROKE_LABELS } from "@/lib/labels";
+import {
+  ENDURANCE_PLACE_LABELS,
+  namingExercises,
+  sessionName,
+  SWIM_STROKE_LABELS,
+} from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -132,7 +137,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: workout.id,
         sport: "strength",
         at: workout.startedAt,
-        title: sessionName(workout.day?.name, workout.title),
+        title: sessionName(workout.day?.name, workout.title, namingExercises(workout)),
         // Each figure kept with its word ("12 sets", never "12 / sets") when the line wraps, and
         // the open one's state whole, as Today says it ("In progress", never "In / progress").
         meta: joinFacts([

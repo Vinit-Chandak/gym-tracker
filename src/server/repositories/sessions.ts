@@ -49,7 +49,7 @@ import { bestLoads, loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
-import { strengthParent } from "./strength-day";
+import { loggedExerciseNames, strengthParent } from "./strength-day";
 import { printedSessionOf, sessionPrintColumns } from "./session-prints";
 import { readWorkouts } from "./training-data";
 
@@ -529,22 +529,27 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
 }
 
 /**
- * What a session goes by (`sessionName`): the programme day it was started for, and the saved
- * routine's name it was started from. Both null for an unplanned one.
+ * What a session goes by (`sessionName`): the programme day it was started for, the saved
+ * routine's name it was started from, both null for an unplanned one, and the exercises it has
+ * logged a set of, which name it once it is finished.
  */
 export async function sessionNameParts(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-): Promise<{ dayName: string | null; title: string | null }> {
+): Promise<{ dayName: string | null; title: string | null; exercises: string[] }> {
   const [row] = await db
-    .select({ dayName: programDays.name, title: activities.title })
+    .select({ dayName: programDays.name, title: activities.title, exercises: loggedExerciseNames })
     .from(workoutSessions)
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
     .leftJoin(activities, strengthParent)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
-  return { dayName: row?.dayName ?? null, title: row?.title ?? null };
+  return {
+    dayName: row?.dayName ?? null,
+    title: row?.title ?? null,
+    exercises: row?.exercises ?? [],
+  };
 }
 
 /** The exercises a session already holds, in its order: Add exercise says which are in it. */

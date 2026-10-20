@@ -358,6 +358,40 @@ it("names a workout started from a saved routine after the routine, open and fin
   expect(screen.queryByText("Unplanned session")).toBeNull();
 });
 
+it("names a finished unplanned workout in Done by its first two exercises", () => {
+  const unplanned = {
+    id: "lift-2",
+    sport: "strength" as const,
+    startedAt: new Date("2026-09-11T04:18:00.000Z"),
+    durationMs: 2_880_000,
+    distanceMetres: null,
+    environment: null,
+    occurrenceId: null,
+    sessionId: "lift-2",
+    programDayId: null,
+    dayName: null,
+    title: null,
+    gymName: "Anytime Fitness",
+  };
+  const { unmount } = show({
+    logged: [{ ...unplanned, exercises: ["Pull-up", "Bent-over row", "Barbell curl"] }],
+  });
+  const done = within(screen.getByRole("region", { name: "Done" }));
+  // Each name held at its hyphen (a word joiner after it), as every row holds one.
+  const lift = done.getByRole("link", { name: /Pull-\u2060up, Bent-\u2060over row/ });
+  expect(lift.getAttribute("href")).toBe("/workouts/lift-2?from=today");
+  // Its name no longer says it was unplanned, so the row does.
+  expect(lift.textContent).toContain("Unplanned");
+  unmount();
+
+  // With nothing logged in it, it is still the unplanned session it was.
+  show({ logged: [{ ...unplanned, exercises: [] }] });
+  const empty = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
+    name: /Unplanned session/,
+  });
+  expect(empty.textContent).not.toMatch(/Unplanned session.*Unplanned/);
+});
+
 it("says once that an empty session was discarded, and drops it from the address", async () => {
   window.history.replaceState(null, "", "/today?discarded=1");
   show({ discarded: true });

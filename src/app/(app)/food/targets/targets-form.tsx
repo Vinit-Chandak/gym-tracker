@@ -235,8 +235,9 @@ export function TargetsForm({
         {!weighed && (
           <p className="type-meta-small text-ink-2">
             No body weight yet: protein is {Math.round(split.protein * 100)}% of the target.{" "}
-            <Link href="/profile/edit" className="font-bold underline underline-offset-2">
-              Add body weight
+            {/* Logged where every reading is (IA audit M8); saved, it comes back here. */}
+            <Link href="/today/log/body-weight" className="font-bold underline underline-offset-2">
+              Log body weight
             </Link>
           </p>
         )}

@@ -4,7 +4,6 @@ import { listSentence, missingProfileDetails, profileNeedsWrite, type Profile } 
 
 const complete = {
   displayName: "Sam",
-  bodyWeightKg: 74.5,
   heightCm: 178,
   dateOfBirth: "1994-03-21",
   trainingGoal: "build_muscle" as const,
@@ -33,6 +32,12 @@ describe("missing profile details", () => {
   it("does not ask for a sex, because declining to say is an answer", () => {
     // `sex` is not among the fields checked at all; a profile without one is complete.
     expect(missingProfileDetails(complete)).toEqual([]);
+  });
+
+  it("does not ask for a body weight, which is a reading logged from Today, not a detail", () => {
+    expect(missingProfileDetails({ ...complete, bodyWeightKg: null } as typeof complete)).toEqual(
+      [],
+    );
   });
 });
 

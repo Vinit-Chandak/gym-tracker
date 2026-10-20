@@ -2,13 +2,9 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Glyph } from "@/components/ui/glyphs";
-import { getDb } from "@/db/client";
-import { withUser } from "@/db/with-user";
-import { resolveSportUnits } from "@/lib/distance-units";
 import { requireUser } from "@/server/auth";
 import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 import { ProfileForm } from "./profile-form";
 
@@ -18,14 +14,6 @@ export default async function EditProfilePage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const email = profile.email ?? user.email ?? "—";
-  const unit = profile.preferredUnit === "lb" ? "lb" : "kg";
-  const distances = resolveSportUnits(profile.preferredUnit, profile);
-  const swims = await withUser(
-    getDb(),
-    user.id,
-    async (tx) => (await enabledSportsFor(tx, user.id)).includes("swimming"),
-    { readOnly: true },
-  );
   const missing = missingProfileDetails(profile);
 
   return (
@@ -53,12 +41,7 @@ export default async function EditProfilePage() {
             values={{
               displayName: profile.displayName ?? "",
               username: profile.username,
-              timeZone: profile.timeZone,
-              preferredUnit: unit,
-              distanceUnit: distances.distanceUnit,
-              poolUnit: distances.poolUnit,
-              swims,
-              bodyWeightKg: profile.bodyWeightKg,
+              preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
               heightCm: profile.heightCm,
               dateOfBirth: profile.dateOfBirth,
               sex: profile.sex,

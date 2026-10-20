@@ -132,8 +132,8 @@ it("shows saved targets as they are, offering the goal's split while they differ
 it("takes protein from the goal's share, and says so, until there is a body weight", () => {
   render(<TargetsForm targets={null} bodyWeightKg={null} unit="kg" goal="lose_fat" />);
   expect(screen.getByText(/^No body weight yet: protein is 30% of the target\./)).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Add body weight" }).getAttribute("href")).toBe(
-    "/profile/edit",
+  expect(screen.getByRole("link", { name: "Log body weight" }).getAttribute("href")).toBe(
+    "/today/log/body-weight",
   );
   fireEvent.change(field(KCAL), { target: { value: "2400" } });
   expect(field(PROTEIN).value).toBe("1.8");

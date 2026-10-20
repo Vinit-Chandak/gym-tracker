@@ -66,9 +66,9 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/u/compare")).toBeUndefined();
   // A meal's page goes back to the Food tab.
   expect(sectionLabel("/food")).toBe("Food");
-  // My foods is a screen of Food's with a name of its own (ADR 0035); Targets is Food's.
+  // My foods and Targets are screens of Food's with names of their own (ADR 0035).
   expect(sectionLabel("/food/my-foods")).toBe("My foods");
-  expect(sectionLabel("/food/targets")).toBe("Food");
+  expect(sectionLabel("/food/targets")).toBe("Targets");
   // History is a page of Progress's with a name of its own.
   expect(sectionLabel("/progress/history")).toBe("History");
   expect(sectionLabel("/progress/history?from=2026-09-01")).toBe("History");
@@ -82,8 +82,9 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/plan/past")).toBe("Plan");
   expect(sectionLabel("/plan/strength/days/abc")).toBe("Plan");
   expect(sectionLabel("/plan/sessions/abc")).toBe("Plan");
-  // Logging a run, ride or swim is Today's.
+  // Logging a run, ride or swim is Today's; what Log opens goes back to it by name.
   expect(sectionLabel("/today/log/new?sport=running")).toBe("Today");
+  expect(sectionLabel("/today/log?sport=running")).toBe("Log");
   // A logged run, ride or swim is named by the page linking back to it, never "Progress".
   expect(sectionLabel("/progress/activities/abc?from=history")).toBeUndefined();
   expect(sectionLabel("/progress/activities/abc/counts-as")).toBeUndefined();

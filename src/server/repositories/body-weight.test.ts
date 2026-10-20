@@ -6,7 +6,7 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { ensureProfile } from "@/server/queries/profile";
 
-import { listBodyWeights, recordBodyWeight } from "./body-weight";
+import { latestBodyWeight, listBodyWeights, recordBodyWeight } from "./body-weight";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -69,6 +69,12 @@ describe("body weight", () => {
       recordBodyWeight(tx, user.id, { measuredOn: "2026-03-02", weightKg: 76.25 }),
     );
     expect(await currentWeight(user.id)).toBe(76.25);
+  });
+
+  it("reads the newest reading, which is what the profile shows", async () => {
+    const newest = await withUser(t.db, user.id, (tx) => latestBodyWeight(tx, user.id));
+    expect(newest).toEqual({ measuredOn: "2026-03-02", weightKg: 76.25 });
+    expect(await withUser(t.db, other.id, (tx) => latestBodyWeight(tx, other.id))).toBeNull();
   });
 
   it("reads only the days inside the range asked for", async () => {

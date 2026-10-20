@@ -122,6 +122,10 @@ const PAGE_LABELS: Record<string, string> = {
   "/progress/calendar": "Calendar",
   // My foods is a screen of Food's (ADR 0035): a meal kept in it goes back to it by name.
   "/food/my-foods": "My foods",
+  // So are Targets, which a missing body weight is logged from, and Log, Today's: each is named
+  // by what opened from it goes back to.
+  "/food/targets": "Targets",
+  "/today/log": "Log",
   // What AI coach opens (a request, a draft, a programme's page) goes back to it by name.
   "/profile/ai-coach": "AI coach",
 };
