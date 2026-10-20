@@ -5,6 +5,7 @@ import { ProgramBuilder } from "@/components/coaching/program-builder";
 import { ChangeDetail } from "@/components/coaching/change-detail";
 import { DraftPreview } from "@/components/coaching/draft-preview";
 import { ProgrammeOptions } from "@/components/coaching/programme-options";
+import { RequestChange } from "@/components/coaching/request-change";
 import { EquipmentStepForm } from "@/app/(onboarding)/welcome/equipment/equipment-step-form";
 import { previewMachinesStep } from "@/app/(onboarding)/welcome/equipment/preview-step";
 import { drawingUrls } from "@/server/queries/equipment-art";
@@ -257,6 +258,7 @@ export default async function CoachingPreview({
             ["changes", "Changes"],
             ["unchanged", "No changes"],
             ["equipment", "Machines"],
+            ["request", "Request a change"],
           ].map(([value, label]) => (
             <a key={value} href={`?view=${value}`}>
               {label}
@@ -387,6 +389,10 @@ export default async function CoachingPreview({
             today="2026-09-19"
             base="/profile/programme"
           />
+        )}
+        {view === "request" && (
+          // A programme's page asks the coach for a change (ADR 0058); sending needs an account.
+          <RequestChange sport="running" noteId="00000000-0000-4000-8000-000000000099" />
         )}
         {view === "equipment" && (
           // ?kind=gym|home|outdoor and ?experience=new|experienced choose which step to show.

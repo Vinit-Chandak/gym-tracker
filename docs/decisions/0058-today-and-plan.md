@@ -63,6 +63,11 @@ longer, and programme management hides below it or behind a control.
    workout's programme day is still chosen when it starts.
 9. **Missed runs, rides and swims stay off Today** (ADR 0056). They are Missed on Plan's week and
    offered by Log's Counts as.
+10. **Request a change is the programme's,** on its page (owner, 20 October 2026): what should
+    change, in the athlete's words, sent to the coach for that programme alone, its answer coming
+    back to the same page to review. Profile's AI coach keeps the coach's settings, notes for
+    every programme at once and what the coach is working on; its programme cards and review
+    picker repeated Plan and went.
 
 ## Words
 

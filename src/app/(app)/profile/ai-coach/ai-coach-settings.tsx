@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { Route } from "next";
 import Link from "@/components/ui/app-link";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
@@ -22,7 +22,6 @@ import { attempted, keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
 import type { CoachDashboard } from "@/server/repositories/coach-dashboard";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
-import { RequestReview } from "../programme/request-review";
 import { Proposals } from "../programme/proposals";
 
 export type CoachAttempt = {
@@ -121,19 +120,15 @@ export function AiCoachSettings({
     .filter(Boolean);
   const waiting = dashboard?.waiting ?? 0;
 
-  function compose(sport: ActivitySport) {
-    setScope(sport);
-    textarea.current?.focus();
-    textarea.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
   return (
     <div className="coach-hub">
       <header className="coach-hub-heading">
         <div>
           <p className="coach-eyebrow">YOUR TRAINING PARTNER</p>
           <h1 className="type-display">AI coach</h1>
-          <p className="coach-subtitle">Your programmes. One place to make them work together.</p>
+          <p className="coach-subtitle">
+            What the coach knows, what it is working on, and what you have asked.
+          </p>
         </div>
         <div className="coach-power">
           <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
@@ -252,68 +247,6 @@ export function AiCoachSettings({
               ))}
             </ul>
           </Disclosure>
-        )}
-
-        {workflow && (
-          <section aria-labelledby="coach-programmes">
-            <div className="coach-section-heading">
-              <h2 id="coach-programmes">Your programmes</h2>
-              <Link href="/plan/new" className="coach-text-link">
-                <Glyph name="plus" className="glyph-16" />
-                New programme
-              </Link>
-            </div>
-            {programmes.length > 0 ? (
-              <div className="coach-programme-grid">
-                {programmes.map((programme) => (
-                  <article
-                    className="coach-programme"
-                    data-sport={programme.sport}
-                    key={programme.id}
-                  >
-                    <div className="coach-programme-top">
-                      <span className="coach-sport">
-                        <span />
-                        {ACTIVITY_SPORT_LABELS[programme.sport]}
-                      </span>
-                      <span className="coach-small-status">Active</span>
-                    </div>
-                    <h3>{programme.name}</h3>
-                    <p className="coach-programme-status">
-                      {programme.review.running
-                        ? "Coach review in progress"
-                        : programme.pending > 0
-                          ? `${programme.pending} ${programme.pending === 1 ? "item" : "items"} to review`
-                          : programme.review.waiting
-                            ? "Review queued"
-                            : "Your current programme"}
-                    </p>
-                    <div className="coach-programme-actions">
-                      <Button variant="secondary" onClick={() => compose(programme.sport)}>
-                        Request a change
-                      </Button>
-                      <Link
-                        className="coach-text-link"
-                        href={`/plan/${programme.sport}` as Route}
-                        aria-label={`View ${programme.name}`}
-                      >
-                        View
-                        <Glyph name="chevronRight" className="glyph-16" />
-                      </Link>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="coach-empty">
-                <Glyph name="table" className="glyph-24" />
-                <h3>Start with a programme</h3>
-                <p>Create a plan for a sport. You can add other sports whenever you’re ready.</p>
-                <LinkButton href="/plan/new">New programme</LinkButton>
-              </div>
-            )}
-            {programmes.length > 0 && <ReviewProgrammes programmes={programmes} enabled={shown} />}
-          </section>
         )}
 
         <section className="coach-compose-card" aria-labelledby="tell-coach">
@@ -683,53 +616,6 @@ export function AiCoachSettings({
         </Disclosure>
       </section>
     </div>
-  );
-}
-
-function ReviewProgrammes({
-  programmes,
-  enabled,
-}: {
-  programmes: CoachDashboard["programmes"];
-  enabled: boolean;
-}) {
-  const [sport, setSport] = useState(programmes[0]!.sport);
-  const programme = programmes.find((item) => item.sport === sport) ?? programmes[0]!;
-  return (
-    <Disclosure
-      summary="Ask for a programme review"
-      variant="inline"
-      className="coach-review-disclosure"
-    >
-      <div className="coach-group">
-        <div className="coach-field">
-          <label htmlFor="coach-review-programme">Programme to review</label>
-          <select
-            id="coach-review-programme"
-            value={programme.sport}
-            onChange={(event) => setSport(event.target.value as ActivitySport)}
-          >
-            {programmes.map((item) => (
-              <option key={item.id} value={item.sport}>
-                {ACTIVITY_SPORT_LABELS[item.sport]} · {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <RequestReview
-          key={programme.id}
-          sport={programme.sport}
-          availability={{ ...programme.review, offered: enabled && programme.review.offered }}
-        />
-        {(!enabled || !programme.review.offered) && (
-          <p className="coach-muted">
-            {enabled
-              ? "On-demand reviews are unavailable here."
-              : "Turn on coaching to request a review."}
-          </p>
-        )}
-      </div>
-    </Disclosure>
   );
 }
 

@@ -97,16 +97,16 @@ screen must keep is [the feature inventory](docs/ui-redesign/revamp/features.md)
 may move, regroup, rename or put behind a tap anything listed there, never drop it.
 
 Plan holds what comes next and how it is built. This week lists every sport's sessions by date,
-Monday to Sunday: today's point to Today, past ones read Done, Skipped or Missed, and a run, ride
-or swim opens its page to move or skip it. Each existing programme has a card (its sport, name,
-how it runs, where it has got to and any change waiting) and one page, `/plan/[sport]`, with its
-weeks or days, Edit programme, coach review and changes to approve. Replace, Duplicate and End
-programme sit under the page's More options; an ended or replaced programme is under Past
-programmes. New programme asks for a sport, then Repeating, Progressive or With the coach; there
-are no templates. General AI coach settings remain in Profile. Each sport has its own intake,
-review cadence and programme requests; the account switch, request quota and evidence history
-remain shared. Existing drafts and history remain reachable
-([Plan direction](docs/ui-redesign/training-programmes.md)).
+Monday to Sunday: today's point to Today, past ones read Done, Skipped or Missed, and a run, ride or
+swim opens its page to move or skip it. Each existing programme has a card (its sport, name, how it
+runs, where it has got to and any change waiting) and one page, `/plan/[sport]`, with its weeks or
+days, Edit programme, Request a change, coach review and changes to approve. Replace, Duplicate and
+End programme sit under the page's More options; an ended or replaced programme is under Past
+programmes. New programme asks for a sport, then Repeating, Progressive or With the coach; there are
+no templates. General AI coach settings, and notes for every programme at once, remain in Profile,
+which lists no programmes of its own. Each sport has its own intake, review cadence and programme
+requests; the account switch, request quota and evidence history remain shared. Existing drafts and
+history remain reachable ([Plan direction](docs/ui-redesign/training-programmes.md)).
 
 Logging is Today's. A card starts or logs the session it stands for, and Log takes anything
 else: late, early, unplanned or done earlier. A saved run, ride or swim changes what it counts
@@ -155,26 +155,26 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 Where each fact lives. Another screen may link to it by name, never restate its details or
 repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 
-| Fact                                                          | Home                                           |
-| ------------------------------------------------------------- | ---------------------------------------------- |
-| Today's sessions, every sport's                               | Today, a card each                             |
-| Starting or resuming a workout                                | Today, the workout's card                      |
-| Logging a session owed today                                  | Today, its card                                |
-| Logging anything else: late, early, unplanned or done earlier | Today › Log                                    |
-| Skipping today's workout; the coach's preparation             | Today, the workout card's More options         |
-| Picking up from today after missed days                       | Today, under the date                          |
-| What was done today                                           | Today › Done, a row each that opens its record |
-| This week's sessions by date                                  | Plan › This week                               |
-| Moving or skipping a run, ride or swim                        | Plan › This week › the session's page          |
-| How a programme runs and where it has got to                  | Plan › the programme's card and page           |
-| A programme's progress, weeks or days; editing or ending it   | Plan › the programme's page                    |
-| Starting a new programme                                      | Plan › New programme                           |
-| Coach review; changes to approve                              | Plan › the programme's page                    |
-| Programmes ended or replaced                                  | Plan › Past programmes                         |
-| What a logged run, ride or swim counts as                     | Its page › Counts as                           |
-| History, records, the calendar and trends                     | Progress                                       |
-| Meals, foods and food targets                                 | Food                                           |
-| Coach settings, sports, gyms and machines                     | Profile                                        |
+| Fact                                                            | Home                                           |
+| --------------------------------------------------------------- | ---------------------------------------------- |
+| Today's sessions, every sport's                                 | Today, a card each                             |
+| Starting or resuming a workout                                  | Today, the workout's card                      |
+| Logging a session owed today                                    | Today, its card                                |
+| Logging anything else: late, early, unplanned or done earlier   | Today › Log                                    |
+| Skipping today's workout; the coach's preparation               | Today, the workout card's More options         |
+| Picking up from today after missed days                         | Today, under the date                          |
+| What was done today                                             | Today › Done, a row each that opens its record |
+| This week's sessions by date                                    | Plan › This week                               |
+| Moving or skipping a run, ride or swim                          | Plan › This week › the session's page          |
+| How a programme runs and where it has got to                    | Plan › the programme's card and page           |
+| A programme's progress, weeks or days; editing or ending it     | Plan › the programme's page                    |
+| Starting a new programme                                        | Plan › New programme                           |
+| Asking the coach for a change; coach review; changes to approve | Plan › the programme's page                    |
+| Programmes ended or replaced                                    | Plan › Past programmes                         |
+| What a logged run, ride or swim counts as                       | Its page › Counts as                           |
+| History, records, the calendar and trends                       | Progress                                       |
+| Meals, foods and food targets                                   | Food                                           |
+| Coach settings, sports, gyms and machines                       | Profile                                        |
 
 ## Brand Commitments
 

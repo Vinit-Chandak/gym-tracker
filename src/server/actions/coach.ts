@@ -103,6 +103,8 @@ export async function saveCoachNotesAction(
     };
   }
   revalidatePath("/profile/ai-coach");
+  // A programme's page asks for changes too, and lists what is with the coach (ADR 0058).
+  revalidatePath("/plan", "layout");
   return {};
 }
 

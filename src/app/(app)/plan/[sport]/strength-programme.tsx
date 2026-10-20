@@ -14,6 +14,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { cycleRepeatLabel, programLengthLabel } from "@/domain/cycle-repeat";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { isCoachServiceConfigured } from "@/lib/env";
 import { holdHyphens, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -183,7 +184,18 @@ export async function StrengthProgramme({
               className="min-w-0 space-y-6"
             >
               {view === "changes" ? (
-                <ProgrammeChanges data={changes} />
+                <ProgrammeChanges
+                  data={changes}
+                  // A note waits for the coach's next run: it needs the coach on, not this
+                  // server able to start it.
+                  request={
+                    profile.aiCoachEnabled &&
+                    process.env.COACH_WORKFLOW_ENABLED === "true" &&
+                    isCoachServiceConfigured()
+                      ? { noteId: crypto.randomUUID() }
+                      : null
+                  }
+                />
               ) : (
                 <>
                   {/* Every session the programme asks for, in the order it asks for them. */}

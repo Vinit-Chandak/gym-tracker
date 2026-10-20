@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
+import { RequestChange } from "@/components/coaching/request-change";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
@@ -122,6 +123,11 @@ export default async function SportProgrammePage({
     })),
   );
   const coachOffered = profile.aiCoachEnabled && canRunCoachJobs() && isCoachServiceConfigured();
+  // A note waits for the coach's next run, so it needs the coach on, not this server to start it.
+  const changeOffered =
+    profile.aiCoachEnabled &&
+    process.env.COACH_WORKFLOW_ENABLED === "true" &&
+    isCoachServiceConfigured();
   return (
     <>
       <PageHeader title={`${label} programme`} backHref="/plan" />
@@ -225,6 +231,7 @@ export default async function SportProgrammePage({
             })}
           </ul>
         </Section>
+        {changeOffered && <RequestChange sport={sport} noteId={crypto.randomUUID()} />}
         {coachOffered && (
           <Disclosure
             summary="Coach review"
