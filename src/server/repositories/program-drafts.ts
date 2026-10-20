@@ -40,7 +40,11 @@ import {
   type LibraryEntry,
 } from "./coach-plans";
 import { carryGymFallbacks } from "./fallbacks";
-import { materialiseProgramme, withdrawFamilyOccurrences } from "./program-occurrences";
+import {
+  materialiseProgramme,
+  withdrawFamilyOccurrences,
+  withdrawSportFromOtherProgrammes,
+} from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
 import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
@@ -849,6 +853,15 @@ export async function activateProgramDraft(
     startDate,
     transition: input.transition,
   });
+  // A sport's programme is that sport's training from its start: the runs an older combined
+  // strength programme still carries from then on are withdrawn, not left beside its own.
+  if (draft.sport !== "strength")
+    await withdrawSportFromOtherProgrammes(db, userId, {
+      sport: draft.sport,
+      keepFamilyId: created.familyId,
+      from: startDate,
+      source: `programs:${created.id}`,
+    });
   if (priorBlueprint && !input.automatic) {
     // Athlete-approved revisions also start a new evidence cycle for affected targets.
     const changes: CoachingChangeRecord[] = [];
