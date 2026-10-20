@@ -222,8 +222,9 @@
 
 /* ---------- heart-rate zones (Profile › Heart rate zones, ADR 0059) ---------- */
 /* Five rows, each zone's name and its beats on one line and how it feels under them. A bar at
-   the start of each row deepens with the zone, in the run's pigment: the order reads at a
-   glance, and the words and numbers carry the meaning for anyone who cannot see the colour. */
+   the start of each row deepens with the zone, in ink (zones serve every sport, and a pigment
+   names one: the Black-and-White Rule): the order reads at a glance, and the words and numbers
+   carry the meaning for anyone who cannot see the shade. */
 .heart-rate-zones {
   display: grid;
   gap: calc(2 * var(--ov-u));
@@ -235,7 +236,7 @@
   row-gap: calc(2 * var(--ov-u));
   padding: calc(8 * var(--ov-u)) 0 calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
   border-left: calc(4 * var(--ov-u)) solid
-    color-mix(in srgb, var(--ov-print-run) var(--zone-share), var(--ov-surface-2));
+    color-mix(in srgb, var(--ov-ink) var(--zone-share), var(--ov-surface-2));
 }
 .heart-rate-zone[data-zone="1"] {
   --zone-share: 18%;
@@ -363,9 +364,12 @@
 .run-laps tbody th {
   font-weight: 700;
 }
+/* The lap's number in a column two figures wide, then a gap, so "10" never runs into "Work". */
 .run-laps-number {
   display: inline-block;
-  min-width: 1.4em;
+  min-width: 2ch;
+  margin-inline-end: calc(6 * var(--ov-u));
+  font-variant-numeric: tabular-nums;
 }
 .run-laps-phase {
   color: var(--ov-ink-2);
@@ -382,15 +386,18 @@
   font-size: var(--ov-type-caption);
   font-weight: 700;
 }
+/* The rows share their columns, so every bar starts and ends at one x and their lengths
+   compare down the list whatever each time's width. */
 .run-zone-times {
   display: grid;
-  gap: calc(6 * var(--ov-u));
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) max-content;
+  gap: calc(6 * var(--ov-u)) calc(10 * var(--ov-u));
 }
 .run-zone-times > li {
   display: grid;
-  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: calc(10 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
 }
 .run-zone-times-name {
@@ -403,11 +410,12 @@
   border-radius: 9999px;
   background: var(--ov-surface-2);
 }
+/* A chart, so ink (the Black-and-White Rule). */
 .run-zone-times-bar > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--ov-print-run);
+  background: var(--ov-ink);
 }
 .run-zone-times-time {
   font-weight: 600;
