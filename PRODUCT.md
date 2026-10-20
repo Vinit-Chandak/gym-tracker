@@ -115,6 +115,17 @@ session library, one-off scheduling (Scheduled by you) and single sessions from 
 set aside for now: a session is planned by a programme or unplanned. Their pages redirect, and
 their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 
+Running has its own way in ([ADR 0059](docs/decisions/0059-running-programmes-laps-and-heart-rate-zones.md)).
+With the coach, a running programme starts from the runner's goal (a race on a date, or a goal
+without one), a recent race or time trial, their usual week and longest run, and the days they can
+run, filled in from their logs where it can be; the coach writes it from running's own reference,
+the runner's logged weeks and their other programmes, keeping hard running off heavy leg days
+where it can. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
+as steps, each ended by a time or a distance, with a pace or a heart-rate zone. A logged run keeps
+its kind, outdoor or treadmill, and its laps from the watch with their heart rate. Heart-rate
+zones are the athlete's own: Profile › Heart rate zones holds the maximum (entered, raised by a
+harder run, or estimated from age), the resting heart rate and how the zones are worked out.
+
 **What must not change** ([decisions implementation must preserve](docs/ui-redesign/README.md#decisions-that-implementation-must-preserve)):
 
 - Load, reps (or time or distance) and effort belong to each set; identical sets stay separate
@@ -175,6 +186,8 @@ repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 | History, records, the calendar and trends                       | Progress                                       |
 | Meals, foods and food targets                                   | Food                                           |
 | Coach settings, sports, gyms and machines                       | Profile                                        |
+| Maximum and resting heart rate, and the zones                   | Profile › Heart rate zones                     |
+| A run's laps and its time in each zone                          | Its page                                       |
 
 ## Brand Commitments
 

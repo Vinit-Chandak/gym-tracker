@@ -21,7 +21,8 @@ const METHOD_HINTS: Record<HeartRateZoneMethod, string> = {
   max: "Zones at 50, 60, 70, 80 and 90 per cent of your maximum, as most watches set them.",
   reserve:
     "Zones at the same shares of the gap between resting and maximum (Karvonen). Needs your resting heart rate.",
-  custom: "Where each zone starts, from a lab test or a threshold run. Zone 5 runs to your maximum.",
+  custom:
+    "Where each zone starts, from a lab test or a threshold run. Zone 5 runs to your maximum.",
 };
 
 export type HeartRateFormValues = {
@@ -123,7 +124,11 @@ export function HeartRateForm({
           </legend>
           <div className="heart-rate-floors">
             {ZONE_NUMBERS.map((zone, index) => (
-              <Field key={zone} label={`Zone ${zone}`} error={zone === 1 ? errors?.zone1 : undefined}>
+              <Field
+                key={zone}
+                label={`Zone ${zone}`}
+                error={zone === 1 ? errors?.zone1 : undefined}
+              >
                 <Input
                   name={`zone${zone}`}
                   inputMode="numeric"

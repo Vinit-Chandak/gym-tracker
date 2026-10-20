@@ -17,8 +17,8 @@ export function UseRunMaximum({ bpm, on }: { bpm: number; on: string }) {
   return (
     <Card>
       <p className="type-meta">
-        A run on {on} recorded <span className="font-bold tabular-nums">{bpm} bpm</span>, more
-        than the maximum in use.
+        A run on {on} recorded <span className="font-bold tabular-nums">{bpm} bpm</span>, more than
+        the maximum in use.
       </p>
       <Button
         variant="secondary"

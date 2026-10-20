@@ -87,12 +87,14 @@ switch (process.argv[2]) {
     await run(tsx, ["scripts/dev/seed-audit.ts"]);
     await run(tsx, ["src/db/backfill-multisport.ts"]);
     await run(tsx, ["scripts/dev/seed-audit.ts"]);
+    await run(tsx, ["scripts/dev/seed-audit-running.ts"]);
     break;
   }
   case "seed":
     await run(tsx, ["scripts/dev/seed-people.ts"]);
     await run(tsx, ["src/db/backfill-multisport.ts"]);
     await run(tsx, ["scripts/dev/seed-audit.ts"]);
+    await run(tsx, ["scripts/dev/seed-audit-running.ts"]);
     break;
   case "auth":
     await run("scripts/dev/auth-stub.mjs");

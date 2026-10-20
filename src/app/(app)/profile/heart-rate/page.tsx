@@ -133,8 +133,8 @@ export default async function HeartRatePage() {
               own.
             </p>
             <p>
-              A wrist sensor sometimes reads your cadence instead of your heart. Readings above{" "}
-              230 are never taken as a maximum; if a run raised yours by mistake, enter your own.
+              A wrist sensor sometimes reads your cadence instead of your heart. Readings above 230
+              are never taken as a maximum; if a run raised yours by mistake, enter your own.
             </p>
           </div>
         </Disclosure>

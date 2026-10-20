@@ -184,7 +184,9 @@ counts as Saturday's, logged on Tuesday. It replaced Choose a day and Training's
 
 - **Choose** what was done, then what it counts as, or Unplanned.
 - **A run, ride or swim:** choose the date, today or earlier, then Continue to its form, which
-  saves it as that session's answer, or as unplanned.
+  saves it as that session's answer, or as unplanned. A run's form takes its kind, outdoor or
+  treadmill, and its laps from the watch; a planned run lays its laps out empty, and Fill in the
+  planned distances and times copies the plan's figures only when tapped.
 - **A workout:** choose the gym, then Start workout, a live session through its check-in; or
   Done earlier, with the gym, date and start time, then Log this workout, which has no live rest
   timer or abandoned-workout prompt, asks for its finish time and returns to Today.
@@ -244,17 +246,20 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
   ("Every week · 8 weeks", "Repeating · 12 weeks"), a bar of the days or sessions done, Edit
   programme and More options, and its notes and dates one tap away.
   - **A run, ride or swim programme:** its weeks without dates, each with what it asks for and
-    where it stands ("Week 3", "3 runs · Now", "Done", "1 missed"), the current one open; each
-    session with its target and Done, Skipped or Missed, opening its page. Then the changes
-    waiting, and Coach review when the coach is on.
+    where it stands ("Week 3", "4 runs · 24.2 km + 68 min · Now", "Done", "1 missed"), the
+    current one open; each session with its kind of run ("Intervals", "Long run"), its target and
+    Done, Skipped or Missed, opening its page. Then the changes waiting, and Coach review when the
+    coach is on.
   - **The strength programme:** where it has got to ("Cycle 2 of 8 · 40 days left · 3 skipped"),
     then Days and Changes. Days lists every day in order, each opening to its exercises and
     targets (a progressive programme's sequence seven days at a time). Changes holds what the
     coach has proposed, asked or changed, with what waits for the athlete counted on the tab
     ("Changes (2)").
-- **A session's page** (a run, ride or swim): its day and sport, its cycle and the date it is
-  planned for, its target and how to do it, Next, Missed or Skipped, "Moved from {date}." and,
-  once logged, the planned line and See what you logged.
+- **A session's page** (a run, ride or swim): its name and sport, its week and the date it is
+  planned for, its target and how to do it — each step a line, a repeated block's rep and
+  recovery on lines of their own, with its pace and its zone in the athlete's beats ("Zones 4–5
+  (163–191 bpm)") — Next, Missed or Skipped, "Moved from {date}." and, once logged, the planned
+  line and See what you logged.
 - **New programme:** the four sports, then Repeating ("The same week or cycle, again and
   again."), Progressive ("Each week different, building as it goes.") and With the coach
   ("Answer a few questions and the coach writes it."). A sport with a programme says what a new
