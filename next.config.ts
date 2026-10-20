@@ -68,12 +68,13 @@ const nextConfig: NextConfig = {
       { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
       // Resolve simple run aliases before the app shell streams. A client-side streamed
       // redirect can race that shell's navigation prefetches in WebKit. Planned links and
-      // legacy run IDs still need the authenticated identifier lookup in their pages.
+      // legacy run IDs still need the authenticated identifier lookup in their pages. A new run
+      // is logged through Log, which asks what it counts as (ADR 0058).
       { source: "/runs", destination: "/plan", permanent: false },
       {
         source: "/runs/new",
         missing: [{ type: "query", key: "planned" }],
-        destination: "/training/new?sport=running",
+        destination: "/today/log?sport=running",
         permanent: false,
       },
     ];

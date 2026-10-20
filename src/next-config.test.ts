@@ -59,7 +59,7 @@ it.each([
 it.each([
   ["/runs", "/plan"],
   ["/runs?from=2026-09-01&to=2026-09-26", "/plan?from=2026-09-01&to=2026-09-26"],
-  ["/runs/new", "/training/new?sport=running"],
+  ["/runs/new", "/today/log?sport=running"],
 ])("redirects %s before rendering an intermediate app shell", async (path, destination) => {
   const response = await unstable_getResponseFromNextConfig({
     url: `http://localhost:3101${path}`,

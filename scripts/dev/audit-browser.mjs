@@ -231,9 +231,9 @@ for (const config of configurations.filter((c) =>
       route === "/"
         ? "/today"
         : route === "/runs"
-          ? "/training"
+          ? "/plan"
           : route === "/runs/new"
-            ? "/training/new?sport=running"
+            ? "/today/log?sport=running"
             : route.startsWith("/runs/")
               ? route.replace("/runs/", "/training/activities/")
               : beforeFirstStep
