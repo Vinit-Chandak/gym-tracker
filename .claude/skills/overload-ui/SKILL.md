@@ -103,7 +103,9 @@ does not play a second slide over Safari's own.
 
 ## Verifying UI work
 
-- `npm run check` before every commit.
+- Before a commit: typecheck, lint and format the changed files, and run the tests related to
+  them (`npx vitest related --run <files>`); the whole suite runs once before a push that reaches
+  shared code (`AGENTS.md`, Testing: only what changed).
 - Capture screens with `scripts/dev/audit-browser.mjs` at the iPhone 17 viewport in both themes
   and compare them with the catalogue in `docs/audits/iphone17-design-screenshots-2026-09-30.md`.
   The script uses WebKit, which a cloud session has only if the environment's setup script
