@@ -196,13 +196,13 @@ async function run(engine) {
     await check(
       "Correction after travel retains the activity zone and original repeated hour",
       async () => {
-        await page.goto("/profile/edit", { waitUntil: "networkidle" });
-        // The time zone is chosen from a list of places now, not typed.
+        await page.goto("/profile/units", { waitUntil: "networkidle" });
+        // The time zone is chosen from a list of places, on Units and time zone (ADR 0060).
         await page.getByLabel("Time zone", { exact: true }).selectOption("America/Los_Angeles");
         await page.getByRole("button", { name: "Save", exact: true }).click();
-        await expect(page.getByRole("status").filter({ hasText: "Profile saved" })).toHaveText(
-          "Profile saved",
-        );
+        await expect(
+          page.getByRole("status").filter({ hasText: "Units and time zone saved" }),
+        ).toHaveText("Units and time zone saved");
         expect(await sql`select time_zone from profiles where id=${id}`).toEqual([
           { time_zone: "America/Los_Angeles" },
         ]);

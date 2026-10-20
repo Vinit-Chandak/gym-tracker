@@ -810,7 +810,7 @@ try {
       await expect(myFoods().getByRole("button", { name: /^Oats/ })).toHaveCount(0);
       await navigate("/food/targets");
       await page.getByLabel("Daily target, kcal").fill("2400");
-      await expect(page.getByText(/There is no body weight/)).toBeVisible();
+      await expect(page.getByText(/No body weight yet/)).toBeVisible();
       await page.getByRole("button", { name: "Set target", exact: true }).click();
       await page.waitForURL(/\/food$/);
       await expect(
@@ -819,8 +819,14 @@ try {
         }),
       ).toBeVisible();
       await navigate("/food/targets");
-      await page.getByRole("link", { name: "Add body weight" }).click();
+      // A body weight is a reading, logged from Today › Log; saved, it comes back to Targets.
+      await page.getByRole("link", { name: "Log body weight" }).click();
+      await page.waitForURL(/\/today\/log\/body-weight$/);
       await page.getByLabel("Body weight (kg)", { exact: true }).fill("80");
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.waitForURL(/\/food\/targets$/);
+      // The goal is the person's, on Edit profile.
+      await navigate("/profile/edit");
       await page.getByLabel("Height (cm)", { exact: true }).fill("180");
       await page.locator('[name="dateOfBirth"]').fill("1990-01-01");
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");

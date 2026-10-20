@@ -202,45 +202,56 @@ async function runDevice(device) {
       },
       recoveryPage,
     );
-    await step("profile-validation-conversion-and-save", async () => {
+    await step("units-profile-and-body-weight", async () => {
+      const saved = (name) => page.getByRole("status").filter({ hasText: name });
+      // Units and the time zone have a page of their own (ADR 0060).
+      await go(page, "/profile/units");
+      await choose(page, "preferredUnit", "lb");
+      await page.getByLabel("Time zone", { exact: true }).selectOption("America/New_York");
+      await button(page, "Save").click();
+      await expect(saved("Units and time zone saved")).toHaveCount(1);
+      // Edit profile is who is training, the height in the weight unit's measure.
       await go(page, "/profile/edit");
-      // The time zone is chosen from a list, so an impossible body weight is what is refused.
-      await page.getByLabel("Body weight (lb)", { exact: true }).fill("1200");
       await page.getByLabel("Feet", { exact: true }).fill("5");
       await page.getByLabel("Inches", { exact: true }).fill("10");
       await page.getByLabel("Date of birth", { exact: true }).fill("1994-06-15");
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
-      await page.getByLabel("Time zone", { exact: true }).selectOption("America/New_York");
       await button(page, "Save").click();
-      await expect(page.getByRole("alert").first()).toBeVisible();
-      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("1200");
-      await expect(page.getByLabel("Date of birth", { exact: true })).toHaveValue("1994-06-15");
-      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
+      await expect(saved("Profile saved")).toHaveCount(1);
+      // Centimetres with kg: the same height, said the other way.
+      await go(page, "/profile/units");
       await choose(page, "preferredUnit", "kg");
-      assert.ok(
-        Math.abs(
-          Number(await page.getByLabel("Body weight (kg)", { exact: true }).inputValue()) - 77.1,
-        ) < 0.1,
-      );
+      await button(page, "Save").click();
+      await expect(saved("Units and time zone saved")).toHaveCount(1);
+      await go(page, "/profile/edit");
       assert.ok(
         Math.abs(
           Number(await page.getByLabel("Height (cm)", { exact: true }).inputValue()) - 177.8,
         ) < 0.1,
       );
+      await go(page, "/profile/units");
       await choose(page, "preferredUnit", "lb");
       await button(page, "Save").click();
-      await expect(page.getByRole("status").filter({ hasText: "Profile saved" })).toHaveCount(1);
-      await reload(page);
-      assert.ok(
-        Math.abs(
-          Number(await page.getByLabel("Body weight (lb)", { exact: true }).inputValue()) - 170,
-        ) < 0.2,
-      );
+      await expect(saved("Units and time zone saved")).toHaveCount(1);
+      // Body weight is a dated reading, logged from Today › Log; an impossible one is refused.
+      await go(page, "/today/log");
+      await page.getByRole("link", { name: "Body weight", exact: true }).click();
+      await page.waitForURL(/\/today\/log\/body-weight$/);
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("1200");
+      await button(page, "Save").click();
+      await expect(page.getByRole("alert").first()).toBeVisible();
+      await expect(page.getByLabel("Body weight (lb)", { exact: true })).toHaveValue("1200");
+      await page.getByLabel("Body weight (lb)", { exact: true }).fill("170");
+      await button(page, "Save").click();
+      // Opened from Log, which has nothing more to do, it lands on the trend that holds it.
+      await page.waitForURL(/\/progress\?view=body$/);
       const [profile] =
-        await sql`select body_weight_kg, height_cm, training_goal from profiles where id = ${account.id}`;
+        await sql`select body_weight_kg, height_cm, training_goal, time_zone, preferred_unit from profiles where id = ${account.id}`;
       assert.ok(Math.abs(Number(profile.body_weight_kg) - 77.11) < 0.05);
       assert.equal(Number(profile.height_cm), 177.8);
       assert.equal(profile.training_goal, "get_stronger");
+      assert.equal(profile.time_zone, "America/New_York");
+      assert.equal(profile.preferred_unit, "lb");
     });
     let gymPath;
     await step("gym-create-edit-and-default", async () => {

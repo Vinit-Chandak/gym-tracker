@@ -132,51 +132,34 @@ for (const config of [
       });
       await visit("/profile/ai-coach", 32);
       await assertReadableText(page.getByRole("heading", { name: "AI coach", level: 1 }));
-      // The page renders AiCoachSettings' hub, not the retired CoachLinks menu.
-      const tabs = page.getByRole("tablist", { name: "AI coach views", exact: true });
-      await expect(tabs.getByRole("tab")).toHaveCount(3);
-      await tabs.scrollIntoViewIfNeeded();
-      await assertReadableText(tabs.locator(".coach-tab-label"));
+      // One page, no tabs (ADR 0060): what waits names each programme and opens its page.
+      await expect(page.getByRole("tab")).toHaveCount(0);
+      await expect(page.getByLabel("Notes for every programme", { exact: true })).toBeVisible();
+      await page.locator("main details").evaluateAll((elements) =>
+        elements.forEach((element) => {
+          element.open = true;
+        }),
+      );
+      await assertReadableText(page.locator("main summary").filter({ hasText: "Your notes" }));
+      const tokens = page.getByRole("link", { name: "Access tokens", exact: true });
+      await expect(tokens).toHaveAttribute("href", "/profile/coach");
+      await assertReadableText(tokens);
+      const width = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        content: document.documentElement.scrollWidth,
+      }));
+      assert.ok(width.content <= width.viewport + 1, `coach: ${JSON.stringify(width)}`);
       await page.screenshot({
         animations: "disabled",
+        fullPage: true,
         path: `${folder}/${config.name}-coach-narrow.png`,
       });
-      for (const [key, name] of [
-        ["requests", /^Requests & changes/],
-        ["notes", "Notes & memory"],
-        ["overview", "Overview"],
-      ]) {
-        const tab = tabs.getByRole("tab", { name });
-        await tab.click();
-        await expect(tab).toHaveAttribute("aria-selected", "true");
-        const panel = page.getByRole("tabpanel");
-        await expect(panel).toHaveCount(1);
-        await expect(panel).toHaveAttribute("id", `coach-panel-${key}`);
-        if (key === "requests") {
-          await assertReadableText(panel.getByRole("heading", { name: "Requests & changes" }));
-          const history = panel.getByRole("link", {
-            name: "Past requests and changes",
-            exact: true,
-          });
-          await expect(history).toHaveAttribute("href", "/plan/history");
-          await assertReadableText(history);
-          await history.scrollIntoViewIfNeeded();
-        } else if (key === "notes") {
-          await assertReadableText(
-            panel.getByRole("heading", { name: "What the coach remembers", exact: true }),
-          );
-        } else {
-          await expect(panel.getByLabel("Notes for the coach", { exact: true })).toBeVisible();
-        }
-        const width = await page.evaluate(() => ({
-          viewport: document.documentElement.clientWidth,
-          content: document.documentElement.scrollWidth,
-        }));
-        assert.ok(width.content <= width.viewport + 1, `${key}: ${JSON.stringify(width)}`);
-        await page.screenshot({
-          animations: "disabled",
-          path: `${folder}/${config.name}-coach-${key}-narrow.png`,
-        });
+      // A programme's past requests and changes are its own page's, filtered to it.
+      await visit("/plan/running", 32);
+      const history = page.getByRole("link", { name: /^Past requests and changes/ });
+      if (await history.count()) {
+        await expect(history).toHaveAttribute("href", "/plan/history?sport=running");
+        await assertReadableText(history);
       }
     });
     await check("programme-narrow-large-text", async () => {

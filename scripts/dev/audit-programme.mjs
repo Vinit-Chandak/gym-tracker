@@ -181,7 +181,7 @@ async function runDevice(device) {
       assert.equal(custom.default_prescription_type, "reps");
     });
     await step("coach-intake-autosave-reload-and-reports", async () => {
-      await go("/profile/programme/create");
+      await go("/plan/new?sport=strength&method=coach");
       if (await button(page, "Set it up in detail").count())
         await button(page, "Set it up in detail").click();
       await field(page, "What are you training for?").selectOption("other");
@@ -198,15 +198,10 @@ async function runDevice(device) {
       await button(page, "Continue").click();
       for (const day of ["Monday", "Wednesday", "Friday"])
         await page
-          .getByRole("group", { name: /^Training days/ })
+          .getByRole("group", { name: /^Days you can train/ })
           .getByRole("button", { name: day, exact: true })
           .click();
       await field(page, "Usual session length (minutes)").fill("50");
-      await expect(
-        page.getByText("Running, cycling and swimming have their own programmes in Training.", {
-          exact: false,
-        }),
-      ).toBeVisible();
       await expect(field(page, "Runs a week")).toHaveCount(0);
       await button(page, "Continue").click();
       await field(page, "How long have you been training?").selectOption("intermediate");
@@ -218,7 +213,7 @@ async function runDevice(device) {
       );
       await field(page, "Leave these out entirely").selectOption("barbell-bench-press");
       await button(page, "Continue").click();
-      await field(page, "If you already lift, what are you lifting?").fill(
+      await field(page, "What you lift now").fill(
         "Squat 65 kg for 8, row 40 kg for 10, RIR 3. Restart after a week away.",
       );
       const contents = Buffer.from(
@@ -278,7 +273,7 @@ async function runDevice(device) {
         /\/plan\/strength(?:\?|$)/,
       );
       await page.waitForURL(/\/plan\/strength$/);
-      await go("/profile/programme/create");
+      await go("/plan/new?sport=strength&method=coach");
       await expect(field(page, "Weight (lb)")).toHaveValue("180");
       const [intake] =
         await sql`select answers from coach_intakes where user_id=${userId} order by revision desc limit 1`;
@@ -327,7 +322,7 @@ async function runDevice(device) {
         );
       }
       for (const target of await page
-        .getByRole("group", { name: /^Training days/ })
+        .getByRole("group", { name: /^Days you can train/ })
         .getByRole("button")
         .all()) {
         const box = await target.boundingBox();
@@ -350,8 +345,8 @@ async function runDevice(device) {
         )
         .toBe(false);
       await enabled.click();
-      await page.waitForURL(/\/training\/programmes\/new$/);
-      await expect(page.getByRole("heading", { name: "Add programme", exact: true })).toBeVisible();
+      await page.waitForURL(/\/plan\/new$/);
+      await expect(page.getByRole("heading", { name: "New programme", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Strength", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Running", exact: true })).toBeVisible();
       assert.equal(
@@ -407,7 +402,7 @@ async function runDevice(device) {
           ),
         ]);
         await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeDisabled();
-        await field(page, "Notes for the coach").fill(note);
+        await field(page, "Notes for every programme").fill(note);
       } finally {
         releaseSwitch();
         // The held answer is given before the route goes: stopping interception first would let
@@ -424,15 +419,15 @@ async function runDevice(device) {
         .toBe(true);
       await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
       await settle();
-      await expect(field(page, "Notes for the coach")).toHaveValue(note);
-      await button(page, "Send note").click();
+      await expect(field(page, "Notes for every programme")).toHaveValue(note);
+      await button(page, "Send").click();
       await expect
         .poll(async () =>
           (await sql`select text from coach_notes where user_id=${userId}`).map((row) => row.text),
         )
         .toContain(note);
       await go("/profile/ai-coach");
-      await page.getByRole("tab", { name: "Notes & memory", exact: true }).click();
+      await page.locator("summary").filter({ hasText: "Your notes" }).click();
       await expect(page.getByText(note, { exact: true })).toBeVisible();
       await go("/profile/coach");
       await field(page, "Name").fill("Local audit read access");
@@ -458,10 +453,10 @@ async function runDevice(device) {
     await step("running-intake-saves-separately-and-reloads", async () => {
       const [strengthBefore] =
         await sql`select id,revision,answers from coach_intakes where user_id=${userId} and sport='strength' order by revision desc limit 1`;
-      await go("/training/programmes/new");
+      await go("/plan/new");
       await page.getByRole("link", { name: "Running", exact: true }).click();
-      await page.waitForURL(/\/training\/programmes\/new\?sport=running&scope=programme$/);
-      await page.getByRole("link", { name: "Create with the coach", exact: true }).click();
+      await page.waitForURL(/\/plan\/new\?sport=running$/);
+      await page.getByRole("link", { name: /^With the coach/ }).click();
       await page.waitForURL(/method=coach$/);
       const goal = "Build one steady easy run a week alongside my lifting programme.";
       await field(page, "What are you training for?").fill(goal);
@@ -498,7 +493,7 @@ async function runDevice(device) {
         strengthBefore,
         "Running setup must not replace lifting answers",
       );
-      await go("/training/programmes/new?sport=running&scope=programme&method=coach");
+      await go("/plan/new?sport=running&method=coach");
       await expect(field(page, "What are you training for?")).toHaveValue(goal);
       await expect(field(page, "Sessions a week")).toHaveValue("1");
       await expect(field(page, "Minutes per session")).toHaveValue("30");
