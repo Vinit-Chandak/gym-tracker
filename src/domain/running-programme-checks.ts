@@ -54,9 +54,12 @@ export function runningProgrammeIssues(
   });
 
   if (answers.runsPerWeek !== null) {
+    // Counted by the week each run falls in, as the athlete meets it, whatever its weekIndex.
     const perWeek = new Map<number, number>();
-    for (const session of sessions)
-      perWeek.set(session.weekIndex, (perWeek.get(session.weekIndex) ?? 0) + 1);
+    for (const session of sessions) {
+      const week = Math.floor(session.dayOffset / 7) + 1;
+      perWeek.set(week, (perWeek.get(week) ?? 0) + 1);
+    }
     for (const [week, count] of [...perWeek].sort(([a], [b]) => a - b))
       if (count > answers.runsPerWeek)
         issues.push(

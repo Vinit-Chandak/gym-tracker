@@ -24,9 +24,28 @@ How the app applies it:
   (a race with distance and date, or a goal without one), one recent race or time trial, weekly
   distance and longest recent run, runs a week, run days, long-run day and its time, places and
   terrain.
-- **Sessions** carry a run type and are written as steps (warm-up, work and recovery as one
-  repeat block, cool-down), each measured by distance or by time, with pace and zone targets.
+- **Sessions** carry a run type and are written as steps (a warm-up, the work as steps and
+  repeat blocks, a cool-down), each measured by distance or by time, with pace and zone targets.
 - **Logged runs** carry their kind and their laps, as a watch lists them.
+
+**App conventions added after the first coach runs** (served text version 2026-10-20.2). Two
+coached test plans, a first marathon from about 8 km a week and a 200 m sprint block, followed
+the served text and showed where it was silent or read two ways. These rules settle that; they
+are this app's conventions, not findings, and the served text tags them so:
+
+- Week one starts at about the logged recent weekly distance; where the athlete reports more
+  than the logs hold, no higher than halfway between, and where the logs are thin (under two runs
+  a week), at the athlete's figure. Runs a week is a maximum, not a quota.
+- The single-run step (no run more than 10% beyond the longest of the last 30 days, §5) outranks
+  the marathon long-run peak (§3). A first marathon on low volume may run a long run of 40–50% of
+  its week, and where the step leaves the last long run short of about 28 km three weeks out, the
+  plan says so and offers a later race, a run-walk race or a half marathon first.
+- A goal faster than the evidence trains at the evidence's paces (§8); goal pace enters race-pace
+  work once a race or time trial in the block shows it is in reach. The confirmed goal stands.
+- A recent effort the intake filled in from a logged run is read with that run's reported
+  effort: below all-out, it is a floor, as every logged best effort is.
+- Sprint goals are written from §4's components. Recovery tempo runs are this app's easy runs,
+  not its tempo (threshold) runs; a sprint time trial is the goal distance, or 30–60 m, timed.
 
 ---
 

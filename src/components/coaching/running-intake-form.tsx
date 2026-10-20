@@ -424,7 +424,12 @@ export function RunningIntakeForm({
             <Field
               label="A recent race or time trial"
               aside="Optional"
-              hint={fromLogs(snapshot.effort !== null && draft.effortDistance !== "")}
+              hint={
+                snapshot.effort !== null && draft.effortDistance !== "" && initial === null
+                  ? // A logged run is not a race: the coach reads it as a floor unless it was all-out.
+                    "Your fastest recent run from your logs. A race or an all-out time trial is better, if you have one."
+                  : undefined
+              }
             >
               <Select
                 value={draft.effortDistance}

@@ -104,6 +104,22 @@ describe("a coach's running programme, checked against the athlete's answers", (
     ]);
   });
 
+  it("counts a week's runs by the dates they fall on, not the weekIndex they were given", () => {
+    const block = plan(
+      [
+        { day: 1, name: "Easy", prescription: easy() },
+        { day: 3, name: "Easy", prescription: easy() },
+        { day: 5, name: "Easy", prescription: easy() },
+      ],
+      { startsOn: "2026-11-02" },
+    );
+    // A mistyped weekIndex does not hide the third run of the week from the count.
+    block.enduranceSessions![2]!.weekIndex = 2;
+    expect(runningProgrammeIssues(block, { goal: null, runsPerWeek: 2, runDays: [] })).toEqual([
+      "Week 1 has 3 runs; the athlete confirmed 2 a week.",
+    ]);
+  });
+
   it("asks for startsOn when days or a race have to be counted from it", () => {
     const block = plan([{ day: 0, name: "Easy", prescription: easy() }]);
     expect(

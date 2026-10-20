@@ -21,6 +21,8 @@ export type LoggedRun = {
   durationMs: number;
   runType: RunType | null;
   environment: string;
+  /** The effort the athlete reported, out of five; null when they did not say. */
+  effort: number | null;
 };
 
 export type RunningWeek = {
@@ -90,6 +92,8 @@ export type BestEffort = {
   seconds: number;
   on: string;
   sourceId: string;
+  /** The run's reported effort: a 5 was all-out, anything less makes the time a floor. */
+  effort: number | null;
 };
 
 /**
@@ -116,6 +120,7 @@ export function bestEfforts(runs: readonly LoggedRun[]): BestEffort[] {
       seconds: Math.round((fastest.durationMs / 1000) * (standard.metres / fastest.distanceMetres)),
       on: fastest.occurredOn,
       sourceId: `activity:${fastest.id}`,
+      effort: fastest.effort,
     });
   }
   return efforts;

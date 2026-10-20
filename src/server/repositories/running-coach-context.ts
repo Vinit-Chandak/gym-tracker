@@ -45,6 +45,8 @@ async function loggedRuns(db: DbOrTx, userId: string, from: string, to: string) 
       distanceMetres: runningActivityDetails.distanceMetres,
       runType: runningActivityDetails.runType,
       environment: runningActivityDetails.environment,
+      effortValue: activities.effortValue,
+      effortStatus: activities.effortStatus,
     })
     .from(activities)
     .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
@@ -64,7 +66,24 @@ async function loggedRuns(db: DbOrTx, userId: string, from: string, to: string) 
     distanceMetres: row.distanceMetres,
     runType: row.runType,
     environment: row.environment,
+    effort: row.effortStatus === "reported" ? row.effortValue : null,
   }));
+}
+
+/** An older programme's runs by weekday: how many of its weeks run there, and for how long. */
+function legacyRuns(runs: ProgramBlueprint["runs"]) {
+  const byDay = new Map<number, ProgramBlueprint["runs"]>();
+  for (const run of runs) byDay.set(run.dayOfWeek, [...(byDay.get(run.dayOfWeek) ?? []), run]);
+  return [...byDay]
+    .sort(([a], [b]) => a - b)
+    .map(([day, entries]) => ({
+      weekday: WEEKDAY_NAMES[day - 1],
+      weeks: entries.length,
+      minutes: [
+        Math.min(...entries.map((run) => run.duration[0])),
+        Math.max(...entries.map((run) => run.duration[1])),
+      ],
+    }));
 }
 
 /** Which weekdays each other programme loads the legs, read from its days' exercises. */
@@ -96,6 +115,8 @@ async function otherProgrammes(
         sport,
         name: plan.name,
         repeats: plan.repeats ?? null,
+        // An older combined programme's own runs, which the running programme takes over.
+        ...(plan.runs.length > 0 ? { runs: legacyRuns(plan.runs) } : {}),
         days: plan.days
           .filter((day) => day.includesLifting)
           .map((day) => {
@@ -139,7 +160,7 @@ export async function runningCoachContext(
   const resolved = heartRate.resolved;
   return {
     meaning:
-      "This runner's own running, read from their logged runs and confirmed answers. weeks are calendar weeks, Monday first, newest first; the first is this week, still being run. recentWeeklyKm averages the four complete weeks before it. bestEfforts are whole logged runs at least the distance and at most 5% more, scaled to it: a floor on fitness, not race results. predictions use Riegel's exponent; a marathon prediction from a short distance is best-case. heartRate.basis 'estimated' is an age formula about ten beats either way. otherProgrammes are context: legLoad heavy means eight or more leg sets that day.",
+      "This runner's own running, read from their logged runs and confirmed answers. weeks are calendar weeks, Monday first, newest first; the first is this week, still being run. recentWeeklyKm averages the four complete weeks before it. bestEfforts are whole logged runs at least the distance and at most 5% more, scaled to it: a floor on fitness, not race results. predictions use Riegel's exponent; a marathon prediction from a short distance is best-case. bestEfforts carry the effort the athlete reported for that run: 5 was all-out, anything less makes the time a floor. heartRate.basis 'estimated' is an age formula about ten beats either way. otherProgrammes are context: legLoad heavy means eight or more leg sets that day; runs are an older combined programme's own, withdrawn from the day this running programme starts, so leave them out of it.",
     today,
     weekday: WEEKDAY_NAMES[(new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7],
     goal: goal

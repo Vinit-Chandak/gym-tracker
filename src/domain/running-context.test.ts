@@ -24,13 +24,14 @@ const run = (
   durationMs: minutes * 60_000,
   runType: null,
   environment: "outdoor",
+  effort: null,
   ...overrides,
 });
 
 const runs = [
   run("a", "2026-10-19", 8, 48, { runType: "easy" }),
   run("b", "2026-10-17", 16, 100, { runType: "long" }),
-  run("c", "2026-10-14", 5.1, 24, { runType: "time_trial" }),
+  run("c", "2026-10-14", 5.1, 24, { runType: "time_trial", effort: 5 }),
   run("d", "2026-10-06", 10.2, 55, { environment: "treadmill" }),
 ];
 
@@ -63,8 +64,23 @@ describe("best efforts and what they predict", () => {
   it("takes the fastest whole run at each distance, scaled to the exact distance", () => {
     expect(bestEfforts(runs)).toEqual([
       // 5.1 km in 24:00 is 4:42/km: 23:32 for 5 km.
-      { label: "5K", metres: 5000, seconds: 1412, on: "2026-10-14", sourceId: "activity:c" },
-      { label: "10K", metres: 10000, seconds: 3235, on: "2026-10-06", sourceId: "activity:d" },
+      // Each with what the athlete said of it: the time trial was all-out, the 10K unsaid.
+      {
+        label: "5K",
+        metres: 5000,
+        seconds: 1412,
+        on: "2026-10-14",
+        sourceId: "activity:c",
+        effort: 5,
+      },
+      {
+        label: "10K",
+        metres: 10000,
+        seconds: 3235,
+        on: "2026-10-06",
+        sourceId: "activity:d",
+        effort: null,
+      },
     ]);
   });
 
