@@ -588,13 +588,17 @@ saved routine's may be, is "Workout" there ("Back to the workout") and whole as 
 stand: figures, states, labels, choices, errors and the one action. No sentence on a screen
 explains how the app, the coach or a plan works, says what will happen when it is obvious, or
 repeats what a figure already says. What someone may still want to know is a tap away: a sentence
-or two in one ⓘ beside the label or heading it explains, a longer passage behind a fold whose
-summary names it, closed. A field's help is its ⓘ, and so is a row stepper's. The line under a
-field or a stepper row is kept for its error, or for what its value comes to or needs right now
-(Checking…, Available, Pace 6:46 /km, Last 75.2 kg, what saving it will replace), never for help.
-A rule a value must meet (a length, the characters allowed) is checked as it is typed and said
-under the field only while it is broken, its full wording in the ⓘ; a placeholder may show an
-example of what to type, never the rule. Where a label can carry the question, it does. An empty
+or two (about 140 characters at most) in one ⓘ beside the label or heading it explains, a longer
+passage behind a fold whose summary names it, closed. An ⓘ sits beside the words it explains,
+never inside a heading, a label, a summary or a line that updates itself. A field's help is its
+ⓘ, and so is a row stepper's. The line under a field or a stepper row is kept for its error, or
+for what its value comes to or needs right now (Checking…, Available, Pace 6:46 /km, Last 75.2 kg,
+what saving it will replace), never for help. Never behind an ⓘ, because a screen reader must not
+have to open one to finish the task (WCAG 3.3.2): a label, a unit, Optional, an error, a status,
+what a blank will do, and a rule a value must meet to be saved (a format, a length, a size, a
+range), which is said before typing, in the label when a few words do it ("Goal time, h:mm:ss")
+or on the line under the field, and checked once the field is left. A placeholder is an example,
+never the rule. Where a label can carry the question, it does. An empty
 state is one short line and its action. Consequences that cannot be undone (deleting, ending,
 discarding) are said, once and briefly, where the action is (owner, 20 October 2026). This
 replaces ADR 0014's one short hint under a field.
@@ -1082,6 +1086,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - Closed, unless it holds an error to fix, the week under way or the day in progress.
 - A list of folds (weeks, days, steps) is ruled `inline` rows inside one section, never a stack of
   boxes; `box` is for a fold standing alone on a page.
+- The summary is the fold's name and holds words only (no heading, link or control); it says what
+  is inside, never only a value, and what stands at its end is read with it. A fold that is a
+  section of the page is a heading with a button, as Today's cards are.
+- A fold that holds a field opens itself when the field is refused, by the server or by the
+  browser's own check, and the field takes the focus.
 - A fold holds more than one thing: a single action stands as itself ("Duplicate programme"),
   never alone behind More options.
 - Inside a card the note is a passage of the card, not a box: no surface, the caption and the
@@ -1123,8 +1132,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
-  value comes to, in caption. A placeholder may give an example; a rule is checked as it is typed
-  (The Need-to-Know Rule). Optional is the label's aside, never the line under it, and inside a
+  value comes to, in caption. A placeholder is an example that could not be taken for an answer;
+  a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
+  the label's aside, read with the field, never the line under it, and inside a
   fold that holds only optional fields no field says it. Effort is dressed as the check-in's
   scales are, its ends named under 1 and 5, with no sentence under the tray. A search field leads
   with the glyph.

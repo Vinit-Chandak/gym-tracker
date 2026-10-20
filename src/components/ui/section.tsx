@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { InfoTip } from "./info-tip";
+import { aboutLabel, InfoTip } from "./info-tip";
 
 /**
  * A section's name above its box or list, in the Caption every section's name takes (DESIGN.md,
@@ -27,10 +27,11 @@ export function Section({
   return (
     <section className={cn("min-w-0", className)}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1.5">
-        <h2 className="caption-head flex items-center gap-1">
-          {title}
-          {info && <InfoTip label={`About ${title.toLowerCase()}`}>{info}</InfoTip>}
-        </h2>
+        {/* The ⓘ stands beside the heading, never in it, so the heading reads as its name. */}
+        <div className="flex items-center gap-1">
+          <h2 className="caption-head">{title}</h2>
+          {info && <InfoTip label={aboutLabel(title)}>{info}</InfoTip>}
+        </div>
         {action}
       </div>
       <div className="min-w-0 space-y-3">{children}</div>

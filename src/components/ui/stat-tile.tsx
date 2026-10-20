@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Figures } from "@/components/ui/figures";
-import { InfoTip } from "@/components/ui/info-tip";
+import { aboutLabel, InfoTip } from "@/components/ui/info-tip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,7 +45,7 @@ export function StatTile({
         {/* A label longer than any the row was sized for wraps rather than running on. */}
         <span className="min-w-0 [overflow-wrap:break-word]">{label}</span>
         {info && (
-          <InfoTip label={`About ${label}`} className="-my-2">
+          <InfoTip label={aboutLabel(label)} className="-my-2">
             {info}
           </InfoTip>
         )}

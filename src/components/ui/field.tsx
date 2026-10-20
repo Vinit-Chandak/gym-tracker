@@ -2,7 +2,7 @@
 
 import { Children, cloneElement, isValidElement, useId, type ReactNode } from "react";
 
-import { InfoTip } from "./info-tip";
+import { aboutLabel, InfoTip } from "./info-tip";
 
 type ControlProps = {
   id?: string;
@@ -60,8 +60,11 @@ export function Field({
     generatedId;
   const labelId = `${controlId}-label`;
   const feedbackId = `${controlId}-feedback`;
+  const asideId = `${controlId}-aside`;
+  // The label never shrinks below its longest word: at large text on a narrow phone its ⓘ and
+  // aside fold under it, and it wraps between words ("Longest run") rather than inside one.
   const text = (
-    <span id={labelId} className="min-w-0 [overflow-wrap:break-word]">
+    <span id={labelId} className="max-w-full [overflow-wrap:break-word]">
       {label}
     </span>
   );
@@ -72,19 +75,23 @@ export function Field({
         className={
           labelHidden
             ? "sr-only"
-            : "flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+            : "flex flex-wrap items-center gap-x-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink"
         }
       >
         {group ? (
           text
         ) : (
-          <label htmlFor={controlId} className="min-w-0">
+          <label htmlFor={controlId} className="max-w-full">
             {text}
           </label>
         )}
-        {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
+        {info && <InfoTip label={aboutLabel(label)}>{info}</InfoTip>}
+        {/* Read with the field ("Optional", a unit), not left for the eye alone. */}
         {aside && (
-          <span className="ml-auto shrink-0 text-[length:var(--ov-type-meta-small)] font-medium text-ink-2">
+          <span
+            id={asideId}
+            className="ml-auto shrink-0 text-[length:var(--ov-type-meta-small)] font-medium text-ink-2"
+          >
             {aside}
           </span>
         )}
@@ -99,7 +106,11 @@ export function Field({
           "aria-invalid": error ? true : child.props["aria-invalid"],
           "aria-labelledby": group ? labelId : child.props["aria-labelledby"],
           "aria-describedby":
-            [child.props["aria-describedby"], error || hint ? feedbackId : undefined]
+            [
+              child.props["aria-describedby"],
+              aside ? asideId : undefined,
+              error || hint ? feedbackId : undefined,
+            ]
               .filter(Boolean)
               .join(" ") || undefined,
         });

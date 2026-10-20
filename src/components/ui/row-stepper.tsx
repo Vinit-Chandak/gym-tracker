@@ -7,7 +7,7 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { FigureInput } from "./figure-input";
 import { emWidth, onRamp } from "./fit";
 import { Glyph } from "./glyphs";
-import { InfoTip } from "./info-tip";
+import { aboutLabel, InfoTip } from "./info-tip";
 
 /**
  * A step from `current` in `direction`, on the steps from zero, a typed figure between two of
@@ -205,7 +205,7 @@ export function RowStepper({
             <label htmlFor={id} className="min-w-0 font-bold [overflow-wrap:break-word]">
               {label}
             </label>
-            <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>
+            <InfoTip label={aboutLabel(label)}>{info}</InfoTip>
           </span>
         ) : (
           <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">

@@ -88,3 +88,18 @@ it("keeps a field's insets at their points as the text grows, so the room goes t
     "pr-[calc(20*var(--ov-u)+var(--ov-icon-control))]",
   );
 });
+
+it("reads a field's aside with it, and names its tip after the label", () => {
+  render(
+    <Field label="Max HR" aside="Optional" info="Your highest heart rate in a hard effort.">
+      <Input />
+    </Field>,
+  );
+  const input = screen.getByRole("textbox", { name: "Max HR" });
+  // "Optional" is said with the field, not left for the eye alone (WCAG 1.3.1).
+  const described = (input.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent);
+  expect(described).toContain("Optional");
+  expect(screen.getByRole("button", { name: "About max HR" })).toBeTruthy();
+});

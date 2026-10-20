@@ -2,7 +2,6 @@
 
 import { Info } from "@/components/ui/icons";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -32,27 +31,51 @@ export function placeNote(
   return { left: left - buttonLeft, width };
 }
 
+/** Whether the browser can show an element in the top layer (Safari 17, Chrome 114 and later). */
+function hasTopLayer(): boolean {
+  return (
+    typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.showPopover === "function"
+  );
+}
+
+/**
+ * "About weekly distance", "About max HR", "About RIR": the label in its own case, its first
+ * letter lowered unless it starts an initialism, so a tip's name reads as a phrase without
+ * flattening an abbreviation.
+ */
+export function aboutLabel(label: string): string {
+  const phrase = /^\p{Lu}{2}/u.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+  return `About ${phrase}`;
+}
+
 /**
  * Where a short explanation lives, a sentence or two: a small circled "i" that opens a note in
  * place. A longer passage is a `Disclosure`, closed; nothing on a screen explains itself in
  * running text (DESIGN.md, The Need-to-Know Rule).
  *
- * The note stays inside the visual viewport and grows with the reader's text size. It is
- * portalled outside scrolling cards; inside a modal it stays in that dialog so it remains
- * interactive while the rest of the page is inert. No layout is measured while closed.
+ * The note is the button's next sibling, so a screen reader meets the button, then the note, then
+ * what follows, and opening it leaves focus on the button, which says it is expanded. Where the
+ * browser has a top layer the note is shown there as a popover, above a scrolling card's clip and
+ * a sheet while staying in place in the page; elsewhere it is drawn fixed in place. It stays
+ * inside the visual viewport and grows with the reader's text size, and it closes on the button,
+ * Escape, a tap elsewhere or focus moving to another control. No layout is measured while closed.
  */
 export function InfoTip({ label, children, className }: InfoTipProps) {
   const id = useId();
   const root = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const note = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState<HTMLElement | null>(null);
+  // A note longer than the screen allows scrolls, and is then a Tab stop of its own.
+  const [scrolls, setScrolls] = useState(false);
 
   useLayoutEffect(() => {
     if (!open) return;
+    const bubble = note.current;
+    if (bubble && typeof bubble.showPopover === "function" && !bubble.matches(":popover-open"))
+      bubble.showPopover();
     const reposition = () => {
       const anchor = root.current;
-      const bubble = note.current;
       if (!anchor || !bubble) return;
       const viewport = window.visualViewport;
       const width = viewport?.width ?? window.innerWidth;
@@ -71,13 +94,11 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
       const lastTop = viewportTop + height - EDGE - noteHeight;
       const top = below <= lastTop ? below : above >= viewportTop + EDGE ? above : lastTop;
       bubble.style.top = `${Math.max(viewportTop + EDGE, Math.min(top, lastTop))}px`;
+      setScrolls(bubble.scrollHeight > bubble.clientHeight + 1);
     };
     reposition();
-    // Long notes can scroll with a keyboard as well as touch. Escape returns focus
-    // to their explanation button instead of leaving it on the document body.
-    note.current?.focus({ preventScroll: true });
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(reposition);
-    if (note.current) observer?.observe(note.current);
+    if (bubble) observer?.observe(bubble);
     window.addEventListener("resize", reposition);
     document.addEventListener("scroll", reposition, true);
     window.visualViewport?.addEventListener("resize", reposition);
@@ -94,11 +115,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (
-        !root.current?.contains(event.target as Node) &&
-        !note.current?.contains(event.target as Node)
-      )
-        setOpen(false);
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -106,36 +123,39 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         event.preventDefault();
         event.stopPropagation();
         setOpen(false);
-        root.current?.querySelector("button")?.focus({ preventScroll: true });
+        button.current?.focus({ preventScroll: true });
       }
     };
     const close = () => setOpen(false);
+    // A note inside a sheet goes when the sheet does.
+    const dialog = root.current?.closest("dialog");
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
-    target?.addEventListener("close", close);
+    dialog?.addEventListener("close", close);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
-      target?.removeEventListener("close", close);
+      dialog?.removeEventListener("close", close);
     };
-  }, [open, target]);
-
-  const toggle = () => {
-    if (!open && root.current) {
-      setTarget(root.current.closest("dialog") ?? document.body);
-    }
-    setOpen((current) => !current);
-  };
+  }, [open]);
 
   return (
-    <span ref={root} className={cn("relative inline-flex shrink-0 align-middle", className)}>
+    <span
+      ref={root}
+      className={cn("relative inline-flex shrink-0 align-middle", className)}
+      onBlur={(event) => {
+        // Focus moving to another control closes the note, so it never covers what has focus.
+        const next = event.relatedTarget as Node | null;
+        if (open && next && !root.current?.contains(next)) setOpen(false);
+      }}
+    >
       <button
+        ref={button}
         type="button"
         aria-label={label}
         aria-expanded={open}
         aria-controls={id}
-        aria-describedby={open ? id : undefined}
-        onClick={toggle}
+        onClick={() => setOpen((current) => !current)}
         className={cn(
           "-m-1.5 flex size-[var(--ov-target)] items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
           open && "text-accent",
@@ -144,20 +164,18 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         <Info aria-hidden />
       </button>
       {/* Rendered only while open: a closed tip costs the page nothing but its button. */}
-      {open &&
-        target &&
-        createPortal(
-          <span
-            ref={note}
-            id={id}
-            role="note"
-            tabIndex={0}
-            className="fixed z-[var(--ov-z-notice)] overflow-y-auto overscroll-contain rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal [overflow-wrap:break-word] text-ink normal-case shadow-sm"
-          >
-            {children}
-          </span>,
-          target,
-        )}
+      {open && (
+        <span
+          ref={note}
+          id={id}
+          role="note"
+          popover={hasTopLayer() ? "manual" : undefined}
+          tabIndex={scrolls ? 0 : -1}
+          className="fixed inset-auto z-[var(--ov-z-notice)] m-0 overflow-y-auto overscroll-contain rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal [overflow-wrap:break-word] text-ink normal-case shadow-sm outline-offset-2"
+        >
+          {children}
+        </span>
+      )}
     </span>
   );
 }

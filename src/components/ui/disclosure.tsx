@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "@/components/ui/icons";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,17 @@ export function Disclosure({
   children,
 }: DisclosureProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const details = useRef<HTMLDetailsElement>(null);
+  // A required field folded away that fails the browser's own check opens its fold, so the
+  // browser can point at it: Save never does nothing in silence. `invalid` does not bubble, so
+  // it is heard on its way down.
+  useEffect(() => {
+    const element = details.current;
+    if (!element) return;
+    const reveal = () => setOpen(true);
+    element.addEventListener("invalid", reveal, true);
+    return () => element.removeEventListener("invalid", reveal, true);
+  }, []);
   // Adjusting state during render, rather than in an effect: the section must already be
   // open on the render that first reports the error, not one paint later.
   const [wasRequested, setWasRequested] = useState(defaultOpen);
@@ -51,6 +62,7 @@ export function Disclosure({
 
   return (
     <details
+      ref={details}
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
       className={cn(
@@ -89,6 +101,8 @@ export function Disclosure({
         </span>
         {meta && (
           <span className="ml-auto max-w-full text-xs [overflow-wrap:break-word] text-ink-muted tabular-nums">
+            {/* Read after a pause, not run into the summary's last word. */}
+            <span className="sr-only">, </span>
             {meta}
           </span>
         )}

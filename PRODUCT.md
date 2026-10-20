@@ -244,7 +244,10 @@ Checked against the decisions above and the owner's notes (2 October 2026):
    `DESIGN.md`, The Need-to-Know Rule). Added from the owner's notes on the Form v2 canvas. The
    [Information map](#information-map) lists each fact's home; elsewhere it is a link by name
    ([ADR 0058](docs/decisions/0058-today-and-plan.md)). Where another rule here, in `DESIGN.md`
-   or in the feature inventory asks a screen to show more, this principle wins.
+   or in the feature inventory asks a screen to show more, this principle wins, except for what
+   accessibility needs on the screen itself: a control's label, a rule or format a value must
+   meet, an error and its fix, a change of status and a consequence that cannot be undone. Those
+   are not explanations, and they stay.
 
 ## Accessibility & Inclusion
 
@@ -252,5 +255,8 @@ Checked against the decisions above and the owner's notes (2 October 2026):
   "Skip to content" link ([the shell](docs/ui-redesign/revamp/features.md#everywhere-the-shell)).
 - Tap targets and editable text never shrink to fit a layout.
 - Reduced motion is honoured; `DESIGN.md` sets how.
+- An ⓘ is a button beside the words it explains: opening it keeps focus where it is, and its note
+  is read next. A fold is a `Disclosure` named for what it holds. Neither covers what it explains
+  at 320 px and 200% text.
 - The audit scripts run axe. _Undecided:_ whether a named standard, such as WCAG 2.2 AA, is
   required.
