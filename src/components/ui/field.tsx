@@ -17,6 +17,11 @@ type FieldProps = {
   label: string;
   children: ReactNode;
   error?: string;
+  /**
+   * The line under the field, kept for what its value comes to or needs right now ("Checking…",
+   * "135 g at 75.2 kg", what saving it will replace), never for help: help is `info`, and
+   * "Optional" is `aside` (DESIGN.md, The Need-to-Know Rule).
+   */
   hint?: string;
   /** Several choices share a label; each radio keeps its own label. */
   group?: boolean;

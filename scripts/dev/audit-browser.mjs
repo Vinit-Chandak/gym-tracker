@@ -248,7 +248,10 @@ for (const config of configurations.filter((c) =>
     try {
       await freshPage();
       const started = performance.now();
-      const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
+      // A page whose row links prefetch (Log's planned workouts) can keep a request open in
+      // Chromium long after it is usable: wait for quiet, then settle for the loaded page.
+      const response = await page.goto(route, { waitUntil: "load", timeout: 30_000 });
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       // A streamed redirect can briefly reach network-idle while only its shell is visible.
       // Wait for the promised destination and real page content before judging that screen.
       await page.waitForURL(arrived, { timeout: 15_000 });

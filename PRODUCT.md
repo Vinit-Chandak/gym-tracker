@@ -87,7 +87,8 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
   This is an online PWA: private pages and submissions need a connection, while unsent drafts
   stay on the device for recovery. Private pages are not cached by the service worker.
 - The coach plans daily at 04:00 and on request (three requests a day), and writes summaries,
-  notes, warnings and questions that the app shows as text.
+  notes, warnings and questions that the app shows in the coach's note: two lines, then More.
+  How the coach works is never said on a screen.
 - Each account sets its units (kilograms and centimetres, or pounds and feet) and its time zone.
 
 ## Capabilities and Constraints

@@ -8,11 +8,7 @@ afterEach(cleanup);
 
 it("names a section in the caption every section's name takes, at the gutter (DESIGN.md)", () => {
   const { container } = render(
-    <Section
-      title="Friends' leaderboard"
-      info="Who lifted most."
-      description="Your friends who share their training."
-    >
+    <Section title="Friends' leaderboard" info="Who lifted most.">
       <p>Kenji</p>
     </Section>,
   );
@@ -22,8 +18,8 @@ it("names a section in the caption every section's name takes, at the gutter (DE
   expect(name.className).toContain("caption-head");
   expect(name.className).not.toMatch(/uppercase|tracking-|font-medium|text-xs/);
   expect(name.textContent).toBe("Friends' leaderboard");
-  // The name and the note under it stand on the edge of the box and the names under them, not
-  // a quarter rem in (The One Left Edge Rule).
+  // The name stands on the edge of the box and the names under it, not a quarter rem in (The
+  // One Left Edge Rule), and nothing explains the section under it: that is its ⓘ.
   expect(container.innerHTML).not.toMatch(/\bpx-1\b/);
-  expect(screen.getByText("Your friends who share their training.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "About friends' leaderboard" })).toBeTruthy();
 });

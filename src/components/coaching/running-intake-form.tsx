@@ -417,7 +417,7 @@ export function RunningIntakeForm({
 
       <Section
         title="Your fitness now"
-        description="A recent race or all-out time trial sets every pace in the plan. Without one, the coach plans by effort and adds a time trial."
+        info="A recent race or all-out time trial sets your paces. Without one, the coach plans by effort and adds a time trial."
       >
         <Card>
           <div className="adaptive-grid">

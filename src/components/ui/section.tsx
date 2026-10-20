@@ -14,7 +14,6 @@ export function Section({
   title,
   action,
   info,
-  description,
   className,
   children,
 }: {
@@ -22,7 +21,6 @@ export function Section({
   action?: ReactNode;
   /** An explanation of the section, kept behind a tip beside the label rather than under it. */
   info?: ReactNode;
-  description?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -35,7 +33,6 @@ export function Section({
         </h2>
         {action}
       </div>
-      {description && <p className="pb-2 text-sm text-ink-muted">{description}</p>}
       <div className="min-w-0 space-y-3">{children}</div>
     </section>
   );

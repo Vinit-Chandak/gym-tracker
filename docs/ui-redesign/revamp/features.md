@@ -5,7 +5,9 @@ What the four anchor screens of the revamp do today, read from the code on 30 Se
 Log added, from the code on 20 October 2026 (ADR 0058). It describes **what** each screen
 shows and does, never how it looks. A redesign may move, regroup, rename or put behind one tap
 anything below; it may not drop it. Where this page and the code disagree, the code wins and
-this page is corrected.
+this page is corrected. Quoted wording is the app's when it was read: a sentence that explains
+how the app, the coach or a plan works is not a feature to keep on a screen, and moves into an ⓘ
+or a fold, or goes (`DESIGN.md`, The Need-to-Know Rule).
 
 Each section lists the information shown, the actions, the states a design must cover, what
 must survive any redesign, and sample content from the repository for mockups. The sample
@@ -17,6 +19,8 @@ them are illustrative.
 
 Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
 
+- **Explanations** are a tap away, in an ⓘ or a fold, never running text on a screen. A feature
+  moved behind a tap is still listed here, and still counts as present.
 - **Five destinations:** Today, Plan, Food, Progress, Profile. Workout screens count as
   Today unless opened from elsewhere (Plan, History, the programme, a shared link). Logging a
   run, ride or swim counts as Today; a planned session's page, a programme day's page and the
@@ -76,9 +80,9 @@ to and what comes next are Plan's, and logging anything else is Log's (ADR 0058)
     ("30 minutes", "5 km", "6 × 400 m"), a scheduled time if set, "Prepared by the coach" when
     it did, and how to do it one tap away. A day that only runs names its run card for the day
     ("Tempo run", its focus "Threshold").
-- **The coach's status**, when the coach is on: preparing (the screen updates itself), could not
-  finish, has not prepared it yet, prepared it for a different gym, or fell back to the programme's
-  own targets.
+- **The coach's status**, when the coach is on, one line each: preparing (Today refreshes by
+  itself, and says nothing of it), could not finish, has not prepared it yet, prepared it for a
+  different gym, or fell back to the programme's own targets.
 - **Done:** a row for each session finished today, whatever planned it, with what it came to
   ("5 km", "48 min") and "Unplanned" when it answered nothing planned; each opens its record. A
   run, ride or swim skipped today is a row too, Skipped, that opens its page, and a rest day
@@ -170,8 +174,8 @@ counts as Saturday's, logged on Tuesday. It replaced Choose a day and Training's
     would get ("Next in your programme", "This cycle", "Skipped this cycle",
     "Done this cycle; trains it again", "Cycle 2").
 - **When**, under what it counts as ("Counts as {session}", or "Unplanned"): for a run, ride or
-  swim, the date it was done, today or earlier ("Planned for {date}." under a missed session),
-  then its form; for a workout, the gym and Start workout, or Done earlier with the date and the
+  swim, the date it was done, today or earlier (the header's Counts as line names the session
+  and its date), then its form; for a workout, the gym and Start workout, or Done earlier with the date and the
   time it started.
 - **A workout already open:** "Finish or discard your open workout first.", with Resume.
 - **No gym:** a workout asks for one first (Add your first gym).
@@ -559,7 +563,6 @@ error; offline.
   counts a day with nothing logged.
 - Every chart keeps a table of its values, the body map keeps its table, and colour never
   carries meaning alone.
-- Explanations live in help notes one tap away, not in running text.
 - Deleting an activity always asks for confirmation.
 
 ### Sample content

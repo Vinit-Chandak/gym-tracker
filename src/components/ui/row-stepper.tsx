@@ -7,6 +7,7 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { FigureInput } from "./figure-input";
 import { emWidth, onRamp } from "./fit";
 import { Glyph } from "./glyphs";
+import { InfoTip } from "./info-tip";
 
 /**
  * A step from `current` in `direction`, on the steps from zero, a typed figure between two of
@@ -67,7 +68,8 @@ function parseNumber(value: string): number | null {
 }
 
 /**
- * A figure in a row (boards Check-in, Log a ride): the name and its hint at the gutter, then −,
+ * A figure in a row (boards Check-in, Log a ride): the name, its ⓘ and under it the figure the
+ * row makes or remembers (`hint`: "Last 7 h", never a sentence) at the gutter, then −,
  * the figure in a column of its own, and +, so the buttons line up row under row whatever the
  * figure. The figure is typed in place, as the entry's are; − and + step it, and it steps down
  * the ramp where its column cannot hold it beside its unit. Blank stays blank until something is
@@ -83,6 +85,7 @@ function parseNumber(value: string): number | null {
 export function RowStepper({
   label,
   hint,
+  info,
   name,
   defaultValue = "",
   value: controlled,
@@ -105,7 +108,10 @@ export function RowStepper({
   figure,
 }: {
   label: string;
+  /** What the row's figure comes to or was last time ("Pace 6:46 /km"), never help. */
   hint?: ReactNode;
+  /** Help for the row, behind a tip beside its name (The Need-to-Know Rule). */
+  info?: ReactNode;
   name?: string;
   defaultValue?: string;
   /** Controlled value; pair with `onChange`. */
@@ -194,9 +200,18 @@ export function RowStepper({
   return (
     <div className="row-stepper" data-field-error={error ? "true" : undefined}>
       <span className="row-stepper-text">
-        <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">
-          {label}
-        </label>
+        {info ? (
+          <span className="flex items-center gap-1">
+            <label htmlFor={id} className="min-w-0 font-bold [overflow-wrap:break-word]">
+              {label}
+            </label>
+            <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>
+          </span>
+        ) : (
+          <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">
+            {label}
+          </label>
+        )}
         {hint && (
           <span id={hintId} className="row-stepper-hint">
             {hint}

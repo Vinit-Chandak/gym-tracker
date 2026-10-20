@@ -207,11 +207,6 @@ export async function StrengthProgramme({
                           ? "Your training pattern"
                           : `Cycle ${overview.currentCycle} of ${overview.program.cycles}`
                     }
-                    description={
-                      once
-                        ? `${overview.days.length} days, trained once in order. Open a day to see its exercises and targets.`
-                        : `${overview.days.length} days in this repeating pattern. Open a day to see its exercises and targets.`
-                    }
                   >
                     {once && overview.days.length > 7
                       ? Array.from({ length: Math.ceil(overview.days.length / 7) }, (_, index) => {

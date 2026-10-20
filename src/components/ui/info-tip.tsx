@@ -33,8 +33,9 @@ export function placeNote(
 }
 
 /**
- * The one place an explanation lives: a small circled "i" that opens a short note in
- * place. Nothing else on a screen explains itself in running text.
+ * Where a short explanation lives, a sentence or two: a small circled "i" that opens a note in
+ * place. A longer passage is a `Disclosure`, closed; nothing on a screen explains itself in
+ * running text (DESIGN.md, The Need-to-Know Rule).
  *
  * The note stays inside the visual viewport and grows with the reader's text size. It is
  * portalled outside scrolling cards; inside a modal it stays in that dialog so it remains

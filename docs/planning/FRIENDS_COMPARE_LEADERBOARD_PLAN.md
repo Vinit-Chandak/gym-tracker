@@ -209,8 +209,11 @@ friend group, and a block table is a two-hour addition if ever needed.
 
 ### 3.7 Privacy (`/profile/privacy`)
 
-Four switches, each with one sentence under it, saved on change (the rest-timer row is the
-pattern):
+Four switches, saved on change (the rest-timer row is the pattern). Under each, at most eight
+words, and only where On or Off exposes or hides something the label does not say ("Off: anyone
+can follow you"); what each shares in full is behind What a follower can see. A sport's own
+switch is dimmed, with "Needs Share training" under it, while Share training is off (DESIGN.md,
+The Need-to-Know Rule, 20 October 2026). What each switch does:
 
 | Switch                                | Default | Effect                                                                                                     |
 | ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |

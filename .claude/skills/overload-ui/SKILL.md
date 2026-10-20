@@ -41,6 +41,7 @@ When a third-party skill contradicts 1–3, follow 1–3 and say so in one line.
 | Feeling installed on a phone                                                                | `mobile-native`, `apple-design`     | [the PWA checklist](reference/pwa.md)         |
 | Platform patterns and browser support                                                       | `modern-web-guidance`               |                                               |
 | Rule-based UI review                                                                        | `web-design-guidelines`             | `accessibility`                               |
+| On-screen words: what a screen says, and what moves behind an ⓘ or a fold                   | `/impeccable clarify`, `distill`    | `design:ux-copy`                              |
 | Accessibility                                                                               | `accessibility`                     | `web-design-guidelines`, `/impeccable audit`  |
 | Several versions to choose between                                                          | `/prototype`                        |                                               |
 | Choosing a library                                                                          | `/pick-ui-library`                  |                                               |
@@ -109,6 +110,8 @@ does not play a second slide over Safari's own.
   `AUDIT_CHROMIUM_PATH`) and say which engine the screens came from.
 - Read every changed screen for words it does not need (The Need-to-Know Rule): a sentence that
   explains the app, the coach or a plan goes, and help moves into an ⓘ or a fold.
+- Tests assert what a screen does (roles, names, states, figures), not its explanatory sentences;
+  a sentence moved into an ⓘ is asserted by opening the ⓘ.
 - Let a reviewer with fresh context judge the pixels, not the author of the change.
 - Judge motion and touch on a real iPhone and a mid-range Android phone with the app installed,
   reduced motion on and off. Emulation does not show tap delay, sticky hover, safe areas, the
