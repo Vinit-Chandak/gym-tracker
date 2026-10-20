@@ -1,3 +1,5 @@
+"use client";
+
 import { ChevronDown } from "@/components/ui/icons";
 import type { ComponentProps } from "react";
 
@@ -7,6 +9,8 @@ import { INPUT_CLASS } from "./input";
 
 /**
  * Native select: iOS opens its own picker, which is the fastest control for long lists.
+ * Keep this boundary on the client so Field can attach its generated id to the select,
+ * rather than to an already-rendered wrapper received from a Server Component.
  * The theme files set `color-scheme` per mode, so that picker is drawn light or dark to
  * match rather than staying on the browser default.
  *

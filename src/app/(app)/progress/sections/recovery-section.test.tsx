@@ -144,3 +144,38 @@ it("gives a night's sleep and an average of nights to a tenth of an hour, as eve
   // Newest first, to a tenth: a graph's figures are, sleep's too (the owner's choice, ADR 0047).
   expect(nights).toEqual(["7.8 h", "6.5 h"]);
 });
+
+it.each(["1m", "3m", "12m"] as const)(
+  "keeps daily readings in the %s average's drilldown",
+  (preset) => {
+    const range = presetRange(preset, TODAY);
+    render(
+      <RecoverySection
+        today={TODAY}
+        recovery={{
+          range,
+          graph: recoveryGraph(
+            [
+              reading("2026-09-27", {}),
+              reading("2026-09-27", {
+                id: "workout-reading",
+                source: "workout",
+                sessionId: "workout",
+                sleepHours: 8,
+              }),
+            ],
+            range,
+            TODAY,
+          ),
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+    const link = screen.getByRole("link", { name: /Average of/ });
+    const href = new URL(link.getAttribute("href")!, "https://example.test");
+    expect(href.pathname).toBe("/progress/history");
+    expect(href.searchParams.get("kind")).toBeNull();
+    expect(href.searchParams.get("from")! <= "2026-09-27").toBe(true);
+    expect(href.searchParams.get("to")! >= "2026-09-27").toBe(true);
+  },
+);

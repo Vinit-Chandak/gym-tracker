@@ -25,16 +25,18 @@ export default async function LoggingPreviewPage(props: PageProps<"/preview/logg
   const asked = typeof params.scenario === "string" ? params.scenario : "log";
   const scenario = (SCENARIOS as readonly string[]).includes(asked) ? (asked as Scenario) : "log";
   return (
-    <LoggingPreview
-      scenario={scenario}
-      fail={params.fail === "1"}
-      rest={params.rest !== "0"}
-      art={drawingUrls([
-        "leg_press_45",
-        "leg_press_horizontal",
-        "leg_press_vertical",
-        "hack_squat",
-      ])}
-    />
+    <main>
+      <LoggingPreview
+        scenario={scenario}
+        fail={params.fail === "1"}
+        rest={params.rest !== "0"}
+        art={drawingUrls([
+          "leg_press_45",
+          "leg_press_horizontal",
+          "leg_press_vertical",
+          "hack_squat",
+        ])}
+      />
+    </main>
   );
 }

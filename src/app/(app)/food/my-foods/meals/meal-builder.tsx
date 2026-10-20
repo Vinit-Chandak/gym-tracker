@@ -15,7 +15,7 @@ import { addUp, NUTRITION_LIMITS, scaleFood, type Food } from "@/domain/nutritio
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { previousAppPage } from "@/lib/navigation-history";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
-import { deleteSavedMealAction, saveLibraryMealAction } from "@/server/actions/nutrition";
+import { useFoodActions } from "@/components/food/food-actions";
 import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutrition";
 
 /**
@@ -49,6 +49,7 @@ export function MealBuilder({
   /** Where saving or deleting returns to when there is no page to go back to. */
   leaveTo?: Route;
 }) {
+  const { deleteSavedMealAction, saveLibraryMealAction } = useFoodActions();
   const router = useRouter();
   const [name, setName] = useState(saved?.name ?? "");
   const [items, setItems] = useState<Item[]>(() =>
@@ -117,7 +118,7 @@ export function MealBuilder({
       setErrors(fieldErrors);
       // An amount the sheet let through but the server did not is said once, above Save.
       const itemError = Object.entries(fieldErrors).find(([path]) => path.startsWith("items."));
-      setFormError(outcome.value.error ?? itemError?.[1] ?? null);
+      setFormError(outcome.value.error ?? itemError?.[1] ?? fieldErrors.amount ?? null);
     });
 
   const remove = () =>
@@ -173,6 +174,7 @@ export function MealBuilder({
                 <SwipeRow
                   action="Remove"
                   actionLabel={`Remove ${item.food.name}`}
+                  disabled={busy}
                   onAction={() => setItems((current) => current.filter((row) => row !== item))}
                 >
                   <button

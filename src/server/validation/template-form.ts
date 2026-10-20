@@ -1,13 +1,19 @@
 import { z } from "zod";
 
 import { ENDURANCE_SPORTS, type EnduranceSport } from "@/domain/activity";
-import { DURATION_MS, EFFORT, PRESCRIPTION_LIMITS, TEXT_LIMITS } from "@/domain/activity-limits";
+import {
+  DURATION_MS,
+  PRESCRIBED_EFFORT,
+  PRESCRIPTION_LIMITS,
+  TEXT_LIMITS,
+} from "@/domain/activity-limits";
 import {
   parsePrescription,
   PRESCRIPTION_VERSION,
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
 import { toMetres, type PoolUnit } from "@/lib/distance-units";
+import { canEditTemplateSteps } from "@/domain/template-editor";
 
 /**
  * The template form, and what it means (plan §5.1).
@@ -52,40 +58,51 @@ const number = (
 
 const WEEK_MINUTES = DURATION_MS.max / 60_000;
 const effortBox = number("the effort", {
-  min: EFFORT.min,
-  max: EFFORT.max,
-  message: `Effort is ${EFFORT.min} to ${EFFORT.max}: 1 very easy, ${EFFORT.max} maximal.`,
+  min: PRESCRIBED_EFFORT.min,
+  max: PRESCRIBED_EFFORT.max,
+  message: `Effort is ${PRESCRIBED_EFFORT.min} to ${PRESCRIBED_EFFORT.max}: 0 not asked, 1 very easy, ${PRESCRIBED_EFFORT.max} maximal.`,
 });
 
-export const templateSchema = z.object({
-  sport: z.enum(ENDURANCE_SPORTS),
-  name: z.preprocess(
-    (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string().min(1, { error: "Name the template." }).max(TEXT_LIMITS.title),
-  ),
-  notes: optional(TEXT_LIMITS.prescriptionNotes),
-  /** Overall session targets. */
-  durationMinMinutes: number("the minutes", { min: 0, max: WEEK_MINUTES }),
-  durationMaxMinutes: number("the minutes", { min: 0, max: WEEK_MINUTES }),
-  distanceMin: number("the distance", { min: 0 }),
-  distanceMax: number("the distance", { min: 0 }),
-  distanceUnit: z.enum(["km", "mi", "m", "yd"]).default("km"),
-  /** Out of five, as the athlete's own report is: one scale, so the two can be read together. */
-  effortMin: effortBox,
-  effortMax: effortBox,
-  /** One repeated block: "8 × 50 m, 20 s between". */
-  repetitions: number("the repetitions", {
-    min: 2,
-    max: PRESCRIPTION_LIMITS.repetitionsPerBlock,
-    whole: true,
-    message: `Repeat the block 2 to ${PRESCRIPTION_LIMITS.repetitionsPerBlock} times. Once is a session target.`,
-  }),
-  stepTargetKind: z.enum(["none", "duration", "distance"]).default("none"),
-  stepDurationSeconds: number("the seconds", { min: 0, max: WEEK_MINUTES * 60 }),
-  stepDistance: number("the distance", { min: 0 }),
-  stepDistanceUnit: z.enum(["km", "mi", "m", "yd"]).default("m"),
-  restBetweenSeconds: number("the rest", { min: 0, max: WEEK_MINUTES * 60 }),
-});
+export const templateSchema = z
+  .object({
+    sport: z.enum(ENDURANCE_SPORTS),
+    name: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : ""),
+      z.string().min(1, { error: "Name the template." }).max(TEXT_LIMITS.title),
+    ),
+    notes: optional(TEXT_LIMITS.prescriptionNotes),
+    /** Overall session targets. */
+    durationMinMinutes: number("the minutes", { min: 0, max: WEEK_MINUTES }),
+    durationMaxMinutes: number("the minutes", { min: 0, max: WEEK_MINUTES }),
+    distanceMin: number("the distance", { min: 0 }),
+    distanceMax: number("the distance", { min: 0 }),
+    distanceUnit: z.enum(["km", "mi", "m", "yd"]).default("km"),
+    /** Out of five, as the athlete's own report is: one scale, so the two can be read together. */
+    effortMin: effortBox,
+    effortMax: effortBox,
+    /** One repeated block: "8 × 50 m, 20 s between". */
+    repetitions: number("the repetitions", {
+      min: 2,
+      max: PRESCRIPTION_LIMITS.repetitionsPerBlock,
+      whole: true,
+      message: `Repeat the block 2 to ${PRESCRIPTION_LIMITS.repetitionsPerBlock} times. Once is a session target.`,
+    }),
+    stepTargetKind: z.enum(["none", "duration", "distance"]).default("none"),
+    stepDurationSeconds: number("the seconds", { min: 0, max: WEEK_MINUTES * 60 }),
+    stepDistance: number("the distance", { min: 0 }),
+    stepDistanceUnit: z.enum(["km", "mi", "m", "yd"]).default("m"),
+    restBetweenSeconds: number("the rest", { min: 0, max: WEEK_MINUTES * 60 }),
+  })
+  .superRefine((form, context) => {
+    // Selecting a block is an instruction to keep it. An overall target must not let an
+    // unfinished block disappear from the saved template.
+    if (form.stepTargetKind !== "none" && form.repetitions === null)
+      context.addIssue({
+        code: "custom",
+        path: ["repetitions"],
+        message: `Repeat the block 2 to ${PRESCRIPTION_LIMITS.repetitionsPerBlock} times.`,
+      });
+  });
 
 export type TemplateForm = z.output<typeof templateSchema>;
 
@@ -105,6 +122,7 @@ const STEP_ACTION: Record<EnduranceSport, "run" | "ride" | "swim"> = {
 /** The form as a prescription, or the reasons it is not one. */
 export function prescriptionFromForm(
   form: TemplateForm,
+  previous?: EndurancePrescription,
 ):
   | { ok: true; value: EndurancePrescription }
   | { ok: false; problems: readonly { path: string; message: string }[] } {
@@ -146,6 +164,7 @@ export function prescriptionFromForm(
     });
   }
   return parsePrescription({
+    ...previous,
     prescriptionVersion: PRESCRIPTION_VERSION,
     sport: form.sport,
     title: form.name,
@@ -160,7 +179,7 @@ export function prescriptionFromForm(
       ...(distanceRange ? { distanceUnit: unit } : {}),
       effort: range(form.effortMin, form.effortMax),
     },
-    nodes,
+    nodes: previous && !canEditTemplateSteps(previous) ? previous.nodes : nodes,
     notes: form.notes,
   });
 }

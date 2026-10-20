@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Not found" };
  */
 export default function NotFound() {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <main className="flex min-h-dvh flex-col">
       <PageHeader title="Not found" />
       <PageContent>
         <EmptyState
@@ -27,6 +27,6 @@ export default function NotFound() {
           Back to Today
         </LinkButton>
       </PageContent>
-    </div>
+    </main>
   );
 }

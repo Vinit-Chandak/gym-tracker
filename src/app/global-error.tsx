@@ -28,7 +28,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
         />
         <title>{`Something went wrong · ${APP_NAME}`}</title>
         <AppearanceSync />
-        <main className="error-page page-width pt-safe">
+        <main className="standalone-error error-page page-width pt-safe">
           <div className="error-page-body">
             <span className="error-page-glyph">
               <Glyph name={online ? "warn" : "offline"} className="glyph-30" />

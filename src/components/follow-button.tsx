@@ -43,6 +43,7 @@ export function FollowButton({
   const [asking, setAsking] = useState<"cancel" | "unfollow" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [receivedPersonId, setReceivedPersonId] = useState(personId);
   const [receivedOutgoing, setReceivedOutgoing] = useState(relation.outgoing);
   const relationshipVersion = useRef(0);
   useLayoutEffect(() => {
@@ -50,7 +51,8 @@ export function FollowButton({
   }, [personId, relation.outgoing]);
   // An accepted request or a change on another device arrives through refreshed server
   // props. Local acknowledgement is immediate, but must not hide that newer relationship.
-  if (receivedOutgoing !== relation.outgoing) {
+  if (receivedPersonId !== personId || receivedOutgoing !== relation.outgoing) {
+    setReceivedPersonId(personId);
     setReceivedOutgoing(relation.outgoing);
     setOutgoing(relation.outgoing);
     setAsking(null);

@@ -9,7 +9,7 @@ import { scaleFood, type Food, type Meal } from "@/domain/nutrition";
 import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
-import { deleteEntryAction, logFoodAction, updateEntryAction } from "@/server/actions/nutrition";
+import { useFoodActions } from "@/components/food/food-actions";
 
 import { AmountField, Preview, typedAmount } from "@/components/food/amount-field";
 import type { MealTotal } from "@/components/food/food-summary";
@@ -73,6 +73,7 @@ export function PortionSheet({
   /** Said once the change is made; `added` when a food went into the meal. */
   onDone: (said: string, added: boolean) => void;
 }) {
+  const { deleteEntryAction, logFoodAction, updateEntryAction } = useFoodActions();
   const formId = useId();
   const [value, setValue] = useState(String(amount));
   // Stable across retries: a save whose reply was lost cannot log the food twice.

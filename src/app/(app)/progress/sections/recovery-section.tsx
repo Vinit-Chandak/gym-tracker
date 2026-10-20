@@ -2,14 +2,7 @@
 
 import Link from "@/components/ui/app-link";
 import { Graph } from "@/components/graph/graph";
-import {
-  bucketLabel,
-  counted,
-  dayHref,
-  decimal,
-  historyHref,
-  workoutHref,
-} from "@/components/graph/labels";
+import { bucketLabel, counted, decimal, historyHref, workoutHref } from "@/components/graph/labels";
 import { useUrlChoice } from "@/components/graph/use-url-choice";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { RECOVERY_MEASURES, type RecoveryMeasure } from "@/domain/progress-graphs";
@@ -134,10 +127,11 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
             ? { href: workoutHref(bucket.sessionId, "history"), action: "Open workout" }
             : range.bucket === "day"
               ? bucket.readings > 1
-                ? { href: dayHref(bucket.start), action: "Open day" }
+                ? { href: historyHref(bucket.start, bucket.end), action: "Open day" }
                 : {}
               : {
-                  href: historyHref(bucket.start, bucket.end, "workout"),
+                  // Daily readings and workout check-ins can contribute to the same average.
+                  href: historyHref(bucket.start, bucket.end),
                   action: range.bucket === "week" ? "Open week" : "Open month",
                 };
           // Every graph gives its figures to a tenth, a night's sleep too: 7.25 h reads "7.3 h"

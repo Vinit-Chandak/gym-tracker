@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { saveTargetsAction } from "@/server/actions/nutrition";
+import { FoodPreview } from "@/components/food/food-actions";
 
 import { TargetsForm } from "./targets-form";
 
@@ -37,6 +38,22 @@ const KCAL = "Daily target, kcal";
 const PROTEIN = "Protein per body weight, g\u00a0per\u00a0kg";
 const FAT = "Fat, % of daily target";
 const USE_SPLIT = "Use this split";
+
+it("does not save preview targets to the signed-in account", async () => {
+  render(
+    <FoodPreview>
+      <TargetsForm targets={null} bodyWeightKg={75} unit="kg" goal="build_muscle" />
+    </FoodPreview>,
+  );
+  fireEvent.change(field(KCAL), { target: { value: "2400" } });
+  fireEvent.click(screen.getByRole("button", { name: "Set target" }));
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    "This is a preview. Changes are not saved.",
+  );
+  expect(saveTargetsAction).not.toHaveBeenCalled();
+  expect(router.replace).not.toHaveBeenCalled();
+});
 
 it("starts a first set of targets from the goal's split, following the target as it is typed", () => {
   render(<TargetsForm targets={null} bodyWeightKg={63.5} unit="kg" goal="build_muscle" />);

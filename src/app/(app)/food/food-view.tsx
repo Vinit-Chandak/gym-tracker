@@ -15,7 +15,7 @@ import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
 import { joinFacts } from "@/lib/facts";
-import { formatKcal, formatSplit } from "@/lib/format";
+import { formatIsoDate, formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
@@ -170,7 +170,8 @@ export function FoodView({
 }: FoodViewProps) {
   const target = day.targets ? macroTargets(day.targets, bodyWeightKg, goal) : null;
   // A meal of a day before today is opened on that day, and Back from it returns there.
-  const onDate = (href: Route) => (date === today ? href : (`${href}?day=${date}` as Route));
+  const onDate = (href: Route) =>
+    date === today ? href : (`${href}${href.includes("?") ? "&" : "?"}day=${date}` as Route);
   const daysProps = { today, date, days, targetKcal: target?.kcal ?? null, base: links.base };
   const byMeal = new Map<Meal, EntryRecord[]>(MEALS.map((meal) => [meal, []]));
   for (const entry of day.entries) byMeal.get(entry.meal)?.push(entry);
@@ -191,6 +192,7 @@ export function FoodView({
     <div className="food-page page-wide">
       <PageHeader
         title="Food"
+        meta={date === today ? undefined : formatIsoDate(date, today.slice(0, 4))}
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}
       />
       <div className="food page-width">

@@ -1,6 +1,7 @@
 "use client";
 
 import { RouteError } from "@/components/shell/error-screen";
+import type { ComponentProps } from "react";
 
 /**
  * The app's error screen for what `(app)/error.tsx` cannot catch: that boundary sits inside the
@@ -8,4 +9,10 @@ import { RouteError } from "@/components/shell/error-screen";
  * through — and anything on the sign-in screens rose past it to Next's bare page, unthemed and
  * with no way back in an installed app.
  */
-export default RouteError;
+export default function RootError(props: ComponentProps<typeof RouteError>) {
+  return (
+    <main className="standalone-error">
+      <RouteError {...props} />
+    </main>
+  );
+}

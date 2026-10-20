@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { monthsBetween, type DayActivity } from "@/components/progress/calendar";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { addMonths } from "@/domain/food-days";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays, readFirstActivityDay } from "@/server/repositories/activity-analytics";
@@ -26,8 +27,8 @@ export default async function CalendarPage() {
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);
   const thisMonth = today.slice(0, 7);
-  // Two years before this month's first day, as a month.
-  const earliest = addDays(`${thisMonth}-01`, -MONTHS_BACK * 31).slice(0, 7);
+  // This month and the preceding 23, regardless of their different lengths.
+  const earliest = addMonths(thisMonth, -MONTHS_BACK);
 
   const { activities, units, truncated, first } = await withUser(
     getDb(),

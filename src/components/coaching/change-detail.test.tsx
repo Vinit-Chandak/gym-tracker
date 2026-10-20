@@ -30,6 +30,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("never applies a preview decision to a real programme", async () => {
+  render(<ChangeDetail {...props({ preview: true })} />);
+  fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Preview only");
+  expect(declineProgramChangeAction).not.toHaveBeenCalled();
+  expect(navigation.push).not.toHaveBeenCalled();
+});
+
 it("names replacement explicitly and asks for its new start date", () => {
   render(
     <ChangeDetail

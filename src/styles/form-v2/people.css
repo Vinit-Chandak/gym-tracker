@@ -311,10 +311,11 @@
   align-items: start;
   gap: calc(12 * var(--ov-u));
 }
-/* Large text: "VS" gives its column to the names, which the two avatars already set apart. */
+/* Large text: "VS" gives its column to the names, which the two avatars already set apart.
+   Each person gets a whole row when even half the card would split ordinary names. */
 @container compare-head (width < 15rem) {
   .compare-head-people {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
   }
   .compare-head-vs {
     display: none;

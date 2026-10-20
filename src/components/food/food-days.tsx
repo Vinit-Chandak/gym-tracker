@@ -24,7 +24,7 @@ import {
   formatIsoWeekdayLetter,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { readFoodMonthAction } from "@/server/actions/nutrition";
+import { useFoodActions } from "./food-actions";
 
 /** What the strip and the calendar are drawn from (ADR 0037). */
 type FoodDaysProps = {
@@ -157,6 +157,7 @@ export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysP
   const weeks = stripWeeks(today, date).reverse();
   const marks = markDays(days, targetKcal);
   const nav = useRef<HTMLElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const shownWeek = useRef<HTMLOListElement>(null);
   const shownDay = useRef<HTMLLIElement>(null);
   const { width, root } = useMeasure(nav, undefined, { width: 362, height: 0, root: 16 });
@@ -168,8 +169,21 @@ export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysP
 
   useEffect(() => {
     const shown = scrolls ? shownDay.current : shownWeek.current;
-    shown?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [date, scrolls]);
+    if (!shown || !nav.current || !scroller.current) return;
+    const frame = nav.current.getBoundingClientRect();
+    const item = shown.getBoundingClientRect();
+    // Only move the strip. scrollIntoView also scrolls the page and can move a meal link
+    // between pointer-down and pointer-up when the first interaction hydrates this component.
+    const offset =
+      item.left < frame.left
+        ? item.left - frame.left
+        : item.right > frame.right
+          ? item.right - frame.right
+          : 0;
+    scroller.current.scrollLeft += offset;
+    // A resize can change how many days fit without crossing the week/day breakpoint.
+    // Re-reveal the selected day for those changes too, including changes of text size.
+  }, [date, scrolls, width, root]);
 
   return (
     <nav
@@ -178,7 +192,7 @@ export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysP
       className="food-strip"
       style={{ "--food-day": `${dayWidth}px` } as CSSProperties}
     >
-      <div className="food-strip-scroller">
+      <div ref={scroller} className="food-strip-scroller">
         <div className="food-strip-weeks">
           {weeks.map((week) => (
             <ol
@@ -262,9 +276,12 @@ function CalendarSheet({
   targetKcal,
   base,
 }: FoodDaysProps & { from: string; open: boolean; onClose: () => void }) {
+  const { readFoodMonthAction } = useFoodActions();
   const current = monthOf(today);
   const [month, setMonth] = useState(() => monthOf(date));
   const [known, setKnown] = useState(() => seedMonths(days, from, current));
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (known.has(month)) return;
@@ -273,14 +290,16 @@ function CalendarSheet({
       (read) => {
         if (live) setKnown((before) => new Map(before).set(month, read));
       },
-      // Offline, a month shows its days without their dots; turning to it again tries again.
-      () => {},
+      () => {
+        if (live) setFailed(month);
+      },
     );
     return () => {
       live = false;
     };
-  }, [month, known]);
+  }, [month, known, attempt, readFoodMonthAction]);
 
+  const readFailed = failed === month && !known.has(month);
   const marks = markDays(known.get(month) ?? [], targetKcal);
   const title = formatIsoMonth(month);
   return (
@@ -329,7 +348,11 @@ function CalendarSheet({
             <span key={index}>{letter}</span>
           ))}
         </div>
-        <ol aria-label={title} aria-busy={!known.has(month)} className="food-calendar-days">
+        <ol
+          aria-label={title}
+          aria-busy={!known.has(month) && !readFailed}
+          className="food-calendar-days"
+        >
           {monthGrid(month)
             .flat()
             .map((day, index) =>
@@ -349,6 +372,23 @@ function CalendarSheet({
               ),
             )}
         </ol>
+        {readFailed && (
+          <div className="mt-3 space-y-2">
+            <p role="alert" className="type-meta-small text-ink-2">
+              Food logged on these days could not be loaded. Check your connection and try again.
+            </p>
+            <button
+              type="button"
+              className={buttonClassName("secondary", "sm")}
+              onClick={() => {
+                setFailed(null);
+                setAttempt((current) => current + 1);
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        )}
       </div>
     </Sheet>
   );

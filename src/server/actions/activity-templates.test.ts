@@ -42,7 +42,7 @@ it("says effort written out of ten is out of five, under the effort box", async 
       effortMax: "7",
     }),
   );
-  expect(state.fieldErrors?.effortMin).toMatch(/1 to 5/);
+  expect(state.fieldErrors?.effortMin).toMatch(/0 to 5/);
   expect(mocks.getDb).not.toHaveBeenCalled();
 });
 

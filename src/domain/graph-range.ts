@@ -180,8 +180,11 @@ export type RangeChoice =
   | { preset?: never; custom: { from: string; to: string } };
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const isDay = (value: string) =>
-  ISO_DAY.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+const isDay = (value: string) => {
+  if (!ISO_DAY.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
 
 /**
  * Dates in the URL win over the remembered span, as long as they make a range: both real days,
@@ -195,13 +198,15 @@ export function chooseRange(
   today: string,
 ): { choice: RangeChoice; error: string | null } {
   if (!dates.from && !dates.to) return { choice: { preset: remembered }, error: null };
+  const invalid = {
+    choice: { preset: remembered },
+    error: "Those dates do not make a range: choose a From on or before To.",
+  };
   const to = dates.to || today;
+  // Validate To before deriving its default From: malformed links must never reach date maths.
+  if (!isDay(to) || to < EARLIEST_DAY) return invalid;
   const from = dates.from || addDays(addMonths(to, -1), 1);
-  if (!isDay(from) || !isDay(to) || from > to || from < EARLIEST_DAY)
-    return {
-      choice: { preset: remembered },
-      error: "Those dates do not make a range: choose a From on or before To.",
-    };
+  if (!isDay(from) || !isDay(to) || from > to || from < EARLIEST_DAY) return invalid;
   return { choice: { custom: { from, to } }, error: null };
 }
 

@@ -93,6 +93,8 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
   const unit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const answers = data.intake ? coachIntakeSchema.parse(data.intake.answers) : null;
   const writing = job.status === "queued" || job.status === "claimed";
+  const succeeded = job.status === "succeeded";
+  const rationale = job.result && "rationale" in job.result ? job.result.rationale : null;
   const questions =
     job.status === "needs_input" && job.result?.outcome === "needs_input"
       ? job.result.questions
@@ -104,7 +106,11 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
       ? "The coach has a question"
       : job.status === "superseded"
         ? "Your answers changed"
-        : "The coach could not finish";
+        : succeeded
+          ? job.result?.outcome === "no_change"
+            ? "Your programme stays as it is"
+            : "Your programme review is complete"
+          : "The coach could not finish";
 
   return (
     <OnboardingFrame
@@ -135,7 +141,8 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
           <CoachQuestions jobId={job.id} questions={questions} base="/welcome/programme" />
         </div>
       )}
-      {!writing && !questions && (
+      {succeeded && rationale && <p className="onboarding-sub">{rationale}</p>}
+      {!writing && !questions && !succeeded && (
         <>
           {job.error && <p className="onboarding-sub">{job.error}</p>}
           <LinkButton href={form} size="lg" variant="secondary" className="mt-4 w-full">
@@ -174,7 +181,11 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
       <form action={completeOnboardingAction}>
         <PinnedActions stack>
           <SubmitButton variant="tonal" pendingLabel="Opening Today…">
-            {writing ? "Look around while you wait" : "Look around meanwhile"}
+            {writing
+              ? "Look around while you wait"
+              : succeeded
+                ? "Open Today"
+                : "Look around meanwhile"}
           </SubmitButton>
         </PinnedActions>
       </form>

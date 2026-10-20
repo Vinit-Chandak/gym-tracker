@@ -138,45 +138,81 @@ for (const config of [
       JSON.stringify(measured),
     );
   };
+  const openStrengthProgramme = async () => {
+    await visit("/training");
+    const view = page.getByRole("link", { name: "View strength programme", exact: true });
+    const card = page.locator(".training-programme-card").filter({ has: view });
+    await expect(card).toHaveCount(1);
+    await assertReadableText(card.locator("h3, h3 + p"));
+    await target(view);
+    await view.tap();
+    await page.waitForURL(new URL("/training/programmes/strength", baseURL).href);
+    await page.waitForLoadState("networkidle");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Lifting programme", exact: true }),
+    ).toBeVisible();
+  };
+  // The programme hub opens a plan with native day disclosures. Plain rest days have no
+  // action; lifting days reveal an Open workout link after the disclosure's first tap.
+  const programmeDays = () =>
+    page.locator("#programme-panel > section").first().locator(":scope > div > ul > li");
   try {
     await login("vinit");
     await check("programme-heading-target-and-readable-text", async () => {
-      await visit("/training");
-      await target(page.locator(".cycle-name"));
-      await assertReadableText(page.locator(".cycle-name, .cycle-count"));
-      await page.locator(".cycle-name").tap();
-      await page.waitForURL(/\/profile\/programme$/);
-      await page.waitForLoadState("networkidle");
-      await expect(
-        page.getByRole("heading", { name: "Programme", exact: true }).first(),
-      ).toBeVisible();
+      await openStrengthProgramme();
     });
-    await check("every-programme-tile-opens-on-the-first-tap", async () => {
-      await visit("/training");
-      const tiles = await page.locator(".cycle-day").evaluateAll((elements) =>
+    await check("every-programme-day-opens-on-the-first-tap", async () => {
+      await openStrengthProgramme();
+      const days = await programmeDays().evaluateAll((elements) =>
         elements.map((e) => ({
-          href: e.getAttribute("href"),
-          name: e.querySelector(".cycle-day-name > span")?.textContent,
+          name: e.querySelector("summary p, .box p")?.textContent,
+          expandable: Boolean(e.querySelector("details")),
         })),
       );
-      assert(tiles.length >= 7, "Expected a complete programme cycle");
-      for (const [index, tile] of tiles.entries()) {
-        await visit("/training");
-        const link = page.locator(`.cycle-day[href="${tile.href}"]`);
-        await target(link);
-        const box = await link.boundingBox();
-        await link.tap({
+      assert(days.length >= 7, "Expected a complete programme cycle");
+      let workoutsOpened = 0;
+      for (const [index, day] of days.entries()) {
+        await openStrengthProgramme();
+        const card = programmeDays().nth(index);
+        const heading = card.locator("summary p, .box p").first();
+        await expect(heading).toHaveText(day.name);
+        await assertReadableText(heading);
+        if (!day.expandable) {
+          await expect(card).toContainText("Rest day");
+          await expect(card.locator("a, button, summary")).toHaveCount(0);
+          continue;
+        }
+        const disclosure = card.locator(":scope > details");
+        const summary = disclosure.locator(":scope > summary");
+        await expect(disclosure).not.toHaveAttribute("open", "");
+        await target(summary);
+        const box = await summary.boundingBox();
+        await summary.tap({
           position: index % 2 ? { x: 8, y: 8 } : { x: box.width - 8, y: box.height - 8 },
         });
-        await page.waitForURL(new URL(tile.href, baseURL).href);
-        await page.waitForLoadState("networkidle");
-        await expect(
-          page.getByRole("heading", { level: 1, name: tile.name, exact: true }),
-        ).toBeVisible();
+        await expect(disclosure).toHaveAttribute("open", "");
+        const workout = card.getByRole("link", { name: "Open workout", exact: true });
+        if (await workout.count()) {
+          const href = await workout.getAttribute("href");
+          assert.match(href, /^\/training\/days\/[0-9a-f-]+$/);
+          await target(workout);
+          await workout.tap();
+          await page.waitForURL(new URL(href, baseURL).href);
+          await page.waitForLoadState("networkidle");
+          await expect(
+            page.getByRole("heading", { level: 1, name: day.name, exact: true }),
+          ).toBeVisible();
+          workoutsOpened++;
+        } else {
+          await target(summary);
+          await summary.tap({ position: { x: 8, y: 8 } });
+          await expect(disclosure).not.toHaveAttribute("open", "");
+        }
       }
+      assert(workoutsOpened > 0, "Expected lifting days with reachable workouts");
     });
     await check("programme-disclosures-open-across-their-full-row", async () => {
-      await visit("/profile/programme");
+      await openStrengthProgramme();
       const summaries = page.locator("main details > summary");
       assert((await summaries.count()) > 0);
       for (let index = 0; index < (await summaries.count()); index++) {
@@ -189,8 +225,17 @@ for (const config of [
       }
     });
     await check("start-and-check-in-actions-clear-the-bottom-navigation", async () => {
-      await visit("/training");
-      await page.locator(".cycle-day").first().tap();
+      await openStrengthProgramme();
+      const day = programmeDays()
+        .filter({ has: page.locator('a[href^="/training/days/"]') })
+        .first();
+      const workout = day.getByRole("link", { name: "Open workout", exact: true });
+      const summary = day.locator(":scope > details > summary");
+      await target(summary);
+      await summary.tap();
+      await expect(day.locator(":scope > details")).toHaveAttribute("open", "");
+      await target(workout);
+      await workout.tap();
       await page.waitForURL(/\/training\/days\//);
       await page.waitForLoadState("networkidle");
       const start = page.getByRole("link", { name: "Start workout", exact: true });

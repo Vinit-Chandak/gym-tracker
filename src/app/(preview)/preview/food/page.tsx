@@ -1,10 +1,12 @@
 import type { Metadata, Route } from "next";
+import type { ReactNode } from "react";
 
 import { FoodView, type FoodLinks } from "@/app/(app)/food/food-view";
 import { MealView } from "@/app/(app)/food/[meal]/meal-view";
 import { MealBuilder } from "@/app/(app)/food/my-foods/meals/meal-builder";
 import { TargetsForm } from "@/app/(app)/food/targets/targets-form";
 import { mealTotals } from "@/components/food/food-summary";
+import { FoodPreview } from "@/components/food/food-actions";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { foodDayFrom, type FoodDayTotal } from "@/domain/food-days";
@@ -29,6 +31,14 @@ import { PreviewShell } from "../../preview-shell";
 import { MyFoodsPreview } from "./my-foods-preview";
 
 export const metadata: Metadata = { title: "Preview · Food" };
+
+function FoodPreviewShell({ children }: { children: ReactNode }) {
+  return (
+    <FoodPreview>
+      <PreviewShell tab="/food">{children}</PreviewShell>
+    </FoodPreview>
+  );
+}
 
 const TODAY = "2026-09-25";
 const TARGETS: NutritionTargets = { dailyKcal: 2300, proteinPerKg: 1.8, fatPercent: 25 };
@@ -167,27 +177,29 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
   const { state, meal: slug, page, day: asked } = await props.searchParams;
   const meal = typeof slug === "string" ? mealFromSlug(slug) : null;
   const fresh = state === "new";
+  const date = foodDayFrom(asked, TODAY);
 
   if (meal) {
     return (
-      <PreviewShell tab="/food">
+      <FoodPreviewShell>
         <MealView
           today={TODAY}
+          date={date}
           meal={meal}
-          backHref="/preview/food"
+          backHref={date === TODAY ? "/preview/food" : `/preview/food?day=${date}`}
           screen={{
             entries: fresh ? [] : DAY.filter((logged) => logged.meal === meal),
             ...(fresh ? EMPTY : LIBRARY),
           }}
           day={{ meals: mealTotals(fresh ? [] : DAY), targetKcal: TARGETS.dailyKcal }}
         />
-      </PreviewShell>
+      </FoodPreviewShell>
     );
   }
 
   if (page === "targets") {
     return (
-      <PreviewShell tab="/food">
+      <FoodPreviewShell>
         <PageHeader title="Targets" backHref="/preview/food" />
         <PageContent>
           <TargetsForm
@@ -198,25 +210,25 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
             leaveTo="/preview/food"
           />
         </PageContent>
-      </PreviewShell>
+      </FoodPreviewShell>
     );
   }
 
   if (page === "my-foods") {
     return (
-      <PreviewShell tab="/food">
+      <FoodPreviewShell>
         <PageHeader title="My foods" backHref="/preview/food" />
         <div className="meal-page page-width">
           <MyFoodsPreview library={fresh ? EMPTY : LIBRARY} />
         </div>
-      </PreviewShell>
+      </FoodPreviewShell>
     );
   }
 
   if (page === "meal") {
     const saved = fresh ? null : SAVED[1]!;
     return (
-      <PreviewShell tab="/food">
+      <FoodPreviewShell>
         <PageHeader
           title={saved?.name ?? "New meal"}
           backHref={"/preview/food?page=my-foods" as Route}
@@ -228,7 +240,7 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
             leaveTo={"/preview/food?page=my-foods" as Route}
           />
         </PageContent>
-      </PreviewShell>
+      </FoodPreviewShell>
     );
   }
 
@@ -252,16 +264,16 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
       ? []
       : [...HISTORY, ...(entries.length > 0 ? [{ date: TODAY, kcal: day.eaten.kcal }] : [])];
   return (
-    <PreviewShell tab="/food">
+    <FoodPreviewShell>
       <FoodView
         today={TODAY}
-        date={foodDayFrom(asked, TODAY)}
+        date={date}
         day={day}
         days={days}
         bodyWeightKg={state === "noweight" ? null : WEIGHT}
         goal="build_muscle"
         links={LINKS}
       />
-    </PreviewShell>
+    </FoodPreviewShell>
   );
 }

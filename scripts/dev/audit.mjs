@@ -40,6 +40,14 @@ const env = {
   COACH_SERVICE_TOKEN: "local-audit-coach-service-token",
   COACH_ROUTINE_FIRE_URL: "",
   COACH_ROUTINE_FIRE_TOKEN: "",
+  COACH_BACKUP_ENABLED: "false",
+  COACH_BACKUP_OWNER_ID: process.env.AUDIT_COACH_BACKUP_OWNER_ID ?? "",
+  COACH_BACKUP_CLIENT_ID: process.env.AUDIT_COACH_BACKUP_CLIENT_ID ?? "",
+  COACH_BACKUP_RESOURCE_URL: process.env.AUDIT_COACH_BACKUP_OWNER_ID
+    ? "https://audit.invalid/api/coach/mcp"
+    : "",
+  AUTH_STUB_OAUTH_OWNER_ID: process.env.AUDIT_COACH_BACKUP_OWNER_ID ?? "",
+  AUTH_STUB_OAUTH_CLIENT_ID: process.env.AUDIT_COACH_BACKUP_CLIENT_ID ?? "",
   AUDIT_OUTPUT_DIR: process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit",
 };
 function run(script, args = []) {
@@ -90,13 +98,13 @@ switch (process.argv[2]) {
     await run("scripts/dev/auth-stub.mjs");
     break;
   case "build":
-    await run(next, ["build"]);
+    await run(next, ["build", ...process.argv.slice(3)]);
     break;
   case "start":
     await run(next, ["start", "--hostname", "127.0.0.1", "--port", port]);
     break;
   case "dev":
-    await run(next, ["dev", "--hostname", "127.0.0.1", "--port", port]);
+    await run(next, ["dev", "--hostname", "127.0.0.1", "--port", port, ...process.argv.slice(3)]);
     break;
   case "verify-db":
     await run(tsx, ["src/db/multisport-audit.ts"]);

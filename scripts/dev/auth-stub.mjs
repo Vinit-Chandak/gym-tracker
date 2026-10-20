@@ -249,6 +249,33 @@ async function handle(req, res, key) {
   }
   if (req.method === "GET" && path === "/health") return send(res, 200, { name: "auth-stub" });
 
+  // Opt-in local fixture for the owner-only consent screen. This issues no real grant/code.
+  if (path.startsWith("/oauth/authorizations/")) {
+    const owner = process.env.AUTH_STUB_OAUTH_OWNER_ID;
+    const client = process.env.AUTH_STUB_OAUTH_CLIENT_ID;
+    const user = await userFromBearer(req, key);
+    if (!owner || !client || user?.id !== owner)
+      return fail(res, 404, "not_found", "Authorization not found");
+    const route = "/oauth/authorizations/local-screen-audit";
+    if (req.method === "GET" && path === route)
+      return send(res, 200, {
+        authorization_id: "local-screen-audit",
+        redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect",
+        client: { id: client, name: "Local audit coach", uri: "", logo_uri: "" },
+        user: { id: user.id, email: user.email },
+        scope: "openid",
+      });
+    if (req.method === "POST" && path === `${route}/consent`) {
+      const { action } = await readJson(req);
+      if (action !== "approve" && action !== "deny")
+        return fail(res, 422, "validation_failed", "Choose approve or deny");
+      return send(res, 200, {
+        redirect_url: `https://chatgpt.com/connector_platform_oauth_redirect?${action === "approve" ? "code=local-audit-only" : "error=access_denied"}&state=local-screen-audit`,
+      });
+    }
+    return fail(res, 404, "not_found", "Authorization not found");
+  }
+
   if (req.method === "POST" && path === "/signup") {
     const body = await readJson(req);
     const email = String(body.email ?? "")

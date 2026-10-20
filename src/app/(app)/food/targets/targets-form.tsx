@@ -26,7 +26,7 @@ import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { previousAppPage } from "@/lib/navigation-history";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { formatBodyWeight, LB_PER_KG } from "@/lib/units";
-import { saveTargetsAction } from "@/server/actions/nutrition";
+import { useFoodActions } from "@/components/food/food-actions";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
 /** A field's number, when it holds one inside the bounds; otherwise null. */
@@ -68,6 +68,7 @@ export function TargetsForm({
   /** Where a save returns to when there is no page to go back to. */
   leaveTo?: Route;
 }) {
+  const { saveTargetsAction } = useFoodActions();
   const router = useRouter();
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveTargetsAction),

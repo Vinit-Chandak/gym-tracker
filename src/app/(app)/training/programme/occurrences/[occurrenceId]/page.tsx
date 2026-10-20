@@ -183,7 +183,7 @@ export default async function OccurrencePage(
             prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
-            showSource={!occurrence.closed}
+            showSource={!occurrence.closed && (!standalone || prepared !== null)}
             units={units}
           />
         )}

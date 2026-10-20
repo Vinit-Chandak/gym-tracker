@@ -287,6 +287,7 @@ export default async function CoachingPreview({
               ))}
             </nav>
             <CoachIntakeForm
+              preview
               key={`${track}-${step}`}
               initial={{
                 id: ID,
@@ -314,6 +315,7 @@ export default async function CoachingPreview({
         )}
         {view === "manual" && (
           <ProgramBuilder
+            preview
             initial={{ id: ID, revision: 1, blueprint }}
             library={library}
             warmups={[...WARMUP_PROTOCOLS]}
@@ -322,6 +324,7 @@ export default async function CoachingPreview({
         )}
         {view === "draft" && (
           <DraftPreview
+            preview
             draft={{
               id: ID,
               userId: ID,
@@ -362,6 +365,7 @@ export default async function CoachingPreview({
         )}
         {(view === "changes" || view === "unchanged") && (
           <ChangeDetail
+            preview
             draftId={ID}
             revision={2}
             author="coach"
@@ -387,6 +391,7 @@ export default async function CoachingPreview({
         {view === "equipment" && (
           // ?kind=gym|home|outdoor and ?experience=new|experienced choose which step to show.
           <EquipmentStepForm
+            preview
             step={previewMachinesStep(
               kind === "home" || kind === "outdoor" ? kind : "gym",
               experience === "experienced" ? "experienced" : "new",

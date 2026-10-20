@@ -73,6 +73,7 @@ export function DraftPreview({
   preferredUnit,
   length,
   units = DEFAULT_SPORT_UNITS,
+  preview = false,
 }: {
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
@@ -84,6 +85,7 @@ export function DraftPreview({
   /** What a carry's targets read in: metres, or yards beside miles (ADR 0055). */
   length: SetLengthUnit;
   units?: SportUnits;
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -95,6 +97,10 @@ export function DraftPreview({
   const busy = saving || navigating;
   const editable = ["editing", "ready"].includes(current.status);
   async function check() {
+    if (preview) {
+      setError("Preview only — no programme was changed.");
+      return;
+    }
     setSaving(true);
     const result = await coachingAction(() =>
       reviewProgramDraftAction(current.id, current.revision),
@@ -107,6 +113,10 @@ export function DraftPreview({
     setSaving(false);
   }
   async function activate() {
+    if (preview) {
+      setError("Preview only — no programme was started.");
+      return;
+    }
     setSaving(true);
     if (current.standalone) {
       const saved = await coachingAction(() =>
@@ -316,7 +326,9 @@ export function DraftPreview({
             <LinkButton
               href={
                 (current.sport === "strength"
-                  ? `${base}/manual?draft=${current.id}`
+                  ? preview
+                    ? "/preview/coaching?view=manual"
+                    : `${base}/manual?draft=${current.id}`
                   : `/training/programmes/${current.sport}/edit?draft=${current.id}`) as Route
               }
               variant="secondary"
@@ -328,6 +340,10 @@ export function DraftPreview({
             variant="ghost"
             disabled={busy}
             onClick={async () => {
+              if (preview) {
+                setError("Preview only — no draft was discarded.");
+                return;
+              }
               setSaving(true);
               const result = await coachingAction(() => rejectProgramDraftAction(current.id));
               if (result.ok) startNavigation(() => router.push(base));

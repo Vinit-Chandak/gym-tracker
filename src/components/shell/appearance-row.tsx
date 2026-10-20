@@ -54,8 +54,10 @@ export function AppearanceRow() {
         <span className="mark-cell">
           <Glyph name="contrast" className="glyph-20" />
         </span>
-        <span className="nav-row-label">Appearance</span>
-        <span className="nav-row-value">{APPEARANCE_LABELS[appearance]}</span>
+        <span className="nav-row-main">
+          <span className="nav-row-label">Appearance</span>
+          <span className="nav-row-value ml-auto">{APPEARANCE_LABELS[appearance]}</span>
+        </span>
         <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />
       </button>
 

@@ -1,0 +1,108 @@
+{
+  "auditDate": "2026-10-20",
+  "verificationCompletedAt": "2026-10-20T09:49:35.247Z",
+  "evidenceScope": "Aggregate results from local audit runs. Raw screenshots, traces, logs and disposable account/database fixtures are not included.",
+  "pageTemplates": {
+    "covered": 104,
+    "total": 104,
+    "production": 93,
+    "previews": 11
+  },
+  "browserWorkflowGroups": {
+    "passed": 28,
+    "total": 28,
+    "skipped": 0
+  },
+  "tests": {
+    "completeRun": {
+      "tests": 3432,
+      "files": 413,
+      "passed": true
+    },
+    "subsequentlyAddedRegressions": 16,
+    "uniqueVitestTestsVerifiedAcrossRuns": 3448,
+    "uniqueVitestFilesVerifiedAcrossRuns": 415,
+    "separateNodeInventoryTests": 5,
+    "completeSuiteRerunAfterFinalTargetedChanges": false
+  },
+  "targetedChecks": [
+    {
+      "name": "Full Food Chromium",
+      "passed": 18,
+      "total": 18
+    },
+    {
+      "name": "Full Food WebKit",
+      "passed": 18,
+      "total": 18
+    },
+    {
+      "name": "Saved food refresh",
+      "passed": 6,
+      "total": 6
+    },
+    {
+      "name": "Food strip resize",
+      "passed": 24,
+      "total": 24
+    },
+    {
+      "name": "Hydration during a press",
+      "passed": 2,
+      "total": 2
+    },
+    {
+      "name": "Nutrient pointer and keyboard flows",
+      "passed": 6,
+      "total": 6
+    },
+    {
+      "name": "Live offline and not-found screens",
+      "passed": 20,
+      "total": 20
+    },
+    {
+      "name": "Actual root/global error renders",
+      "passed": 8,
+      "total": 8
+    },
+    {
+      "name": "Actual loading component renders",
+      "passed": 82,
+      "total": 82
+    },
+    {
+      "name": "Additional overlays",
+      "passed": 48,
+      "total": 48
+    }
+  ],
+  "commandChecks": [
+    {
+      "name": "Final production build",
+      "exitCode": 0
+    },
+    {
+      "name": "Repository lint",
+      "exitCode": 0
+    },
+    {
+      "name": "Normal TypeScript",
+      "exitCode": 0
+    },
+    {
+      "name": "Repository format",
+      "exitCode": 0
+    },
+    {
+      "name": "Database invariants and isolation",
+      "exitCode": 0
+    }
+  ],
+  "limits": [
+    "Authentication and external OAuth/coach behavior used local fixtures; no real email or external grant was issued.",
+    "The 28 groups retain successful earlier runs and reruns. Full Food flows passed build 3; the final resize-only build received targeted resize and hydration checks.",
+    "Loading and root/global error fixtures render actual components with production CSS; they do not induce every live loading transition or root-layout failure.",
+    "The complete Vitest suite was not rerun after the final targeted changes."
+  ]
+}

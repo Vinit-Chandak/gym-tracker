@@ -476,18 +476,65 @@ try {
   });
   await check("each macronutrient opens what today's foods gave it", async () => {
     await navigate("/food");
-    await page.getByRole("button", { name: /^Protein:/ }).click();
-    const sheet = dialog();
-    await expect(sheet.getByRole("heading", { name: "Protein" })).toBeVisible();
-    const rows = sheet.getByRole("list", { name: "Protein by food" }).getByRole("listitem");
-    // Oats was eaten in four meals: one row, added up, and it gave the most.
-    await expect(rows.first()).toContainText("Oats");
-    await expect(rows.first()).toContainText("Breakfast, Lunch, Dinner, Late-night snack");
-    await expect(rows.filter({ hasText: "Milk" })).toContainText("—");
-    // Grams only: where the day stands is said in words at the top, and no food has a share.
-    await expect(sheet.getByText(/^\d+ g to go$|^Reached$/)).toBeVisible();
-    await expect(sheet).not.toContainText("%");
-    await sheet.getByRole("button", { name: "Close sheet" }).click();
+    const foodURL = page.url();
+    for (const { label, oatsGrams, riceGrams } of [
+      { label: "Carbs", oatsGrams: 252, riceGrams: 56 },
+      { label: "Fat", oatsGrams: 26, riceGrams: null },
+      { label: "Protein", oatsGrams: 64, riceGrams: 5 },
+    ]) {
+      const opener = page.getByRole("button", { name: new RegExp(`^${label}:`) });
+      await opener.click();
+      const sheet = page.getByRole("dialog", { name: label, exact: true });
+      await expect(sheet.getByRole("heading", { name: label, exact: true })).toBeVisible();
+      const rows = sheet.getByRole("list", { name: `${label} by food` }).getByRole("listitem");
+      // Oats totals 380 g across four meals. Each sheet must read its own nutrient,
+      // grouping those entries once; missing fat in Rice must stay unknown, not zero.
+      await expect(rows).toHaveCount(3);
+      await expect(rows.first()).toContainText("Oats");
+      await expect(rows.first()).toContainText("Breakfast, Lunch, Dinner, Late-night snack");
+      await expect(rows.first().locator(".food-row-figure")).toHaveText(`${oatsGrams} g`);
+      await expect(rows.filter({ hasText: "Rice" }).locator(".food-row-figure")).toHaveText(
+        riceGrams === null ? "— no figure" : `${riceGrams} g`,
+      );
+      await expect(rows.filter({ hasText: "Milk" })).toContainText("—");
+      // Protein is a minimum; carbohydrate and fat are limits.
+      await expect(
+        sheet.getByText(
+          label === "Protein" ? /^\d+ g to go$|^Reached$/ : /^\d+ g (?:left|over)$|^Reached$/,
+        ),
+      ).toBeVisible();
+      await expect(sheet).not.toContainText("%");
+      await settle();
+      await page.screenshot({ path: `${dir}/macro-${label.toLowerCase()}.png` });
+      await sheet.getByRole("button", { name: "Close sheet" }).click();
+      await expect(sheet).toBeHidden();
+      // Safari pointer clicks need not focus buttons, so native dialog dismissal restores
+      // whichever element previously had focus. Exercise restoration from a real keyboard
+      // opener separately, without imposing Chromium's pointer-focus policy on WebKit.
+      // Establish the first in-page control as the keyboard starting point: after a hard
+      // navigation WebKit can otherwise send Tab from the dismissed dialog to browser chrome.
+      const keyboardStart = page.getByRole("button", { name: /, calendar$/ });
+      await keyboardStart.focus();
+      await expect(keyboardStart).toBeFocused();
+      for (
+        let tabs = 0;
+        !(await opener.evaluate((element) => document.activeElement === element)) && tabs < 90;
+        tabs++
+      ) {
+        await page.keyboard.press("Tab");
+      }
+      await expect(opener).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(sheet).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(sheet).toBeHidden();
+      await expect(opener).toBeFocused();
+      expect(page.url()).toBe(foodURL);
+    }
+    await expect(page.getByRole("link", { name: /^Targets/ })).toHaveAttribute(
+      "href",
+      "/food/targets",
+    );
     // The day states eaten against its target; the accessible bowl describes its standing.
     await expect(page.getByRole("img", { name: /^The bowl.*kcal\.$/ })).toBeVisible();
     await expect(page.getByText(/Goal [\d,]+–/)).toHaveCount(0);

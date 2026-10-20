@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 
 import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
@@ -13,7 +13,7 @@ import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten } from "@/domain/nutrition";
 import { formatPortion } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
-import { deleteFoodAction, deleteSavedMealAction } from "@/server/actions/nutrition";
+import { useFoodActions } from "@/components/food/food-actions";
 import type { FoodRecord, Library, SavedMealRecord } from "@/server/repositories/nutrition";
 
 /** Where the page's links lead: the app's own pages, or in the preview the previews of them. */
@@ -43,6 +43,20 @@ function placeIn(params: ReadonlyURLSearchParams): Place {
   };
 }
 
+/** The local filters' URL, preserving unrelated query parameters. */
+function placeHref(place: Place): Route {
+  const params = new URLSearchParams(window.location.search);
+  const keep = (key: keyof Place, value: string | null) => {
+    if (value) params.set(PLACE_PARAMS[key], value);
+    else params.delete(PLACE_PARAMS[key]);
+  };
+  keep("query", place.query.trim() ? place.query : null);
+  keep("meals", place.meals > 1 ? String(place.meals) : null);
+  keep("foods", place.foods > 1 ? String(place.foods) : null);
+  const search = params.toString();
+  return `${window.location.pathname}${search ? `?${search}` : ""}` as Route;
+}
+
 /**
  * My foods (ADR 0035): every food and saved meal the account keeps, made, corrected and removed
  * here without logging anything. Meals come first, then foods, each the most eaten first and a
@@ -61,23 +75,17 @@ export function MyFoodsView({
   library: Library;
   links?: MyFoodsLinks;
 }) {
-  // Read from the URL once: what is typed or turned to after that is the page's own, and written
-  // back to the URL for the next time the page opens, without a request.
+  const { deleteFoodAction, deleteSavedMealAction } = useFoodActions();
+  const router = useRouter();
+  // Next updates search params for native History calls too. Read them every render so a
+  // preserved page follows Back, Forward and links with a different search or page.
   const searchParams = useSearchParams();
-  const [place, setPlace] = useState(() => placeIn(searchParams));
+  const place = placeIn(searchParams);
   const move = (change: Partial<Place>) => {
-    const next = { ...place, ...change };
-    setPlace(next);
-    const params = new URLSearchParams(window.location.search);
-    const keep = (key: keyof Place, value: string | null) => {
-      if (value) params.set(PLACE_PARAMS[key], value);
-      else params.delete(PLACE_PARAMS[key]);
-    };
-    keep("query", next.query.trim() ? next.query : null);
-    keep("meals", next.meals > 1 ? String(next.meals) : null);
-    keep("foods", next.foods > 1 ? String(next.foods) : null);
-    const search = params.toString();
-    window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
+    const href = placeHref({ ...place, ...change });
+    if (href !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, "", href);
+    }
   };
   // A new search is read from each section's first page.
   const find = (query: string) => move({ query, meals: 1, foods: 1 });
@@ -255,7 +263,17 @@ export function MyFoodsView({
           onDone={(message) => {
             setSaid(message);
             setError(null);
-            if (view.kind === "library") find("");
+            if (view.kind === "library") {
+              const href = placeHref({ query: "", meals: 1, foods: 1 });
+              if (href !== `${window.location.pathname}${window.location.search}`) {
+                // A native history restore can interrupt the action's refreshed RSC commit.
+                // Navigate through the router, then refresh that destination's saved foods.
+                startTransition(() => {
+                  router.replace(href, { scroll: false });
+                  router.refresh();
+                });
+              }
+            }
           }}
         />
       )}

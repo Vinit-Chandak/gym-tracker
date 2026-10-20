@@ -20,7 +20,7 @@ export function ForgotPasswordForm() {
 
   if (state.sent) {
     return (
-      <p className="flex items-start gap-2 text-sm text-ink-muted">
+      <p role="status" className="flex items-start gap-2 text-sm text-ink-muted">
         <MailCheck className="mt-0.5 shrink-0 text-success" aria-hidden />
         If that address has an account, a reset link is on its way. The link works once and expires
         after an hour.
