@@ -55,7 +55,8 @@ Asked about it, the owner left the decision to us (12 October 2026: "decide acco
    profile's "Start this programme", not "Replace my programme"); "made way for" is true of both.
    A programme counts as followed when the next one started on the day it was archived, since
    starting a programme archives the one before. If the next one started on a later day, the old
-   one was archived on its own. The log page (`/training/new?occurrence=`) refuses the session
+   one was archived on its own. The log page (`/training/new?occurrence=`, now `/today/log/new`,
+   ADR 0060) refuses the session
    with the same sentence under "Its programme has ended" (or "was archived") and offers to log
    the sport on its own. The line is only for a session left owed or skipped: one logged,
    cancelled or completed before the record was kept is told by what became of it, as before.

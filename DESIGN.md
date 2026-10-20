@@ -707,13 +707,13 @@ its key is shown, so two readings of one width can never leave the workout witho
   the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
   the session strip folds into them and stands down: its key ends their last line, beside the
   last action while that action's longest word still fits (its words may wrap), else on a line
-  of its own at the end, and always on its own after a field, which keeps its width (AI coach's
-  note); the actions come down to the tab bar. A multi-step form's actions, kept on screen as a
-  card (Create a programme), are pinned actions too: at large text Back has a line to itself,
+  of its own at the end, and always on its own after a field, which keeps its width; the actions
+  come down to the tab bar. A multi-step form's actions, kept on screen as a card (New strength
+  programme), are pinned actions too: at large text Back has a line to itself,
   and the key takes the rest of it, so the card grows by nothing. The tab bar, the strip and the
   actions had held 28 to 63% of a phone's screen at 200% text; folded, 20 to 50%, the most where
-  the action is long (Delete everything at 320 × 568), a field keeps its line (AI coach), or a
-  step keeps two actions on screen (Create a programme).
+  the action is long (Delete everything at 320 × 568), a field keeps its line, or a step keeps
+  two actions on screen (New strength programme).
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -1086,8 +1086,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   the page, `inline` is a ruled row inside a box, `footer` is a box's last row. Never the
   browser's own triangle.
 - Closed, unless it holds an error to fix, the week under way or the day in progress.
-- A list of folds (weeks, days, steps) is ruled `inline` rows inside one section, never a stack of
-  boxes; `box` is for a fold standing alone on a page.
+- A list of folds (weeks, days gone by, steps) is ruled `inline` rows inside one section, never a
+  stack of boxes; `box` is for a fold standing alone on a page.
 - The summary is the fold's name and holds words only (no heading, link or control); it says what
   is inside, never only a value, and what stands at its end is read with it. A fold that is a
   section of the page is a heading with a button, as Today's cards are.

@@ -5,6 +5,8 @@ Status: accepted by the owner ("Go with Today and Plan, rename Training to Plan 
 recommendations", 20 October 2026). Amends ADR 0016 (Today's More options and programme
 summary), ADR 0056 (Training as the logging and management hub), ADR 0057 (Training's layout)
 and LIFE-04 (`docs/planning/MULTISPORT_DECISIONS.md`) for an endurance log's link alone.
+Decisions 4, 5 and 10, Words and Redirects amended by
+[ADR 0060](0060-every-page-under-its-tab.md).
 
 ## Context
 
@@ -41,12 +43,20 @@ longer, and programme management hides below it or behind a control.
    first, then the missed, then the early), the strength cycle's days with the start each would
    get, and Unplanned; a sport with nothing planned skips the question. The training date and
    the session it answers are separate questions. It replaces Choose a day and Training's Log.
-5. **Plan** opens with This week: every sport's sessions by date, Monday to Sunday, today's rows
-   pointing to Today, past ones Done, Skipped or Missed, a run, ride or swim opening its page to
-   move, skip or log it. The lifting day Today offers stands on today, wherever the calendar put it.
-   Then one card per programme (its sport, name, how it runs and where it has got to, and any change
-   waiting), and Past programmes. New programme asks for a sport, then Repeating, Progressive or
-   With the coach. There are no templates.
+   It takes a body weight reading too, on a page of its own, and is titled Log (ADR 0060).
+5. **Plan** opens with This week: every sport's sessions by date, Monday to Sunday, as a list of
+   days; a strip of seven days was set aside, as it hides most of the week behind taps (amended 20
+   October 2026, ADR 0060). A day gone by is one closed row naming the day and what became of it
+   ("Mon 19 Oct · 2 done", "Thu 15 Oct · 1 done · 1 skipped", "Sat 17 Oct · 1 missed"), its
+   sessions a tap away; today and the days to come stand open. Today's rows point to Today; a run,
+   ride or swim opens its page to move, skip or log it, and reads Missed once its day has passed
+   unanswered; a lifting day opens its day's page. A lifting day is drawn once: done or skipped,
+   on the date it was; still owed, where the sequence will reach it (ADR 0051), the day Today
+   offers on today and each after it on the programme's next training date, never also on the date
+   the calendar first gave it, so it is never Missed. Then one card per programme (its sport, name,
+   how it runs and where it has got to, and any change waiting), and Past programmes. New
+   programme asks for a sport, then Repeating, Progressive or With the coach. There are no
+   templates.
 6. **Each programme has one page,** `/plan/[sport]`; strength's moved from `/profile/programme`.
    A run, ride or swim programme shows its weeks with the day each starts, which orients the
    list; a session's own date is This week's and its page's (amended 20 October 2026). A
@@ -68,7 +78,11 @@ longer, and programme management hides below it or behind a control.
     change, in the athlete's words, sent to the coach for that programme alone, its answer coming
     back to the same page to review. Profile's AI coach keeps the coach's settings, notes for
     every programme at once and what the coach is working on; its programme cards and review
-    picker repeated Plan and went.
+    picker repeated Plan and went. Amended 20 October 2026 (ADR 0060): AI coach is one page
+    without tabs, naming a programme that waits for you only by its state and opening its page;
+    the programme's page holds what needs an answer above its weeks, and what is with the coach,
+    what it changed on its own, the review and its own past requests and changes
+    (`/plan/history?sport=`) under them.
 
 ## Words
 
@@ -78,7 +92,7 @@ longer, and programme management hides below it or behind a control.
 | Add programme, Create your first programme, Create a programme, Choose a programme, Plan the next block | New programme                                |
 | Retire programme, Archived programmes                                                                   | End programme, Past programmes               |
 | Unplanned session, Log another session, independent, ad hoc                                             | Unplanned                                    |
-| Log a session, Log training, Log this session, Log a workout                                            | Log (Today), Log a session (its page)        |
+| Log a session, Log training, Log this session, Log a workout                                            | Log; Log a session (Today's own button)      |
 | Location, Add a training location                                                                       | Gym                                          |
 | Lifting programme                                                                                       | Strength programme                           |
 | Not done, Not logged, N sessions behind                                                                 | Missed (with Done and Skipped)               |
@@ -92,7 +106,8 @@ Permanent: `/training` to `/plan`; `/training/programmes/new`, `/archived`, `/:s
 `/today/log`; `/today/choose` to `/today/log?sport=strength`. Temporary, as the features may return:
 `/training/schedule`, `/training/scheduled`, `/training/templates` and `/training/programme` to
 `/plan`; `/profile/routines` to `/today`; `/welcome/programme/template` to `/welcome/programme`.
-Links that still say `?from=training` mean Plan.
+Links that still say `?from=training` mean Plan. ADR 0060 moved Plan's other pages, Log's form and
+a logged run, ride or swim under their tabs, each old path redirecting permanently.
 
 ## Not changed
 

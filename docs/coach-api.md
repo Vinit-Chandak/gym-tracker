@@ -1,6 +1,6 @@
 # Coach read API
 
-Create a token in **Profile → Coach access**. Give it a name and choose 30, 90 or 365 days.
+Create a token in **Profile → AI coach → Access tokens**. Give it a name and choose 30, 90 or 365 days.
 Copy it when it appears; the database stores only a SHA-256 hash. Keep it in the external
 client's secret storage. Revoke it from the same screen to stop subsequent requests immediately.
 There can be up to 10 active tokens. No connection or scheduled automation is configured by the app.

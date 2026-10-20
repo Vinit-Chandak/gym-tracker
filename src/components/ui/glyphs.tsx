@@ -525,7 +525,7 @@ export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   globe: "Time zone",
   people: "Friends",
   lock: "Privacy",
-  key: "Coach access",
+  key: "Access tokens",
   trash: "Delete",
   exit: "Sign out",
   repeat: "Routines",
