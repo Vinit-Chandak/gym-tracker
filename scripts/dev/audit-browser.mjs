@@ -25,7 +25,6 @@ const draft = own(fixtures.drafts).id;
 const exercise = fixtures.exercises.find((e) => e.slug === "barbell-bench-press").id;
 const activities = fixtures.activities.filter((a) => a.userId === vinit && a.sport !== "strength");
 const occurrences = fixtures.occurrences.filter((a) => a.userId === vinit);
-const templates = fixtures.templates.filter((a) => a.userId === vinit);
 // The app deliberately accepts at most one year per query. Walk the full seeded
 // history in supported windows, instead of accidentally auditing its fallback range.
 const historyWindows = [];
@@ -42,11 +41,10 @@ if (fixtures.history) {
 const routes = [
   "/",
   "/today",
-  "/today/choose",
-  "/runs",
-  "/runs/new",
-  `/runs/${run}`,
-  `/runs/${run}/edit`,
+  "/today/log",
+  "/today/log?sport=strength",
+  `/training/activities/${run}`,
+  `/training/activities/${run}/edit`,
   "/food",
   // Keep populated food states in the sweep even when the saved seed anchor is yesterday.
   ...(fixtures.history
@@ -95,12 +93,10 @@ const routes = [
   "/profile/delete-account",
   "/profile/coach",
   "/profile/ai-coach",
-  "/profile/programme",
-  "/profile/programme?view=changes",
+  "/profile/heart-rate",
   "/profile/programme/create",
   "/profile/programme/manual",
   "/profile/programme/history",
-  "/profile/routines",
   `/profile/programme/drafts/${draft}`,
   `/profile/programme/drafts/${draft}/programme`,
   `/welcome/programme/drafts/${draft}`,
@@ -132,44 +128,34 @@ const routes = [
   "/exercises/new",
   `/exercises/${exercise}`,
   `/workouts/${workout}`,
-  "/training",
-  "/training/log",
-  "/training/programmes/new",
-  "/training/programmes/new?scope=session",
-  "/training/programmes/archived",
+  // Today and Plan (ADR 0058); the routes they replaced are audit-legacy-routes.mjs's.
+  "/plan",
+  "/plan/new",
+  "/plan/past",
   ...["strength", "running", "cycling", "swimming"].flatMap((sport) => [
-    `/training/log?sport=${sport}`,
-    `/training/log?sport=${sport}&date=${fixtures.history.to}`,
-    `/training/programmes/${sport}`,
-    ...(sport === "strength" ? [] : [`/training/programmes/${sport}/edit`]),
-    `/training/programmes/new?sport=${sport}`,
-    `/training/programmes/new?sport=${sport}&method=coach`,
-    `/training/programmes/new?sport=${sport}&scope=session&method=coach`,
+    `/today/log?sport=${sport}`,
+    `/today/log?sport=${sport}&date=${fixtures.history.to}`,
+    `/plan/${sport}`,
+    ...(sport === "strength" ? [] : [`/plan/${sport}/edit`]),
+    `/plan/new?sport=${sport}`,
+    `/plan/new?sport=${sport}&method=coach`,
   ]),
   ...(fixtures.programDays ?? [])
     .filter((day) => day.userId === vinit)
     .map((day) => `/training/days/${day.id}`),
   `/workouts/start?gym=${gym}`,
-  "/training/scheduled",
-  "/training/programme",
   "/profile/sports",
-  "/training/templates",
-  "/training/templates/new",
   ...["running", "cycling", "swimming"].flatMap((sport) => {
     const activity = activities.find((a) => a.sport === sport);
     const occurrence = occurrences.find(
       (a) => a.sport === sport && !a.familyId && a.disposition === "pending",
     );
-    const template = templates.find((a) => a.sport === sport);
     return [
       `/training/new?sport=${sport}`,
-      `/training/schedule?sport=${sport}`,
-      `/training/programme?sport=${sport}`,
       `/training/activities/${activity.id}`,
       `/training/activities/${activity.id}/edit`,
       `/training/programme/occurrences/${occurrence.id}`,
       `/training/new?occurrence=${occurrence.id}`,
-      `/training/templates/${template.id}/edit`,
       `/u/shreyash?sport=${sport}`,
       `/profile/friends/leaderboard?sport=${sport}`,
       `/u/shreyash/compare?sport=${sport}`,
@@ -442,7 +428,6 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme/create",
               "/welcome/programme/manual",
               "/welcome/programme/split",
-              "/welcome/programme/template",
             ];
     for (const [i, route] of extra.entries()) await visit(route, persona, i);
   }
@@ -477,7 +462,6 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme",
               "/welcome/programme/create",
               "/welcome/programme/split",
-              "/welcome/programme/template",
               "/welcome/programme/manual",
             ]
           : ["/welcome/programme"];
