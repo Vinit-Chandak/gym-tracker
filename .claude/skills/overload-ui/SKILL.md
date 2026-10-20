@@ -111,7 +111,8 @@ does not play a second slide over Safari's own.
 - Read every changed screen for words it does not need (The Need-to-Know Rule): a sentence that
   explains the app, the coach or a plan goes, and help moves into an ⓘ or a fold.
 - Tests assert what a screen does (roles, names, states, figures), not its explanatory sentences;
-  a sentence moved into an ⓘ is asserted by opening the ⓘ.
+  a sentence moved into an ⓘ is asserted by opening the ⓘ. The audit scripts in `scripts/dev/`
+  find controls by their visible names: grep them when a label changes.
 - Let a reviewer with fresh context judge the pixels, not the author of the change.
 - Judge motion and touch on a real iPhone and a mid-range Android phone with the app installed,
   reduced motion on and off. Emulation does not show tap delay, sticky hover, safe areas, the

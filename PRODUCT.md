@@ -239,7 +239,8 @@ Checked against the decisions above and the owner's notes (2 October 2026):
    explanation someone may want is a tap away, in an ⓘ or a fold (owner, 20 October 2026;
    `DESIGN.md`, The Need-to-Know Rule). Added from the owner's notes on the Form v2 canvas. The
    [Information map](#information-map) lists each fact's home; elsewhere it is a link by name
-   ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+   ([ADR 0058](docs/decisions/0058-today-and-plan.md)). Where another rule here, in `DESIGN.md`
+   or in the feature inventory asks a screen to show more, this principle wins.
 
 ## Accessibility & Inclusion
 

@@ -599,6 +599,14 @@ state is one short line and its action. Consequences that cannot be undone (dele
 discarding) are said, once and briefly, where the action is (owner, 20 October 2026). This
 replaces ADR 0014's one short hint under a field.
 
+A screen that asks for a decision (start a programme, approve a change) puts it on its first
+screen, and what led to it (the coach's reasoning, its doubts, every session in full) folds under
+it. A row that opens a choice may carry one line under its name saying what the choice is, in a
+few words, never how it works. A value the app filled in from the profile or the logs says so in
+a word or two beside its label ("From your logs"), never in a sentence under it. A failure is said
+in the athlete's words: what failed, what is unchanged, what to do; text the coach or the server
+wrote for whoever runs them is never the message, and may sit folded under Details.
+
 ## Layout
 
 Every screen is laid out from its device rather than scaled from one size: 402 × 874 and
@@ -1054,6 +1062,19 @@ good is the target or the goal, which a rule or the readout says, not a directio
   waits, holding one line of state ("Preparing for Anytime Fitness · since 04:00", "Not prepared
   yet: programme targets apply") and at most one action (Prepare now). It never says how or when
   the coach runs, or that the screen updates itself.
+- The coach's reasoning on a draft is its note, two lines then More; what the coach is unsure
+  about is a fold under it with its count at the end of the row, and a change's reasoning is
+  folded under Why, closed.
+
+### Folds
+
+- One fold, `Disclosure`: its chevron, a summary that names what is inside ("Programme details",
+  "What the coach is unsure about"), and at the end of its row what a reader needs without
+  opening it ("6", "3 runs · 11.5 km · 26 Oct"). `box` stands on the page, `inline` is a ruled row
+  inside a box, `footer` is a box's last row. Never the browser's own triangle.
+- Closed, unless it holds an error to fix, the week under way or the day in progress.
+- A fold holds more than one thing: a single action stands as itself ("Duplicate programme"),
+  never alone behind More options.
 - Inside a card the note is a passage of the card, not a box: no surface, the caption and the
   words under a `hair` rule, whole. A card in a card is never drawn.
 
@@ -1134,6 +1155,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
   of them), and at most one action at the end of its bar, a word (Edit, Done) or a glyph (Filters,
   More) on the content's edge, never a filled button, which would fill the bar from the screen's
   top edge; a session screen has its back or minimise, the rest pill, and at most Finish and More.
+  Nothing on the screen repeats the back link as a button ("Back to Plan").
   Today's head is the date, with Log at its end. Where the programme has got to is Plan's (ADR
   0058), so Today shows no cycle and no count while it is on track. From two missed training
   days, with no workout open, the count stands under the date as "36 missed" (ADR 0058, Words)

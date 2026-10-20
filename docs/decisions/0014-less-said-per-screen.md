@@ -2,7 +2,8 @@
 
 Superseded in part by `DESIGN.md`'s Need-to-Know Rule (owner, 20 October 2026): Optional stands
 at the end of a field's label, a field's help is its ⓘ, and the line under a field is its error
-or what its value comes to, never a hint.
+or what its value comes to, never a hint. The tip of rule 2 is now portalled, so it stays inside
+the visual viewport (`src/components/ui/info-tip.tsx`); it still costs nothing while closed.
 
 A review of the Form interface on a phone found every screen explaining itself: a sentence
 under each Settings row saying what was behind it, a paragraph under the set grid saying
