@@ -8,7 +8,8 @@ the Form v2 canvas: kept where the code bears them out, corrected where it did n
 with their evidence. _Undecided_ marks what nobody has decided yet.
 
 Programme ownership and logging were updated on 16 October 2026 against the shipped flows and
-[ADR 0056](docs/decisions/0056-independent-sport-programmes.md).
+[ADR 0056](docs/decisions/0056-independent-sport-programmes.md). Today, Plan and Log were updated
+on 20 October 2026 against [ADR 0058](docs/decisions/0058-today-and-plan.md).
 
 ## Platform
 
@@ -67,15 +68,21 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
   first, then the exercises in any order, then Finish with notes and body weight.
 - Strength, running, cycling and swimming each have at most one active programme and progress
   independently. Strength follows its sequence of programme days and cycles; endurance follows
-  dated sessions. Today shows the next lifting session and endurance dated today. A missed
-  endurance session stays on its original date, available through Training, and blocks no sport.
-- Training leads with active programmes and their next session. Its compact logging shortcuts
-  let the athlete choose a sport and today or an earlier date, then explicitly
-  select a scheduled session or log independently. Only the selected session counts toward its
-  programme; an independent log carries no invented programme, cycle or day.
+  dated sessions. A missed run, ride or swim stays on its original date, Missed on Plan's week
+  and offered by Log, and blocks no sport.
+- The tabs divide by time ([ADR 0058](docs/decisions/0058-today-and-plan.md)). Today is now: a
+  card for each session still owed (the strength programme's next day, unless one was done
+  today, and each run, ride or swim dated today), a row for each session done today, and Log for
+  anything else. Plan is next: This week's sessions by date for every sport, a card per
+  programme, and Past programmes. Progress is done: history, records and trends.
+- Log asks what was done, which planned session it counts as, and when. Counts as lists the
+  sport's open sessions from 14 days back to 6 ahead, or for a workout the strength cycle's days,
+  then Unplanned. Only the session named counts toward its programme; an unplanned log carries no
+  invented programme, cycle or day. A saved run, ride or swim can change what it counts as on its
+  own page.
 - Retrospective logging records the actual training date and time. A lifting entry started from
-  Training's date chooser has no live rest timer or abandoned-workout prompt, asks for its actual
-  finish time, and returns to Training. Prescribed performance is never pre-filled as actuals.
+  Log's Done earlier has no live rest timer or abandoned-workout prompt, asks for its actual
+  finish time, and returns to Today. Prescribed performance is never pre-filled as actuals.
 - The rest timer, when turned on for a live workout, runs on every screen and survives reloads.
   This is an online PWA: private pages and submissions need a connection, while unsent drafts
   stay on the device for recovery. Private pages are not cached by the service worker.
@@ -85,19 +92,28 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
 
 ## Capabilities and Constraints
 
-**What it does.** Five destinations: Today, Training, Food, Progress, Profile. What each core
+**What it does.** Five destinations: Today, Plan, Food, Progress, Profile. What each core
 screen must keep is [the feature inventory](docs/ui-redesign/revamp/features.md): a redesign
 may move, regroup, rename or put behind a tap anything listed there, never drop it.
 
-Training owns logging and programme management. Only existing programmes have cards, each with
-its progress, next session, View, Edit and any outstanding proposal. Replacement, duplication
-and archive live under More options on the programme; archived plans remain in the session library.
-Add programme
-offers a sport, then coach or manual creation. General AI coach settings remain in Profile.
-Each sport has its own intake, review cadence and programme requests; the account switch,
-request quota and evidence history remain shared. A standalone coach session saves as a reusable
-lifting routine or endurance template without replacing a programme. Existing drafts and history
-remain reachable ([Training direction](docs/ui-redesign/training-programmes.md)).
+Plan holds what comes next and how it is built. This week lists every sport's sessions by date,
+Monday to Sunday: today's point to Today, past ones read Done, Skipped or Missed, and a run, ride
+or swim opens its page to move or skip it. Each existing programme has a card (its sport, name,
+how it runs, where it has got to and any change waiting) and one page, `/plan/[sport]`, with its
+weeks or days, Edit programme, coach review and changes to approve. Replace, Duplicate and End
+programme sit under the page's More options; an ended or replaced programme is under Past
+programmes. New programme asks for a sport, then Repeating, Progressive or With the coach; there
+are no templates. General AI coach settings remain in Profile. Each sport has its own intake,
+review cadence and programme requests; the account switch, request quota and evidence history
+remain shared. Existing drafts and history remain reachable
+([Plan direction](docs/ui-redesign/training-programmes.md)).
+
+Logging is Today's. A card starts or logs the session it stands for, and Log takes anything
+else: late, early, unplanned or done earlier. A saved run, ride or swim changes what it counts
+as on its own page (Counts as). Session templates, saved routines and Save as routine, the
+session library, one-off scheduling (Scheduled by you) and single sessions from the coach are
+set aside for now: a session is planned by a programme or unplanned. Their pages redirect, and
+their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 
 **What must not change** ([decisions implementation must preserve](docs/ui-redesign/README.md#decisions-that-implementation-must-preserve)):
 
@@ -108,17 +124,22 @@ remain reachable ([Training direction](docs/ui-redesign/training-programmes.md))
 - One unfinished workout at a time; the gym is chosen before starting and fixed for the session.
 - Exercises are only added or skipped, never reordered or deleted; supersets apply to this
   workout only and never change the programme.
-- Ad hoc sessions carry no invented programme, cycle or day.
+- Unplanned sessions carry no invented programme, cycle or day.
 - A scheduled log explicitly names its endurance occurrence and revision or lifting cycle and
   day. Choosing a date never matches a programme implicitly; changing or completing one sport
   never replaces or advances another. Past sessions of a continuing programme keep their
   prescriptions and remain loggable after future edits.
 - Progressive disclosure changes placement, not availability.
+- Each fact has one home ([Information map](#information-map)); another screen links to it by
+  name and never restates it.
 - System, Light and Dark appearance, changed locally and at once.
 
 **Terminology.** RIR (reps in reserve) for rep-based sets, RPE 1–10 for timed sets and carries.
 An exercise counts reps, seconds or metres. Set types: Warm-up, Working, Back-off, Drop, AMRAP,
-To failure. Targets read "3 × 8–12 @ 1–2 RIR"; place in a programme reads "Cycle 1 of 8 · Day 3".
+To failure. Targets read "3 × 8–12 @ 1–2 RIR"; a programme's place reads
+"Every week · Week 3 of 8" or "Progressive · Day 12 of 40". A planned session is Done, Skipped
+or Missed, and one no programme planned is Unplanned. The words Today and Plan replaced are
+listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
 
 **Technical.** Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase and Drizzle. The
 JavaScript budgets are targets: +5 KiB gzip on the shared shell and +15 KiB per route, with any
@@ -128,6 +149,32 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 
 - The oldest supported iPhone and Android browser and the weakest target phone, which set the
   first-paint, memory and frame budgets.
+
+## Information map
+
+Where each fact lives. Another screen may link to it by name, never restate its details or
+repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+
+| Fact                                                          | Home                                           |
+| ------------------------------------------------------------- | ---------------------------------------------- |
+| Today's sessions, every sport's                               | Today, a card each                             |
+| Starting or resuming a workout                                | Today, the workout's card                      |
+| Logging a session owed today                                  | Today, its card                                |
+| Logging anything else: late, early, unplanned or done earlier | Today › Log                                    |
+| Skipping today's workout; the coach's preparation             | Today, the workout card's More options         |
+| Picking up from today after missed days                       | Today, under the date                          |
+| What was done today                                           | Today › Done, a row each that opens its record |
+| This week's sessions by date                                  | Plan › This week                               |
+| Moving or skipping a run, ride or swim                        | Plan › This week › the session's page          |
+| How a programme runs and where it has got to                  | Plan › the programme's card and page           |
+| A programme's progress, weeks or days; editing or ending it   | Plan › the programme's page                    |
+| Starting a new programme                                      | Plan › New programme                           |
+| Coach review; changes to approve                              | Plan › the programme's page                    |
+| Programmes ended or replaced                                  | Plan › Past programmes                         |
+| What a logged run, ride or swim counts as                     | Its page › Counts as                           |
+| History, records, the calendar and trends                     | Progress                                       |
+| Meals, foods and food targets                                 | Food                                           |
+| Coach settings, sports, gyms and machines                     | Profile                                        |
 
 ## Brand Commitments
 
@@ -145,8 +192,8 @@ All real, all in the repository:
 
 - The shared library: 376 exercises, 93 kinds of equipment, warm-up protocols and the
   programme templates (`src/db/seed/data/`).
-- Development previews of Today, logging, coaching, food and Progress's Overview against fixed
-  data (`src/app/(preview)/preview/`).
+- Development previews of Today, Plan, logging, coaching, food and Progress's Overview against
+  fixed data (`src/app/(preview)/preview/`).
 - Six audit accounts, four of them with 56 months of history
   ([local audit setup](docs/audits/local-56-months.md), `scripts/dev/seed-audit.ts`,
   `scripts/dev/seed-audit-history.ts`).
@@ -172,7 +219,9 @@ Checked against the decisions above and the owner's notes (2 October 2026):
 5. **Yours unless shared.** A friend sees a short, separate list, and only once allowed to
    follow.
 6. **Say it once.** A screen says each thing once, in as few words as it needs, and shows state
-   rather than spelling it out. Added from the owner's notes on the Form v2 canvas.
+   rather than spelling it out. Added from the owner's notes on the Form v2 canvas. The
+   [Information map](#information-map) lists each fact's home; elsewhere it is a link by name
+   ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 
 ## Accessibility & Inclusion
 

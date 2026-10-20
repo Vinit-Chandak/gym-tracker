@@ -1,7 +1,8 @@
 # Feature inventory: the core loop
 
 What the four anchor screens of the revamp do today, read from the code on 30 September 2026
-(branch `claude/lucid-hamilton-17hwib`, based on `4e5e928`). It describes **what** each screen
+(branch `claude/lucid-hamilton-17hwib`, based on `4e5e928`); Today was rewritten, and Plan and
+Log added, from the code on 20 October 2026 (ADR 0058). It describes **what** each screen
 shows and does, never how it looks. A redesign may move, regroup, rename or put behind one tap
 anything below; it may not drop it. Where this page and the code disagree, the code wins and
 this page is corrected.
@@ -16,9 +17,11 @@ them are illustrative.
 
 Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
 
-- **Five destinations:** Today, Training, Food, Progress, Profile. Workout screens count as
-  Today unless opened from elsewhere (Training, History, the programme, a shared link).
-  Exercises, gyms and people's pages count as Profile.
+- **Five destinations:** Today, Plan, Food, Progress, Profile. Workout screens count as
+  Today unless opened from elsewhere (Plan, History, the programme, a shared link). Logging a
+  run, ride or swim counts as Today; a planned session's page, a programme day's page and the
+  strength programme's builder and drafts count as Plan. Exercises, gyms and people's pages
+  count as Profile.
 - **Headers:** a top-level screen has a title, one fact about it (a date, a period, a count)
   and at most one action. A nested screen has a back link that names where it goes ("Today",
   "History", "My foods") and returns to the previous in-app page, or to that destination when
@@ -44,76 +47,75 @@ Code: `src/app/(app)/layout.tsx`, `src/components/shell/`, `src/lib/nav.ts`.
 ## Today
 
 Code: `src/app/(app)/today/` (`page.tsx`, `today-view.tsx`, `gym-switcher.tsx`,
-`plan-actions.tsx`, `coach-actions.tsx`, `choose/`), `src/components/activities/today-activities.tsx`.
+`plan-actions.tsx`, `coach-actions.tsx`), `src/components/activities/today-activities.tsx`.
 
-**Purpose:** what the athlete owes today (the programme day, its runs, rides and swims, and
-anything scheduled), where they will train, and one tap to start or resume it.
+**Purpose:** what the athlete owes today and where they will train, one tap to start, resume or
+log each session, and what is done today. Nothing that is not today's: where a programme has got
+to and what comes next are Plan's, and logging anything else is Log's (ADR 0058).
 
 ### Shown
 
-- **The date** and the app's name.
-- **Where:** the gym the next session will use, with Change. Without any gym, a prompt to add
-  one replaces it.
-- **An unfinished session** that is not today's offered day (an unplanned session, one started
-  from a saved routine, or a day started early): its name (a routine's is the routine's), gym,
-  start time and number of sets, with Resume. Only one Resume ever appears on Today.
-- **The offered lifting day:**
-  - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
-    and time ("Squat + quads · 70–90 min");
-  - a note with the day's effort guidance and notes;
-  - a status: "22 days behind" or "On track" while pending (behind = days since the programme
-    started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
-    coach planned it;
-  - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
-    prescription ("3 × 8–12 @ 1–2 RIR", or metres (yards beside miles) or seconds for carries
-    and holds), with supersets grouped. When the coach planned the day, each exercise also shows its machine,
-    loads in the account's unit, the coach's notes, exercises dropped for today, and any
-    warnings.
-- **The coach's status**, when the coach is on: planning (the screen updates itself), could
-  not finish, has not planned yet, planned for a different gym, or fell back to the
-  programme's own targets.
-- **A rest day:** the same header information, plus the warm-up or mobility protocol: its
-  name, how many drills, and each drill with its dose.
-- **Other sports:** one card per run, ride or swim owed today: the sport, its target
-  ("30 minutes", "5 km", "6 × 400 m"), "Part of Easy Run + Arms" when the programme placed it,
-  a scheduled time if set, and Skipped or Coach. Logged ones stay on the day as cards inked
-  done, after what is still owed, each with "See what you logged" (since 4 October 2026: one
-  collapsible card per activity, each with its own next step; see `DESIGN.md`, Activity cards).
-  A day that only runs names its run card for the day ("Tempo run", its focus "Threshold").
-- **Anything else finished today**, which no card above stands for (a ride nobody scheduled, an
-  unplanned workout, a run logged late): a card each, inked done, with what it came to, when it
-  began and "See what you logged" (year audit, October 2026).
-- **Days with no lifting**, no programme, or a finished programme each have their own message
-  and offer only real next steps.
-- **Once the day is done:** "Done. Nothing left to do here today." (or "Rest day done."), and
-  the next day on offer under "Up next".
+- **The date**, and **Log** beside it unless the page is empty (below).
+- **After missed days:** from the second missed training day, how many, under the date, with
+  Pick up from today.
+- **A card per session still owed or open**, each with one main action (one collapsible card
+  per activity, each with its own next step; see `DESIGN.md`, Activity cards):
+  - **An unfinished session** that is not the offered day (an unplanned session, or another day
+    started from Log): its name, gym, start time and number of sets, with Resume. Only one
+    Resume ever appears on Today.
+  - **The offered lifting day**, while it is owed or open: its name ("Lower A"), the gym with
+    Change ("Choose a gym to start." without a default), its time and focus ("70–90 min",
+    "Squat + quads"), and "Prepared by the coach" when the coach prepared it. One tap away, its
+    exercises, each with its prescription ("3 × 8–12 @ 1–2 RIR", or metres (yards beside miles)
+    or seconds for carries and holds), with supersets grouped. When the coach prepared the day,
+    its summary comes first, and each exercise also shows its machine, loads in the account's
+    unit, the coach's notes, exercises dropped for today, and any warnings.
+  - **A rest day:** its name, time and focus, and the warm-up or mobility protocol: its name,
+    how many drills, and each drill with its dose.
+  - **Each run, ride or swim dated today**, whatever planned it: the sport, its target
+    ("30 minutes", "5 km", "6 × 400 m"), a scheduled time if set, "Prepared by the coach" when
+    it did, and how to do it one tap away. A day that only runs names its run card for the day
+    ("Tempo run", its focus "Threshold").
+- **The coach's status**, when the coach is on: preparing (the screen updates itself), could not
+  finish, has not prepared it yet, prepared it for a different gym, or fell back to the programme's
+  own targets.
+- **Done:** a row for each session finished today, whatever planned it, with what it came to
+  ("5 km", "48 min") and "Unplanned" when it answered nothing planned; each opens its record. A
+  run, ride or swim skipped today is a row too, Skipped, that opens its page, and a rest day
+  marked done is a row of its own.
+- **Nothing planned:** with nothing owed or done, "Nothing planned", or "{programme} is
+  complete" once the strength programme has finished, with Log a session as the page's own
+  button.
+- **No gym:** a lifter with no gym, when there is no programme or the day's lifting is owed, is
+  asked for one ("Add a gym to start training") in place of the workout's card.
 
 ### Actions
 
 - **Start workout** at the chosen gym, which goes to a short check-in and then the workout.
-  If a session is already open, it resumes that one instead.
-- **Resume**; **Discard** an unfinished session that has no sets (anything logged is
-  finished, never discarded).
+  While a session is open, nothing on Today starts, skips or prepares another.
+- **Resume**; **Discard** an unfinished session that has no sets (anything logged is finished,
+  never discarded); **finish** one left open (nothing logged in it for six hours) as of its last
+  set.
 - **Change gym** (a sheet of gyms with their kind: gym, outdoor or home; Manage gyms).
-- **Log it** for a run, ride or swim, carrying its target; **see what you logged**.
-- **On a rest day:** Mark rest day done, or start the next training day instead.
-- **Unplanned session**, when there is no programme day to offer.
-- **Choose a programme** or **plan the next block**, when there is none or it has ended.
-- **More options**, one control for everything that is not the offered day: train another
-  day (a list of the programme's days, the one Today offers marked Next and its run loggable
-  there, each with Start or Start skipped workout, or "Start cycle 5 with Push A" once this
-  cycle's training is answered, the words Today's rest day uses too; a day trained ahead of the
-  sequence, as its next cycle's, says Do again when it is done this cycle and Start early when
-  this cycle does not have it), start an unplanned session, ask the coach to plan, re-plan or
-  prepare this session (with a gym choice, an optional note, and "3 requests a day"), and skip
-  this session (with an optional reason; skipping the workout never skips a run on the same
-  day).
+- **Log run**, **Log ride** or **Log swim** on its card, carrying its target; **Skip or move**
+  opens its page.
+- **On a rest day:** Mark rest day done, or start the next lifting day instead ("Start Upper A",
+  or "Start cycle 5 with Push A" when it begins the next cycle).
+- **More options**, on the workout's card, holds only the coach and Skip: ask the coach to
+  prepare this session, or prepare it again (with a gym choice, an optional note, and
+  "3 requests left today"), and skip this session (with an optional reason; skipping the
+  workout never skips a run on the same day). Another day, or something unplanned, is Log's.
+- **Pick up from today:** the missed days are listed, then skipped in one go, and the programme
+  carries on from the day it has for today.
+- **Log**, for anything the cards do not offer (Log, below); open a Done row's record; **Add
+  your first gym**.
 
 ### States to design
 
-No gym; no default gym; no programme; programme complete; lifting day; lifting plus run;
-run only; rest day; behind schedule; session in progress (for the offered day or another);
-done or skipped today; the coach off, planning, failed, planned for another gym, or out of
+No gym; no default gym; nothing planned (no programme, or nothing owed or done today);
+programme complete; lifting day; lifting plus run; run only; rest day; two or more training days
+missed; session in progress (for the offered day or another) or left open; some or all of the
+day done or skipped; the coach off, preparing, failed, prepared for another gym, or out of
 requests; offline; loading; error.
 
 ### Must survive
@@ -121,9 +123,11 @@ requests; offline; loading; error.
 - One unfinished workout at a time.
 - The gym is chosen before starting and fixed for that session.
 - One card per task: the workout and each run are separate, and starting one never hides
-  the other.
-- Everything that is not the offered day sits behind one More options control, and stays
-  reachable.
+  the other. A session done today is a row in Done that opens its record, never a card.
+- Today shows only today: no programme position, no next day, and no missed run, ride or swim.
+  Those are Plan's, and Log offers them.
+- More options holds only the coach and Skip; anything else is Log's, one tap away in the
+  header.
 - Unplanned sessions carry no programme, cycle or day.
 
 ### Sample content
@@ -134,11 +138,177 @@ requests; offline; loading; error.
   Easy Run + Light Upper, Rest + Mobility ("Recovery", 10–15 min). (`src/db/seed/data/program.ts`)
 - Lower A: High-bar barbell squat 3 × 4–6, 45° leg press, Seated leg curl, Leg extension,
   Smith machine calf raise, Cable crunch. (`src/db/seed/data/exercises.ts`)
-- Easy Run + Arms, as previewed on Fri 11 Sept (Cycle 1 of 8 · Day 3): Barbell curl 3 × 8–12,
-  Rope triceps pushdown, Farmer's carry 3 × 20–40 m, Wrist curl, and a 25–30 min run
-  ("Talk-test; slower than push pace"). (`src/app/(preview)/preview/page.tsx`)
+- Easy Run + Arms, as previewed on Fri 11 Sept: Barbell curl 3 × 8–12, Rope triceps pushdown,
+  Farmer's carry 3 × 20–40 m, Wrist curl, and a 25–30 min run ("Talk-test; slower than push
+  pace"). (`src/app/(preview)/preview/page.tsx`)
 - Gyms "Anytime Fitness" (gym) and "Home" (home). Warm-up "Daily mobility": 90/90 hip switches
   6–8 per side, Cat-cow 6–8. (`src/db/seed/data/warmups.ts`)
+
+## Log
+
+Code: `src/app/(app)/today/log/` (`page.tsx`, `log-choices.ts`),
+`src/app/(app)/today/start-option.ts`, `src/app/(app)/training/new/` (the form for a run, ride
+or swim), `src/app/(app)/workouts/start/` (the check-in),
+`src/app/(app)/training/activities/[activityId]/counts-as/`,
+`src/server/repositories/activities.ts` (`relinkActivity`).
+
+**Purpose:** log what Today's cards do not offer (late, early, unplanned or done earlier): what
+was done, which planned session it counts as, if any, and when. The training date and the
+session it answers are separate questions, so a run missed on Saturday and done on Tuesday
+counts as Saturday's, logged on Tuesday. It replaced Choose a day and Training's Log (ADR 0058).
+
+### Shown
+
+- **Log a session:** the athlete's sports, as Workout, Run, Ride and Swim (all four when none is
+  set).
+- **Counts as**, under the sport's title ("Log a run", "Log a workout"), then Unplanned
+  ("Unplanned run"); a sport with nothing planned skips the question:
+  - a run, ride or swim: the sport's open sessions from 14 days back to 6 ahead, today's first,
+    then the missed, most recent first, then the early, each with where it stands ("Today",
+    "Sat 17 Oct · missed", "Sun 18 Oct · skipped", "Thu 22 Oct · early") and its target;
+  - a workout: the strength cycle's days, the one Today offers first, each with the start it
+    would get ("Next in your programme", "This cycle", "Skipped this cycle",
+    "Done this cycle; trains it again", "Cycle 2").
+- **When**, under what it counts as ("Counts as {session}", or "Unplanned"): for a run, ride or
+  swim, the date it was done, today or earlier ("Planned for {date}." under a missed session),
+  then its form; for a workout, the gym and Start workout, or Done earlier with the date and the
+  time it started.
+- **A workout already open:** "Finish or discard your open workout first.", with Resume.
+- **No gym:** a workout asks for one first (Add your first gym).
+- **Counts as, once saved:** a run, ride or swim's page says "Unplanned." or that it answered a
+  scheduled session, with "Count it as a planned session" or "Change what it counts as". That
+  opens Counts as: the sport's sessions from 14 days before the day it was done to 6 after, the
+  current one marked Current, and Unplanned.
+
+### Actions
+
+- **Choose** what was done, then what it counts as, or Unplanned.
+- **A run, ride or swim:** choose the date, today or earlier, then Continue to its form, which
+  saves it as that session's answer, or as unplanned.
+- **A workout:** choose the gym, then Start workout, a live session through its check-in; or
+  Done earlier, with the gym, date and start time, then Log this workout, which has no live rest
+  timer or abandoned-workout prompt, asks for its finish time and returns to Today.
+- **Change what a saved run, ride or swim counts as**, from its page: another session or
+  Unplanned changes it at once, and a refusal says why beside the rows.
+
+### States to design
+
+One sport or several; a sport with nothing planned; sessions today, missed, skipped and early;
+the strength cycle's days in each kind of start; a workout already open; no gym; done earlier;
+Counts as changed, refused, or not offered for a session of a programme that has ended;
+offline; loading; error.
+
+### Must survive
+
+- The athlete names the session, or none; nothing is matched by date.
+- The training date and the session it answers are separate questions.
+- One unfinished workout at a time.
+- An unplanned session carries no programme, cycle or day.
+- What a run, ride or swim counts as changes only by its own step, checked as a new log is: the
+  sport's, still open, answered by nothing else. A session of a programme that has ended keeps
+  its answer (ADR 0054); a workout's programme day is chosen when it starts.
+
+### Sample content
+
+- Counts as on Tue 20 Oct: "Today", "Today · skipped", "Sat 17 Oct · missed",
+  "Sun 18 Oct · skipped", "Thu 22 Oct · early"; a lifting day's start: "Next in your
+  programme", "This cycle", "Skipped this cycle", "Done this cycle; trains it again",
+  "Cycle 2". (`src/app/(app)/today/log/log-choices.test.ts`)
+
+## Plan
+
+Code: `src/app/(app)/plan/` (`page.tsx`, `plan-view.tsx`, `[sport]/`, `new/`, `past/`),
+`src/domain/plan-week.ts`, `src/server/repositories/plan-week.ts`,
+`src/server/repositories/sport-programmes.ts`, `src/components/coaching/programme-tools.tsx`,
+`src/app/(app)/training/programme/occurrences/[occurrenceId]/` (a session's page).
+
+**Purpose:** what comes next and how it is built: this week's sessions for every sport, by date,
+and each programme, how it runs and where it has got to. Starting, logging and skipping today's
+sessions are Today's; what has been done is Progress's (ADR 0058).
+
+### Shown
+
+- **This week**, Monday to Sunday ("19 Oct – 25 Oct 2026"), with Previous week and Next week:
+  each day's sessions, every sport's, lifting first, each with its sport's mark and name
+  ("Upper A", "Tempo run", or "Run" when nobody named it). Each reads Done or Skipped once
+  answered, Missed once its day has passed without, and Today while it is today's; one to come
+  says nothing. The lifting day Today offers stands on today, wherever the calendar put it. Days
+  with nothing planned are left out, and a week with none says "Nothing planned."
+- **Programmes:** a card per active programme with its sport, its name, how it runs and where it
+  has got to ("Every week · Week 3 of 8", "Progressive · Day 12 of 40", or "Complete"), and
+  "Changes to review" or "Draft in progress" while a change waits. Never its next session, which
+  is Today's, and never a bar, which is its page's.
+- **Past programmes**, a row to every sport's programmes that ended or were replaced, newest
+  first, each with its name, sport and version ("Running · Version 2").
+- **A programme's page** (`/plan/[sport]`): its name, how it runs and for how long
+  ("Every week · 8 weeks", "Repeating · 12 weeks"), a bar of the days or sessions done, Edit
+  programme and More options, and its notes and dates one tap away.
+  - **A run, ride or swim programme:** its weeks without dates, each with what it asks for and
+    where it stands ("Week 3", "3 runs · Now", "Done", "1 missed"), the current one open; each
+    session with its target and Done, Skipped or Missed, opening its page. Then the changes
+    waiting, and Coach review when the coach is on.
+  - **The strength programme:** where it has got to ("Cycle 2 of 8 · 40 days left · 3 skipped"),
+    then Days and Changes. Days lists every day in order, each opening to its exercises and
+    targets (a progressive programme's sequence seven days at a time). Changes holds what the
+    coach has proposed, asked or changed, with what waits for the athlete counted on the tab
+    ("Changes (2)").
+- **A session's page** (a run, ride or swim): its day and sport, its cycle and the date it is
+  planned for, its target and how to do it, Next, Missed or Skipped, "Moved from {date}." and,
+  once logged, the planned line and See what you logged.
+- **New programme:** the four sports, then Repeating ("The same week or cycle, again and
+  again."), Progressive ("Each week different, building as it goes.") and With the coach
+  ("Answer a few questions and the coach writes it."). A sport with a programme says what a new
+  one replaces ("Replaces {programme} when you start it. Your history stays.").
+
+### Actions
+
+- **Step** to the week before or after; the tab comes back to this week.
+- **Open a session** from the week: today's goes to Today, a run, ride or swim opens its page,
+  and a lifting day opens the strength programme.
+- **On a session's page:** Log it; Skip this session, or Put it back; Move it to another date;
+  Remove from the calendar, for one no programme planned.
+- **Open a programme** from its card; **New programme**, in the header, or as the page's own
+  button with none.
+- **On a programme's page:** Edit programme, a draft of the current block applied once
+  reviewed; under More options, Replace programme, Duplicate programme and End programme. Ending
+  is confirmed in place: its sessions from today on are removed, any it still owes can then only
+  be logged as unplanned, everything logged stays, and it moves to Past programmes. A finished
+  programme offers New programme instead of Edit programme.
+- **Changes:** open a draft in progress to go on with it, or changes to review to apply them;
+  ask the coach for a review (Coach review).
+- **Past programmes:** Duplicate programme.
+- **New programme:** choose the sport, then Repeating or Progressive, which open the builder
+  already set to run that way, or With the coach, which opens the sport's questions.
+
+### States to design
+
+No programme (New programme as the page's own button); a week with nothing planned; this week
+and another; sessions done, skipped, missed, today's and to come; lifting and a run on one day;
+the lifting day Today offers moved onto today; a finished programme; a change waiting (a draft
+in progress, or changes to review); strength and endurance, repeating and progressive, weekly
+and rolling; a progressive strength sequence longer than a week; no past programmes; the coach
+on or off; offline; loading; error.
+
+### Must survive
+
+- Plan is next: today's sessions point to Today, which starts, logs and skips them.
+- One active programme per sport; starting, editing or ending one never replaces or advances
+  another.
+- Each programme has one page. Its card says how it runs and where it has got to, and opens that
+  page; it never names the next session or repeats the page's buttons.
+- A run, ride or swim programme's weeks carry no dates; the dates are This week's.
+- Ending a programme is confirmed, closes its outstanding sessions and keeps everything logged
+  (ADR 0054); it moves to Past programmes, where it can be duplicated.
+- A programme changes only when the athlete applies the change, whoever drafted it.
+
+### Sample content
+
+From the Plan preview (`src/app/(preview)/preview/plan/page.tsx`), on Tue 20 Oct 2026:
+
+- Programmes: "8-Week Strength + Aesthetics Hybrid" (Strength), "Every week · Week 3 of 8";
+  "Hybrid Half Marathon" (Running), "Progressive · Week 5 of 12", with "Changes to review".
+- This week: Mon 19 Oct, Upper A Done and Easy run Missed; Tue 20 Oct, Lower A and Run, both
+  Today; then Upper B, Tempo run, Lower B and Long run, one a day to Saturday.
 
 ## A workout and logging a set
 
@@ -150,7 +320,7 @@ Code: `src/app/(app)/workouts/[sessionId]/` (`workout-view.tsx`, `workout-overvi
 **Purpose:** record every set of one workout at one gym, exercise by exercise in any order,
 then close it as a permanent record.
 
-**The flow:** Start workout on Today → a short check-in (Save and start, or Skip) → the
+**The flow:** Start workout on Today or Log → a short check-in (Save and start, or Skip) → the
 workout's exercise list → open an exercise and log its sets → Complete it and move to any
 other → Finish session (notes and body weight) → the finished record, with any records set.
 An unplanned session starts empty; a programme day arrives with its exercises, fallbacks,
@@ -251,8 +421,8 @@ than adding, and keep the RIR honest").
 - **Finish:** what was recorded (sets per exercise, "60 kg × 5, …"), what was not done
   ("Nothing logged", "Skipped: travelling"), notes, and body weight.
 - **The finished workout:** read only, with its records ("Barbell bench press · Est. 1RM 88 kg
-  (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry), and
-  "Save or repeat this workout" as a routine.
+  (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry). Saving it
+  as a routine is set aside for now (ADR 0058).
 - **Edit a finished workout** for a week after its day ([ADR 0049](../../decisions/0049-a-week-to-mend-a-finished-workout.md)):
   Edit, then each exercise, done or not, opens on its log to change, add or delete sets; Add
   exercise; Done. Each change saves as it is made. The summary offers "Edit workout" too.
