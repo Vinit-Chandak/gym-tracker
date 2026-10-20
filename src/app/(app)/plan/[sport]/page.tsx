@@ -16,12 +16,11 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { plannedVolume } from "@/domain/planned-volume";
+import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import { endurancePattern } from "@/domain/programme-pattern";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
-import { formatSportDistance } from "@/lib/distance-units";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { holdHyphens, joinFacts } from "@/lib/facts";
+import { holdHyphens, joinFacts, readsAs } from "@/lib/facts";
 import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -204,7 +203,7 @@ export default async function SportProgrammePage({
                     summary={`Week ${week}`}
                     meta={joinFacts([
                       sessionCount(sport, inWeek.length),
-                      volume.metres > 0 && formatSportDistance(volume.metres, sport, data.units),
+                      plannedVolumeLine(volume, sport, data.units),
                       week === currentWeek && !finished
                         ? "Now"
                         : allDone
@@ -228,7 +227,11 @@ export default async function SportProgrammePage({
                               session.prescription
                                 ? joinFacts([
                                     type && name !== RUN_TYPE_LABELS[type] && RUN_TYPE_LABELS[type],
-                                    describePrescription(session.prescription, data.units),
+                                    // Said once where the name already says it ("6 × 800 m").
+                                    !readsAs(
+                                      name,
+                                      describePrescription(session.prescription, data.units),
+                                    ) && describePrescription(session.prescription, data.units),
                                   ])
                                 : undefined
                             }

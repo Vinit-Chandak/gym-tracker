@@ -97,7 +97,8 @@ export default async function OccurrencePage(
       : named?.dayName
         ? { name: named.dayName, focus: named.dayFocus }
         : null;
-  const dayName = day?.name ?? null;
+  // A run of a running programme has no day: it is named as the programme names it.
+  const dayName = day?.name ?? occurrence.prescription?.title ?? null;
   const badge =
     standing === "next"
       ? { label: "Next", tone: "accent" as const }
@@ -141,7 +142,9 @@ export default async function OccurrencePage(
         title={dayName ?? sport}
         meta={joinFacts([
           dayName && sport,
-          occurrence.cycleIndex !== null && `Cycle ${occurrence.cycleIndex}`,
+          // A run, ride or swim of a programme is placed by its week; a strength day by its cycle.
+          occurrence.cycleIndex !== null &&
+            `${occurrence.cycleDayIndex === null ? "Week" : "Cycle"} ${occurrence.cycleIndex}`,
           `planned for ${formatIsoDate(occurrence.scheduledOn, year)}`,
         ])}
         backHref={(standalone ? "/plan" : `/plan/${occurrence.sport}`) as Route}
@@ -193,6 +196,7 @@ export default async function OccurrencePage(
             showSource={!occurrence.closed && (!standalone || prepared !== null)}
             units={units}
             zones={zones}
+            titled={target?.title !== dayName}
           />
         )}
 

@@ -187,6 +187,32 @@ export function LapsEditor({
     );
   }
 
+  // What the plan asked of a lap still left empty: on a track, 800 m was 800 m.
+  const fillable = rows.some(
+    (row) =>
+      row.asked !== undefined &&
+      ("distanceValue" in row.asked ? row.distance : row.duration) === "",
+  );
+  /**
+   * The plan's figure written into each lap that has none, at the athlete's word: they tap it
+   * when they ran the laps as planned, and add what the watch says beside it. Nothing is filled
+   * in without that tap (ACTUAL-01).
+   */
+  function fillPlanned() {
+    setRows((current) =>
+      current.map((row) => {
+        if (!row.asked) return row;
+        if ("distanceValue" in row.asked)
+          return row.distance === ""
+            ? { ...row, distance: String(row.asked.distanceValue), unit: row.asked.distanceUnit }
+            : row;
+        return row.duration === ""
+          ? { ...row, duration: formatDuration(row.asked.durationMs / 1000) }
+          : row;
+      }),
+    );
+  }
+
   return (
     <details
       open={open}
@@ -209,6 +235,16 @@ export function LapsEditor({
           <Button variant="secondary" onClick={layOut}>
             Lay out the plan’s {planned.length} laps
           </Button>
+        )}
+        {fillable && (
+          <div className="space-y-1">
+            <Button variant="secondary" onClick={fillPlanned}>
+              Fill in the planned distances and times
+            </Button>
+            <p className="type-caption text-ink-2">
+              Where you ran the laps as planned. Then add what your watch says beside them.
+            </p>
+          </div>
         )}
         {rows.length > 0 && (
           <ol className="laps" aria-describedby={error ? `${id}-error` : undefined}>

@@ -123,6 +123,8 @@ export type ActivityPlanProps = {
   units?: SportUnits;
   /** The athlete's heart-rate zones, so a zone target reads in their own beats (ADR 0059). */
   zones?: readonly HeartRateZone[] | null;
+  /** False where the page is already headed by the session's name. */
+  titled?: boolean;
 };
 
 export function ActivityPlan({
@@ -133,6 +135,7 @@ export function ActivityPlan({
   showSource = true,
   units = DEFAULT_SPORT_UNITS,
   zones = null,
+  titled = true,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   // One line per step and one per repeated block, never one per repetition (ADR 0059).
@@ -153,7 +156,7 @@ export function ActivityPlan({
             {FACT_SEPARATOR}planned
             {runType && `${FACT_SEPARATOR}${RUN_TYPE_LABELS[runType]}`}
           </p>
-          {prescription?.title && (
+          {titled && prescription?.title && (
             <h2 className="mt-1 text-lg font-medium [overflow-wrap:break-word]">
               {prescription.title}
             </h2>
@@ -175,11 +178,15 @@ export function ActivityPlan({
           {lines.map((line, index) => (
             <li key={index} className="plan-structure-line">
               <span className="plan-structure-lead">{line.lead}</span>
-              <span className="min-w-0 tabular-nums">
-                {line.text}
-                {line.notes.length > 0 && (
-                  <span className="text-ink-muted"> — {line.notes.join(" ")}</span>
-                )}
+              {/* A block's steps a line each, so a rep and its jog read as two things done. */}
+              <span className="plan-structure-parts">
+                {line.parts.map((part, partIndex) => (
+                  <span key={partIndex} className="block">
+                    {part.text}
+                    {part.note && <span className="text-ink-muted"> — {part.note}</span>}
+                  </span>
+                ))}
+                {line.rest && <span className="block text-ink-muted">{line.rest}</span>}
               </span>
             </li>
           ))}

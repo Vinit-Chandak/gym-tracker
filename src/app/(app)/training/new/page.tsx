@@ -18,6 +18,7 @@ import { z } from "zod";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { readHeartRate } from "@/server/repositories/heart-rate";
 import { getOccurrence, programmeClosure } from "@/server/repositories/occurrences";
 import { withPreparedTargets } from "@/server/repositories/coach-plans";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
@@ -95,9 +96,20 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   // question on a screen of its own.
   if (!sport) redirect("/today/log");
 
-  const units = await withUser(getDb(), user.id, (tx) => readSportUnits(tx, user.id), {
-    readOnly: true,
-  });
+  const { units, zones } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => ({
+      units: await readSportUnits(tx, user.id),
+      // A planned run's zone targets read in the athlete's own beats (ADR 0059).
+      zones:
+        occurrence?.prescription?.sport === "running"
+          ? ((await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))).resolved
+              ?.zones ?? null)
+          : null,
+    }),
+    { readOnly: true },
+  );
   const target = occurrence?.prescription
     ? {
         title: occurrence.preparedByCoach ? "Your coach asked for" : "The plan asked for",
@@ -105,8 +117,8 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
           describePrescription(occurrence.prescription, units),
           // The session's steps, a line per block, so a rep's target is in view while it is
           // typed (ADR 0059).
-          ...structureLines(occurrence.prescription, units).map(
-            (line) => `${line.lead} ${line.text}`,
+          ...structureLines(occurrence.prescription, units, zones).map((line) =>
+            line.kind === "repeat" ? `${line.lead} ${line.text}` : `${line.lead}: ${line.text}`,
           ),
           occurrence.prescription.running?.paceNote,
           occurrence.prescription.running?.symptomStopRule,

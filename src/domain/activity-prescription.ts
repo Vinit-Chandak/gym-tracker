@@ -413,8 +413,10 @@ export function durationTargetParts(ms: number | readonly [number, number]): {
  * What a session asks for as one figure and its unit — "8 × 50" m, "5" km, "25–30" min — with
  * any distance in the reader's own unit for the sport. Null when it asks for nothing measurable.
  *
- * One repeated block names the session; otherwise its overall targets do, distance first; and
- * failing both, what its written steps add up to.
+ * Its main work names it. A repeated block does, unless work written on its own is more of the
+ * session (ADR 0059): an easy run with strides is its run, not its strides. Otherwise its overall
+ * targets do, distance first; then its one work step, as a tempo is its twenty minutes and a race
+ * its distance; and failing those, what its written steps add up to.
  */
 export function prescriptionTarget(
   prescription: EndurancePrescription,
@@ -422,20 +424,41 @@ export function prescriptionTarget(
 ): { figure: string; unit: string } | null {
   const distance = (metres: number | readonly [number, number]) =>
     sportDistanceParts(metres, prescription.sport, units);
+  const parts = (target: PrescriptionStep["target"]) =>
+    target.kind === "distance" ? distance(target.metres) : durationTargetParts(target.ms);
+  const work = prescription.nodes.filter(
+    (node): node is PrescriptionStep => node.kind === "step" && node.phase === "work",
+  );
   const block = prescription.nodes.find((node) => node.kind === "repeat");
-  if (block && block.kind === "repeat" && block.steps[0]) {
-    const target = block.steps[0].target;
-    const each =
-      target.kind === "distance" ? distance(target.metres) : durationTargetParts(target.ms);
+  if (block && block.kind === "repeat" && block.steps[0] && !outweighs(work, block)) {
+    const each = parts(block.steps[0].target);
     return { figure: `${block.repetitions} × ${each.figure}`, unit: each.unit };
   }
   const { distanceMetres, durationMs } = prescription.sessionTargets;
   if (distanceMetres) return distance(distanceMetres);
   if (durationMs) return durationTargetParts(durationMs);
+  if (work.length === 1) return parts(work[0]!.target);
   const totals = prescriptionTotals(prescription);
   if (totals.distanceMetres) return distance(totals.distanceMetres);
   if (totals.durationMs) return durationTargetParts(totals.durationMs);
   return null;
+}
+
+/**
+ * Whether work written on its own is more of the session than a block's work: 35 minutes easy
+ * beside six 20-second strides, or 8 km beside them. Measured the same way they are compared;
+ * measured differently, the work on its own is the session, as strides and drills are written
+ * after a run and not instead of it.
+ */
+function outweighs(work: readonly PrescriptionStep[], block: PrescriptionRepeat): boolean {
+  if (work.length === 0) return false;
+  const kind = block.steps[0]!.target.kind;
+  if (work.some((step) => step.target.kind !== kind)) return true;
+  const amount = (step: PrescriptionStep) =>
+    step.target.kind === "duration" ? step.target.ms[1] : step.target.metres[1];
+  const reps = block.steps.filter((step) => step.phase === "work" && step.target.kind === kind);
+  const blockWork = reps.reduce((sum, step) => sum + amount(step), 0) * block.repetitions;
+  return work.some((step) => amount(step) > blockWork);
 }
 
 /** A one-line description for a card: "8 × 50 m", "25–30 min", "8.05 km". */

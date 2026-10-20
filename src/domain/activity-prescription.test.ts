@@ -193,6 +193,85 @@ describe("what a session is said to ask for", () => {
     expect(describePrescription(strides.value, KM)).toBe("6 × 20 s");
   });
 
+  it("is named for its main work: a run beside its strides, a tempo, a race", () => {
+    const strides = {
+      kind: "repeat" as const,
+      id: "strides",
+      repetitions: 6,
+      restBetweenMs: null,
+      steps: [step({ id: "stride", target: { kind: "duration", ms: [20_000, 20_000] } })],
+    } as PrescriptionNode;
+    const named = (nodes: PrescriptionNode[]) => {
+      const result = prescription("running", nodes);
+      if (!result.ok) throw new Error(JSON.stringify(result.problems));
+      return describePrescription(result.value, KM);
+    };
+    // Easy minutes or kilometres, then strides: the run names it, however each is measured.
+    expect(
+      named([
+        step({ id: "easy", target: { kind: "duration", ms: [35 * MINUTE, 35 * MINUTE] } }),
+        strides,
+      ]),
+    ).toBe("35 min");
+    expect(
+      named([step({ id: "easy", target: { kind: "distance", metres: [8000, 8000] } }), strides]),
+    ).toBe("8 km");
+    // The reps between a warm-up and a cool-down are the session, as they always were.
+    expect(
+      named([
+        step({ id: "warm", phase: "warmup", target: { kind: "distance", metres: [2000, 2000] } }),
+        {
+          kind: "repeat",
+          id: "reps",
+          repetitions: 6,
+          restBetweenMs: null,
+          steps: [
+            step({ id: "rep", target: { kind: "distance", metres: [800, 800] } }),
+            step({
+              id: "jog",
+              phase: "recovery",
+              target: { kind: "distance", metres: [400, 400] },
+            }),
+          ],
+        } as PrescriptionNode,
+        step({ id: "cool", phase: "cooldown", target: { kind: "distance", metres: [1500, 1500] } }),
+      ]),
+    ).toBe("6 × 800 m");
+    // So is a block that is more of the run than the work beside it.
+    expect(
+      named([
+        step({ id: "settle", target: { kind: "duration", ms: [5 * MINUTE, 5 * MINUTE] } }),
+        {
+          kind: "repeat",
+          id: "threes",
+          repetitions: 5,
+          restBetweenMs: null,
+          steps: [
+            step({ id: "three", target: { kind: "duration", ms: [3 * MINUTE, 3 * MINUTE] } }),
+          ],
+        } as PrescriptionNode,
+      ]),
+    ).toBe("5 × 3 min");
+    // One work step between a warm-up and a cool-down measured otherwise: that step.
+    expect(
+      named([
+        step({ id: "warm", phase: "warmup", target: { kind: "distance", metres: [2000, 2000] } }),
+        step({ id: "tempo", target: { kind: "duration", ms: [20 * MINUTE, 20 * MINUTE] } }),
+        step({ id: "cool", phase: "cooldown", target: { kind: "distance", metres: [1500, 1500] } }),
+      ]),
+    ).toBe("20 min");
+    expect(
+      named([
+        step({
+          id: "warm",
+          phase: "warmup",
+          target: { kind: "duration", ms: [12 * MINUTE, 12 * MINUTE] },
+        }),
+        step({ id: "race", target: { kind: "distance", metres: [5000, 5000] } }),
+      ]),
+    ).toBe("5 km");
+  });
+
   it("keeps the unit a distance was written in, for the editor and nothing else", () => {
     const written = parsePrescription({
       prescriptionVersion: 1,

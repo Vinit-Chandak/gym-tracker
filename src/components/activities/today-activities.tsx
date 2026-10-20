@@ -10,7 +10,7 @@ import type { ActivitySport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
-import { holdFigures } from "@/lib/facts";
+import { holdFigures, readsAs } from "@/lib/facts";
 import { ORIGIN_PARAM } from "@/lib/nav";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
@@ -148,9 +148,11 @@ export function EnduranceCard({
   const note = enduranceNote(occurrence.prescription);
   const runType = occurrence.prescription?.running?.sessionType;
   // The session's own name, or the kind of run it is, before the sport's bare "Run" (ADR 0059).
+  // A name that only repeats the figure beside it names nothing: the kind of run does.
+  const title = occurrence.prescription?.title;
   const name =
     day?.name ??
-    occurrence.prescription?.title ??
+    (title && !(target && readsAs(title, `${target.figure} ${target.unit}`)) ? title : null) ??
     (runType ? RUN_TYPE_LABELS[runType] : enduranceName(sport));
   const focus =
     day?.focus ?? (runType && name !== RUN_TYPE_LABELS[runType] ? RUN_TYPE_LABELS[runType] : null);

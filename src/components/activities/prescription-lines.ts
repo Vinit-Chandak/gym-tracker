@@ -88,8 +88,14 @@ export function stepTargetLine(
 }
 
 export type StructureLine = {
+  kind: "step" | "repeat";
   /** "Warm-up", "6 ×", "Cool-down": what the line is, in the plan's words. */
   lead: string;
+  /** What each step of the line asks, with its own note: one for a step, a block's in turn. */
+  parts: { text: string; note: string | null }[];
+  /** The rest between a block's repetitions, where the plan gives one. */
+  rest: string | null;
+  /** The line as one, for a list with room for a line a step. */
   text: string;
   notes: string[];
 };
@@ -103,17 +109,23 @@ export function structureLines(
   units: SportUnits,
   heartRateZones: readonly HeartRateZone[] | null = null,
 ): StructureLine[] {
+  const part = (step: PrescriptionStep) => ({
+    text: `${actionWord(step)} ${stepTargetLine(step, prescription.sport, units, heartRateZones)}`,
+    note: step.notes,
+  });
   return prescription.nodes.map((node) => {
-    if (node.kind === "step")
+    if (node.kind === "step") {
+      const only = part(node);
       return {
+        kind: "step",
         lead: PHASE_WORDS[node.phase],
-        text: `${actionWord(node)} ${stepTargetLine(node, prescription.sport, units, heartRateZones)}`,
+        parts: [only],
+        rest: null,
+        text: only.text,
         notes: node.notes ? [node.notes] : [],
       };
-    const steps = node.steps.map(
-      (step) =>
-        `${actionWord(step)} ${stepTargetLine(step, prescription.sport, units, heartRateZones)}`,
-    );
+    }
+    const parts = node.steps.map(part);
     const rest =
       node.restBetweenMs === null || node.restBetweenMs === 0
         ? null
@@ -122,8 +134,13 @@ export function structureLines(
             return `${figure}\u00a0${unit} rest between`;
           })();
     return {
+      kind: "repeat",
       lead: `${node.repetitions}\u00a0×`,
-      text: [steps.join(", "), rest].filter(Boolean).join(FACT_SEPARATOR),
+      parts,
+      rest,
+      text: [parts.map((entry) => entry.text).join(", "), rest]
+        .filter(Boolean)
+        .join(FACT_SEPARATOR),
       notes: node.steps.flatMap((step) => (step.notes ? [step.notes] : [])),
     };
   });

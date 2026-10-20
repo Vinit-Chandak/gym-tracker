@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, expect, it, vi } from "vitest";
 
+import { endurancePrescriptionSchema } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 import NewActivityPage from "./page";
@@ -45,10 +46,33 @@ vi.mock("@/components/activities/activity-editor", () => ({
   ActivityEditor: ({
     occurrence,
     origin,
+    target,
   }: {
     occurrence: { id: string } | null;
     origin?: string | null;
-  }) => <form data-origin={origin ?? ""}>Logging {occurrence?.id}</form>,
+    target?: { lines: string[] } | null;
+  }) => (
+    <form data-origin={origin ?? ""}>
+      Logging {occurrence?.id}
+      {target?.lines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </form>
+  ),
+}));
+// Zones of a 190 maximum, as shares of it.
+vi.mock("@/server/repositories/heart-rate", () => ({
+  readHeartRate: async () => ({
+    resolved: {
+      zones: [
+        { zone: 1, name: "Recovery", low: 95, high: 113 },
+        { zone: 2, name: "Easy", low: 114, high: 132 },
+        { zone: 3, name: "Aerobic", low: 133, high: 151 },
+        { zone: 4, name: "Threshold", low: 152, high: 170 },
+        { zone: 5, name: "Maximum", low: 171, high: 190 },
+      ],
+    },
+  }),
 }));
 vi.mock("@/components/shell/session-page", () => ({
   SessionPage: ({
@@ -76,6 +100,9 @@ vi.mock("@/components/ui/app-link", () => ({
 }));
 
 const ID = "30d14b71-0000-4000-8000-000000000001";
+
+/** The markup as read: no-break spaces as spaces, word joiners gone. */
+const plain = (html: string) => html.replace(/\u00a0|&nbsp;/g, " ").replace(/\u2060/g, "");
 
 // Liam's run of Sat 27 June, owed when Strength Maintenance + 2 Runs made way for the next block.
 const owed = {
@@ -148,6 +175,48 @@ it("opens the form for a session of the athlete's programme", async () => {
   const html = renderToStaticMarkup(await NewActivityPage(props()));
   expect(html).toContain(`>Logging ${ID}</form>`);
   expect(mocks.closure).not.toHaveBeenCalled();
+});
+
+/** ADR 0059: a planned run's steps are in view while it is logged, its zones in the athlete's beats. */
+it("shows a planned run's steps, a line each, with its zones in beats", async () => {
+  mocks.occurrence.mockResolvedValue({
+    ...owed,
+    familyId: "family",
+    closed: false,
+    loggable: true,
+    prescription: endurancePrescriptionSchema.parse({
+      prescriptionVersion: 1,
+      sport: "running",
+      nodes: [
+        {
+          kind: "step",
+          id: "warm",
+          phase: "warmup",
+          action: "run",
+          target: { kind: "distance", metres: [2000, 2000] },
+          heartRateZones: [1, 2],
+        },
+        {
+          kind: "repeat",
+          id: "reps",
+          repetitions: 6,
+          steps: [
+            {
+              kind: "step",
+              id: "rep",
+              phase: "work",
+              action: "run",
+              target: { kind: "distance", metres: [800, 800], unit: "m" },
+              heartRateZones: [4, 4],
+            },
+          ],
+        },
+      ],
+    }),
+  });
+  const html = plain(renderToStaticMarkup(await NewActivityPage(props())));
+  expect(html).toContain("<p>Warm-up: Run 2 km · Zones 1–2 (95–132 bpm)</p>");
+  expect(html).toContain("<p>6 × Run 800 m · Zone 4 (152–170 bpm)</p>");
 });
 
 /**

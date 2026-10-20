@@ -3,9 +3,9 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { describePrescription } from "@/domain/activity-prescription";
 import { addDays, isoWeekday } from "@/domain/program-calendar";
 import type { ProgrammeEnduranceSession } from "@/domain/programme-sport";
-import { plannedVolume } from "@/domain/planned-volume";
+import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
-import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
+import type { SportUnits } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoDate, formatIsoShortDay } from "@/lib/format";
 import { WEEKDAY_SHORT } from "@/lib/labels";
@@ -44,8 +44,7 @@ export function EnduranceDraftWeeks({
               summary={`Week ${week}`}
               meta={joinFacts([
                 `${inWeek.length} ${noun}${inWeek.length === 1 ? "" : "s"}`,
-                volume.metres > 0 && formatSportDistance(volume.metres, sport, units),
-                volume.timedMs > 0 && `${Math.round(volume.timedMs / 60_000)} min by time`,
+                plannedVolumeLine(volume, sport, units),
                 startDate && formatIsoShortDay(addDays(startDate, (week - 1) * 7)),
               ])}
               defaultOpen={week === 1}

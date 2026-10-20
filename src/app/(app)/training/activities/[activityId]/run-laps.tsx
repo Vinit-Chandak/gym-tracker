@@ -15,6 +15,9 @@ import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
  * the pace where both were recorded, and the heart rate against the athlete's zones. A lap
  * missing a distance or a time shows a dash, never a figure worked out from the plan.
  *
+ * Five columns fit a phone: the pace's unit is said once, in its heading, and a lap's highest
+ * heart rate shows beside its average where there is room for it.
+ *
  * Time in zones, under them, is read from each lap's average: an approximation, and said to be.
  */
 export function RunLaps({
@@ -38,8 +41,10 @@ export function RunLaps({
               <th scope="col">Lap</th>
               <th scope="col">Distance</th>
               <th scope="col">Time</th>
-              <th scope="col">Pace</th>
-              <th scope="col">Heart rate</th>
+              <th scope="col">Pace /{units.distanceUnit}</th>
+              <th scope="col">
+                <abbr title="Heart rate">HR</abbr>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -62,9 +67,7 @@ export function RunLaps({
                   </td>
                   <td>{lap.durationMs === null ? "—" : formatDuration(lap.durationMs / 1000)}</td>
                   <td>
-                    {pace === null
-                      ? "—"
-                      : `${formatPaceSeconds(pacePerUnit(pace, units.distanceUnit))}\u00a0/${units.distanceUnit}`}
+                    {pace === null ? "—" : formatPaceSeconds(pacePerUnit(pace, units.distanceUnit))}
                   </td>
                   <td>
                     {lap.averageHeartRate === null ? (
@@ -73,10 +76,13 @@ export function RunLaps({
                       <>
                         {lap.averageHeartRate}
                         {lap.maxHeartRate !== null && (
-                          <span className="text-ink-2">/{lap.maxHeartRate}</span>
+                          <span className="run-laps-max text-ink-2">/{lap.maxHeartRate}</span>
                         )}
                         {zone !== null && zone > 0 && (
-                          <span className="run-laps-zone"> Z{zone}</span>
+                          <span className="run-laps-zone">
+                            {" "}
+                            <abbr title={`Zone ${zone}`}>Z{zone}</abbr>
+                          </span>
                         )}
                       </>
                     )}
