@@ -76,7 +76,7 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
   ].sort(newestFirst);
   // A reader that stopped short of the range leaves the days before its oldest row incomplete:
   // the other kinds would run on alone. So the list stops after the last whole day, for every
-  // kind, and says where; dates chosen behind the funnel read further back.
+  // kind, and says so; dates chosen behind the funnel read further back.
   const stops = [
     data.training.workoutsTruncated ? workouts.at(-1)?.day : undefined,
     data.training.runsTruncated ? runs.at(-1)?.day : undefined,

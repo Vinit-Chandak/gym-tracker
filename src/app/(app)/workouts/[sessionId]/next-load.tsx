@@ -42,6 +42,8 @@ export function nextLoadQuestion(
 /**
  * One quiet line under the sets: the next weight on this machine, filled with the guess
  * where there is one, saved only when the athlete says so. Leaving it alone changes nothing.
+ * While the box holds the guess, "From your logs" beside the label says so: a value the app
+ * filled in says it in a word or two, never in a sentence under it (DESIGN.md, Need-to-Know).
  */
 export function NextLoad({
   equipmentInstanceId,
@@ -64,6 +66,7 @@ export function NextLoad({
     ? `Next step down from ${from} ${unitLabel}`
     : `Next up from ${from} ${unitLabel}`;
   const inputId = `next-load-${equipmentInstanceId}`;
+  const guessed = guess !== null && value === String(guess);
 
   if (saved !== null)
     return (
@@ -103,9 +106,16 @@ export function NextLoad({
       }}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <label htmlFor={inputId} className="text-ink-muted">
-          {label}
-        </label>
+        <span className="flex flex-wrap items-baseline gap-x-1.5">
+          <label htmlFor={inputId} className="text-ink-muted">
+            {label}
+          </label>
+          {guessed && (
+            <span id={`${inputId}-from`} className="text-xs text-ink-subtle">
+              From your logs
+            </span>
+          )}
+        </span>
         <div className="flex items-center gap-2">
           <Input
             id={inputId}
@@ -114,7 +124,7 @@ export function NextLoad({
             value={value}
             onChange={(event) => setValue(sanitizeNumberEntry(event.target.value))}
             className="w-20 text-right tabular-nums"
-            aria-describedby={guess !== null ? `${inputId}-hint` : undefined}
+            aria-describedby={guessed ? `${inputId}-from` : undefined}
           />
           <span className="text-ink-muted">{unitLabel}</span>
           <Button type="submit" size="sm" variant="ghost" disabled={pending || value === ""}>
@@ -122,11 +132,6 @@ export function NextLoad({
           </Button>
         </div>
       </div>
-      {guess !== null && (
-        <p id={`${inputId}-hint`} className="text-xs text-ink-subtle">
-          A guess from your logs. Correct it if the stack says otherwise.
-        </p>
-      )}
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}

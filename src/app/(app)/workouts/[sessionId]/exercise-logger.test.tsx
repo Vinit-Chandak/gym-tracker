@@ -556,7 +556,7 @@ it("retains unmatched drafts for review when the workout was finished elsewhere"
   renderLogger({ readOnly: true });
   await screen.findByText(/This workout is finished, so these entries cannot be saved here/);
   expect(localStorage.getItem(draftKey(context))).toContain('"weight":"65"');
-  press("Discard this local draft");
+  press("Discard draft");
   await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
 });
 
@@ -925,7 +925,10 @@ it("amends a finished workout's sets, done or not, offering nothing of training 
   await screen.findByRole("button", {
     name: "Set 1: 62.5 kilograms, 5 reps, 2 reps in reserve. Edit",
   });
-  expect(screen.getByText("Tap a set to change or delete it.")).toBeTruthy();
+  // The line is the way in, as it is while logging: no sentence over the dock narrates it.
+  const dock = within(screen.getByRole("region", { name: "Sets" }));
+  expect(dock.queryByRole("status")).toBeNull();
+  expect(dock.getByRole("button", { name: "Add set" })).toBeTruthy();
   // A set forgotten on the day: Add set brings the entry up for it, and once saved, it goes.
   actions.log.mockResolvedValue({ ok: true, set: { ...saved, id: "set-2", setIndex: 2 } });
   press("Add set");

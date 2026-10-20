@@ -78,12 +78,13 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         close={{ href: `/workouts/${sessionId}` as Route, label: "Back to the workout" }}
         rest={profile.restTimerEnabled ? sessionId : null}
       >
-        <section aria-labelledby="finish-recorded">
-          <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
-            <span>Recorded</span>
-            <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
-          </h2>
-          {done.length > 0 ? (
+        {/* With nothing logged, the form says so once, over Discard session. */}
+        {done.length > 0 && (
+          <section aria-labelledby="finish-recorded">
+            <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
+              <span>Recorded</span>
+              <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
+            </h2>
             <ul>
               {done.map((exercise) => (
                 <li key={exercise.id} className="record-row">
@@ -104,10 +105,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="record-row type-meta text-ink-2">No sets logged yet.</p>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Not done is a fact about the session, not an error. It is recorded as it stands. */}
         {(untouched.length > 0 || skipped.length > 0) && (
@@ -139,6 +138,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           sessionId={sessionId}
           // A warm-up is something logged all the same: only an empty workout is told so.
           nothingLogged={done.length === 0}
+          coach={profile.aiCoachEnabled}
           asOf={asOf}
           recordedStart={
             session.loggedRetrospectively ||

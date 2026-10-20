@@ -428,7 +428,8 @@ than adding, and keep the RIR honest").
 ### Finishing and the record
 
 - **Finish:** what was recorded (sets per exercise, "60 kg × 5, …"), what was not done
-  ("Nothing logged", "Skipped: travelling"), notes, and body weight.
+  ("Skipped: travelling"), notes and body weight; with nothing logged, "Nothing logged" once, over
+  Discard session.
 - **The finished workout:** read only, with its records ("Barbell bench press · Est. 1RM 88 kg
   (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry). Saving it
   as a routine is set aside for now (ADR 0058).
@@ -505,7 +506,8 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
   as bars, load × reps of kg and lb working sets in the account's unit; the total and the weekly
   figure over the weeks trained ("158,639 kg · 31,728 kg a week · 24 workouts"); a bar reads its
   volume and sets ("8,910 kg · 9 sets") and opens its workout; a group that lifted nothing with a
-  load says bodyweight and timed sets add no volume. **An exercise:** estimated 1RM, max weight,
+  load says so ("No loaded sets in this range"), its ⓘ saying bodyweight, timed and stack sets add
+  none. **An exercise:** estimated 1RM, max weight,
   max reps and max volume (the best single set), and max time or distance for holds and carries,
   only those with data; a line with a point per workout (past about sixty, the best of each week
   or month); its best in the span and the set behind it ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
@@ -529,7 +531,7 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
 - **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
   change ("75.2 kg · −1 since Tue 8 Sept").
 - **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
-  "79 entries · page 1 of 8", newest first, ten to a page with the page tabs under
+  "79 entries", newest first, ten to a page with the page tabs under
   the list (every page up to five, else the first, the last and the page read with its
   neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name, date, time,
   gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim

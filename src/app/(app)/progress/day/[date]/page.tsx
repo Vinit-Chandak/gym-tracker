@@ -180,7 +180,8 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           </figure>
         )}
         {entries.length === 0 ? (
-          <p className="type-body text-ink-2">Nothing logged on {formatIsoDate(date)}.</p>
+          // The day is the page's title.
+          <p className="type-body text-ink-2">Nothing logged.</p>
         ) : (
           <ul className="mt-1.5">
             {entries.map((entry) => (

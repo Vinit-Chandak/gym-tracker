@@ -326,21 +326,18 @@ async function checkFilters(page, window, kind = "all") {
 // Every page of the window is read, from the first, and the list is left on its first page.
 async function checkRecords(page, data, window, kind = "all") {
   await expect(page.getByRole("heading", { level: 1, name: "History", exact: true })).toBeVisible();
-  const count = page
-    .getByRole("status")
-    .filter({ hasText: /^[\d,]+\sentr(?:y|ies)(?:\s·\spage\s\d+\sof\s\d+)?$/ });
+  const count = page.getByRole("status").filter({ hasText: /^[\d,]+\sentr(?:y|ies)$/ });
   await expect(count).toHaveCount(1);
   const expected = expectedFor(data, window, kind);
   const pages = Math.max(1, Math.ceil(expected.length / PAGE_SIZE));
-  const status = (number) =>
-    `${expected.length.toLocaleString("en-GB")} ${expected.length === 1 ? "entry" : "entries"}` +
-    (pages > 1 ? ` · page ${number} of ${pages}` : "");
+  // The count names the entries; the page being read is the page tab's, not the count's.
+  const status = `${expected.length.toLocaleString("en-GB")} ${expected.length === 1 ? "entry" : "entries"}`;
   const tab = (number) =>
     page
       .getByRole("navigation", { name: "History pages", exact: true })
       .getByRole("button", { name: `Page ${number} of ${pages}`, exact: true });
-  if (pages > 1 && (await count.textContent()) !== status(1)) await tab(1).click();
-  await expect(count).toHaveText(status(1));
+  if (pages > 1 && (await tab(1).getAttribute("aria-current")) !== "page") await tab(1).click();
+  await expect(count).toHaveText(status);
   // Next's route announcer is an alert containing the page title, outside main.
   const alerts = (await page.getByRole("main").getByRole("alert").allTextContents())
     .map((text) => text.trim())
@@ -350,7 +347,6 @@ async function checkRecords(page, data, window, kind = "all") {
   for (let number = 1; number <= pages; number++) {
     if (number > 1) {
       await tab(number).click();
-      await expect(count).toHaveText(status(number));
       await expect(tab(number)).toHaveAttribute("aria-current", "page");
     }
     actual.push(...(await readRows(count)));
@@ -359,14 +355,14 @@ async function checkRecords(page, data, window, kind = "all") {
   assert.equal(
     await page
       .getByRole("note")
-      .filter({ hasText: /^The list ends at / })
+      .filter({ hasText: /^Older entries are not listed/ })
       .count(),
     0,
     "A monthly range was truncated.",
   );
   if (pages > 1) {
     await tab(1).click();
-    await expect(count).toHaveText(status(1));
+    await expect(tab(1)).toHaveAttribute("aria-current", "page");
   }
   return compareRecords(actual, data, expected);
 }

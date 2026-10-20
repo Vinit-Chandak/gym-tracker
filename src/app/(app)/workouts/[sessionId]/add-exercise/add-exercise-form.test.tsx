@@ -76,7 +76,7 @@ it("stays a single choice, with Remember ticked, naming the one machine there is
   fireEvent.click(screen.getByRole("radio", { name: /Machine chest press/ }));
   expect(screen.getByText("On Chest press")).toBeTruthy();
   const remember = screen.getByRole("checkbox", {
-    name: "Remember this as the fallback at this gym",
+    name: "Remember for this gym",
   }) as HTMLInputElement;
   expect(remember.checked).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Use this instead" }));
@@ -143,8 +143,7 @@ it("does not offer to remember going back to the planned lift as its fallback", 
       long
     />,
   );
-  const remember = () =>
-    screen.queryByRole("checkbox", { name: "Remember this as the fallback at this gym" });
+  const remember = () => screen.queryByRole("checkbox", { name: "Remember for this gym" });
   fireEvent.click(screen.getByRole("radio", { name: /Leg press/ }));
   expect(remember()).toBeNull();
   fireEvent.click(screen.getByRole("radio", { name: /Machine chest press/ }));

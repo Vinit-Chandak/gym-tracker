@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { SessionPage } from "@/components/shell/session-page";
+import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { likeOf } from "@/lib/exercise-search";
@@ -74,12 +75,13 @@ export default async function SubstitutePage(
 
   return (
     // No board: Add fallback's page, the session's own. Returning lands back on the exercise,
-    // which is where the request came from.
+    // which is where the request came from, and its way back names it, so the meta line says
+    // only the gym the swap is for.
     <SessionPage
       title="Swap the exercise"
       meta={
-        <span className="min-w-0">
-          Instead of <span className="font-bold text-ink">{data.slot.exercise.name}</span> at{" "}
+        <span className="meta-fact">
+          <Glyph name="pin" label="Gym" className="glyph-16" />
           {data.session.gym.name}
         </span>
       }

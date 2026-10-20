@@ -238,17 +238,15 @@ it("holds Finish back while a set draft is unsaved, and says where", () => {
   const finish = screen.getByRole("button", { name: "Finish" });
   expect(finish.getAttribute("aria-disabled")).toBe("true");
   const why = document.getElementById(finish.getAttribute("aria-describedby")!);
-  expect(why?.textContent).toBe(
-    "A set in Barbell bench press is not saved yet. Save or remove it before finishing.",
-  );
+  expect(why?.textContent).toBe("Unsaved set in Barbell bench press: save or remove it to finish.");
 });
 
 it("names every exercise holding drafts, and none it cannot find", () => {
   expect(draftsWarning({ count: 3, names: ["Barbell bench press", "Plank"] })).toBe(
-    "Sets in Barbell bench press and Plank are not saved yet. Save or remove them before finishing.",
+    "Unsaved sets in Barbell bench press and Plank: save or remove them to finish.",
   );
   expect(draftsWarning({ count: 2, names: [] })).toBe(
-    "Sets on this device are not saved yet. Save or remove them before finishing.",
+    "Unsaved sets on this device: save or remove them to finish.",
   );
 });
 

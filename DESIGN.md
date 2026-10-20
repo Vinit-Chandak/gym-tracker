@@ -1008,7 +1008,8 @@ and every control answers a press.
 One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section, an
 exercise's page and a friend's compare page. Top to bottom:
 
-- **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end, the figure (Figure
+- **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end (beside the live
+  readout, never inside it, so reading a mark never announces the ⓘ), the figure (Figure
   L, its unit in Caption, ink 2) and one line of context (Meta small, ink 2). It holds the graph's
   one summary (the total, the average a day, the latest, the best in the span), and swaps in place
   to the mark being read: its day, week or month, its figure and what made it, with the way into

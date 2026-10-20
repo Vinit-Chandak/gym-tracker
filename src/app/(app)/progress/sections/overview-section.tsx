@@ -118,7 +118,8 @@ export function OverviewSection({
                 ))}
               </ul>
             ) : (
-              <p className="type-meta text-ink-2">Nothing logged in {name} yet.</p>
+              // The month is named over its paper.
+              <p className="type-meta text-ink-2">Nothing logged yet.</p>
             )}
           </section>
         </div>

@@ -285,11 +285,9 @@ export function AddExercisesForm({
           </div>
         }
       >
+        {/* The title asks which; what leaving the choice does stays in view (WCAG 3.3.2). */}
         {review?.mode === "questions" && (
-          <p className="type-meta text-ink-2">
-            More than one machine here can do {shown.length === 1 ? "this" : "these"}. Leave{" "}
-            {NOT_CHOSEN} to choose in the workout.
-          </p>
+          <p className="type-meta text-ink-2">Leave {NOT_CHOSEN} to choose in the workout.</p>
         )}
         {/* A modal sheet hides the page's own status line: counts are said in here too. */}
         <p role="status" className="sr-only">

@@ -75,9 +75,10 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
         note={{
           label: "About body weight",
           content:
-            "One reading a day: the weight given when a workout is finished, or set from Profile → Edit profile. A second reading on the same day replaces the first.",
+            "One reading a day: from a finished workout, or set in Profile → Edit profile. A second that day replaces the first.",
         }}
-        empty="No readings in this range. Weight given when you finish a workout appears here, and you can set it any day from Profile → Edit profile."
+        // Where a reading comes from is the ⓘ's to say.
+        empty="No readings in this range."
       />
     </div>
   );

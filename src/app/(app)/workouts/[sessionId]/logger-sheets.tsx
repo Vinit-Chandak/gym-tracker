@@ -467,7 +467,7 @@ function SetEditor({
               onClose();
             }}
           >
-            Discard this local draft
+            Discard draft
           </Button>
         )}
         {deleting ? (
@@ -628,8 +628,8 @@ export function SkipSheet({
     <Sheet open={open} onClose={onClose} title={`Skip ${name}?`}>
       {open && (
         <div className="mt-2 space-y-3">
-          {/* The same field as Today's skip: a label and Optional, never a placeholder alone. */}
-          <Field label="Reason" hint="Optional">
+          {/* A label with Optional at its end (DESIGN.md, Field), never a placeholder alone. */}
+          <Field label="Reason" aside="Optional">
             <Input
               value={reason}
               onChange={(event) => setReason(event.target.value)}

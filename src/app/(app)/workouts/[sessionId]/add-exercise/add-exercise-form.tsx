@@ -120,7 +120,7 @@ export function PickExerciseForm({
               defaultChecked={rememberByDefault}
               className="check-row-box"
             />
-            Remember this as the fallback at this gym
+            Remember for this gym
           </label>
         )}
 

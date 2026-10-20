@@ -98,7 +98,7 @@ export function ExerciseHistory({
     );
   }
   if (state.entries.length === 0) {
-    return <p className="mt-3 type-body text-ink-2">No earlier sessions of this exercise.</p>;
+    return <p className="mt-3 type-body text-ink-2">No earlier sessions.</p>;
   }
 
   const shown = (sets: ExerciseHistoryEntry["sets"]): ShownSet[] =>
@@ -180,11 +180,6 @@ export function ExerciseHistory({
           </section>
         );
       })}
-      {state.more && (
-        <p className="mt-3 type-meta-small text-ink-2">
-          Showing the latest {state.entries.length} sessions.
-        </p>
-      )}
     </div>
   );
 }

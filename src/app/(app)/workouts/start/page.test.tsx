@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 import StartPage from "./page";
 
@@ -15,6 +17,9 @@ vi.mock("@/db/with-user", () => ({
   withUser: async (_db: unknown, _id: string, work: (tx: unknown) => Promise<unknown>) => work({}),
 }));
 vi.mock("@/server/repositories/recovery-history", () => ({ lastSleepHours: async () => null }));
+vi.mock("@/server/queries/request-profile", () => ({
+  getRequestProfile: async () => ({ timeZone: "Europe/London" }),
+}));
 vi.mock("@/server/repositories/schedule", () => ({
   getSchedule: async () => ({
     days: [
@@ -37,16 +42,35 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new Error(`redirect:${path}`);
   },
+  notFound: () => {
+    throw new Error("notFound");
+  },
 }));
 
-const open = (day: string, index: number) =>
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const open = (day: string, index: number, earlier: Record<string, string> = {}) =>
   StartPage({
     params: Promise.resolve({}),
-    searchParams: Promise.resolve({ gym: GYM, day, index: String(index) }),
+    searchParams: Promise.resolve({ gym: GYM, day, index: String(index), ...earlier }),
   } as unknown as Parameters<typeof StartPage>[0]);
 
-it("asks how you are before a day's workout", async () => {
-  expect(renderToStaticMarkup(await open(LOWER, 1))).toContain("Before Lower ·\u00a0Optional");
+it("asks how you are before a day's workout, saying once that every reading is optional", async () => {
+  const page = renderToStaticMarkup(await open(LOWER, 1));
+  // "Recovery check-in" is the title's to say; Optional stays in view (WCAG 3.3.2).
+  expect(page).toContain(`<p>${["Before Lower", "Optional"].join(FACT_SEPARATOR)}</p>`);
+});
+
+it("names a workout done earlier by its day, as every date is said, never as the address has it", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-20T12:00:00Z"));
+  const page = renderToStaticMarkup(await open(LOWER, 1, { date: "2026-10-18", time: "07:30" }));
+  expect(page).toContain(
+    `<p>${["Sun\u00a018\u00a0Oct", "Lower", "Optional"].join(FACT_SEPARATOR)}</p>`,
+  );
+  expect(page).not.toContain("2026-10-18");
 });
 
 /**

@@ -76,6 +76,6 @@ it("says when there is nothing earlier, and offers a retry when the read fails",
   vi.mocked(readExerciseHistoryAction).mockResolvedValueOnce({ entries: [], more: false });
   renderHistory();
   fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("No earlier sessions of this exercise.")).toBeTruthy();
+  expect(await screen.findByText("No earlier sessions.")).toBeTruthy();
   expect(readExerciseHistoryAction).toHaveBeenCalledTimes(2);
 });

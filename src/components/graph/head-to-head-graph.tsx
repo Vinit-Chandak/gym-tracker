@@ -237,7 +237,7 @@ function MeasureGraph({
       }}
       note={{
         label: "About this graph",
-        content: `One point per workout: its ${best.point}, warm-ups left out. Each line runs straight across the other person's training days rather than breaking there; over many workouts, a point is a week's or a month's best.`,
+        content: `One point per workout, its ${best.point}, warm-ups left out. Each line runs straight across the other's training days.`,
       }}
       empty="Neither of you did this in this range."
     />

@@ -1,6 +1,8 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
-import { nextLoadQuestion } from "./next-load";
+import { NextLoad, nextLoadQuestion } from "./next-load";
 
 const stack = { known: [47, 54, 59], stack: true, assisted: false, increment: null };
 
@@ -49,4 +51,16 @@ it("asks nothing at the least help an assisted machine gives", () => {
   expect(nextLoadQuestion(assisted, [5, 5, 5])).toBeNull();
   // A single stop says nothing about the step below it yet, so that one is still asked.
   expect(nextLoadQuestion({ ...assisted, known: [] }, [5])).toEqual({ from: 5, guess: null });
+});
+
+it("says beside its label that a guessed weight is from the logs, and nothing where there is none", () => {
+  const ask = { equipmentInstanceId: "stack", from: 59, unitLabel: "kg", assisted: false };
+  const guessed = renderToStaticMarkup(createElement(NextLoad, { ...ask, guess: 64 }));
+  expect(guessed).toContain('value="64"');
+  expect(guessed).toContain('<span id="next-load-stack-from"');
+  expect(guessed).toContain('aria-describedby="next-load-stack-from"');
+  expect(guessed).toContain("From your logs");
+  const blank = renderToStaticMarkup(createElement(NextLoad, { ...ask, guess: null }));
+  expect(blank).not.toContain("From your logs");
+  expect(blank).not.toContain("aria-describedby");
 });
