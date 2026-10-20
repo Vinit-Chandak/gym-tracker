@@ -33,7 +33,7 @@ it("recovers a backdated draft even after its actual training date was corrected
     target: { value: "2026-10-14" },
   });
   fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "07:30" } });
-  fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "30" } });
+  fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "3000" } });
   await waitFor(() =>
     expect(readDrafts(localStorage, props.userId).drafts[0]?.values.entryContextDate).toBe(
       "2026-10-15",
@@ -51,7 +51,7 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   const action = vi.fn().mockResolvedValue({ savedActivityId: "saved-id" });
   const first = render(<ActivityEditor {...props} action={action} />);
   fireEvent.change(await screen.findByLabelText("Duration"), {
-    target: { value: "42" },
+    target: { value: "4200" },
   });
   fireEvent.click(screen.getByRole("radio", { name: "3" }));
   await waitFor(() =>
@@ -61,7 +61,7 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   first.unmount();
   render(<ActivityEditor {...props} submissionKey="new-server-key" action={action} />);
   expect(await screen.findByText(/Restored your unsaved/)).toBeTruthy();
-  // Typed as bare minutes, kept as the minutes it posts, and shown again as the clock writes it.
+  // Typed in digits, kept as the minutes it posts, and shown again as the clock writes it.
   expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42:00");
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/training/activities/saved-id"));
@@ -80,7 +80,7 @@ it("keeps a failed save through reload without exposing another account's draft"
   );
   const input = await screen.findByLabelText("Duration");
   expect((input as HTMLInputElement).value).toBe("");
-  fireEvent.change(input, { target: { value: "17" } });
+  fireEvent.change(input, { target: { value: "1700" } });
   fireEvent.click(screen.getByRole("radio", { name: "3" }));
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await screen.findByText("Try again");
@@ -114,7 +114,7 @@ it("keeps drafts separate when navigating to another sport on the same page", as
   const action = vi.fn().mockResolvedValue({ formError: "Try again" });
   const editor = render(<ActivityEditor {...props} action={action} />);
   fireEvent.change(await screen.findByLabelText("Duration"), {
-    target: { value: "42" },
+    target: { value: "4200" },
   });
   await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(1));
   editor.rerender(
@@ -122,7 +122,7 @@ it("keeps drafts separate when navigating to another sport on the same page", as
   );
   expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("");
   fireEvent.change(screen.getByLabelText("Duration"), {
-    target: { value: "23" },
+    target: { value: "2300" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await screen.findByText("Try again");
@@ -137,7 +137,7 @@ it("changes scheduled identity while retaining a draft through same-session refr
   const occurrence = { id: "morning", revisionId: "original-revision" };
   const editor = render(<ActivityEditor {...props} occurrence={occurrence} action={action} />);
   fireEvent.change(await screen.findByLabelText("Duration"), {
-    target: { value: "42" },
+    target: { value: "4200" },
   });
   editor.rerender(
     <ActivityEditor
@@ -146,7 +146,7 @@ it("changes scheduled identity while retaining a draft through same-session refr
       action={action}
     />,
   );
-  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42");
+  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42:00");
   editor.rerender(
     <ActivityEditor
       {...props}
@@ -252,7 +252,8 @@ it("opens a correction in the athlete's own units, and changes nothing that is n
       action={vi.fn()}
     />,
   );
-  expect(((await screen.findByLabelText("Distance")) as HTMLInputElement).value).toBe("4.47");
+  expect(((await screen.findByLabelText("Distance")) as HTMLInputElement).value).toBe("4");
+  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("47");
   expect((screen.getByLabelText("Elevation gain ft") as HTMLInputElement).value).toBe("292");
   const posted = new FormData(container.querySelector("form")!);
   expect([posted.get("distanceValue"), posted.get("distanceUnit")]).toEqual(["7.2", "km"]);

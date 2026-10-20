@@ -32,6 +32,21 @@ function figureEm(text: string): number {
   return Math.max(0.9, emWidth(text)) + 0.08;
 }
 
+/** A figure field's width for `text`, as a figure of its own or one part of one is drawn. */
+export function figureWidth(text: string): string {
+  return `${figureEm(text)}em`;
+}
+
+/** What a figure drawn in parts is given to draw them: the field the name labels, and how. */
+export type FigureParts = {
+  /** The first part's id: the name labels it, and a tap in the column types it. */
+  id: string;
+  describedBy?: string;
+  invalid?: true;
+  /** The figure's size where its column cannot hold it at 26; none at 26. */
+  fontSize?: string;
+};
+
 /**
  * The figure's size (the Figures Never Truncate Rule): 26 at most, stepping down the ramp until
  * it fits the room its column leaves beside the unit, never under 20. `grow` is how much larger
@@ -86,6 +101,8 @@ export function RowStepper({
   less,
   more,
   error,
+  settle,
+  figure,
 }: {
   label: string;
   hint?: ReactNode;
@@ -116,6 +133,13 @@ export function RowStepper({
   less: string;
   more: string;
   error?: string;
+  /** How a figure left as typed is written once its field is left: "0:75" as 1:15. */
+  settle?: (value: string) => string;
+  /**
+   * The figure drawn in parts of its own (a distance's whole and what follows the point), in
+   * place of one field. − and +, the name, the hint and the unit stay the row's.
+   */
+  figure?: (parts: FigureParts) => ReactNode;
 }) {
   const id = useId();
   const [own, setOwn] = useState(defaultValue);
@@ -162,6 +186,10 @@ export function RowStepper({
       sanitizeNumberEntry(raw, inputMode === "numeric" ? "numeric" : "decimal", max));
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
+  const describedBy =
+    [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+  // The ramp has no step between 26 and 20: stepped down, the figure is the 20.
+  const fontSize = size < 26 ? "var(--ov-type-figure)" : undefined;
 
   return (
     <div className="row-stepper" data-field-error={error ? "true" : undefined}>
@@ -193,29 +221,35 @@ export function RowStepper({
         {/* The whole column is the value's target: a tap beside the figure types it too. */}
         <span
           ref={column}
-          className="row-stepper-figure"
+          className={figure ? "row-stepper-figure row-stepper-figure-parts" : "row-stepper-figure"}
           onClick={(event) => {
             if (event.target === event.currentTarget)
               (document.getElementById(id) as HTMLInputElement | null)?.focus();
           }}
         >
-          <FigureInput
-            id={id}
-            name={name}
-            inputMode={inputMode}
-            value={value}
-            placeholder={placeholder}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={
-              [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined
-            }
-            onChange={(event) => set(clean(event.target.value))}
-            style={{
-              width: `${figureEm(shown)}em`,
-              // The ramp has no step between 26 and 20: stepped down, the figure is the 20.
-              fontSize: size < 26 ? "var(--ov-type-figure)" : undefined,
-            }}
-          />
+          {figure ? (
+            figure({ id, describedBy, invalid: error ? true : undefined, fontSize })
+          ) : (
+            <FigureInput
+              id={id}
+              name={name}
+              inputMode={inputMode}
+              value={value}
+              placeholder={placeholder}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={describedBy}
+              onChange={(event) => set(clean(event.target.value))}
+              onBlur={
+                settle
+                  ? () => {
+                      const settled = settle(value);
+                      if (settled !== value) set(settled);
+                    }
+                  : undefined
+              }
+              style={{ width: figureWidth(shown), fontSize }}
+            />
+          )}
           {unit &&
             (onUnit ? (
               <button

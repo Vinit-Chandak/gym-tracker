@@ -195,7 +195,7 @@ export function RunningForm({
         <Field label="Cadence steps/min" error={errors?.cadenceStepsPerMinute}>
           <Input
             name="cadenceStepsPerMinute"
-            inputMode="decimal"
+            inputMode="numeric"
             defaultValue={values("cadenceStepsPerMinute")}
             placeholder="—"
           />

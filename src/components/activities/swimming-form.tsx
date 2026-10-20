@@ -277,6 +277,7 @@ export function SwimmingForm({
             units={POOL_UNITS}
             recorded={opened.recorded}
             step={25}
+            whole
             error={errors?.distance ?? errors?.distanceValue}
           />
         )}

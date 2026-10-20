@@ -895,6 +895,11 @@ and every control answers a press.
   never wait on Save.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
+- **Nothing a phone's number pad lacks** (owner, 20 October 2026): a duration is typed in digits,
+  its colons placed from the right as a timer's are (2530 is 25:30, 10530 is 1:05:30), and
+  written as the clock writes it once left (0:75 is 1:15); a distance is two figures, the whole
+  and the digits after the point, each on the number pad, the point drawn between them and the
+  two drawn against it (5.2). A swim's metres or yards is one whole figure.
 
 ### Rest
 

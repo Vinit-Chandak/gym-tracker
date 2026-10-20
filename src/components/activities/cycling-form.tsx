@@ -211,7 +211,7 @@ export function CyclingForm({
           <Field label="Average power W" error={errors?.averagePowerWatts}>
             <Input
               name="averagePowerWatts"
-              inputMode="decimal"
+              inputMode="numeric"
               defaultValue={values("averagePowerWatts")}
               placeholder="—"
             />
@@ -219,7 +219,7 @@ export function CyclingForm({
           <Field label="Average cadence rpm" error={errors?.averageCadenceRpm}>
             <Input
               name="averageCadenceRpm"
-              inputMode="decimal"
+              inputMode="numeric"
               defaultValue={values("averageCadenceRpm")}
               placeholder="—"
             />
