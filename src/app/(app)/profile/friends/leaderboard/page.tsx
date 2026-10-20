@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Trophy } from "@/components/ui/icons";
+import { InfoTip } from "@/components/ui/info-tip";
 import { RankList } from "@/components/ui/rank-list";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -186,11 +187,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
         {board.kind === "alone" ? (
           <>
             <Card>
-              <EmptyState
-                icon={Trophy}
-                title="Follow someone to rank against them"
-                description="The leaderboard ranks you and the people you follow who share their training."
-              />
+              <EmptyState icon={Trophy} title="Follow someone to rank against" />
             </Card>
             <Card>
               <PeopleSearch autoFocus />
@@ -210,7 +207,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
             {board.kind === "activity" ? (
               <Section
                 title={ACTIVITY_METRIC_LABELS[activityMetric]}
-                info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no ${ACTIVITY_NAMES[sport]} in the period reads "—".${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher." : ""}`}
+                info={`The last ${PERIOD_LABELS[period]}${sport === "run" ? "; best pace is over a run of 1 km or more" : ""}. Ties share a rank; someone with no ${ACTIVITY_NAMES[sport]} in the period reads “—”.`}
               >
                 {board.rows.some((row) => row.value !== null) ? (
                   <RankList
@@ -225,8 +222,8 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
                   <Card>
                     <p className="text-sm text-ink-muted">
                       {activityMetric === "best_pace"
-                        ? `No run of 1 km or more from you or the people you follow in the last ${PERIOD_LABELS[period]}.`
-                        : `No ${ACTIVITY_NAMES[sport]}s from you or the people you follow in the last ${PERIOD_LABELS[period]}.`}
+                        ? `No runs of 1 km or more in the last ${PERIOD_LABELS[period]}.`
+                        : `No ${ACTIVITY_NAMES[sport]}s in the last ${PERIOD_LABELS[period]}.`}
                     </p>
                   </Card>
                 )}
@@ -234,18 +231,14 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
             ) : board.kind === "exercise" ? (
               <Section
                 title={board.exercise.name}
-                info={`All-time bests, with the day each was set. ${
-                  perKgBase(board.metric) === "top_weight" || board.metric === "top_weight"
-                    ? "Under a top weight, how many working sets were at it and the most reps the best of them reached. "
-                    : ""
+                info={`${
+                  isPerKgMetric(board.metric)
+                    ? "All-time bests over each person's latest body weight, for those who share it."
+                    : "All-time bests, with the day each was set; machine exercises are never ranked."
                 }${
                   perKgBase(board.metric) === "e1rm" || board.metric === "e1rm"
-                    ? 'An estimated 1RM needs a set of 1–10 reps; someone whose sets were all longer reads "—". '
+                    ? " Est. 1RM needs a set of 1–10 reps."
                     : ""
-                }${
-                  isPerKgMetric(board.metric)
-                    ? "A load over each person's latest body weight; only people who share theirs are listed."
-                    : "Movements from the shared library whose load means the same everywhere; a machine's numbers are its own and are never ranked."
                 }`}
               >
                 <RankList
@@ -259,9 +252,12 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
               </Section>
             ) : (
               <Card>
-                <p className="text-sm text-ink-muted">
-                  Nobody in your circle has logged a comparable exercise yet. Machine exercises are
-                  never ranked: a machine&apos;s numbers are its own.
+                <p className="flex items-center gap-1 text-sm text-ink-muted">
+                  No comparable exercises logged yet.
+                  <InfoTip label="About comparable exercises">
+                    Comparable: movements from the shared library whose load means the same
+                    everywhere. Machine exercises are never ranked.
+                  </InfoTip>
                 </p>
               </Card>
             )}

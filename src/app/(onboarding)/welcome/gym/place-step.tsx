@@ -26,20 +26,12 @@ const NAME_FIELD: Record<GymKind, { label: string; placeholder: string }> = {
   outdoor: { label: "Name", placeholder: "e.g. Victoria Park" },
 };
 
-/** What follows, where it is worth saying: nothing is asked about a gym's basics. */
-function note(kind: GymKind, experience: TrainingExperience | null): string | null {
-  if (kind === "gym")
-    return experience === "experienced"
-      ? null
-      : "The usual gym kit is taken as there. When a workout needs anything else, it asks you then, with a picture.";
-  return "Nothing is taken as there, so next you tick what you have.";
-}
-
 /**
  * Board Where you train: the kind of place as three tiles, then its name, which is optional
  * (U8: the field says what it names, and the action is the same for a home as for a gym).
  * Continue is the only way on for a lifter (B8). The dots follow the kind: at home or outdoors
- * "What you have" comes next.
+ * "What you have" comes next. A beginner at a gym is never asked about its kit, which the
+ * title's ⓘ says.
  */
 export function PlaceStep({
   experience,
@@ -59,7 +51,6 @@ export function PlaceStep({
     place && place.name !== SETUP_PLACE_NAMES[place.kind] ? place.name : "",
   );
   const field = NAME_FIELD[kind];
-  const after = note(kind, experience);
 
   return (
     <OnboardingFrame
@@ -67,6 +58,14 @@ export function PlaceStep({
       current="where"
       back="/welcome"
       title="Where do you train?"
+      info={
+        kind === "gym" && experience !== "experienced"
+          ? {
+              label: "About where you train",
+              note: "A gym’s usual kit counts as there; a workout asks about anything else, with a picture.",
+            }
+          : undefined
+      }
     >
       <form ref={form} action={formAction} noValidate>
         <div className="setup-place">
@@ -94,7 +93,6 @@ export function PlaceStep({
             />
           </Field>
         </div>
-        {after && <p className="setup-note">{after}</p>}
         <PinnedActions stack>
           <FormError message={state.formError ?? state.fieldErrors?.kind} />
           <SubmitButton pendingLabel="Saving…">Continue</SubmitButton>

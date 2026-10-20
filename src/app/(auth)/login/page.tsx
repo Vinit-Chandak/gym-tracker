@@ -28,7 +28,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
         {deleted === "1" && (
           <p role="status" className="flex items-start gap-2 type-meta font-semibold">
             <Glyph name="check" className="mt-px glyph-18" />
-            Your account and all of its training data have been deleted.
+            Your account and all its data have been deleted.
           </p>
         )}
         {error === "link" && (
@@ -43,9 +43,8 @@ export default async function LoginPage(props: PageProps<"/login">) {
           <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
             <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
             <span className="min-w-0">
-              That link was opened in a different browser from the one that asked for it. If it
-              confirmed your email, you can sign in now. If it was to reset your password, ask for a
-              new link from this browser.
+              That link was opened in another browser. If it confirmed your email, sign in now. If
+              it was to reset your password, ask for a new link here.
             </span>
           </p>
         )}

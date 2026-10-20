@@ -3,27 +3,25 @@
 import { useActionState, useState } from "react";
 
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Switch } from "@/components/ui/switch";
-import { ZONE_NUMBERS, type HeartRateZoneMethod } from "@/domain/heart-rate";
+import {
+  HEART_RATE_ZONE_METHODS,
+  PLAUSIBLE_MAX_HEART_RATE,
+  ZONE_METHOD_LABELS,
+  ZONE_NUMBERS,
+  type HeartRateZoneMethod,
+} from "@/domain/heart-rate";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveHeartRateAction } from "@/server/actions/heart-rate";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
-const METHODS: { value: HeartRateZoneMethod; label: string }[] = [
-  { value: "max", label: "Of maximum" },
-  { value: "reserve", label: "Of reserve" },
-  { value: "custom", label: "My own" },
-];
-
-const METHOD_HINTS: Record<HeartRateZoneMethod, string> = {
-  max: "Zones at 50, 60, 70, 80 and 90 per cent of your maximum, as most watches set them.",
-  reserve:
-    "Zones at the same shares of the gap between resting and maximum (Karvonen). Needs your resting heart rate.",
-  custom:
-    "Where each zone starts, from a lab test or a threshold run. Zone 5 runs to your maximum.",
-};
+const METHODS = HEART_RATE_ZONE_METHODS.map((value) => ({
+  value,
+  label: ZONE_METHOD_LABELS[value],
+}));
 
 export type HeartRateFormValues = {
   maxHeartRate: number | null;
@@ -37,15 +35,20 @@ export type HeartRateFormValues = {
 /**
  * The settings behind the zones (ADR 0059): a maximum of the athlete's own or none, whether runs
  * may raise it, a resting rate, and how the zones are cut. A blank maximum is an answer — it
- * hands the maximum back to the runs and the estimate — so the field says what blank means.
+ * hands the maximum back to the runs and the estimate — so the field says what blank means, on
+ * the screen (WCAG 3.3.2); where a maximum comes from is its ⓘ, and how each method works the
+ * method's. Under the method, only what it needs now: a resting rate, for the reserve.
  */
 export function HeartRateForm({
   values,
   inUse,
+  estimate,
 }: {
   values: HeartRateFormValues;
   /** The maximum in use when the field is left blank, said in its placeholder. */
   inUse: number | null;
+  /** The age formula's maximum for the athlete, or null without a date of birth. */
+  estimate: number | null;
 }) {
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveHeartRateAction),
@@ -56,6 +59,10 @@ export function HeartRateForm({
     (state.values?.zoneMethod as HeartRateZoneMethod | undefined) ?? values.zoneMethod,
   );
   const [auto, setAuto] = useState(values.maxHeartRateAuto);
+  // Held here to say, as it is typed, whether the reserve has the resting rate it needs.
+  const [resting, setResting] = useState(() =>
+    value("restingHeartRate", values.restingHeartRate?.toString() ?? ""),
+  );
   const errors = state.fieldErrors;
   const saved =
     state !== INITIAL_FORM_STATE &&
@@ -70,9 +77,10 @@ export function HeartRateForm({
         aside="bpm"
         hint={
           inUse === null
-            ? "From a race or an all-out effort. Leave it blank to use your runs or your age."
+            ? "Leave it blank to use your runs or your age."
             : `Leave it blank to use ${inUse}, from your runs or your age.`
         }
+        info={`From a race or an all-out effort. By age it is ${estimate ?? "208 − 0.7 × age"} (Tanaka 2001), often ten beats out.`}
         error={errors?.maxHeartRate}
       >
         <Input
@@ -85,9 +93,12 @@ export function HeartRateForm({
       <div className="switch-row border-b-0">
         <div className="switch-row-main">
           <div className="switch-row-text">
-            <span className="switch-row-label">Raise it from my runs</span>
-            <span className="switch-row-effect">
-              A run that records a higher heart rate becomes your maximum.
+            <span className="flex items-center gap-1">
+              <span className="switch-row-label">Raise it from my runs</span>
+              <InfoTip label="About raising it from my runs">
+                Readings over {PLAUSIBLE_MAX_HEART_RATE} never count: a wrist sensor sometimes reads
+                cadence. If a run raised it by mistake, enter your own.
+              </InfoTip>
             </span>
           </div>
           <Switch label="Raise it from my runs" checked={auto} onChange={setAuto} />
@@ -97,17 +108,27 @@ export function HeartRateForm({
       <Field
         label="Resting heart rate"
         aside="Optional"
-        hint="Taken lying still, just after waking."
+        info="Lying still, just after waking. Zones of reserve need it."
         error={errors?.restingHeartRate}
       >
         <Input
           name="restingHeartRate"
           inputMode="numeric"
-          defaultValue={value("restingHeartRate", values.restingHeartRate?.toString() ?? "")}
+          value={resting}
+          onChange={(event) => setResting(event.target.value)}
           placeholder="—"
         />
       </Field>
-      <Field group label="How zones are worked out" hint={METHOD_HINTS[method]}>
+      <Field
+        group
+        label="How zones are worked out"
+        info="Of maximum: zones start at 50, 60, 70, 80 and 90% of it. Of reserve: the same shares of maximum − resting, added to resting."
+        hint={
+          method === "reserve" && resting.trim() === ""
+            ? "Needs your resting heart rate."
+            : undefined
+        }
+      >
         <SegmentedControl
           name="zoneMethod"
           aria-label="How zones are worked out"

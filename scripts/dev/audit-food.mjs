@@ -819,7 +819,7 @@ try {
         }),
       ).toBeVisible();
       await navigate("/food/targets");
-      await page.getByRole("link", { name: "Add it in your profile" }).click();
+      await page.getByRole("link", { name: "Add body weight" }).click();
       await page.getByLabel("Body weight (kg)", { exact: true }).fill("80");
       await page.getByLabel("Height (cm)", { exact: true }).fill("180");
       await page.locator('[name="dateOfBirth"]').fill("1990-01-01");

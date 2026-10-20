@@ -4,7 +4,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
-import { Section } from "@/components/ui/section";
+import { FigureText } from "@/components/ui/figure-text";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import {
@@ -12,7 +12,8 @@ import {
   maxBasisLabel,
   maxZones,
   ZONE_FEEL,
-  type ResolvedHeartRate,
+  ZONE_METHOD_LABELS,
+  ZONE_NUMBERS,
 } from "@/domain/heart-rate";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
@@ -25,16 +26,12 @@ import { UseRunMaximum } from "./use-run-maximum";
 
 export const metadata: Metadata = { title: "Heart rate zones" };
 
-const METHOD_LINE: Record<ResolvedHeartRate["method"], string> = {
-  max: "Shares of your maximum",
-  reserve: "Shares of your heart-rate reserve",
-  custom: "Your own zones",
-};
-
 /**
- * Heart rate zones (ADR 0059): the maximum in use and where it came from, the five zones it
- * makes, then what they are made from. A plan's "zone 2" and a run's average read against
- * these, so they are shown in beats, the way a watch shows them.
+ * Heart rate zones (ADR 0059): the maximum in use and where it came from, and the five zones it
+ * makes, with what each is for folded under them; then what they are made from, folded under
+ * Settings, the method in use at its end, and open while there is no maximum to show. A plan's
+ * "zone 2" and a run's average read against these, so they are shown in beats, the way a watch
+ * shows them.
  */
 export default async function HeartRatePage() {
   const user = await requireUser();
@@ -70,27 +67,35 @@ export default async function HeartRatePage() {
               <span className="type-figure-l">{resolved.max}</span>{" "}
               <span className="type-meta text-ink-2">bpm</span>
             </p>
-            <ol className="heart-rate-zones" aria-label={METHOD_LINE[resolved.method]}>
+            <ol className="heart-rate-zones" aria-label="Zones">
               {resolved.zones.map((zone) => (
                 <li key={zone.zone} className="heart-rate-zone" data-zone={zone.zone}>
                   <span className="heart-rate-zone-name">
                     Zone {zone.zone} <span className="text-ink-2">· {zone.name}</span>
                   </span>
+                  {/* Jost's figures, Atkinson's en dash (DESIGN.md, The Two Voices Rule). */}
                   <span className="heart-rate-zone-beats tabular-nums">
-                    {zone.low}–{zone.high}
+                    <FigureText>{`${zone.low}–${zone.high}`}</FigureText>
                   </span>
-                  <span className="heart-rate-zone-feel">{ZONE_FEEL[zone.zone]}</span>
                 </li>
               ))}
             </ol>
-            <p className="type-caption text-ink-2">{METHOD_LINE[resolved.method]}</p>
+            {/* Five lines, too long for an ⓘ: a fold at the card's foot, closed. */}
+            <Disclosure summary="What each zone is for" variant="footer">
+              <ul className="space-y-1 type-meta-small text-ink-2">
+                {ZONE_NUMBERS.map((zone) => (
+                  <li key={zone}>
+                    <span className="font-bold text-ink">Zone {zone}</span> · {ZONE_FEEL[zone]}
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
           </Card>
         ) : (
           <Card>
             <h2 className="type-meta font-bold">No maximum yet</h2>
             <p className="type-meta text-ink-2">
-              Enter your maximum heart rate below, add your date of birth to your profile, or log a
-              run with its heart rate, and your zones appear here.
+              Enter it below, add your date of birth, or log a run with heart rate.
             </p>
           </Card>
         )}
@@ -99,44 +104,27 @@ export default async function HeartRatePage() {
           <UseRunMaximum bpm={highest.bpm} on={formatIsoDate(highest.on, year)} />
         )}
 
-        <Section title="Settings">
-          <Card>
-            <HeartRateForm
-              inUse={settings.maxHeartRate === null ? (resolved?.max ?? null) : null}
-              values={{
-                maxHeartRate: settings.maxHeartRate,
-                restingHeartRate: settings.restingHeartRate,
-                zoneMethod: settings.zoneMethod,
-                maxHeartRateAuto: settings.maxHeartRateAuto,
-                floors:
-                  settings.customZoneFloors ??
-                  (resolved ?? { zones: maxZones(estimate ?? 190) }).zones.map((zone) => zone.low),
-              }}
-            />
-          </Card>
-        </Section>
-
-        <Disclosure summary="How your zones are worked out" variant="footer">
-          <div className="space-y-2 text-sm text-ink-2">
-            <p>
-              Your maximum is the best evidence there is: a number you enter, otherwise the highest
-              heart rate a run of yours recorded this past year, otherwise an estimate from your age
-              (208 − 0.7 × age, Tanaka 2001
-              {estimate !== null ? `: ${estimate} for you` : ""}). An age estimate is often ten
-              beats out either way, so a hard race or hill session tells you more.
-            </p>
-            <p>
-              Zones start at 50, 60, 70, 80 and 90 per cent of your maximum. With a resting heart
-              rate they can be taken of your heart-rate reserve instead (resting + share × (maximum
-              − resting)), which follows effort more closely and is what the American College of
-              Sports Medicine recommends. Zones from a lab or threshold test can be entered as your
-              own.
-            </p>
-            <p>
-              A wrist sensor sometimes reads your cadence instead of your heart. Readings above 230
-              are never taken as a maximum; if a run raised yours by mistake, enter your own.
-            </p>
-          </div>
+        {/* The settings, said once: "Maximum heart rate" heads the zones and is not said again
+            until they are opened. The method in use stands at the fold's end, which is how a
+            method chosen but not usable (Of reserve, with no resting rate) reads as it is. */}
+        <Disclosure
+          summary="Settings"
+          meta={resolved ? ZONE_METHOD_LABELS[resolved.method] : undefined}
+          defaultOpen={!resolved}
+        >
+          <HeartRateForm
+            inUse={settings.maxHeartRate === null ? (resolved?.max ?? null) : null}
+            estimate={estimate}
+            values={{
+              maxHeartRate: settings.maxHeartRate,
+              restingHeartRate: settings.restingHeartRate,
+              zoneMethod: settings.zoneMethod,
+              maxHeartRateAuto: settings.maxHeartRateAuto,
+              floors:
+                settings.customZoneFloors ??
+                (resolved ?? { zones: maxZones(estimate ?? 190) }).zones.map((zone) => zone.low),
+            }}
+          />
         </Disclosure>
       </PageContent>
     </>

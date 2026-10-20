@@ -19,16 +19,14 @@ export default async function DeleteAccountPage() {
       <div className="page-width pb-8">
         {/* The one screen that says what it means in full: what goes is irreversible. */}
         <p className="mt-3 text-[length:var(--ov-type-heading)] leading-[1.45] font-medium">
-          Permanently removes your gyms, machines, programmes, sessions, sets, activities and
-          tokens. Nothing is exported first.
+          Permanently deletes your account and all its data: training, food, gyms and friends.
+          Nothing is exported first.
         </p>
         {removesSignIn ? (
           <DeleteAccountForm />
         ) : (
-          <p className="mt-3 type-meta text-ink-2">
-            Account deletion is temporarily unavailable. Your account and data have not been
-            changed.
-          </p>
+          // Said as the page opens, before anything is tried, so it is the state alone.
+          <p className="mt-3 type-meta text-ink-2">Deleting accounts is unavailable right now.</p>
         )}
       </div>
     </>

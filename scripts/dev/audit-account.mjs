@@ -302,7 +302,6 @@ async function runDevice(device) {
     });
     await step("gym-archive-and-restore", async () => {
       await go(page, gymPath);
-      await page.locator("summary").filter({ hasText: "Gym options" }).click();
       await button(page, "Archive").click();
       await expect(button(page, "Restore gym")).toBeVisible();
       await go(page, gymPath);

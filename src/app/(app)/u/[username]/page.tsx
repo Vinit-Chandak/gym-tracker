@@ -7,9 +7,9 @@ import { PersonCard } from "@/components/person-card";
 import { PeriodRecordsList } from "@/components/records-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { InfoTip } from "@/components/ui/info-tip";
 import { RadarChart } from "@/components/ui/radar-chart";
 import { Section } from "@/components/ui/section";
 import { SportSpanControls } from "@/components/ui/sport-span-controls";
@@ -57,7 +57,7 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
 
 /**
  * A person as others see them (plan §3.14): the header card with the follow button in place
- * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
+ * of Edit, or Edit profile on your own. Below it their training, if you may see it — the
  * span's totals for the chosen sport and, for lifting, the shape of their split and their best
  * lifts in the span — or one line saying why not. Your own page shows what a follower sees
  * while you share, and says so: the privacy screen's promise, demonstrated. With sharing off it
@@ -141,29 +141,29 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               className="[&>button]:w-full"
             />
           ) : (
-            // Edit stands beside the words while they keep a few words' room, and under them,
-            // the card's width, at large text: never "This is / you." beside "Edit / profile".
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <p className="min-w-0 flex-[999_1_8rem] text-sm text-ink-muted">This is you.</p>
-              <LinkButton
-                href="/profile/edit"
-                variant="secondary"
-                size="sm"
-                className="flex-[1_0_auto]"
-              >
-                Edit profile
-              </LinkButton>
-            </div>
+            // Your own page says so by its action, where someone else's has Follow.
+            <LinkButton href="/profile/edit" variant="secondary" size="md" className="w-full">
+              Edit profile
+            </LinkButton>
           )}
         </PersonCard>
 
         {training ? (
           <>
             {!relation && (
-              <p className="text-sm text-ink-muted">
-                {sharing
-                  ? "This is what a follower sees of your training. Change it under Profile › Privacy."
-                  : "Sharing is off: followers see only your profile card. Change it under Profile › Privacy."}
+              // Where it is changed is a link, not directions to it.
+              <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm text-ink-muted">
+                <span className="min-w-0">
+                  {sharing
+                    ? "As your followers see it."
+                    : "Sharing is off: followers see only your profile card."}
+                </span>
+                <Link
+                  href="/profile/privacy"
+                  className="tap-area font-bold text-ink underline underline-offset-2"
+                >
+                  Privacy
+                </Link>
               </p>
             )}
             <GraphRangeProvider preset={preset}>
@@ -218,7 +218,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               // "Records", a best below an older one read as a record Compare said was not set.
               <Section
                 title="Best lifts"
-                info="The best of each movement in the span, by what it is measured in: estimated 1RM for barbell and dumbbell lifts (from sets of 1–10 reps; a lift done only for more reps is listed by its top weight), most reps, longest hold or longest carry for the rest. A best in the span is a record only if it beat every earlier session; Records set on Compare counts those. Machine exercises are not listed, since a machine's numbers are its own."
+                info="Each movement's best in the span: est. 1RM for barbells and dumbbells, else reps, hold or carry. Machine exercises are not listed."
               >
                 <Card>
                   {training.records.length > 0 ? (
@@ -249,12 +249,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
             )}
           </>
         ) : (
-          <p className="flex items-center gap-1 text-sm text-ink-muted">
+          <p className="text-sm text-ink-muted">
             {hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
-            <InfoTip label="About seeing someone's training">
-              Their training appears here once they have accepted you as a follower and while they
-              share it. With sharing off, the profile card is all a follower sees.
-            </InfoTip>
           </p>
         )}
       </PageContent>

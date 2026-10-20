@@ -4,6 +4,8 @@ import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
+import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
@@ -119,7 +121,7 @@ function useZoneOptions(open: boolean, current: string) {
 /**
  * Board Units and time zone: taken from the phone, changed here or later in the profile.
  * Weight; the road's distance where runs or rides were chosen; the pool where swims were; and
- * the zone, which decides which day a workout counts for.
+ * the zone. What a distance covers and what the zone decides are their ⓘ.
  */
 export function UnitsSheet({
   open,
@@ -157,9 +159,6 @@ export function UnitsSheet({
     >
       {open && (
         <div className="space-y-5 pb-1">
-          <p className="type-body text-ink-2">
-            Taken from your phone. Change them here or later in your profile.
-          </p>
           <div className="units-row">
             <span id="units-weight" className="units-row-label">
               Weight
@@ -177,9 +176,11 @@ export function UnitsSheet({
           </div>
           {distanceMatters(sports) && (
             <div className="units-row">
-              <span id="units-distance" className="units-row-label">
-                Distance
-                <span className="units-row-hint">Runs, rides and carries</span>
+              <span className="units-row-label">
+                <span className="flex items-center gap-1">
+                  <span id="units-distance">Distance</span>
+                  <InfoTip label="About distance">For runs, rides and carries.</InfoTip>
+                </span>
               </span>
               <div className="units-row-control">
                 <SegmentedControl
@@ -210,13 +211,7 @@ export function UnitsSheet({
               </div>
             </div>
           )}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="units-zone"
-              className="block text-[length:var(--ov-type-meta-small)] font-bold"
-            >
-              Time zone
-            </label>
+          <Field label="Time zone" info="Decides which day a workout counts for.">
             <Select id="units-zone" value={zone} onChange={(event) => onZone(event.target.value)}>
               {phone && (
                 <optgroup label="This phone">
@@ -236,10 +231,7 @@ export function UnitsSheet({
                 </optgroup>
               ))}
             </Select>
-            <p className="text-[length:var(--ov-type-caption)] font-medium text-ink-2">
-              Decides which day a workout counts for.
-            </p>
-          </div>
+          </Field>
         </div>
       )}
     </Sheet>

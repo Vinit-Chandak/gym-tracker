@@ -22,7 +22,7 @@ const saved: ProfileFieldValues = {
 };
 
 const weightField = () => screen.getByLabelText(/^Body weight/) as HTMLInputElement;
-const chooseUnit = (label: RegExp) => fireEvent.click(screen.getByRole("radio", { name: label }));
+const chooseUnit = (label: string) => fireEvent.click(screen.getByRole("radio", { name: label }));
 
 describe("profile fields", () => {
   it("shows a saved profile in the units it was saved with", () => {
@@ -33,7 +33,7 @@ describe("profile fields", () => {
 
   it("restates the saved measurements when the unit changes", () => {
     render(<ProfileFields values={saved} />);
-    chooseUnit(/pounds/);
+    chooseUnit("lb");
 
     expect(weightField().value).toBe("164.2");
     expect((screen.getByLabelText("Feet") as HTMLInputElement).value).toBe("5");
@@ -46,7 +46,7 @@ describe("profile fields", () => {
     render(<ProfileFields values={saved} />);
     fireEvent.change(weightField(), { target: { value: "80" } });
     fireEvent.change(screen.getByLabelText("Height (cm)"), { target: { value: "180" } });
-    chooseUnit(/pounds/);
+    chooseUnit("lb");
 
     expect(weightField().value).toBe("176.4");
     // 180 cm is 70.9 inches, which states as 5′ 11″.
@@ -56,8 +56,8 @@ describe("profile fields", () => {
 
   it("comes back to the same numbers after a round trip", () => {
     render(<ProfileFields values={saved} />);
-    chooseUnit(/pounds/);
-    chooseUnit(/kilograms/);
+    chooseUnit("lb");
+    chooseUnit("kg");
 
     expect(weightField().value).toBe("74.5");
     expect((screen.getByLabelText("Height (cm)") as HTMLInputElement).value).toBe("177.8");
@@ -114,7 +114,7 @@ describe("profile fields", () => {
       expect(zone.value).toBe("Asia/Kolkata");
       expect(zone.selectedOptions[0]?.textContent).toBe("Kolkata (this device)");
       // The same place is not a mismatch with the device, nor a second choice.
-      expect(screen.queryByText(/This device says/)).toBeNull();
+      expect(screen.queryByText(/This device:/)).toBeNull();
       const options = Array.from(zone.options, (option) => option.value);
       expect(options.filter((value) => /Kolkata|Calcutta/.test(value))).toEqual(["Asia/Kolkata"]);
       // Nor is any other place listed by a name the zone database has retired.
@@ -134,16 +134,16 @@ describe("profile fields", () => {
     expect(zone.value).toBe("");
     expect(zone.required).toBe(true);
     expect(zone.selectedOptions[0]?.textContent).toBe("Choose a time zone");
-    expect(screen.getByText(/“EST”, saved before, is an abbreviation or an offset/)).toBeTruthy();
+    expect(screen.getByText("Choose a place: “EST” can mean more than one zone.")).toBeTruthy();
     fireEvent.change(zone, { target: { value: "America/New_York" } });
     expect(zone.value).toBe("America/New_York");
-    expect(screen.queryByText(/saved before/)).toBeNull();
+    expect(screen.queryByText(/Choose a place/)).toBeNull();
   });
 
   it("names the field in the unit it is asking for", () => {
     render(<ProfileFields values={saved} />);
     expect(screen.getByLabelText("Body weight (kg)")).toBeTruthy();
-    chooseUnit(/pounds/);
+    chooseUnit("lb");
     expect(screen.getByLabelText("Body weight (lb)")).toBeTruthy();
   });
 
@@ -154,26 +154,27 @@ describe("profile fields", () => {
       </form>,
     );
     const posted = (name: string) => new FormData(container.querySelector("form")!).get(name);
-    // Each control is described by the line under it, which says what it decides.
-    const says = (name: string) =>
-      document.getElementById(
-        screen.getByRole("radiogroup", { name }).getAttribute("aria-describedby")!,
-      )?.textContent;
-    expect(says("Weight")).toBe("Loads and body weight in kilograms, height in centimetres.");
-    expect(says("Distance")).toBe("Runs and rides in kilometres, carries and sleds in metres.");
-    expect(says("Pools")).toBe("Swims and pool lengths in metres.");
+    // What each unit decides is its ⓘ, not a line under the control.
+    expect(
+      screen.getByRole("radiogroup", { name: "Weight" }).hasAttribute("aria-describedby"),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "About weight" }));
+    expect(screen.getByRole("note").textContent).toMatch(/^Loads and body weight, and height/);
+    fireEvent.click(screen.getByRole("button", { name: "About weight" }));
+    fireEvent.click(screen.getByRole("button", { name: "About distance" }));
+    expect(screen.getByRole("note").textContent).toBe(
+      "Runs and rides. Carries and sleds go in metres with km, in yards with miles.",
+    );
 
-    // Pounds read miles and yard pools (ADR 0055), and the line says what that means for a carry.
-    chooseUnit(/pounds/);
+    // Pounds read miles and yard pools (ADR 0055).
+    chooseUnit("lb");
     expect([posted("distanceUnit"), posted("poolUnit")]).toEqual(["mi", "yd"]);
-    expect(says("Weight")).toBe("Loads and body weight in pounds, height in feet and inches.");
-    expect(says("Distance")).toBe("Runs and rides in miles, carries and sleds in yards.");
-    expect(says("Pools")).toBe("Swims and pool lengths in yards.");
+    expect((screen.getByRole("radio", { name: "Yards" }) as HTMLInputElement).checked).toBe(true);
 
     // Kilometres chosen by hand beside pounds stay, whatever the weight unit does next.
-    fireEvent.click(screen.getByRole("radio", { name: "km (kilometres)" }));
-    chooseUnit(/kilograms/);
-    chooseUnit(/pounds/);
+    fireEvent.click(screen.getByRole("radio", { name: "km" }));
+    chooseUnit("kg");
+    chooseUnit("lb");
     expect([posted("distanceUnit"), posted("poolUnit")]).toEqual(["km", "yd"]);
   });
 
@@ -184,8 +185,8 @@ describe("profile fields", () => {
       </form>,
     );
     const posted = (name: string) => new FormData(container.querySelector("form")!).get(name);
-    chooseUnit(/pounds/);
-    chooseUnit(/kilograms/);
+    chooseUnit("lb");
+    chooseUnit("kg");
     expect(posted("distanceUnit")).toBe("mi");
   });
 
@@ -196,7 +197,7 @@ describe("profile fields", () => {
       </form>,
     );
     expect(screen.queryByRole("radiogroup", { name: "Pools" })).toBeNull();
-    chooseUnit(/pounds/);
+    chooseUnit("lb");
     // Not asked, so it goes on following the weight unit.
     expect(new FormData(container.querySelector("form")!).get("poolUnit")).toBe("yd");
   });

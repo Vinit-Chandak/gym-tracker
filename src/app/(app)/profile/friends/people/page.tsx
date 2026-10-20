@@ -60,10 +60,7 @@ export default async function PeoplePage() {
         {/* Following counts only who accepted: a request still waiting is listed here, where
             it can be withdrawn, rather than nowhere. */}
         {sent.length > 0 && (
-          <Section
-            title="Requested"
-            info="People you asked to follow who have not answered yet. Their training appears once they accept."
-          >
+          <Section title="Requested" info="Waiting for them to accept.">
             <List>
               {sent.map((person) => (
                 <li key={person.id}>

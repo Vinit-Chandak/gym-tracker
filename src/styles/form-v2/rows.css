@@ -1614,10 +1614,7 @@ li:last-child > .picker-row {
   accent-color: var(--ov-ink);
 }
 
-/* A row that opens in place (board Summary: Save or repeat this workout). */
-.disclosure {
-  border-bottom: 1px solid var(--ov-hair);
-}
+/* A row that opens what it names (board Summary: Save or repeat this workout). */
 .disclosure-summary {
   display: flex;
   min-height: calc(56 * var(--ov-u));
@@ -1626,15 +1623,6 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-body);
   cursor: pointer;
   list-style: none;
-}
-.disclosure-summary::-webkit-details-marker {
-  display: none;
-}
-.disclosure-chevron {
-  flex-shrink: 0;
-}
-.disclosure[open] .disclosure-chevron {
-  rotate: 180deg;
 }
 
 /* ---------- the one error a screen can meet (board Offline) ---------- */

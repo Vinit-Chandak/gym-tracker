@@ -270,12 +270,7 @@ export function FoodSheet({
         }}
       >
         <fieldset disabled={busy} className="min-w-0 space-y-4">
-          {quick && (
-            <p className="text-sm text-ink-muted">
-              Just this once: what you ate, as a whole. It is not kept in My foods.
-            </p>
-          )}
-          <Field label={quick ? "Name (optional)" : "Name"} error={errors.name}>
+          <Field label="Name" aside={quick ? "Optional" : undefined} error={errors.name}>
             <Input
               value={fields.name}
               maxLength={NUTRITION_LIMITS.name}

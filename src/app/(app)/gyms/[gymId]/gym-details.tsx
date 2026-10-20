@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
+import { Disclosure } from "@/components/ui/disclosure";
 import { SubmitButton } from "@/components/ui/form";
 import { Glyph, gymKindGlyph, machineGlyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -162,14 +163,17 @@ export function GymDetails({ data }: { data: GymDetailData }) {
 
         <section aria-labelledby="gym-machines">
           <div className="list-head">
-            <h2 id="gym-machines" className="caption-head mb-0 flex items-center gap-1">
-              {equipmentCountLabel(activeEquipment.length)}
+            {/* The tip stands beside the heading, never in it: the heading's name is its words. */}
+            <div className="flex items-center gap-1">
+              <h2 id="gym-machines" className="caption-head mb-0 whitespace-nowrap">
+                {equipmentCountLabel(activeEquipment.length)}
+              </h2>
               <InfoTip label="About machines">
                 {gym.kind === "gym"
-                  ? "A gym's basics (free weights, benches, racks and the common machines) count as here until you say otherwise. Register anything else it has, and each machine is confirmed the first time you use it."
-                  : "Nothing is assumed here: register what this place has, and anything else is asked about when an exercise needs it."}
+                  ? "A gym's basics count as here until you say otherwise. Each machine is confirmed the first time you use it."
+                  : "Nothing is assumed here: add what it has, and anything else is asked about when needed."}
               </InfoTip>
-            </h2>
+            </div>
             {gym.isActive && (
               <Link href={`/gyms/${gym.id}/equipment/new`} className="list-head-action">
                 <Glyph name="plus" className="glyph-20" />
@@ -178,24 +182,19 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             )}
           </div>
           {activeEquipment.length === 0 ? (
-            <p className="mt-1 type-meta text-ink-2">
-              No machines yet. Add each machine or cable station you use here.
-            </p>
+            <p className="mt-1 type-meta text-ink-2">No machines yet.</p>
           ) : (
             <EquipmentRows gymId={gym.id} items={activeEquipment} />
           )}
           {/* Archived machines stay out of new logging but remain in the record. */}
           {archivedEquipment.length > 0 && (
-            <details className="disclosure mt-2">
-              <summary className="disclosure-summary">
-                <span className="min-w-0 flex-1 font-bold">Archived machines</span>
-                <span className="type-meta text-ink-2 tabular-nums">
-                  {archivedEquipment.length}
-                </span>
-                <Glyph name="chevronDown" className="disclosure-chevron glyph-18 shrink-0" />
-              </summary>
+            <Disclosure
+              summary="Archived machines"
+              meta={String(archivedEquipment.length)}
+              className="mt-2"
+            >
               <EquipmentRows gymId={gym.id} items={archivedEquipment} />
-            </details>
+            </Disclosure>
           )}
         </section>
 
@@ -203,12 +202,14 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             outdoors too, and saying it is not here stops the question (ADR 0004, amended). */}
         {(gym.kind === "gym" || absent.length > 0 || absentCandidates.length > 0) && (
           <section aria-labelledby="gym-unavailable">
-            <h2 id="gym-unavailable" className="caption-head mt-4.5 flex items-center gap-1">
-              Unavailable equipment
+            <div className="mt-4.5 mb-0.5 flex items-center gap-1">
+              <h2 id="gym-unavailable" className="caption-head mb-0">
+                Unavailable equipment
+              </h2>
               <InfoTip label="About unavailable equipment">
                 Mark what this place lacks so the programme suggests alternatives instead of asking.
               </InfoTip>
-            </h2>
+            </div>
             {absent.length === 0 && absentCandidates.length === 0 && (
               <p className="type-meta text-ink-2">Nothing marked unavailable.</p>
             )}
@@ -275,26 +276,21 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           </section>
         )}
 
+        {/* One action, so it stands as itself rather than folded alone (DESIGN.md, Folds). */}
         {gym.isActive && (
-          <details className="disclosure mt-4">
-            <summary className="disclosure-summary">
-              <span className="min-w-0 flex-1 font-bold">Gym options</span>
-              <Glyph name="chevronDown" className="disclosure-chevron glyph-18 shrink-0" />
-            </summary>
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-              <p className="flex items-center gap-1 type-meta">
-                Archive gym
-                <InfoTip label="About archiving">
-                  Hides it from pickers. History stays, and it can be restored any time.
-                </InfoTip>
-              </p>
-              <form action={setGymActiveAction.bind(null, gym.id, false)}>
-                <SubmitButton variant="danger" size="sm" className="w-auto">
-                  Archive
-                </SubmitButton>
-              </form>
-            </div>
-          </details>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+            <p className="flex items-center gap-1 type-meta">
+              Archive gym
+              <InfoTip label="About archiving">
+                Hides it from pickers. History stays, and it can be restored any time.
+              </InfoTip>
+            </p>
+            <form action={setGymActiveAction.bind(null, gym.id, false)}>
+              <SubmitButton variant="danger" size="sm" className="w-auto">
+                Archive
+              </SubmitButton>
+            </form>
+          </div>
         )}
       </div>
     </>

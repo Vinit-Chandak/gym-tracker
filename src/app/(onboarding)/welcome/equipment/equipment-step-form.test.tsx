@@ -95,7 +95,7 @@ it("finds the basics too, counted already, with Not here beside them", () => {
   });
   const matches = within(screen.getByRole("list", { name: "Matches" }));
   const pecDeck = matches.getByText("Pec deck (fly / reverse fly)").closest("li")!;
-  expect(pecDeck.textContent).toContain("Usually here, counted already");
+  expect(pecDeck.textContent).toContain("Usually here");
   // Nothing to tick: it counts as there already. Saying it is not is the one thing to do.
   expect(within(pecDeck).queryByRole("checkbox")).toBeNull();
   fireEvent.click(within(pecDeck).getByRole("button", { name: /is not here/ }));
@@ -191,15 +191,24 @@ it("shows what the place already has, and offers an archived machine back to res
   expect(smith.disabled).toBe(true);
   expect(smith.closest("label")!.textContent).toContain("Already registered here");
   const hack = screen.getByRole("checkbox", { name: /^Hack squat/ });
-  expect(hack.closest("label")!.textContent).toContain("Archived here: tick to restore");
+  expect(hack.closest("label")!.textContent).toContain("Archived here");
   fireEvent.click(hack);
   expect(sent().typeIds).toEqual(["hack_squat"]);
+  // Ticked, the review says it is restored.
+  fireEvent.click(screen.getByRole("button", { name: /1 selected/ }));
+  expect(
+    within(screen.getByRole("dialog", { name: "Selected" })).getByText("Restored"),
+  ).toBeTruthy();
 });
 
 it("explains an item in words and pictures behind ⓘ, without ticking it", () => {
   const { sent } = show(previewMachinesStep("gym", "experienced"));
+  // What it is for is the ⓘ's, not a line under every row (DESIGN.md, Ticks).
+  const row = screen.getByRole("checkbox", { name: /Belt squat/ }).closest("li")!;
+  expect(row.textContent).not.toContain("Squats with nothing on your back or shoulders");
   fireEvent.click(screen.getByRole("button", { name: "About Belt squat machine" }));
   const sheet = within(screen.getByRole("dialog", { name: "Belt squat machine" }));
+  expect(sheet.getByText("Squats with nothing on your back or shoulders")).toBeTruthy();
   expect(sent().typeIds).toEqual([]);
   fireEvent.click(sheet.getByRole("button", { name: "Tick it" }));
   expect(sent().typeIds).toEqual(["belt_squat"]);

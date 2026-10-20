@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { TimeZoneSelect } from "@/components/time-zone-select";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
@@ -18,14 +19,18 @@ import {
 import {
   followsWeight,
   followWeight,
-  setLengthUnit,
-  SET_LENGTH_WORDS,
   type DistanceUnit,
   type PoolUnit,
   type SportUnits,
 } from "@/lib/distance-units";
 import { LOAD_UNIT_LABELS, SEX_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
-import { checkTimeZone, deviceTimeZone, sameTimeZone } from "@/lib/time-zones";
+import {
+  checkTimeZone,
+  deviceTimeZone,
+  preferredTimeZone,
+  sameTimeZone,
+  timeZonePlace,
+} from "@/lib/time-zones";
 import {
   fromKilograms,
   heightUnitFor,
@@ -52,19 +57,20 @@ export type ProfileFieldValues = {
   trainingGoal: TrainingGoal | null;
 };
 
+/** Each choice in setup's words (board Units and time zone): one vocabulary for one choice. */
 const UNIT_OPTIONS = BODY_LOAD_UNITS.map((unit) => ({
   value: unit as string,
-  label: `${LOAD_UNIT_LABELS[unit]} (${unit === "kg" ? "kilograms" : "pounds"})`,
+  label: LOAD_UNIT_LABELS[unit],
 }));
 
 const DISTANCE_OPTIONS = [
-  { value: "km", label: "km (kilometres)" },
-  { value: "mi", label: "mi (miles)" },
+  { value: "km", label: "km" },
+  { value: "mi", label: "mi" },
 ] as const;
 
 const POOL_OPTIONS = [
-  { value: "m", label: "m (metres)" },
-  { value: "yd", label: "yd (yards)" },
+  { value: "m", label: "Metres" },
+  { value: "yd", label: "Yards" },
 ] as const;
 
 /** Saying nothing is the fourth answer, and the one the control starts on. */
@@ -126,15 +132,15 @@ export function ProfileFields({
   // "+05:30"), which the app no longer keeps: the field then asks for a place instead.
   const saved = checkTimeZone(values.timeZone);
   const timeZone = editedZone ?? (suggest ? detected : (saved.zone ?? ""));
+  // What the field needs now: a place for a zone saved as something else, or a word that the
+  // device is somewhere other than the zone chosen, said by its place.
   const zoneHint =
     timeZone === "" && saved.problem
-      ? `Choose where you are: “${values.timeZone}”, saved before, ${
-          saved.problem === "unknown"
-            ? "is not a zone this app recognises."
-            : "is an abbreviation or an offset, which can mean another zone."
+      ? `Choose a place: “${values.timeZone}” ${
+          saved.problem === "unknown" ? "is not a known zone." : "can mean more than one zone."
         }`
       : detected && !sameTimeZone(detected, timeZone)
-        ? `This device says ${detected}`
+        ? `This device: ${timeZonePlace(preferredTimeZone(detected))}`
         : undefined;
 
   const [unit, setUnit] = useState<BodyLoadUnit>(values.preferredUnit);
@@ -151,8 +157,6 @@ export function ProfileFields({
     setDistances(next);
     setFollows({ ...follows, [key]: followsWeight(unit, next)[key] });
   }
-  const road = distances.distanceUnit === "mi" ? "miles" : "kilometres";
-  const carry = SET_LENGTH_WORDS[setLengthUnit(distances.distanceUnit)];
 
   const initialHeight = values.heightCm === null ? null : toFeetAndInches(values.heightCm);
   const [weight, setWeight] = useState(() =>
@@ -243,32 +247,24 @@ export function ProfileFields({
         />
       </Field>
 
-      {/* The units, each a choice of two with what it decides said under it. Weight leads, and
-          the distances start from it: a distance nobody set apart moves with it (ADR 0055). */}
+      {/* The units, each a choice of two, with what it decides in its ⓘ. Weight leads, and the
+          distances start from it: a distance nobody set apart moves with it (ADR 0055). */}
       <div className="space-y-1.5">
-        <span
-          id="profile-weight-unit"
-          className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
-        >
-          Weight
-        </span>
+        <div className="flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+          <span id="profile-weight-unit">Weight</span>
+          <InfoTip label="About weight">
+            Loads and body weight, and height with them: centimetres with kg, feet and inches with
+            lb.
+          </InfoTip>
+        </div>
         <SegmentedControl
           name="preferredUnit"
           aria-labelledby="profile-weight-unit"
-          aria-describedby="profile-weight-unit-says"
           options={UNIT_OPTIONS}
           value={unit}
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
-        <span
-          id="profile-weight-unit-says"
-          className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
-        >
-          {imperial
-            ? "Loads and body weight in pounds, height in feet and inches."
-            : "Loads and body weight in kilograms, height in centimetres."}
-        </span>
         {errors?.preferredUnit && (
           <span role="alert" className="block type-meta-small font-semibold">
             {errors.preferredUnit}
@@ -277,27 +273,20 @@ export function ProfileFields({
       </div>
 
       <div className="space-y-1.5">
-        <span
-          id="profile-distance-unit"
-          className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
-        >
-          Distance
-        </span>
+        <div className="flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+          <span id="profile-distance-unit">Distance</span>
+          <InfoTip label="About distance">
+            Runs and rides. Carries and sleds go in metres with km, in yards with miles.
+          </InfoTip>
+        </div>
         <SegmentedControl
           name="distanceUnit"
           aria-labelledby="profile-distance-unit"
-          aria-describedby="profile-distance-unit-says"
           options={DISTANCE_OPTIONS}
           value={distances.distanceUnit}
           onChange={(distanceUnit) => chooseDistance("distanceUnit", distanceUnit)}
           columns={2}
         />
-        <span
-          id="profile-distance-unit-says"
-          className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
-        >
-          {`Runs and rides in ${road}, carries and sleds in ${carry}.`}
-        </span>
         {errors?.distanceUnit && (
           <span role="alert" className="block type-meta-small font-semibold">
             {errors.distanceUnit}
@@ -318,18 +307,11 @@ export function ProfileFields({
           <SegmentedControl
             name="poolUnit"
             aria-labelledby="profile-pool-unit"
-            aria-describedby="profile-pool-unit-says"
             options={POOL_OPTIONS}
             value={distances.poolUnit}
             onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
             columns={2}
           />
-          <span
-            id="profile-pool-unit-says"
-            className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
-          >
-            {`Swims and pool lengths in ${distances.poolUnit === "yd" ? "yards" : "metres"}.`}
-          </span>
           {errors?.poolUnit && (
             <span role="alert" className="block type-meta-small font-semibold">
               {errors.poolUnit}
@@ -409,7 +391,7 @@ export function ProfileFields({
       <Field
         label="Date of birth"
         error={errors?.dateOfBirth}
-        hint="So training load can be read against your age"
+        info="For your heart-rate zones and the coach."
       >
         <Input
           type="date"

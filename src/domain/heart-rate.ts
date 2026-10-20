@@ -22,6 +22,13 @@ import { HEART_RATE } from "./activity-limits";
 export const HEART_RATE_ZONE_METHODS = ["max", "reserve", "custom"] as const;
 export type HeartRateZoneMethod = (typeof HEART_RATE_ZONE_METHODS)[number];
 
+/** How the zones are worked out, as its choice and the zones page's settings name it. */
+export const ZONE_METHOD_LABELS: Record<HeartRateZoneMethod, string> = {
+  max: "Of maximum",
+  reserve: "Of reserve",
+  custom: "My own",
+};
+
 /** Where a stored maximum came from. An estimate is never stored: it is worked out each time. */
 export const MAX_HEART_RATE_SOURCES = ["entered", "observed"] as const;
 export type MaxHeartRateSource = (typeof MAX_HEART_RATE_SOURCES)[number];

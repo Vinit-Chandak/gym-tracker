@@ -160,18 +160,16 @@ async function runDevice(device) {
       await field(page, "Form notes").fill(
         "Use a controlled lowering phase and keep both shoulders comfortable.",
       );
-      await button(page, "Save to my exercise library").click();
+      await button(page, "Save exercise").click();
       await expect(
         page.getByRole("alert").filter({ hasText: "Choose the registered equipment" }),
       ).toBeVisible();
       const [machine] =
         await sql`select id from equipment_instances where user_id=${userId} and is_active limit 1`;
-      await field(page, "Registered machine (required for machine exercises)").selectOption(
-        machine.id,
-      );
+      await field(page, "Machine").selectOption(machine.id);
       await clickWithSlowNavigation(
         page,
-        button(page, "Save to my exercise library"),
+        button(page, "Save exercise"),
         /\/exercises\/[0-9a-f-]{36}(?:\?|$)/,
       );
       await page.waitForURL(/\/exercises\/[0-9a-f-]{36}$/);

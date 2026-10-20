@@ -216,6 +216,9 @@ it("shows a server portion-limit error when a library food changed while the edi
 
 it("says to make a food first when My foods has none", () => {
   render(<MealBuilder saved={null} foods={[]} />);
-  expect(screen.getByText("No foods yet. Make one in My foods first.")).toBeTruthy();
+  expect(screen.getByText(/^No foods yet\./)).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Make one in My foods" }).getAttribute("href")).toBe(
+    "/food/my-foods",
+  );
   expect(screen.queryByRole("searchbox")).toBeNull();
 });

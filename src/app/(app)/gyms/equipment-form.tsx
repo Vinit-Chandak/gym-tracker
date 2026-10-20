@@ -193,10 +193,11 @@ export function EquipmentForm({
 
           <Field
             label="Available loads"
+            aside="Optional"
             info={
               stack
-                ? "Weights on this stack you know exist. Anything you log here counts already, and the Next up box under an exercise adds to this list. Optional."
-                : `List the weights you can actually select, in the unit above. For example: ${example.loads}. Leave blank if unconfirmed.`
+                ? "Weights this stack has. Sets you log on it add to them."
+                : "The loads you can select, in the unit above. Leave it blank if unsure."
             }
             error={state.fieldErrors?.availableLoads}
           >
@@ -215,7 +216,7 @@ export function EquipmentForm({
           ) : (
             <Field
               label="Smallest load jump"
-              info={`In the unit above: ${example.jump} for a pair of ${example.plates} plates. Progression suggestions move by this amount.`}
+              info={`In the unit above: ${example.jump} for a pair of ${example.plates} plates. Suggestions step by it.`}
               htmlFor="load-increment"
               error={state.fieldErrors?.loadIncrement}
             >
@@ -236,19 +237,19 @@ export function EquipmentForm({
           {/* Two to a row while both labels fit whole; one above the other on a narrow phone
               or at large text, rather than breaking "Manufacturer" in the middle. */}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
-            <Field label="Manufacturer" hint="Optional" error={state.fieldErrors?.manufacturer}>
+            <Field label="Manufacturer" aside="Optional" error={state.fieldErrors?.manufacturer}>
               <Input name="manufacturer" defaultValue={value("manufacturer")} maxLength={80} />
             </Field>
-            <Field label="Model" hint="Optional" error={state.fieldErrors?.model}>
+            <Field label="Model" aside="Optional" error={state.fieldErrors?.model}>
               <Input name="model" defaultValue={value("model")} maxLength={80} />
             </Field>
           </div>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
-            <Field label="Angle (°)" hint="Optional" error={state.fieldErrors?.angleDegrees}>
+            <Field label="Angle (°)" aside="Optional" error={state.fieldErrors?.angleDegrees}>
               <Input name="angleDegrees" inputMode="decimal" defaultValue={value("angleDegrees")} />
             </Field>
-            <Field label="Pulley ratio" hint="Optional" error={state.fieldErrors?.pulleyRatio}>
+            <Field label="Pulley ratio" aside="Optional" error={state.fieldErrors?.pulleyRatio}>
               <Input
                 name="pulleyRatio"
                 defaultValue={value("pulleyRatio")}
@@ -258,7 +259,7 @@ export function EquipmentForm({
             </Field>
           </div>
 
-          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+          <Field label="Notes" aside="Optional" error={state.fieldErrors?.notes}>
             <Textarea name="notes" defaultValue={value("notes")} maxLength={1000} />
           </Field>
         </div>

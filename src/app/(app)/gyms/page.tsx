@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, gymKindGlyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
 import { getDb } from "@/db/client";
@@ -45,9 +46,7 @@ export default async function GymsPage() {
     <>
       <PageHeader title="Gyms" backHref="/profile" />
       <div className="page-width pb-8">
-        {active.length === 0 && (
-          <p className="mt-2 type-meta text-ink-2">No gyms yet. Add the gyms you train at.</p>
-        )}
+        {active.length === 0 && <p className="mt-2 type-meta text-ink-2">No gyms yet.</p>}
         <ul className="mt-2.5">
           <GymRows gyms={active} />
           <li>
@@ -59,23 +58,17 @@ export default async function GymsPage() {
             </Link>
           </li>
         </ul>
+        {/* Each gym's own page makes it the default. */}
         {active.length > 0 && !active.some((gym) => gym.isDefault) && (
-          <p className="mt-2 type-meta-small text-ink-2">
-            No default gym. Open one and make it the default.
-          </p>
+          <p className="mt-2 type-meta-small text-ink-2">No default gym.</p>
         )}
         {/* Archived gyms are kept, not deleted: history refers to them. */}
         {archived.length > 0 && (
-          <details className="disclosure mt-4">
-            <summary className="disclosure-summary">
-              <span className="min-w-0 flex-1 font-bold">Archived</span>
-              <span className="type-meta text-ink-2 tabular-nums">{archived.length}</span>
-              <Glyph name="chevronDown" className="disclosure-chevron glyph-18 shrink-0" />
-            </summary>
+          <Disclosure summary="Archived" meta={String(archived.length)} className="mt-4">
             <ul>
               <GymRows gyms={archived} />
             </ul>
-          </details>
+          </Disclosure>
         )}
       </div>
     </>

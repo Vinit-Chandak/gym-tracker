@@ -16,9 +16,9 @@ export function UseRunMaximum({ bpm, on }: { bpm: number; on: string }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <Card>
+      {/* Higher than the maximum above, which the figure and the button say between them. */}
       <p className="type-meta">
-        A run on {on} recorded <span className="font-bold tabular-nums">{bpm} bpm</span>, more than
-        the maximum in use.
+        A run on {on} reached <span className="font-bold tabular-nums">{bpm} bpm</span>.
       </p>
       <Button
         variant="secondary"

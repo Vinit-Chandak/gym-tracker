@@ -47,7 +47,7 @@ it("asks first when unsaved activities would go, then clears only this account's
   );
 
   fireEvent.click(screen.getByRole("button", { name: /Sign out/ }));
-  expect(await screen.findByText(/An activity you have not saved/)).toBeTruthy();
+  expect(await screen.findByText("Deletes 1 unsaved activity from this device.")).toBeTruthy();
   expect(mocks.signOutAction).not.toHaveBeenCalled();
   expect(readDrafts(localStorage, ALICE).drafts).toHaveLength(1);
 

@@ -6,6 +6,11 @@ import type { BodyLoadUnit } from "@/domain/types";
 import type { SetLengthUnit } from "@/lib/distance-units";
 import { formatSharedMetric } from "@/lib/format";
 
+/** A metric's name inside a sentence: "top weight", but "est. 1RM", its initialism kept. */
+function inSentence(label: string): string {
+  return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
 /**
  * The Friends' leaderboard card (plan §3.11–3.12): the top of the board for one movement on
  * its primary metric, your own row kept in view, and the way to the full board with the
@@ -35,7 +40,7 @@ export function FriendsBoardCard({
   return (
     <Section
       title="Friends' leaderboard"
-      info={`You and the people you follow, ranked by ${metricLabel(metric, exercise).toLowerCase()} over all time, with the day each best was set. Equal values share a rank.`}
+      info={`You and the people you follow, ranked by ${inSentence(metricLabel(metric, exercise))} over all time. Ties share a rank.`}
     >
       <RankList
         rows={rows}

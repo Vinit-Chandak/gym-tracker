@@ -270,12 +270,6 @@
   font-size: var(--ov-type-meta-small);
   font-weight: 500;
 }
-.heart-rate-zone-feel {
-  grid-column: 1 / -1;
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta-small);
-  line-height: 1.35;
-}
 /* Five short numbers: in one row where they fit, folding to as many as do. */
 .heart-rate-floors {
   display: grid;

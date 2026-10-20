@@ -22,6 +22,7 @@ afterEach(() => {
 const field = () => screen.getByLabelText("Username") as HTMLInputElement;
 const type = (value: string) => fireEvent.change(field(), { target: { value } });
 const settle = () => act(() => vi.advanceTimersByTimeAsync(USERNAME_CHECK_DELAY_MS));
+const RULES = "3 to 20 lowercase letters, digits, dots or underscores.";
 
 it("says why a name breaks the rules without asking the server", async () => {
   render(<UsernameField />);
@@ -61,7 +62,18 @@ it("does not call your own current username taken", async () => {
   type("vinit");
   await settle();
   expect(check).not.toHaveBeenCalled();
-  expect(screen.getByText("This is your current username.")).toBeTruthy();
+  // Your own name typed back is neither taken nor new: the rules are all the field says.
+  expect(screen.getByText(RULES)).toBeTruthy();
+});
+
+it("says the rules under the field until a name breaks one, which it then names", async () => {
+  render(<UsernameField defaultValue="vinit" current="vinit" />);
+  const rules = screen.getByText(RULES);
+  expect(field().getAttribute("aria-describedby")).toBe(rules.id);
+  type("vi");
+  await settle();
+  expect(screen.getByText("Use 3 to 20 characters.")).toBeTruthy();
+  expect(screen.queryByText(RULES)).toBeNull();
 });
 
 it("shows the server's refusal until the field is edited again", async () => {
@@ -81,9 +93,7 @@ it("does not leave a failed availability request checking forever", async () => 
   type("alex123");
   await settle();
   expect(screen.queryByText("Checking…")).toBeNull();
-  expect(
-    screen.getByText("Could not check availability. It will be checked when you save."),
-  ).toBeTruthy();
+  expect(screen.getByText("Could not check availability now; saving checks it.")).toBeTruthy();
   expect(field().value).toBe("alex123");
   check.mockResolvedValueOnce("available");
   type("alex1234");

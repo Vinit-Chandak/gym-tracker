@@ -108,7 +108,7 @@ function EndFollowButton({ person, kind }: { person: ListedPerson; kind: PeopleT
         description={
           unfollowing
             ? "You will stop seeing their training. They are not told."
-            : "They will stop seeing your training and can ask to follow you again. They are not told."
+            : "They will stop seeing your training. They are not told."
         }
         confirmLabel={unfollowing ? "Unfollow" : "Remove follower"}
         pendingLabel={unfollowing ? "Unfollowing…" : "Removing…"}

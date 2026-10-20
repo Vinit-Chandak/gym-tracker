@@ -105,7 +105,7 @@ export function FollowButton({
         open={asking === "cancel"}
         onClose={() => setAsking(null)}
         title="Cancel request?"
-        description={`@${username} has not answered yet. You can ask again at any time.`}
+        description="You can ask again later."
         confirmLabel="Cancel request"
         pendingLabel="Cancelling…"
         pending={pending}

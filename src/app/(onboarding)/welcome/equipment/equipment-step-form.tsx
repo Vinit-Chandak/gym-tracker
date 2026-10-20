@@ -178,7 +178,7 @@ export function EquipmentStepForm({ step, art, preview = false }: Props) {
   const status = (item: StarterItem): string | null => {
     if (isHere(item)) return "Already registered here";
     if (item.typeIds.some((id) => archived.has(id)) && item.kind !== "family")
-      return "Archived here: tick to restore";
+      return "Archived here";
     if (item.kind !== "combination" && item.typeIds.every((id) => absent.has(id)))
       return "Marked not here";
     return null;
@@ -303,7 +303,7 @@ export function EquipmentStepForm({ step, art, preview = false }: Props) {
               className="mt-1 -ml-[16px] justify-start text-left"
               onClick={openFullList}
             >
-              {atGym ? "Browse all equipment" : "Something else? Browse all equipment"}
+              Browse all equipment
             </Button>
           ) : (
             <div ref={fullList} className="mt-4">
@@ -540,9 +540,9 @@ function SearchBox({
 }
 
 /**
- * Rows to tick, each its name and what it is for, the ring at its end and ⓘ beside it (DESIGN.md,
- * Inputs: several from a list). A basic is not ticked, since it counts as there already: its row
- * says so, with Not here (or It's here) at its end.
+ * Rows to tick, each its name, the ring at its end and ⓘ beside it, which says what it is for
+ * and how to recognise it (DESIGN.md, Inputs: several from a list). A basic is not ticked, since
+ * it counts as there already: its row says so, with Not here (or It's here) at its end.
  */
 function EquipmentRows({
   items,
@@ -567,7 +567,7 @@ function EquipmentRows({
                 <span className="picker-row-text">
                   <span className="picker-row-name">{item.name}</span>
                   <span className="picker-row-note">
-                    {missing ? "Marked not here" : "Usually here, counted already"}
+                    {missing ? "Marked not here" : "Usually here"}
                   </span>
                 </span>
                 <button
@@ -599,11 +599,6 @@ function EquipmentRows({
               />
               <span className="picker-row-text">
                 <span className="picker-row-name">{item.name}</span>
-                {item.purpose && (
-                  <span className="picker-row-meta">
-                    <span>{item.purpose}</span>
-                  </span>
-                )}
                 {note && <span className="picker-row-note">{note}</span>}
               </span>
               <span aria-hidden className="picker-tick" data-on={on || undefined}>
@@ -716,8 +711,10 @@ function FullList({
 }
 
 /**
- * A picture tile: the drawing, the box and the name, the purpose under it; ticked, the tile is
- * ink and the drawing inverts with it. ⓘ stands beside the label, never inside it.
+ * A picture tile: the drawing, the box and the name; ticked, the tile is ink and the drawing
+ * inverts with it. ⓘ stands beside the label, never inside it, and says what it is for. Only
+ * where two meanings share a name ("Roman chair") does the purpose stand under the name, since
+ * it is what tells them apart (DESIGN.md, Ticks).
  */
 function StarterTile({
   item,
@@ -806,7 +803,6 @@ function VariantSheet({
         </Button>
       }
     >
-      <p className="type-meta text-ink-2">A workout asks when an exercise needs one.</p>
       <ul className="equipment-grid">
         {(item.variants ?? []).map((variant) => (
           <VariantTile

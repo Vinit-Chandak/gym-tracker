@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { SportChoice } from "@/components/activities/sport-choice";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS } from "@/domain/activity";
@@ -20,7 +21,16 @@ export default async function SportsPage() {
 
   return (
     <>
-      <PageHeader title="Sports" backHref="/profile" />
+      <PageHeader
+        title="Sports"
+        backHref="/profile"
+        action={
+          <InfoTip label="About turning a sport off">
+            Only its shortcuts go. Its history, and anything already in your programme, stay as they
+            are.
+          </InfoTip>
+        }
+      />
       <PageContent>
         <SportChoice
           action={saveSportsAction}

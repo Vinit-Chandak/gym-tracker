@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { connection } from "next/server";
 
-import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { isSupabaseConfigured } from "@/lib/env";
 
 import { AUTH_LINK } from "../auth-link";
@@ -16,21 +16,23 @@ export default async function ForgotPasswordPage(props: PageProps<"/forgot-passw
   const { error } = await props.searchParams;
   if (!isSupabaseConfigured()) return <NotConfigured />;
 
+  // On the ground at the gutter, as Sign in is, never in a box (DESIGN.md, Shapes); the Email
+  // field and Send reset link say what the screen does.
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-medium">Reset your password</h2>
+      <section aria-labelledby="reset-password" className="space-y-4">
+        <h2 id="reset-password" className="type-sheet-title">
+          Reset your password
+        </h2>
         {error === "link" && (
-          <p role="alert" className="text-sm text-danger">
-            That reset link has expired or has already been used. Here is a fresh start.
+          <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
+            <span className="min-w-0">That reset link has expired or has already been used.</span>
           </p>
         )}
-        <p className="text-sm text-ink-muted">
-          Enter your email and we will send you a link to choose a new password.
-        </p>
         <ForgotPasswordForm />
-      </Card>
-      <p className="text-center text-sm text-ink-muted">
+      </section>
+      <p className="border-t border-hair pt-4 type-meta text-ink-2">
         <Link href="/login" className={AUTH_LINK}>
           Back to sign in
         </Link>

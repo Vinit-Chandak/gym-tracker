@@ -5,13 +5,10 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import {
-  listSportSharingSwitches,
-  SEPARATELY_SHARED,
-} from "@/server/repositories/sport-preferences";
+import { listSportSharingSwitches } from "@/server/repositories/sport-preferences";
 
 import { PrivacyListRow } from "./privacy-list";
-import { PrivacySwitches, SportSharingSwitches } from "./privacy-switches";
+import { PrivacySwitches } from "./privacy-switches";
 
 export const metadata: Metadata = { title: "Privacy" };
 
@@ -42,17 +39,16 @@ export default async function PrivacyPage() {
   const profile = await getRequestProfile(user.id, user.email);
   // A ride or swim switch for a sport you do, still share, or have logged: a sport turned off
   // keeps its history, so its rides stay yours to share or not. Lifting and running are the
-  // training switch's, and its sentence names only the switches drawn under it.
+  // training switch's.
   const additional = await withUser(
     getDb(),
     user.id,
     (tx) => listSportSharingSwitches(tx, user.id),
     { readOnly: true },
   );
-  const separately = SEPARATELY_SHARED.filter((sport) => additional[sport] !== undefined);
 
-  // Board Privacy: the switches that keep the promise first, each saying what Off (or On)
-  // means; then the promise itself, in full, behind two rows.
+  // Board Privacy: the switches that keep the promise first, each saying in a few words what
+  // Off (or On) means; then the promise itself, in full, behind two rows.
   return (
     <>
       <PageHeader title="Privacy" backHref="/profile" />
@@ -65,14 +61,9 @@ export default async function PrivacyPage() {
               shareBodyWeight: profile.shareBodyWeight,
               discoverableByEmail: profile.discoverableByEmail,
             }}
-            separately={separately}
+            sports={additional}
           />
         </div>
-        {separately.length > 0 && (
-          <div className="mt-3.5">
-            <SportSharingSwitches values={additional} />
-          </div>
-        )}
         <ul className="mt-1.5">
           <PrivacyListRow glyph="people" title="What a follower can see" lines={VISIBLE} />
           <PrivacyListRow glyph="lock" title="What nobody can see" lines={NEVER} />

@@ -126,8 +126,8 @@ export function ExerciseGuide({
         <a href={formUrl} target="_blank" rel="noopener noreferrer" className="guide-link">
           <span className="min-w-0 flex-1">Read a form guide</span>
           <span className="sr-only"> (opens in your browser)</span>
-          {/* Leaving the app: an arrow, not the chevron that goes deeper in it. */}
-          <Glyph name="arrowRight" className="glyph-20" />
+          {/* A chevron, as every row here that opens something ends; its name says it leaves. */}
+          <Glyph name="chevronRight" className="glyph-20" />
         </a>
       )}
       {libraryHref && (

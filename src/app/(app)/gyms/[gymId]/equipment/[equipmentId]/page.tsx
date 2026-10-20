@@ -53,7 +53,12 @@ export default async function EquipmentPage(
 
   return (
     <>
-      <PageHeader title={equipment.name} backHref={`/gyms/${gymId}`} />
+      <PageHeader
+        title={equipment.name}
+        backHref={`/gyms/${gymId}`}
+        // Back to the gym it came from, by its name.
+        backLabel={equipment.gymName}
+      />
       <PageContent>
         {!equipment.isActive && (
           <Card>

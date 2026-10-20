@@ -475,7 +475,7 @@ export function mealScreen(t, dv = K.D) {
 <h2 style="${title(34)}; margin-top: 2px">Dinner</h2>
 <label style="${s({ display: "flex", "align-items": "center", gap: 10, height: 50, padding: "0 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, "margin-top": 12 })}"><span style="display:grid;color:${t.ink2}">${icon("search", 20)}</span><span class="sr">Search your foods and saved meals</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Search your foods</span></label>
 <ul style="margin-top:6px">
-${rowFor(icon("bolt", 16), "Quick add", "Calories and macros, just this once", "")}
+${rowFor(icon("bolt", 16), "Quick add", "Just this once", "")}
 ${FL.saved.map((m) => rowFor(K.named("star", 16, "Saved meal"), m.name, m.items.join(", "), kcal(m.kcal))).join("")}
 ${FL.foods.map(([n, p, k], i) => rowFor("", n, `${p} · ${k} kcal`, plus, i === FL.foods.length - 1)).join("")}
 </ul>`;

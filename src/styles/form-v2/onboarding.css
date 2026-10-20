@@ -126,15 +126,6 @@ html:has(.onboarding) .pinned-actions {
   line-height: 1.25;
   overflow-wrap: break-word;
 }
-.you-choice-sub {
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta-small);
-  font-weight: 500;
-  line-height: 1.35;
-}
-.you-choice:has(input:checked) .you-choice-sub {
-  color: var(--ov-on-ink-2);
-}
 /* Two to a row, folding to one before a sport's name is squeezed between its mark and check. */
 .sport-chips {
   display: flex;
@@ -240,11 +231,6 @@ html:has(.onboarding) .pinned-actions {
   flex-direction: column;
   font-size: var(--ov-type-body);
   font-weight: 700;
-}
-.units-row-hint {
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-meta-small);
-  font-weight: 500;
 }
 .units-row-control {
   width: min(100%, 11rem);

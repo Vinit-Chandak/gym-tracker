@@ -49,8 +49,8 @@ export function hiddenTrainingLine(head: {
 }): string {
   const name = head.them.displayName || head.them.username;
   if (head.relation.outgoing === "accepted") return `${name} keeps their training private.`;
-  // Under a button that already says Requested, asking to follow would be asking twice.
-  if (head.relation.outgoing === "pending")
-    return `Waiting for @${head.them.username} to accept your request.`;
-  return `Follow @${head.them.username} to see their training.`;
+  // Under a button that already says Requested, what follows from it, not the request again.
+  if (head.relation.outgoing === "pending") return "Their training shows once they accept.";
+  // The button beside it says Follow or Request, as they choose: no verb here to clash with it.
+  return "Only followers see their training.";
 }

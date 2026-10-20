@@ -10,11 +10,11 @@ import { checkUsernameAction, type UsernameCheck } from "@/server/actions/people
 /** How long typing has to pause before the server is asked whether the name is free. */
 export const USERNAME_CHECK_DELAY_MS = 400;
 
-const RULES_HINT = "3 to 20 characters: lowercase letters, digits, dots and underscores.";
+/** The rules, said under the field until a name breaks one, which it then names instead. */
+const RULES = "3 to 20 lowercase letters, digits, dots or underscores.";
 
 type LiveState =
   | { kind: "idle" }
-  | { kind: "yours" }
   | { kind: "invalid"; message: string }
   | { kind: "checking" }
   | { kind: "available" }
@@ -22,16 +22,16 @@ type LiveState =
   | { kind: "taken" };
 
 /**
- * The username field the signup form, Welcome step 1 and the profile edit form share. The
- * rules are checked as you type; a pause then asks the server whether the name is free, so a
- * taken name is found out before the form is sent rather than after. The unique index still
- * has the last word on save, and that refusal arrives as `error`.
+ * The username field (Edit profile). The rules stand under it, since a name must meet them to
+ * save (WCAG 3.3.2), and are checked as you type: a name that breaks one says which instead. A
+ * pause then asks the server whether the name is free, so a taken name is found out before the
+ * form is sent rather than after. The unique index still has the last word on save, and that
+ * refusal arrives as `error`.
  */
 export function UsernameField({
   defaultValue = "",
   current,
   error,
-  hint = RULES_HINT,
   label = "Username",
   required = true,
 }: {
@@ -40,7 +40,6 @@ export function UsernameField({
   current?: string;
   /** What the server said on submit; shown until the field is edited again. */
   error?: string;
-  hint?: string;
   label?: string;
   required?: boolean;
 }) {
@@ -81,24 +80,23 @@ export function UsernameField({
     };
   }, [askServer, candidate]);
 
+  // Your own name typed back is neither taken nor new: the rules are all there is to say.
   const live: LiveState =
-    candidate === "" || (!edited && candidate === current)
+    candidate === "" || candidate === current
       ? { kind: "idle" }
-      : candidate === current
-        ? { kind: "yours" }
-        : problem !== null
-          ? { kind: "invalid", message: problem }
-          : answer?.candidate !== candidate
-            ? { kind: "checking" }
-            : answer.result === "available"
-              ? { kind: "available" }
-              : answer.result === "unavailable"
-                ? { kind: "unavailable" }
-                : answer.result === "invalid"
-                  ? { kind: "invalid", message: RULES_HINT }
-                  : { kind: "taken" };
+      : problem !== null
+        ? { kind: "invalid", message: problem }
+        : answer?.candidate !== candidate
+          ? { kind: "checking" }
+          : answer.result === "available"
+            ? { kind: "available" }
+            : answer.result === "unavailable"
+              ? { kind: "unavailable" }
+              : answer.result === "invalid"
+                ? { kind: "invalid", message: RULES }
+                : { kind: "taken" };
 
-  const feedback = edited || !error ? liveFeedback(live, hint) : { error };
+  const feedback = edited || !error ? liveFeedback(live) : { error };
 
   return (
     <Field label={label} error={feedback.error} hint={feedback.hint}>
@@ -122,12 +120,10 @@ export function UsernameField({
   );
 }
 
-function liveFeedback(live: LiveState, hint: string): { error?: string; hint?: string } {
+function liveFeedback(live: LiveState): { error?: string; hint?: string } {
   switch (live.kind) {
     case "idle":
-      return { hint };
-    case "yours":
-      return { hint: "This is your current username." };
+      return { hint: RULES };
     case "invalid":
       return { hint: live.message };
     case "checking":
@@ -135,7 +131,7 @@ function liveFeedback(live: LiveState, hint: string): { error?: string; hint?: s
     case "available":
       return { hint: "Available." };
     case "unavailable":
-      return { hint: "Could not check availability. It will be checked when you save." };
+      return { hint: "Could not check availability now; saving checks it." };
     case "taken":
       return { error: "That username is taken." };
   }

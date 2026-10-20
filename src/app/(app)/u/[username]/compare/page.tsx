@@ -153,36 +153,39 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
             </GraphRangeProvider>
 
             {found.lifting?.trained && (
-              <Card>
-                <RadarChart
-                  title="Muscle split"
-                  axes={SPLIT_GROUPS}
-                  series={[
-                    {
-                      // "You", as the table beneath heads your column: two people can share
-                      // a display name, and the legend has to say which shape is yours.
-                      name: "You",
-                      color: "var(--color-series-1)",
-                      values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
-                    },
-                    {
-                      name: names[1],
-                      color: "var(--color-series-2)",
-                      values: SPLIT_GROUPS.map((group) => found.lifting!.splits[1][group]),
-                    },
-                  ]}
-                />
-                <p className="text-xs text-ink-muted">
-                  Each person&apos;s share of their own working sets, so the shapes compare even
-                  when one of you trains more. A set counts once, under its exercise&apos;s muscle
-                  group: a squat is legs, never legs three times over.
-                </p>
-              </Card>
+              // Named by its section, as the compare page's others are, so how the shapes are
+              // drawn can be its ⓘ; the chart keeps its caption for a screen reader.
+              <Section
+                title="Muscle split"
+                info="Each person's share of their own working sets, so the shapes compare however much each trains. Each set counts once, for its main group."
+              >
+                <Card>
+                  <RadarChart
+                    title="Muscle split"
+                    className="[&_figcaption]:sr-only"
+                    axes={SPLIT_GROUPS}
+                    series={[
+                      {
+                        // "You", as the table beneath heads your column: two people can share
+                        // a display name, and the legend has to say which shape is yours.
+                        name: "You",
+                        color: "var(--color-series-1)",
+                        values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
+                      },
+                      {
+                        name: names[1],
+                        color: "var(--color-series-2)",
+                        values: SPLIT_GROUPS.map((group) => found.lifting!.splits[1][group]),
+                      },
+                    ]}
+                  />
+                </Card>
+              </Section>
             )}
 
             <Section
               title="Stats"
-              info={`Over ${RANGE_PRESET_WORDS[preset]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${found.sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
+              info={`Over ${RANGE_PRESET_WORDS[preset]}: the percentage is how far ahead or behind you are.${found.sport === "run" ? " Best pace is over a run of 1 km or more." : ""}`}
             >
               <Card>
                 <CompareTable
@@ -201,7 +204,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
             {found.lifting && (
               <Section
                 title="Exercises in common"
-                info="Movements from the shared library whose load means the same everywhere, that you both logged in the span. Each opens the head to head for that movement."
+                info="Movements from the shared library whose load means the same everywhere, that you both logged in the span."
               >
                 {found.lifting.common.comparable.length > 0 ? (
                   // A list to choose from, its names at the gutter with nothing boxing them, so
@@ -228,11 +231,11 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                 {found.lifting.common.notComparable > 0 && (
                   <p className="flex items-center gap-1 text-sm text-ink-muted">
                     {found.lifting.common.notComparable === 1
-                      ? "1 machine exercise in common is not compared: loads differ per machine."
-                      : `${found.lifting.common.notComparable} machine exercises in common are not compared: loads differ per machine.`}
+                      ? "1 machine exercise in common is not compared."
+                      : `${found.lifting.common.notComparable} machine exercises in common are not compared.`}
                     <InfoTip label="About machine exercises">
-                      A machine&apos;s stack numbers are its own, so the app never compares them
-                      across people. They still count toward sets, volume and the muscle split.
+                      A machine&apos;s numbers are its own, so they are never compared across
+                      people. They still count toward sets, volume and the muscle split.
                     </InfoTip>
                   </p>
                 )}

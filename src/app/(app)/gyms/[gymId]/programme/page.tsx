@@ -28,18 +28,20 @@ function detail(row: PlannedExerciseAvailability): string {
   switch (r.status) {
     case "direct":
       if (r.equipmentInstance) return `On ${holdHyphens(r.equipmentInstance.name)}`;
+      // When a basic is confirmed is the gym page's ⓘ (About machines), not each row's.
       return r.basis === "free"
         ? "No equipment needed"
-        : `Usually here (${row.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
+        : `Usually here: ${row.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}`;
     case "fallback":
       return `Do ${holdHyphens(exerciseOnMachine(row.resolvedExerciseName, r.equipmentInstance?.name))} instead`;
     case "unknown":
       // A custom exercise names no kind of machine, only its own, which is at another gym.
       return row.missingTypes.length === 0
-        ? "Needs the machine it was made for, which is not registered here."
-        : `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}: register it, or mark it as not here.`;
+        ? "Its machine is not registered here."
+        : `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}, not registered here.`;
     case "unavailable":
-      return "Not available here, and no fallback fits.";
+      // Beside the Unavailable badge, which says the rest.
+      return "No fallback fits.";
   }
 }
 

@@ -1135,8 +1135,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
   value comes to, in caption. A placeholder is an example that could not be taken for an answer;
   a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
-  the label's aside, read with the field, never the line under it, and inside a
-  fold that holds only optional fields no field says it. Effort is dressed as the check-in's
+  the label's aside on every optional field, inside a fold of optional fields too, read with the
+  field and never the line under it. Effort is dressed as the check-in's
   scales are, its ends named under 1 and 5, with no sentence under the tray. A search field leads
   with the glyph.
 - **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment

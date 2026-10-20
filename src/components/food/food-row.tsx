@@ -24,7 +24,7 @@ export function FoodRowText({
   tile: ReactNode;
   /** What is under the name. Without it the name is centred on its tile. */
   meta?: ReactNode;
-  /** A line that says what the row does (Quick add's) wraps at large text rather than being cut. */
+  /** Quick add's line ("Just this once") wraps at large text rather than being cut. */
   wraps?: boolean;
 }) {
   return (

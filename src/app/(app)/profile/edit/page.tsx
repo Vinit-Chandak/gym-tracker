@@ -43,9 +43,9 @@ export default async function EditProfilePage() {
         {missing.length > 0 && (
           <p role="status" className="profile-still-to-add">
             <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
-            <span className="min-w-0">
-              Still to add: {listSentence(missing)}. Saving needs all of them.
-            </span>
+            {/* Saving asks for every answer (ADR 0020), so the rule is in the line, not left for
+                the refusal: one line, not a second sentence. */}
+            <span className="min-w-0">Still to add before saving: {listSentence(missing)}.</span>
           </p>
         )}
         <div className="mt-3.5">

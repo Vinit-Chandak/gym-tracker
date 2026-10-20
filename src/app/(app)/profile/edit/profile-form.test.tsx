@@ -25,11 +25,9 @@ it("does not let an action reset the selected unit while leaving converted value
       }}
     />,
   );
-  fireEvent.click(screen.getByRole("radio", { name: "lb (pounds)" }));
+  fireEvent.click(screen.getByRole("radio", { name: "lb" }));
   container.querySelector("form")!.reset();
-  expect((screen.getByRole("radio", { name: "lb (pounds)" }) as HTMLInputElement).checked).toBe(
-    true,
-  );
+  expect((screen.getByRole("radio", { name: "lb" }) as HTMLInputElement).checked).toBe(true);
   expect(new FormData(container.querySelector("form")!).get("preferredUnit")).toBe("lb");
   // The distance that followed the weight unit stays where it followed it to.
   expect(new FormData(container.querySelector("form")!).get("distanceUnit")).toBe("mi");

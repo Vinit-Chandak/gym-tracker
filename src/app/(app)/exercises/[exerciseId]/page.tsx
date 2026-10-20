@@ -10,8 +10,10 @@ import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
+import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Figures } from "@/components/ui/figures";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
@@ -115,21 +117,22 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
   const r: Resolution = entry.resolution;
   switch (r.status) {
     case "direct":
-      // As Programme fit says it: a basic taken for granted is asked about when first used.
+      // As Programme fit says it; that a basic is confirmed when first used is the section's ⓘ.
       return r.equipmentInstance
         ? `On ${r.equipmentInstance.name}`
         : r.basis === "free"
           ? "No equipment needed"
-          : `Usually here (${entry.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
+          : `Usually here: ${entry.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}`;
     case "fallback":
       return `Do ${exerciseOnMachine(entry.resolvedExerciseName, r.equipmentInstance?.name)} instead`;
     case "unknown":
       // A custom exercise names no kind of machine, only its own, which is at another gym.
       return entry.missingTypes.length === 0
-        ? "Needs the machine it was made for, which is not registered here."
-        : `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
+        ? "Its machine is not registered here."
+        : `Needs ${entry.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}, not registered here.`;
     case "unavailable":
-      return "This place is marked as not having the equipment, and no fallback fits.";
+      // Beside the Unavailable badge, which says the rest; Programme fit holds the ways out.
+      return "No fallback fits.";
   }
 }
 
@@ -256,7 +259,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   } = data;
   // A finished programme's days are still worth reading (repeating the block asks for them), but
   // not as the programme being trained: Today says it is complete, and so does this.
-  const usageTitle = programmeComplete ? "In your last programme (complete)" : "In your programme";
+  const usageTitle = programmeComplete ? "In your last programme" : "In your programme";
   const latestRow = (performance: ComparablePerformance): LatestPerformance => ({
     id: performance.workoutExerciseId,
     sessionId: performance.workoutSessionId,
@@ -373,8 +376,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             <h2 className="text-xs font-medium text-ink-muted">Defaults</h2>
             <InfoTip label="About the defaults" className="-my-2">
               {exercise.programUsage.length > 0
-                ? `What it starts on when it is added to a workout or a programme on its own. Your programme's days ask for their own, under ${usageTitle}.`
-                : "What it starts on when it is added to a workout or a programme."}
+                ? "What it starts on when added on its own. Your programme's days set their own."
+                : "What it starts on when added to a workout or a programme."}
             </InfoTip>
           </div>
           <StatTileRow>
@@ -410,15 +413,13 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         </Card>
 
         {/* The same guide the workout's Technique shows (plan: exercise technique and media),
-            with where it was checked. A guide still awaiting the owner's review is not
-            announced as missing outside review: the section says what there is, or is left out. */}
+            with where it was checked, folded and closed: the page leads with the athlete's own
+            record (DESIGN.md, Guides). A guide still awaiting the owner's review is not announced
+            as missing outside review: the fold holds what there is, or is left out. */}
         {(showsDrafts() || guideHasContent(guidance)) && (
-          <section aria-labelledby="guide-title">
-            <h2 id="guide-title" className="caption-head">
-              How to do it
-            </h2>
+          <Disclosure summary="How to do it">
             <ExerciseGuide guidance={guidance} sources={sources} sayMissing={showsDrafts()} />
-          </section>
+          </Disclosure>
         )}
 
         <Card>
@@ -437,7 +438,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               </ul>
             </>
           ) : exercise.requiresEquipment ? (
-            <p className="text-sm text-ink-muted">The equipment you choose for it.</p>
+            <p className="text-sm text-ink-muted">Your choice.</p>
           ) : (
             <p className="text-sm text-ink-muted">No equipment needed.</p>
           )}
@@ -478,9 +479,17 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           />
         )}
 
-        <Section title="Availability by gym">
+        <Section
+          title="Availability by gym"
+          info="A gym's basics count as here until you say otherwise, and are confirmed the first time they are used."
+        >
           {availability.length === 0 && (
-            <p className="text-sm text-ink-muted">Add a gym to see where this exercise fits.</p>
+            <p className="text-sm text-ink-muted">
+              No gyms yet.{" "}
+              <Link href="/gyms/new" className="font-bold text-ink underline underline-offset-2">
+                Add gym
+              </Link>
+            </p>
           )}
           {availability.map((entry) => (
             <Card key={entry.gym.id}>

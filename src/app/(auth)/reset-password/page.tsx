@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 
-import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getSessionUser } from "@/server/auth";
 
@@ -16,22 +16,27 @@ export default async function ResetPasswordPage() {
   // Reached with a session created by the recovery link; without one the link has expired.
   const user = await getSessionUser();
 
+  // On the ground at the gutter, as Sign in is, never in a box (DESIGN.md, Shapes). An expired
+  // link says so; the way on, Send another link, is under it.
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-medium">Choose a new password</h2>
+      <section aria-labelledby="new-password" className="space-y-4">
+        <h2 id="new-password" className="type-sheet-title">
+          Choose a new password
+        </h2>
         {user ? (
           <>
-            <p className="text-sm text-ink-muted">Setting a new password for {user.email}.</p>
+            <p className="type-meta [overflow-wrap:break-word] text-ink-2">For {user.email}</p>
             <ResetPasswordForm />
           </>
         ) : (
-          <p className="text-sm text-ink-muted">
-            This reset link has expired or has already been used. Ask for a new one.
+          <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
+            <span className="min-w-0">This reset link has expired or has already been used.</span>
           </p>
         )}
-      </Card>
-      <p className="text-center text-sm text-ink-muted">
+      </section>
+      <p className="border-t border-hair pt-4 type-meta text-ink-2">
         <Link href={user ? "/today" : "/forgot-password"} className={AUTH_LINK}>
           {user ? "Back to the app" : "Send another link"}
         </Link>

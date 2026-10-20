@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { CustomExerciseForm } from "@/components/coaching/custom-exercise-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -7,6 +8,9 @@ import { getDb } from "@/db/client";
 import { equipmentInstances, gyms } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
+
+export const metadata: Metadata = { title: "New exercise" };
+
 export default async function Page() {
   const user = await requireProfiledUser();
   const machines = await withUser(
@@ -28,7 +32,7 @@ export default async function Page() {
   );
   return (
     <>
-      <PageHeader title="Custom exercise" backHref="/exercises" />
+      <PageHeader title="New exercise" backHref="/exercises" />
       <PageContent>
         <Card>
           <CustomExerciseForm machines={machines} />

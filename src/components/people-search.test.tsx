@@ -27,10 +27,10 @@ it("shows a recoverable failure and retries the same search without losing it", 
   render(<PeopleSearch />);
   type("alex");
   await settle();
-  expect(screen.getByRole("alert").textContent).toBe("Could not load people. Please try again.");
+  expect(screen.getByRole("alert").textContent).toBe("Could not load people.");
   expect(screen.getByRole("status").textContent).not.toBe("Searching");
   expect(screen.queryByText(/Nobody called that/)).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Retry search" }));
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await settle();
   expect(search).toHaveBeenNthCalledWith(2, "alex");
   expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("alex");
@@ -66,5 +66,5 @@ it("says an email has to match exactly for an email, not for a handle typed with
   expect(screen.getByText("Nobody called that.")).toBeTruthy();
   type("alice@example.com");
   await settle();
-  expect(screen.getByText("Nobody called that. An email has to match exactly.")).toBeTruthy();
+  expect(screen.getByText("No account has that exact email.")).toBeTruthy();
 });
