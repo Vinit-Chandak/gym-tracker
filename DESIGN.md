@@ -399,8 +399,10 @@ of its paper. State is thinned (to do), full (done) or dashed (skipped); context
 size) means the same on every form; a new sport is its family's form with one cut. A
 print carries no words: the rows under it name its parts in the same order.
 
-The interface says as little as it can. State is shown by ink rather than words, nothing is said
-twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a
+The interface says as little as it can. It shows what the athlete needs to act or to know where
+they stand, and nothing else: an explanation is a tap away, behind an ⓘ or a fold, never running
+text on the screen. State is shown by ink rather than words, nothing is said twice on one screen,
+and every name starts at one left edge. Motion is ink, not decoration: a
 press answers a touch, a set lands in the log when the server has it, words swap in place,
 sheets follow the finger.
 
@@ -427,7 +429,8 @@ and marks says how. The Dinner board predates this.
 
 - A black-and-white interface; colour only ever means a family of sport, as a print or a mark.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
-- Minimal words: no repeated information, no state said in words where ink says it.
+- Minimal words: no repeated information, no state said in words where ink says it, and no
+  explanation on the screen: it waits behind an ⓘ or a fold (The Need-to-Know Rule).
 - One left edge: every name starts at the gutter; a mark leads a row only where it names a sport
   (food rows aside: Rows and marks).
 - Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
@@ -580,6 +583,16 @@ saved routine's may be, is "Workout" there ("Back to the workout") and whole as 
 (12 October 2026).
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
+
+**The Need-to-Know Rule.** A screen shows what the athlete needs to act or to know where they
+stand: figures, states, labels, choices, errors and the one action. No sentence on a screen
+explains how the app, the coach or a plan works, says what will happen when it is obvious, or
+repeats what a figure already says. What someone may still want to know is a tap away: a sentence
+or two in one ⓘ beside the label or heading it explains, a longer passage behind a fold whose
+summary names it. A field's help is its ⓘ; the line under a field is kept for its error, and a
+format the athlete needs while typing is its placeholder. An empty state is one short line and
+its action. Consequences that cannot be undone (deleting, ending, discarding) are said, once and
+briefly, where the action is (owner, 20 October 2026).
 
 ## Layout
 
@@ -1066,7 +1079,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
 ### Inputs and choices
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
-  (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
+  (14, 700) with Optional at its end and any help in its ⓘ; under it only its error, in caption.
+  A format to type in is the placeholder (The Need-to-Know Rule). A search field leads with the
+  glyph.
 - **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
   is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds
   before a label would wrap, onto rows as even as fit: four as two and two, never three and one
@@ -1225,6 +1240,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   emphasis, selection or Progress charts.
 - **Don't** say the same thing twice on a screen, or put words on a print; don't draw a box or a
   mark beside a name to say what its words already say.
+- **Don't** explain on a screen how the app, the coach or a plan works, or narrate what a control
+  will do: show the figure, state or choice, and put anything more behind an ⓘ or a fold.
 - **Don't** draw a line under a print, or set its composition against one edge of the paper.
 - **Don't** draw a dashed edge for anything but skipped.
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested

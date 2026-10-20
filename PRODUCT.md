@@ -232,8 +232,11 @@ Checked against the decisions above and the owner's notes (2 October 2026):
    gap is unknown, never zero.
 5. **Yours unless shared.** A friend sees a short, separate list, and only once allowed to
    follow.
-6. **Say it once.** A screen says each thing once, in as few words as it needs, and shows state
-   rather than spelling it out. Added from the owner's notes on the Form v2 canvas. The
+6. **Say it once, and only what is needed.** A screen says each thing once, in as few words as it
+   needs, and shows state rather than spelling it out. It carries what the athlete needs to act
+   or to know where they stand, and nothing about how the app, the coach or a plan works; an
+   explanation someone may want is a tap away, in an ⓘ or a fold (owner, 20 October 2026;
+   `DESIGN.md`, The Need-to-Know Rule). Added from the owner's notes on the Form v2 canvas. The
    [Information map](#information-map) lists each fact's home; elsewhere it is a link by name
    ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
 
