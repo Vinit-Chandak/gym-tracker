@@ -117,6 +117,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
       {metric === "distance" && (
         <Graph
           name="Distance"
+          pigment="run"
           mark="bar"
           placement="bucket"
           range={range}
@@ -146,6 +147,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
       {metric === "duration" && (
         <Graph
           name="Duration"
+          pigment="run"
           mark="bar"
           placement="bucket"
           range={range}
@@ -187,6 +189,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
           )}
           <Graph
             name={`${place === "outdoor" ? "Outdoor" : "Treadmill"} pace`}
+            pigment="run"
             mark="line"
             placement="record"
             range={range}

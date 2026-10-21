@@ -50,7 +50,7 @@ it("lists Progress's sections as the design orders them, Overview first", () => 
   ).toEqual(["Overview", "Strength", "Muscles", "Running", "Food", "Recovery", "Body weight"]);
 });
 
-it("is Progress's opening: the title, the funnel, the section and its range", () => {
+it("opens on the section being read, its range under it and the funnel at its end", () => {
   route.search = "view=running";
   render(
     <ProgressSections
@@ -60,10 +60,24 @@ it("is Progress's opening: the title, the funnel, the section and its range", ()
       range="6 Jul – 29 Sept 2026"
     />,
   );
-  expect(screen.getByRole("heading", { level: 1, name: "Progress" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Filters" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Progress section: Running" })).toBeTruthy();
-  expect(screen.getByText("6 Jul – 29 Sept 2026")).toBeTruthy();
+  // The tab bar says Progress; the headline is the section, its chooser (DESIGN.md, Tab roots),
+  // and the h1 names the tab first for a screen reader.
+  expect(screen.getByRole("heading", { level: 1, name: "Progress, Running" })).toBeTruthy();
+  expect(screen.queryByText("Progress", { exact: true })).toBeNull();
+  const chooser = screen.getByRole("button", { name: "Progress section: Running" });
+  expect(chooser.textContent).toBe("Running");
+  expect(chooser.closest(".page-root-chooser")).not.toBeNull();
+  expect(screen.getByText("6 Jul – 29 Sept 2026").closest(".page-root-meta")).not.toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Filters" }).closest(".page-root-action"),
+  ).not.toBeNull();
+});
+
+it("leaves the range out where a section keeps a clock of its own", () => {
+  render(<ProgressSections value="overview" onChange={vi.fn()} filters={null} />);
+  expect(screen.getByRole("heading", { level: 1, name: "Progress, Overview" })).toBeTruthy();
+  expect(document.querySelector(".page-root-meta")).toBeNull();
+  expect(document.querySelector(".page-root-action")).toBeNull();
 });
 
 it("switches the Progress page's own sections in place", () => {

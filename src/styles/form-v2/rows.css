@@ -48,6 +48,88 @@
 .page-header-top > .page-header-action:has(> button:only-child, > a:only-child) {
   margin-right: calc(-10 * var(--ov-u));
 }
+
+/* A tab's root (DESIGN.md, Layout: Tab roots): its subject in Title, at the same place and size
+   on every tab, what it needs to say under it in Meta, and at most one action at its end. The
+   action stands beside the headline while the headline has its own width there (page-header.tsx
+   gives it as the head's basis), else under the headline and its Meta, at the end: at 200% text
+   always, Plan's New programme on a 320-pt phone, and Edit beside a long name. */
+.page-root-top {
+  display: flex;
+  min-height: calc(52 * var(--ov-u));
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(6 * var(--ov-u)) calc(12 * var(--ov-u));
+  padding-top: calc(4 * var(--ov-u));
+}
+.page-root-head {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(10 * var(--ov-u)) calc(14 * var(--ov-u));
+}
+.page-root-lead {
+  display: flex;
+  flex-shrink: 0;
+}
+.page-root-text {
+  min-width: 0;
+  flex: 1 1 0;
+}
+.page-root-title,
+.page-root-chooser .section-select-button {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-title);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--ov-title-tracking);
+  overflow-wrap: break-word;
+}
+/* The facts under the headline, and a control that belongs to them (Plan's week steps), which
+   goes under them, at the end, rather than squeeze them. */
+.page-root-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 calc(8 * var(--ov-u));
+  margin-top: calc(6 * var(--ov-u));
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.page-root-action {
+  margin-left: auto;
+}
+/* A glyph alone (Food's calendar, Progress's funnel) stands on the content's edge, as a
+   destination's does. Its sheet, once opened, stands beside it in the markup and moves nothing. */
+.page-root-action:has(> .icon-button, > .filter-button) {
+  margin-right: calc(-10 * var(--ov-u));
+}
+/* Progress's section chooser is its headline: the section's name in Title with the chevron that
+   opens the sheet of them, on the ground, its target the line's height at least. The chevron
+   follows the last word, so a name that wraps (Body weight, at large text) keeps it beside it. */
+.page-root-chooser .section-select-button {
+  display: inline-block;
+  min-height: var(--ov-target);
+  margin-block: calc((var(--ov-type-title) - var(--ov-target)) / 2);
+  padding: calc((var(--ov-target) - var(--ov-type-title)) / 2) 0;
+  background: none;
+  color: var(--ov-ink);
+}
+.page-root-chooser .section-select-button > svg {
+  display: inline-block;
+  width: calc(calc(12 * var(--ov-u)) + 0.75rem);
+  height: calc(calc(12 * var(--ov-u)) + 0.75rem);
+  margin-left: calc(6 * var(--ov-u));
+  color: var(--ov-ink-2);
+  vertical-align: -0.05em;
+}
 /* A nested screen: the way back, named, on a 48-pt bar, then the title under it. The action
    beside the way back (the rest pill) goes under it, at the end, before its name would have
    less than a few words' room (DESIGN.md, Text Never Runs Off): at 200% text, not at 100%. */
@@ -811,18 +893,8 @@ html:has(.session-page) .session-fold {
 }
 
 /* ---------- Today ---------- */
-.today {
-  padding-top: max(calc(4 * var(--ov-u)), env(safe-area-inset-top));
-}
-.today-head {
-  display: flex;
-  min-height: var(--ov-target-header);
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0 calc(8 * var(--ov-u));
-}
-/* "Done" over the day's finished sessions, under its cards (ADR 0058). */
+/* The day is a tab root's headline (page-header.tsx); "Done" over the day's finished sessions,
+   under its cards (ADR 0058). */
 .today-caption {
   margin-top: calc(18 * var(--ov-u));
   margin-bottom: -2px;
@@ -848,10 +920,25 @@ html:has(.session-page) .session-fold {
     flex: 1 0 100%;
   }
 }
-/* A Today with no card to show keeps its way on at a phone's width, not stretched across a
-   desktop's (ADR 0052). */
+/* A Today with no card to show: the rest day's crescent on its paper (or, with nowhere to train
+   yet, no print), the day in a word in Heading, and its one filled action, at a phone's width,
+   not stretched across a desktop's (ADR 0052). */
 .today-empty {
+  display: grid;
   max-width: calc(32rem - 2 * var(--ov-gutter));
+  gap: var(--ov-space-12);
+  margin-top: var(--ov-space-14);
+}
+.today-empty-print {
+  height: calc(120 * var(--ov-u));
+}
+@media (height < 800px) {
+  .today-empty-print {
+    height: calc(96 * var(--ov-u));
+  }
+}
+.today-empty > .type-heading + * {
+  margin-top: calc(2 * var(--ov-u));
 }
 /* Today is a day's few cards: two columns at most, however wide the screen. */
 .today.page-wide {

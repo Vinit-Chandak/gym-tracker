@@ -124,7 +124,7 @@ for (const config of [
     await check("headers-and-links-narrow-large-text", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
       await visit("/food", 32);
-      await assertReadableText(page.getByRole("heading", { name: "Food", exact: true }));
+      await assertReadableText(page.getByRole("heading", { level: 1, name: /^Food, / }));
       await assertReadableText(page.getByText("My foods", { exact: true }));
       await page.screenshot({
         animations: "disabled",

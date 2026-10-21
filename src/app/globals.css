@@ -853,6 +853,15 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
 .nav-link[aria-current] .nav-label {
   font-weight: 700;
 }
+/* Today lit is the app's mark in its pigments (glyphs.tsx). Forced colours give it back to the
+   tab's own colour, as every other glyph is: a pigment could all but vanish on the system's
+   ground. */
+@media (forced-colors: active) {
+  .nav-glyph [data-pigment] {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+}
 
 .navigation-progress {
   position: fixed;

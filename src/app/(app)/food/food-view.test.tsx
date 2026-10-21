@@ -222,10 +222,32 @@ it("leads its links wherever the preview says", () => {
   );
   // With no goal on the profile, targets start from 55 / 25 / 20, each share named.
   expect(screen.getByText(whole(/^Carbs\s55%\s·\sFat\s25%\s·\sProtein\s20%$/))).toBeTruthy();
-  // The year remains visible even when the selected day is too old to appear in the strip.
+  // The day on screen is the headline, the tab named first for a screen reader (DESIGN.md, Tab
+  // roots), and its year remains when the day is too old to appear in the strip.
+  // A date is held whole where a line wraps: its words joined by no-break spaces.
   expect(
-    screen.getByText("Wed 25 Sept 2024", { normalizer: (text) => text.replace(/\s+/g, " ") }),
+    screen.getByRole("heading", {
+      level: 1,
+      name: "Food, Wednesday 25\u00a0September\u00a02024",
+    }),
   ).toBeTruthy();
+  expect(text(document.querySelector(".page-root-meta")!)).toBe("25 September 2024");
+});
+
+it("opens on the day it shows, never on the tab's name", () => {
+  view([]);
+  const heading = screen.getByRole("heading", { level: 1 });
+  expect(heading.textContent?.replace(/\s+/g, " ")).toBe("Food, Friday 25 September");
+  // The tab's name and the date are said, not shown: the weekday is the headline, the date the
+  // line under it.
+  expect([...heading.querySelectorAll(".sr-only")].map((part) => part.textContent)).toEqual([
+    "Food,",
+    "25\u00a0September",
+  ]);
+  expect(screen.getByRole("heading", { level: 1, name: "Food, Friday 25\u00a0September" })).toBe(
+    heading,
+  );
+  expect(text(document.querySelector(".page-root-meta")!)).toBe("25 September");
 });
 
 it("puts the last seven days under the header, ending on today, and the month above them", () => {

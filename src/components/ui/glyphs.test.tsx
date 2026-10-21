@@ -7,6 +7,7 @@ import type { EquipmentCategory, ResistanceMode } from "@/domain/types";
 import {
   GLYPH_LABELS,
   Glyph,
+  type Destination,
   accessoryGlyph,
   cardioGlyph,
   exerciseGlyph,
@@ -122,4 +123,71 @@ it("draws the cardio machines on the glyphs' grid, each named where it says some
     rerender(<Glyph name={name} label={GLYPH_LABELS[name]} />);
     expect(screen.getByRole("img", { name: label })).toBeTruthy();
   }
+});
+
+/**
+ * Owner, 21 October 2026: Today, Plan and Progress were built from the same squares and circles,
+ * and looked alike, worst of all filled. Each destination is now its own silhouette.
+ */
+it("draws the five destinations as five silhouettes, at rest and where you are", () => {
+  const { container, rerender } = render(<Glyph name="today" />);
+  const drawing = (name: Destination, filled: boolean) => {
+    rerender(<Glyph name={name} filled={filled} />);
+    return container.querySelector("svg")!.innerHTML;
+  };
+  const destinations = ["today", "training", "food", "progress", "profile"] as const;
+  for (const filled of [false, true])
+    expect(new Set(destinations.map((name) => drawing(name, filled))).size).toBe(5);
+});
+
+it("lights Today as the app's mark, its slab and disc in their pigments", () => {
+  const { container, rerender } = render(<Glyph name="today" />);
+  const parts = () => {
+    const svg = container.querySelector("svg")!;
+    return {
+      slab: svg.querySelector("rect")!,
+      disc: svg.querySelector("circle")!,
+      line: svg.querySelector("path")!,
+    };
+  };
+  // At rest: outlined in the tab's ink, nothing filled.
+  let { slab, disc, line } = parts();
+  for (const part of [slab, disc, line]) {
+    expect(part.getAttribute("style")).toBeNull();
+    expect(part.getAttribute("fill")).toBeNull();
+    expect(part.hasAttribute("data-pigment")).toBe(false);
+  }
+  expect(line.getAttribute("d")).toBe("M3 20h18");
+  // Lit: the slab in lifting's ultramarine, the disc in running's vermilion, fill and edge; the
+  // line stays the tab's ink.
+  rerender(<Glyph name="today" filled />);
+  ({ slab, disc, line } = parts());
+  expect(slab.style.fill).toBe("var(--ov-print-strength)");
+  expect(slab.style.stroke).toBe("var(--ov-print-strength)");
+  expect(slab.getAttribute("data-pigment")).toBe("strength");
+  expect(disc.style.fill).toBe("var(--ov-print-run)");
+  expect(disc.style.stroke).toBe("var(--ov-print-run)");
+  expect(disc.getAttribute("data-pigment")).toBe("run");
+  expect(line.getAttribute("style")).toBeNull();
+});
+
+it("lights Plan's calendar by its head and today's square, and Progress's bar by its plates", () => {
+  const { container, rerender } = render(<Glyph name="training" />);
+  const filledParts = () =>
+    [...container.querySelectorAll("svg > *")].filter(
+      (part) => part.getAttribute("fill") === "currentColor",
+    );
+  // At rest the calendar's head is a line under its rings, and today's square an outline.
+  expect(filledParts()).toHaveLength(0);
+  expect(container.querySelector('path[d="M3.5 10h17"]')).not.toBeNull();
+  rerender(<Glyph name="training" filled />);
+  expect(filledParts().map((part) => part.tagName)).toEqual(["path", "rect"]);
+  expect(filledParts()[1]!.getAttribute("width")).toBe("3.4");
+  // The loaded bar: a bar and three plates growing, the plates filled where you are.
+  rerender(<Glyph name="progress" />);
+  expect(filledParts()).toHaveLength(0);
+  expect(container.querySelector('path[d="M2 12h20"]')).not.toBeNull();
+  rerender(<Glyph name="progress" filled />);
+  expect(filledParts().map((part) => part.getAttribute("height"))).toEqual(["6", "11", "16"]);
+  expect(GLYPH_LABELS.training).toBe("Plan");
 });

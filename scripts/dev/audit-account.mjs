@@ -84,7 +84,8 @@ async function signup(page, account, lifts = true) {
     await button(page, "Log my own workouts").click();
     await page.waitForURL(/\/today$/);
   }
-  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  // A tab's root opens on its subject; its h1 names the tab first (DESIGN.md, Tab roots).
+  await expect(page.getByRole("heading", { level: 1, name: /^Today, / })).toBeVisible();
   const [profile] = await sql`select p.id, p.username from profiles p
     join auth.users u on u.id = p.id where u.email = ${account.email}`;
   account.id = profile.id;
