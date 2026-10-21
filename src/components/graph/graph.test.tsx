@@ -238,7 +238,14 @@ const barFills = (container: HTMLElement) =>
     (path) => (path as SVGPathElement).style.fill,
   );
 
-it("draws bars in grey, the latest in ink, and the one being read in ink instead", () => {
+/**
+ * The marks' two strengths, which graph.css gives a sport's pigment (thinned and full) where the
+ * graph has one, and `control` and ink where it has none.
+ */
+const THIN = "var(--graph-thin)";
+const FULL = "var(--graph-full)";
+
+it("draws bars thinned, the latest full, and the one being read full instead", () => {
   const { container } = draw({
     mark: "bar",
     placement: "bucket",
@@ -250,9 +257,31 @@ it("draws bars in grey, the latest in ink, and the one being read in ink instead
     ],
   });
   // An empty bucket has no bar.
-  expect(barFills(container)).toEqual(["var(--ov-control)", "var(--ov-ink)"]);
+  expect(barFills(container)).toEqual([THIN, FULL]);
   fireEvent.keyDown(screen.getByRole("group", { name: /Body weight/ }), { key: "Home" });
-  expect(barFills(container)).toEqual(["var(--ov-ink)", "var(--ov-control)"]);
+  expect(barFills(container)).toEqual([FULL, THIN]);
+});
+
+/** Owner, 21 October 2026: a sport's data is drawn in its pigment, anything else in ink. */
+it("names the sport a graph draws in, and draws a graph of no sport in ink", () => {
+  const { container, rerender } = draw({});
+  // Body weight belongs to no sport: no pigment, so graph.css keeps it in ink and control.
+  expect(container.querySelector(".graph")!.hasAttribute("data-pigment")).toBe(false);
+  rerender(
+    <GraphRangeProvider preset="1m">
+      <Graph {...props({ pigment: "run" })} />
+    </GraphRangeProvider>,
+  );
+  expect(container.querySelector(".graph")!.getAttribute("data-pigment")).toBe("run");
+  // The line, its open points and the latest point all take the graph's full strength.
+  const line = container.querySelector<SVGPathElement>(".graph-plot svg path")!;
+  expect(line.style.stroke).toBe(FULL);
+  const points = [...container.querySelectorAll<SVGCircleElement>(".graph-plot svg circle")];
+  expect(points.at(-1)!.style.fill).toBe(FULL);
+  for (const point of points.slice(0, -1)) {
+    expect(point.style.fill).toBe("var(--ov-ground)");
+    expect(point.style.stroke).toBe(FULL);
+  }
 });
 
 it("sets the bars that reach the rule apart in ink 2, never as the one being read", () => {
@@ -268,26 +297,17 @@ it("sets the bars that reach the rule apart in ink 2, never as the one being rea
     ],
     rule: { value: 140, label: "140" },
   });
-  // The latest reached it too, and is the one in ink.
-  expect(barFills(container)).toEqual([
-    "var(--ov-ink-2)",
-    "var(--ov-control)",
-    "var(--ov-ink-2)",
-    "var(--ov-ink)",
-  ]);
-  // Reading another hands the ink to it; the latest goes back to ink 2, a grey bar stays grey.
+  // The latest reached it too, and is the one at full strength.
+  expect(barFills(container)).toEqual(["var(--ov-ink-2)", THIN, "var(--ov-ink-2)", FULL]);
+  // Reading another hands the full strength to it; the latest goes back to ink 2, a thinned
+  // bar stays thinned.
   const plot = screen.getByRole("group", { name: /Body weight/ });
   fireEvent.keyDown(plot, { key: "Home" });
-  expect(barFills(container)).toEqual([
-    "var(--ov-ink)",
-    "var(--ov-control)",
-    "var(--ov-ink-2)",
-    "var(--ov-ink-2)",
-  ]);
+  expect(barFills(container)).toEqual([FULL, THIN, "var(--ov-ink-2)", "var(--ov-ink-2)"]);
   fireEvent.keyDown(plot, { key: "ArrowRight" });
   expect(barFills(container)).toEqual([
     "var(--ov-ink-2)",
-    "var(--ov-ink)",
+    FULL,
     "var(--ov-ink-2)",
     "var(--ov-ink-2)",
   ]);
@@ -344,10 +364,12 @@ it("reads a head to head: each line's figure under its name, the second line in 
   expect(readout().getByText("Alex")).toBeTruthy();
   expect(readout().getByText("105")).toBeTruthy();
   expect(readout().getByText("97.5")).toBeTruthy();
-  const strokes = [...container.querySelectorAll(".graph-plot svg path")].map((path) =>
-    path.getAttribute("stroke"),
+  const strokes = [...container.querySelectorAll<SVGPathElement>(".graph-plot svg path")].map(
+    (path) => path.getAttribute("stroke") ?? path.style.stroke,
   );
-  expect(strokes).toEqual(["var(--ov-series-2)", "var(--ov-ink)"]);
+  // A friend's compare belongs to no sport: yours at full strength, which is ink there.
+  expect(strokes).toEqual(["var(--ov-series-2)", FULL]);
+  expect(container.querySelector(".graph")!.hasAttribute("data-pigment")).toBe(false);
 });
 
 it("reads a day only one of them trained, and opens that one's record", () => {

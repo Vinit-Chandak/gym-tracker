@@ -73,9 +73,21 @@ export type GraphReadout = GraphSide & {
   against?: GraphSide;
 };
 
+/**
+ * The sport a graph belongs to, whose pigment it draws in (DESIGN.md, Graphs: Marks): lifting's
+ * ultramarine, running's vermilion, cycling's violet, swimming's viridian, food's ochre.
+ */
+export type GraphPigment = "strength" | "run" | "ride" | "swim" | "food";
+
 export type GraphProps = {
   /** What the graph draws, for its accessible name: "Distance". */
   name: string;
+  /**
+   * The sport whose data this is: its marks draw in its pigment, thinned with the latest and the
+   * one being read full. A graph of no sport (body weight, sleep, recovery, a friend's compare)
+   * leaves it out and draws in ink.
+   */
+  pigment?: GraphPigment;
   /** Bars for totals; a line for a measurement that rises and falls (ADR 0042). */
   mark: "bar" | "line";
   /**
@@ -147,8 +159,9 @@ const LABEL = {
 /**
  * Every graph in the app (ADR 0042; DESIGN.md, Graphs). One anatomy wherever it is
  * drawn: the readout over the plot (the graph's one summary, or the mark a finger is on, with
- * the way into the record behind it), the plot in ink on the ground with the scale's round
- * values as hairlines and their labels in the left margin, the dates under it at the calendar's
+ * the way into the record behind it), the plot on the ground in its sport's pigment (`pigment`)
+ * or in ink, with the scale's round values as hairlines and their labels in the left margin, the
+ * dates under it at the calendar's
  * own boundaries, the shared spans, and every value behind one row.
  *
  * Tap or drag across the plot to read a mark; tap it again, tap elsewhere or press Escape to go
@@ -157,6 +170,7 @@ const LABEL = {
  */
 export function Graph({
   name,
+  pigment,
   mark,
   placement,
   range,
@@ -384,6 +398,7 @@ export function Graph({
   return (
     <div
       ref={root}
+      data-pigment={pigment}
       className={cn(
         "graph",
         shared?.pending && "opacity-50 transition-opacity duration-[var(--ov-duration-feedback)]",
@@ -540,13 +555,15 @@ export function Graph({
             data.map((datum, index) => {
               if (datum.value === null || datum.value <= 0) return null;
               const top = y(datum.value);
-              // The bar being read stays ink whether or not it reached the rule.
+              // The latest bar, or the one being read, in the full pigment (ink for no sport),
+              // whether or not it reached the rule; the rest thinned (`control`), and a day that
+              // reached the rule in ink 2 (graph.css).
               const fill =
                 index === inked
-                  ? "var(--ov-ink)"
+                  ? "var(--graph-full)"
                   : datum.reached
                     ? "var(--ov-ink-2)"
-                    : "var(--ov-control)";
+                    : "var(--graph-thin)";
               return (
                 <path
                   key={`${datum.date}-${index}`}
@@ -587,11 +604,13 @@ export function Graph({
               strokeWidth={2}
             />
           )}
+          {/* A line in the pigment (ink for no sport), 2 pt; its readings open points ringed in
+              it, the latest or the one being read a full point. */}
           {!bars && known.length > 1 && (
             <path
               d={linePath(placement === "record" || join ? known : points)}
               fill="none"
-              stroke="var(--ov-ink)"
+              style={{ stroke: "var(--graph-full)" }}
               strokeWidth={2}
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -605,7 +624,7 @@ export function Graph({
                   cx={point.x}
                   cy={point.y}
                   r={2.6}
-                  style={{ fill: "var(--ov-ground)", stroke: "var(--ov-ink)" }}
+                  style={{ fill: "var(--ov-ground)", stroke: "var(--graph-full)" }}
                   strokeWidth={1.6}
                 />
               ) : null,
@@ -615,7 +634,7 @@ export function Graph({
               cx={points[inked]!.x}
               cy={points[inked]!.y}
               r={selected ? 6 : 5}
-              style={{ fill: "var(--ov-ink)", stroke: "var(--ov-ground)" }}
+              style={{ fill: "var(--graph-full)", stroke: "var(--ov-ground)" }}
               strokeWidth={2}
             />
           )}

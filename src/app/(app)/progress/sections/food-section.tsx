@@ -45,6 +45,7 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
       />
       <Graph
         name={kcal ? "Calories" : "Protein"}
+        pigment="food"
         mark="bar"
         placement="bucket"
         range={range}

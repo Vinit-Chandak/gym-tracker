@@ -1,11 +1,44 @@
 /*
- * Every graph (ADR 0042; DESIGN.md, Progress charts): the readout over the plot, the plot in
- * ink on the ground, the dates under it, the shared spans, every value behind one row. One
- * anatomy on every graph, so reading one teaches every other.
+ * Every graph (ADR 0042; DESIGN.md, Progress charts): the readout over the plot, the plot on the
+ * ground in its sport's pigment or in ink, the dates under it, the shared spans, every value
+ * behind one row. One anatomy on every graph, so reading one teaches every other.
  */
 
+/* The marks' two strengths (DESIGN.md, Graphs: Marks, 21 October 2026). A graph of one sport
+   draws in its pigment: its bars thinned, the latest and the one being read full; its line, its
+   points' rings and its latest point full. Food's draw in its ochre edge, cadmium being too pale
+   to stand on white. A graph of no sport (body weight, sleep, recovery, a friend's compare) draws
+   in ink, its bars in control. Forced colours give every graph back to the system's ink. */
 .graph {
+  --graph-full: var(--ov-ink);
+  --graph-thin: var(--ov-control);
   min-width: 0;
+}
+.graph[data-pigment="strength"] {
+  --graph-full: var(--ov-print-strength);
+  --graph-thin: var(--ov-print-strength-todo);
+}
+.graph[data-pigment="run"] {
+  --graph-full: var(--ov-print-run);
+  --graph-thin: var(--ov-print-run-todo);
+}
+.graph[data-pigment="ride"] {
+  --graph-full: var(--ov-print-ride);
+  --graph-thin: var(--ov-print-ride-todo);
+}
+.graph[data-pigment="swim"] {
+  --graph-full: var(--ov-print-swim);
+  --graph-thin: var(--ov-print-swim-todo);
+}
+.graph[data-pigment="food"] {
+  --graph-full: var(--ov-food-edge);
+  --graph-thin: var(--ov-print-food-todo);
+}
+@media (forced-colors: active) {
+  .graph[data-pigment] {
+    --graph-full: var(--ov-ink);
+    --graph-thin: var(--ov-control);
+  }
 }
 
 /* The readout: a caption, the figure and its unit, one line of context. It keeps its height
