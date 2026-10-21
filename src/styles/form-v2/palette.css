@@ -62,6 +62,18 @@
   --ov-light-success-glyph: #1d883b;
   --ov-light-success-line: #279845;
   --ov-light-success-tint: #d9f9dc;
+  /* Heart-rate zones on a run's or a ride's own page: five densities of its pigment, from a
+     pale wash to full, each a step of OKLCH lightness apart (DESIGN.md, Graphs). */
+  --ov-light-zone-run-1: #ebd9d6;
+  --ov-light-zone-run-2: #e5bcb4;
+  --ov-light-zone-run-3: #e49b8d;
+  --ov-light-zone-run-4: #e8725d;
+  --ov-light-zone-run-5: #e5432a;
+  --ov-light-zone-ride-1: #dedce7;
+  --ov-light-zone-ride-2: #bebad7;
+  --ov-light-zone-ride-3: #a097cd;
+  --ov-light-zone-ride-4: #8471c8;
+  --ov-light-zone-ride-5: #6b48c0;
   /* The paper's grain: multiply at 6% in light (dark grain off). */
   --ov-light-grain-blend: multiply;
   --ov-light-grain-multiply: 0.06;
@@ -121,6 +133,16 @@
   --ov-dark-success-glyph: #4ac867;
   --ov-dark-success-line: #3f9c53;
   --ov-dark-success-tint: #17311b;
+  --ov-dark-zone-run-1: #53342c;
+  --ov-dark-zone-run-2: #784335;
+  --ov-dark-zone-run-3: #a1503c;
+  --ov-dark-zone-run-4: #cf5a3d;
+  --ov-dark-zone-run-5: #f2704f;
+  --ov-dark-zone-ride-1: #3e3562;
+  --ov-dark-zone-ride-2: #564492;
+  --ov-dark-zone-ride-3: #7051c7;
+  --ov-dark-zone-ride-4: #886ede;
+  --ov-dark-zone-ride-5: #a08cf0;
   /* The grain screens at 4.5% in dark (light grain off). */
   --ov-dark-grain-blend: screen;
   --ov-dark-grain-multiply: 0;

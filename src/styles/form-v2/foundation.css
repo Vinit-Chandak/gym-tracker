@@ -195,6 +195,16 @@
   --ov-success-glyph: var(--ov-light-success-glyph);
   --ov-success-line: var(--ov-light-success-line);
   --ov-success-tint: var(--ov-light-success-tint);
+  --ov-zone-run-1: var(--ov-light-zone-run-1);
+  --ov-zone-run-2: var(--ov-light-zone-run-2);
+  --ov-zone-run-3: var(--ov-light-zone-run-3);
+  --ov-zone-run-4: var(--ov-light-zone-run-4);
+  --ov-zone-run-5: var(--ov-light-zone-run-5);
+  --ov-zone-ride-1: var(--ov-light-zone-ride-1);
+  --ov-zone-ride-2: var(--ov-light-zone-ride-2);
+  --ov-zone-ride-3: var(--ov-light-zone-ride-3);
+  --ov-zone-ride-4: var(--ov-light-zone-ride-4);
+  --ov-zone-ride-5: var(--ov-light-zone-ride-5);
 
   /* A tray (a segmented choice, page tabs) and a waiting button are the surface; on a surface
      they step to surface 2, as the control surface steps to its own on-surface fill
@@ -371,6 +381,16 @@
     --ov-success-glyph: var(--ov-dark-success-glyph);
     --ov-success-line: var(--ov-dark-success-line);
     --ov-success-tint: var(--ov-dark-success-tint);
+    --ov-zone-run-1: var(--ov-dark-zone-run-1);
+    --ov-zone-run-2: var(--ov-dark-zone-run-2);
+    --ov-zone-run-3: var(--ov-dark-zone-run-3);
+    --ov-zone-run-4: var(--ov-dark-zone-run-4);
+    --ov-zone-run-5: var(--ov-dark-zone-run-5);
+    --ov-zone-ride-1: var(--ov-dark-zone-ride-1);
+    --ov-zone-ride-2: var(--ov-dark-zone-ride-2);
+    --ov-zone-ride-3: var(--ov-dark-zone-ride-3);
+    --ov-zone-ride-4: var(--ov-dark-zone-ride-4);
+    --ov-zone-ride-5: var(--ov-dark-zone-ride-5);
     --ov-avatar-surface-l: 0.3;
     --ov-avatar-ink-l: 0.92;
     --ov-series-wash: 0.14;
@@ -430,6 +450,16 @@
   --ov-success-glyph: var(--ov-dark-success-glyph);
   --ov-success-line: var(--ov-dark-success-line);
   --ov-success-tint: var(--ov-dark-success-tint);
+  --ov-zone-run-1: var(--ov-dark-zone-run-1);
+  --ov-zone-run-2: var(--ov-dark-zone-run-2);
+  --ov-zone-run-3: var(--ov-dark-zone-run-3);
+  --ov-zone-run-4: var(--ov-dark-zone-run-4);
+  --ov-zone-run-5: var(--ov-dark-zone-run-5);
+  --ov-zone-ride-1: var(--ov-dark-zone-ride-1);
+  --ov-zone-ride-2: var(--ov-dark-zone-ride-2);
+  --ov-zone-ride-3: var(--ov-dark-zone-ride-3);
+  --ov-zone-ride-4: var(--ov-dark-zone-ride-4);
+  --ov-zone-ride-5: var(--ov-dark-zone-ride-5);
   --ov-avatar-surface-l: 0.3;
   --ov-avatar-ink-l: 0.92;
   --ov-series-wash: 0.14;
