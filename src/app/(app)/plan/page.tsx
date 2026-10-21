@@ -52,7 +52,7 @@ export default async function PlanPage(props: PageProps<"/plan">) {
     { readOnly: true },
   );
   return (
-    <FreshAfterSets seen={seen} loading={<LoadingPage title="Plan" />}>
+    <FreshAfterSets seen={seen} loading={<LoadingPage tab="Plan" />}>
       <PlanView
         cards={cards}
         drafts={drafts}

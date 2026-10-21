@@ -404,12 +404,38 @@
   border-radius: 9999px;
   background: var(--ov-surface-2);
 }
-/* A chart, so ink (the Black-and-White Rule). */
+/* Each zone's bar in that zone's density of running's pigment, a pale wash for zone 1 to the full
+   vermilion for zone 5 (DESIGN.md, Graphs; the Colour Is Information Rule): the one place the
+   densities appear. Below zone 1 is no intensity, so it is grey. */
 .run-zone-times-bar > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--ov-ink);
+  background: var(--ov-control);
+}
+.run-zone-times > li[data-zone="1"] .run-zone-times-bar > span {
+  background: var(--ov-zone-run-1);
+}
+.run-zone-times > li[data-zone="2"] .run-zone-times-bar > span {
+  background: var(--ov-zone-run-2);
+}
+.run-zone-times > li[data-zone="3"] .run-zone-times-bar > span {
+  background: var(--ov-zone-run-3);
+}
+.run-zone-times > li[data-zone="4"] .run-zone-times-bar > span {
+  background: var(--ov-zone-run-4);
+}
+.run-zone-times > li[data-zone="5"] .run-zone-times-bar > span {
+  background: var(--ov-zone-run-5);
+}
+/* The palest densities sit close to the track: an edge keeps each bar's end where it is. */
+.run-zone-times > li:is([data-zone="1"], [data-zone="2"]) .run-zone-times-bar > span {
+  box-shadow: inset 0 0 0 1px var(--ov-print-run-todo);
+}
+@media (forced-colors: active) {
+  .run-zone-times-bar > span {
+    background: CanvasText !important;
+  }
 }
 .run-zone-times-time {
   font-weight: 600;

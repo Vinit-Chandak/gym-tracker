@@ -1,26 +1,66 @@
 /*
- * Plan (ADR 0058): this week's sessions for every sport, by date, then one card per programme.
- * Rows are the shared nav rows; the programme cards are the Training cards' grid and box.
+ * Plan (ADR 0058; DESIGN.md, Layout: Plan): the week as seven day papers, then its sessions for
+ * every sport, by date, then one card per programme, its weeks a row of segments. Rows are the
+ * shared nav rows; the programme cards are the Training cards' grid and box.
  */
 
 /* ---------- the week ---------- */
 .plan-week {
   display: grid;
-  gap: calc(10 * var(--ov-u));
+  gap: calc(14 * var(--ov-u));
 }
-.plan-week-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(10 * var(--ov-u));
-}
+/* The weeks either side, under the week's rows: each a 44-pt target named by where it stands
+   from today, its chevron on the content's edge (DESIGN.md, Page tabs; One left edge). */
 .plan-week-steps {
   display: flex;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 calc(12 * var(--ov-u));
+  margin-inline: calc(-12 * var(--ov-u));
+}
+.plan-week-step {
+  display: inline-flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 2px;
+  padding-inline: calc(10 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+}
+.plan-week-step:last-child {
+  margin-left: auto;
+}
+/* The week as seven day papers, in the month's grammar (progress.css: .month): a day's marks
+   stand together in the middle of the room under its date, side by side, then two rows of
+   two, as the month's icons do. */
+.plan-papers {
+  margin-top: calc(4 * var(--ov-u));
+}
+.plan-paper-marks {
+  display: flex;
+  width: calc(2 * 16px + 3px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+}
+.plan-paper-more {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: var(--ov-print-ink);
+  font-size: var(--ov-type-print-label);
+  font-weight: 700;
+  line-height: 1;
 }
 .plan-days {
   display: grid;
   gap: calc(14 * var(--ov-u));
+}
+/* A paper opens its day's entry here: it stands clear of the top of the screen, not under it. */
+.plan-day {
+  scroll-margin-top: calc(env(safe-area-inset-top) + 12 * var(--ov-u));
 }
 .plan-day-name {
   color: var(--ov-ink-2);
@@ -47,6 +87,56 @@
   line-height: 1.15;
   overflow-wrap: break-word;
 }
+/* Its weeks as a row of segments in its sport's pigment (DESIGN.md, Layout: Plan): the weeks
+   done full, the current week thinned, the rest the surface, a tone off the card's own (the
+   tray's, surface 2 on a box) so they are seen. */
+.plan-programme-weeks {
+  --weeks-full: var(--ov-ink);
+  --weeks-now: var(--ov-control);
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+.plan-programme-weeks[data-sport="strength"] {
+  --weeks-full: var(--ov-print-strength);
+  --weeks-now: var(--ov-print-strength-todo);
+}
+.plan-programme-weeks[data-sport="run"] {
+  --weeks-full: var(--ov-print-run);
+  --weeks-now: var(--ov-print-run-todo);
+}
+.plan-programme-weeks[data-sport="ride"] {
+  --weeks-full: var(--ov-print-ride);
+  --weeks-now: var(--ov-print-ride-todo);
+}
+.plan-programme-weeks[data-sport="swim"] {
+  --weeks-full: var(--ov-print-swim);
+  --weeks-now: var(--ov-print-swim-todo);
+}
+.plan-programme-weeks > span {
+  height: calc(6 * var(--ov-u));
+  min-width: 0;
+  flex: 1 1 0;
+  border-radius: 3px;
+  background: var(--ov-tray);
+}
+.plan-programme-weeks > [data-state="done"] {
+  background: var(--weeks-full);
+}
+.plan-programme-weeks > [data-state="now"] {
+  background: var(--weeks-now);
+}
+/* Forced colours drop backgrounds: the weeks done stay as the text's colour, the rest edged. */
+@media (forced-colors: active) {
+  .plan-programme-weeks > span {
+    border: 1px solid CanvasText;
+  }
+  .plan-programme-weeks > [data-state="done"] {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
 /* Something waiting on the programme: the one fact on the card that asks for a decision. */
 .plan-programme-waiting {
   justify-self: start;

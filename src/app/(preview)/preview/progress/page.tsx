@@ -250,7 +250,9 @@ export default async function ProgressPreviewPage(props: PageProps<"/preview/pro
       {navigation}
       <div className="progress page-width pt-safe">
         <div className="progress-view">
-          <h1 className="type-title">Progress</h1>
+          <h1 className="type-title">
+            <span className="sr-only">Progress, </span>Overview
+          </h1>
           <section aria-label="Overview" className="min-w-0">
             <OverviewSection
               today={today}

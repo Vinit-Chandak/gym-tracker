@@ -17,7 +17,7 @@
   --ov-light-ink: #16171b;
   --ov-light-ink-2: #5b5d64;
   --ov-light-control: #85878e;
-  --ov-light-hair: #e6e6e9;
+  --ov-light-hair: #d8d9dc;
   --ov-light-on-ink: #ffffff;
   --ov-light-on-ink-2: #b4b6bd;
   --ov-light-scrim: rgb(22 23 27 / 0.42);
@@ -48,6 +48,32 @@
   --ov-light-print-mobility-todo: #f89fbb;
   --ov-light-print-food-todo: #e3b667;
   --ov-light-print-play-todo: #d9b48c;
+  /* Signals and forms (DESIGN.md, Signals; amended 21 October 2026). Measured on the surface
+     each sits on: text 4.5:1 or more, glyphs and lines 3:1 or more. */
+  --ov-light-food-edge: #b07a12;
+  --ov-light-grouped: #f4f4f5;
+  --ov-light-panel: #ffffff;
+  --ov-light-panel-tray: #f4f4f5;
+  --ov-light-danger-text: #a31f3a;
+  --ov-light-danger-glyph: #cc2147;
+  --ov-light-danger-line: #e42b52;
+  --ov-light-danger-tint: #f9ebec;
+  --ov-light-success-text: #1c6c31;
+  --ov-light-success-glyph: #1d883b;
+  --ov-light-success-line: #279845;
+  --ov-light-success-tint: #d9f9dc;
+  /* Heart-rate zones on a run's or a ride's own page: five densities of its pigment, from a
+     pale wash to full, each a step of OKLCH lightness apart (DESIGN.md, Graphs). */
+  --ov-light-zone-run-1: #ebd9d6;
+  --ov-light-zone-run-2: #e5bcb4;
+  --ov-light-zone-run-3: #e49b8d;
+  --ov-light-zone-run-4: #e8725d;
+  --ov-light-zone-run-5: #e5432a;
+  --ov-light-zone-ride-1: #dedce7;
+  --ov-light-zone-ride-2: #bebad7;
+  --ov-light-zone-ride-3: #a097cd;
+  --ov-light-zone-ride-4: #8471c8;
+  --ov-light-zone-ride-5: #6b48c0;
   /* The paper's grain: multiply at 6% in light (dark grain off). */
   --ov-light-grain-blend: multiply;
   --ov-light-grain-multiply: 0.06;
@@ -64,9 +90,9 @@
   --ov-dark-surface-control-on-surface: #2b2c32;
   --ov-dark-surface-control-on-surface-pressed: #35363c;
   --ov-dark-ink: #edeef0;
-  --ov-dark-ink-2: #a3a6ae;
-  --ov-dark-control: #73767e;
-  --ov-dark-hair: #26272c;
+  --ov-dark-ink-2: #b2b5bc;
+  --ov-dark-control: #787b83;
+  --ov-dark-hair: #37383c;
   --ov-dark-on-ink: #111214;
   --ov-dark-on-ink-2: #4c4f57;
   --ov-dark-scrim: rgb(0 0 0 / 0.6);
@@ -95,6 +121,28 @@
   --ov-dark-print-mobility-todo: #824e60;
   --ov-dark-print-food-todo: #8b6924;
   --ov-dark-print-play-todo: #745a3e;
+  --ov-dark-food-edge: #f2b12a;
+  --ov-dark-grouped: #111214;
+  --ov-dark-panel: #1b1c20;
+  --ov-dark-panel-tray: #26272c;
+  --ov-dark-danger-text: #ebb8ba;
+  --ov-dark-danger-glyph: #f2868e;
+  --ov-dark-danger-line: #e2445d;
+  --ov-dark-danger-tint: #47191e;
+  --ov-dark-success-text: #7ee28f;
+  --ov-dark-success-glyph: #4ac867;
+  --ov-dark-success-line: #3f9c53;
+  --ov-dark-success-tint: #17311b;
+  --ov-dark-zone-run-1: #53342c;
+  --ov-dark-zone-run-2: #784335;
+  --ov-dark-zone-run-3: #a1503c;
+  --ov-dark-zone-run-4: #cf5a3d;
+  --ov-dark-zone-run-5: #f2704f;
+  --ov-dark-zone-ride-1: #3e3562;
+  --ov-dark-zone-ride-2: #564492;
+  --ov-dark-zone-ride-3: #7051c7;
+  --ov-dark-zone-ride-4: #886ede;
+  --ov-dark-zone-ride-5: #a08cf0;
   /* The grain screens at 4.5% in dark (light grain off). */
   --ov-dark-grain-blend: screen;
   --ov-dark-grain-multiply: 0;

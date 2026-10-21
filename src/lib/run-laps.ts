@@ -3,8 +3,23 @@ import {
   type EndurancePrescription,
   type StepPhase,
 } from "@/domain/activity-prescription";
-import type { RunningLap } from "@/domain/activity-metrics";
-import { fromMetres, roundTo, type DistanceUnit } from "@/lib/distance-units";
+import type { LapFigures, RunningLap } from "@/domain/activity-metrics";
+import { fromMetres, roundTo, toMetres, type DistanceUnit } from "@/lib/distance-units";
+
+/**
+ * A lap's kind as a run's laps say it (DESIGN.md, Laps and intervals): the work of a session is
+ * its reps, so a work lap is a Rep here, while a plan's step keeps the plan's word, Work. A lap
+ * with no kind, from before laps had one, is a Lap.
+ */
+export const LAP_KIND_LABELS: Record<StepPhase, string> = {
+  warmup: "Warm-up",
+  work: "Rep",
+  recovery: "Recovery",
+  cooldown: "Cool-down",
+};
+
+/** A recovery with no distance was a rest standing still, and reads as one. */
+export const STANDING = "Standing";
 
 /**
  * Laps as the run form posts them and a saved run restores them (ADR 0059): one JSON list in a
@@ -37,6 +52,18 @@ export function postedLaps(laps: readonly RunningLap[]): PostedLap[] {
     averageHeartRate: lap.averageHeartRate,
     maxHeartRate: lap.maxHeartRate,
   }));
+}
+
+/** A posted lap in metres and milliseconds, for what the laps add up to as they are typed. */
+export function postedLapFigures(lap: PostedLap): LapFigures {
+  return {
+    phase: lap.phase,
+    metres:
+      lap.distanceValue === null || !(lap.distanceValue >= 0)
+        ? null
+        : toMetres(lap.distanceValue, lap.distanceUnit),
+    durationMs: lap.durationMs,
+  };
 }
 
 const number = (value: unknown): number | null =>

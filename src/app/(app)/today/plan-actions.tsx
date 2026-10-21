@@ -6,6 +6,7 @@ import { useActionState, useState, useTransition, type ReactNode } from "react";
 import { Button, LinkButton, type ButtonVariant } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
@@ -174,6 +175,7 @@ export function MoreOptions({
     keepsOutcomeOnDisconnect(skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session")),
     INITIAL,
   );
+  const keptForm = useKeptForm();
   const close = () => {
     setOpen(false);
     setAsking(null);
@@ -240,7 +242,7 @@ export function MoreOptions({
             workflow={coach.workflow}
           />
         ) : asking === "skip" && skip ? (
-          <form action={formAction} className="mt-2 space-y-4">
+          <form ref={keptForm} action={formAction} className="mt-2 space-y-4">
             {/* The workout alone: titled with the day's name, the sheet read as skipping all of it. */}
             {skip.runOwed && (
               <p className="type-body [overflow-wrap:break-word] text-ink-2">
@@ -320,6 +322,7 @@ export function SkipPartButton({
     keepsOutcomeOnDisconnect(skipSlotAction.bind(null, dayIndex, part)),
     INITIAL,
   );
+  const keptForm = useKeptForm();
   const [handled, setHandled] = useState<ActionResult>(INITIAL);
   if (state !== handled) {
     setHandled(state);
@@ -332,7 +335,7 @@ export function SkipPartButton({
         {label}
       </Button>
       <Sheet open={open} onClose={() => setOpen(false)} title={title}>
-        <form action={formAction} className="space-y-4">
+        <form ref={keptForm} action={formAction} className="space-y-4">
           <Field label="Reason" aside="Optional">
             <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
           </Field>
@@ -395,6 +398,7 @@ export function PickUpFromToday({
     keepsOutcomeOnDisconnect(pickUpFromTodayAction),
     INITIAL,
   );
+  const keptForm = useKeptForm();
   const [handled, setHandled] = useState<ActionResult>(INITIAL);
   if (state !== handled) {
     setHandled(state);
@@ -423,7 +427,7 @@ export function PickUpFromToday({
         </Button>
       </div>
       <Sheet open={open} onClose={() => setOpen(false)} title="Pick up from today">
-        <form action={formAction} className="space-y-4">
+        <form ref={keptForm} action={formAction} className="space-y-4">
           <p className="type-body [overflow-wrap:break-word]">
             Your programme carries on from{" "}
             {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. The

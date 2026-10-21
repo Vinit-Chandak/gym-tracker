@@ -85,7 +85,13 @@ function coachRunView(run: RunActivity) {
     mode: run.environment,
     durationSeconds: run.durationSeconds,
     distanceMeters: run.distanceMeters,
-    averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
+    // The running pace the coach reads: a continuous run's average. A session of reps and rests
+    // gives none here, since its overall pace has the rests in it (DESIGN.md, Laps and
+    // intervals), and its reps' pace below, named as the reps'.
+    averagePaceSecondsPerKm: run.withRests ? null : run.averagePaceSecondsPerKm,
+    repPaceSecondsPerKm: run.repPace ? Math.round(run.repPace.secondsPerKm) : null,
+    reps: run.repPace?.reps ?? null,
+    runType: run.runType ?? null,
     rpe: run.effort.value,
     effortScale: { min: EFFORT.min, max: EFFORT.max },
     effortReported: run.effort.status === "reported",

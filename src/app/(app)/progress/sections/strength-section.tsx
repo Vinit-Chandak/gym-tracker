@@ -162,6 +162,7 @@ function GroupVolume({
   return (
     <Graph
       name={`Total volume, ${named}`}
+      pigment="strength"
       mark="bar"
       placement="bucket"
       range={range}

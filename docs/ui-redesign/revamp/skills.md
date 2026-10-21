@@ -3,6 +3,8 @@
 Prepared 30 September 2026, before any design work. Nothing in the application changed.
 [Updated 20 October 2026](#updated-20-october-2026): Impeccable upgraded to 4.7.0, and three
 skills added for the app's structure and for tasks that cross screens.
+[Updated 21 October 2026](#updated-21-october-2026): eleven skills added for colour, forms,
+errors, icons, layout and a second opinion on how a screen looks.
 
 The ground-up revamp is designed and built with Claude. This page lists every skill added for
 it, why each earned its place, what was turned down, and the settings that came with them. How
@@ -213,6 +215,42 @@ ESLint already skip all three: `.prettierignore` covers every folder in `.claude
 | tommyjepsen/awesome-ux-skills                                       | No licence                                                                           |
 | GOV.UK-style writing skills                                         | No licence that allows a committed copy                                              |
 | emilkowalski `break-ui`                                             | Overlaps `/impeccable harden`; a candidate later                                     |
+
+## Updated 21 October 2026
+
+The owner found the built app black and white everywhere but its art, its errors impossible to
+spot, its forms one stack of boxes and its tab icons alike, and asked for the house rules to stop
+depending on Impeccable alone. Nothing installed owned a colour system, form design, error
+recovery or icons; each now has an owner in `overload-ui`.
+
+| Skill                     | Use it for                                                                                                                                       | Runs | Source                                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `better-colors`           | The colour system: ramps where every step has a job, OKLCH, role tokens, status hues kept 15° from the brand's, contrast measured in both themes | Auto | [jakubkrehel/skills](https://github.com/jakubkrehel/skills) at `4c66b1f`, MIT                                                          |
+| `ux-color`                | Palette roles, 60-30-10, neutral-dominant with functional colours apart from brand                                                               | Auto | [Uxcel-Lab/product-skills](https://github.com/Uxcel-Lab/product-skills) at `5007cd0`, MIT                                              |
+| `ux-inputs-and-forms`     | What a form asks, labels, one column, input types, validation and submission                                                                     | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-error-recovery`       | Preventing errors, messages that recover, undo before confirm, never a dead end                                                                  | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-iconography`          | Icons understood at a glance: metaphors, one style, filled for state, labels                                                                     | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-layout-spacing-grids` | One spacing scale, grouping by proximity, alignment, hierarchy by space                                                                          | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-cards`                | One topic a card, the right container, restraint                                                                                                 | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-empty-states`         | Why a screen is empty and its next action                                                                                                        | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `ux-aesthetics-audit`     | A severity-rated visual review: hierarchy, emphasis, spacing, grouping, overdesign                                                               | Auto | Uxcel-Lab/product-skills                                                                                                               |
+| `frontend-design`         | Anthropic's own: a plan of named colours and type, reviewed against what generated designs default to, then built and critiqued                  | Auto | [anthropics/skills](https://github.com/anthropics/skills) at `6010f91`, Apache-2.0                                                     |
+| `taste-app-screens`       | Three references from the taste skill: measurements of 23 premium product screens, colour roles and proportion, and a dated registry of tells    | Auto | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) at `dbd4588`, MIT; only `references/`, with an entry note written here |
+
+Two of the September refusals are reversed here, at the owner's request. Anthropic's
+`frontend-design` was refused as a competitor to Impeccable; its list of generated-design
+defaults is what caught this round's first proposals (a cream ground with vermilion and indigo
+washes), so it is kept as the self-critique pass, and `overload-ui` settles the order. The taste
+skill was refused whole as a landing-page builder; only its app-screen study is copied, without
+the scripts or libraries. Each copy's `UPSTREAM.md` gives its source, commit, licence and changes:
+the Uxcel and `better-colors` texts are unchanged and their hand-offs to skills not installed here
+are mapped in `overload-ui`; `taste-app-screens` has an entry note written for this repository.
+
+Considered and not installed today: the rest of Jakub Krehel's set (`better-ui`, `better-layout`,
+`better-typography` and others overlap `emil-design-eng`, Impeccable and the Uxcel skills), the
+`jakubkrehel/oklch-skill` (its conversion and contrast work is inside `better-colors`), the Uxcel
+heuristics and microcopy audits (Impeccable's critique and clarify own them), and the whole taste
+skill.
 
 ## Updating a skill
 

@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
@@ -95,6 +95,8 @@ export function CyclingForm({
   openDetails = false,
   readIn,
 }: Props) {
+  // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
   // A ride entered in kilometres opens in miles for a miles rider, and the other way round.
@@ -120,7 +122,8 @@ export function CyclingForm({
   // Board Log a ride: where, the time, the distance if it is known and the speed it makes, how
   // hard it felt and whether it was assisted; everything optional behind one row; Save.
   return (
-    <form action={formAction}>
+    // Its sections stand as panels on the grouped ground (DESIGN.md, Layout: Forms).
+    <form ref={form} action={formAction} className="ov-grouped">
       <input type="hidden" name="sport" value="cycling" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <input type="hidden" name="resourceId" value={values("resourceId")} />
@@ -143,7 +146,7 @@ export function CyclingForm({
           onChange={setEnvironment}
         />
       </div>
-      <div className="mt-1.5">
+      <div className="ov-panel ov-panel-body mt-3">
         <DurationField
           value={duration}
           onChange={setDuration}
@@ -170,6 +173,8 @@ export function CyclingForm({
           }
           error={errors?.distance ?? errors?.distanceValue}
         />
+      </div>
+      <div className="ov-panel ov-panel-body mt-3">
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
         {/* Hidden rather than removed indoors, so its answer is still sent and kept. */}
         <div className="space-y-1.5 pt-3 pb-1" hidden={environment === "indoor"}>
@@ -195,44 +200,46 @@ export function CyclingForm({
         </div>
       </div>
 
-      <MoreDetails
-        defaultOpen={openDetails}
-        hasErrors={[
-          "startedAt",
-          "startedAtOffsetMinutes",
-          "recordedTimeZone",
-          "averagePowerWatts",
-          "averageCadenceRpm",
-          "elevationGainMetres",
-          "averageHeartRate",
-          "maxHeartRate",
-          "title",
-          "notes",
-        ].some((field) => Boolean(errors?.[field]))}
-      >
-        <ActivityStartFields values={values} errors={errors} />
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Average power W" error={errors?.averagePowerWatts}>
-            <Input
-              name="averagePowerWatts"
-              inputMode="numeric"
-              defaultValue={values("averagePowerWatts")}
-              placeholder="—"
-            />
-          </Field>
-          <Field label="Average cadence rpm" error={errors?.averageCadenceRpm}>
-            <Input
-              name="averageCadenceRpm"
-              inputMode="numeric"
-              defaultValue={values("averageCadenceRpm")}
-              placeholder="—"
-            />
-          </Field>
-        </div>
-        <ElevationField values={values} errors={errors} readIn={readIn} />
-        <HeartRateFields values={values} errors={errors} />
-        <NotesFields values={values} errors={errors} />
-      </MoreDetails>
+      <div className="ov-panel ov-panel-body mt-3">
+        <MoreDetails
+          defaultOpen={openDetails}
+          hasErrors={[
+            "startedAt",
+            "startedAtOffsetMinutes",
+            "recordedTimeZone",
+            "averagePowerWatts",
+            "averageCadenceRpm",
+            "elevationGainMetres",
+            "averageHeartRate",
+            "maxHeartRate",
+            "title",
+            "notes",
+          ].some((field) => Boolean(errors?.[field]))}
+        >
+          <ActivityStartFields values={values} errors={errors} />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Average power W" error={errors?.averagePowerWatts}>
+              <Input
+                name="averagePowerWatts"
+                inputMode="numeric"
+                defaultValue={values("averagePowerWatts")}
+                placeholder="—"
+              />
+            </Field>
+            <Field label="Average cadence rpm" error={errors?.averageCadenceRpm}>
+              <Input
+                name="averageCadenceRpm"
+                inputMode="numeric"
+                defaultValue={values("averageCadenceRpm")}
+                placeholder="—"
+              />
+            </Field>
+          </div>
+          <ElevationField values={values} errors={errors} readIn={readIn} />
+          <HeartRateFields values={values} errors={errors} />
+          <NotesFields values={values} errors={errors} />
+        </MoreDetails>
+      </div>
 
       {notice}
 

@@ -266,42 +266,212 @@ export function lapPaceSecondsPerKm(lap: RunningLap): number | null {
 }
 
 /**
+ * A lap's figures in one measure, whatever unit it was typed in: what the laps add up to, the
+ * reps' pace and whether they make intervals are read from these, on the form as it is typed
+ * and on the server as it is saved.
+ */
+export type LapFigures = {
+  phase: StepPhase | null;
+  /** Unknown, or for a recovery a standing rest, when null. */
+  metres: number | null;
+  durationMs: number | null;
+};
+
+export function lapFigures(lap: RunningLap): LapFigures {
+  return { phase: lap.phase, metres: lap.distance?.metres ?? null, durationMs: lap.durationMs };
+}
+
+/** What a run's laps add up to, and whether they hold each total whole. */
+export type LapSums = {
+  metres: number;
+  durationMs: number;
+  /**
+   * Every lap has a distance, but a recovery that is a time alone, a rest standing still: the
+   * laps hold the run's whole distance. A rep timed without one leaves it unknown.
+   */
+  distanceKnown: boolean;
+  /** Every lap has a time: the laps hold the run's whole time. */
+  timeKnown: boolean;
+};
+
+/**
+ * What a run's laps add up to (owner, 21 October 2026, as a watch counts them): their distances
+ * and their times. A recovery that is a time alone, a standing rest, adds no distance. A total
+ * is the run's only when the laps hold it whole: a lap without a time leaves the run's time
+ * unknown, never shorter by that lap (PRODUCT.md, principle 4).
+ */
+export function lapTotals(laps: readonly LapFigures[]): LapSums {
+  let metres = 0;
+  let durationMs = 0;
+  let distanceKnown = laps.length > 0;
+  let timeKnown = laps.length > 0;
+  for (const lap of laps) {
+    // A lap with neither is refused at that lap; it leaves neither total unknown as well.
+    if (lap.metres === null && lap.durationMs === null) continue;
+    if (lap.metres !== null && lap.metres > 0) metres += lap.metres;
+    else if (!(lap.metres === null && lap.phase === "recovery")) distanceKnown = false;
+    if (lap.durationMs !== null && lap.durationMs > 0) durationMs += lap.durationMs;
+    else timeKnown = false;
+  }
+  return { metres: roundTo(metres, DECIMALS.distance), durationMs, distanceKnown, timeKnown };
+}
+
+/** The laps' distance where it is the run's, else null: they hold it whole, and it is some. */
+export function lapsDistance(sums: LapSums): number | null {
+  return sums.distanceKnown && sums.metres > 0 ? sums.metres : null;
+}
+
+/** The laps' time where it is the run's, else null. */
+export function lapsTime(sums: LapSums): number | null {
+  return sums.timeKnown && sums.durationMs > 0 ? sums.durationMs : null;
+}
+
+/** Reps with recoveries between them make a session intervals (PRODUCT.md, principle 7). */
+export function lapsMakeIntervals(laps: readonly Pick<LapFigures, "phase">[]): boolean {
+  return laps.some((lap) => lap.phase === "work") && laps.some((lap) => lap.phase === "recovery");
+}
+
+/**
+ * The reps' pace (DESIGN.md, Laps and intervals): the work laps that have both a distance and a
+ * time, their distance over their time, and how many of them that is. A rep timed without a
+ * distance is left out of it, not counted as standing still.
+ */
+export function repPace(
+  laps: readonly LapFigures[],
+): { secondsPerKm: number; reps: number } | null {
+  const measured = laps.filter(
+    (lap) =>
+      lap.phase === "work" &&
+      lap.metres !== null &&
+      lap.metres > 0 &&
+      lap.durationMs !== null &&
+      lap.durationMs > 0,
+  );
+  const metres = measured.reduce((sum, lap) => sum + lap.metres!, 0);
+  const durationMs = measured.reduce((sum, lap) => sum + lap.durationMs!, 0);
+  const pace = paceSecondsPerKm(metres, durationMs);
+  return pace === null ? null : { secondsPerKm: pace, reps: measured.length };
+}
+
+/**
+ * Whether a run's own pace has its rests in it: a session the athlete calls intervals, or one
+ * whose laps hold reps with recoveries between them, whatever kind it was called. Its distance
+ * over its time is then the "Overall, with rests" figure, never the athlete's running pace.
+ */
+export function paceHasRests(actual: Pick<RunningActualV1, "runType" | "laps">): boolean {
+  return actual.runType === "intervals" || lapsMakeIntervals(actual.laps);
+}
+
+/** The pace a run counts as: its own, or for a session with rests its reps'. */
+export type RunPace =
+  { kind: "overall"; secondsPerKm: number } | { kind: "reps"; secondsPerKm: number; reps: number };
+
+/**
+ * The pace a run counts as wherever a pace is read as the athlete's running pace — a trend, a
+ * record, what the coach plans from (DESIGN.md, Laps and intervals): a continuous run's distance
+ * over its time; for a session with rests, the reps' pace, or none where no rep has both a
+ * distance and a time. The overall pace with the rests in it never stands for the athlete's.
+ */
+export function countedRunPace(
+  actual: Pick<RunningActualV1, "runType" | "laps" | "distance" | "durationMs">,
+): RunPace | null {
+  if (paceHasRests(actual)) {
+    const reps = repPace(actual.laps.map(lapFigures));
+    return reps ? { kind: "reps", ...reps } : null;
+  }
+  const overall = paceSecondsPerKm(actual.distance.metres, actual.durationMs);
+  return overall === null ? null : { kind: "overall", secondsPerKm: overall };
+}
+
+/**
  * Laps may say less than the run did — the reps of a session and not its warm-up — but never
  * more: laps longer than the whole are a typo. Each lap's own time rounds to the second on a
  * watch, so a second a lap is allowed for, and a hundredth of the distance for GPS.
  */
+export function lapsLongerThan(lapsMs: number, durationMs: number, lapCount: number): boolean {
+  return lapsMs > durationMs + lapCount * 1000;
+}
+
+export function lapsFurtherThan(lapsMetres: number, metres: number): boolean {
+  return metres > 0 && lapsMetres > metres * 1.01 + 10;
+}
+
+/** "3.47 km", "2.50 km", "800 m": a run's total as its own unit writes it, in a message. */
+export function formatRunTotal(metres: number, unit: DistanceUnit | PoolUnit): string {
+  const value = fromMetres(metres, unit);
+  return unit === "km" || unit === "mi"
+    ? `${value.toFixed(2)} ${unit}`
+    : `${Math.round(value)} ${unit}`;
+}
+
+/** "14:28", "1:02:10": a run's time in a message, to the second. */
+export function formatRunTime(durationMs: number): string {
+  const total = Math.max(0, Math.round(durationMs / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = String(total % 60).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+    : `${minutes}:${seconds}`;
+}
+
+/**
+ * Where a lap's problem is said: at the lap, at the part of it at fault (`laps.2.distance` is
+ * the third lap's distance), so the form can mark that field and say it there.
+ */
+export function lapField(index: number, part?: "distance" | "time" | string): string {
+  return part ? `laps.${index}.${part}` : `laps.${index}`;
+}
+
 function checkLaps(problems: LimitProblem[], actual: RunningActualV1): void {
   if (actual.laps.length > LAP_LIMIT) {
     problems.push({ field: "laps", message: `Keep a run to ${LAP_LIMIT} laps.` });
     return;
   }
-  let metres = 0;
-  let ms = 0;
   actual.laps.forEach((lap, index) => {
     const label = `lap ${index + 1}`;
     if (lap.distance === null && lap.durationMs === null) {
-      problems.push({ field: "laps", message: `Give ${label} a distance, a time or both.` });
+      problems.push({
+        field: lapField(index),
+        message: `Give ${label} a distance, a time or both.`,
+      });
       return;
     }
     if (lap.distance !== null) {
       if (!(lap.distance.metres > 0))
-        problems.push({ field: "laps", message: `Enter ${label}'s distance as more than zero.` });
-      else checkDistanceValue(problems, "laps", lap.distance, "running", `${label}'s distance`);
-      metres += lap.distance.metres;
+        problems.push({
+          field: lapField(index, "distance"),
+          message: `Enter ${label}'s distance as more than zero.`,
+        });
+      else
+        checkDistanceValue(
+          problems,
+          lapField(index, "distance"),
+          lap.distance,
+          "running",
+          `${label}'s distance`,
+        );
     }
-    if (lap.durationMs !== null) {
-      checkDuration(problems, "laps", lap.durationMs, `${label}'s time`);
-      ms += lap.durationMs;
-    }
+    if (lap.durationMs !== null)
+      checkDuration(problems, lapField(index, "time"), lap.durationMs, `${label}'s time`);
     const before = problems.length;
     checkHeartRates(problems, lap.averageHeartRate, lap.maxHeartRate);
     for (const problem of problems.splice(before))
-      problems.push({ field: "laps", message: `${label}: ${problem.message}` });
+      problems.push({ field: lapField(index, problem.field), message: problem.message });
   });
-  if (ms > actual.durationMs + actual.laps.length * 1000)
-    problems.push({ field: "laps", message: "The laps add up to longer than the run." });
-  if (actual.distance.metres > 0 && metres > actual.distance.metres * 1.01 + 10)
-    problems.push({ field: "laps", message: "The laps add up to further than the run." });
+  // Typed totals that fall short of the laps are said at the total, with what the laps add up
+  // to: that figure is the fix the form offers ("Use 3.47 km").
+  const sums = lapTotals(actual.laps.map(lapFigures));
+  if (lapsLongerThan(sums.durationMs, actual.durationMs, actual.laps.length))
+    problems.push({
+      field: "duration",
+      message: `The laps add up to ${formatRunTime(sums.durationMs)}, longer than ${formatRunTime(actual.durationMs)}.`,
+    });
+  if (lapsFurtherThan(sums.metres, actual.distance.metres))
+    problems.push({
+      field: "distance",
+      message: `The laps add up to ${formatRunTotal(sums.metres, actual.distance.unit)}, more than ${formatRunTotal(actual.distance.metres, actual.distance.unit)}.`,
+    });
 }
 
 function checkDuration(

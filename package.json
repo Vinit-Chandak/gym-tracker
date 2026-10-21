@@ -28,6 +28,7 @@
     "audit:latency": "node scripts/dev/audit-latency.mjs",
     "audit:db-screens": "node scripts/dev/audit-db-screens.mjs",
     "audit:running": "node scripts/dev/audit-running.mjs",
+    "audit:logging": "node scripts/dev/audit-logging.mjs",
     "audit:db": "node scripts/dev/audit.mjs verify-db",
     "build": "next build",
     "start": "next start",

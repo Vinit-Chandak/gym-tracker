@@ -144,6 +144,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
       environment: run.environment,
       metres: run.distanceMeters,
       seconds: run.durationSeconds,
+      // An interval session's pace with its rests is not the athlete's running pace: its point
+      // is left off the pace line, while its distance and time still count (DESIGN.md, Laps).
+      withRests: run.withRests,
     }))
     .reverse();
   const strengthRange = rangeFor(data.strength.map((row) => row.date));
@@ -161,7 +164,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
-      <div className="progress page-width pt-safe">
+      {/* The header and the section each take the page's width: the header is a tab root's
+          (DESIGN.md, Tab roots), the same on every tab. */}
+      <div className="progress">
         <ProgressView
           data={{
             today,

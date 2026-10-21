@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { SectionSelect } from "@/components/ui/section-select";
 
 /**
@@ -29,9 +30,10 @@ export function pageSection(view: string | null): ProgressSection {
 }
 
 /**
- * Progress's opening (board Progress): the title with the filters' funnel at its end, then the
- * one picker for the sections, the range the section is drawn over beside it. A section is
- * chosen in place, on the page that has already read them all.
+ * Progress's opening (DESIGN.md, Tab roots): the section being read is the headline, its name
+ * the one picker for the sections, which opens the sheet of them; the range it is drawn over
+ * under it; the filters' funnel at its end. The h1 names the tab first for a screen reader
+ * ("Progress, Running"). A section is chosen in place, on the page that has already read them.
  */
 export function ProgressSections({
   value,
@@ -41,28 +43,26 @@ export function ProgressSections({
 }: {
   value: ProgressSection;
   onChange?: (section: ProgressSection) => void;
-  /** The filter sheet, at the end of the title. */
+  /** The filter sheet, at the end of the headline. */
   filters: ReactNode;
   /** The range the section is drawn over; none where it shows something else (the month). */
   range?: string | null;
 }) {
+  const current = PROGRESS_SECTIONS.find((section) => section.value === value)!;
   return (
-    <header className="progress-head">
-      <div className="page-header-top">
-        <h1 className="type-title">Progress</h1>
-        {filters && <div className="page-header-action">{filters}</div>}
-      </div>
-      <SectionSelect
-        label="Progress section"
-        options={PROGRESS_SECTIONS}
-        value={value}
-        onChange={onChange}
-        action={
-          range ? (
-            <span className="type-meta-small font-semibold text-ink-2 tabular-nums">{range}</span>
-          ) : undefined
-        }
-      />
-    </header>
+    <PageHeader
+      tab="Progress"
+      title={current.label}
+      chooser={
+        <SectionSelect
+          label="Progress section"
+          options={PROGRESS_SECTIONS}
+          value={value}
+          onChange={onChange}
+        />
+      }
+      meta={range ?? undefined}
+      action={filters ?? undefined}
+    />
   );
 }

@@ -761,3 +761,68 @@ it("leaves choosing a programme to Plan, for an account without one", () => {
   expect(screen.queryByRole("link", { name: /programme/ })).toBeNull();
   expect(screen.getByRole("link", { name: "Log a session" })).toBeTruthy();
 });
+
+/** What the head's line under the day says, as read: no-break spaces as spaces. */
+const meta = () => document.querySelector(".page-root-meta")!.textContent!.replace(/\s+/g, " ");
+
+/** Owner, 21 October 2026: a tab's root opens on its subject, never the tab's name. */
+it("opens on the day, its date and how far it has got under it, Log at its end", () => {
+  show();
+  // The h1 names the tab first, then the day whole; the weekday alone is shown.
+  const heading = screen.getByRole("heading", {
+    level: 1,
+    name: "Today, Friday 11\u00a0September",
+  });
+  expect(heading.textContent?.replace(/\s+/g, " ")).toBe("Today, Friday 11 September");
+  // The workout and the run are owed and nothing is done yet; the date the h1 already says
+  // is shown, not read again.
+  expect(meta()).toBe("11 September · 0 of 2 done");
+  const date = document.querySelector('.page-root-meta [aria-hidden="true"]')!;
+  expect(date.textContent).toBe("11\u00a0September");
+  expect(logLink().closest(".page-root-action")).not.toBeNull();
+});
+
+it("counts what was done of what the day holds, and nothing once nothing is owed", () => {
+  const lift = {
+    id: "lift-1",
+    sport: "strength" as const,
+    startedAt: new Date("2026-09-11T04:18:00.000Z"),
+    durationMs: 2_880_000,
+    distanceMetres: null,
+    environment: null,
+    occurrenceId: null,
+    sessionId: "lift-1",
+    programDayId: DAY.id,
+    dayName: DAY.name,
+    title: null,
+    gymName: "Anytime Fitness",
+  };
+  const { unmount } = show({ plan: { ...plan(), sessionStatus: "completed" }, logged: [lift] });
+  // The workout done, the run still owed.
+  expect(meta()).toBe("11 September · 1 of 2 done");
+  unmount();
+  // Done for the day: no count, only the date.
+  show({
+    plan: { ...plan(), sessionStatus: "completed" },
+    logged: [lift],
+    programmeOccurrences: [],
+  });
+  expect(meta()).toBe("11 September");
+});
+
+it("stands the rest day's crescent over Nothing planned, Log a session its one filled action", () => {
+  const { container } = show({ plan: null, programmeOccurrences: [] });
+  const empty = within(screen.getByRole("region", { name: "Nothing planned" }));
+  // A heading, not a title: the day's headline is the day.
+  expect(empty.getByRole("heading", { level: 2, name: "Nothing planned" }).className).toContain(
+    "type-heading",
+  );
+  // The crescent on its paper, decoration beside the words that say it.
+  const print = container.querySelector(".today-empty-print")!;
+  expect(print.getAttribute("aria-hidden")).toBe("true");
+  expect(print.className).toContain("bg-paper");
+  expect(empty.getByRole("link", { name: "Log a session" })).toBeTruthy();
+  // Nothing owed: no count under the day, and no Log beside it.
+  expect(meta()).toBe("11 September");
+  expect(document.querySelector(".page-root-action")).toBeNull();
+});

@@ -4,6 +4,7 @@
 @import "../styles/form-v2/foundation.css";
 @import "../styles/form-v2/session.css";
 @import "../styles/form-v2/rows.css";
+@import "../styles/form-v2/forms.css";
 @import "../styles/form-v2/progress.css";
 @import "../styles/form-v2/graph.css";
 @import "../styles/form-v2/food.css";
@@ -102,6 +103,20 @@
   --color-danger: var(--ov-danger);
   --color-over: var(--ov-over);
   --color-focus: var(--ov-focus);
+
+  /* The two signals as their four roles, and the form's grounds (DESIGN.md, Signals; Forms). */
+  --color-danger-text: var(--ov-danger-text);
+  --color-danger-glyph: var(--ov-danger-glyph);
+  --color-danger-line: var(--ov-danger-line);
+  --color-danger-tint: var(--ov-danger-tint);
+  --color-success-text: var(--ov-success-text);
+  --color-success-glyph: var(--ov-success-glyph);
+  --color-success-line: var(--ov-success-line);
+  --color-success-tint: var(--ov-success-tint);
+  --color-grouped: var(--ov-grouped);
+  --color-panel: var(--ov-panel);
+  --color-panel-tray: var(--ov-panel-tray);
+  --color-food-edge: var(--ov-food-edge);
 
   /* Charts and the body map read these instead of hard-coding a mode's hex values. */
   --color-series-1: var(--ov-series-1);
@@ -837,6 +852,15 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
 }
 .nav-link[aria-current] .nav-label {
   font-weight: 700;
+}
+/* Today lit is the app's mark in its pigments (glyphs.tsx). Forced colours give it back to the
+   tab's own colour, as every other glyph is: a pigment could all but vanish on the system's
+   ground. */
+@media (forced-colors: active) {
+  .nav-glyph [data-pigment] {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
 }
 
 .navigation-progress {

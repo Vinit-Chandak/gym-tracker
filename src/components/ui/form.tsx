@@ -1,22 +1,141 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { Button, type ButtonProps } from "./button";
+import { Glyph } from "./glyphs";
 
+type Refused = { element: HTMLElement; name: string };
+
+/** A control's name as its label reads, without the help or the aside beside it. */
+function nameOf(element: HTMLElement): string | null {
+  const labelledBy = element.getAttribute("aria-labelledby");
+  const fromIds = labelledBy
+    ?.split(/\s+/)
+    .map((id) => element.ownerDocument.getElementById(id)?.textContent?.trim())
+    .filter(Boolean)
+    .join(" ");
+  const name =
+    fromIds ||
+    (element as HTMLInputElement).labels?.[0]?.textContent?.trim() ||
+    element.getAttribute("aria-label")?.trim();
+  return name || null;
+}
+
+/** "Distance" reads "distance" inside a sentence; "HR zones" keeps its capitals. */
+const inSentence = (name: string) =>
+  /^[A-Z][a-z]/.test(name) ? name[0]!.toLowerCase() + name.slice(1) : name;
+
+/**
+ * What the form marks as not saveable, in page order, each field once: a field drawn as several
+ * controls (a distance's whole and the digits after its point) is one field, named by its own
+ * label, as the field says it.
+ */
+function refusedIn(form: HTMLFormElement): Refused[] {
+  const seen = new Set<Element | string>();
+  const refused: Refused[] = [];
+  for (const element of form.querySelectorAll<HTMLElement>('[aria-invalid="true"]')) {
+    const field = element.closest<HTMLElement>('[data-field-error="true"]');
+    const label = field?.querySelector("label")?.textContent?.trim();
+    // A lap's field is named with its lap ("lap 4 time"), as the run has a time of its own.
+    const lap = element.closest(".lap-row")?.querySelector(".lap-row-number")?.textContent?.trim();
+    const own = label || nameOf(element);
+    const name = own && lap ? `${lap} ${own[0]!.toLowerCase()}${own.slice(1)}` : own;
+    const key = field ?? name;
+    if (!name || !key || seen.has(key)) continue;
+    seen.add(key);
+    refused.push({ element, name });
+  }
+  return refused;
+}
+
+/** The control a refused element stands for: itself, or the first control inside it. */
+const controlOf = (element: HTMLElement) =>
+  element.matches("input, select, textarea, button")
+    ? element
+    : (element.querySelector<HTMLElement>("input, select, textarea, button") ?? element);
+
+/**
+ * The refused save (DESIGN.md, Inputs and choices; 21 October 2026), over Save in the pinned
+ * actions. The fields say what is wrong where they are; this bar only counts them and names them
+ * ("2 to fix: lap 4, distance"), and leads to the first. A failure that is not a field's (the
+ * connection, the server) is said here in the app's words. A sentence a field already says is
+ * never said again here.
+ */
 export function FormError({ message }: { message?: string }) {
-  if (!message) return null;
+  const ref = useRef<HTMLDivElement>(null);
+  const [refused, setRefused] = useState<Refused[]>([]);
+  const [repeated, setRepeated] = useState(false);
+
+  useLayoutEffect(() => {
+    const form = ref.current?.closest("form");
+    if (!form) return;
+    const read = () => {
+      const now = refusedIn(form);
+      // Its own bar is inside the form it watches: an unchanged list keeps its identity, so
+      // drawing the bar never asks for another read.
+      setRefused((was) =>
+        was.length === now.length &&
+        was.every(
+          (item, index) => item.name === now[index]!.name && item.element === now[index]!.element,
+        )
+          ? was
+          : now,
+      );
+      const said = [...form.querySelectorAll<HTMLElement>('[role="alert"]')].filter(
+        (alert) => !ref.current?.contains(alert),
+      );
+      setRepeated(Boolean(message) && said.some((alert) => alert.textContent?.trim() === message));
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(form, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-invalid"],
+    });
+    return () => observer.disconnect();
+  }, [message]);
+
+  const first = refused[0];
+  const showMessage = Boolean(message) && !repeated;
   return (
-    <p
-      role="alert"
-      tabIndex={-1}
-      className="rounded-control border border-danger bg-transparent px-3 py-2 text-sm text-danger"
-    >
-      {message}
-    </p>
+    <div ref={ref} className="space-y-2 empty:hidden" data-refused-save>
+      {first && (
+        // Not an alert: each refused field says its own words as one, and Save brings the first
+        // into view and focus; this only counts them and leads there.
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              const control = controlOf(first.element);
+              control.focus();
+              control.scrollIntoView?.({ block: "center" });
+            }}
+            className="flex min-h-[var(--ov-target)] w-full items-center gap-2.5 rounded-control bg-danger-tint px-[calc(14*var(--ov-u))] py-2 text-left text-[length:var(--ov-type-meta-small)] leading-snug font-bold text-danger-text"
+          >
+            <Glyph name="chevronUp" className="glyph-20 shrink-0 text-danger-glyph" />
+            <span className="min-w-0 [overflow-wrap:break-word]">
+              {refused.length} to fix: {refused.map((item) => inSentence(item.name)).join(", ")}
+            </span>
+          </button>
+        </div>
+      )}
+      {showMessage && (
+        <p
+          role="alert"
+          tabIndex={-1}
+          className="flex items-start gap-2.5 rounded-control bg-danger-tint px-[calc(14*var(--ov-u))] py-2.5 text-[length:var(--ov-type-meta-small)] leading-snug font-bold text-danger-text"
+        >
+          <Glyph name="warn" className="glyph-20 shrink-0 text-danger-glyph" />
+          <span className="min-w-0 [overflow-wrap:break-word]">{message}</span>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -72,15 +191,26 @@ export function SubmitButton({
  * chosen. A listener on the element itself does hear the reset, and cancelling it keeps every
  * field as it stands, which is what a form that failed to save wants: the athlete's choices, to
  * correct or retry. Attach the returned ref to the `<form>`.
+ *
+ * The listener follows the form itself, not the component: React sets the ref when the form
+ * mounts, which for a form inside a sheet is long after the component that holds it (Skip, Move,
+ * Pick up from today), so an effect run once at mount would find no form and never keep it.
  */
 export function useKeptForm(): RefObject<HTMLFormElement | null> {
-  const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    const form = ref.current;
-    if (!form) return;
+  const [ref] = useState(() => {
+    let form: HTMLFormElement | null = null;
     const keep = (event: Event) => event.preventDefault();
-    form.addEventListener("reset", keep);
-    return () => form.removeEventListener("reset", keep);
-  }, []);
+    return {
+      get current() {
+        return form;
+      },
+      set current(next: HTMLFormElement | null) {
+        if (next === form) return;
+        form?.removeEventListener("reset", keep);
+        form = next;
+        form?.addEventListener("reset", keep);
+      },
+    } as RefObject<HTMLFormElement | null>;
+  });
   return ref;
 }

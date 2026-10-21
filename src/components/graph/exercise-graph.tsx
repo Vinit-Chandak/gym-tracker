@@ -192,6 +192,8 @@ export function ExerciseGraph({
         <div className={pending ? "opacity-50 transition-opacity" : undefined}>
           <Graph
             name={`${selected.name}, ${named(measure).long.toLowerCase()}`}
+            // An exercise is lifting's, wherever its graph is drawn (DESIGN.md, Graphs: Marks).
+            pigment="strength"
             mark="line"
             placement="record"
             range={range}

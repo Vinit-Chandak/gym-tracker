@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -102,6 +102,8 @@ export function SwimmingForm({
   openDetails = false,
   readIn = "m",
 }: Props) {
+  // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
   const [environment, setEnvironment] = useState(() => values("environment") || "pool");
@@ -145,7 +147,8 @@ export function SwimmingForm({
   // Board Log a swim: where, the elapsed time, how the distance was measured and what that
   // came to, how hard it felt; everything optional behind one row; Save at the foot.
   return (
-    <form action={formAction}>
+    // Its sections stand as panels on the grouped ground (DESIGN.md, Layout: Forms).
+    <form ref={form} action={formAction} className="ov-grouped">
       <input type="hidden" name="sport" value="swimming" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <input type="hidden" name="resourceId" value={values("resourceId")} />
@@ -172,7 +175,7 @@ export function SwimmingForm({
           }}
         />
       </div>
-      <div className="mt-1.5">
+      <div className="ov-panel ov-panel-body mt-3">
         {/* What to count is said in view, in two words: it decides the figure typed. */}
         <DurationField
           label="Elapsed time"
@@ -227,7 +230,7 @@ export function SwimmingForm({
               max={1000}
               less="Shorter"
               more="Longer"
-              error={errors?.poolLength}
+              error={errors?.poolLength ?? errors?.poolLengthValue}
             />
             <RowStepper
               label="Lengths"
@@ -280,81 +283,84 @@ export function SwimmingForm({
             error={errors?.distance ?? errors?.distanceValue}
           />
         )}
-
+      </div>
+      <div className="ov-panel ov-panel-body mt-3">
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
-      <MoreDetails
-        defaultOpen={openDetails}
-        hasErrors={[
-          "startedAt",
-          "startedAtOffsetMinutes",
-          "recordedTimeZone",
-          "activeMs",
-          "activeMinutes",
-          "activeSeconds",
-          "stroke",
-          "strokeCount",
-          "averageHeartRate",
-          "maxHeartRate",
-          "title",
-          "notes",
-        ].some((field) => Boolean(errors?.[field]))}
-      >
-        <ActivityStartFields values={values} errors={errors} />
-        <Field
-          group
-          label="Swimming time"
-          aside="Optional"
-          hint="Rests left out"
-          error={errors?.activeMs ?? errors?.activeMinutes ?? errors?.activeSeconds}
+      <div className="ov-panel ov-panel-body mt-3">
+        <MoreDetails
+          defaultOpen={openDetails}
+          hasErrors={[
+            "startedAt",
+            "startedAtOffsetMinutes",
+            "recordedTimeZone",
+            "activeMs",
+            "activeMinutes",
+            "activeSeconds",
+            "stroke",
+            "strokeCount",
+            "averageHeartRate",
+            "maxHeartRate",
+            "title",
+            "notes",
+          ].some((field) => Boolean(errors?.[field]))}
         >
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Minutes">
-              <Input
-                name="activeMinutes"
-                inputMode="numeric"
-                value={activeMinutes}
-                onChange={(event) => setActiveMinutes(event.target.value)}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Seconds">
-              <Input
-                name="activeSeconds"
-                inputMode="decimal"
-                value={activeSeconds}
-                onChange={(event) => setActiveSeconds(event.target.value)}
-                placeholder="—"
-              />
-            </Field>
-          </div>
-        </Field>
-        {pace !== null && (
-          <p role="status" className="type-meta-small text-ink-2 tabular-nums">
-            {formatPaceSeconds(pace, 1)} per 100 {paceUnit}
-          </p>
-        )}
-        <Field label="Stroke" error={errors?.stroke}>
-          <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>
-            {SWIM_STROKES.map((stroke) => (
-              <option key={stroke} value={stroke}>
-                {STROKE_LABELS[stroke]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Strokes taken" aside="Optional" error={errors?.strokeCount}>
-          <Input
-            name="strokeCount"
-            inputMode="numeric"
-            defaultValue={values("strokeCount")}
-            placeholder="—"
-          />
-        </Field>
-        <HeartRateFields values={values} errors={errors} />
-        <NotesFields values={values} errors={errors} />
-      </MoreDetails>
+          <ActivityStartFields values={values} errors={errors} />
+          <Field
+            group
+            label="Swimming time"
+            aside="Optional"
+            hint="Rests left out"
+            error={errors?.activeMs ?? errors?.activeMinutes ?? errors?.activeSeconds}
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Minutes">
+                <Input
+                  name="activeMinutes"
+                  inputMode="numeric"
+                  value={activeMinutes}
+                  onChange={(event) => setActiveMinutes(event.target.value)}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Seconds">
+                <Input
+                  name="activeSeconds"
+                  inputMode="decimal"
+                  value={activeSeconds}
+                  onChange={(event) => setActiveSeconds(event.target.value)}
+                  placeholder="—"
+                />
+              </Field>
+            </div>
+          </Field>
+          {pace !== null && (
+            <p role="status" className="type-meta-small text-ink-2 tabular-nums">
+              {formatPaceSeconds(pace, 1)} per 100 {paceUnit}
+            </p>
+          )}
+          <Field label="Stroke" error={errors?.stroke}>
+            <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>
+              {SWIM_STROKES.map((stroke) => (
+                <option key={stroke} value={stroke}>
+                  {STROKE_LABELS[stroke]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Strokes taken" aside="Optional" error={errors?.strokeCount}>
+            <Input
+              name="strokeCount"
+              inputMode="numeric"
+              defaultValue={values("strokeCount")}
+              placeholder="—"
+            />
+          </Field>
+          <HeartRateFields values={values} errors={errors} />
+          <NotesFields values={values} errors={errors} />
+        </MoreDetails>
+      </div>
 
       {notice}
 
