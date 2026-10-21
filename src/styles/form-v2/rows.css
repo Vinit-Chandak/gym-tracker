@@ -578,7 +578,8 @@ li:last-child > .sheet-row {
   gap: calc(6 * var(--ov-u));
   padding-inline: calc(14 * var(--ov-u));
   border-radius: 9999px;
-  background: var(--ov-surface);
+  /* A tonal control: on the grouped ground it steps a tone off it (forms.css). */
+  background: var(--ov-surface-control);
 }
 
 /* ---------- Edit profile ---------- */

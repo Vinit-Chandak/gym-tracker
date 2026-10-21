@@ -57,7 +57,8 @@ export default async function ProfilePage() {
   // train, how it looks, what it measures in and who can see it, the account, and the way out.
   // A row says only where it goes, or what it is set to; everything behind it has its own page.
   return (
-    <>
+    // Settings stand as panels on the grouped ground (DESIGN.md, Layout: Forms and settings).
+    <div className="ov-grouped-page">
       {/* The athlete is the headline (DESIGN.md, Tab roots), their avatar before it: what a
           friend sees of you (ADR 0026). The handle opens your page as a follower sees it, and
           the avatar the same for a thumb; the counts open the lists they count. */}
@@ -112,7 +113,7 @@ export default async function ProfilePage() {
           </Link>
         )}
 
-        <ul className="mt-0.5">
+        <ul className="ov-panel ov-panel-list mt-0.5">
           <NavRow
             href="/profile/friends"
             glyph="people"
@@ -125,7 +126,7 @@ export default async function ProfilePage() {
           <h2 id="profile-training" className="caption-head mt-4.5">
             Training
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             {/* Which sports the app offers, chosen in setup and changed only here. */}
             <NavRow href="/profile/sports" glyph="distance" label="Sports" />
             {/* The zones a plan's "zone 2" and a run's heart rate are read against (ADR 0059). */}
@@ -141,7 +142,7 @@ export default async function ProfilePage() {
           <h2 id="profile-preferences" className="caption-head mt-4.5">
             Preferences
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             <AppearanceRow />
             <NavRow href="/profile/units" glyph="ruler" label="Units and time zone" />
             <NavRow href="/profile/privacy" glyph="lock" label="Privacy" />
@@ -152,18 +153,18 @@ export default async function ProfilePage() {
           <h2 id="profile-account" className="caption-head mt-4.5">
             Account
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             <NavRow href="/profile/password" glyph="password" label="Password" />
           </ul>
         </section>
 
         <InstallSection />
 
-        <ul className="mt-3">
+        <ul className="ov-panel ov-panel-list mt-4.5">
           <SignOutRow userId={user.id} />
           <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
         </ul>
       </div>
-    </>
+    </div>
   );
 }

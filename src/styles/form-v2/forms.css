@@ -61,9 +61,33 @@
 }
 .ov-panel {
   --ov-tray: var(--ov-panel-tray);
+  --ov-surface-control: var(--ov-panel-tray);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
   --ov-waiting: var(--ov-panel-tray);
   border-radius: var(--ov-radius-card);
   background: var(--ov-panel);
+}
+/* A page of settings is grouped from its top: the headline stands on the grouped ground too. */
+.ov-grouped-page {
+  min-height: 100dvh;
+  background: var(--ov-grouped);
+}
+/* The grouped ground is the light theme's surface, so what stands on it steps a tone off it, as
+   on any surface (DESIGN.md, Neutral): a tonal button takes the control surface on a surface.
+   Inside a panel it steps back to the panel's own tray. The page's own ground under the content
+   and behind an overscroll is grouped too, so no white band shows past the last panel. */
+.ov-grouped-page,
+.ov-grouped {
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+}
+.app-content:has(.ov-grouped-page),
+body:has(.ov-grouped-page) {
+  background: var(--ov-grouped);
+}
+/* A list of rows in a panel: the rows keep their rules, inset by the panel's padding. */
+.ov-panel-list {
+  padding: 0 calc(16 * var(--ov-u));
 }
 .ov-panel-caption {
   margin: calc(20 * var(--ov-u)) calc(4 * var(--ov-u)) calc(6 * var(--ov-u));
