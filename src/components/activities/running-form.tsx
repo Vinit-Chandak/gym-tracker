@@ -441,6 +441,10 @@ export function RunningForm({
         readIn={(readIn ?? "km") as DistanceUnit}
         errors={errors}
         submitted={submitted}
+        missing={{
+          distance: Boolean(refusedDistance) && distanceFromLaps && lapMetres === null,
+          time: Boolean(refusedTime) && timeFromLaps && lapMs === null,
+        }}
       />
 
       <MoreDetails

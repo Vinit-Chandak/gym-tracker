@@ -223,7 +223,11 @@ it("leaves a total the laps hold only in part unknown, and says what it needs", 
   expect(
     await screen.findByText("Give every lap its distance, or use the watch’s totals."),
   ).toBeTruthy();
+  // The lap without one is marked where it is typed; the measured rep is not.
+  expect(timed.getByLabelText("Distance").getAttribute("aria-invalid")).toBe("true");
+  expect(rep.getByLabelText("Distance").getAttribute("aria-invalid")).toBeNull();
   fireEvent.change(timed.getByLabelText("Distance"), { target: { value: "0.3" } });
+  expect(timed.getByLabelText("Distance").getAttribute("aria-invalid")).toBeNull();
   expect(screen.getByRole("group", { name: "Distance" }).textContent).toBe(
     "DistanceFrom laps0.70km",
   );

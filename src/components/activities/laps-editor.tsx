@@ -167,6 +167,7 @@ export function LapsEditor({
   readIn,
   errors,
   submitted = [],
+  missing = {},
 }: {
   rows: LapRow[];
   onRowsChange: Dispatch<SetStateAction<LapRow[]>>;
@@ -177,11 +178,17 @@ export function LapsEditor({
   errors?: Record<string, string>;
   /** The rows' keys when the refused save was sent, which its lap sentences are read against. */
   submitted?: readonly string[];
+  /**
+   * A total refused while the laps hold it only in part: the laps missing that part are marked
+   * where it is typed, which is the way to save it (the other is the watch's own total).
+   */
+  missing?: { distance?: boolean; time?: boolean };
 }) {
   const id = useId();
   const listError = errors?.laps;
   const problems = lapProblems(errors, submitted);
-  const refused = Boolean(listError) || problems.size > 0;
+  const refused =
+    Boolean(listError) || problems.size > 0 || Boolean(missing.distance || missing.time);
   const [open, setOpen] = useState(() => rows.length > 0 || refused);
   // A refusal about a lap opens the laps on the render that first says it, as MoreDetails does.
   const [wasRefused, setWasRefused] = useState(refused);
@@ -310,9 +317,22 @@ export function LapsEditor({
               const number = index + 1;
               const problem = rowProblem(row);
               const refusedHere = problems.get(row.key) ?? {};
+              // A lap with one measure and not the other, when the total of the other was
+              // refused for it: a standing recovery's distance is not missing.
+              const typed = (value: string) => value.trim() !== "";
+              const lacking = {
+                distance:
+                  missing.distance &&
+                  !typed(row.distance) &&
+                  typed(row.duration) &&
+                  row.phase !== "recovery",
+                time: missing.time && !typed(row.duration) && typed(row.distance),
+              };
               // The whole lap (no distance and no time) marks both of its measures.
               const invalid = (part: string, also?: string) =>
-                part in refusedHere || (also !== undefined && also in refusedHere)
+                part in refusedHere ||
+                (also !== undefined && also in refusedHere) ||
+                (part in lacking && lacking[part as keyof typeof lacking])
                   ? true
                   : undefined;
               const said = [...new Set(Object.values(refusedHere))];
