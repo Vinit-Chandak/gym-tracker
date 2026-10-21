@@ -73,8 +73,8 @@ print would be redrawn); laps for rides and swims.
 ### 3. Navigation and Progress
 
 - The five destination icons redrawn; the tab bar keeps its labels.
-- Tab roots: Today the day, Plan this week (and the week as seven day papers), Food the day's
-  intake, Progress the section being read, Profile the athlete; each with a screen-reader h1 that
+- Tab roots: Today the day, Plan this week (and the week as seven day papers), Food the day it
+  shows, Progress the section being read, Profile the athlete; each with a screen-reader h1 that
   names the tab first.
 - Today with nothing planned: the rest day's crescent on its paper, Nothing planned, Log a session.
 - Graphs: a sport's in its pigment (thinned bars, the latest full; lines in the pigment); food's in

@@ -600,7 +600,7 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 ### Hierarchy
 
 - **Title** (700, 36 px, 1; 32 under 360 pt): a tab root's headline, which is its subject (the
-  day's date, This week, the day's food, the section, the athlete's name), never the tab's name.
+  day, This week, the section, the athlete's name), never the tab's name.
 - **Display** (700, 34 px, 1.05): a nested screen's or an exercise's name. A long name steps
   down 4, then to 26, then wraps to two lines.
 - **Sheet title** (700, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
@@ -737,8 +737,9 @@ its key is shown, so two readings of one width can never leave the workout witho
 - **Tab roots** (owner, 21 October 2026): the lit tab already says where you are, so a tab's root
   never repeats its name. It opens on its subject, in Title, at the same place and size on every
   tab, with what it needs to say under it in Meta and at most one action at its end: Today the day
-  ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day's
-  intake, Progress the section being read (its chooser), Profile the athlete's name and avatar. Its
+  ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day it
+  shows (its intake is the big figure under the day strip, said once), Progress the section being
+  read (its chooser), Profile the athlete's name and avatar. Its
   h1 still names the tab first for a screen reader ("Today, Wednesday 21 October"). A nested page
   keeps its title: the tab names the section, not the page.
 - **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session still owed, 12 apart: an
