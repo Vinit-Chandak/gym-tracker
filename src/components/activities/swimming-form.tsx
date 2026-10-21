@@ -229,7 +229,7 @@ export function SwimmingForm({
               max={1000}
               less="Shorter"
               more="Longer"
-              error={errors?.poolLength}
+              error={errors?.poolLength ?? errors?.poolLengthValue}
             />
             <RowStepper
               label="Lengths"

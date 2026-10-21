@@ -27,6 +27,9 @@ import {
 import { STEP_PHASES } from "@/domain/activity-prescription";
 import {
   actualDistanceMetres,
+  lapFigures,
+  lapsMakeIntervals,
+  lapTotals,
   nativeDistance,
   type CyclingActualV1,
   type EnduranceActual,
@@ -35,6 +38,7 @@ import {
 } from "@/domain/activity-metrics";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { RUN_TYPES } from "@/domain/run-types";
+import { fromMetres, roundTo } from "@/lib/distance-units";
 import { dateTimeLocalCandidates, timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -320,26 +324,40 @@ function effortOf(value: string, existing: Effort | null): Effort | null {
 function actualFrom(form: ActivityForm): EnduranceActual {
   const durationMs = durationMsOf(form);
   if (form.sport === "running") {
+    const laps: RunningActualV1["laps"] = form.laps.map((lap) => ({
+      phase: lap.phase,
+      distance:
+        lap.distanceValue === null ? null : nativeDistance(lap.distanceValue, lap.distanceUnit),
+      durationMs: lap.durationMs,
+      averageHeartRate: lap.averageHeartRate,
+      maxHeartRate: lap.maxHeartRate,
+    }));
+    // Ask once (PRODUCT.md, principle 7): a total left blank beside laps is the laps added up,
+    // the distance in the unit the athlete runs in. A total typed instead is the watch's, and
+    // `validateActual` checks it against the laps.
+    const sums = lapTotals(laps.map(lapFigures));
+    const distanceFromLaps = form.distanceValue === null && sums.metres > 0;
+    const timeFromLaps =
+      form.hours === null && form.minutes === null && form.seconds === null && sums.durationMs > 0;
     const running: RunningActualV1 = {
       sport: "running",
       environment: form.environment,
-      distance: nativeDistance(form.distanceValue ?? 0, form.distanceUnit),
-      durationMs,
-      runType: form.runType,
+      distance: distanceFromLaps
+        ? nativeDistance(
+            roundTo(fromMetres(sums.metres, form.distanceUnit), DECIMALS.distance),
+            form.distanceUnit,
+          )
+        : nativeDistance(form.distanceValue ?? 0, form.distanceUnit),
+      durationMs: timeFromLaps ? sums.durationMs : durationMs,
+      // Reps with recoveries between them are intervals until the athlete says another kind.
+      runType: form.runType ?? (lapsMakeIntervals(laps) ? "intervals" : null),
       surface: form.surface,
       elevationGainMetres: form.elevationGainMetres,
       treadmillInclinePercent: form.treadmillInclinePercent,
       averageHeartRate: form.averageHeartRate,
       maxHeartRate: form.maxHeartRate,
       cadenceStepsPerMinute: form.cadenceStepsPerMinute,
-      laps: form.laps.map((lap) => ({
-        phase: lap.phase,
-        distance:
-          lap.distanceValue === null ? null : nativeDistance(lap.distanceValue, lap.distanceUnit),
-        durationMs: lap.durationMs,
-        averageHeartRate: lap.averageHeartRate,
-        maxHeartRate: lap.maxHeartRate,
-      })),
+      laps,
     };
     return running;
   }
@@ -426,11 +444,97 @@ function describe(error: unknown, sport?: EnduranceSport): string {
   return "Something went wrong. Please try again.";
 }
 
-function fieldErrorsOf(error: unknown): Record<string, string> | undefined {
-  if (!(error instanceof InvalidActualError)) return undefined;
-  const fields: Record<string, string> = {};
-  for (const problem of error.problems) fields[problem.field] ??= problem.message;
-  return fields;
+/**
+ * The fields each log form says a refusal at, where it turns red (DESIGN.md, Inputs and
+ * choices). A problem with no field on the form — the version, the planned session, the
+ * submission's key, a unit or place nobody can post wrongly from it — is said once over Save
+ * instead, so nothing is refused in silence and nothing is said twice.
+ */
+const SHARED_FIELDS = [
+  "startedAt",
+  "startedAtOffsetMinutes",
+  "recordedTimeZone",
+  "effort",
+  "averageHeartRate",
+  "maxHeartRate",
+  "title",
+  "notes",
+];
+const TIME_FIELDS = ["hours", "minutes", "seconds"];
+const FORM_FIELDS: Record<EnduranceSport, ReadonlySet<string>> = {
+  running: new Set([
+    ...SHARED_FIELDS,
+    ...TIME_FIELDS,
+    "duration",
+    "distance",
+    "distanceValue",
+    "runType",
+    "laps",
+    "surface",
+    "elevationGainMetres",
+    "treadmillInclinePercent",
+    "cadenceStepsPerMinute",
+  ]),
+  cycling: new Set([
+    ...SHARED_FIELDS,
+    ...TIME_FIELDS,
+    "duration",
+    "distance",
+    "distanceValue",
+    "assistance",
+    "averagePowerWatts",
+    "averageCadenceRpm",
+    "elevationGainMetres",
+  ]),
+  swimming: new Set([
+    ...SHARED_FIELDS,
+    ...TIME_FIELDS,
+    "elapsed",
+    "activeMs",
+    "activeMinutes",
+    "activeSeconds",
+    "distanceMethod",
+    "distance",
+    "distanceValue",
+    "poolLength",
+    "poolLengthValue",
+    "lengths",
+    "stroke",
+    "strokeCount",
+  ]),
+};
+
+/** A run's lap says its own problem, at the lap or the part of it at fault (`laps.2.distance`). */
+const LAP_FIELD = /^laps\.\d+(?:\.[A-Za-z]+)?$/;
+
+function shownAt(sport: EnduranceSport | null, field: string): boolean {
+  if (!sport) return false;
+  return FORM_FIELDS[sport].has(field) || (sport === "running" && LAP_FIELD.test(field));
+}
+
+/** A refused save as the form says it: each field's sentence at its field, the rest over Save. */
+function refusal(
+  problems: readonly { field: string; message: string }[],
+  sport: EnduranceSport | null,
+  values: Record<string, string>,
+): FormState {
+  const fieldErrors: Record<string, string> = {};
+  let formError: string | undefined;
+  for (const problem of problems) {
+    if (shownAt(sport, problem.field)) fieldErrors[problem.field] ??= problem.message;
+    else formError ??= problem.message;
+  }
+  return {
+    ...(Object.keys(fieldErrors).length > 0 ? { fieldErrors } : {}),
+    ...(formError ? { formError } : {}),
+    values,
+  };
+}
+
+/** The sport a posted form says it logs, when it names one. */
+function postedSport(formData: FormData): EnduranceSport | null {
+  const sport = formData.get("sport");
+  return sport === "running" || sport === "cycling" || sport === "swimming" ? sport : null;
 }
 
 /** Creates an activity, or corrects the one named by `activityId`, then opens it. */
@@ -443,7 +547,18 @@ export async function saveActivityAction(
 ): Promise<SaveActivityState> {
   const user = await requireUser();
   const parsed = parseForm(activitySchema, formData);
-  if (!parsed.success) return parsed.state;
+  if (!parsed.success)
+    return refusal(
+      [
+        ...Object.entries(parsed.state.fieldErrors ?? {}).map(([field, message]) => ({
+          field,
+          message,
+        })),
+        ...(parsed.state.formError ? [{ field: "", message: parsed.state.formError }] : []),
+      ],
+      postedSport(formData),
+      parsed.state.values ?? formValues(formData),
+    );
   const form = parsed.data;
 
   const actual = actualFrom(form);
@@ -550,11 +665,11 @@ export async function saveActivityAction(
       };
     });
   } catch (error) {
-    return {
-      formError: describe(error, form.sport),
-      fieldErrors: fieldErrorsOf(error),
-      values: formValues(formData),
-    };
+    // Measurements the record refuses are said at their fields and nowhere else; a failure that
+    // is no field's (a stale version, a session already logged, the server) is said over Save.
+    if (error instanceof InvalidActualError)
+      return refusal(error.problems, form.sport, formValues(formData));
+    return { formError: describe(error, form.sport), values: formValues(formData) };
   }
   if (!result.ok) return result.state;
   revalidateActivity({

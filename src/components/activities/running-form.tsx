@@ -7,11 +7,22 @@ import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Select } from "@/components/ui/select";
-import { formatPaceSeconds, paceSecondsPerKm, pacePerUnit } from "@/domain/activity-metrics";
+import {
+  formatPaceSeconds,
+  formatRunTime,
+  formatRunTotal,
+  lapsFurtherThan,
+  lapsLongerThan,
+  lapsMakeIntervals,
+  lapTotals,
+  paceSecondsPerKm,
+  pacePerUnit,
+  repPace,
+} from "@/domain/activity-metrics";
 import { RUN_TYPE_LABELS, RUN_TYPES, type RunType } from "@/domain/run-types";
-import { toMetres, type DistanceUnit } from "@/lib/distance-units";
+import { fromMetres, roundTo, toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
-import type { PlannedLap } from "@/lib/run-laps";
+import { postedLapFigures, type PlannedLap } from "@/lib/run-laps";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
@@ -22,6 +33,7 @@ import {
   durationFromParts,
   EffortField,
   ElevationField,
+  formatDuration,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
@@ -34,7 +46,7 @@ import {
   type ActivityFormValues,
   type PlanTarget,
 } from "./activity-form-fields";
-import { LapsEditor } from "./laps-editor";
+import { LapsEditor, lapRowsFrom, postedLap } from "./laps-editor";
 
 /**
  * Logging a run, on the shared routes (plan §4.3).
@@ -43,6 +55,11 @@ import { LapsEditor } from "./laps-editor";
  * the pace that follows from the two numbers actually recorded. What is new is that the
  * effort question has an honest second answer, and that the optional detail a more
  * experienced runner wants is one tap away rather than absent.
+ *
+ * A run entered as laps is not asked for its totals again (PRODUCT.md, principle 7): its
+ * distance and time are the laps added up, each marked From laps, until the athlete chooses to
+ * type the watch's own; reps with recoveries between them make it Intervals until another kind
+ * is chosen; and the reps' pace leads, the session's own pace said only as Overall, with rests.
  */
 
 const ENVIRONMENTS = [
@@ -57,6 +74,9 @@ const DISTANCE_UNITS = [
 
 /** Offered, not imposed: a surface is still the athlete's own words where these do not fit. */
 const SURFACES = ["Road", "Trail", "Track", "Grass", "Sand", "Mixed"];
+
+/** The opening of the sentence a total short of its laps is refused with. */
+const SHORT_OF_LAPS = "The laps add up to";
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
@@ -79,6 +99,61 @@ type Props = {
   /** The planned session's steps, which the laps can be laid out from (ADR 0059). */
   plannedLaps?: readonly PlannedLap[];
 };
+
+/** A typed figure in metres, or none where it is blank or not a number. */
+function typedMetres(value: string, unit: string): number | null {
+  const figure = Number(value.replace(",", "."));
+  if (value.trim() === "" || !Number.isFinite(figure) || figure < 0) return null;
+  return toMetres(figure, unit === "mi" ? "mi" : "km");
+}
+
+/** "3.47": a distance the laps add up to, as the distance field holds a figure. */
+function distanceFigure(metres: number, unit: string): string {
+  return roundTo(fromMetres(metres, unit === "mi" ? "mi" : "km"), 2).toFixed(2);
+}
+
+/**
+ * A total the laps add up to, in the row its field takes when it is typed (board Log a run):
+ * read, not typed, and marked From laps. The figure lines up with the steppers' around it.
+ */
+function FromLapsRow({
+  label,
+  figure,
+  unit,
+  error,
+}: {
+  label: string;
+  figure: string;
+  unit?: string;
+  error?: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="row-stepper"
+      data-field-error={error ? "true" : undefined}
+    >
+      <span className="row-stepper-text">
+        <span className="font-bold [overflow-wrap:break-word]">{label}</span>
+        <span className="row-stepper-hint">From laps</span>
+        {error && (
+          <span role="alert" className="type-meta-small font-semibold">
+            {error}
+          </span>
+        )}
+      </span>
+      <span className="row-stepper-control">
+        <span aria-hidden className="round-button invisible" />
+        <span className="row-stepper-figure cursor-default">
+          <span className="type-figure-l tabular-nums">{figure}</span>
+          {unit && <span className="row-stepper-unit">{unit}</span>}
+        </span>
+        <span aria-hidden className="round-button invisible" />
+      </span>
+    </div>
+  );
+}
 
 export function RunningForm({
   action,
@@ -108,22 +183,67 @@ export function RunningForm({
   const [duration, setDuration] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
+  const [runType, setRunType] = useState(() => values("runType"));
+  const [rows, setRows] = useState(() => lapRowsFrom(values("laps")));
+  // The laps as they stood when the last save was sent, which its lap sentences name.
+  const [submitted, setSubmitted] = useState<string[]>([]);
+  // "Use the watch's totals instead": both totals typed, whatever the laps add up to.
+  const [watchTotals, setWatchTotals] = useState(false);
 
-  const durationMs = (parseDuration(duration) ?? 0) * 1000;
-  const metres =
-    posted.value.trim() === ""
-      ? 0
-      : toMetres(Number(posted.value.replace(",", ".")), posted.unit as "km" | "mi");
-  // Pace per the unit the distance is being typed in: miles make a pace per mile.
-  const pace = Number.isFinite(metres)
-    ? pacePerUnit(paceSecondsPerKm(metres, durationMs), unit as "km" | "mi")
-    : null;
+  const figures = rows.map((row) => postedLapFigures(postedLap(row)));
+  const sums = lapTotals(figures);
+  // A total the athlete has not typed is the laps', once the laps hold one.
+  const distanceFromLaps = !watchTotals && distance.trim() === "" && sums.metres > 0;
+  const timeFromLaps = !watchTotals && duration.trim() === "" && sums.durationMs > 0;
+  const typedDistance = typedMetres(posted.value, posted.unit);
+  const typedMs = (parseDuration(duration) ?? 0) * 1000;
+  const metres = distanceFromLaps ? sums.metres : (typedDistance ?? 0);
+  const durationMs = timeFromLaps ? sums.durationMs : typedMs;
+  const paceUnit: DistanceUnit = unit === "mi" ? "mi" : "km";
+  // Pace per the unit the distance is read in: miles make a pace per mile.
+  const pace = pacePerUnit(paceSecondsPerKm(metres, durationMs), paceUnit);
+  const rests = lapsMakeIntervals(figures);
+  const reps = repPace(figures);
+  // Reps with recoveries are intervals until the athlete chooses another kind (DESIGN.md).
+  const inferredKind = runType === "" && rests;
+
   const errors = state.fieldErrors;
+  // A total short of its laps is said as it now stands, and no longer once it is not short:
+  // the field stays red until it can be saved, and its fix is the laps' own figure.
+  const distanceShort =
+    !distanceFromLaps && typedDistance !== null && lapsFurtherThan(sums.metres, typedDistance);
+  const timeShort = !timeFromLaps && lapsLongerThan(sums.durationMs, typedMs, rows.length);
+  const refusedDistance = errors?.distance ?? errors?.distanceValue;
+  const distanceError = refusedDistance?.startsWith(SHORT_OF_LAPS)
+    ? distanceShort
+      ? `${SHORT_OF_LAPS} ${formatRunTotal(sums.metres, paceUnit)}, more than ${formatRunTotal(typedDistance!, paceUnit)}.`
+      : undefined
+    : refusedDistance;
+  const refusedTime = errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds;
+  const durationError = refusedTime?.startsWith(SHORT_OF_LAPS)
+    ? timeShort
+      ? `${SHORT_OF_LAPS} ${formatRunTime(sums.durationMs)}, longer than ${formatRunTime(typedMs)}.`
+      : undefined
+    : refusedTime;
+  const lapsCanTotal = sums.metres > 0 || sums.durationMs > 0;
+
+  function takeWatchTotals() {
+    // The watch's figures start from the laps', so only what differs is typed.
+    if (distance.trim() === "" && sums.metres > 0) setDistance(distanceFigure(sums.metres, unit));
+    if (duration.trim() === "" && sums.durationMs > 0)
+      setDuration(formatDuration(Math.round(sums.durationMs / 1000)));
+    setWatchTotals(true);
+  }
+  function takeLapTotals() {
+    if (sums.metres > 0) setDistance("");
+    if (sums.durationMs > 0) setDuration("");
+    setWatchTotals(false);
+  }
 
   // Board Log a run: what the plan asked for, where, the distance and the time with the pace
   // they make, how hard it felt; everything optional behind one row; Save at the foot.
   return (
-    <form ref={form} action={formAction}>
+    <form ref={form} action={formAction} onSubmit={() => setSubmitted(rows.map((row) => row.key))}>
       <input type="hidden" name="sport" value="running" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <ActivityIdentityFields
@@ -147,8 +267,17 @@ export function RunningForm({
       {/* What kind of run it was: a planned session's own kind to start with, which is context
           and not a measurement, and anything the athlete chooses instead (ADR 0059). */}
       <div className="mt-1.5">
-        <Field label="Kind of run" aside="Optional" error={errors?.runType}>
-          <Select name="runType" defaultValue={values("runType")}>
+        <Field
+          label="Kind of run"
+          aside="Optional"
+          hint={inferredKind ? "From laps" : undefined}
+          error={errors?.runType}
+        >
+          <Select
+            name="runType"
+            value={inferredKind ? "intervals" : runType}
+            onChange={(event) => setRunType(event.target.value)}
+          >
             <option value="">Not said</option>
             {RUN_TYPES.map((type: RunType) => (
               <option key={type} value={type}>
@@ -159,40 +288,127 @@ export function RunningForm({
         </Field>
       </div>
       <div className="mt-1.5">
-        <DistanceField
-          value={distance}
-          unit={unit}
-          onValueChange={setDistance}
-          onUnitChange={setUnit}
-          units={DISTANCE_UNITS}
-          recorded={opened.recorded}
-          error={errors?.distance ?? errors?.distanceValue}
-        />
-        <DurationField
-          value={duration}
-          onChange={setDuration}
-          recorded={{
-            hours: values("hours"),
-            minutes: values("minutes"),
-            seconds: values("seconds"),
-          }}
-          hint={
-            pace !== null ? (
-              <span role="status">
-                Pace {formatPaceSeconds(pace)} /{unit === "mi" ? "mi" : "km"}
-              </span>
-            ) : undefined
-          }
-          error={errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
-        />
+        {distanceFromLaps ? (
+          <>
+            {/* Nothing typed: the server adds the laps up in the unit the athlete runs in. */}
+            <input type="hidden" name="distanceUnit" value={unit} />
+            <input type="hidden" name="distanceValue" value="" />
+            <FromLapsRow
+              label="Distance"
+              figure={distanceFigure(sums.metres, unit)}
+              unit={unit}
+              error={distanceError}
+            />
+          </>
+        ) : (
+          <DistanceField
+            value={distance}
+            unit={unit}
+            onValueChange={setDistance}
+            onUnitChange={setUnit}
+            units={DISTANCE_UNITS}
+            recorded={opened.recorded}
+            error={distanceError}
+          />
+        )}
+        {distanceError && distanceShort && (
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => setDistance(distanceFigure(sums.metres, unit))}
+          >
+            Use {formatRunTotal(sums.metres, paceUnit)}
+          </button>
+        )}
+        {timeFromLaps ? (
+          <>
+            <input type="hidden" name="hours" value="" />
+            <input type="hidden" name="minutes" value="" />
+            <input type="hidden" name="seconds" value="" />
+            <FromLapsRow
+              label="Duration"
+              figure={formatRunTime(sums.durationMs)}
+              error={durationError}
+            />
+          </>
+        ) : (
+          <DurationField
+            value={duration}
+            onChange={setDuration}
+            recorded={{
+              hours: values("hours"),
+              minutes: values("minutes"),
+              seconds: values("seconds"),
+            }}
+            hint={
+              rows.length === 0 && pace !== null ? (
+                <span role="status">
+                  Pace {formatPaceSeconds(pace)} /{paceUnit}
+                </span>
+              ) : undefined
+            }
+            error={durationError}
+          />
+        )}
+        {durationError && timeShort && (
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => setDuration(formatDuration(Math.round(sums.durationMs / 1000)))}
+          >
+            Use {formatRunTime(sums.durationMs)}
+          </button>
+        )}
+        {/* With laps, the pace that counts: for reps with rests their own, the whole said only
+            as overall, with rests (DESIGN.md, Laps and intervals). */}
+        {rows.length > 0 && ((rests && reps !== null) || pace !== null) && (
+          <div role="status" className="border-b border-hair py-2.5 type-meta tabular-nums">
+            {rests && reps && (
+              <p className="flex items-baseline justify-between gap-3 font-bold">
+                <span>
+                  Rep pace, {reps.reps} {reps.reps === 1 ? "rep" : "reps"}
+                </span>
+                <span>
+                  {formatPaceSeconds(pacePerUnit(reps.secondsPerKm, paceUnit))} /{paceUnit}
+                </span>
+              </p>
+            )}
+            {pace !== null && (
+              <p
+                className={
+                  rests
+                    ? "flex items-baseline justify-between gap-3 text-ink-2"
+                    : "flex items-baseline justify-between gap-3"
+                }
+              >
+                <span>{rests ? "Overall, with rests" : "Pace"}</span>
+                <span>
+                  {formatPaceSeconds(pace)} /{paceUnit}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+        {(distanceFromLaps || timeFromLaps) && (
+          <button type="button" className="text-action" onClick={takeWatchTotals}>
+            Use the watch’s totals instead
+          </button>
+        )}
+        {!distanceFromLaps && !timeFromLaps && lapsCanTotal && (
+          <button type="button" className="text-action" onClick={takeLapTotals}>
+            Use the laps’ totals
+          </button>
+        )}
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
       <LapsEditor
-        initial={values("laps")}
+        rows={rows}
+        onRowsChange={setRows}
         planned={plannedLaps}
         readIn={(readIn ?? "km") as DistanceUnit}
-        error={errors?.laps}
+        errors={errors}
+        submitted={submitted}
       />
 
       <MoreDetails

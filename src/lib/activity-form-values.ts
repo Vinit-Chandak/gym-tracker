@@ -1,4 +1,4 @@
-import type { EnduranceActual } from "@/domain/activity-metrics";
+import { lapFigures, lapTotals, type EnduranceActual } from "@/domain/activity-metrics";
 import { postedLaps } from "@/lib/run-laps";
 
 const text = (value: number | string | null | undefined) => (value == null ? "" : String(value));
@@ -16,9 +16,18 @@ export function activityFormValues(actual: EnduranceActual): Record<string, stri
     averageHeartRate: text(actual.averageHeartRate),
     maxHeartRate: text(actual.maxHeartRate),
   };
-  if (actual.sport === "running")
+  if (actual.sport === "running") {
+    // A total that is its laps added up opens as From laps, blank, as it was saved: correcting a
+    // lap then corrects the total with it, and nothing is typed twice (PRODUCT.md, principle 7).
+    // A total the watch gave that differs from its laps opens as typed.
+    const sums = lapTotals(actual.laps.map(lapFigures));
+    const distanceFromLaps =
+      sums.metres > 0 && Math.abs(sums.metres - actual.distance.metres) < 0.5;
+    const timeFromLaps = sums.durationMs > 0 && Math.abs(sums.durationMs - actual.durationMs) < 500;
     return {
       ...values,
+      ...(distanceFromLaps ? { distanceValue: "" } : {}),
+      ...(timeFromLaps ? { hours: "", minutes: "", seconds: "" } : {}),
       runType: actual.runType ?? "",
       laps: actual.laps.length > 0 ? JSON.stringify(postedLaps(actual.laps)) : "",
       surface: text(actual.surface),
@@ -26,6 +35,7 @@ export function activityFormValues(actual: EnduranceActual): Record<string, stri
       treadmillInclinePercent: text(actual.treadmillInclinePercent),
       cadenceStepsPerMinute: text(actual.cadenceStepsPerMinute),
     };
+  }
   if (actual.sport === "cycling")
     return {
       ...values,
