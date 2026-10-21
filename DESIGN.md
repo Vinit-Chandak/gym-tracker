@@ -69,19 +69,21 @@ colors:
   panel: "#ffffff"
   grouped-dark: "#111214"
   panel-dark: "#1b1c20"
-  danger: "#cc2147"
+  panel-tray: "#f4f4f5"
+  panel-tray-dark: "#26272c"
+  danger-glyph: "#cc2147"
   danger-text: "#a31f3a"
   danger-line: "#e42b52"
   danger-tint: "#f9ebec"
-  success: "#1d883b"
+  success-glyph: "#1d883b"
   success-text: "#1c6c31"
   success-line: "#279845"
   success-tint: "#d9f9dc"
-  danger-dark: "#f2868e"
+  danger-glyph-dark: "#f2868e"
   danger-text-dark: "#ebb8ba"
   danger-line-dark: "#e2445d"
   danger-tint-dark: "#47191e"
-  success-dark: "#4ac867"
+  success-glyph-dark: "#4ac867"
   success-text-dark: "#7ee28f"
   success-line-dark: "#3f9c53"
   success-tint-dark: "#17311b"
@@ -514,13 +516,14 @@ holds 3:1 on white and on paper; its graphs draw in that ochre.
 ### Signals
 
 Two, each a ramp of four: a **tint** for the background of what it marks, a **line** for its
-edge, the **colour** itself for its glyph, and a **text** colour for its words. Each comes with
+edge, a **glyph** colour for its glyph, and a **text** colour for its words. Form's older name
+for each (`danger`, `success`) reads its text colour. Each comes with
 its glyph and words, never alone.
 
-- **Danger** (`danger`, `danger-text`, `danger-line`, `danger-tint`, and their `-dark`): a field
+- **Danger** (`danger-glyph`, `danger-text`, `danger-line`, `danger-tint`, and their `-dark`): a field
   that cannot be saved as it is, a save that failed, and the words of an action that loses a
   record (Delete account). Crimson, at OKLCH hue 16, 15.7° from vermilion and 16.5° from rose.
-- **Success** (`success`, `success-text`, `success-line`, `success-tint`, and their `-dark`): a
+- **Success** (`success-glyph`, `success-text`, `success-line`, `success-tint`, and their `-dark`): a
   record kept (Run saved, with Undo), and a new personal record. Green, at hue 148, 23° from
   viridian.
 

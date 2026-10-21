@@ -182,6 +182,19 @@
   --ov-grain-blend: var(--ov-light-grain-blend);
   --ov-grain-multiply: var(--ov-light-grain-multiply);
   --ov-grain-screen: var(--ov-light-grain-screen);
+  /* Signals and forms (DESIGN.md, Signals and Forms; 21 October 2026). */
+  --ov-food-edge: var(--ov-light-food-edge);
+  --ov-grouped: var(--ov-light-grouped);
+  --ov-panel: var(--ov-light-panel);
+  --ov-panel-tray: var(--ov-light-panel-tray);
+  --ov-danger-text: var(--ov-light-danger-text);
+  --ov-danger-glyph: var(--ov-light-danger-glyph);
+  --ov-danger-line: var(--ov-light-danger-line);
+  --ov-danger-tint: var(--ov-light-danger-tint);
+  --ov-success-text: var(--ov-light-success-text);
+  --ov-success-glyph: var(--ov-light-success-glyph);
+  --ov-success-line: var(--ov-light-success-line);
+  --ov-success-tint: var(--ov-light-success-tint);
 
   /* A tray (a segmented choice, page tabs) and a waiting button are the surface; on a surface
      they step to surface 2, as the control surface steps to its own on-surface fill
@@ -192,8 +205,9 @@
   /*
    * Form's names, still read by the screens that have no Form v2 board, now resolved from
    * Form v2 (decided 3 October 2026: the whole app takes the new palette and type at once).
-   * The Black-and-White Rule makes every action, status and chart ink: a pigment only ever
-   * means a family of sport.
+   * The Colour Is Information Rule (21 October 2026): actions, selection and focus are ink;
+   * success and danger are the two signals, read here as their text colour, which also holds
+   * as a fill under on-ink text and as an edge; there is no warning colour.
    */
   --ov-canvas: var(--ov-ground);
   --ov-surface-raised: var(--ov-surface-2);
@@ -206,9 +220,9 @@
   --ov-accent-strong: var(--ov-ink);
   --ov-on-accent: var(--ov-on-ink);
   --ov-accent-soft: var(--ov-surface);
-  --ov-success: var(--ov-ink);
+  --ov-success: var(--ov-success-text);
   --ov-warning: var(--ov-ink);
-  --ov-danger: var(--ov-ink);
+  --ov-danger: var(--ov-danger-text);
   --ov-over: var(--ov-ink);
   --ov-focus: var(--ov-ink);
   /* Charts are ink: the latest reading in ink, the rest in control. */
@@ -345,6 +359,18 @@
     --ov-grain-blend: var(--ov-dark-grain-blend);
     --ov-grain-multiply: var(--ov-dark-grain-multiply);
     --ov-grain-screen: var(--ov-dark-grain-screen);
+    --ov-food-edge: var(--ov-dark-food-edge);
+    --ov-grouped: var(--ov-dark-grouped);
+    --ov-panel: var(--ov-dark-panel);
+    --ov-panel-tray: var(--ov-dark-panel-tray);
+    --ov-danger-text: var(--ov-dark-danger-text);
+    --ov-danger-glyph: var(--ov-dark-danger-glyph);
+    --ov-danger-line: var(--ov-dark-danger-line);
+    --ov-danger-tint: var(--ov-dark-danger-tint);
+    --ov-success-text: var(--ov-dark-success-text);
+    --ov-success-glyph: var(--ov-dark-success-glyph);
+    --ov-success-line: var(--ov-dark-success-line);
+    --ov-success-tint: var(--ov-dark-success-tint);
     --ov-avatar-surface-l: 0.3;
     --ov-avatar-ink-l: 0.92;
     --ov-series-wash: 0.14;
@@ -392,6 +418,18 @@
   --ov-grain-blend: var(--ov-dark-grain-blend);
   --ov-grain-multiply: var(--ov-dark-grain-multiply);
   --ov-grain-screen: var(--ov-dark-grain-screen);
+  --ov-food-edge: var(--ov-dark-food-edge);
+  --ov-grouped: var(--ov-dark-grouped);
+  --ov-panel: var(--ov-dark-panel);
+  --ov-panel-tray: var(--ov-dark-panel-tray);
+  --ov-danger-text: var(--ov-dark-danger-text);
+  --ov-danger-glyph: var(--ov-dark-danger-glyph);
+  --ov-danger-line: var(--ov-dark-danger-line);
+  --ov-danger-tint: var(--ov-dark-danger-tint);
+  --ov-success-text: var(--ov-dark-success-text);
+  --ov-success-glyph: var(--ov-dark-success-glyph);
+  --ov-success-line: var(--ov-dark-success-line);
+  --ov-success-tint: var(--ov-dark-success-tint);
   --ov-avatar-surface-l: 0.3;
   --ov-avatar-ink-l: 0.92;
   --ov-series-wash: 0.14;
@@ -431,6 +469,17 @@
     --ov-accent-strong: Highlight;
     --ov-on-accent: HighlightText;
     --ov-focus: Highlight;
+    --ov-danger-text: CanvasText;
+    --ov-danger-glyph: CanvasText;
+    --ov-danger-line: Highlight;
+    --ov-danger-tint: Canvas;
+    --ov-success-text: CanvasText;
+    --ov-success-glyph: CanvasText;
+    --ov-success-line: CanvasText;
+    --ov-success-tint: Canvas;
+    --ov-grouped: Canvas;
+    --ov-panel: Canvas;
+    --ov-panel-tray: Canvas;
     --ov-series-2: LinkText;
     --ov-volume-3: Highlight;
     --ov-volume-4: Highlight;

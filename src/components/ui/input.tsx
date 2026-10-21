@@ -11,9 +11,13 @@ export { Field } from "./field";
  * but the inset stays 16 pt, so the room goes to what is typed ("Tokyo Powerhouse" whole, not
  * "Tokyo Powerho…"). A one-line field's words that still run past its edge (a hint at 200% text)
  * end in an ellipsis rather than being cut mid-letter.
+ *
+ * A field that cannot be saved takes the danger tint and a danger edge until it can
+ * (`aria-invalid`, which `Field` sets from its error). Inside a panel (`.ov-panel`, DESIGN.md
+ * Forms) the field is a filled tray instead of an outline; `ov-input` is its hook there.
  */
 export const INPUT_CLASS =
-  "min-h-[calc(52px+var(--ov-grow))] min-w-0 w-full rounded-control border-[1.5px] border-control bg-ground px-[calc(16*var(--ov-u))] text-[length:var(--ov-type-input)] text-ellipsis text-ink placeholder:text-ink-2 focus:border-ink focus:outline-none disabled:text-ink-2";
+  "ov-input min-h-[calc(52px+var(--ov-grow))] min-w-0 w-full rounded-control border-[1.5px] border-control bg-ground px-[calc(16*var(--ov-u))] text-[length:var(--ov-type-input)] text-ellipsis text-ink placeholder:text-ink-2 focus:border-ink focus:outline-none disabled:text-ink-2 aria-invalid:border-danger-line aria-invalid:bg-danger-tint aria-invalid:focus:border-danger-line";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

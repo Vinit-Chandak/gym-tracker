@@ -2,7 +2,10 @@
 
 import { Children, cloneElement, isValidElement, useId, type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { aboutLabel } from "./about-label";
+import { Glyph } from "./glyphs";
 import { InfoTip } from "./info-tip";
 
 type ControlProps = {
@@ -76,9 +79,16 @@ export function Field({
         className={
           labelHidden
             ? "sr-only"
-            : "flex flex-wrap items-center gap-x-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+            : cn(
+                "flex flex-wrap items-center gap-x-1 text-[length:var(--ov-type-meta-small)] font-bold",
+                // A field that cannot be saved says so in its label too (DESIGN.md, Inputs).
+                error ? "text-danger-text" : "text-ink",
+              )
         }
       >
+        {error && !labelHidden && (
+          <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" aria-hidden />
+        )}
         {group ? (
           text
         ) : (
@@ -122,7 +132,7 @@ export function Field({
           role={error ? "alert" : undefined}
           className={
             error
-              ? "flex items-start gap-1.5 text-[length:var(--ov-type-meta-small)] font-semibold text-ink"
+              ? "flex items-start gap-1.5 text-[length:var(--ov-type-meta-small)] font-bold text-danger-text"
               : "block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
           }
         >
