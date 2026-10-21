@@ -582,8 +582,10 @@ new token lands with its pairs measured (`better-colors`); a failing pair is fix
 never by hue.
 
 **The Thinned, Full, Dashed Rule.** Thinned pigment with an edge of the full pigment is to do;
-full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and
-nothing else.
+full pigment is done; a dashed edge is owed and not done: skipped, or missed once its day has
+passed (21 October 2026: with no warning colour, a missed session is its dashed mark and the word
+Missed, as a skipped one is its dashed mark and Skipped). A warm-up is grey. Dashed means not done
+and nothing else.
 
 **The Quiet Dark Rule.** In dark, prints are pulled on near-black paper with lighter pigments
 and light ink, so the art is never the brightest thing on the screen. Dark swaps every token
@@ -742,7 +744,8 @@ its key is shown, so two readings of one width can never leave the workout witho
   tab, with what it needs to say under it in Meta and at most one action at its end: Today the day
   ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day it
   shows (its intake is the big figure under the day strip, said once), Progress the section being
-  read (its chooser), Profile the athlete's name and avatar. Its
+  read (its chooser), Profile the athlete's name after the avatar, its Meta the handle and the
+  follower and following counts, which open their lists. Its
   h1 still names the tab first for a screen reader ("Today, Wednesday 21 October"). A nested page
   keeps its title: the tab names the section, not the page.
 - **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session still owed, 12 apart: an
@@ -755,7 +758,8 @@ its key is shown, so two readings of one width can never leave the workout witho
 - **Plan:** "This week" as its headline with its dates under it; the week as seven day papers in
   the month's grammar (each day's marks in their state, today ringed in ink); then every sport's
   sessions as rows under their day, each with its mark and where it stands (Done, Skipped, Missed,
-  Today); then one card per programme, its weeks a row of segments in its sport's pigment (done
+  Today); then the week's steps, named from today ("‹ Last week", "Next week ›"); a day paper
+  with one session opens it, and one with several leads to its rows; then one card per programme, its weeks a row of segments in its sport's pigment (done
   full, the current week thinned, the rest `surface`); then Past programmes (ADR 0058).
 - **Forms** (owner, 21 October 2026): a form's sections (a run's laps, its totals, its effort, the
   rest folded) stand as panels on the grouped ground, each under its caption, 20 apart; inside a
@@ -1454,7 +1458,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Don't** explain on a screen how the app, the coach or a plan works, or narrate what a control
   will do: show the figure, state or choice, and put anything more behind an ⓘ or a fold.
 - **Don't** draw a line under a print, or set its composition against one edge of the paper.
-- **Don't** draw a dashed edge for anything but skipped.
+- **Don't** draw a dashed edge for anything but a session owed and not done (skipped or missed).
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
   value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.
