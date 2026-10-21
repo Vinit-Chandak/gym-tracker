@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils";
 /**
  * Form v2's glyphs (DESIGN.md, Shapes): a 24-unit grid, a 2.0 stroke, round caps and joins, ink
  * only. Ported from the design's generator (docs/ui-redesign/revamp/form-v2/source/icons.mjs and
- * the destination icons in kit.mjs). The five destinations are drawn from the first print forms,
- * outlined, and filled where you are. Equipment and where a run, ride or swim happened are
+ * the destination icons in kit.mjs). The five destinations are told apart by their silhouettes
+ * (Today the app's mark, Plan a calendar, Food the bowl, Progress the loaded bar, Profile the
+ * person), outlined, and filled where you are. Equipment and where a run, ride or swim happened are
  * glyphs too, so a meta line can say free weights, treadmill or open water without a word; each
  * keeps its name for screen readers.
  */
@@ -322,30 +323,53 @@ const GLYPHS = {
   ],
 } satisfies Record<string, ReactNode>;
 
-/** The destinations, drawn from the first forms; filled is where you are. */
+/**
+ * The destinations (DESIGN.md, Shapes, 21 October 2026): told apart by their silhouettes,
+ * outlined, and filled where you are.
+ */
 const fill = (filled: boolean) => (filled ? "currentColor" : undefined);
+/**
+ * A part of Today's mark lit in its pigment, fill and edge. In `style`, as the art's paints are:
+ * an attribute cannot hold a custom property in every engine. `data-pigment` lets forced colours
+ * give it back to the text's colour (globals.css, the tabs), where a pigment could vanish.
+ */
+const pigment = (filled: boolean, family: "strength" | "run") =>
+  filled
+    ? {
+        "data-pigment": family,
+        style: { fill: `var(--ov-print-${family})`, stroke: `var(--ov-print-${family})` },
+      }
+    : {};
 const DESTINATIONS = {
+  // The app's mark: the slab and the disc on their line; lit, in ultramarine and vermilion.
   today: (filled: boolean) => [
-    <circle key="a" cx="16" cy="11" r="5" fill={fill(filled)} />,
-    <rect key="b" x="3.5" y="9" width="7" height="7" rx="0.6" fill={fill(filled)} />,
-    <path key="c" d="M3 19.5h18" />,
+    <rect key="a" x="4" y="7" width="6" height="10" rx="1" {...pigment(filled, "strength")} />,
+    <circle key="b" cx="16.5" cy="12.5" r="3.5" {...pigment(filled, "run")} />,
+    <path key="c" d="M3 20h18" />,
   ],
-  // The programme: three columns of two blocks, as tall as the other destinations.
-  training: (filled: boolean) =>
-    [3, 9.5, 16].flatMap((x) => [
-      <rect key={`${x}a`} x={x} y="5.5" width="5" height="5.5" rx="0.6" fill={fill(filled)} />,
-      <rect key={`${x}b`} x={x} y="13" width="5" height="5.5" rx="0.6" fill={fill(filled)} />,
-    ]),
+  // Plan: a calendar, its head and today's square filled where you are. At rest the head is a
+  // line, so its outline never doubles the frame's top.
+  training: (filled: boolean) => [
+    <rect key="a" x="3.5" y="5" width="17" height="15.5" rx="3" />,
+    filled ? (
+      <path key="b" d="M3.5 10V8a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3v2z" fill="currentColor" />
+    ) : (
+      <path key="b" d="M3.5 10h17" />
+    ),
+    <path key="c" d="M8 3v4M16 3v4" />,
+    <rect key="d" x="14.4" y="12.8" width="3.4" height="3.4" rx="0.9" fill={fill(filled)} />,
+  ],
   // The bowl with its heap, as tall as the other destinations.
   food: (filled: boolean) => [
     <path key="a" d="M2.5 10.5h19a9.5 9 0 0 1-19 0z" fill={fill(filled)} />,
     <path key="b" d="M7 10.5a5 4.6 0 0 1 10 0" fill={fill(filled)} />,
   ],
+  // Progress: the loaded bar, a barbell side on with three plates growing.
   progress: (filled: boolean) => [
-    <rect key="a" x="4" y="4" width="7" height="7" rx="0.6" fill={fill(filled)} />,
-    <circle key="b" cx="16.5" cy="7.5" r="3.5" fill={fill(filled)} />,
-    <circle key="c" cx="7.5" cy="16.5" r="3.5" fill={fill(filled)} />,
-    <rect key="d" x="13" y="13" width="7" height="7" rx="0.6" fill={fill(filled)} />,
+    <path key="a" d="M2 12h20" />,
+    <rect key="b" x="5" y="9" width="2.6" height="6" rx="1" fill={fill(filled)} />,
+    <rect key="c" x="9.7" y="6.5" width="2.6" height="11" rx="1" fill={fill(filled)} />,
+    <rect key="d" x="14.4" y="4" width="2.6" height="16" rx="1" fill={fill(filled)} />,
   ],
   profile: (filled: boolean) => [
     <circle key="a" cx="12" cy="8" r="4" fill={fill(filled)} />,
@@ -474,7 +498,7 @@ export function machineGlyph(kind: MachineKind): GlyphName {
 /** What each glyph means, for a glyph that carries meaning on its own (DESIGN.md, Shapes). */
 export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {
   today: "Today",
-  training: "Training",
+  training: "Plan",
   food: "Food",
   progress: "Progress",
   profile: "Profile",
