@@ -2,6 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 
 import { activities, exercises, runningActivityDetails } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { paceHasRests } from "@/domain/activity-metrics";
 import type { CoachIntake } from "@/domain/coaching-workflow";
 import { ZONE_FEEL } from "@/domain/heart-rate";
 import { addDays } from "@/domain/program-calendar";
@@ -44,6 +45,7 @@ async function loggedRuns(db: DbOrTx, userId: string, from: string, to: string) 
       durationMs: activities.durationMs,
       distanceMetres: runningActivityDetails.distanceMetres,
       runType: runningActivityDetails.runType,
+      laps: runningActivityDetails.laps,
       environment: runningActivityDetails.environment,
       effortValue: activities.effortValue,
       effortStatus: activities.effortStatus,
@@ -67,6 +69,8 @@ async function loggedRuns(db: DbOrTx, userId: string, from: string, to: string) 
     runType: row.runType,
     environment: row.environment,
     effort: row.effortStatus === "reported" ? row.effortValue : null,
+    // Reps with rests are no effort at a distance: best efforts leave them out.
+    withRests: paceHasRests({ runType: row.runType, laps: row.laps ?? [] }),
   }));
 }
 

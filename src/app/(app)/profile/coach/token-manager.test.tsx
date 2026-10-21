@@ -61,3 +61,26 @@ it("keeps the token's inset at its points as the text grows, so the room goes to
   expect(box.className).not.toMatch(/(?:^|\s)p[xytrbl]?-\d/);
   expect(box.className).toContain("p-[calc(8*var(--ov-u))]");
 });
+
+it("keeps the name and expiry when a token is refused, and empties them once one is made", async () => {
+  render(<TokenManager tokens={[]} />);
+  const name = () => screen.getByLabelText("Name") as HTMLInputElement;
+  const expiry = () => screen.getByLabelText("Expires after") as HTMLSelectElement;
+  create.mockResolvedValue({
+    error:
+      "Could not create a token. Check your connection and that you have fewer than 10 active tokens.",
+  });
+  fireEvent.change(name(), { target: { value: "Track coach" } });
+  fireEvent.change(expiry(), { target: { value: "365" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create token" }));
+  await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Could not create"));
+  // React resets a form after its action: the select went back to 90 days, the name to blank.
+  expect([name().value, expiry().value]).toEqual(["Track coach", "365"]);
+
+  create.mockResolvedValue({ token: "ovl_coach_kept", expiresAt: "2027-10-21T00:00:00.000Z" });
+  fireEvent.click(screen.getByRole("button", { name: "Create token" }));
+  await waitFor(() =>
+    expect(screen.getByLabelText("New coach token")).toHaveProperty("value", "ovl_coach_kept"),
+  );
+  expect([name().value, expiry().value]).toEqual(["", "90"]);
+});

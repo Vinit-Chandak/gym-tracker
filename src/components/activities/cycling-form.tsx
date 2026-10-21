@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
@@ -95,6 +95,8 @@ export function CyclingForm({
   openDetails = false,
   readIn,
 }: Props) {
+  // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
   // A ride entered in kilometres opens in miles for a miles rider, and the other way round.
@@ -120,7 +122,7 @@ export function CyclingForm({
   // Board Log a ride: where, the time, the distance if it is known and the speed it makes, how
   // hard it felt and whether it was assisted; everything optional behind one row; Save.
   return (
-    <form action={formAction}>
+    <form ref={form} action={formAction}>
       <input type="hidden" name="sport" value="cycling" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <input type="hidden" name="resourceId" value={values("resourceId")} />

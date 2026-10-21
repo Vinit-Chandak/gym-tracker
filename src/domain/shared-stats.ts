@@ -353,6 +353,13 @@ export type StatsRun = {
   durationSeconds: number;
   distanceMeters: number;
   /**
+   * A session of reps and rests (`paceHasRests`). Its distance over its time has the rests in
+   * it, so its shared row carries no pace: a best pace or a friend's pace read from it would be
+   * a pace nobody ran. Its reps' pace is not shared in its place either, since 400 m reps are
+   * not comparable with a 5 km run's pace.
+   */
+  withRests?: boolean;
+  /**
    * The local date frozen on the run when it was saved, in the zone it was recorded in. Given,
    * it is the shared row's date, so a rebuild cannot move a run logged while travelling to
    * another day; without it the date is resolved in the zone passed alongside.
@@ -400,7 +407,8 @@ export function enduranceStats(
 
 /** A run's shared row: distance, time and pace; outdoor and treadmill are not told apart. */
 export function runStats(run: StatsRun, timeZone: string): SessionStats {
-  const pace = paceSecondsPerKm(run.distanceMeters, run.durationSeconds);
+  // A session with rests is left out of shared pace and its records (see `withRests`).
+  const pace = run.withRests ? null : paceSecondsPerKm(run.distanceMeters, run.durationSeconds);
   return {
     sport: "run",
     sourceId: run.id,

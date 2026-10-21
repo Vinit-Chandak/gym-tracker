@@ -354,6 +354,12 @@ export type RunInput = {
   environment: "outdoor" | "treadmill";
   metres: number;
   seconds: number;
+  /**
+   * A session of reps and rests (`paceHasRests`): its distance and time count in the totals,
+   * but it is left out of the pace line. Its overall pace has the rests in it, and its reps'
+   * pace (400 m at a time) is not comparable with a continuous run's either.
+   */
+  withRests?: boolean;
 };
 
 export type RunPoint = RunInput & {
@@ -402,7 +408,7 @@ export function runningGraph(
     totals.metres += run.metres;
     totals.seconds += run.seconds;
     totals.runs += 1;
-    points.push({ ...run, pace: paceOf(run.metres, run.seconds) });
+    points.push({ ...run, pace: run.withRests ? null : paceOf(run.metres, run.seconds) });
   }
   return {
     buckets: buckets.map(({ ids, ...bucket }) => ({

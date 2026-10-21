@@ -58,7 +58,7 @@ export function FinishForm({
   return (
     <form action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
       {recordedStart && (
-        <Field label="Finished at">
+        <Field label="Finished at" error={state.fieldErrors?.finishedAt}>
           <Input
             name="finishedAt"
             type="datetime-local"

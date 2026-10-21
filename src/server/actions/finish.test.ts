@@ -150,9 +150,12 @@ it("backdates planned lifting to its actual training date and leaves independent
       startedAt,
     }),
   );
-  expect(
-    await finishSessionAction(planned.sessionId, INITIAL_FORM_STATE, new FormData()),
-  ).toMatchObject({ formError: "Enter when this workout actually ended." });
+  // Said at the Finished at field, where it is fixed, and not again over Save.
+  const refused = await finishSessionAction(planned.sessionId, INITIAL_FORM_STATE, new FormData());
+  expect(refused).toMatchObject({
+    fieldErrors: { finishedAt: "Enter when this workout actually ended." },
+  });
+  expect(refused.formError).toBeUndefined();
   await expect(finishLeftOpenAction(planned.sessionId)).rejects.toThrow(
     `redirect:/workouts/${planned.sessionId}/finish`,
   );

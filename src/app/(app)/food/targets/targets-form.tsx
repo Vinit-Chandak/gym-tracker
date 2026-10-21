@@ -7,7 +7,7 @@ import { useActionState, useEffect, useState } from "react";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
   DEFAULT_PROTEIN_PER_KG,
@@ -70,6 +70,9 @@ export function TargetsForm({
 }) {
   const { saveTargetsAction } = useFoodActions();
   const router = useRouter();
+  // React resets the form after its action with its own events switched off, so an onReset
+  // handler never hears it; a listener on the form itself does (useKeptForm).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveTargetsAction),
     INITIAL_FORM_STATE,
@@ -129,7 +132,7 @@ export function TargetsForm({
 
   return (
     // After a failed save the form goes on showing what was typed, rather than being reset.
-    <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
+    <form ref={form} action={formAction} className="space-y-4">
       <div className="space-y-5">
         <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
           <Input

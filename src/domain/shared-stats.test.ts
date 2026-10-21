@@ -368,6 +368,20 @@ describe("runStats", () => {
       "2026-09-08",
     );
   });
+  it("shares no pace for a session of reps and rests, so no record or friend reads one", () => {
+    const intervals = {
+      id: "run-2",
+      startedAt: new Date("2026-09-08T07:00:00Z"),
+      durationSeconds: 536,
+      distanceMeters: 1470,
+      withRests: true,
+    };
+    expect(runStats(intervals, "UTC")).toMatchObject({
+      distanceMeters: 1470,
+      durationSeconds: 536,
+      paceSecondsPerKm: null,
+    });
+  });
 });
 
 describe("detectRecords", () => {

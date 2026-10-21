@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -63,6 +63,8 @@ export function PrescriptionEditor({
   submitLabel: string;
   preserveSteps?: boolean;
 }) {
+  // A refused save keeps every choice, the sport's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: string): string => state.values?.[key] ?? initial[key] ?? "";
   const [stepKind, setStepKind] = useState(() => value("stepTargetKind") || "none");
@@ -72,7 +74,7 @@ export function PrescriptionEditor({
     units.some((unit) => unit.value === value(key)) ? value(key) : units[0]!.value;
 
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form ref={form} action={formAction} className="space-y-[var(--section-gap)]">
       {sports.length === 0 && <input type="hidden" name="sport" value={sport} />}
 
       <Section title="The session">

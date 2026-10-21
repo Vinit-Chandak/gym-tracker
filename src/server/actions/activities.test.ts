@@ -122,10 +122,25 @@ it("refuses a sport it does not know", async () => {
   expect(mocks.getDb).not.toHaveBeenCalled();
 });
 
-it("refuses a submission key that is not one", async () => {
+it("refuses a submission key that is not one, over Save since no field holds it", async () => {
   const state = await saveActivityAction(null, {}, runningForm({ submissionKey: "not-a-uuid" }));
-  expect(state.fieldErrors?.submissionKey).toMatch(/out of date/);
+  // A key the form has no field for is said once over Save, never left for no field to show.
+  expect(state.formError).toMatch(/out of date/);
+  expect(state.fieldErrors).toBeUndefined();
   expect(mocks.getDb).not.toHaveBeenCalled();
+});
+
+it("says a field's refusal at the field alone, never again over Save", async () => {
+  const state = await saveActivityAction(
+    null,
+    {},
+    runningForm({ hours: "-1", averageHeartRate: "fast" }),
+  );
+  expect(state.fieldErrors).toEqual({
+    hours: "Enter the hours as zero or more.",
+    averageHeartRate: "Enter the average heart rate as a number.",
+  });
+  expect(state.formError).toBeUndefined();
 });
 
 it.each([

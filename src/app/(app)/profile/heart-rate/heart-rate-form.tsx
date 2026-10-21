@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -50,6 +50,9 @@ export function HeartRateForm({
   /** The age formula's maximum for the athlete, or null without a date of birth. */
   estimate: number | null;
 }) {
+  // The switch and the zone method are held in state: React's reset after the action would put
+  // them back to how the page opened on screen and in the next save (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveHeartRateAction),
     INITIAL_FORM_STATE,
@@ -71,7 +74,7 @@ export function HeartRateForm({
     state.values === undefined;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={form} action={formAction} className="space-y-4">
       <Field
         label="Maximum heart rate"
         aside="bpm"
