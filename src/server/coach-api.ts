@@ -53,6 +53,9 @@ function v1Run(run: RunActivity) {
     mode: run.environment,
     durationSeconds: run.durationSeconds,
     distanceMeters: run.distanceMeters,
+    // Version 1 takes no new field, so this is the pace the run counts as (`RunActivity`): a
+    // continuous run's average, an interval session's reps' pace, never the overall pace of
+    // reps with the rests in it.
     averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
     rpe: run.effort.value,
     effortReported: run.effort.status === "reported",

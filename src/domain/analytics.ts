@@ -264,11 +264,16 @@ export function trainingAnalytics(
     })),
     series: performanceSeries(data.workouts, timeZone),
     recovery,
+    // A pace trend: a session of reps and rests is left out of it (value null). Its overall pace
+    // has the rests in it, and its reps' pace is not comparable with a continuous run's.
     pace: [...data.runs]
       .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime())
       .map((r) => ({
         date: r.occurredOn,
-        value: r.averagePaceSecondsPerKm === null ? null : round(r.averagePaceSecondsPerKm / 60),
+        value:
+          r.withRests || r.averagePaceSecondsPerKm === null
+            ? null
+            : round(r.averagePaceSecondsPerKm / 60),
         mode: r.environment,
       })),
     truncated: data.truncated,

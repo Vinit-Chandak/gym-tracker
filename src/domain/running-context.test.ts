@@ -84,6 +84,14 @@ describe("best efforts and what they predict", () => {
     ]);
   });
 
+  it("leaves a session of reps and rests out, its rests in its time", () => {
+    // Faster over 5.05 km than the time trial only on paper: its 24:00 is not a 5K time either.
+    const intervals = run("e", "2026-10-15", 5.05, 23, { runType: "intervals", withRests: true });
+    expect(bestEfforts([...runs, intervals]).find((effort) => effort.label === "5K")).toMatchObject(
+      { sourceId: "activity:c" },
+    );
+  });
+
   it("predicts with Riegel's exponent", () => {
     // A 25:00 5K predicts about 52:07 for 10K and 3:59:47 for the marathon.
     expect(Math.round(riegelSeconds(1500, 5000, 10_000))).toBe(3127);

@@ -18,8 +18,11 @@ import {
   actualDistanceMetres,
   formatPaceSeconds,
   formatSpeed,
+  lapFigures,
+  paceHasRests,
   pacePerUnit,
   paceSecondsPerKm,
+  repPace,
   speedMetresPerSecond,
   swimPaceSecondsPer100,
 } from "@/domain/activity-metrics";
@@ -133,17 +136,24 @@ export default async function ActivityPage(props: PageProps<"/progress/activitie
       figure: activity.durationMs === null ? "—" : formatDuration(activity.durationMs / 1000),
     },
   ];
-  if (actual?.sport === "running")
-    stats.push({
-      label: "Pace",
-      figure: formatPaceSeconds(
-        pacePerUnit(
-          paceSecondsPerKm(actual.distance.metres, actual.durationMs),
-          units.distanceUnit,
-        ),
-      ),
-      unit: `/${units.distanceUnit}`,
-    });
+  if (actual?.sport === "running") {
+    const overall = formatPaceSeconds(
+      pacePerUnit(paceSecondsPerKm(actual.distance.metres, actual.durationMs), units.distanceUnit),
+    );
+    if (paceHasRests(actual)) {
+      // An interval session leads with its reps' pace, the pace that counts; its own distance
+      // over its time has the rests in it and says so (DESIGN.md, Laps and intervals).
+      const reps = repPace(actual.laps.map(lapFigures));
+      if (reps)
+        stats.unshift({
+          label: "Rep pace",
+          figure: formatPaceSeconds(pacePerUnit(reps.secondsPerKm, units.distanceUnit)),
+          unit: `/${units.distanceUnit}`,
+          note: `${reps.reps} ${reps.reps === 1 ? "rep" : "reps"}`,
+        });
+      stats.push({ label: "Overall, with rests", figure: overall, unit: `/${units.distanceUnit}` });
+    } else stats.push({ label: "Pace", figure: overall, unit: `/${units.distanceUnit}` });
+  }
   // A ride's speed is its distance over its time: one with no distance (an indoor ride, as a
   // rule) has none to show, not a second dash beside the distance's (AT-LOG-03).
   if (actual?.sport === "cycling" && metres !== null)

@@ -23,6 +23,11 @@ export type LoggedRun = {
   environment: string;
   /** The effort the athlete reported, out of five; null when they did not say. */
   effort: number | null;
+  /**
+   * A session of reps and rests (`paceHasRests`): its time over its distance has the rests in
+   * it, so it is no effort at any distance, and best efforts leave it out.
+   */
+  withRests?: boolean;
 };
 
 export type RunningWeek = {
@@ -100,12 +105,14 @@ export type BestEffort = {
  * The fastest whole run at each standard distance: a run counts for a distance when it was at
  * least that far and no more than 5 per cent further, and its time is its pace times the exact
  * distance. A whole run is not a race, so the coach is told these are logged runs, not results.
+ * A session of reps and rests is left out: 5 km of it, standing rests and all, is no 5K time.
  */
 export function bestEfforts(runs: readonly LoggedRun[]): BestEffort[] {
   const efforts: BestEffort[] = [];
   for (const standard of STANDARD_DISTANCES) {
     const candidates = runs.filter(
       (run) =>
+        !run.withRests &&
         run.distanceMetres >= standard.metres &&
         run.distanceMetres <= standard.metres * 1.05 &&
         run.durationMs > 0,

@@ -28,6 +28,10 @@ vi.mock("@/server/repositories/occurrences", () => ({ namedOccurrence: mocks.nam
 vi.mock("@/server/repositories/sport-preferences", () => ({
   readSportUnits: async () => ({ distanceUnit: "km", poolUnit: "m" }),
 }));
+// A run reads its heart rate against the athlete's zones; these have none set.
+vi.mock("@/server/repositories/heart-rate", () => ({
+  readHeartRate: async () => ({ resolved: null }),
+}));
 // What More would offer, as the question its delete asks will put it.
 vi.mock("./activity-more", () => ({
   ActivityMore: ({ answered }: { answered: string | null }) => <p>On delete: {`${answered}`}</p>,
@@ -230,4 +234,54 @@ it("names the document by the record's own title, else its sport's word", async 
   expect((await generateMetadata(props)).title).toBe("Run");
   mocks.activity.mockResolvedValue({ ...run, title: "Sunday long run" });
   expect((await generateMetadata(props)).title).toBe("Sunday long run");
+});
+
+/** DESIGN.md, Laps and intervals: the reps' pace leads, the whole is said with its rests. */
+it("leads an interval run with its reps' pace, and says its own pace has the rests in it", async () => {
+  const lap = (phase: "work" | "recovery", metres: number | null, durationMs: number) => ({
+    phase,
+    distance: metres === null ? null : { value: metres / 1000, unit: "km" as const, metres },
+    durationMs,
+    averageHeartRate: null,
+    maxHeartRate: null,
+  });
+  const laps = [
+    lap("work", 470, 120_000),
+    lap("recovery", null, 90_000),
+    lap("work", 510, 117_000),
+    lap("recovery", null, 90_000),
+    lap("work", 490, 119_000),
+  ];
+  const intervals: ActivityRecord = {
+    ...run,
+    durationMs: 536_000,
+    actual: {
+      sport: "running",
+      environment: "outdoor",
+      distance: { value: 1.47, unit: "km", metres: 1470 },
+      durationMs: 536_000,
+      runType: "intervals",
+      surface: null,
+      elevationGainMetres: null,
+      treadmillInclinePercent: null,
+      averageHeartRate: null,
+      maxHeartRate: null,
+      cadenceStepsPerMinute: null,
+      laps,
+    },
+  };
+  mocks.activity.mockResolvedValue(intervals);
+  const html = renderToStaticMarkup(await ActivityPage(props));
+  expect(statNames(html).slice(0, 4)).toEqual([
+    "Rep pace",
+    "Distance",
+    "Time",
+    "Overall, with rests",
+  ]);
+  expect(html).toContain("4:02");
+  expect(html).toContain("3 reps");
+  expect(html).toContain("6:05");
+  // A recovery stood still reads Standing, not a gap.
+  expect(html).toContain("Standing");
+  expect(html).not.toContain(">Pace<");
 });

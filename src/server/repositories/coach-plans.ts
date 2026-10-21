@@ -868,7 +868,13 @@ export async function planningContext(
     // What was logged, not a tenth of a kilometre: the coach reads these to judge one run.
     distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
-    paceSecondsPerKm: run.averagePaceSecondsPerKm,
+    // The running pace the coach plans from: a continuous run's average. A session of reps and
+    // rests gives none here (its overall pace has the rests in it, DESIGN.md) and its reps'
+    // pace instead, named as the reps', with what the athlete called the run.
+    paceSecondsPerKm: run.withRests ? null : run.averagePaceSecondsPerKm,
+    repPaceSecondsPerKm: run.repPace ? Math.round(run.repPace.secondsPerKm) : null,
+    reps: run.repPace?.reps ?? null,
+    runType: run.runType ?? null,
     rpe: run.effort.value,
     effortReported: run.effort.status === "reported",
     programRunId: run.programRunId,
