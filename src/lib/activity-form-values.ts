@@ -1,4 +1,10 @@
-import { lapFigures, lapTotals, type EnduranceActual } from "@/domain/activity-metrics";
+import {
+  lapFigures,
+  lapsDistance,
+  lapsTime,
+  lapTotals,
+  type EnduranceActual,
+} from "@/domain/activity-metrics";
 import { postedLaps } from "@/lib/run-laps";
 
 const text = (value: number | string | null | undefined) => (value == null ? "" : String(value));
@@ -21,9 +27,11 @@ export function activityFormValues(actual: EnduranceActual): Record<string, stri
     // lap then corrects the total with it, and nothing is typed twice (PRODUCT.md, principle 7).
     // A total the watch gave that differs from its laps opens as typed.
     const sums = lapTotals(actual.laps.map(lapFigures));
+    const lapMetres = lapsDistance(sums);
+    const lapMs = lapsTime(sums);
     const distanceFromLaps =
-      sums.metres > 0 && Math.abs(sums.metres - actual.distance.metres) < 0.5;
-    const timeFromLaps = sums.durationMs > 0 && Math.abs(sums.durationMs - actual.durationMs) < 500;
+      lapMetres !== null && Math.abs(lapMetres - actual.distance.metres) < 0.5;
+    const timeFromLaps = lapMs !== null && Math.abs(lapMs - actual.durationMs) < 500;
     return {
       ...values,
       ...(distanceFromLaps ? { distanceValue: "" } : {}),

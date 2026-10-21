@@ -12,13 +12,16 @@ import {
   formatRunTime,
   formatRunTotal,
   lapsFurtherThan,
+  lapsDistance,
   lapsLongerThan,
   lapsMakeIntervals,
+  lapsTime,
   lapTotals,
   paceSecondsPerKm,
   pacePerUnit,
   repPace,
 } from "@/domain/activity-metrics";
+import { DURATION_MS } from "@/domain/activity-limits";
 import { RUN_TYPE_LABELS, RUN_TYPES, type RunType } from "@/domain/run-types";
 import { fromMetres, roundTo, toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -77,6 +80,8 @@ const SURFACES = ["Road", "Trail", "Track", "Grass", "Sand", "Mixed"];
 
 /** The opening of the sentence a total short of its laps is refused with. */
 const SHORT_OF_LAPS = "The laps add up to";
+/** What a run with no distance is refused with (`validateActual`). */
+const NO_DISTANCE = "Enter how far you ran.";
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
@@ -114,17 +119,21 @@ function distanceFigure(metres: number, unit: string): string {
 
 /**
  * A total the laps add up to, in the row its field takes when it is typed (board Log a run):
- * read, not typed, and marked From laps. The figure lines up with the steppers' around it.
+ * read, not typed, and marked From laps. The figure lines up with the steppers' around it. While
+ * a lap is still missing its part the total is unknown: a dash, and what is missing.
  */
 function FromLapsRow({
   label,
   figure,
   unit,
+  missing,
   error,
 }: {
   label: string;
-  figure: string;
+  /** Null while the laps hold the total only in part. */
+  figure: string | null;
   unit?: string;
+  missing: string;
   error?: string;
 }) {
   return (
@@ -137,6 +146,7 @@ function FromLapsRow({
       <span className="row-stepper-text">
         <span className="font-bold [overflow-wrap:break-word]">{label}</span>
         <span className="row-stepper-hint">From laps</span>
+        {figure === null && <span className="row-stepper-hint">{missing}</span>}
         {error && (
           <span role="alert" className="type-meta-small font-semibold">
             {error}
@@ -146,8 +156,8 @@ function FromLapsRow({
       <span className="row-stepper-control">
         <span aria-hidden className="round-button invisible" />
         <span className="row-stepper-figure cursor-default">
-          <span className="type-figure-l tabular-nums">{figure}</span>
-          {unit && <span className="row-stepper-unit">{unit}</span>}
+          <span className="type-figure-l tabular-nums">{figure ?? "—"}</span>
+          {unit && figure !== null && <span className="row-stepper-unit">{unit}</span>}
         </span>
         <span aria-hidden className="round-button invisible" />
       </span>
@@ -192,13 +202,18 @@ export function RunningForm({
 
   const figures = rows.map((row) => postedLapFigures(postedLap(row)));
   const sums = lapTotals(figures);
-  // A total the athlete has not typed is the laps', once the laps hold one.
+  // What the laps hold whole. A rep with no distance or a lap with no time leaves that total
+  // unknown, a dash, never the laps it has (PRODUCT.md, principle 4).
+  const lapMetres = lapsDistance(sums);
+  const lapMs = lapsTime(sums);
+  // A total the athlete has not typed is the laps', once any lap holds a part of it; laps that
+  // hold none of it (timed reps with no distance) leave it to be typed, as a run without laps.
   const distanceFromLaps = !watchTotals && distance.trim() === "" && sums.metres > 0;
   const timeFromLaps = !watchTotals && duration.trim() === "" && sums.durationMs > 0;
   const typedDistance = typedMetres(posted.value, posted.unit);
   const typedMs = (parseDuration(duration) ?? 0) * 1000;
-  const metres = distanceFromLaps ? sums.metres : (typedDistance ?? 0);
-  const durationMs = timeFromLaps ? sums.durationMs : typedMs;
+  const metres = distanceFromLaps ? (lapMetres ?? 0) : (typedDistance ?? 0);
+  const durationMs = timeFromLaps ? (lapMs ?? 0) : typedMs;
   const paceUnit: DistanceUnit = unit === "mi" ? "mi" : "km";
   // Pace per the unit the distance is read in: miles make a pace per mile.
   const pace = pacePerUnit(paceSecondsPerKm(metres, durationMs), paceUnit);
@@ -218,20 +233,35 @@ export function RunningForm({
     ? distanceShort
       ? `${SHORT_OF_LAPS} ${formatRunTotal(sums.metres, paceUnit)}, more than ${formatRunTotal(typedDistance!, paceUnit)}.`
       : undefined
-    : refusedDistance;
+    : refusedDistance && distanceFromLaps
+      ? lapMetres === null
+        ? // Refused while a lap is missing its distance: the way on is that lap, or the watch's.
+          "Give every lap its distance, or use the watch’s totals."
+        : // Whole now: a distance asked for is there, so it can be saved and is no longer red.
+          refusedDistance === NO_DISTANCE
+          ? undefined
+          : refusedDistance
+      : refusedDistance;
   const refusedTime = errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds;
   const durationError = refusedTime?.startsWith(SHORT_OF_LAPS)
     ? timeShort
       ? `${SHORT_OF_LAPS} ${formatRunTime(sums.durationMs)}, longer than ${formatRunTime(typedMs)}.`
       : undefined
-    : refusedTime;
+    : refusedTime && timeFromLaps
+      ? lapMs === null
+        ? "Give every lap its time, or use the watch’s totals."
+        : lapMs <= DURATION_MS.max
+          ? undefined
+          : refusedTime
+      : refusedTime;
   const lapsCanTotal = sums.metres > 0 || sums.durationMs > 0;
 
   function takeWatchTotals() {
-    // The watch's figures start from the laps', so only what differs is typed.
-    if (distance.trim() === "" && sums.metres > 0) setDistance(distanceFigure(sums.metres, unit));
-    if (duration.trim() === "" && sums.durationMs > 0)
-      setDuration(formatDuration(Math.round(sums.durationMs / 1000)));
+    // The watch's figures start from the laps' where they hold them, so only what differs is
+    // typed; a total they hold in part starts blank.
+    if (distance.trim() === "" && lapMetres !== null) setDistance(distanceFigure(lapMetres, unit));
+    if (duration.trim() === "" && lapMs !== null)
+      setDuration(formatDuration(Math.round(lapMs / 1000)));
     setWatchTotals(true);
   }
   function takeLapTotals() {
@@ -295,8 +325,9 @@ export function RunningForm({
             <input type="hidden" name="distanceValue" value="" />
             <FromLapsRow
               label="Distance"
-              figure={distanceFigure(sums.metres, unit)}
+              figure={lapMetres === null ? null : distanceFigure(lapMetres, unit)}
               unit={unit}
+              missing="Not every lap has a distance"
               error={distanceError}
             />
           </>
@@ -327,7 +358,8 @@ export function RunningForm({
             <input type="hidden" name="seconds" value="" />
             <FromLapsRow
               label="Duration"
-              figure={formatRunTime(sums.durationMs)}
+              figure={lapMs === null ? null : formatRunTime(lapMs)}
+              missing="Not every lap has a time"
               error={durationError}
             />
           </>

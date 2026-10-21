@@ -281,19 +281,49 @@ export function lapFigures(lap: RunningLap): LapFigures {
   return { phase: lap.phase, metres: lap.distance?.metres ?? null, durationMs: lap.durationMs };
 }
 
+/** What a run's laps add up to, and whether they hold each total whole. */
+export type LapSums = {
+  metres: number;
+  durationMs: number;
+  /**
+   * Every lap has a distance, but a recovery that is a time alone, a rest standing still: the
+   * laps hold the run's whole distance. A rep timed without one leaves it unknown.
+   */
+  distanceKnown: boolean;
+  /** Every lap has a time: the laps hold the run's whole time. */
+  timeKnown: boolean;
+};
+
 /**
  * What a run's laps add up to (owner, 21 October 2026, as a watch counts them): their distances
- * and their times. A recovery that is a time alone, a standing rest, adds no distance; a lap
- * without a time adds no time.
+ * and their times. A recovery that is a time alone, a standing rest, adds no distance. A total
+ * is the run's only when the laps hold it whole: a lap without a time leaves the run's time
+ * unknown, never shorter by that lap (PRODUCT.md, principle 4).
  */
-export function lapTotals(laps: readonly LapFigures[]): { metres: number; durationMs: number } {
+export function lapTotals(laps: readonly LapFigures[]): LapSums {
   let metres = 0;
   let durationMs = 0;
+  let distanceKnown = laps.length > 0;
+  let timeKnown = laps.length > 0;
   for (const lap of laps) {
+    // A lap with neither is refused at that lap; it leaves neither total unknown as well.
+    if (lap.metres === null && lap.durationMs === null) continue;
     if (lap.metres !== null && lap.metres > 0) metres += lap.metres;
+    else if (!(lap.metres === null && lap.phase === "recovery")) distanceKnown = false;
     if (lap.durationMs !== null && lap.durationMs > 0) durationMs += lap.durationMs;
+    else timeKnown = false;
   }
-  return { metres: roundTo(metres, DECIMALS.distance), durationMs };
+  return { metres: roundTo(metres, DECIMALS.distance), durationMs, distanceKnown, timeKnown };
+}
+
+/** The laps' distance where it is the run's, else null: they hold it whole, and it is some. */
+export function lapsDistance(sums: LapSums): number | null {
+  return sums.distanceKnown && sums.metres > 0 ? sums.metres : null;
+}
+
+/** The laps' time where it is the run's, else null. */
+export function lapsTime(sums: LapSums): number | null {
+  return sums.timeKnown && sums.durationMs > 0 ? sums.durationMs : null;
 }
 
 /** Reps with recoveries between them make a session intervals (PRODUCT.md, principle 7). */

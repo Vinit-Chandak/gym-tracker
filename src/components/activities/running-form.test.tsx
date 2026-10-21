@@ -192,6 +192,43 @@ it("types the watch's totals instead, and offers the laps' figure when one is sh
   expect(screen.queryByRole("button", { name: /^Use 1\.47/ })).toBeNull();
 });
 
+it("leaves a total the laps hold only in part unknown, and says what it needs", async () => {
+  const action = vi.fn(async (_state: unknown, form: FormData) => ({
+    fieldErrors: { distance: "Enter how far you ran." },
+    values: Object.fromEntries(form) as Record<string, string>,
+  }));
+  const { container } = render(<RunningForm {...props} action={action} />);
+  const posted = () => new FormData(container.querySelector("form")!);
+  fireEvent.click(screen.getByText("Laps and intervals"));
+  fireEvent.click(screen.getByRole("button", { name: "+ Rep" }));
+  const rep = within(screen.getAllByRole("listitem")[0]!);
+  fireEvent.change(rep.getByLabelText("Unit"), { target: { value: "km" } });
+  fireEvent.change(rep.getByLabelText("Distance"), { target: { value: "0.4" } });
+  fireEvent.change(rep.getByLabelText("Time"), { target: { value: "130" } });
+  // A second rep timed and not measured: the laps hold the time, not the distance.
+  fireEvent.click(screen.getByRole("button", { name: "+ Rep" }));
+  const timed = within(screen.getAllByRole("listitem")[1]!);
+  fireEvent.change(timed.getByLabelText("Distance"), { target: { value: "" } });
+  fireEvent.change(timed.getByLabelText("Time"), { target: { value: "100" } });
+
+  // A gap is unknown, never zero: the distance is a dash until that rep has one.
+  expect(screen.getByRole("group", { name: "Distance" }).textContent).toBe(
+    "DistanceFrom lapsNot every lap has a distance—",
+  );
+  expect(screen.getByRole("group", { name: "Duration" }).textContent).toBe("DurationFrom laps2:30");
+  expect([posted().get("distanceValue"), posted().get("hours")]).toEqual(["", ""]);
+
+  // Saved like that, the server asks for the distance; the form says the ways to give it.
+  fireEvent.submit(container.querySelector("form")!);
+  expect(
+    await screen.findByText("Give every lap its distance, or use the watch’s totals."),
+  ).toBeTruthy();
+  fireEvent.change(timed.getByLabelText("Distance"), { target: { value: "0.3" } });
+  expect(screen.getByRole("group", { name: "Distance" }).textContent).toBe(
+    "DistanceFrom laps0.70km",
+  );
+});
+
 it("says a refused lap's problem at the lap it was said of, even after another is removed", async () => {
   const action = vi.fn(async (_state: unknown, form: FormData) => ({
     fieldErrors: { "laps.4": "Enter lap 5's time as more than zero and under seven days." },

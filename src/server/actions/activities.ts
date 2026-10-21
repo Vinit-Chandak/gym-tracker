@@ -28,7 +28,9 @@ import { STEP_PHASES } from "@/domain/activity-prescription";
 import {
   actualDistanceMetres,
   lapFigures,
+  lapsDistance,
   lapsMakeIntervals,
+  lapsTime,
   lapTotals,
   nativeDistance,
   type CyclingActualV1,
@@ -332,23 +334,26 @@ function actualFrom(form: ActivityForm): EnduranceActual {
       averageHeartRate: lap.averageHeartRate,
       maxHeartRate: lap.maxHeartRate,
     }));
-    // Ask once (PRODUCT.md, principle 7): a total left blank beside laps is the laps added up,
-    // the distance in the unit the athlete runs in. A total typed instead is the watch's, and
-    // `validateActual` checks it against the laps.
+    // Ask once (PRODUCT.md, principle 7): a total left blank beside laps that hold it whole is
+    // the laps added up, the distance in the unit the athlete runs in. Laps that do not (a rep
+    // with no distance, a lap with no time) leave it to be typed, and a blank is then refused at
+    // the field: an unknown total is never the laps it has (principle 4). A total typed instead
+    // is the watch's, and `validateActual` checks it against the laps.
     const sums = lapTotals(laps.map(lapFigures));
-    const distanceFromLaps = form.distanceValue === null && sums.metres > 0;
-    const timeFromLaps =
-      form.hours === null && form.minutes === null && form.seconds === null && sums.durationMs > 0;
+    const lapMetres = form.distanceValue === null ? lapsDistance(sums) : null;
+    const lapMs =
+      form.hours === null && form.minutes === null && form.seconds === null ? lapsTime(sums) : null;
     const running: RunningActualV1 = {
       sport: "running",
       environment: form.environment,
-      distance: distanceFromLaps
-        ? nativeDistance(
-            roundTo(fromMetres(sums.metres, form.distanceUnit), DECIMALS.distance),
-            form.distanceUnit,
-          )
-        : nativeDistance(form.distanceValue ?? 0, form.distanceUnit),
-      durationMs: timeFromLaps ? sums.durationMs : durationMs,
+      distance:
+        lapMetres !== null
+          ? nativeDistance(
+              roundTo(fromMetres(lapMetres, form.distanceUnit), DECIMALS.distance),
+              form.distanceUnit,
+            )
+          : nativeDistance(form.distanceValue ?? 0, form.distanceUnit),
+      durationMs: lapMs ?? durationMs,
       // Reps with recoveries between them are intervals until the athlete says another kind.
       runType: form.runType ?? (lapsMakeIntervals(laps) ? "intervals" : null),
       surface: form.surface,

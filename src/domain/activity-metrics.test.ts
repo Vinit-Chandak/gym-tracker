@@ -15,7 +15,9 @@ import {
   countedRunPace,
   lapFigures,
   lapPaceSecondsPerKm,
+  lapsDistance,
   lapsMakeIntervals,
+  lapsTime,
   lapTotals,
   paceHasRests,
   repPace,
@@ -158,10 +160,27 @@ describe("a run's laps (ADR 0059)", () => {
       lap({ distance: nativeDistance(0.47, "km"), durationMs: 120_000 }),
       lap({ phase: "recovery", distance: null, durationMs: 90_000 }),
       lap({ distance: nativeDistance(0.51, "km"), durationMs: 117_000 }),
-      lap({ distance: null, durationMs: 60_000 }),
     ];
-    expect(lapTotals(laps.map(lapFigures))).toEqual({ metres: 980, durationMs: 387_000 });
-    expect(lapTotals([])).toEqual({ metres: 0, durationMs: 0 });
+    const sums = lapTotals(laps.map(lapFigures));
+    expect(sums).toEqual({
+      metres: 980,
+      durationMs: 327_000,
+      distanceKnown: true,
+      timeKnown: true,
+    });
+    expect([lapsDistance(sums), lapsTime(sums)]).toEqual([980, 327_000]);
+    expect(lapTotals([])).toMatchObject({ distanceKnown: false, timeKnown: false });
+  });
+
+  it("leaves a total unknown when a lap does not hold its part, never shorter by it", () => {
+    // A rep timed with no distance: the run's distance is not the other laps' alone.
+    const timedRep = lapTotals(
+      [lap(), lap({ distance: null, durationMs: 60_000 })].map(lapFigures),
+    );
+    expect([lapsDistance(timedRep), lapsTime(timedRep)]).toEqual([null, 240_000]);
+    // A warm-up with its distance and no time: the run's time is not the reps' alone.
+    const untimed = lapTotals([lap({ phase: "warmup", durationMs: null }), lap()].map(lapFigures));
+    expect([lapsDistance(untimed), lapsTime(untimed)]).toEqual([1600, null]);
   });
 
   it("reads reps with recoveries as intervals, and reps alone or splits as not", () => {

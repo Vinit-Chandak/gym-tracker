@@ -152,6 +152,31 @@ it("says a lap's problem at that lap, and nowhere else", async () => {
   expect(state.formError).toBeUndefined();
 });
 
+it("does not take a total the laps hold only in part, and asks for it at the field", async () => {
+  // A rep timed with no distance: the run's distance is unknown, not the other rep's alone.
+  const state = await saveActivityAction(
+    null,
+    {},
+    form({
+      laps: JSON.stringify([lap("work", 0.4, "km", 90_000), lap("work", null, "km", 60_000)]),
+    }),
+  );
+  expect(state.fieldErrors).toEqual({ distance: "Enter how far you ran." });
+  expect(state.formError).toBeUndefined();
+
+  // With the watch's distance typed, the time is still the laps', which hold it whole.
+  const typed = await saveActivityAction(
+    null,
+    {},
+    form({
+      distanceValue: "0.7",
+      laps: JSON.stringify([lap("work", 0.4, "km", 90_000), lap("work", null, "km", 60_000)]),
+    }),
+  );
+  const actual = await saved(typed.savedActivityId!);
+  expect([actual.distance.value, actual.durationMs]).toEqual([0.7, 150_000]);
+});
+
 it("still asks for a distance and a time when there are no laps to add up", async () => {
   const state = await saveActivityAction(null, {}, form({ laps: "" }));
   expect(state.fieldErrors).toEqual({
