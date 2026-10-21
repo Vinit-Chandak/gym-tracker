@@ -208,7 +208,7 @@ it("removes a retained report and its request reference before continuing", asyn
   );
   fireEvent.click(screen.getByRole("button", { name: "Step 4 of 5: Starting point" }));
   await screen.findByText("Report.txt");
-  fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove Report.txt" }));
   await waitFor(() => expect(removeCoachAttachmentAction).toHaveBeenCalledWith(report.id));
   await waitFor(() => expect(screen.queryByText("Report.txt")).toBeNull());
   expect(saveCoachIntakeAction).toHaveBeenCalledWith(

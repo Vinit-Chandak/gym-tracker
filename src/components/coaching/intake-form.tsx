@@ -1,9 +1,10 @@
 "use client";
 import { coachingAction } from "./client-action";
+import { CoachAsked } from "./coach-asked";
+import { CoachFilesField, sendCoachFiles, type CoachFile } from "./coach-files";
 import { requestPath, type ProgrammeBase } from "./programme-paths";
 import { DayPicker } from "./day-picker";
 
-import { Paperclip } from "@/components/ui/icons";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,27 +26,14 @@ import {
   toKilograms,
 } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import {
-  coachIntakeSchema,
-  validateIntake,
-  MAX_COACH_FILE_BYTES,
-  MAX_REQUEST_FILES,
-  type CoachIntake,
-} from "@/domain/coaching-workflow";
+import { coachIntakeSchema, validateIntake, type CoachIntake } from "@/domain/coaching-workflow";
 import {
   createCoachProgramAction,
   removeCoachAttachmentAction,
   saveCoachIntakeAction,
 } from "@/server/actions/coaching-workflow";
 
-type Report = { id: string; name: string; mimeType: string; sizeBytes: number };
-
-/** What a file is, when the browser declines to say. Ordered; the first match wins. */
-const TYPE_BY_SUFFIX: readonly (readonly [RegExp, string])[] = [
-  [/\.md$/i, "text/markdown"],
-  [/\.csv$/i, "text/csv"],
-  [/\.txt$/i, "text/plain"],
-];
+type Report = CoachFile;
 type Change = (patch: Partial<CoachIntake>) => void;
 
 /** The detailed route, in the order the questions build on each other. */
@@ -248,24 +236,10 @@ export function CoachIntakeForm({
     setSubmitting(true);
     setError(null);
     try {
-      if (selected.length + current.current.attachmentIds.length > MAX_REQUEST_FILES)
-        throw new Error("Attach up to five files.");
-      for (const file of Array.from(selected)) {
-        if (file.size > MAX_COACH_FILE_BYTES) throw new Error(`${file.name} is larger than 5 MB.`);
-        // A browser that names no type for an export still gets the right one from its suffix,
-        // which is the usual case for the .csv a tracking app hands over.
-        const mime =
-          file.type || TYPE_BY_SUFFIX.find(([suffix]) => suffix.test(file.name))?.[1] || "";
-        const response = await fetch("/api/coaching/attachments", {
-          method: "POST",
-          headers: { "Content-Type": mime, "X-File-Name": encodeURIComponent(file.name) },
-          body: file,
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error ?? "The upload failed.");
-        setFiles((previous) => [...previous, result.file]);
-        change({ attachmentIds: [...current.current.attachmentIds, result.file.id] });
-      }
+      await sendCoachFiles(selected, current.current.attachmentIds.length, (file) => {
+        setFiles((previous) => [...previous, file]);
+        change({ attachmentIds: [...current.current.attachmentIds, file.id] });
+      });
       await flush();
     } catch (e) {
       unstable_rethrow(e);
@@ -1039,101 +1013,22 @@ function StartingPointStep({
         </Field>
       </Card>
       <Card>
-        <Field label="Reports and plans" info="They stay for later reviews until you remove them.">
-          <FilePicker busy={busy} onUpload={onUpload} />
-        </Field>
-        {files.length > 0 && (
-          <ul className="ruled-list">
-            {files.map((file) => (
-              <li key={file.id} className="space-y-2 py-2">
-                <label
-                  htmlFor={`report-${file.id}`}
-                  className="flex min-h-[var(--ov-target)] cursor-pointer items-center gap-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    id={`report-${file.id}`}
-                    checked={answers.attachmentIds.includes(file.id)}
-                    className="size-5 shrink-0 accent-[var(--ov-accent)]"
-                    disabled={
-                      busy ||
-                      (!answers.attachmentIds.includes(file.id) &&
-                        answers.attachmentIds.length >= MAX_REQUEST_FILES)
-                    }
-                    onChange={(event) =>
-                      change({
-                        attachmentIds: event.target.checked
-                          ? [...answers.attachmentIds, file.id]
-                          : answers.attachmentIds.filter((id) => id !== file.id),
-                      })
-                    }
-                  />
-                  <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{file.name}</span>
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <a
-                    className="inline-flex min-h-[var(--ov-target)] shrink-0 items-center text-sm text-accent underline"
-                    href={`/api/coaching/attachments/${file.id}`}
-                    download
-                  >
-                    Download
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="shrink-0"
-                    disabled={busy}
-                    onClick={() => onRemove(file)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <CoachFilesField
+          files={files}
+          attached={answers.attachmentIds}
+          busy={busy}
+          onUpload={onUpload}
+          onToggle={(id, on) =>
+            change({
+              attachmentIds: on
+                ? [...answers.attachmentIds, id]
+                : answers.attachmentIds.filter((entry) => entry !== id),
+            })
+          }
+          onRemove={onRemove}
+        />
       </Card>
     </>
-  );
-}
-
-/**
- * A tap target rather than a native file button. The browser's own control renders as
- * "Choose Files / no files selected" pinned to the left of its box, which says nothing
- * about what may be attached and looks like nothing else on the screen.
- */
-function FilePicker({
-  busy,
-  onUpload,
-}: {
-  busy: boolean;
-  onUpload: (files: FileList | null) => void;
-}) {
-  return (
-    <label
-      className={cn(
-        "flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-control border border-dashed border-line-strong px-4 py-5 text-center transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
-        busy && "pointer-events-none opacity-50",
-      )}
-    >
-      <Paperclip className="text-ink-subtle" aria-hidden />
-      <span className="text-sm font-medium">Add files</span>
-      {/* What it takes, and the most it takes: said where the files are added. */}
-      <span className="text-xs text-ink-subtle">
-        PDF, image, CSV or text · 5 MB each, five files
-      </span>
-      <input
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png,.txt,.md,.csv"
-        multiple
-        disabled={busy}
-        className="sr-only"
-        onChange={(event) => {
-          onUpload(event.target.files);
-          event.target.value = "";
-        }}
-      />
-    </label>
   );
 }
 
@@ -1214,24 +1109,7 @@ function ReviewStep({
           </div>
         ))}
       </dl>
-      {/* A question is as long as a sentence, so it gets a line of its own rather than a
-          six-character label column. */}
-      {answers.clarifications.length > 0 && (
-        <Disclosure
-          summary="What the coach asked"
-          meta={`${answers.clarifications.length} answered`}
-          variant="inline"
-        >
-          <dl className="text-sm ruled-list">
-            {answers.clarifications.map((entry) => (
-              <div key={entry.question} className="space-y-0.5 py-2">
-                <dt className="[overflow-wrap:break-word] text-ink-muted">{entry.question}</dt>
-                <dd className="break-words whitespace-pre-wrap">{entry.answer}</dd>
-              </div>
-            ))}
-          </dl>
-        </Disclosure>
-      )}
+      <CoachAsked clarifications={answers.clarifications} />
       {answers.prompt && (
         <Disclosure summary="Your brief" variant="footer">
           <p className="text-sm break-words whitespace-pre-wrap">{answers.prompt}</p>

@@ -11,7 +11,10 @@ import {
 } from "@/components/activities/activity-form-fields";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Field, Input, Textarea } from "@/components/ui/input";
+import { SpeechTextarea } from "@/components/ui/dictation";
+import { FormError } from "@/components/ui/form";
+import { Field, Input } from "@/components/ui/input";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import { coachIntakeSchema, type CoachIntake } from "@/domain/coaching-workflow";
@@ -38,6 +41,8 @@ import {
 } from "@/server/actions/coaching-workflow";
 
 import { coachingAction } from "./client-action";
+import { CoachFilesField, useCoachFiles, type CoachFile } from "./coach-files";
+import { CoachAsked } from "./coach-asked";
 import { DayPicker } from "./day-picker";
 
 /**
@@ -48,6 +53,10 @@ import { DayPicker } from "./day-picker";
  * of the month, a recent fast run), the answer starts filled in and says so beside its label,
  * "From your logs", until it is changed; it stays theirs to change. The goal is also written out in words for the coach, beside the
  * athlete's own, so a reader of the request sees "Marathon on Sun 14 Mar 2027, in 3:45:00".
+ *
+ * What the strength questions carry and a runner needs as much, it carries too: plans and
+ * reports to attach (a watch's export, a race result, a plan to work from), dictation into the
+ * long answers, the coach's earlier questions with their answers, and the asking kept in view.
  */
 
 const PLACE_LABELS: Record<RunningPlace, string> = {
@@ -171,12 +180,18 @@ function opening(
 export function RunningIntakeForm({
   initial,
   prefill,
+  reports,
+  configured,
   snapshot,
   unit,
   today,
 }: {
   initial: { id: string; revision: number; answers: CoachIntake } | null;
   prefill: CoachIntake;
+  /** The account's kept files; the saved answers say which go with this request. */
+  reports: CoachFile[];
+  /** Whether the coach can be asked for a programme now; the answers save either way. */
+  configured: boolean;
   snapshot: RunningSnapshot;
   unit: DistanceUnit;
   today: string;
@@ -191,10 +206,15 @@ export function RunningIntakeForm({
     opening(initial?.answers ?? prefill, snapshot, unit, initial !== null),
   );
   const [draft, setDraft] = useState<Draft>(opened);
+  const files = useCoachFiles(reports, (initial?.answers ?? prefill).attachmentIds, () =>
+    setMessage(null),
+  );
+  const busy = pending || files.busy;
   const set = (patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setError(null);
     setMessage(null);
+    files.dismiss();
   };
   const metres = (value: string) => {
     const parsed = Number(value.replace(",", "."));
@@ -258,6 +278,7 @@ export function RunningIntakeForm({
   }
 
   async function submit(intent: "save" | "create") {
+    files.dismiss();
     const answers = running();
     const problems = runningIntakeProblems(answers, today);
     if (intent === "create" && problems.length > 0) {
@@ -284,6 +305,7 @@ export function RunningIntakeForm({
       preferredDays: [],
       runsPerWeek,
       preferredRunDays: draft.days.length === runsPerWeek ? draft.days : [],
+      attachmentIds: files.attached,
       sports: [
         {
           sport: "running",
@@ -398,14 +420,16 @@ export function RunningIntakeForm({
             </div>
           )}
           <Field label="In your own words" aside="Optional">
-            <Textarea
+            <SpeechTextarea
+              label="your goal in your own words"
               value={draft.brief}
               maxLength={16000}
               rows={3}
               placeholder="For example, a 10K tune-up in May"
-              onChange={(event) => set({ brief: event.target.value })}
+              onChange={(brief) => set({ brief })}
             />
           </Field>
+          <CoachAsked clarifications={(initial?.answers ?? prefill).clarifications} />
         </Card>
       </Section>
 
@@ -507,6 +531,18 @@ export function RunningIntakeForm({
               ))}
             </Select>
           </Field>
+        </Card>
+        <Card>
+          <CoachFilesField
+            files={files.files}
+            attached={files.attached}
+            busy={busy}
+            error={files.error}
+            info="A watch export, a race result or a plan to work from. They stay for later reviews until you remove them."
+            onUpload={files.upload}
+            onToggle={files.toggle}
+            onRemove={files.remove}
+          />
         </Card>
       </Section>
 
@@ -611,34 +647,46 @@ export function RunningIntakeForm({
             </Select>
           </Field>
           <Field label="Anything that limits your running?" aside="Optional">
-            <Textarea
+            <SpeechTextarea
+              label="what limits your running"
               value={draft.restrictions}
               maxLength={3000}
+              rows={3}
               placeholder="For example, a tight left calf"
-              onChange={(event) => set({ restrictions: event.target.value })}
+              onChange={(restrictions) => set({ restrictions })}
             />
           </Field>
         </Card>
       </Section>
 
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p role="status" className="text-sm">
-          {message}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" value="create" disabled={pending}>
+      {/* The asking, kept in view down a long form, with what came of it (DESIGN.md, Pinned
+          actions). Saving stays open while the coach takes no new programmes. */}
+      <PinnedActions stack>
+        <FormError message={error ?? undefined} />
+        {message && (
+          <p role="status" className="type-meta-small text-ink-2">
+            {message}
+          </p>
+        )}
+        {!configured && (
+          <p className="type-meta-small text-ink-2">
+            The coach is not taking new programmes right now.
+          </p>
+        )}
+        <Button
+          type="submit"
+          value="create"
+          size="lg"
+          className="w-full"
+          disabled={busy || !configured}
+          aria-busy={pending}
+        >
           {pending ? "Saving…" : "Ask the coach for a programme"}
         </Button>
-        <Button type="submit" value="save" variant="secondary" disabled={pending}>
+        <button type="submit" value="save" disabled={busy} className="text-action w-full">
           Save answers
-        </Button>
-      </div>
+        </button>
+      </PinnedActions>
     </form>
   );
 }

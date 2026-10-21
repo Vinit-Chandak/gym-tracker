@@ -329,6 +329,26 @@ export type CoachIntake = z.infer<typeof coachIntakeSchema>;
 export type CoachIntakeTrack = NonNullable<CoachIntake["track"]>;
 export type TrainingLocation = NonNullable<CoachIntake["trainingLocation"]>;
 
+/**
+ * Saved answers with only the files still kept. A file removed since is no longer the athlete's
+ * to send, and the request would be refused for naming it; `needsSave` says the saved answers
+ * still do, so a form that saves as it goes saves them again.
+ */
+export function withKeptFiles<T extends { answers: CoachIntake }>(
+  saved: T | null,
+  kept: readonly { id: string }[],
+): (T & { needsSave: boolean }) | null {
+  if (!saved) return null;
+  const attachmentIds = saved.answers.attachmentIds.filter((id) =>
+    kept.some((file) => file.id === id),
+  );
+  return {
+    ...saved,
+    needsSave: attachmentIds.length !== saved.answers.attachmentIds.length,
+    answers: { ...saved.answers, attachmentIds },
+  };
+}
+
 export function validateIntake(input: unknown): CoachIntake {
   return coachIntakeSchema
     .superRefine((answers, ctx) => {

@@ -11,12 +11,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { Textarea } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import {
-  coachIntakeSchema,
-  MAX_COACH_FILE_BYTES,
-  MAX_REQUEST_FILES,
-  type CoachIntake,
-} from "@/domain/coaching-workflow";
+import { coachIntakeSchema, type CoachIntake } from "@/domain/coaching-workflow";
 import { TRAINING_GOAL_LABELS, WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/labels";
 import {
   fromKilograms,
@@ -32,8 +27,9 @@ import {
 } from "@/server/actions/coaching-workflow";
 
 import { coachingAction } from "./client-action";
+import { sendCoachFiles, type CoachFile } from "./coach-files";
 
-type Report = { id: string; name: string; mimeType: string; sizeBytes: number };
+type Report = CoachFile;
 type Key = keyof CoachIntake;
 
 /** The goals in the order the boards show them, as the words the coach reads. */
@@ -45,13 +41,6 @@ const GOALS = [
   TRAINING_GOAL_LABELS.general_fitness,
 ];
 const LENGTHS = [45, 60, 75, 90] as const;
-
-/** What a file is, when the browser declines to say. Ordered; the first match wins. */
-const TYPE_BY_SUFFIX: readonly (readonly [RegExp, string])[] = [
-  [/\.md$/i, "text/markdown"],
-  [/\.csv$/i, "text/csv"],
-  [/\.txt$/i, "text/plain"],
-];
 
 /** The intake's own rules, field by field, as the sentence each field shows under it. */
 function problems(answers: CoachIntake, detailed: boolean): Partial<Record<Key, string>> {
@@ -233,25 +222,13 @@ export function SetupCoachForm({
     setBusy(true);
     setError(null);
     try {
-      if (selected.length + answers.attachmentIds.length > MAX_REQUEST_FILES)
-        throw new Error("Attach up to five files.");
-      for (const file of Array.from(selected)) {
-        if (file.size > MAX_COACH_FILE_BYTES) throw new Error(`${file.name} is larger than 5 MB.`);
-        const mime =
-          file.type || TYPE_BY_SUFFIX.find(([suffix]) => suffix.test(file.name))?.[1] || "";
-        const response = await fetch("/api/coaching/attachments", {
-          method: "POST",
-          headers: { "Content-Type": mime, "X-File-Name": encodeURIComponent(file.name) },
-          body: file,
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error ?? "The upload failed.");
-        setFiles((previous) => [...previous, result.file]);
+      await sendCoachFiles(selected, answers.attachmentIds.length, (file) => {
+        setFiles((previous) => [...previous, file]);
         setAnswers((current) => ({
           ...current,
-          attachmentIds: [...current.attachmentIds, result.file.id],
+          attachmentIds: [...current.attachmentIds, file.id],
         }));
-      }
+      });
     } catch (e) {
       unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "The upload failed.");
