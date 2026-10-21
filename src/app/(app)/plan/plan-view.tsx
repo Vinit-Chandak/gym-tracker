@@ -1,6 +1,7 @@
 import type { Route } from "next";
 
 import { Art } from "@/components/art/art";
+import type { FormState } from "@/components/art/geometry";
 import {
   enduranceName,
   enduranceTarget,
@@ -8,6 +9,7 @@ import {
 } from "@/components/activities/endurance-line";
 import { alreadySays } from "@/components/activities/prescription-lines";
 import { PageHeader } from "@/components/shell/page-header";
+import { dayAndMonth, weekDates, weekdayName } from "@/components/shell/root-dates";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,10 +18,11 @@ import { Glyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { byDay, weekStartOf, type WeekSession, type WeekStatus } from "@/domain/plan-week";
-import { addDays } from "@/domain/program-calendar";
+import { addDays, daysBetween } from "@/domain/program-calendar";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { holdHyphens, joinFacts } from "@/lib/facts";
-import { formatDateRange, formatIsoDate } from "@/lib/format";
+import { formatIsoDate, formatIsoWeekdayLetter } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type {
   NewProgrammeDraft,
   NewProgrammeRequest,
@@ -70,6 +73,31 @@ function sessionWords(
   return { name, figure: figure && !alreadySays(name, figure) ? figure : null };
 }
 
+/**
+ * A session's mark in its state (DESIGN.md, The Thinned, Full, Dashed Rule): done full, a day
+ * gone by unanswered dashed as a skipped one is (Signals: a missed day is its dashed mark, the
+ * word Missed beside it), anything still owed thinned.
+ */
+function markState(status: WeekStatus): FormState {
+  return status === "done"
+    ? "done"
+    : status === "skipped" || status === "missed"
+      ? "skipped"
+      : "todo";
+}
+
+/** Where a session stands, as a day's paper says it to a screen reader: "Lower A, to do". */
+const SAID: Record<WeekStatus, string> = {
+  done: "done",
+  skipped: "skipped",
+  missed: "missed",
+  today: "to do",
+  planned: "to do",
+};
+
+/** A day's entry in the rows under the week, which its paper leads to. */
+const dayAnchor = (date: string) => `plan-day-${date}`;
+
 /** A day's sessions, each with its sport's mark, its name, its figure and where it stands. */
 function DayRows({ sessions, units }: { sessions: readonly WeekSession[]; units: SportUnits }) {
   return (
@@ -85,13 +113,7 @@ function DayRows({ sessions, units }: { sessions: readonly WeekSession[]; units:
                 kind="mark"
                 sport={MARK[session.sport]}
                 size={20}
-                state={
-                  session.status === "done"
-                    ? "done"
-                    : session.status === "skipped"
-                      ? "skipped"
-                      : "todo"
-                }
+                state={markState(session.status)}
               />
             }
             label={holdHyphens(name)}
@@ -101,6 +123,101 @@ function DayRows({ sessions, units }: { sessions: readonly WeekSession[]; units:
         );
       })}
     </ul>
+  );
+}
+
+/** The marks a paper holds side by side, then in two rows of two; past four, three and +N. */
+const SHOWN_MARKS = 4;
+
+/**
+ * The week as seven day papers in the month's grammar (DESIGN.md, Layout: Plan; The month): a
+ * tile of paper for each day, its date in the corner, each session its sport's mark in its
+ * state, today ringed in print ink, and a day with nothing in it a paler sheet. A day of one
+ * session opens it; a day of more opens its entry in the rows under the week.
+ */
+function WeekPapers({
+  days,
+  monday,
+  today,
+  units,
+}: {
+  days: readonly { date: string; sessions: WeekSession[] }[];
+  monday: string;
+  today: string;
+  units: SportUnits;
+}) {
+  const year = today.slice(0, 4);
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  return (
+    <div role="group" aria-label="The week, day by day" className="month month-dated plan-papers">
+      <div aria-hidden className="month-weekdays">
+        {dates.map((date) => (
+          <span key={date}>{formatIsoWeekdayLetter(date)}</span>
+        ))}
+      </div>
+      <div className="month-days">
+        {dates.map((date) => {
+          const sessions = days.find((day) => day.date === date)?.sessions ?? [];
+          const isToday = date === today;
+          const said = sessions.length
+            ? sessions
+                .map((session) => `${sessionWords(session, units).name}, ${SAID[session.status]}`)
+                .join("; ")
+            : "nothing planned";
+          const name = `${weekdayName(date)} ${dayAndMonth(date, year)}${isToday ? ", today" : ""}: ${said}`;
+          const tile = cn(
+            "month-day",
+            sessions.length === 0 && "month-day-rest",
+            isToday && "month-day-today",
+          );
+          const shown = sessions.length > SHOWN_MARKS ? sessions.slice(0, 3) : sessions;
+          const inner = (
+            <>
+              <span aria-hidden className="month-date">
+                {Number(date.slice(8, 10))}
+              </span>
+              {sessions.length > 0 && (
+                <span aria-hidden className="month-icons">
+                  <span className="plan-paper-marks">
+                    {shown.map((session) => (
+                      <Art
+                        key={session.key}
+                        kind="mark"
+                        sport={MARK[session.sport]}
+                        size={16}
+                        state={markState(session.status)}
+                        surface="paper"
+                      />
+                    ))}
+                    {shown.length < sessions.length && (
+                      <span className="plan-paper-more">+{sessions.length - shown.length}</span>
+                    )}
+                  </span>
+                </span>
+              )}
+            </>
+          );
+          if (sessions.length === 0)
+            return (
+              <span key={date} role="img" aria-label={name} className={tile}>
+                {inner}
+              </span>
+            );
+          // A day of more than one session is its entry under the week, on this page.
+          if (sessions.length > 1)
+            return (
+              <a key={date} href={`#${dayAnchor(date)}`} aria-label={name} className={tile}>
+                {inner}
+              </a>
+            );
+          return (
+            <Link key={date} href={sessionHref(sessions[0]!)} aria-label={name} className={tile}>
+              {inner}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -114,59 +231,68 @@ function outcome(sessions: readonly WeekSession[]): string {
   );
 }
 
+/**
+ * The week's headline (DESIGN.md, Tab roots): "This week", or where another week is, how far
+ * from it ("Next week", "3 weeks ago"), since its dates are said under it.
+ */
+function weekTitle(monday: string, today: string): string {
+  const weeks = Math.round(daysBetween(weekStartOf(today), monday) / 7);
+  if (weeks === 0) return "This week";
+  if (weeks === 1) return "Next week";
+  if (weeks === -1) return "Last week";
+  return weeks > 1 ? `In ${weeks} weeks` : `${-weeks} weeks ago`;
+}
+
+/**
+ * The weeks either side, under the week's rows as a list's pages are (DESIGN.md, Page tabs),
+ * each named by where it stands from today ("Last week", "Next week"); the tab itself comes back
+ * to this one.
+ */
+function WeekSteps({ monday, today }: { monday: string; today: string }) {
+  const before = addDays(monday, -7);
+  const after = addDays(monday, 7);
+  return (
+    <nav aria-label="Weeks" className="plan-week-steps">
+      <Link href={`/plan?week=${before}` as Route} className="plan-week-step">
+        <Glyph name="chevronLeft" className="glyph-20" />
+        {weekTitle(before, today)}
+      </Link>
+      <Link href={`/plan?week=${after}` as Route} className="plan-week-step">
+        {weekTitle(after, today)}
+        <Glyph name="chevronRight" className="glyph-20" />
+      </Link>
+    </nav>
+  );
+}
+
 function Week({
   sessions,
   monday,
   today,
   units,
+  label,
 }: {
   sessions: readonly WeekSession[];
   monday: string;
   today: string;
   units: SportUnits;
+  /** The headline the week stands under, which names it for a screen reader. */
+  label: string;
 }) {
   const days = byDay(sessions);
   const gone = days.filter(({ date }) => date < today);
   const ahead = days.filter(({ date }) => date >= today);
   const year = today.slice(0, 4);
-  const sunday = addDays(monday, 6);
-  const thisWeek = monday === weekStartOf(today);
   return (
-    <section aria-labelledby="plan-week" className="plan-week">
-      <div className="plan-week-head">
-        <div className="min-w-0">
-          <h2 id="plan-week" className="caption-head">
-            {thisWeek ? "This week" : "Week"}
-          </h2>
-          <p className="type-meta-small text-ink-2 tabular-nums">
-            {formatDateRange(monday, sunday)}
-          </p>
-        </div>
-        {/* Another week is a step away; the tab itself comes back to this one. */}
-        <nav aria-label="Weeks" className="plan-week-steps">
-          <Link
-            href={`/plan?week=${addDays(monday, -7)}` as Route}
-            className="icon-button"
-            aria-label="Previous week"
-          >
-            <Glyph name="chevronLeft" className="glyph-20" />
-          </Link>
-          <Link
-            href={`/plan?week=${addDays(monday, 7)}` as Route}
-            className="icon-button"
-            aria-label="Next week"
-          >
-            <Glyph name="chevronRight" className="glyph-20" />
-          </Link>
-        </nav>
-      </div>
+    <section aria-label={label} className="plan-week">
+      <WeekPapers days={days} monday={monday} today={today} units={units} />
       {days.length === 0 && <p className="type-meta text-ink-2">Nothing planned.</p>}
       {gone.length > 0 && (
         // A day gone by is one closed row saying what became of it, its sessions a tap away
         // (DESIGN.md, Folds): ruled rows that share their rules, never a stack of boxes.
         <ul className="[&>li+li]:-mt-px">
           {gone.map(({ date, sessions: onDay }) => (
-            <li key={date}>
+            <li key={date} id={dayAnchor(date)} className="plan-day">
               <Disclosure
                 summary={formatIsoDate(date, year)}
                 meta={outcome(onDay)}
@@ -181,14 +307,56 @@ function Week({
       {ahead.length > 0 && (
         <ul className="plan-days">
           {ahead.map(({ date, sessions: onDay }) => (
-            <li key={date} className="plan-day">
+            <li key={date} id={dayAnchor(date)} className="plan-day">
               <p className="plan-day-name type-caption tabular-nums">{formatIsoDate(date, year)}</p>
               <DayRows sessions={onDay} units={units} />
             </li>
           ))}
         </ul>
       )}
+      <WeekSteps monday={monday} today={today} />
     </section>
+  );
+}
+
+/** More weeks than this and a segment would be too narrow to read as one; the words say it. */
+const MOST_SEGMENTS = 40;
+
+/**
+ * Where a programme that runs in weeks or cycles has got to, from the words its card says it in
+ * ("Week 3 of 8", "Cycle 5 of 14"); null for one counted in days, not started, or finished.
+ */
+export function programmeWeeks(position: string | null): { current: number; total: number } | null {
+  const found = position ? /^(?:Week|Cycle) (\d+) of (\d+)$/.exec(position) : null;
+  if (!found) return null;
+  const current = Number(found[1]);
+  const total = Number(found[2]);
+  return current >= 1 && current <= total && total <= MOST_SEGMENTS ? { current, total } : null;
+}
+
+/**
+ * A programme's weeks as a row of segments in its sport's pigment (DESIGN.md, Layout: Plan): the
+ * weeks done full, the current week thinned, the rest `surface`. The words beside it say where
+ * it has got to, so the row is not read out.
+ */
+function ProgrammeWeeks({
+  sport,
+  current,
+  total,
+}: {
+  sport: ActivitySport;
+  current: number;
+  total: number;
+}) {
+  return (
+    <span aria-hidden data-sport={MARK[sport]} className="plan-programme-weeks">
+      {Array.from({ length: total }, (_, index) => (
+        <span
+          key={index}
+          data-state={index + 1 < current ? "done" : index + 1 === current ? "now" : undefined}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -196,6 +364,7 @@ function Week({
 function Programme({ card }: { card: PlanCard }) {
   const { programme, waiting, pattern, position, finished } = card;
   const draft = waiting[0];
+  const weeks = finished ? null : programmeWeeks(position);
   return (
     <li className="min-w-0">
       <Link href={`/plan/${programme.sport}` as Route} className="plan-programme box panel-padding">
@@ -207,6 +376,7 @@ function Programme({ card }: { card: PlanCard }) {
         <span className="type-meta text-ink-2 tabular-nums">
           {joinFacts([pattern, finished ? "Complete" : position])}
         </span>
+        {weeks && <ProgrammeWeeks sport={programme.sport} {...weeks} />}
         {draft && (
           <span className="plan-programme-waiting type-meta-small">
             {draft.status === "editing" ? "Draft in progress" : "Changes to review"}
@@ -263,9 +433,9 @@ function draftHref(draft: Pick<NewProgrammeDraft, "id" | "sport" | "status">): s
 }
 
 /**
- * Plan (ADR 0058): what comes next and how it is built. This week's sessions for every sport,
- * by date, then one card per programme. Starting, logging and skipping today's sessions are
- * Today's; what has been done is Progress's.
+ * Plan (ADR 0058): what comes next and how it is built. The week as its headline and as seven
+ * day papers, then its sessions for every sport, by date, then one card per programme. Starting,
+ * logging and skipping today's sessions are Today's; what has been done is Progress's.
  */
 export function PlanView({
   cards,
@@ -288,10 +458,15 @@ export function PlanView({
   today: string;
 }) {
   const empty = cards.length === 0 && drafts.length === 0 && requests.length === 0;
+  const title = weekTitle(monday, today);
   return (
     <div className="page-wide">
+      {/* The week is the headline, its dates under it (DESIGN.md, Tab roots); the tab bar
+          already says Plan. */}
       <PageHeader
-        title="Plan"
+        tab="Plan"
+        title={title}
+        meta={weekDates(monday, addDays(monday, 6), today.slice(0, 4))}
         // With no programme, starting one is the page itself; otherwise it waits up here.
         action={
           empty ? undefined : (
@@ -309,7 +484,7 @@ export function PlanView({
           </Card>
         )}
         {(!empty || sessions.length > 0) && (
-          <Week sessions={sessions} monday={monday} today={today} units={units} />
+          <Week sessions={sessions} monday={monday} today={today} units={units} label={title} />
         )}
         {!empty && (
           <section aria-labelledby="plan-programmes" className="space-y-3">
