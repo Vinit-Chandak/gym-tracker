@@ -9,7 +9,9 @@ with their evidence. _Undecided_ marks what nobody has decided yet.
 
 Programme ownership and logging were updated on 16 October 2026 against the shipped flows and
 [ADR 0056](docs/decisions/0056-independent-sport-programmes.md). Today, Plan and Log were updated
-on 20 October 2026 against [ADR 0058](docs/decisions/0058-today-and-plan.md).
+on 20 October 2026 against [ADR 0058](docs/decisions/0058-today-and-plan.md). Principles 7 to 9,
+the colour commitment and laps were added on 21 October 2026 from the owner's notes on the built
+app ([the plan](docs/planning/COLOUR_FORMS_AND_LAPS_PLAN.md)).
 
 ## Platform
 
@@ -225,6 +227,7 @@ programme"). Old paths redirect permanently ([ADR 0060](docs/decisions/0060-ever
 | Sports, gyms and machines                                                          | Profile                                        |
 | Maximum and resting heart rate, and the zones                                      | Profile › Heart rate zones                     |
 | A run's laps and its time in each zone                                             | Its page                                       |
+| A run's rep pace and its pace with rests                                           | Its page; Log a run while it is being entered  |
 
 ## Brand Commitments
 
@@ -235,6 +238,10 @@ programme"). Old paths redirect permanently ([ADR 0060](docs/decisions/0060-ever
 - Typefaces must be licensed for the web and for embedding in the native apps.
 - Copy is in sentence case and British English, in plain words, with numbers in the app's own
   notation ("60 kg × 5 @ 2 RIR").
+- Colour says something or is not there: a sport's pigment on its own prints, marks and data, red
+  for what must be fixed, green for what was kept, and ink for everything else (owner, 21 October
+  2026; `DESIGN.md`, The Colour Is Information Rule). The interface stays clean, quiet and
+  precise, in the spirit of Japanese print and paper, never cartoonish.
 
 ## Evidence on Hand
 
@@ -279,6 +286,18 @@ Checked against the decisions above and the owner's notes (2 October 2026):
    accessibility needs on the screen itself: a control's label, a rule or format a value must
    meet, an error and its fix, a change of status and a consequence that cannot be undone. Those
    are not explanations, and they stay.
+7. **Ask once.** What the app can work out is never asked for again: a run's distance and time
+   are its laps added up, a pace is its distance over its time, and a session of reps and
+   recoveries is intervals. A figure the athlete types instead wins, and is checked against its
+   parts (owner, 21 October 2026).
+8. **A refused save keeps everything.** Every value typed and every choice made survives a
+   refusal; the field at fault turns red where it is and says how to fix it, and Save leads
+   there. Nothing is ever retyped because the app said no.
+9. **Done means it works for an athlete.** A change is finished when every task it touches has
+   been carried out in the running app with the variants athletes bring (an interval session
+   entered as laps alone, a swim by lengths, a ride in miles, a refused save, dark, 320 pt, 200%
+   text), not when its pages open. An audit that only opens pages is a route check, and says so
+   (owner, 21 October 2026, after an interval run could not be saved).
 
 ## Accessibility & Inclusion
 
