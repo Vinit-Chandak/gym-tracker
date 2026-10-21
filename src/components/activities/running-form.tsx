@@ -273,7 +273,13 @@ export function RunningForm({
   // Board Log a run: what the plan asked for, where, the distance and the time with the pace
   // they make, how hard it felt; everything optional behind one row; Save at the foot.
   return (
-    <form ref={form} action={formAction} onSubmit={() => setSubmitted(rows.map((row) => row.key))}>
+    // Its sections stand as panels on the grouped ground (DESIGN.md, Layout: Forms).
+    <form
+      ref={form}
+      action={formAction}
+      className="ov-grouped"
+      onSubmit={() => setSubmitted(rows.map((row) => row.key))}
+    >
       <input type="hidden" name="sport" value="running" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <ActivityIdentityFields
@@ -296,7 +302,7 @@ export function RunningForm({
       </div>
       {/* What kind of run it was: a planned session's own kind to start with, which is context
           and not a measurement, and anything the athlete chooses instead (ADR 0059). */}
-      <div className="mt-1.5">
+      <div className="ov-panel ov-panel-body mt-3">
         <Field
           label="Kind of run"
           aside="Optional"
@@ -316,8 +322,6 @@ export function RunningForm({
             ))}
           </Select>
         </Field>
-      </div>
-      <div className="mt-1.5">
         {distanceFromLaps ? (
           <>
             {/* Nothing typed: the server adds the laps up in the unit the athlete runs in. */}
@@ -431,74 +435,80 @@ export function RunningForm({
             Use the laps’ totals
           </button>
         )}
+      </div>
+      <div className="ov-panel ov-panel-body mt-3">
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
-      <LapsEditor
-        rows={rows}
-        onRowsChange={setRows}
-        planned={plannedLaps}
-        readIn={(readIn ?? "km") as DistanceUnit}
-        errors={errors}
-        submitted={submitted}
-        missing={{
-          distance: Boolean(refusedDistance) && distanceFromLaps && lapMetres === null,
-          time: Boolean(refusedTime) && timeFromLaps && lapMs === null,
-        }}
-      />
+      <div className="ov-panel ov-panel-body mt-3">
+        <LapsEditor
+          rows={rows}
+          onRowsChange={setRows}
+          planned={plannedLaps}
+          readIn={(readIn ?? "km") as DistanceUnit}
+          errors={errors}
+          submitted={submitted}
+          missing={{
+            distance: Boolean(refusedDistance) && distanceFromLaps && lapMetres === null,
+            time: Boolean(refusedTime) && timeFromLaps && lapMs === null,
+          }}
+        />
+      </div>
 
-      <MoreDetails
-        defaultOpen={openDetails}
-        hasErrors={[
-          "startedAt",
-          "startedAtOffsetMinutes",
-          "recordedTimeZone",
-          "surface",
-          "elevationGainMetres",
-          "treadmillInclinePercent",
-          "cadenceStepsPerMinute",
-          "averageHeartRate",
-          "maxHeartRate",
-          "title",
-          "notes",
-        ].some((field) => Boolean(errors?.[field]))}
-      >
-        <ActivityStartFields values={values} errors={errors} />
-        <Field label="Surface" aside="Optional" error={errors?.surface}>
-          <Input
-            name="surface"
-            list="run-surfaces"
-            defaultValue={values("surface")}
-            placeholder="Road, trail, track…"
-          />
-        </Field>
-        <datalist id="run-surfaces">
-          {SURFACES.map((surface) => (
-            <option key={surface} value={surface} />
-          ))}
-        </datalist>
-        <div className="grid grid-cols-2 gap-2">
-          <ElevationField values={values} errors={errors} readIn={readIn} />
-          <Field label="Incline %" error={errors?.treadmillInclinePercent}>
+      <div className="ov-panel ov-panel-body mt-3">
+        <MoreDetails
+          defaultOpen={openDetails}
+          hasErrors={[
+            "startedAt",
+            "startedAtOffsetMinutes",
+            "recordedTimeZone",
+            "surface",
+            "elevationGainMetres",
+            "treadmillInclinePercent",
+            "cadenceStepsPerMinute",
+            "averageHeartRate",
+            "maxHeartRate",
+            "title",
+            "notes",
+          ].some((field) => Boolean(errors?.[field]))}
+        >
+          <ActivityStartFields values={values} errors={errors} />
+          <Field label="Surface" aside="Optional" error={errors?.surface}>
             <Input
-              name="treadmillInclinePercent"
-              inputMode="decimal"
-              defaultValue={values("treadmillInclinePercent")}
+              name="surface"
+              list="run-surfaces"
+              defaultValue={values("surface")}
+              placeholder="Road, trail, track…"
+            />
+          </Field>
+          <datalist id="run-surfaces">
+            {SURFACES.map((surface) => (
+              <option key={surface} value={surface} />
+            ))}
+          </datalist>
+          <div className="grid grid-cols-2 gap-2">
+            <ElevationField values={values} errors={errors} readIn={readIn} />
+            <Field label="Incline %" error={errors?.treadmillInclinePercent}>
+              <Input
+                name="treadmillInclinePercent"
+                inputMode="decimal"
+                defaultValue={values("treadmillInclinePercent")}
+                placeholder="—"
+              />
+            </Field>
+          </div>
+          <Field label="Cadence steps/min" error={errors?.cadenceStepsPerMinute}>
+            <Input
+              name="cadenceStepsPerMinute"
+              inputMode="numeric"
+              defaultValue={values("cadenceStepsPerMinute")}
               placeholder="—"
             />
           </Field>
-        </div>
-        <Field label="Cadence steps/min" error={errors?.cadenceStepsPerMinute}>
-          <Input
-            name="cadenceStepsPerMinute"
-            inputMode="numeric"
-            defaultValue={values("cadenceStepsPerMinute")}
-            placeholder="—"
-          />
-        </Field>
-        <HeartRateFields values={values} errors={errors} />
-        <NotesFields values={values} errors={errors} />
-      </MoreDetails>
+          <HeartRateFields values={values} errors={errors} />
+          <NotesFields values={values} errors={errors} />
+        </MoreDetails>
+      </div>
 
       {notice}
 

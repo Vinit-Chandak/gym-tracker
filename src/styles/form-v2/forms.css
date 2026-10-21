@@ -89,6 +89,34 @@ body:has(.ov-grouped-page) {
 .ov-panel-list {
   padding: 0 calc(16 * var(--ov-u));
 }
+/* A form on the grouped ground: the ground under everything in it, the pinned Save and its fade
+   included, is the grouped one, and so is the page around it. */
+.ov-grouped {
+  --ov-ground: var(--ov-grouped);
+}
+.app-content:has(form.ov-grouped),
+body:has(form.ov-grouped) {
+  background: var(--ov-grouped);
+}
+/* A choice of tiles standing on the grouped ground (Outdoor, Treadmill): an unchosen tile is a
+   panel there, or it would be the ground's own fill and read as a stray word. */
+.ov-grouped .peer:not(:checked) + .where-choice-tile {
+  background: var(--ov-panel);
+}
+/* A panel of rows and fields: the rows' own rules and padding, inset by the panel's. */
+.ov-panel-body {
+  padding: calc(6 * var(--ov-u)) calc(16 * var(--ov-u));
+}
+.ov-panel-body > .min-w-0:first-child {
+  padding-top: calc(8 * var(--ov-u));
+  padding-bottom: calc(6 * var(--ov-u));
+}
+.ov-panel-body > .effort-field {
+  padding: calc(6 * var(--ov-u)) 0;
+}
+.ov-panel-body > .more-details > .more-details-summary {
+  color: var(--ov-ink);
+}
 .ov-panel-caption {
   margin: calc(20 * var(--ov-u)) calc(4 * var(--ov-u)) calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
@@ -111,6 +139,12 @@ body:has(.ov-grouped-page) {
 /* A lap inside the laps panel stands on the panel's tray, as a step does. */
 .ov-panel .lap-row {
   background: var(--ov-panel-tray);
+}
+
+/* A lap's fields stand three to a row: their insets are narrower, so a standing recovery's
+   distance reads Standing whole rather than cut short. */
+.lap-row-fields .ov-input {
+  padding-inline: calc(10 * var(--ov-u));
 }
 
 /* ---------- a record kept ---------- */
