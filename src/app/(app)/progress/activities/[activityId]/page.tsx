@@ -44,6 +44,7 @@ import { answeredName, CountsAsRow } from "./answered-session";
 import type { AnsweredOnDelete } from "./delete-button";
 import { recordedExtras, type ActivityStat } from "./recorded-extras";
 import { RunLaps } from "./run-laps";
+import { SavedBar } from "./saved-bar";
 import { startedAtLine } from "./started-at";
 
 const PRINT = { running: "run", cycling: "ride", swimming: "swim" } as const;
@@ -116,7 +117,10 @@ export default async function ActivityPage(props: PageProps<"/progress/activitie
   requireUuid(activityId);
   // Passed on to the correction, so the tab it was opened from stays selected through it, and
   // where Back goes without a page before it: that tab, or History with none (NAV-03).
-  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+  const search = await props.searchParams;
+  const origin = parseOrigin(search[ORIGIN_PARAM]);
+  // Just saved from its form (activity-editor.tsx): a new record or a correction.
+  const saved = search.saved === "new" || search.saved === "changed" ? search.saved : null;
   const { profile, activity, units, answered, heartRate } = await readRecord(activityId);
   if (!activity) notFound();
 
@@ -224,6 +228,22 @@ export default async function ActivityPage(props: PageProps<"/progress/activitie
         </div>
       </header>
       <div className="page-width pb-8">
+        {saved && (
+          <SavedBar
+            activityId={activity.id}
+            undo={saved === "new"}
+            origin={origin}
+            said={
+              saved === "changed"
+                ? "Changes saved"
+                : `${sport ? NOUN[sport][0]!.toUpperCase() + NOUN[sport].slice(1) : "Activity"} saved${
+                    actual?.sport === "running" && actual.runType === "intervals"
+                      ? " as intervals"
+                      : ""
+                  }`
+            }
+          />
+        )}
         {sport && (
           <figure className="activity-print">
             <Art

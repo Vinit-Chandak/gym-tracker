@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { Route } from "next";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
@@ -41,6 +42,7 @@ import {
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { RUN_TYPES } from "@/domain/run-types";
 import { fromMetres, roundTo } from "@/lib/distance-units";
+import { originPath, parseOrigin } from "@/lib/nav";
 import { dateTimeLocalCandidates, timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -723,9 +725,13 @@ export type DeleteActivityResult = { ok: true } | { ok: false; error: string };
 /**
  * Removes an activity and everything derived from it, and gives its occurrence back. The
  * confirmation that this will happen belongs to the screen; by the time this runs, it has
- * been given (§5.2).
+ * been given (§5.2). Undo on a record just saved is the same removal, and goes back to the tab
+ * it was logged from (`undoneFrom`, a validated origin) rather than to History.
  */
-export async function deleteActivityAction(activityId: string): Promise<DeleteActivityResult> {
+export async function deleteActivityAction(
+  activityId: string,
+  undoneFrom?: string | null,
+): Promise<DeleteActivityResult> {
   const user = await requireUser();
   let removed: { occurrenceId: string | null; sport: string };
   try {
@@ -740,5 +746,11 @@ export async function deleteActivityAction(activityId: string): Promise<DeleteAc
     activityId,
     occurrenceId: removed.occurrenceId,
   });
+  if (undoneFrom !== undefined) {
+    // Logging is Today's (PRODUCT.md, Information map), so an undone log with no tab of its own
+    // goes back there.
+    const origin = parseOrigin(undoneFrom ?? undefined);
+    redirect((origin ? originPath(origin) : "/today") as Route);
+  }
   redirect("/progress/history");
 }
