@@ -29,14 +29,24 @@ function nameOf(element: HTMLElement): string | null {
 const inSentence = (name: string) =>
   /^[A-Z][a-z]/.test(name) ? name[0]!.toLowerCase() + name.slice(1) : name;
 
-/** What the form marks as not saveable, in page order, each named once. */
+/**
+ * What the form marks as not saveable, in page order, each field once: a field drawn as several
+ * controls (a distance's whole and the digits after its point) is one field, named by its own
+ * label, as the field says it.
+ */
 function refusedIn(form: HTMLFormElement): Refused[] {
-  const seen = new Set<string>();
+  const seen = new Set<Element | string>();
   const refused: Refused[] = [];
   for (const element of form.querySelectorAll<HTMLElement>('[aria-invalid="true"]')) {
-    const name = nameOf(element);
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
+    const field = element.closest<HTMLElement>('[data-field-error="true"]');
+    const label = field?.querySelector("label")?.textContent?.trim();
+    // A lap's field is named with its lap ("lap 4 time"), as the run has a time of its own.
+    const lap = element.closest(".lap-row")?.querySelector(".lap-row-number")?.textContent?.trim();
+    const own = label || nameOf(element);
+    const name = own && lap ? `${lap} ${own[0]!.toLowerCase()}${own.slice(1)}` : own;
+    const key = field ?? name;
+    if (!name || !key || seen.has(key)) continue;
+    seen.add(key);
     refused.push({ element, name });
   }
   return refused;
@@ -96,7 +106,9 @@ export function FormError({ message }: { message?: string }) {
   return (
     <div ref={ref} className="space-y-2 empty:hidden" data-refused-save>
       {first && (
-        <div role="alert">
+        // Not an alert: each refused field says its own words as one, and Save brings the first
+        // into view and focus; this only counts them and leads there.
+        <div>
           <button
             type="button"
             onClick={() => {
