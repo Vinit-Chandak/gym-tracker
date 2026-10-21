@@ -212,7 +212,8 @@ try {
   await check("food is available to every signed-in account without configuration", async () => {
     await login("alex");
     await tab("Food").click();
-    await expect(page.getByRole("heading", { name: "Food", exact: true })).toBeVisible();
+    // Food's root opens on the day it shows; its h1 names the tab first (DESIGN.md, Tab roots).
+    await expect(page.getByRole("heading", { level: 1, name: /^Food, / })).toBeVisible();
     await expect(page.getByRole("link", { name: /^Breakfast/ })).toBeVisible();
   });
   await login("sam");
@@ -580,7 +581,7 @@ try {
       await settleRequests();
       await back.click();
       await page.waitForURL(/\/progress$/);
-      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: /^Progress, / })).toBeVisible();
       // It is no longer one of Progress's sections: the picker lists the seven (ADR 0047).
       await page.getByRole("button", { name: /^Progress section:/ }).click();
       await expect(dialog().getByRole("button", { name: "Strength", exact: true })).toBeVisible();

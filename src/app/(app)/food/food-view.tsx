@@ -7,6 +7,7 @@ import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
 import { FoodRowText, RowKcal } from "@/components/food/food-row";
 import { FoodSummary, mealTotals } from "@/components/food/food-summary";
 import { PageHeader } from "@/components/shell/page-header";
+import { dayAndMonth, weekdayName } from "@/components/shell/root-dates";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
@@ -15,7 +16,7 @@ import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
 import { joinFacts } from "@/lib/facts";
-import { formatIsoDate, formatKcal, formatSplit } from "@/lib/format";
+import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
@@ -190,9 +191,14 @@ export function FoodView({
     // Two panes at most: wider than the reading column where the screen has room for two that
     // are each a phone's width, its header with it (ADR 0052).
     <div className="food-page page-wide">
+      {/* The day on screen is the headline (DESIGN.md, Tab roots); what it came to is the big
+          figure under the strip, said once. The h1 says the date with the day, so the date
+          shown under it is not read twice. */}
       <PageHeader
-        title="Food"
-        meta={date === today ? undefined : formatIsoDate(date, today.slice(0, 4))}
+        tab="Food"
+        title={weekdayName(date)}
+        said={dayAndMonth(date, today.slice(0, 4))}
+        meta={<span aria-hidden="true">{dayAndMonth(date, today.slice(0, 4))}</span>}
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}
       />
       <div className="food page-width">

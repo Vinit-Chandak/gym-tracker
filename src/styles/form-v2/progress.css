@@ -4,10 +4,7 @@
  * its key, and lists whose marks share one column. The graphs are graph.css's.
  */
 
-/* ---------- the opening: the title and its funnel, then the section and its range ---------- */
-.progress-head > .section-select {
-  margin-top: calc(4 * var(--ov-u));
-}
+/* The opening is a tab's root (page-header.tsx, rows.css): the section is its headline. */
 
 /* A caption over a list: 13 pt, ink 2 (board: Runs, Latest). */
 .caption-head {
