@@ -111,6 +111,10 @@ body:has(form.ov-grouped) {
   padding-top: calc(8 * var(--ov-u));
   padding-bottom: calc(6 * var(--ov-u));
 }
+/* The panel's own edge ends its last row: no rule under it. */
+.ov-panel-body > :last-child {
+  border-bottom-width: 0;
+}
 .ov-panel-body > .effort-field {
   padding: calc(6 * var(--ov-u)) 0;
 }
