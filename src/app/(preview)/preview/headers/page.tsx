@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/page-header";
-import { Wordmark } from "@/components/shell/wordmark";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,7 +24,19 @@ export default function PreviewHeadersPage() {
   return (
     <PreviewShell tab="/profile">
       <div className="[&_header]:static">
-        <PageHeader title={<Wordmark />} meta="Fri 11 Sept" />
+        {/* Tab roots open on their subject, never the tab's name (DESIGN.md, Tab roots). */}
+        <PageHeader
+          tab="Today"
+          title="Friday"
+          said="11 September"
+          meta="11 September · 1 of 2 done"
+          action={
+            <LinkButton href="/preview/headers" size="sm" variant="tonal">
+              Log
+            </LinkButton>
+          }
+        />
+        <PageHeader tab="Plan" title="This week" meta="7 to 13 September" />
         <PageHeader
           title="Gyms"
           action={
@@ -34,7 +45,7 @@ export default function PreviewHeadersPage() {
             </LinkButton>
           }
         />
-        <PageHeader title="Progress" meta="29 Aug – 11 Sept 2026" />
+        <PageHeader tab="Progress" title="Running" meta="29 Aug – 11 Sept 2026" />
         <PageHeader title="Programme fit" meta="18 of 21" backHref="/gyms" />
         <PageHeader
           title="Anytime Fitness East"
