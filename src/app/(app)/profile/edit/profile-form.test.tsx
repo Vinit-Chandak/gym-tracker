@@ -6,18 +6,13 @@ import { ProfileForm } from "./profile-form";
 vi.mock("@/server/actions/profile", () => ({ saveProfileAction: vi.fn(async () => ({})) }));
 afterEach(cleanup);
 
-it("does not let an action reset the selected unit while leaving converted values on screen", () => {
+it("does not let an action reset the answers chosen while leaving the typed ones on screen", () => {
   const { container } = render(
     <ProfileForm
       values={{
         displayName: "QA",
         username: "qa",
-        timeZone: "UTC",
-        preferredUnit: "kg",
-        distanceUnit: "km",
-        poolUnit: "m",
-        swims: false,
-        bodyWeightKg: 75,
+        preferredUnit: "lb",
         heightCm: 178,
         dateOfBirth: "1995-05-14",
         sex: "male",
@@ -25,13 +20,16 @@ it("does not let an action reset the selected unit while leaving converted value
       }}
     />,
   );
-  fireEvent.click(screen.getByRole("radio", { name: "lb (pounds)" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Prefer not to say" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Training goal" }), {
+    target: { value: "endurance" },
+  });
   container.querySelector("form")!.reset();
-  expect((screen.getByRole("radio", { name: "lb (pounds)" }) as HTMLInputElement).checked).toBe(
-    true,
-  );
-  expect(new FormData(container.querySelector("form")!).get("preferredUnit")).toBe("lb");
-  // The distance that followed the weight unit stays where it followed it to.
-  expect(new FormData(container.querySelector("form")!).get("distanceUnit")).toBe("mi");
-  expect(screen.getByRole("textbox", { name: "Body weight (lb)" })).toBeTruthy();
+  const sent = new FormData(container.querySelector("form")!);
+  expect(sent.get("sex")).toBe("");
+  expect(sent.get("trainingGoal")).toBe("endurance");
+  // The height goes in the measure it was shown in, and says which.
+  expect(sent.get("heightUnit")).toBe("ftin");
+  expect(screen.getByRole("textbox", { name: "Feet" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
 });

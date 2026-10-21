@@ -13,6 +13,7 @@ import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { coachProgramRequests, coachWeeklyReviews, programDrafts } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { changeSummaryLine, summariseProgramDiff } from "@/domain/program-change-summary";
 import { diffPrograms } from "@/domain/program-diff";
 import { OPEN_REQUEST_STATES } from "@/domain/program-request";
@@ -50,32 +51,42 @@ const RECENT_DAYS = 7;
 export const HISTORY_DRAFT_STATUSES = ["activated", "rejected"] as const;
 
 /**
- * What needs the athlete, and nothing that does not.
+ * What needs the athlete about one programme, and nothing that does not (ADR 0058: each
+ * programme's requests, changes and answers are its own page's).
  *
  * Each proposal is one row: the line that says what it does, and the athlete's own words when
  * it answers something they asked. A question is answered where it is asked. Asks waiting on
  * the coach are folded, a change the coach applied by itself this week is one row, and
- * everything settled is a tap away under History rather than printed here in full.
+ * everything settled is a tap away under Past requests and changes rather than printed here in
+ * full. `coachOn` is the athlete's switch: with the coach off, no review is offered, since it
+ * would be refused.
  */
-export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone: string) {
+export async function loadProgrammeChanges(
+  db: DbOrTx,
+  userId: string,
+  timeZone: string,
+  { sport = "strength", coachOn = true }: { sport?: ActivitySport; coachOn?: boolean } = {},
+) {
   const since = new Date(Date.now() - RECENT_DAYS * 86_400_000);
   const [drafts, legacy, open, recent, [counts], [lastReview], reviewStatus, schedule] =
     await Promise.all([
+      // Every open draft of this sport's programmes, a new programme the coach wrote after one
+      // was started too: nowhere else lists it while the sport has a programme.
       db
         .select()
         .from(programDrafts)
         .where(
           and(
             eq(programDrafts.userId, userId),
-            eq(programDrafts.sport, "strength"),
+            eq(programDrafts.sport, sport),
+            eq(programDrafts.standalone, false),
             inArray(programDrafts.status, ["editing", "ready"]),
-            isNotNull(programDrafts.baseProgramId),
           ),
         )
         .orderBy(desc(programDrafts.updatedAt))
         .limit(10),
-      listOpenProposals(db, userId),
-      listOpenRequests(db, userId),
+      listOpenProposals(db, userId, sport),
+      listOpenRequests(db, userId, 20, sport),
       db
         .select({
           id: coachWeeklyReviews.id,
@@ -88,22 +99,24 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         .where(
           and(
             eq(coachWeeklyReviews.userId, userId),
-            eq(coachWeeklyReviews.sport, "strength"),
+            eq(coachWeeklyReviews.sport, sport),
             eq(coachWeeklyReviews.outcome, "automatic"),
             gte(coachWeeklyReviews.completedAt, since),
           ),
         )
         .orderBy(desc(coachWeeklyReviews.completedAt))
         .limit(3),
-      // Both counts in one statement: the History row says only how many there are.
+      // Both counts in one statement: the Past requests and changes row says only how many.
       db
         .select({
           requests: sql<number>`(select count(*) from ${coachProgramRequests} where ${and(
             eq(coachProgramRequests.userId, userId),
+            eq(coachProgramRequests.sport, sport),
             notInArray(coachProgramRequests.state, [...OPEN_REQUEST_STATES]),
           )})`.mapWith(Number),
           changes: sql<number>`(select count(*) from ${programDrafts} where ${and(
             eq(programDrafts.userId, userId),
+            eq(programDrafts.sport, sport),
             isNotNull(programDrafts.baseProgramId),
             inArray(programDrafts.status, [...HISTORY_DRAFT_STATUSES]),
           )})`.mapWith(Number),
@@ -112,11 +125,12 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       db
         .select({ completedAt: coachWeeklyReviews.completedAt })
         .from(coachWeeklyReviews)
-        .where(and(eq(coachWeeklyReviews.userId, userId), eq(coachWeeklyReviews.sport, "strength")))
+        .where(and(eq(coachWeeklyReviews.userId, userId), eq(coachWeeklyReviews.sport, sport)))
         .orderBy(desc(coachWeeklyReviews.completedAt))
         .limit(1),
-      athleteReviewStatus(db, userId),
-      getSchedule(db, userId),
+      athleteReviewStatus(db, userId, new Date(), sport),
+      // Only a strength change is read from the cycle the athlete is in.
+      sport === "strength" ? getSchedule(db, userId) : null,
     ]);
   const openDrafts = new Set(drafts.map((draft) => draft.id));
   const asks = new Map<string, string[]>();
@@ -143,7 +157,9 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
   };
   const proposals = await Promise.all(
     drafts.map(async (draft) => {
-      const base = draft.headline ? null : await readBase(draft.baseProgramId!);
+      // A new programme rather than a change: nothing to compare it with, so it is named.
+      const fresh = draft.baseProgramId === null;
+      const base = draft.headline || fresh ? null : await readBase(draft.baseProgramId!);
       const summarised = base
         ? summariseProgramDiff(diffPrograms(base.blueprint, draft.blueprint), {
             fromWeek: schedule?.program.id === draft.baseProgramId ? currentCycle : 1,
@@ -158,8 +174,9 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         id: draft.id,
         title:
           draft.headline ||
-          summary ||
-          (draft.source === "manual" ? "Your edit" : "Open to see what changes"),
+          (fresh ? draft.blueprint.name : summary) ||
+          (draft.source === "manual" ? "Your edit" : "Proposed change"),
+        fresh,
         fromCoach: draft.source !== "manual",
         asks: asks.get(draft.id) ?? [],
         answers: answers.get(draft.id) ?? [],
@@ -207,15 +224,17 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
     withCoach,
     recent: recent.map((row) => ({
       id: row.draftId!,
-      title: row.headline || "The coach adjusted your programme",
+      title: row.headline || "Programme updated",
       when: formatDay(row.completedAt, timeZone),
     })),
     history: { requests: counts?.requests ?? 0, changes: counts?.changes ?? 0 },
     waiting: proposals.length + legacy.length + questions.length,
+    sport,
     review: {
-      // Only the server that can start the coach offers to; elsewhere the card would promise
-      // something no tap could deliver.
+      // Only the server that can start the coach offers to, and only while the coach is on;
+      // elsewhere the card would promise something no tap could deliver.
       offered:
+        coachOn &&
         process.env.COACH_WORKFLOW_ENABLED === "true" &&
         canRunCoachJobs() &&
         isCoachServiceConfigured(),
@@ -236,9 +255,56 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-export function ProgrammeChanges({
+/**
+ * What waits on the athlete about this programme, under one heading (Changes to review, Needs
+ * your answer, New programme to review), or nothing at all when nothing does.
+ */
+export function ProgrammeWaiting({
   data,
-  base = "/profile/programme",
+  base = "/plan",
+}: {
+  data: ProgrammeChangesData;
+  base?: string;
+}) {
+  if (data.waiting === 0) return null;
+  return (
+    <Section title="Waiting for you">
+      {data.proposals.length > 0 && (
+        <List>
+          {data.proposals.map((proposal) => (
+            <li key={proposal.id}>
+              <LinkRow
+                href={`${base}/drafts/${proposal.id}` as Route}
+                title={proposal.title}
+                // The athlete's own words in their marks, as the change's ask tag shows them.
+                subtitle={
+                  proposal.asks.length
+                    ? proposal.asks.map((quote) => `“${quote}”`).join(", ")
+                    : proposal.fresh
+                      ? "New programme to review"
+                      : proposal.fromCoach
+                        ? undefined
+                        : "Your edit"
+                }
+              />
+            </li>
+          ))}
+        </List>
+      )}
+      {data.legacy.length > 0 && <Proposals proposals={data.legacy} />}
+      {data.questions.length > 0 && <RequestList requests={data.questions} base={base} />}
+    </Section>
+  );
+}
+
+/**
+ * The rest of the programme's dealings with the coach: its asks still with the coach, what the
+ * coach changed on its own this week, asking for a change or a review, and the way to
+ * everything settled, which is this programme's past requests and changes.
+ */
+export function ProgrammeCoach({
+  data,
+  base = "/plan",
   request = null,
 }: {
   data: ProgrammeChangesData;
@@ -247,40 +313,8 @@ export function ProgrammeChanges({
   request?: { noteId: string } | null;
 }) {
   const past = data.history.requests + data.history.changes;
-  const nothing =
-    !data.proposals.length &&
-    !data.legacy.length &&
-    !data.questions.length &&
-    !data.withCoach.length &&
-    !data.recent.length;
   return (
-    <div className="space-y-6">
-      {data.waiting > 0 && (
-        <Section title="Waiting for you">
-          {data.proposals.length > 0 && (
-            <List>
-              {data.proposals.map((proposal) => (
-                <li key={proposal.id}>
-                  <LinkRow
-                    href={`${base}/drafts/${proposal.id}` as Route}
-                    title={proposal.title}
-                    subtitle={
-                      proposal.asks.length
-                        ? `You asked: ${proposal.asks.map((quote) => `“${quote}”`).join(", ")}`
-                        : proposal.fromCoach
-                          ? undefined
-                          : "Your edit"
-                    }
-                  />
-                </li>
-              ))}
-            </List>
-          )}
-          {data.legacy.length > 0 && <Proposals proposals={data.legacy} />}
-          {data.questions.length > 0 && <RequestList requests={data.questions} base={base} />}
-        </Section>
-      )}
-
+    <>
       {data.withCoach.length > 0 && (
         <Disclosure summary="With the coach" meta={`${data.withCoach.length}`}>
           <RequestList requests={data.withCoach} base={base} />
@@ -303,20 +337,14 @@ export function ProgrammeChanges({
         </Section>
       )}
 
-      {nothing && (
-        <Card>
-          <p className="text-sm text-ink-muted">Nothing is waiting for you.</p>
-        </Card>
-      )}
-
-      {request && <RequestChange sport="strength" noteId={request.noteId} />}
-      <RequestReview availability={data.review} />
+      {request && <RequestChange sport={data.sport} noteId={request.noteId} />}
+      <RequestReview availability={data.review} sport={data.sport} />
 
       {past > 0 && (
         <List>
           <li>
             <LinkRow
-              href={`${base}/history` as Route}
+              href={`${base}/history?sport=${data.sport}` as Route}
               title="Past requests and changes"
               subtitle={[
                 data.history.requests > 0 && plural(data.history.requests, "request"),
@@ -328,6 +356,35 @@ export function ProgrammeChanges({
           </li>
         </List>
       )}
+    </>
+  );
+}
+
+/** The strength programme's Changes tab: all of the above, and one line when there is none. */
+export function ProgrammeChanges({
+  data,
+  base = "/plan",
+  request = null,
+}: {
+  data: ProgrammeChangesData;
+  base?: string;
+  request?: { noteId: string } | null;
+}) {
+  const nothing =
+    !data.proposals.length &&
+    !data.legacy.length &&
+    !data.questions.length &&
+    !data.withCoach.length &&
+    !data.recent.length;
+  return (
+    <div className="space-y-6">
+      <ProgrammeWaiting data={data} base={base} />
+      {nothing && (
+        <Card>
+          <p className="text-sm text-ink-muted">Nothing is waiting for you.</p>
+        </Card>
+      )}
+      <ProgrammeCoach data={data} base={base} request={request} />
     </div>
   );
 }

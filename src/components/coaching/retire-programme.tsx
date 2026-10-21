@@ -47,8 +47,8 @@ export function RetireProgramme({
         >
           <p>
             End your {ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme? Its sessions from today
-            on are removed, and any it still owes can then only be logged as unplanned. Everything
-            you logged stays, and the programme moves to Past programmes.
+            on are removed, and any not done can then only be logged as unplanned. Everything you
+            logged stays.
           </p>
           <div className="grid gap-2 min-[420px]:grid-cols-2">
             <Button

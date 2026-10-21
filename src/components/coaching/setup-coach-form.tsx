@@ -7,6 +7,7 @@ import { useRouter, unstable_rethrow } from "next/navigation";
 import { FormError } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Textarea } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -57,8 +58,7 @@ function problems(answers: CoachIntake, detailed: boolean): Partial<Record<Key, 
   const found: Partial<Record<Key, string>> = {};
   if (!answers.goal.trim()) found.goal = "Choose a goal.";
   if (answers.preferredDays.length === 0) found.preferredDays = "Choose the days you can train.";
-  if (detailed && !answers.minutesPerSession)
-    found.minutesPerSession = "Choose how long a session.";
+  if (detailed && !answers.minutesPerSession) found.minutesPerSession = "Choose a session length.";
   if (answers.heightCm === null) found.heightCm = "Add your height.";
   else if (answers.heightCm < 50 || answers.heightCm > 260)
     found.heightCm = "Enter a height between 50 and 260 cm.";
@@ -107,6 +107,7 @@ function typed(value: string): number | null {
  * The coach's questions inside setup (boards Your first programme, What should the coach plan?):
  * one screen in the setup frame, its answers read back from what setup and the profile already
  * know, and nothing asked that setup asked already (the place, the experience, the running).
+ * A question New programme's strength intake asks too (`CoachIntakeForm`) is asked in its words.
  *
  * New to this: the goal, the days, height, weight and age, and anything that hurts. Already
  * trains: the session's length too, and three optional answers folded under their names (what
@@ -268,7 +269,7 @@ export function SetupCoachForm({
         data-field-error={shown.goal ? "true" : undefined}
         aria-describedby={shown.goal ? "coach-goal-error" : undefined}
       >
-        <legend className="you-label">Your goal</legend>
+        <legend className="you-label">What are you training for?</legend>
         <div className="choice-chips">
           {GOALS.map((goal) => (
             <label key={goal} className="choice-chip">
@@ -327,7 +328,7 @@ export function SetupCoachForm({
           data-field-error={shown.minutesPerSession ? "true" : undefined}
         >
           <p id="coach-length" className="you-label">
-            How long a session
+            Usual session length
           </p>
           <div className="mt-2">
             <SegmentedControl
@@ -353,6 +354,7 @@ export function SetupCoachForm({
             <FigureField
               id="coach-feet"
               label="Height"
+              info={BODY_INFO}
               suffix="ft"
               inputMode="numeric"
               value={feet}
@@ -385,6 +387,7 @@ export function SetupCoachForm({
           <FigureField
             id="coach-height"
             label="Height"
+            info={BODY_INFO}
             suffix="cm"
             inputMode="decimal"
             value={centimetres}
@@ -418,40 +421,38 @@ export function SetupCoachForm({
         />
       </div>
       <Problem message={bodyProblem(answers, shown)} />
-      {!detailed && <p className="setup-caption">The coach sets your first loads from these.</p>}
 
       {detailed ? (
         <div className="setup-coach-more">
-          <Folded title="What you lift now" sub="Optional, in your own words: “bench 100 for 5”">
+          <Folded title="What you lift now" sub="Optional">
             <Textarea
               aria-label="What you lift now"
               rows={4}
               maxLength={3000}
+              placeholder="For example, bench 100 for 5"
               value={answers.recentTraining}
               onChange={(event) => change({ recentTraining: event.target.value })}
             />
           </Folded>
-          <Folded title="Anything to avoid?" sub="Optional: injuries, or exercises to leave out">
+          <Folded title="Injuries or movements to avoid" sub="Optional">
             <Textarea
-              aria-label="Anything to avoid?"
+              aria-label="Injuries or movements to avoid"
               rows={4}
               maxLength={3000}
+              placeholder="For example, no barbell squats"
               value={answers.restrictions}
               onChange={(event) => change({ restrictions: event.target.value })}
             />
           </Folded>
           <Folded
-            title="Attach a plan"
-            sub={
-              attached.length > 0
-                ? attached.map((file) => file.name).join(", ")
-                : "Optional: a programme or report to work from"
-            }
+            title="Reports and plans"
+            sub={attached.length > 0 ? attached.map((file) => file.name).join(", ") : "Optional"}
           >
             <label className="setup-file">
               <Glyph name="link" className="glyph-20 shrink-0" />
+              {/* What it takes, and the most it takes, as the strength intake says it. */}
               <span className="min-w-0 flex-1">
-                Add a file: PDF, image, CSV or text, up to 5 MB
+                Add files: PDF, image, CSV or text · 5 MB each, five files
               </span>
               <input
                 type="file"
@@ -495,11 +496,12 @@ export function SetupCoachForm({
         </div>
       ) : (
         <div className="setup-coach-more">
-          <Folded title="Anything that hurts?" sub="Optional: injuries, or anything else to know">
+          <Folded title="Anything that hurts?" sub="Optional">
             <Textarea
               aria-label="Anything that hurts?"
               rows={3}
               maxLength={3000}
+              placeholder="For example, a sore left shoulder"
               value={answers.restrictions}
               onChange={(event) => change({ restrictions: event.target.value })}
             />
@@ -511,7 +513,7 @@ export function SetupCoachForm({
         <FormError message={error ?? undefined} />
         {!configured && (
           <p className="type-meta-small text-ink-2">
-            The coach is not taking new programmes right now. Log your own workouts meanwhile.
+            The coach is not taking new programmes right now.
           </p>
         )}
         <Button
@@ -533,6 +535,12 @@ export function SetupCoachForm({
   );
 }
 
+/** Why height, weight and age are asked, beside the first of their boxes. */
+const BODY_INFO = {
+  label: "About height, weight and age",
+  text: "The coach sets your first loads from these.",
+};
+
 /**
  * A figure typed in a box (height, weight, age): its name above, the figure in Jost, and its
  * unit inside the box at its end. What is wrong with it is said once under the row of boxes,
@@ -542,6 +550,7 @@ function FigureField({
   id,
   label,
   labelHidden = false,
+  info,
   suffix,
   inputMode,
   value,
@@ -551,18 +560,30 @@ function FigureField({
   id: string;
   label: string;
   labelHidden?: boolean;
+  /** Why the row of boxes is asked, in the ⓘ beside the first: it is about all three. */
+  info?: { label: string; text: string };
   suffix?: string;
   inputMode: "numeric" | "decimal";
   value: string;
   error?: string;
   onChange: (value: string) => void;
 }) {
+  const name = (
+    <label htmlFor={id} className="figure-field-label">
+      {labelHidden ? <span className="sr-only">{label}</span> : label}
+      {labelHidden && <span aria-hidden>&nbsp;</span>}
+    </label>
+  );
   return (
     <div className="figure-field" data-field-error={error ? "true" : undefined}>
-      <label htmlFor={id} className="figure-field-label">
-        {labelHidden ? <span className="sr-only">{label}</span> : label}
-        {labelHidden && <span aria-hidden>&nbsp;</span>}
-      </label>
+      {info ? (
+        <span className="flex items-center gap-1">
+          {name}
+          <InfoTip label={info.label}>{info.text}</InfoTip>
+        </span>
+      ) : (
+        name
+      )}
       <span className="figure-field-box">
         <input
           id={id}

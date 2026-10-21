@@ -82,7 +82,7 @@ export function CalendarView({
       <div className="page-width">
         {truncated && (
           <p role="status" className="mt-3 type-meta text-ink-2">
-            The earliest months are not all shown: there is more here than one page reads.
+            The earliest months are not all shown.
           </p>
         )}
         <div className="calendar-months">

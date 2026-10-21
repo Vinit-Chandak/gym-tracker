@@ -166,9 +166,7 @@ it("words a workout as its owner's record does, and lists what it was made of", 
     "Plank 3 sets · Longest hold 1:12",
   ]);
   // Three sets were of a movement Kenji created, which has no shared row.
-  expect(
-    screen.getByText("3 more sets in exercises Kenji created, which are not shared."),
-  ).toBeTruthy();
+  expect(screen.getByText("3 more sets in Kenji’s own exercises.")).toBeTruthy();
 });
 
 it("says so when none of a workout's movements is shared", () => {
@@ -182,7 +180,7 @@ it("says so when none of a workout's movements is shared", () => {
     />,
   );
   expect(screen.queryByRole("list")).toBeNull();
-  expect(screen.getByText("1 set in exercises Kenji created, which are not shared.")).toBeTruthy();
+  expect(screen.getByText("1 set in Kenji’s own exercises.")).toBeTruthy();
 });
 
 it("says a friend's workout volume whole, in the reader's unit", () => {

@@ -179,8 +179,8 @@ export function TargetsForm({
 
         {/* Typed and kept per kilogram, which the label says as the field's unit, as "Daily
             target, kcal" does, rather than "per kg of body weight" as though the body were
-            weighed in kilograms; someone who weighs in pounds reads the ratio per pound beside
-            it, and before there is one, what a gram per pound comes to. The unit is one phrase:
+            weighed in kilograms; someone who weighs in pounds reads the ratio per pound under
+            it, and what a gram per pound comes to in its ⓘ. The unit is one phrase:
             a label that wraps takes it whole to the next line, never "g" / "per kg". */}
         <Field
           label={"Protein per body weight, g\u00a0per\u00a0kg"}
@@ -193,9 +193,10 @@ export function TargetsForm({
                     ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
                     : null,
                 ])
-              : unit === "lb"
-                ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg`
-                : undefined
+              : undefined
+          }
+          info={
+            unit === "lb" ? `1 g per lb is ${Math.round(LB_PER_KG * 10) / 10} g per kg.` : undefined
           }
         >
           <Input
@@ -233,10 +234,10 @@ export function TargetsForm({
 
         {!weighed && (
           <p className="type-meta-small text-ink-2">
-            There is no body weight on your profile yet, so protein is{" "}
-            {Math.round(split.protein * 100)}% of the target until there is.{" "}
-            <Link href="/profile/edit" className="font-bold underline underline-offset-2">
-              Add it in your profile
+            No body weight yet: protein is {Math.round(split.protein * 100)}% of the target.{" "}
+            {/* Logged where every reading is (IA audit M8); saved, it comes back here. */}
+            <Link href="/today/log/body-weight" className="font-bold underline underline-offset-2">
+              Log body weight
             </Link>
           </p>
         )}
@@ -247,8 +248,8 @@ export function TargetsForm({
         )}
         {preview?.overBudget && (
           <p className="type-meta-small font-semibold">
-            Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so there
-            is nothing left for carbs.
+            Protein and fat alone pass {formatFoodAmount(preview.kcal)} kcal: nothing left for
+            carbs.
           </p>
         )}
       </div>

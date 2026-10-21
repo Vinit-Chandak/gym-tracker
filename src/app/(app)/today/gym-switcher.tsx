@@ -18,7 +18,8 @@ export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: 
 /**
  * Where the next session is trained, as the first fact of the day's meta line (DESIGN.md,
  * Today): a pin and the gym's name. It is a choice only when there is more than one gym to
- * choose from; then a tap opens the gyms in a sheet.
+ * choose from, or none set yet ("Choose a gym", which is also why Start waits); then a tap
+ * opens the gyms in a sheet.
  */
 export function GymChoice({
   gyms,
@@ -37,7 +38,7 @@ export function GymChoice({
   // tap only picks it and Prepare sends it: a mis-tap costs nothing.
   const [picked, setPicked] = useState<string | null>(null);
   const chosenId = picked ?? current?.id ?? null;
-  const name = current ? current.name : "No default gym";
+  const name = current ? current.name : "Choose a gym";
   const pickedGym = gyms.find((gym) => gym.id === picked && gym.id !== current?.id) ?? null;
 
   function close(): void {
@@ -88,7 +89,7 @@ export function GymChoice({
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-label={`Gym: ${name}. Change`}
+        aria-label={current ? `Gym: ${name}. Change` : name}
         onClick={() => setOpen(true)}
         className="gym-choice"
       >
@@ -98,12 +99,6 @@ export function GymChoice({
       </button>
 
       <Sheet open={open} onClose={close} title="Choose gym">
-        {workflow && (
-          <p className="mt-1 type-meta text-ink-2">
-            Choose the gym for your next session. A changed gym asks the coach to prepare for its
-            equipment.
-          </p>
-        )}
         {pending && (
           <p role="status" className="mt-2 type-meta text-ink-2">
             {workflow ? "Asking the coach…" : "Changing gym…"}

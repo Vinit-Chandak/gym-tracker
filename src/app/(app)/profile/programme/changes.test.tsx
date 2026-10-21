@@ -3,7 +3,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
-import { ProgrammeChanges, type ProgrammeChangesData } from "./changes";
+import {
+  ProgrammeChanges,
+  ProgrammeCoach,
+  ProgrammeWaiting,
+  type ProgrammeChangesData,
+} from "./changes";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -20,6 +25,7 @@ vi.mock("@/server/actions/coaching-workflow", () => ({
 vi.mock("@/server/actions/coach", () => ({
   applyProposalAction: vi.fn(),
   rejectProposalAction: vi.fn(),
+  saveCoachNotesAction: vi.fn(),
 }));
 afterEach(cleanup);
 
@@ -33,6 +39,7 @@ const data = (overrides: Partial<ProgrammeChangesData> = {}): ProgrammeChangesDa
   recent: [],
   history: { requests: 0, changes: 0 },
   waiting: 0,
+  sport: "strength",
   review: {
     offered: false,
     canAsk: false,
@@ -63,6 +70,7 @@ it("shows one proposal as one row: what it does, and the ask it answers", () => 
           {
             id: DRAFT,
             title: "Lower B's leg press falls back to the 45° machine at Anytime.",
+            fresh: false,
             fromCoach: true,
             asks: ["anytime does not have horizontal leg press"],
             answers: [],
@@ -75,8 +83,9 @@ it("shows one proposal as one row: what it does, and the ask it answers", () => 
     />,
   );
   const row = screen.getByRole("link", { name: /falls back to the 45° machine/ });
-  expect(row.getAttribute("href")).toBe(`/profile/programme/drafts/${DRAFT}`);
-  expect(row.textContent).toContain("You asked: “anytime does not have horizontal leg press”");
+  expect(row.getAttribute("href")).toBe(`/plan/drafts/${DRAFT}`);
+  expect(row.textContent).toContain("“anytime does not have horizontal leg press”");
+  expect(row.textContent).not.toContain("You asked");
   // No badge under a heading that already says it waits for them, and no date.
   expect(screen.queryByText("Awaiting your approval")).toBeNull();
   expect(screen.queryByText(/Asked /)).toBeNull();
@@ -108,7 +117,8 @@ it("answers a question where it is asked, and folds what is back with the coach"
 it("keeps everything settled behind one row instead of printing it", () => {
   render(<ProgrammeChanges data={data({ history: { requests: 2, changes: 1 } })} />);
   const link = screen.getByRole("link", { name: /Past requests and changes/ });
-  expect(link.getAttribute("href")).toBe("/profile/programme/history");
+  // This programme's own, as its page lists them.
+  expect(link.getAttribute("href")).toBe("/plan/history?sport=strength");
   expect(link.textContent).toContain("2 requests ·\u00a01 change");
   expect(screen.queryByText("Settled requests")).toBeNull();
   expect(screen.queryByText("Reviews")).toBeNull();
@@ -138,10 +148,61 @@ it("tells a review waiting for the next nightly run from one running, and offers
     />,
   );
   expect(screen.queryByText("The coach is reviewing your programme.")).toBeNull();
-  expect(
-    screen.getByText(
-      "The coach could not finish your last review. It tries again at its next nightly run, or ask for it now.",
-    ),
-  ).toBeTruthy();
+  expect(screen.getByText("The coach could not finish your last review.")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Ask the coach to review now" })).toBeTruthy();
+});
+
+/** ADR 0058: a run, ride or swim programme's page holds what the strength Changes tab holds. */
+it("gives a running programme's page its own waiting, coach and history parts", () => {
+  const running = data({
+    sport: "running",
+    proposals: [
+      {
+        id: DRAFT,
+        title: "Half Marathon Build",
+        fresh: true,
+        fromCoach: true,
+        asks: [],
+        answers: [],
+        rationale: null,
+        lead: "edit",
+      },
+    ],
+    questions: [request({ quote: "fewer intervals" })],
+    withCoach: [
+      request({
+        id: "00000000-0000-4000-8000-000000000002",
+        quote: "a longer long run",
+        state: "waiting",
+        detail: "",
+      }),
+    ],
+    recent: [{ id: DRAFT, title: "Easy runs a little shorter.", when: "Sat 17 Oct" }],
+    history: { requests: 1, changes: 0 },
+    waiting: 2,
+  });
+  const { unmount } = render(<ProgrammeWaiting data={running} />);
+  expect(screen.getByRole("heading", { name: "Waiting for you" })).toBeTruthy();
+  // A new programme the coach wrote while one runs says what it is: there is no difference.
+  expect(screen.getByRole("link", { name: /Half Marathon Build/ }).textContent).toContain(
+    "New programme to review",
+  );
+  expect(screen.getByRole("button", { name: "Send answer" })).toBeTruthy();
+  // Nothing of the rest: the weeks stand between.
+  expect(screen.queryByText("With the coach")).toBeNull();
+  unmount();
+
+  render(<ProgrammeCoach data={running} request={{ noteId: DRAFT }} />);
+  expect(screen.queryByRole("heading", { name: "Waiting for you" })).toBeNull();
+  expect(screen.getByText("With the coach").closest("details")?.open).toBe(false);
+  expect(screen.getByRole("heading", { name: "Updated by the coach" })).toBeTruthy();
+  expect(screen.getByText("Request a change")).toBeTruthy();
+  expect(screen.getByRole("link", { name: /Past requests and changes/ }).getAttribute("href")).toBe(
+    "/plan/history?sport=running",
+  );
+});
+
+it("shows no waiting heading on a programme's page when nothing waits", () => {
+  const { container } = render(<ProgrammeWaiting data={data({ sport: "cycling" })} />);
+  expect(container.textContent).toBe("");
 });

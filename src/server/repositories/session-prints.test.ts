@@ -7,7 +7,7 @@ import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
-import { programmeDayParts } from "@/app/(app)/training/programme-day";
+import { programmeDayParts } from "@/app/(app)/plan/[sport]/programme-day";
 
 import { listGyms } from "./gyms";
 import { applyProposal, createProposal } from "./program-revisions";

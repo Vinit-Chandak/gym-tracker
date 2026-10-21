@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Art } from "@/components/art/art";
-import { enduranceName } from "@/components/activities/endurance-line";
+import { enduranceName, plannedName } from "@/components/activities/endurance-line";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -37,8 +37,6 @@ import {
   standing,
 } from "./log-choices";
 
-export const metadata: Metadata = { title: "Log a session" };
-
 const MARK = { strength: "strength", running: "run", cycling: "ride", swimming: "swim" } as const;
 
 /** "Workout", "Run", "Ride", "Swim": what was done, as the buttons that start or log it say. */
@@ -49,12 +47,21 @@ function noun(sport: ActivitySport): string {
 const single = (value: string | string[] | undefined) =>
   typeof value === "string" ? value : undefined;
 
+/** Named as its header is: "Log", then "Log a run" once the sport is chosen. */
+export async function generateMetadata(props: PageProps<"/today/log">): Promise<Metadata> {
+  const sport = single((await props.searchParams).sport);
+  return {
+    title: sport && isActivitySport(sport) ? `Log a ${noun(sport).toLowerCase()}` : "Log",
+  };
+}
+
 /**
  * Log (ADR 0058): anything Today's cards do not already offer, in three short steps. What was
  * done; which planned session it counts as, if any, from the last two weeks to the coming week,
  * or none; and when. The training date and the session it answers are separate questions, so a
  * long run missed on Saturday and done on Tuesday counts as Saturday's, logged on Tuesday.
- * Nothing is matched implicitly: the athlete names the session, or names none.
+ * Nothing is matched implicitly: the athlete names the session, or names none. A body weight
+ * reading is logged here too, on a page of its own (IA audit M8).
  */
 export default async function LogPage(props: PageProps<"/today/log">) {
   const user = await requireUser();
@@ -124,17 +131,20 @@ export default async function LogPage(props: PageProps<"/today/log">) {
     const offered = ACTIVITY_SPORTS.filter((item) => data.sports.includes(item));
     return (
       <>
-        <PageHeader title="Log a session" backHref="/today" />
+        <PageHeader title="Log" backHref="/today" />
         <PageContent>
           <ul>
             {(offered.length > 0 ? offered : ACTIVITY_SPORTS).map((item) => (
               <NavRow
                 key={item}
                 href={`/today/log?sport=${item}` as Route}
-                lead={<Art kind="mark" sport={MARK[item]} size={20} />}
+                // A chooser's marks are still to do, thinned, as Today and Plan draw them.
+                lead={<Art kind="mark" sport={MARK[item]} size={20} state="todo" />}
                 label={noun(item)}
               />
             ))}
+            {/* Not a sport, so no mark of one: the scale, the glyph that means body weight. */}
+            <NavRow href="/today/log/body-weight" glyph="scale" label="Body weight" />
           </ul>
         </PageContent>
       </>
@@ -181,7 +191,7 @@ export default async function LogPage(props: PageProps<"/today/log">) {
                     <NavRow
                       key={option.key}
                       href={`/today/log?sport=strength&counts=${option.key}` as Route}
-                      lead={<Art kind="mark" sport="strength" size={20} />}
+                      lead={<Art kind="mark" sport="strength" size={20} state="todo" />}
                       label={holdHyphens(option.name)}
                       sub={liftingSub(option)}
                     />
@@ -190,8 +200,10 @@ export default async function LogPage(props: PageProps<"/today/log">) {
                   <NavRow
                     key={session.id}
                     href={`/today/log?sport=${sport}&counts=${session.id}` as Route}
-                    lead={<Art kind="mark" sport={MARK[sport]} size={20} />}
-                    label={holdHyphens(session.prescription?.title ?? noun(sport))}
+                    lead={<Art kind="mark" sport={MARK[sport]} size={20} state="todo" />}
+                    // Named as Today's card and the session's page name it; its figure is
+                    // the line under it, beside where it stands.
+                    label={holdHyphens(plannedName(session.prescription, sport, data.units!))}
                     sub={joinFacts([
                       standing(session, today),
                       session.prescription &&
@@ -219,25 +231,20 @@ export default async function LogPage(props: PageProps<"/today/log">) {
         <PageHeader
           title={title}
           meta={
+            // The session and the day it was planned for, said here once: When is the day it
+            // was done, which can be another.
             session
-              ? `Counts as ${session.prescription?.title ?? noun(sport)} · ${formatIsoDate(session.scheduledOn, today.slice(0, 4))}`
+              ? `Counts as ${plannedName(session.prescription, sport, data.units!)} · ${formatIsoDate(session.scheduledOn, today.slice(0, 4))}`
               : "Unplanned"
           }
           backHref={back}
         />
         <PageContent>
-          <form action="/training/new" className="space-y-4">
+          <form action="/today/log/new" className="space-y-4">
             <input type="hidden" name="sport" value={sport} />
             {session && <input type="hidden" name="occurrence" value={session.id} />}
             <input type="hidden" name="from" value="today" />
-            <Field
-              label="When"
-              hint={
-                session && session.scheduledOn < today
-                  ? `Planned for ${formatIsoDate(session.scheduledOn, today.slice(0, 4))}.`
-                  : undefined
-              }
-            >
+            <Field label="When">
               <Input name="date" type="date" defaultValue={today} max={today} required />
             </Field>
             <Button type="submit" size="lg" className="w-full">

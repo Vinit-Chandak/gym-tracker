@@ -13,104 +13,91 @@ export type PrivacyValues = Record<PrivacyKey, boolean>;
 /** The sports shared under a switch of their own, below the four. */
 type SeparateSport = "cycling" | "swimming";
 
-/** What one shared session of each additional sport is called, and several of them. */
-const SESSION_NOUN = { cycling: "ride", swimming: "swim" } as const;
-const SESSIONS_NOUN = { cycling: "rides", swimming: "swims" } as const;
-
-/** The four switches (plan §3.7): a label, one sentence, saved on change. */
+/**
+ * The four switches (plan §3.7): a label, saved on change, and under it, in eight words at most,
+ * only what On or Off exposes or hides that the label does not say. What each shares in full is
+ * behind What a follower can see.
+ */
 const SWITCHES: readonly { setting: PrivacyKey; label: string; effect: string }[] = [
   {
     setting: "followApproval",
     label: "Approve follow requests",
-    effect: "Off means anyone in the app can follow you without asking.",
+    effect: "Off: anyone can follow you.",
   },
   {
     setting: "shareTraining",
     label: "Share training with followers",
     // Running has no switch of its own (SOCIAL-02 kept it with lifting), so this one says so.
-    // Rides and swims are named only where their own switch is drawn (`trainingEffect`).
-    effect: trainingEffect([]),
+    effect: "Lifting and running. Off: just your profile card.",
   },
   {
     setting: "shareBodyWeight",
     label: "Share body weight for relative strength",
-    // A ratio, so the same for a reader in pounds: "per kg" read as a kilogram-only figure.
-    effect:
-      "On means followers who also share theirs see rows and rankings relative to body weight (×\u00a0BW).",
+    effect: "On: followers who share theirs see your weight.",
   },
   {
     setting: "discoverableByEmail",
     label: "Let people find me by email",
-    effect: "Off means the exact-email lookup does not return you; username search still does.",
+    effect: "Off: only username search finds you.",
   },
 ];
 
 /**
- * What sharing training covers, naming the ride and swim switches only when the page draws
- * them: "rides and swims also need their own switch" sent an athlete who does neither looking
- * for switches that were not there.
+ * The privacy switches (board Privacy): the four, then a switch for each additional sport given.
+ * A ride or a swim is shared only while training is too, so while Share training is off their
+ * switches are dimmed and say so, rather than a sentence explaining it from either side. They
+ * still work while dimmed: a ride can be kept private before training is shared, never after.
+ * Only the sports given have one: the page gives those you do, any you still share and any you
+ * have logged, so a switch to stop sharing is never hidden with the sport, nor the rides logged
+ * before it went off left without one.
  */
-export function trainingEffect(separately: readonly SeparateSport[]): string {
-  const own =
-    separately.length === 0
-      ? ""
-      : `; ${separately.map((sport) => SESSIONS_NOUN[sport]).join(" and ")} also need their own switch, below`;
-  return `Your lifting and running${own}. Off means followers see your profile card only: no stats, no records, not on their leaderboards.`;
-}
-
 export function PrivacySwitches({
   values,
-  separately = [],
+  sports = {},
 }: {
   values: PrivacyValues;
-  /** The sports whose own sharing switch the page draws below these. */
-  separately?: readonly SeparateSport[];
+  /** Whether each additional sport is shared, for the sports whose switch the page draws. */
+  sports?: Partial<Record<SeparateSport, boolean>>;
 }) {
-  return (
-    <ul>
-      {SWITCHES.map((row) => (
-        <SavedSwitch
-          key={row.setting}
-          {...row}
-          effect={row.setting === "shareTraining" ? trainingEffect(separately) : row.effect}
-          enabled={values[row.setting]}
-          save={(next) => setPrivacyAction(row.setting, next)}
-        />
-      ))}
-    </ul>
+  // What the training switch shows, saving or saved, which the sports' switches are held by;
+  // a value saved elsewhere, arriving with the page, is taken as it is.
+  const [training, setTraining] = useState(values.shareTraining);
+  const [saved, setSaved] = useState(values.shareTraining);
+  if (saved !== values.shareTraining) {
+    setSaved(values.shareTraining);
+    setTraining(values.shareTraining);
+  }
+  const separate = (["cycling", "swimming"] as const).filter(
+    (sport) => sports[sport] !== undefined,
   );
-}
-
-/**
- * Additional sports require explicit consent as well as the global training switch (board
- * Privacy): a switch each, and what they share said once under them. Only the sports given
- * have one: the page gives those you do, any you still share and any you have logged, so a
- * switch to stop sharing is never hidden with the sport, nor the rides logged before it went
- * off left without one. With none, nothing is drawn.
- */
-export function SportSharingSwitches({
-  values,
-}: {
-  values: Partial<Record<SeparateSport, boolean>>;
-}) {
-  const sports = (["cycling", "swimming"] as const).filter((sport) => values[sport] !== undefined);
-  if (sports.length === 0) return null;
   return (
     <>
       <ul>
-        {sports.map((sport) => (
+        {SWITCHES.map((row) => (
           <SavedSwitch
-            key={sport}
-            label={`Share ${sport} with followers`}
-            enabled={values[sport]!}
-            save={(next) => setSportSharingAction(sport, next)}
+            key={row.setting}
+            label={row.label}
+            effect={row.effect}
+            enabled={values[row.setting]}
+            save={(next) => setPrivacyAction(row.setting, next)}
+            onShow={row.setting === "shareTraining" ? setTraining : undefined}
           />
         ))}
       </ul>
-      <p className="mt-0.5 type-meta-small leading-[1.35] text-ink-2">
-        A shared {sports.map((sport) => SESSION_NOUN[sport]).join(" or ")} says its date, duration
-        and known distance. Share training with followers must also be on.
-      </p>
+      {separate.length > 0 && (
+        <ul className="mt-3.5">
+          {separate.map((sport) => (
+            <SavedSwitch
+              key={sport}
+              label={`Share ${sport} with followers`}
+              effect={training ? undefined : "Needs Share training"}
+              held={!training}
+              enabled={sports[sport]!}
+              save={(next) => setSportSharingAction(sport, next)}
+            />
+          ))}
+        </ul>
+      )}
     </>
   );
 }
@@ -118,13 +105,19 @@ export function SportSharingSwitches({
 function SavedSwitch({
   label,
   effect,
+  held = false,
   enabled,
   save,
+  onShow,
 }: {
   label: string;
   effect?: string;
+  /** Saved, but with no effect until another switch is on: dimmed, never disabled. */
+  held?: boolean;
   enabled: boolean;
   save: (next: boolean) => Promise<void>;
+  /** Told what the switch shows: the value tapped, and the old one back if it did not save. */
+  onShow?: (shown: boolean) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
@@ -132,6 +125,7 @@ function SavedSwitch({
   const change = (next: boolean) =>
     startTransition(async () => {
       show(next);
+      onShow?.(next);
       setError(null);
       const outcome = await attempted(
         () => save(next),
@@ -140,7 +134,11 @@ function SavedSwitch({
       // After an await, React no longer counts an update as the transition's own. Marking the
       // error as one keeps it in the same render as the switch going back, not a frame ahead
       // of it, so the message never sits beside a switch showing what was not saved.
-      if (!outcome.ok) startTransition(() => setError(outcome.message));
+      if (!outcome.ok)
+        startTransition(() => {
+          setError(outcome.message);
+          onShow?.(!next);
+        });
     });
   return (
     <li className="switch-row">
@@ -149,7 +147,9 @@ function SavedSwitch({
           <span className="switch-row-label">{label}</span>
           {effect && <span className="switch-row-effect">{effect}</span>}
         </span>
-        <Switch label={label} checked={shown} onChange={change} disabled={pending} />
+        <span className={held ? "shrink-0 opacity-50" : "shrink-0"}>
+          <Switch label={label} checked={shown} onChange={change} disabled={pending} />
+        </span>
       </div>
       {error && (
         <p role="alert" className="pb-1 type-meta-small font-semibold">

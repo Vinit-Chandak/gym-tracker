@@ -51,9 +51,8 @@ describe("which planned session a log counts as", () => {
     expect(liftingSub({ next: false, label: "Start skipped workout", cycleIndex: 1 })).toBe(
       "Skipped this cycle",
     );
-    expect(liftingSub({ next: false, label: "Do again", cycleIndex: 2 })).toBe(
-      "Done this cycle; trains it again",
-    );
+    // Choosing a day done this cycle trains it again; the line says only where it stands.
+    expect(liftingSub({ next: false, label: "Do again", cycleIndex: 2 })).toBe("Done this cycle");
     expect(liftingSub({ next: false, label: "Start early", cycleIndex: 2 })).toBe("Cycle 2");
   });
 });

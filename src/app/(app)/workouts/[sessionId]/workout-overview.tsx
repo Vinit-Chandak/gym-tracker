@@ -56,15 +56,15 @@ const NO_DRAFTS: Drafts = { count: 0, names: [] };
 const LIST = new Intl.ListFormat("en-GB", { type: "conjunction" });
 
 /**
- * Why Finish waits, and where: "A set in Barbell bench press is not saved yet." A draft whose
- * exercise has left the session still holds Finish back, so it is said without a name.
+ * Why Finish waits, and where: "Unsaved set in Barbell bench press". A draft whose exercise has
+ * left the session still holds Finish back, so it is said without a name.
  */
 export function draftsWarning({ count, names }: Drafts): string {
   const one = count === 1;
   const where = names.length > 0 ? `in ${LIST.format(names)}` : "on this device";
   return one
-    ? `A set ${where} is not saved yet. Save or remove it before finishing.`
-    : `Sets ${where} are not saved yet. Save or remove them before finishing.`;
+    ? `Unsaved set ${where}: save or remove it to finish.`
+    : `Unsaved sets ${where}: save or remove them to finish.`;
 }
 
 /** Checks the clock each minute, and as the app comes back into view. */

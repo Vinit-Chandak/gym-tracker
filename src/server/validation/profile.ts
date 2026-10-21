@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
+import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS } from "@/domain/types";
 import { DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
 import { checkTimeZone } from "@/lib/time-zones";
-import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
+import { toCentimetres, type HeightUnit } from "@/lib/units";
 
 import { usernameSchema } from "./username";
 
@@ -15,8 +15,8 @@ export const NOT_A_PLACE =
 
 /**
  * A place's IANA zone, or UTC, spelt as the platform spells it (`checkTimeZone`); the browser
- * proposes one during onboarding, and Edit profile offers a list of them. Abbreviations and
- * offsets are refused. Saving also asks Postgres, which dates the graphs, for its spelling.
+ * proposes one during onboarding, and Units and time zone offers a list of them. Abbreviations
+ * and offsets are refused. Saving also asks Postgres, which dates the graphs, for its spelling.
  */
 export const timeZoneSchema = z.preprocess(
   asString,
@@ -38,7 +38,7 @@ export const timeZoneSchema = z.preprocess(
     }),
 );
 
-/** A typed number, or null when the field was left blank. Ranges are checked once, in kg and cm. */
+/** A typed number, or null when the field was left blank. Its range is checked once, in cm. */
 const optionalNumber = z.preprocess(
   asString,
   z
@@ -95,18 +95,35 @@ const sexSchema = z.preprocess(
   z.enum(SEXES, { error: "Choose one of the options." }).nullable(),
 );
 
-const WEIGHT_KG = { min: 20, max: 500 } as const;
 const HEIGHT_CM = { min: 50, max: 260 } as const;
 
+/** The two ways a height is typed: centimetres with kilograms, feet and inches with pounds. */
+const HEIGHT_UNITS = ["cm", "ftin"] as const satisfies readonly HeightUnit[];
+
 /**
- * Everything the app knows about the person training. Both the onboarding step and the
- * profile edit screen parse with this, so the two can never ask for different things.
- *
- * Weight and height arrive in whichever units the account uses — pounds and feet, or
- * kilograms and centimetres — and leave as kilograms and centimetres, which is how they are
- * stored. `preferredUnit` is part of the same submission, so the conversion never has to
- * guess which units the numbers were typed in. Distances arrive as the form shows them; only
+ * How the account measures, and the zone its days are dated in (board Units and time zone):
+ * what setup's first step proposes from the phone and Profile › Units and time zone changes, so
+ * the two can never ask for different things. Distances arrive as the form shows them; only
  * what differs from the weight unit's is stored (ADR 0055).
+ */
+export const unitsInputSchema = z.object({
+  timeZone: timeZoneSchema,
+  preferredUnit: z.enum(BODY_LOAD_UNITS, { error: "Choose kilograms or pounds." }),
+  distanceUnit: z.enum(DISTANCE_UNITS, { error: "Choose kilometres or miles." }),
+  poolUnit: z.enum(POOL_UNITS, { error: "Choose metres or yards." }),
+});
+
+export type UnitsInput = z.output<typeof unitsInputSchema>;
+
+/**
+ * Who the person training is (Edit profile): name, username, date of birth, sex, height and
+ * training goal, each asked for again until it is given (ADR 0020), sex aside, since saying
+ * nothing is an answer. The units, the zone and body weight are other screens' (Units and time
+ * zone; Today › Log › Body weight).
+ *
+ * The height arrives as the form showed it, in centimetres or in feet and inches, and the form
+ * says which (`heightUnit`), so the conversion never has to guess; it leaves as centimetres,
+ * which is how it is stored.
  */
 export const profileInputSchema = z
   .object({
@@ -119,36 +136,17 @@ export const profileInputSchema = z
         .max(80, "Keep this under 80 characters."),
     ),
     username: usernameSchema,
-    timeZone: timeZoneSchema,
-    preferredUnit: z.enum(BODY_LOAD_UNITS, { error: "Choose kilograms or pounds." }),
-    distanceUnit: z.enum(DISTANCE_UNITS, { error: "Choose kilometres or miles." }),
-    poolUnit: z.enum(POOL_UNITS, { error: "Choose metres or yards." }),
     dateOfBirth: dateOfBirthSchema,
     sex: sexSchema,
     trainingGoal: z.enum(TRAINING_GOALS, { error: "Choose what you are training for." }),
-    /** In `preferredUnit`. */
-    bodyWeight: optionalNumber,
-    /** Used when the account is in kilograms. */
+    /** Which of the height fields the form showed; centimetres unless it says otherwise. */
+    heightUnit: z.enum(HEIGHT_UNITS).catch("cm"),
     heightCm: optionalNumber,
-    /** Used when the account is in pounds. */
     heightFeet: optionalNumber,
     heightInches: optionalNumber,
   })
   .transform((values, ctx) => {
-    const unit: BodyLoadUnit = values.preferredUnit;
-
-    const bodyWeightKg = values.bodyWeight === null ? null : toKilograms(values.bodyWeight, unit);
-    if (bodyWeightKg === null) {
-      ctx.addIssue({ code: "custom", path: ["bodyWeight"], message: "Enter your body weight." });
-    } else if (bodyWeightKg < WEIGHT_KG.min || bodyWeightKg > WEIGHT_KG.max) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["bodyWeight"],
-        message: `Enter a body weight between ${fromKilograms(WEIGHT_KG.min, unit)} and ${fromKilograms(WEIGHT_KG.max, unit)} ${unit}.`,
-      });
-    }
-
-    const imperial = heightUnitFor(unit) === "ftin";
+    const imperial = values.heightUnit === "ftin";
     const heightPath = imperial ? "heightFeet" : "heightCm";
     let heightCm: number | null = null;
     if (imperial) {
@@ -160,7 +158,9 @@ export const profileInputSchema = z
     }
     if (heightCm === null) {
       ctx.addIssue({ code: "custom", path: [heightPath], message: "Enter your height." });
-    } else if (heightCm < HEIGHT_CM.min || heightCm > HEIGHT_CM.max) {
+      return z.NEVER;
+    }
+    if (heightCm < HEIGHT_CM.min || heightCm > HEIGHT_CM.max) {
       ctx.addIssue({
         code: "custom",
         path: [heightPath],
@@ -168,22 +168,15 @@ export const profileInputSchema = z
           ? "Enter a height between 1′ 8″ and 8′ 6″."
           : `Enter a height between ${HEIGHT_CM.min} and ${HEIGHT_CM.max} cm.`,
       });
+      return z.NEVER;
     }
-
-    // Both readings are required, so a missing one has already been reported above.
-    if (bodyWeightKg === null || heightCm === null) return z.NEVER;
 
     return {
       displayName: values.displayName,
       username: values.username,
-      timeZone: values.timeZone,
-      preferredUnit: unit,
-      distanceUnit: values.distanceUnit,
-      poolUnit: values.poolUnit,
       dateOfBirth: values.dateOfBirth,
       sex: values.sex,
       trainingGoal: values.trainingGoal,
-      bodyWeightKg,
       heightCm,
     };
   });

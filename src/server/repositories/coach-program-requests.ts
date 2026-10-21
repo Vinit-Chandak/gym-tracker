@@ -39,8 +39,16 @@ function actionable(today: string) {
 const resolvedNow = (state: RequestState, now: Date) =>
   OPEN_REQUEST_STATES.includes(state) ? null : now;
 
-/** Everything still open, newest ask first, for the screens that show request status. */
-export async function listOpenRequests(db: DbOrTx, userId: string, limit = 20) {
+/**
+ * Everything still open, newest ask first, for the screens that show request status: one
+ * programme's asks where a sport is given, as its page lists them (ADR 0058).
+ */
+export async function listOpenRequests(
+  db: DbOrTx,
+  userId: string,
+  limit = 20,
+  sport?: ActivitySport,
+) {
   return db
     .select()
     .from(coachProgramRequests)
@@ -48,6 +56,7 @@ export async function listOpenRequests(db: DbOrTx, userId: string, limit = 20) {
       and(
         eq(coachProgramRequests.userId, userId),
         inArray(coachProgramRequests.state, [...OPEN_REQUEST_STATES]),
+        sport ? eq(coachProgramRequests.sport, sport) : undefined,
       ),
     )
     .orderBy(desc(coachProgramRequests.createdAt))

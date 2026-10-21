@@ -1,55 +1,64 @@
 import { describe, expect, it } from "vitest";
 
-import { NOT_A_PLACE, profileInputSchema, timeZoneSchema, UNKNOWN_TIME_ZONE } from "./profile";
+import {
+  NOT_A_PLACE,
+  profileInputSchema,
+  timeZoneSchema,
+  UNKNOWN_TIME_ZONE,
+  unitsInputSchema,
+} from "./profile";
 
+/** Edit profile as it is sent from an account in kilograms: its height in centimetres. */
 const metric = {
   displayName: "Sam",
   username: "sam_94",
-  timeZone: "Europe/Lisbon",
-  preferredUnit: "kg",
-  distanceUnit: "km",
-  poolUnit: "m",
-  bodyWeight: "74.5",
+  heightUnit: "cm",
   heightCm: "178",
-  heightFeet: "",
-  heightInches: "",
   dateOfBirth: "1994-03-21",
   sex: "female",
   trainingGoal: "build_muscle",
 };
 
+/** The same from an account in pounds: its height in feet and inches. */
 const imperial = {
   ...metric,
-  preferredUnit: "lb",
-  distanceUnit: "mi",
-  poolUnit: "yd",
-  bodyWeight: "164.2",
+  heightUnit: "ftin",
   heightCm: "",
   heightFeet: "5",
   heightInches: "10",
+};
+
+/** Units and time zone as it is sent. */
+const units = {
+  timeZone: "Europe/Lisbon",
+  preferredUnit: "kg",
+  distanceUnit: "km",
+  poolUnit: "m",
 };
 
 function parse(overrides: Record<string, string> = {}) {
   return profileInputSchema.safeParse({ ...metric, ...overrides });
 }
 
+function parseUnits(overrides: Record<string, string> = {}) {
+  return unitsInputSchema.safeParse({ ...units, ...overrides });
+}
+
 /** The message the form would show against one field, or undefined when that field is happy. */
-function errorFor(result: ReturnType<typeof parse>, field: string): string | undefined {
+function errorFor(
+  result: ReturnType<typeof parse> | ReturnType<typeof parseUnits>,
+  field: string,
+): string | undefined {
   if (result.success) return undefined;
   return result.error.issues.find((issue) => issue.path[0] === field)?.message;
 }
 
 describe("profile input", () => {
-  it("accepts a filled-in metric profile", () => {
-    const result = parse();
+  it("accepts a filled-in profile, and only what Edit profile asks", () => {
+    const result = parse({ bodyWeight: "74.5", timeZone: "Asia/Tokyo", preferredUnit: "lb" });
     expect(result.success && result.data).toEqual({
       displayName: "Sam",
       username: "sam_94",
-      timeZone: "Europe/Lisbon",
-      preferredUnit: "kg",
-      distanceUnit: "km",
-      poolUnit: "m",
-      bodyWeightKg: 74.5,
       heightCm: 178,
       dateOfBirth: "1994-03-21",
       sex: "female",
@@ -57,13 +66,10 @@ describe("profile input", () => {
     });
   });
 
-  it("stores pounds and feet as kilograms and centimetres", () => {
+  it("stores feet and inches as centimetres", () => {
     const result = profileInputSchema.safeParse(imperial);
-    expect(result.success && result.data.bodyWeightKg).toBe(74.48);
     // 5′ 10″ is 70 inches.
     expect(result.success && result.data.heightCm).toBe(177.8);
-    // The unit itself is still saved: it is how everything is read back.
-    expect(result.success && result.data.preferredUnit).toBe("lb");
   });
 
   it("reads height in feet alone, with the inches left blank", () => {
@@ -71,24 +77,31 @@ describe("profile input", () => {
     expect(result.success && result.data.heightCm).toBe(152.4);
   });
 
-  it("ignores the fields belonging to the other unit", () => {
-    // A form that has been switched between units can submit both; the chosen one wins.
+  it("reads the height in the measure the form showed it in", () => {
+    // Centimetres were shown, so feet sent alongside are not the answer.
     const result = parse({ heightFeet: "3", heightInches: "1" });
     expect(result.success && result.data.heightCm).toBe(178);
+    // A form that does not say is read in centimetres.
+    const { heightUnit: _unit, ...unsaid } = metric;
+    const read = profileInputSchema.safeParse(unsaid);
+    expect(read.success && read.data.heightCm).toBe(178);
   });
 
   it("accepts a comma as the decimal separator", () => {
-    const result = parse({ bodyWeight: "82,25" });
-    expect(result.success && result.data.bodyWeightKg).toBe(82.25);
+    const result = parse({ heightCm: "177,5" });
+    expect(result.success && result.data.heightCm).toBe(177.5);
   });
 
-  it("requires a name, a weight, a height, a birth date and a goal", () => {
+  it("requires a name, a username, a height, a birth date and a goal", () => {
     expect(errorFor(parse({ displayName: "   " }), "displayName")).toBeDefined();
     expect(errorFor(parse({ username: "" }), "username")).toBeDefined();
-    expect(errorFor(parse({ bodyWeight: "" }), "bodyWeight")).toBeDefined();
     expect(errorFor(parse({ heightCm: "" }), "heightCm")).toBeDefined();
     expect(errorFor(parse({ dateOfBirth: "" }), "dateOfBirth")).toBeDefined();
     expect(errorFor(parse({ trainingGoal: "" }), "trainingGoal")).toBeDefined();
+  });
+
+  it("asks nothing of body weight, units or the zone, which are other screens'", () => {
+    expect(parse({ bodyWeight: "", timeZone: "", preferredUnit: "" }).success).toBe(true);
   });
 
   it("makes the username canonical and holds it to the rules", () => {
@@ -114,22 +127,48 @@ describe("profile input", () => {
     expect(result.success && result.data.sex).toBeNull();
   });
 
+  it("rejects a height that is not a plausible number", () => {
+    for (const value of ["30", "300", "tall"]) {
+      expect(parse({ heightCm: value }).success, value).toBe(false);
+    }
+    expect(
+      errorFor(profileInputSchema.safeParse({ ...imperial, heightFeet: "9" }), "heightFeet"),
+    ).toBe("Enter a height between 1′ 8″ and 8′ 6″.");
+  });
+
+  it("rejects a birth date that is not real, or not in the past", () => {
+    for (const value of ["1994-02-30", "not-a-date", "3000-01-01", "1700-01-01"]) {
+      expect(parse({ dateOfBirth: value }).success, value).toBe(false);
+    }
+  });
+});
+
+describe("units input", () => {
+  it("accepts the units and a zone", () => {
+    expect(parseUnits({ preferredUnit: "lb", distanceUnit: "km", poolUnit: "yd" }).data).toEqual({
+      timeZone: "Europe/Lisbon",
+      preferredUnit: "lb",
+      distanceUnit: "km",
+      poolUnit: "yd",
+    });
+  });
+
   it("rejects a time zone the platform does not know", () => {
-    expect(parse({ timeZone: "Mars/Olympus" }).success).toBe(false);
-    expect(parse({ timeZone: "" }).success).toBe(false);
+    expect(parseUnits({ timeZone: "Mars/Olympus" }).success).toBe(false);
+    expect(parseUnits({ timeZone: "" }).success).toBe(false);
   });
 
   it("takes a place for a time zone, never an abbreviation or an offset", () => {
     // Each reads as one zone to the browser and another, or none, to Postgres or in summer.
     for (const zone of ["EST", "IST", "BST", "CET", "+05:30", "-04:00", "Etc/GMT+5", "PST8PDT"]) {
-      expect(errorFor(parse({ timeZone: zone }), "timeZone"), zone).toBe(NOT_A_PLACE);
+      expect(errorFor(parseUnits({ timeZone: zone }), "timeZone"), zone).toBe(NOT_A_PLACE);
     }
-    expect(errorFor(parse({ timeZone: "Mars/Olympus" }), "timeZone")).toBe(UNKNOWN_TIME_ZONE);
+    expect(errorFor(parseUnits({ timeZone: "Mars/Olympus" }), "timeZone")).toBe(UNKNOWN_TIME_ZONE);
   });
 
   it("keeps a zone in the platform's own spelling", () => {
     const zoneOf = (timeZone: string) => {
-      const result = parse({ timeZone });
+      const result = parseUnits({ timeZone });
       return result.success ? result.data.timeZone : null;
     };
     expect(zoneOf("america/new_york")).toBe("America/New_York");
@@ -142,43 +181,20 @@ describe("profile input", () => {
   });
 
   it("asks the same of setup's time zone", () => {
-    // Setup's first step parses its zone with the same schema.
+    // Setup's first step parses its units and zone with the same schema.
     expect(timeZoneSchema.safeParse("IST").success).toBe(false);
     const result = timeZoneSchema.safeParse("asia/tokyo");
     expect(result.success && result.data).toBe("Asia/Tokyo");
   });
 
   it("only takes the units a person weighs a barbell in", () => {
-    expect(profileInputSchema.safeParse(imperial).success).toBe(true);
     // A machine may count plates or stack steps; a person does not.
-    expect(parse({ preferredUnit: "stack_index" }).success).toBe(false);
-  });
-
-  it("rejects a body weight that is not a plausible number", () => {
-    for (const value of ["0", "-5", "900", "heavy"]) {
-      expect(parse({ bodyWeight: value }).success, value).toBe(false);
-    }
-  });
-
-  it("states the weight range in the unit it was typed in", () => {
-    // The bounds are checked in kilograms, so 900 lb — 408 kg — is a real weight.
-    expect(profileInputSchema.safeParse({ ...imperial, bodyWeight: "900" }).success).toBe(true);
-    // 1200 lb is not, and saying so in kilograms would be no help at all.
-    const result = profileInputSchema.safeParse({ ...imperial, bodyWeight: "1200" });
-    expect(errorFor(result, "bodyWeight")).toMatchInlineSnapshot(
-      `"Enter a body weight between 44.1 and 1102.3 lb."`,
+    expect(errorFor(parseUnits({ preferredUnit: "stack_index" }), "preferredUnit")).toBe(
+      "Choose kilograms or pounds.",
     );
-  });
-
-  it("rejects a height that is not a plausible number", () => {
-    for (const value of ["30", "300", "tall"]) {
-      expect(parse({ heightCm: value }).success, value).toBe(false);
-    }
-  });
-
-  it("rejects a birth date that is not real, or not in the past", () => {
-    for (const value of ["1994-02-30", "not-a-date", "3000-01-01", "1700-01-01"]) {
-      expect(parse({ dateOfBirth: value }).success, value).toBe(false);
-    }
+    expect(errorFor(parseUnits({ distanceUnit: "yd" }), "distanceUnit")).toBe(
+      "Choose kilometres or miles.",
+    );
+    expect(errorFor(parseUnits({ poolUnit: "km" }), "poolUnit")).toBe("Choose metres or yards.");
   });
 });

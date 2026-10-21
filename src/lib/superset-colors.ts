@@ -1,10 +1,11 @@
 import type { CSSProperties } from "react";
 
 /**
- * Supersets are told apart by colour, not by a label. The theme carries eight group hues,
- * each validated on both canvases and kept clear of the copper accent, and a workout's
- * groups take them in order of first appearance: the first superset in any workout is
- * always hue 1, so the same workout looks the same every time it is opened.
+ * A workout's superset groups, numbered in order of first appearance: the first superset in
+ * any workout is always group 1, so the same workout reads the same every time it is opened.
+ * Form v2 draws every group in ink (DESIGN.md: a superset is a bracket in ink, not a hue), so
+ * the theme resolves all eight group colours to ink; the numbering is kept for the rows and
+ * any theme that tells groups apart.
  */
 export const SUPERSET_HUE_COUNT = 8;
 

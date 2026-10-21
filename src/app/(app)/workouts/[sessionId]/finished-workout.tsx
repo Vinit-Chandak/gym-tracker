@@ -52,8 +52,8 @@ export type FinishedEdit = {
 function draftsLine({ count, names }: Drafts): string {
   const where = names.length > 0 ? `in ${LIST.format(names)}` : "on this device";
   return count === 1
-    ? `A set ${where} is not saved yet. Open it to save or remove it.`
-    : `Sets ${where} are not saved yet. Open them to save or remove them.`;
+    ? `Unsaved set ${where}: save or remove it.`
+    : `Unsaved sets ${where}: save or remove them.`;
 }
 
 /** Load moved, the app's rule (working sets, load × reps), in the reader's unit. */
@@ -302,12 +302,13 @@ export function FinishedWorkout({
           )}
         </dl>
 
+        {/* Each row ends in its chevron, and a change saves as it is made: the note says only
+            how long the record stays open. */}
         {editing && edit && (
           <p role="status" className="finished-edit-note">
             <Glyph name="edit" className="mt-px glyph-18 shrink-0" />
             <span className="min-w-0">
-              Tap an exercise to change its sets. Each change saves as you make it, until{" "}
-              {formatIsoDate(edit.until, session.today.slice(0, 4))}.
+              Editable until {formatIsoDate(edit.until, session.today.slice(0, 4))}
             </span>
           </p>
         )}

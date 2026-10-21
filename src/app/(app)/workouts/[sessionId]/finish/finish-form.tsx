@@ -22,6 +22,8 @@ type Props = {
   sessionId: string;
   /** No set is logged: finishing would only record nothing, so discarding is offered first. */
   nothingLogged?: boolean;
+  /** The coach is on, and reads the notes: their example says so. */
+  coach?: boolean;
   /** Left open, the last set's time ("19:30"): Finish ends the workout there, and says so. */
   asOf?: string | null;
   recordedStart?: string;
@@ -36,6 +38,7 @@ export function FinishForm({
   userId,
   sessionId,
   nothingLogged = false,
+  coach = false,
   asOf = null,
   recordedStart,
   latestFinish,
@@ -55,7 +58,7 @@ export function FinishForm({
   return (
     <form action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
       {recordedStart && (
-        <Field label="Finished at" hint="Enter when this workout actually ended.">
+        <Field label="Finished at">
           <Input
             name="finishedAt"
             type="datetime-local"
@@ -66,25 +69,22 @@ export function FinishForm({
           />
         </Field>
       )}
-      {/* Say that the coach reads this. It always could, and people wrote requests here
-          expecting an answer; a field that looks like a diary should not be one. */}
-      <Field label="Notes" hint="Your coach reads these" error={state.fieldErrors?.notes}>
+      {/* The example says the coach reads this, where there is one: people wrote requests here
+          expecting an answer, and a field that looks like a diary should not be one. */}
+      <Field label="Notes" error={state.fieldErrors?.notes}>
         <Textarea
           name="notes"
           defaultValue={state.values?.notes ?? ""}
           maxLength={1000}
           rows={2}
           className="min-h-[4.5rem]"
-          placeholder="How it went, anything the coach should know…"
+          placeholder={coach ? "How it went, anything the coach should know…" : "How it went…"}
         />
       </Field>
       <Field
         label={`Body weight (${unit})`}
-        hint={
-          lastBodyWeight
-            ? `Optional. Last reading ${lastBodyWeight}\u00a0${unit}; what you type is today's.`
-            : "Optional. What you type is today's reading."
-        }
+        aside="Optional"
+        hint={lastBodyWeight ? `Last ${lastBodyWeight}\u00a0${unit}` : undefined}
         error={state.fieldErrors?.bodyWeight}
       >
         <input type="hidden" name="unit" value={unit} />
@@ -103,17 +103,15 @@ export function FinishForm({
         {/* Finishing would leave these unresolved drafts stranded on the device. */}
         {drafts > 0 && (
           <p role="alert" className="type-meta-small font-semibold">
-            Go back and save or remove your {drafts} set {drafts === 1 ? "draft" : "drafts"} before
-            finishing.
+            Save or remove {drafts} unsaved {drafts === 1 ? "set" : "sets"} first.
           </p>
         )}
+        {/* The buttons under it say what each way out keeps or drops. */}
+        {nothingLogged && <p className="type-meta font-bold">Nothing logged.</p>}
         {nothingLogged && !typed ? (
           <>
             {/* An empty session is better thrown away than kept as a record of nothing; one
                 with every exercise skipped can still be finished, and keeps its reasons. */}
-            <p className="type-meta">
-              <span className="font-bold">Nothing logged.</span> Discard this session instead?
-            </p>
             <DiscardSessionButton
               sessionId={sessionId}
               variant="primary"
@@ -128,10 +126,6 @@ export function FinishForm({
           <>
             {/* Something was typed: finishing keeps it, so finishing leads, and the way that
                 drops it says so. */}
-            <p className="type-meta">
-              <span className="font-bold">Nothing logged.</span> Finish to keep what you typed;
-              discarding drops it with the session.
-            </p>
             <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
               Finish and keep it
             </SubmitButton>

@@ -209,8 +209,11 @@ friend group, and a block table is a two-hour addition if ever needed.
 
 ### 3.7 Privacy (`/profile/privacy`)
 
-Four switches, each with one sentence under it, saved on change (the rest-timer row is the
-pattern):
+Four switches, saved on change (the rest-timer row is the pattern). Under each, at most eight
+words, and only where On or Off exposes or hides something the label does not say ("Off: anyone
+can follow you"); what each shares in full is behind What a follower can see. A sport's own
+switch is dimmed, with "Needs Share training" under it, while Share training is off (DESIGN.md,
+The Need-to-Know Rule, 20 October 2026). What each switch does:
 
 | Switch                                | Default | Effect                                                                                                     |
 | ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
@@ -219,8 +222,11 @@ pattern):
 | Share body weight for relative strength | off   | On means followers who also share theirs see "per kg of body weight" rows and rankings.                    |
 | Let people find me by email           | on      | Off means the exact-email lookup does not return you; username search still does.                          |
 
-Above the switches, one box lists in plain words what a follower can and cannot see (the two
-lists in §3.8), because a privacy screen that does not say what it protects is decoration.
+Below the switches, two rows open what a follower can see and what nobody can (the two lists in
+§3.8), because a privacy screen that does not say what it protects is decoration. The lines under
+the switches read "Off: anyone can follow you.", "Lifting and running. Off: just your profile
+card.", "On: followers who share theirs see your weight." and "Off: only username search finds
+you." (20 October 2026).
 
 ### 3.8 What a follower can see, and what they never can
 

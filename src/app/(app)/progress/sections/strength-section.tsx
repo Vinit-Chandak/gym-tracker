@@ -219,11 +219,13 @@ function GroupVolume({
       }}
       note={{
         label: "About volume",
-        content: `Load × reps of every working set from finished workouts, in ${unit}; warm-ups are left out. Each exercise counts under one muscle group, the one its main muscle is in, and is listed there, so the groups add up to All. Bodyweight, timed and machine-stack sets carry no load and add nothing here, nor does an assisted machine's help: choose the exercise to see its reps or time. The weekly figure is taken over the weeks you trained; a week the range starts or ends partway through counts for its days in the range.`,
+        content:
+          "Load × reps of working sets; bodyweight, timed and stack sets add none. A week's figure is over the weeks you trained.",
       }}
+      // Why sets with no load add nothing is the ⓘ's; the way to them is the exercise's choice.
       empty={
         sets > 0
-          ? `Nothing ${group === "all" ? "" : `for ${named} `}with a load in this range: bodyweight and timed sets add no volume. Choose an exercise to see its reps or time.`
+          ? "No loaded sets in this range. Choose an exercise to see its reps or time."
           : group === "all"
             ? "No workouts in this range."
             : `No ${named} exercises in this range.`

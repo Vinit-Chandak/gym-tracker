@@ -9,6 +9,13 @@ import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-jobs";
 
+import {
+  builderPath,
+  coachQuestionsPath,
+  requestPath,
+  type ProgrammeBase,
+} from "./programme-paths";
+
 /**
  * Everything half-finished, as a list of places to go back to.
  *
@@ -40,7 +47,7 @@ export async function SavedProgrammeWork({
   );
   const { jobs, expired } = settleCoachJobs(stored);
   if (expired) tidyCoachJobsLater(user.id);
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   // A draft written against a running programme is a change, not saved work: it lives under
   // Programme → Changes with the review that produced it, where it is read as a difference
   // rather than as another programme to start.
@@ -68,32 +75,30 @@ export async function SavedProgrammeWork({
             href={
               (draft.status === "editing"
                 ? draft.sport === "strength"
-                  ? `${base}/manual?draft=${draft.id}`
+                  ? builderPath(base, `?draft=${draft.id}`)
                   : `/plan/${draft.sport}/edit?draft=${draft.id}`
                 : `${base}/drafts/${draft.id}`) as Route
             }
             glyph="table"
             label={draft.blueprint.name}
+            // Plan's words for each (ADR 0058).
             sub={
               draft.status === "editing"
-                ? "Continue editing your draft"
+                ? "Draft in progress"
                 : draft.standalone
-                  ? "A standalone session, ready to review and save"
-                  : "A draft programme, ready for you to review and start"
+                  ? "Session to review"
+                  : "New programme to review"
             }
           />
         ))}
         {waiting.map((job) => (
           <NavRow
             key={job.id}
-            href={`${base}/jobs/${job.id}` as Route}
+            href={requestPath(base, job.id)}
             glyph="coach"
             label="Programme request"
-            sub={
-              job.status === "needs_input"
-                ? "The coach has asked you something"
-                : "The coach is writing your programme"
-            }
+            // The badge says the coach asked something; the line is only for the writing.
+            sub={job.status === "needs_input" ? undefined : "Being written"}
             badge={job.status === "needs_input" ? "Needs your answer" : undefined}
           />
         ))}
@@ -106,7 +111,7 @@ export async function SavedProgrammeWork({
                   ? // Single coached sessions are set aside for now (ADR 0058).
                     "/plan"
                   : `/plan/new?sport=${intake.sport}&method=coach`
-                : `${base}/create`) as Route
+                : coachQuestionsPath(base)) as Route
             }
             glyph="note"
             label={
@@ -114,7 +119,6 @@ export async function SavedProgrammeWork({
                 ? `${ACTIVITY_SPORT_LABELS[intake.sport]} ${intake.answers.scope} answers`
                 : "Your answers to the coach"
             }
-            sub="Continue where you left off"
           />
         ))}
       </ul>

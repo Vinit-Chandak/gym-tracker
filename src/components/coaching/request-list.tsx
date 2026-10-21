@@ -42,29 +42,31 @@ const SETTLED: Partial<Record<RequestState, string>> = {
   already_satisfied: "Already in your programme",
 };
 
-/** Where an ask that needs nothing from the athlete is. */
-function waitingLine(request: RequestView): string {
-  if (request.state === "deferred")
-    return [
-      request.reconsiderAfter ? `Back on ${formatIsoDay(request.reconsiderAfter)}` : "Later",
-      request.condition,
-    ]
-      .filter(Boolean)
-      .join(FACT_SEPARATOR);
-  return "At the next coach run";
+/**
+ * Where an ask that needs nothing from the athlete is, when there is more to say than the fold
+ * it sits in ("With the coach"): one put off says until when. When the coach runs is not said.
+ */
+function waitingLine(request: RequestView): string | null {
+  if (request.state !== "deferred") return null;
+  return [
+    request.reconsiderAfter ? `Back on ${formatIsoDay(request.reconsiderAfter)}` : "Later",
+    request.condition,
+  ]
+    .filter(Boolean)
+    .join(FACT_SEPARATOR);
 }
 
 /**
  * What the athlete asked for, in their own words, and what it needs from them now.
  *
  * Their words are the title, because they recognise them. A question comes with the box to
- * answer it in; an ask waiting on the coach says when it will be heard; a settled one says
- * what it came to. Nothing is said twice: no status badge under a heading that already says
- * it, no coach paraphrase of the ask above the ask, no date the coach's run stamped on it.
+ * answer it in; an ask the coach put off says until when; a settled one says what it came to.
+ * Nothing is said twice: no status badge under a heading that already says it, no coach
+ * paraphrase of the ask above the ask, no date the coach's run stamped on it.
  */
 export function RequestList({
   requests,
-  base = "/profile/programme",
+  base = "/plan",
   label,
 }: {
   requests: readonly RequestView[];
@@ -131,7 +133,9 @@ function RequestRow({
       ) : request.state === "needs_answer" ? (
         request.detail && <p className="type-body [overflow-wrap:break-word]">{request.detail}</p>
       ) : (
-        <p className="type-meta-small text-ink-2 tabular-nums">{waitingLine(request)}</p>
+        waitingLine(request) && (
+          <p className="type-meta-small text-ink-2 tabular-nums">{waitingLine(request)}</p>
+        )
       )}
       {settled && request.draftId && (
         <Link
@@ -184,7 +188,7 @@ function RequestRow({
                 act(() => coachingAction(() => withdrawProgramRequestAction(request.id)))
               }
             >
-              I no longer want this
+              Withdraw
             </Button>
           )}
         </div>

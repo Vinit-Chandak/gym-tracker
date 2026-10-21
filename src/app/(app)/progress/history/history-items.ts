@@ -106,7 +106,11 @@ export function workoutItem(w: HistoryWorkout, clock: HistoryClock): HistoryItem
     kind: "workout",
     date: w.startedAt.toISOString(),
     day: w.occurredOn ?? clock.dayOf(w.startedAt),
-    title: sessionName(w.dayName, w.title),
+    title: sessionName(
+      w.dayName,
+      w.title,
+      w.exercises.filter((e) => e.logged).map((e) => e.name),
+    ),
     subtitle: joinFacts([clock.timeOf(w.startedAt), w.gymName]),
     // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
     // and goes back to History.
@@ -134,7 +138,7 @@ export function runItem(r: RunActivity, clock: HistoryClock): HistoryItem {
       distanceIn(r.distanceMeters, "running", clock),
     ]),
     subtitle: joinFacts([clock.timeOf(r.startedAt), ENDURANCE_PLACE_LABELS[r.environment]]),
-    href: `/training/activities/${r.id}${originQuery("history")}` as const,
+    href: `/progress/activities/${r.id}${originQuery("history")}` as const,
     meta: joinFacts([formatDuration(r.durationSeconds), paceIn(r.averagePaceSecondsPerKm, clock)]),
     gymId: r.gymId,
     exercises: [],
@@ -164,7 +168,7 @@ export function enduranceItem(activity: ActivityListItem, clock: HistoryClock): 
       clock.timeOf(activity.startedAt),
       activity.environment ? ENDURANCE_PLACE_LABELS[activity.environment] : null,
     ]),
-    href: `/training/activities/${activity.id}${originQuery("history")}` as const,
+    href: `/progress/activities/${activity.id}${originQuery("history")}` as const,
     // An unrecorded duration says so rather than reading as zero minutes.
     meta:
       activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),

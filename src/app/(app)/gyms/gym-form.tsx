@@ -46,7 +46,7 @@ export function GymForm({ action, initial, submitLabel }: GymFormProps) {
           defaultValue={asKind(state.values?.kind, initial?.kind ?? "gym")}
         />
       </Field>
-      <Field label="Address" hint="Optional" error={state.fieldErrors?.address}>
+      <Field label="Address" aside="Optional" error={state.fieldErrors?.address}>
         <Input
           name="address"
           defaultValue={value("address")}
@@ -54,7 +54,7 @@ export function GymForm({ action, initial, submitLabel }: GymFormProps) {
           autoComplete="street-address"
         />
       </Field>
-      <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+      <Field label="Notes" aside="Optional" error={state.fieldErrors?.notes}>
         <Textarea name="notes" defaultValue={value("notes")} maxLength={1000} />
       </Field>
       <FormError message={state.formError} />

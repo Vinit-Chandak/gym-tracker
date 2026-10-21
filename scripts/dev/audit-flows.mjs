@@ -106,9 +106,11 @@ async function login(name) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => url.pathname !== "/login");
 }
-async function save(label = "Save activity") {
-  await page.getByRole("button", { name: label, exact: true }).click();
-  await page.waitForURL(/\/training\/activities\/[^/]+$/);
+// The form's button names what it saves: Save run, Save ride or Save swim; a correction, Save
+// changes.
+async function save(label = /^Save (?:run|ride|swim)$/) {
+  await page.getByRole("button", { name: label, exact: typeof label === "string" }).click();
+  await page.waitForURL(/\/progress\/activities\/[^/]+$/);
   await page.getByRole("button", { name: /^Correct or delete this / }).waitFor();
   return path().split("/").at(-1);
 }
@@ -142,7 +144,7 @@ try {
   const ids = {};
   for (const sport of ["running", "cycling", "swimming"]) {
     await check(`${sport}: create an ad hoc activity`, async () => {
-      await go(`/training/new?sport=${sport}`);
+      await go(`/today/log/new?sport=${sport}`);
       await fill("minutes", 30);
       if (sport === "running") await fill("distanceValue", 5);
       if (sport === "cycling") await choose("environment", "indoor");
@@ -154,7 +156,7 @@ try {
       }
       await fill("title", `${prefix} ${sport}`);
       if (sport === "running") {
-        await page.getByRole("button", { name: "Save activity" }).click();
+        await page.getByRole("button", { name: "Save run" }).click();
         await expect(
           page.getByText("Rate the effort from 1 to 5, or choose Not sure."),
         ).toBeVisible();
@@ -174,12 +176,14 @@ try {
             await sql`select distance_metres from cycling_activity_details where activity_id=${id}`
           )[0].distance_metres,
         ).toBeNull();
-      if (sport === "swimming") await expect(page.getByText(/Elapsed time only/)).toBeVisible();
+      // Why a swim has no pace is its ⓘ, beside the pace's dash.
+      if (sport === "swimming")
+        await expect(page.getByRole("button", { name: "About pace" })).toBeVisible();
     });
     await check(`${sport}: edit measurements and notes on the same record`, async () => {
       const id = ids[sport];
       if (!id) throw new Error("Creation did not succeed");
-      await go(`/training/activities/${id}/edit`);
+      await go(`/progress/activities/${id}/edit`);
       await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();
       await fill("minutes", 35);
       await fill("notes", "Corrected through the browser");
@@ -207,8 +211,8 @@ try {
     const id = ids.cycling;
     const other = await context.newPage();
     try {
-      await go(`/training/activities/${id}/edit`);
-      await other.goto(`${baseURL}/training/activities/${id}/edit`, { waitUntil: "networkidle" });
+      await go(`/progress/activities/${id}/edit`);
+      await other.goto(`${baseURL}/progress/activities/${id}/edit`, { waitUntil: "networkidle" });
       await fill("minutes", 36);
       await save("Save changes");
       await fillActivityField(other, "minutes", 99);
@@ -232,8 +236,8 @@ try {
           .locator('a[aria-current="page"]')
           .innerText();
       await go("/progress/history?kind=run");
-      await page.locator(`a[href="/training/activities/${ids.running}?from=history"]`).click();
-      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
+      await page.locator(`a[href="/progress/activities/${ids.running}?from=history"]`).click();
+      await page.waitForURL(`**/progress/activities/${ids.running}?from=history`);
       expect(await selectedTab()).toBe("Progress");
       await page.getByRole("button", { name: /^Correct or delete this / }).click();
       await page.getByRole("link", { name: "Correct this activity" }).click();
@@ -241,12 +245,12 @@ try {
       await page.reload({ waitUntil: "networkidle" });
       await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
       await page.getByRole("link", { name: /^Back/ }).click();
-      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
+      await page.waitForURL(`**/progress/activities/${ids.running}?from=history`);
       expect(await selectedTab()).toBe("Progress");
       await page.getByRole("link", { name: /^Back/ }).click();
       await page.waitForURL("**/progress/history?kind=run");
       await page.goForward();
-      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
+      await page.waitForURL(`**/progress/activities/${ids.running}?from=history`);
       expect(await page.evaluate(() => history.state.overloadPreviousPage)).toBe(
         "/progress/history?kind=run",
       );
@@ -254,24 +258,24 @@ try {
   );
   await check("Direct entry Back uses a safe parent fallback", async () => {
     const direct = await context.newPage();
-    await direct.goto(`${baseURL}/training/activities/${ids.cycling}/edit`, {
+    await direct.goto(`${baseURL}/progress/activities/${ids.cycling}/edit`, {
       waitUntil: "networkidle",
     });
     await direct.getByRole("link", { name: /^Back/ }).click();
-    await expect(direct).toHaveURL(`${baseURL}/training/activities/${ids.cycling}`);
+    await expect(direct).toHaveURL(`${baseURL}/progress/activities/${ids.cycling}`);
     await direct.close();
   });
   await check(
     "Offline activity survives reconnect and reload, then saves exactly once",
     async () => {
-      await go("/training/new?sport=running");
+      await go("/today/log/new?sport=running");
       await fill("minutes", 42);
       await fill("distanceValue", 6);
       await choose("effort", "2");
       await fill("title", `${prefix} offline`);
       const key = await page.locator('[name="submissionKey"]').inputValue();
       await context.setOffline(true);
-      await page.getByRole("button", { name: "Save activity" }).click();
+      await page.getByRole("button", { name: "Save run" }).click();
       await expect(page.getByText(/could not confirm the save/)).toBeVisible();
       await context.setOffline(false);
       await page.reload({ waitUntil: "networkidle" });
@@ -343,7 +347,7 @@ try {
   });
   await check("Scheduled session skips, reopens and moves without changing identity", async () => {
     if (!occurrence) throw new Error("Missing occurrence");
-    await go(`/training/programme/occurrences/${occurrence.id}`);
+    await go(`/plan/sessions/${occurrence.id}`);
     await page.getByRole("button", { name: "Skip this session" }).click();
     await page.getByRole("button", { name: "Put it back" }).click();
     await expect(page.getByRole("button", { name: "Skip this session" })).toBeVisible();
@@ -359,14 +363,14 @@ try {
     "Ad hoc log leaves a scheduled session pending; linked log settles only it",
     async () => {
       if (!occurrence) throw new Error("Missing occurrence");
-      await go("/training/new?sport=swimming");
+      await go("/today/log/new?sport=swimming");
       await fill("minutes", 20);
       await choose("effort", "unsure");
       await save();
       expect(
         await sql`select id from activities where occurrence_id=${occurrence.id}`,
       ).toHaveLength(0);
-      await go(`/training/new?occurrence=${occurrence.id}`);
+      await go(`/today/log/new?occurrence=${occurrence.id}`);
       await expect(page.locator('[name="minutes"]')).toHaveValue("");
       await fill("minutes", 30);
       await choose("effort", "3");
@@ -375,7 +379,7 @@ try {
         (await sql`select occurrence_id from activities where id=${ids.scheduled}`)[0]
           .occurrence_id,
       ).toBe(occurrence.id);
-      await go(`/training/new?occurrence=${occurrence.id}`);
+      await go(`/today/log/new?occurrence=${occurrence.id}`);
       await expect(page.getByText(/already logged/i).first()).toBeVisible();
     },
   );
@@ -383,14 +387,14 @@ try {
     "Deleting a linked activity removes projections and makes the same session loggable",
     async () => {
       if (!ids.scheduled) throw new Error("Missing linked log");
-      await go(`/training/activities/${ids.scheduled}`);
+      await go(`/progress/activities/${ids.scheduled}`);
       await page.getByRole("button", { name: /^Correct or delete this / }).click();
       await page.getByRole("button", { name: "Delete activity", exact: true }).click();
-      await page.getByRole("button", { name: "Tap again to delete" }).click();
+      await page.getByRole("button", { name: "Delete this run" }).click();
       await page.waitForURL("**/progress/history");
       expect(await sql`select id from activities where id=${ids.scheduled}`).toHaveLength(0);
-      await go(`/training/new?occurrence=${occurrence.id}`);
-      await expect(page.getByRole("button", { name: "Save activity" })).toBeVisible();
+      await go(`/today/log/new?occurrence=${occurrence.id}`);
+      await expect(page.getByRole("button", { name: "Save run" })).toBeVisible();
     },
   );
   await check("Foreign records, templates and occurrences are not exposed", async () => {
@@ -399,11 +403,11 @@ try {
     const foreignTemplate = fixtures.templates.find((a) => a.userId === owner);
     const foreignOccurrence = fixtures.occurrences.find((a) => a.userId === owner);
     for (const route of [
-      `/training/activities/${activity.id}`,
-      `/training/activities/${activity.id}/edit`,
+      `/progress/activities/${activity.id}`,
+      `/progress/activities/${activity.id}/edit`,
       `/training/templates/${foreignTemplate.id}/edit`,
-      `/training/programme/occurrences/${foreignOccurrence.id}`,
-      `/training/new?occurrence=${foreignOccurrence.id}`,
+      `/plan/sessions/${foreignOccurrence.id}`,
+      `/today/log/new?occurrence=${foreignOccurrence.id}`,
     ]) {
       await go(route);
       await expect(page.getByRole("heading", { name: "Nothing here", exact: true })).toBeVisible();
@@ -414,7 +418,7 @@ try {
     await go("/progress?view=muscles&week=9999-99-99");
     await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
     await expect(page.getByText(/That week is not a valid date/)).toBeVisible();
-    await go("/training/new?occurrence=not-a-uuid&sport=running");
+    await go("/today/log/new?occurrence=not-a-uuid&sport=running");
     await expect(page.getByRole("heading", { name: "Nothing here", exact: true })).toBeVisible();
   });
   await check(

@@ -31,7 +31,8 @@ fixed.
 2. **The first step asks two things:** "Which sounds like you?" and "What do you train?".
    Nothing is ticked until the athlete taps.
    - Units and the time zone come from the phone, shown as one line that names only what the
-     chosen sports use ("lb · miles · New York time"), and are changed in a sheet.
+     chosen sports use ("lb · miles · New York time"), and are changed in a sheet; later, in
+     Profile › Units and time zone ([ADR 0060](0060-every-page-under-its-tab.md)).
    - Pounds, miles and yard pools apply where the language's region is the United States,
      Liberia or Myanmar; metric applies elsewhere.
    - Someone who does not lift finishes setup here.

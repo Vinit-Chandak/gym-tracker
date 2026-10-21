@@ -233,22 +233,22 @@ export function ExerciseGraph({
                 action: "Open workout",
               };
             }}
+            // Two sentences at most: what a point is, then what a line is (an ⓘ's length).
             note={{
               label: "About this graph",
-              content: (
-                <>
-                  One point per finished workout: its best set by this measure; over many workouts,
-                  one per week or month, the best of them. Warm-ups are left out.{" "}
-                  {selected.machine === "Across gyms"
-                    ? "The load means the same at every gym, so every workout counts."
-                    : "Loads on different machines are not comparable, so each machine is its own line."}
-                  {measure === "e1rm" &&
-                    " Estimated 1RM is Epley's formula on barbell and dumbbell sets of 1–10 reps; a dumbbell counts as logged, not doubled per hand."}
-                  {measure === "maxVolume" && " Volume is one set's load × reps."}
-                  {assisted &&
-                    " On an assisted machine the weight is the help it gave, so less is stronger and stands higher; it adds no volume."}
-                </>
-              ),
+              content: `${
+                measure === "e1rm"
+                  ? "Each point is a workout's best estimated 1RM, by Epley's formula on sets of 1–10 reps."
+                  : measure === "maxVolume"
+                    ? "Each point is a workout's biggest set, load × reps."
+                    : "Each point is a workout's best set, warm-ups left out."
+              } ${
+                assisted
+                  ? "The weight is the help given, so less stands higher."
+                  : selected.machine === "Across gyms"
+                    ? "The load means the same at every gym."
+                    : "Each machine is its own line."
+              }`,
             }}
             empty={`No ${selected.name.toLowerCase()} in this range.`}
           />

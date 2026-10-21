@@ -64,7 +64,7 @@ const cases = [
   {
     name: "food-quick-add",
     route: `/food/breakfast${foodDay}`,
-    open: click("Quick add Calories and macros, just this once"),
+    open: click("Quick add Just this once"),
     dialog: "Quick add",
   },
   {

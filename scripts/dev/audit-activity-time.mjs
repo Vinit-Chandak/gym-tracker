@@ -63,10 +63,10 @@ async function run(engine) {
     await page.locator('input[name="effort"][value="3"]').locator("..").click();
     await page.locator('[name="title"]').fill(title);
   };
-  const saveActivity = async (label = "Save activity") => {
+  const saveActivity = async (label = "Save run") => {
     await page.getByRole("button", { name: label, exact: true }).click();
     // A run logged from Training opens on Training (?from=training), as its Back leads there.
-    await page.waitForURL(/\/training\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
+    await page.waitForURL(/\/progress\/activities\/[a-f0-9-]+(?:\?from=[a-z]+)?$/);
     await page.waitForLoadState("networkidle");
     return new URL(page.url()).pathname.split("/").at(-1);
   };
@@ -95,12 +95,12 @@ async function run(engine) {
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.waitForURL("**/today");
     await page.waitForLoadState("networkidle");
-    await page.goto("/training/new?sport=running", { waitUntil: "networkidle" });
+    await page.goto("/today/log/new?sport=running", { waitUntil: "networkidle" });
 
     await check("Spring clock-change gap is rejected without losing the entered run", async () => {
       await fillRun("2026-03-08T02:30", "Spring gap");
-      await expect(page.getByLabel("Which time?", { exact: true })).toHaveCount(0);
-      await page.getByRole("button", { name: "Save activity", exact: true }).click();
+      await expect(page.getByLabel(/happens twice here\. Which one\?$/)).toHaveCount(0);
+      await page.getByRole("button", { name: "Save run", exact: true }).click();
       await expect(
         page.getByText("Enter a valid date and time. This time must exist in your time zone.", {
           exact: true,
@@ -115,21 +115,21 @@ async function run(engine) {
       "Repeated time requires a native choice and server rejects missing choice",
       async () => {
         await fillRun("2025-11-02T01:30", "First occurrence");
-        const choice = page.getByLabel("Which time?", { exact: true });
+        const choice = page.getByLabel(/happens twice here\. Which one\?$/);
         await expect(choice).toBeVisible();
         await expect(choice).toHaveAttribute("required", "");
         expect(await choice.evaluate((element) => element.tagName)).toBe("SELECT");
         expect(await choice.evaluate((element) => element.checkValidity())).toBe(false);
         await expect(choice.locator("option")).toHaveText([
-          "Choose the first or second time",
-          "First occurrence (UTC−04:00)",
-          "Second occurrence (UTC−05:00)",
+          "Choose one",
+          "The first (UTC−04:00)",
+          "The second (UTC−05:00)",
         ]);
         // A stale or tampered client must receive a field error too, not a guessed UTC instant.
         await choice.evaluate((element) => {
           element.required = false;
         });
-        await page.getByRole("button", { name: "Save activity", exact: true }).click();
+        await page.getByRole("button", { name: "Save run", exact: true }).click();
         await expect(
           page.getByText(
             "This time happens twice when clocks go back. Choose which time you started.",
@@ -146,7 +146,7 @@ async function run(engine) {
     let firstId;
     let secondId;
     await check("First repeated hour persists the selected exact UTC instant", async () => {
-      await page.getByLabel("Which time?", { exact: true }).selectOption("-240");
+      await page.getByLabel(/happens twice here\. Which one\?$/).selectOption("-240");
       firstId = await saveActivity();
       expect(await records()).toEqual([
         expect.objectContaining({
@@ -161,9 +161,9 @@ async function run(engine) {
     await check(
       "Second hour fits small phones and large text, and persists its distinct instant",
       async () => {
-        await page.goto("/training/new?sport=running", { waitUntil: "networkidle" });
+        await page.goto("/today/log/new?sport=running", { waitUntil: "networkidle" });
         await fillRun("2025-11-02T01:30", "Second occurrence");
-        await page.getByLabel("Which time?", { exact: true }).selectOption("-300");
+        await page.getByLabel(/happens twice here\. Which one\?$/).selectOption("-300");
         for (const theme of ["light", "dark"]) {
           for (const font of [16, 32]) {
             await page.setViewportSize({ width: 320, height: 568 });
@@ -174,7 +174,7 @@ async function run(engine) {
               },
               { theme, font },
             );
-            await page.getByLabel("Which time?", { exact: true }).scrollIntoViewIfNeeded();
+            await page.getByLabel(/happens twice here\. Which one\?$/).scrollIntoViewIfNeeded();
             const width = await page.evaluate(() => ({
               width: document.documentElement.clientWidth,
               content: document.documentElement.scrollWidth,
@@ -196,23 +196,23 @@ async function run(engine) {
     await check(
       "Correction after travel retains the activity zone and original repeated hour",
       async () => {
-        await page.goto("/profile/edit", { waitUntil: "networkidle" });
-        // The time zone is chosen from a list of places now, not typed.
+        await page.goto("/profile/units", { waitUntil: "networkidle" });
+        // The time zone is chosen from a list of places, on Units and time zone (ADR 0060).
         await page.getByLabel("Time zone", { exact: true }).selectOption("America/Los_Angeles");
         await page.getByRole("button", { name: "Save", exact: true }).click();
-        await expect(page.getByRole("status").filter({ hasText: "Profile saved" })).toHaveText(
-          "Profile saved",
-        );
+        await expect(
+          page.getByRole("status").filter({ hasText: "Units and time zone saved" }),
+        ).toHaveText("Units and time zone saved");
         expect(await sql`select time_zone from profiles where id=${id}`).toEqual([
           { time_zone: "America/Los_Angeles" },
         ]);
-        await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.goto(`/progress/activities/${secondId}/edit`, { waitUntil: "networkidle" });
         await page.locator(".more-details-summary").click();
         await expect(
           page.getByText("Date and time in America/New_York.", { exact: true }),
         ).toBeVisible();
         await expect(page.locator('[name="startedAt"]')).toHaveValue("2025-11-02T01:30");
-        await expect(page.getByLabel("Which time?", { exact: true })).toHaveValue("-300");
+        await expect(page.getByLabel(/happens twice here\. Which one\?$/)).toHaveValue("-300");
         await page.locator('[name="notes"]').fill("Corrected after travelling");
         await saveActivity("Save changes");
         expect((await records()).find((record) => record.id === secondId)).toMatchObject({
@@ -227,9 +227,9 @@ async function run(engine) {
     await check(
       "An explicit change to the other repeated hour updates the UTC instant",
       async () => {
-        await page.goto(`/training/activities/${secondId}/edit`, { waitUntil: "networkidle" });
+        await page.goto(`/progress/activities/${secondId}/edit`, { waitUntil: "networkidle" });
         await page.locator(".more-details-summary").click();
-        await page.getByLabel("Which time?", { exact: true }).selectOption("-240");
+        await page.getByLabel(/happens twice here\. Which one\?$/).selectOption("-240");
         await saveActivity("Save changes");
         expect((await records()).find((record) => record.id === secondId)).toMatchObject({
           started_at: new Date("2025-11-02T05:30:00.000Z"),

@@ -296,7 +296,7 @@ it("opens a finished workout for changes within its week, and closes the edit in
   expect(window.location.search).toBe("?from=history&edit=1");
   page.rerender(view("2026-09-15"));
   expect(bar("Done").textContent).toBe("Done");
-  expect(screen.getByText(/Each change saves as you make it, until Tue 15 Sept/)).toBeTruthy();
+  expect(screen.getByText("Editable until Tue 15 Sept")).toBeTruthy();
   // Every exercise opens, the one not done as well, and more can be added.
   expect(screen.getByRole("button", { name: /Cable row\s*No sets/ })).toBeTruthy();
   expect(screen.queryByText("Not done")).toBeNull();
@@ -309,7 +309,10 @@ it("opens a finished workout for changes within its week, and closes the edit in
   page.rerender(view("2026-09-15"));
   expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Add set" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: BACK }));
+  // Finished, an unplanned workout goes by what it logged (owner, 20 October 2026), and the way
+  // back to it says so: the bench press, the one exercise with a set.
+  expect(screen.queryByRole("button", { name: BACK })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Bench press" }));
   page.rerender(view("2026-09-15"));
 
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -387,9 +390,9 @@ it("lets Finish go once a set left saving lands after its exercise was closed", 
   // Back while it is still on its way: its draft holds Finish, as any unsaved set does.
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.getByText(/A set in Bench press is not saved yet/)).toBeTruthy();
+  expect(screen.getByText("Unsaved set in Bench press: save or remove it to finish.")).toBeTruthy();
   // Landed, nothing is left to save, and nothing holds Finish back.
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.queryByText(/not saved yet/)).toBeNull();
+  expect(screen.queryByText(/Unsaved set/)).toBeNull();
   expect(screen.getByRole("link", { name: "Finish" })).toBeTruthy();
 });

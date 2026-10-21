@@ -178,6 +178,19 @@ export function RestTime({ sessionId }: { sessionId: string }) {
       >
         {go ? "Go" : formatDuration(remaining)}
       </span>
+      <RestOver go={go} />
+    </span>
+  );
+}
+
+/**
+ * The end of a rest, said once to a screen reader, politely: a timer's own seconds are never
+ * announced, so without this nobody who cannot see the dial hears that the rest is over.
+ */
+function RestOver({ go }: { go: boolean }) {
+  return (
+    <span className="sr-only" aria-live="polite">
+      {go ? "Rest over" : ""}
     </span>
   );
 }
@@ -293,6 +306,7 @@ export function RestPill({ sessionId }: { sessionId: string }) {
           <span className="type-figure-s">{time}</span>
         </span>
       </button>
+      <RestOver go={go} />
       <Sheet open={open} onClose={() => setOpen(false)} title="Rest">
         <p className="mt-2 type-figure-l" aria-live="off">
           {go ? "Go" : time}

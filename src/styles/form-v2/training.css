@@ -205,10 +205,212 @@
   font-size: var(--ov-type-caption);
   font-weight: 600;
 }
+/* A word a figure needs, under it: where a heart rate sits in the athlete's zones. */
+.activity-stat-note {
+  flex-basis: 100%;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
 /* Named first, for a screen reader, and drawn under its figure. */
 .activity-stat-label {
   grid-row: 2;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 500;
+}
+
+/* ---------- heart-rate zones (Profile › Heart rate zones, ADR 0059) ---------- */
+/* Five rows, each zone's name and its beats on one line and how it feels under them. A bar at
+   the start of each row deepens with the zone, in ink (zones serve every sport, and a pigment
+   names one: the Black-and-White Rule): the order reads at a glance, and the words and numbers
+   carry the meaning for anyone who cannot see the shade. */
+.heart-rate-zones {
+  display: grid;
+  gap: calc(2 * var(--ov-u));
+}
+.heart-rate-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: calc(12 * var(--ov-u));
+  row-gap: calc(2 * var(--ov-u));
+  padding: calc(8 * var(--ov-u)) 0 calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-left: calc(4 * var(--ov-u)) solid
+    color-mix(in srgb, var(--ov-ink) var(--zone-share), var(--ov-surface-2));
+}
+.heart-rate-zone[data-zone="1"] {
+  --zone-share: 18%;
+}
+.heart-rate-zone[data-zone="2"] {
+  --zone-share: 38%;
+}
+.heart-rate-zone[data-zone="3"] {
+  --zone-share: 58%;
+}
+.heart-rate-zone[data-zone="4"] {
+  --zone-share: 78%;
+}
+.heart-rate-zone[data-zone="5"] {
+  --zone-share: 100%;
+}
+.heart-rate-zone-name {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: break-word;
+}
+.heart-rate-zone-beats {
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.heart-rate-zone-beats::after {
+  content: " bpm";
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+}
+/* Five short numbers: in one row where they fit, folding to as many as do. */
+.heart-rate-floors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+
+/* ---------- a planned session's steps (ADR 0059) ---------- */
+/* What each line is in a column of its own — Warm-up, 6 ×, Cool-down — and what it asks beside
+   it, a repeated block's steps a line each. The lines share the lead column, so the steps start
+   at one edge however long the longest lead is. */
+.plan-structure {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
+  font-size: var(--ov-type-meta);
+  line-height: 1.4;
+}
+.plan-structure-line {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+.plan-structure-lead {
+  color: var(--ov-ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.plan-structure-parts {
+  display: grid;
+  min-width: 0;
+  gap: calc(2 * var(--ov-u));
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+
+/* ---------- a run's laps (ADR 0059) ---------- */
+/* A table, because laps are compared down a column: rep 3's time against rep 4's. It keeps its
+   columns and scrolls sideways inside its own box where the screen is narrower than they are,
+   so the page itself never does. */
+.run-laps-scroll {
+  overflow-x: auto;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+  container-type: inline-size;
+}
+.run-laps {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ov-type-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.run-laps th,
+.run-laps td {
+  padding: calc(8 * var(--ov-u)) calc(6 * var(--ov-u));
+  text-align: left;
+}
+.run-laps tr > :first-child {
+  padding-left: calc(12 * var(--ov-u));
+}
+.run-laps tr > :last-child {
+  padding-right: calc(12 * var(--ov-u));
+}
+/* A lap's highest heart rate, where the table has room for it beside the average. */
+.run-laps-max {
+  display: none;
+}
+@container (min-width: 26rem) {
+  .run-laps-max {
+    display: inline;
+  }
+}
+.run-laps abbr {
+  text-decoration: none;
+}
+.run-laps thead th {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+.run-laps tbody tr + tr > * {
+  border-top: 1px solid var(--ov-hair);
+}
+.run-laps tbody th {
+  font-weight: 700;
+}
+/* The lap's number in a column two figures wide, then a gap, so "10" never runs into "Work". */
+.run-laps-number {
+  display: inline-block;
+  min-width: 2ch;
+  margin-inline-end: calc(6 * var(--ov-u));
+  font-variant-numeric: tabular-nums;
+}
+.run-laps-phase {
+  color: var(--ov-ink-2);
+  font-weight: 500;
+}
+/* A recovery jog reads quieter than the rep beside it. */
+.run-laps tr[data-phase="recovery"] td,
+.run-laps tr[data-phase="warmup"] td,
+.run-laps tr[data-phase="cooldown"] td {
+  color: var(--ov-ink-2);
+}
+.run-laps-zone {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+}
+/* The rows share their columns, so every bar starts and ends at one x and their lengths
+   compare down the list whatever each time's width. */
+.run-zone-times {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) max-content;
+  gap: calc(6 * var(--ov-u)) calc(10 * var(--ov-u));
+}
+.run-zone-times > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  font-size: var(--ov-type-meta-small);
+}
+.run-zone-times-name {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.run-zone-times-bar {
+  display: block;
+  height: calc(8 * var(--ov-u));
+  border-radius: 9999px;
+  background: var(--ov-surface-2);
+}
+/* A chart, so ink (the Black-and-White Rule). */
+.run-zone-times-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ov-ink);
+}
+.run-zone-times-time {
+  font-weight: 600;
 }

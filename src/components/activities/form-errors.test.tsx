@@ -35,7 +35,10 @@ it.each([
   const { container } = render(
     <Form {...props} action={async () => ({ fieldErrors: { [key]: "Check this reading." } })} />,
   );
-  const details = container.querySelector("details")!;
+  // The folded details are the ones named for the date; a run's laps fold on their own.
+  const details = [...container.querySelectorAll("details")].find((element) =>
+    element.querySelector("summary")?.textContent?.includes("Date"),
+  )!;
   expect(details.open).toBe(false);
   fireEvent.submit(container.querySelector("form")!);
   expect((await screen.findByRole("alert")).textContent).toBe("Check this reading.");

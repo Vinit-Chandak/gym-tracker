@@ -5,6 +5,7 @@ import { useActionState, useMemo, useState, useSyncExternalStore } from "react";
 import { Art } from "@/components/art/art";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { ACTIVITY_SPORT_LABELS, ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
 import type { TrainingExperience } from "@/domain/types";
@@ -25,10 +26,10 @@ const SPORT_MARK: Record<ActivitySport, "strength" | "run" | "ride" | "swim"> = 
   swimming: "swim",
 };
 
-/** "Which sounds like you?": each answer with what it leads to, so the choice is an informed one. */
-const EXPERIENCE: { value: TrainingExperience; label: string; sub: string }[] = [
-  { value: "new", label: "New to this", sub: "The coach writes your first plan" },
-  { value: "experienced", label: "I already train", sub: "Log your way, or set up your split" },
+/** "Which sounds like you?": the two answers; what each leads to is the question's ⓘ. */
+const EXPERIENCE: { value: TrainingExperience; label: string }[] = [
+  { value: "new", label: "New to this" },
+  { value: "experienced", label: "I already train" },
 ];
 
 /** A device's language and zone do not change while a form is open: nothing to subscribe to. */
@@ -109,14 +110,25 @@ export function YouStep({
         <Steps steps={steps} current="you" />
       </header>
       <h1 className="onboarding-title">{first ? `Welcome, ${first}` : "Welcome"}</h1>
-      <p className="onboarding-sub">Two answers, and you’re ready to train.</p>
 
       <form ref={form} action={formAction} noValidate>
-        <fieldset
-          className="you-group"
+        {/* A group named by its question, with the question's ⓘ beside it rather than inside a
+            legend, where it would be read as part of the group's name. */}
+        <div
+          role="radiogroup"
+          aria-labelledby="you-experience-label"
           aria-describedby={experienceError ? "you-experience-error" : undefined}
+          className="you-group"
         >
-          <legend className="you-label">Which sounds like you?</legend>
+          <div className="flex items-center gap-1">
+            <span id="you-experience-label" className="you-label">
+              Which sounds like you?
+            </span>
+            <InfoTip label="About these answers">
+              New to this: the coach writes your first plan. I already train: log your way, or set
+              up your split.
+            </InfoTip>
+          </div>
           <div className="you-choices">
             {EXPERIENCE.map((option) => {
               const chosen = experience === option.value;
@@ -137,7 +149,6 @@ export function YouStep({
                     <span className="you-choice-title">{option.label}</span>
                     {chosen && <Glyph name="check" className="glyph-20 shrink-0" />}
                   </span>
-                  <span className="you-choice-sub">{option.sub}</span>
                 </label>
               );
             })}
@@ -148,7 +159,7 @@ export function YouStep({
               {experienceError}
             </p>
           )}
-        </fieldset>
+        </div>
 
         <fieldset
           className="you-group"

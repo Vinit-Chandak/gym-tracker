@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { ActivitySummary } from "@/components/activities/activity-summary";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -81,21 +80,12 @@ export default async function SharedActivityPage(
         backHref={`/u/${person.username}`}
         // Their page, by the name it is titled with.
         backLabel={name}
+        // Whose it is, the back link says; the date is the one fact under the title.
         meta={
-          <>
-            <Link
-              href={`/u/${person.username}`}
-              prefetch="intent"
-              className="meta-fact tap-area font-semibold text-ink underline-offset-4 hover:underline"
-            >
-              <Glyph name="profile" className="glyph-16" />
-              {name}
-            </Link>
-            <span className="meta-fact">
-              <Glyph name="calendar" label="Date" className="glyph-16" />
-              {formatIsoDate(activity.occurredOn, year)}
-            </span>
-          </>
+          <span className="meta-fact">
+            <Glyph name="calendar" label="Date" className="glyph-16" />
+            {formatIsoDate(activity.occurredOn, year)}
+          </span>
         }
       />
       <div className="page-width pb-8">

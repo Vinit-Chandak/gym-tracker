@@ -65,7 +65,8 @@ vi.mock("@/components/friends-board-card", () => ({ FriendsBoardCard: () => null
 vi.mock("@/components/shell/page-header", () => ({
   PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
-vi.mock("@/components/ui/info-tip", () => ({
+vi.mock("@/components/ui/info-tip", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/ui/info-tip")>()),
   InfoTip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 

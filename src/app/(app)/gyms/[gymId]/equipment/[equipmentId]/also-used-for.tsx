@@ -36,11 +36,12 @@ export function AlsoUsedFor({
           Also used for
         </h2>
         <InfoTip label="About Also used for">
-          A machine that does the work of another kind too, such as a lat pulldown with a low row.
-          Exercises for that kind can then use it; its sets stay its own.
+          A machine that does another kind&apos;s work too, such as a lat pulldown with a low row.
+          That kind&apos;s exercises can then use it.
         </InfoTip>
       </div>
-      {extra.length > 0 ? (
+      {/* Nothing else yet: the list is empty, and the select under it adds. */}
+      {extra.length > 0 && (
         <ul className="mt-1">
           {extra.map((type) => (
             <li key={type.id} className="also-row">
@@ -54,8 +55,6 @@ export function AlsoUsedFor({
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="mt-1 type-meta text-ink-2">Only what it is registered as.</p>
       )}
       <form
         action={setMachineAlsoUsedForAction.bind(null, gymId, equipmentId, true)}

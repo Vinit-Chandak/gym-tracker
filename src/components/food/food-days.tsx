@@ -375,7 +375,7 @@ function CalendarSheet({
         {readFailed && (
           <div className="mt-3 space-y-2">
             <p role="alert" className="type-meta-small text-ink-2">
-              Food logged on these days could not be loaded. Check your connection and try again.
+              Could not load this month&apos;s food. Check your connection.
             </p>
             <button
               type="button"

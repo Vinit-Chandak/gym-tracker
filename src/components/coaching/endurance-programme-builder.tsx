@@ -4,6 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -13,23 +15,57 @@ import {
   endurancePrescriptionSchema,
   describePrescription,
   type EndurancePrescription,
+  type RunningInstructions,
 } from "@/domain/activity-prescription";
 import { addDays, daysBetween } from "@/domain/program-calendar";
 import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import type { ProgrammeEnduranceSession } from "@/domain/programme-sport";
+import { RUN_TYPES, RUN_TYPE_LABELS, isRunType } from "@/domain/run-types";
 import {
   enduranceSessionGroups,
   repeatEnduranceSession,
   updateEnduranceSession,
 } from "@/domain/endurance-series";
 import type { SportUnits } from "@/lib/distance-units";
+import { formatIsoDate } from "@/lib/format";
 import {
   saveProgramDraftAction,
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
+import { PaceZoneFields, StepsEditor } from "./steps-editor";
 
 type Scope = "this" | "future_repeats";
+
+/** A distance's unit in words, as the steps editor writes it, for the legend over its range. */
+const UNIT_WORDS = { km: "Kilometres", mi: "Miles", m: "Metres", yd: "Yards" } as const;
+
+const NO_RUNNING_NOTES: RunningInstructions = {
+  paceNote: null,
+  progressionNote: null,
+  symptomStopRule: null,
+  note: null,
+};
+
+/** A new session: half an hour, and for a run, an easy one until it is told otherwise. */
+function newPrescription(sport: EnduranceSport): EndurancePrescription {
+  return endurancePrescriptionSchema.parse({
+    prescriptionVersion: 1,
+    sport,
+    sessionTargets: { durationMs: [1800000, 1800000] },
+    running: sport === "running" ? { ...NO_RUNNING_NOTES, sessionType: "easy" } : null,
+  });
+}
+
+/** The run's kind set or cleared (ADR 0059), its other running instructions kept. */
+function withSessionType(
+  running: RunningInstructions | null,
+  value: string,
+): RunningInstructions | null {
+  const { sessionType: _previous, ...rest } = running ?? NO_RUNNING_NOTES;
+  if (isRunType(value)) return { ...rest, sessionType: value };
+  return Object.values(rest).some((entry) => entry !== null) ? rest : null;
+}
 
 export function EnduranceProgrammeBuilder({
   sport,
@@ -71,11 +107,7 @@ export function EnduranceProgrammeBuilder({
             weekIndex: 1,
             dayOffset: 0,
             scheduledLocalTime: null,
-            prescription: endurancePrescriptionSchema.parse({
-              prescriptionVersion: 1,
-              sport,
-              sessionTargets: { durationMs: [1800000, 1800000] },
-            }),
+            prescription: newPrescription(sport),
           },
         ],
       },
@@ -103,8 +135,14 @@ export function EnduranceProgrammeBuilder({
   const [scope, setScope] = useState<Scope>("future_repeats");
   const [repeatDays, setRepeatDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
+  // What stops a change, said under the field it is about, which its fold opens to show.
+  const [fieldError, setFieldError] = useState<{
+    field: "weeks" | "repeat";
+    message: string;
+  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState("");
+  const year = today.slice(0, 4);
   const groups = enduranceSessionGroups(sessions);
   const group = groups.find((entry) => entry.indexes.includes(selected));
   const session = sessions[selected];
@@ -134,12 +172,14 @@ export function EnduranceProgrammeBuilder({
   function change(patch: Partial<ProgramBlueprint>) {
     setPlan((previous) => ({ ...previous, ...patch }));
     setError(null);
+    setFieldError(null);
     setMessage(null);
   }
   function choose(index: number) {
     setSelected(index);
     setScope("future_repeats");
     setError(null);
+    setFieldError(null);
   }
   function update(patch: Partial<ProgrammeEnduranceSession>) {
     if (!session || past) return;
@@ -190,13 +230,13 @@ export function EnduranceProgrammeBuilder({
     setDraft({ id: result.value.id, revision: result.value.revision });
     setSavedPlan(JSON.stringify(plan));
     if (!review) {
-      setMessage("Draft saved. Your active programme is unchanged until you apply it.");
+      setMessage("Draft saved.");
       return;
     }
     const checked = await coachingAction(() =>
       reviewProgramDraftAction(result.value.id, result.value.revision),
     );
-    if (checked.ok) router.push(`/profile/programme/drafts/${checked.value.id}` as Route);
+    if (checked.ok) router.push(`/plan/drafts/${checked.value.id}` as Route);
     else setError(checked.error);
   }
   const distanceScale =
@@ -226,7 +266,7 @@ export function EnduranceProgrammeBuilder({
             ? [
                 {
                   index,
-                  label: `${addDays(anchorDate, entry.dayOffset)} · ${entry.name || "Session"}`,
+                  label: `${formatIsoDate(addDays(anchorDate, entry.dayOffset), year)} · ${entry.name || "Session"}`,
                 },
               ]
             : [],
@@ -245,23 +285,21 @@ export function EnduranceProgrammeBuilder({
             <Input
               value={plan.name}
               maxLength={120}
-              placeholder="Name your programme"
               onChange={(event) => change({ name: event.target.value })}
             />
           </Field>
-          <p className="text-sm text-ink-2">
-            {continuing
-              ? "Edit upcoming training. Past sessions and completed logs stay unchanged."
-              : "Build your sessions, then review the programme and choose its start date."}
-          </p>
-          <details>
-            <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium">
-              Programme settings · {plan.weeks || "—"} weeks
-            </summary>
-            <div className="space-y-3 pb-3">
+          <Disclosure
+            summary="Programme settings"
+            meta={`${plan.weeks || "—"} weeks`}
+            variant="inline"
+            defaultOpen={fieldError?.field === "weeks"}
+          >
+            <div className="space-y-3">
+              {/* What saving needs, said before it is typed rather than behind an ⓘ. */}
               <Field
                 label="Length in weeks"
-                hint="Shortening the programme does not delete sessions. Move or remove any sessions beyond the new end before saving."
+                hint="Move or remove any sessions past the new end before saving."
+                error={fieldError?.field === "weeks" ? fieldError.message : undefined}
               >
                 <Input
                   type="number"
@@ -271,7 +309,7 @@ export function EnduranceProgrammeBuilder({
                   onChange={(event) => change({ weeks: Number(event.target.value) })}
                 />
               </Field>
-              <Field label="Programme notes">
+              <Field label="Programme notes" aside="Optional">
                 <Textarea
                   value={plan.notes}
                   maxLength={2000}
@@ -279,12 +317,26 @@ export function EnduranceProgrammeBuilder({
                 />
               </Field>
             </div>
-          </details>
+          </Disclosure>
         </div>
 
         <section aria-label="Choose a session" className="space-y-3 border-t border-line pt-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-lg font-medium">Your sessions</h2>
+            {/* The ⓘ beside the heading, never in it, so the heading reads as its name. */}
+            <div className="flex items-center gap-1">
+              <h2 className="text-lg font-medium">Your sessions</h2>
+              {(continuing || view === "pattern") && (
+                <InfoTip label="About your sessions">
+                  {[
+                    continuing && "Past sessions and anything logged stay as they are.",
+                    view === "pattern" &&
+                      "Identical sessions show once; use By week when weeks differ.",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                </InfoTip>
+              )}
+            </div>
             <span className="text-sm text-ink-2">
               {sessions.length} scheduled · {groups.length}{" "}
               {groups.length === 1 ? "workout" : "workouts"}
@@ -335,42 +387,29 @@ export function EnduranceProgrammeBuilder({
               </Select>
             </Field>
           ) : (
-            <p className="text-sm text-ink-2">No sessions this week. Add one below.</p>
-          )}
-          {view === "pattern" && (
-            <p className="text-sm text-ink-2">
-              Identical workouts appear once. Different weekly targets stay separate; use By week
-              for a progressive plan.
-            </p>
+            <p className="text-sm text-ink-2">No sessions this week.</p>
           )}
         </section>
 
         {session && (view === "pattern" || session.weekIndex === week) && (
           <section aria-label="Session editor" className="space-y-4 border-t border-line pt-5">
-            <div>
-              <h2 className="text-lg font-medium">{session.name || "Session"}</h2>
-              <p className="mt-1 text-sm text-ink-2">
-                {addDays(anchorDate, session.dayOffset)}
-                {group?.intervalDays
-                  ? ` · Repeats every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}`
-                  : ""}
-              </p>
-            </div>
+            {/* Its name is the field below; its date and how it repeats are said once here. */}
+            <p className="text-sm text-ink-2">
+              {formatIsoDate(addDays(anchorDate, session.dayOffset), year)}
+              {group?.intervalDays
+                ? ` · Repeats every ${group.intervalDays === 7 ? "week" : `${group.intervalDays} days`}`
+                : ""}
+            </p>
             {past ? (
               <p className="text-sm">
-                Past prescription · {describePrescription(session.prescription, units)}. Choose an
-                upcoming session to make changes.
+                Past session · {describePrescription(session.prescription, units)}
               </p>
             ) : (
               <>
                 {futureIndexes.length > 1 && (
                   <Field
                     label="Apply workout changes to"
-                    hint={
-                      group?.inferred
-                        ? "These sessions have identical prescriptions and a regular schedule. Dates are edited individually."
-                        : "Dates are edited individually. Different targets and completed sessions are preserved."
-                    }
+                    info="Dates change one session at a time. Finished sessions keep their targets."
                   >
                     <Select
                       value={scope}
@@ -383,7 +422,7 @@ export function EnduranceProgrammeBuilder({
                     </Select>
                   </Field>
                 )}
-                <Field label="Session name">
+                <Field label="Session name" aside="Optional">
                   <Input
                     value={session.name}
                     maxLength={120}
@@ -398,20 +437,57 @@ export function EnduranceProgrammeBuilder({
                     }
                   />
                 </Field>
+                {sport === "running" && (
+                  <Field label="Kind of run">
+                    <Select
+                      value={session.prescription.running?.sessionType ?? ""}
+                      onChange={(event) =>
+                        update({
+                          prescription: {
+                            ...session.prescription,
+                            running: withSessionType(
+                              session.prescription.running,
+                              event.target.value,
+                            ),
+                          },
+                        })
+                      }
+                    >
+                      <option value="">Not said</option>
+                      {RUN_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {RUN_TYPE_LABELS[type]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+                {sport !== "running" && session.prescription.nodes.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium">Session targets</p>
+                    <InfoTip label="About session targets">
+                      Its steps stay as written; these are the whole session&apos;s targets.
+                    </InfoTip>
+                  </div>
+                )}
                 <div className="adaptive-grid">
                   {(
                     [
                       ["durationMs", "Minutes", 60_000],
-                      ["distanceMetres", distanceUnit, distanceScale],
-                      ["effort", "Effort (0–5)", 1],
+                      ["distanceMetres", UNIT_WORDS[distanceUnit], distanceScale],
+                      // The sessions' own words for it: "Effort 2–3 of 5".
+                      ["effort", "Effort out of 5", 1],
                     ] as const
                   ).map(([field, label, scale]) => (
                     <fieldset key={field} className="min-w-0 space-y-2">
                       <legend className="text-sm font-medium">{label}</legend>
                       <div className="grid grid-cols-2 gap-2">
                         {([0, 1] as const).map((end) => (
-                          <Field key={end} label={`${label} ${end === 0 ? "from" : "to"}`}>
+                          // "From" and "To" under the legend, each named whole for a screen
+                          // reader ("Minutes from"): the legend is not said three times.
+                          <Field key={end} label={end === 0 ? "From" : "To"}>
                             <Input
+                              aria-label={`${label} ${end === 0 ? "from" : "to"}`}
                               type="number"
                               step="any"
                               min={0}
@@ -433,15 +509,58 @@ export function EnduranceProgrammeBuilder({
                     </fieldset>
                   ))}
                 </div>
-                <details>
-                  <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium">
-                    Date and instructions
-                  </summary>
-                  <div className="space-y-3 pb-3">
-                    <Field
-                      label="Session date"
-                      hint={`Only this occurrence moves. Dates use ${anchorDate} as the programme start.`}
-                    >
+                {sport === "running" && (
+                  <>
+                    {(session.prescription.nodes.length === 0 ||
+                      session.prescription.sessionTargets.paceSecondsPerKm ||
+                      session.prescription.sessionTargets.heartRateZones) && (
+                      <fieldset className="min-w-0 space-y-2">
+                        <legend className="text-sm font-medium">Whole-run pace and zone</legend>
+                        <PaceZoneFields
+                          pace={session.prescription.sessionTargets.paceSecondsPerKm}
+                          zones={session.prescription.sessionTargets.heartRateZones}
+                          unit={units.distanceUnit}
+                          onChange={({ pace, zones }) => {
+                            const {
+                              paceSecondsPerKm: _pace,
+                              heartRateZones: _zones,
+                              ...targets
+                            } = session.prescription.sessionTargets;
+                            update({
+                              prescription: {
+                                ...session.prescription,
+                                sessionTargets: {
+                                  ...targets,
+                                  ...(pace ? { paceSecondsPerKm: pace } : {}),
+                                  ...(zones ? { heartRateZones: zones } : {}),
+                                },
+                              },
+                            });
+                          }}
+                        />
+                      </fieldset>
+                    )}
+                    <div className="space-y-3">
+                      <h3 className="font-medium">Steps</h3>
+                      <StepsEditor
+                        nodes={session.prescription.nodes}
+                        unit={units.distanceUnit}
+                        onChange={(nodes) =>
+                          update({
+                            prescription: {
+                              ...session.prescription,
+                              structureSource: "authored",
+                              nodes,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+                <Disclosure summary="Date and instructions" variant="inline">
+                  <div className="space-y-3">
+                    <Field label="Session date" info="Only this session moves.">
                       <Input
                         type="date"
                         min={continuing && today > anchorDate ? today : anchorDate}
@@ -456,7 +575,7 @@ export function EnduranceProgrammeBuilder({
                         }}
                       />
                     </Field>
-                    <Field label="Time (optional)">
+                    <Field label="Time" aside="Optional">
                       <Input
                         type="time"
                         value={session.scheduledLocalTime ?? ""}
@@ -465,10 +584,10 @@ export function EnduranceProgrammeBuilder({
                         }
                       />
                     </Field>
-                    <Field label="Instructions">
+                    <Field label="Instructions" aside="Optional">
                       <Textarea
                         value={session.prescription.instructions ?? ""}
-                        maxLength={2000}
+                        maxLength={300}
                         onChange={(event) =>
                           update({
                             prescription: {
@@ -479,22 +598,18 @@ export function EnduranceProgrammeBuilder({
                         }
                       />
                     </Field>
-                    {session.prescription.nodes.length > 0 && (
-                      <p className="text-sm text-ink-2">
-                        This workout’s structured steps are preserved. These fields edit its overall
-                        targets.
-                      </p>
-                    )}
                   </div>
-                </details>
-                <details>
-                  <summary className="min-h-[var(--ov-target)] cursor-pointer py-3 font-medium">
-                    Repeat or remove
-                  </summary>
-                  <div className="space-y-3 pb-3">
+                </Disclosure>
+                <Disclosure
+                  summary="Repeat or remove"
+                  variant="inline"
+                  defaultOpen={fieldError?.field === "repeat"}
+                >
+                  <div className="space-y-3">
                     <Field
                       label="Repeat every (days)"
-                      hint="7 keeps the same weekday. 4 creates a rolling four-day pattern. Existing sessions are kept."
+                      info="7 keeps the weekday; 4 makes a four-day rotation. Existing sessions stay."
+                      error={fieldError?.field === "repeat" ? fieldError.message : undefined}
                     >
                       <Input
                         type="number"
@@ -524,9 +639,11 @@ export function EnduranceProgrammeBuilder({
                           .slice(1)
                           .filter((entry) => !existingOffsets.has(entry.dayOffset));
                         if (sessions.length + additions.length > 730) {
-                          setError(
-                            "A programme can hold up to 730 sessions. Shorten the repeat range.",
-                          );
+                          setFieldError({
+                            field: "repeat",
+                            message:
+                              "A programme can hold up to 730 sessions. Shorten the repeat range.",
+                          });
                           return;
                         }
                         const linked = sessions.map((entry, index) =>
@@ -536,9 +653,7 @@ export function EnduranceProgrammeBuilder({
                         );
                         change({ enduranceSessions: [...linked, ...additions] });
                         setView("pattern");
-                        setMessage(
-                          `${additions.length} repeats added. Edit this workout once to update its matching future repeats.`,
-                        );
+                        setMessage(`${additions.length} repeats added.`);
                       }}
                     >
                       Repeat through programme
@@ -569,7 +684,7 @@ export function EnduranceProgrammeBuilder({
                       </Button>
                     </div>
                   </div>
-                </details>
+                </Disclosure>
               </>
             )}
           </section>
@@ -596,7 +711,10 @@ export function EnduranceProgrammeBuilder({
               const earliest = continuing ? Math.max(0, daysBetween(anchorDate, today)) : 0;
               const offset = Math.max(earliest, (week - 1) * 7);
               if (offset >= plan.weeks * 7) {
-                setError("Extend the programme length to add an upcoming session.");
+                setFieldError({
+                  field: "weeks",
+                  message: "Extend the programme length to add an upcoming session.",
+                });
                 return;
               }
               change({
@@ -608,13 +726,7 @@ export function EnduranceProgrammeBuilder({
                     weekIndex: Math.floor(offset / 7) + 1,
                     dayOffset: offset,
                     scheduledLocalTime: null,
-                    prescription:
-                      template?.prescription ??
-                      endurancePrescriptionSchema.parse({
-                        prescriptionVersion: 1,
-                        sport,
-                        sessionTargets: { durationMs: [1800000, 1800000] },
-                      }),
+                    prescription: template?.prescription ?? newPrescription(sport),
                   },
                 ],
               });

@@ -32,7 +32,7 @@ it("recovers a backdated draft even after its actual training date was corrected
   fireEvent.change(await screen.findByLabelText("Training date"), {
     target: { value: "2026-10-14" },
   });
-  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "07:30" } });
+  fireEvent.change(screen.getByLabelText(/^Start time/), { target: { value: "07:30" } });
   fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "3000" } });
   await waitFor(() =>
     expect(readDrafts(localStorage, props.userId).drafts[0]?.values.entryContextDate).toBe(
@@ -41,9 +41,9 @@ it("recovers a backdated draft even after its actual training date was corrected
   );
   first.unmount();
   render(<ActivityEditor {...props} initial={initial} action={action} />);
-  expect(await screen.findByText(/Restored your unsaved/)).toBeTruthy();
+  expect(await screen.findByText(/^Draft restored/)).toBeTruthy();
   expect(screen.getByLabelText("Training date")).toHaveProperty("value", "2026-10-14");
-  expect(screen.getByLabelText("Start time")).toHaveProperty("value", "07:30");
+  expect(screen.getByLabelText(/^Start time/)).toHaveProperty("value", "07:30");
   expect(screen.getByLabelText("Duration")).toHaveProperty("value", "30:00");
 });
 
@@ -60,11 +60,11 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   const stored = readDrafts(localStorage, props.userId).drafts[0]!;
   first.unmount();
   render(<ActivityEditor {...props} submissionKey="new-server-key" action={action} />);
-  expect(await screen.findByText(/Restored your unsaved/)).toBeTruthy();
+  expect(await screen.findByText(/^Draft restored/)).toBeTruthy();
   // Typed in digits, kept as the minutes it posts, and shown again as the clock writes it.
   expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42:00");
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
-  await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/training/activities/saved-id"));
+  await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/progress/activities/saved-id"));
   expect(action.mock.calls[0]![1].get("submissionKey")).toBe(stored.submissionKey);
   expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0);
 });
@@ -177,8 +177,8 @@ it("reopens an abandoned log on now rather than on the day it was begun", async 
   });
   const action = vi.fn().mockResolvedValue({ formError: "Try again" });
   render(<ActivityEditor {...props} action={action} />);
-  expect(await screen.findByText("Restored your unsaved activity from this device.")).toBeTruthy();
-  expect((screen.getByLabelText("When") as HTMLInputElement).value).toBe("2026-09-22T06:00");
+  expect(await screen.findByText("Draft restored.")).toBeTruthy();
+  expect((screen.getByLabelText(/^When/) as HTMLInputElement).value).toBe("2026-09-22T06:00");
   fireEvent.click(screen.getByRole("radio", { name: "3" }));
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await screen.findByText("Try again");
@@ -196,8 +196,10 @@ it("keeps a start the athlete set, says so, and opens the details it is in", asy
     dirtyFields: ["startedAt", "minutes"],
   });
   const { container } = render(<ActivityEditor {...props} action={vi.fn()} />);
-  expect(await screen.findByText(/It still says it started Sat 19 Sept 2026, 07:10/)).toBeTruthy();
-  expect((screen.getByLabelText("When") as HTMLInputElement).value).toBe("2026-09-19T07:10");
+  expect(
+    await screen.findByText(/^Draft restored, started Sat 19 Sept 2026, 07:10\./),
+  ).toBeTruthy();
+  expect((screen.getByLabelText(/^When/) as HTMLInputElement).value).toBe("2026-09-19T07:10");
   expect(container.querySelector("details")?.open).toBe(true);
 });
 
@@ -208,7 +210,16 @@ it("keeps nothing once a change has been undone", async () => {
   await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(1));
   fireEvent.change(duration, { target: { value: "" } });
   await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0));
-  expect(screen.queryByText(/kept on this device/)).toBeNull();
+  expect(screen.queryByText(/Draft kept/)).toBeNull();
+});
+
+it("says in two words that a draft is kept, and discards it on a tap", async () => {
+  render(<ActivityEditor {...props} action={vi.fn()} />);
+  fireEvent.change(await screen.findByLabelText("Duration"), { target: { value: "42" } });
+  expect(await screen.findByText("Draft kept")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+  await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0));
+  expect(screen.queryByText("Draft kept")).toBeNull();
 });
 
 it("shows a time held to the tenth as its page does, and keeps the tenth unless it is changed", async () => {

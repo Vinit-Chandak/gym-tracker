@@ -200,7 +200,7 @@ it("says when a month's food marks could not load and retries without changing m
   fireEvent.click(calendar.getByRole("button", { name: "Previous month" }));
   expect(await calendar.findByRole("alert")).toHaveProperty(
     "textContent",
-    "Food logged on these days could not be loaded. Check your connection and try again.",
+    "Could not load this month's food. Check your connection.",
   );
   expect(calendar.getByRole("list", { name: /August\s2026/ }).getAttribute("aria-busy")).toBe(
     "false",

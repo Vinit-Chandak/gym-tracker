@@ -90,7 +90,7 @@ it("keeps an unsuccessful answer for retry and lets successful withdrawal use th
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Try again."));
   expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Tuesday");
-  fireEvent.click(screen.getByRole("button", { name: "I no longer want this" }));
+  fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
   await waitFor(() => expect(withdrawProgramRequestAction).toHaveBeenCalledWith(request({}).id));
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   expect(refresh).not.toHaveBeenCalled();
@@ -108,11 +108,12 @@ it("titles each ask with the athlete's own words and says only what it needs now
   expect(screen.getByText("“and more direct core work please”")).toBeTruthy();
   expect(screen.getByText("Which day has the most time?")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Send answer" })).toBeTruthy();
-  expect(screen.getByText("At the next coach run")).toBeTruthy();
+  // An ask waiting on the coach says nothing of when the coach runs.
+  expect(screen.queryByText("At the next coach run")).toBeNull();
   // No status badge restating the heading, and no date stamped by the coach's run.
   expect(screen.queryByText("Needs your answer")).toBeNull();
   expect(screen.queryByText(/Asked /)).toBeNull();
-  expect(screen.getAllByRole("button", { name: "I no longer want this" })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: "Withdraw" })).toHaveLength(2);
 });
 
 it("says what a settled ask came to, with the change one tap away", () => {
@@ -132,7 +133,7 @@ it("says what a settled ask came to, with the change one tap away", () => {
   expect(screen.getByText(/Done — Doubles your direct core work\./)).toBeTruthy();
   expect(screen.getByText(/You withdrew it/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "See the change" }).getAttribute("href")).toBe(
-    "/profile/programme/drafts/00000000-0000-4000-8000-000000000009",
+    "/plan/drafts/00000000-0000-4000-8000-000000000009",
   );
-  expect(screen.queryByRole("button", { name: "I no longer want this" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull();
 });

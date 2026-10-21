@@ -75,7 +75,7 @@ const entry = (id: string, kind: HistoryItem["kind"], day: string, title: string
   meta: kind === "workout" ? "16 sets" : "23:40 · 7:38/km",
   gymId: null,
   exercises: [],
-  href: kind === "workout" ? `/workouts/${id}` : `/training/activities/${id}`,
+  href: kind === "workout" ? `/workouts/${id}` : `/progress/activities/${id}`,
 });
 
 it("leaves the month's tile height to the stylesheet, so the first paint has it", () => {

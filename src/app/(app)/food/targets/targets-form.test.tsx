@@ -131,9 +131,9 @@ it("shows saved targets as they are, offering the goal's split while they differ
 
 it("takes protein from the goal's share, and says so, until there is a body weight", () => {
   render(<TargetsForm targets={null} bodyWeightKg={null} unit="kg" goal="lose_fat" />);
-  expect(screen.getByText(/protein is 30% of the target until there is/)).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Add it in your profile" }).getAttribute("href")).toBe(
-    "/profile/edit",
+  expect(screen.getByText(/^No body weight yet: protein is 30% of the target\./)).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Log body weight" }).getAttribute("href")).toBe(
+    "/today/log/body-weight",
   );
   fireEvent.change(field(KCAL), { target: { value: "2400" } });
   expect(field(PROTEIN).value).toBe("1.8");
@@ -171,10 +171,12 @@ it("reads protein per pound for an account in pounds, without changing what is s
   expect(field(PROTEIN)).toBeTruthy();
   expect(screen.queryByText(/of body weight/)).toBeNull();
   cleanup();
-  // Before there is a figure, a pounds reader is told what a gram per pound is in the field's unit.
+  // What a gram per pound is in the field's unit is the field's ⓘ, for a pounds reader alone.
   render(<TargetsForm targets={null} bodyWeightKg={86.2} unit="lb" goal="get_stronger" />);
   expect(field(PROTEIN).value).toBe("");
-  expect(screen.getByText("1 g per lb is 2.2 g per kg")).toBeTruthy();
+  expect(screen.queryByText("1 g per lb is 2.2 g per kg.")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^About protein per body weight/ }));
+  expect(screen.getByRole("note").textContent).toBe("1 g per lb is 2.2 g per kg.");
   cleanup();
   // With no body weight there are no grams to give, but the ratio still reads per pound.
   render(<TargetsForm targets={null} bodyWeightKg={null} unit="lb" goal="lose_fat" />);

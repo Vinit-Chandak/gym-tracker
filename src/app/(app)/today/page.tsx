@@ -88,7 +88,7 @@ export default async function TodayPage(props: PageProps<"/today">) {
         // The two things that can be due today, each asked for the way it is scheduled.
         //
         // Endurance belongs to its own calendar date, independently of the lifting sequence.
-        // Earlier unfinished sessions remain accessible from Training's date chooser.
+        // Earlier unfinished sessions are Log's to offer (ADR 0058).
         const date = plan?.today ?? todayInTimeZone(profile.timeZone);
         const [standalone, programme, finished, logged] = await Promise.all([
           occurrencesOnDate(tx, user.id, date),

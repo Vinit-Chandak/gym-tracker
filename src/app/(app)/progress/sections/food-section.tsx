@@ -107,8 +107,8 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
         }}
         note={{
           label: "About these averages",
-          content: `An average is taken over the days with something logged; a day with nothing logged is left out rather than counted as zero.${
-            target ? " The line is today's target, and the bars that reach it stand out." : ""
+          content: `Averages count only days with food logged, never an empty day as zero.${
+            target ? " The line is today's target; bars that reach it stand out." : ""
           }`,
         }}
         empty="No food logged in this range."

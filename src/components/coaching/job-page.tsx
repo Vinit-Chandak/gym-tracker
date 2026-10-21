@@ -10,6 +10,7 @@ import { requireProfiledUser } from "@/server/auth";
 import { tidyCoachJobsLater } from "@/server/coach-tidy";
 import { asReconciledJob, getCoachJob, isExpiredClaim } from "@/server/repositories/coaching-jobs";
 import { CoachJobStatus } from "./job-status";
+import type { ProgrammeBase } from "./programme-paths";
 export async function ProgrammeJobPage({
   id,
   onboarding = false,
@@ -37,7 +38,7 @@ export async function ProgrammeJobPage({
   if (!data.job) notFound();
   if (isExpiredClaim(data.job)) tidyCoachJobsLater(user.id);
   const job = asReconciledJob(data.job);
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   return (
     <>
       <PageHeader

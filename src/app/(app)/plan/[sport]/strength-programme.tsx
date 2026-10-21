@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Section } from "@/components/ui/section";
 import { LinkButton } from "@/components/ui/button";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -22,6 +21,7 @@ import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getProgramOverview, type ProgramDayPlan } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
+import { strengthPosition } from "@/server/repositories/sport-programmes";
 
 import { loadProgrammeChanges, ProgrammeChanges } from "@/app/(app)/profile/programme/changes";
 import { CycleDay } from "@/app/(app)/profile/programme/cycle-day";
@@ -56,7 +56,10 @@ export async function StrengthProgramme({
       async (tx) => {
         const [overview, changes, runUnits] = await Promise.all([
           getProgramOverview(tx, user.id, profile.timeZone),
-          loadProgrammeChanges(tx, user.id, profile.timeZone),
+          loadProgrammeChanges(tx, user.id, profile.timeZone, {
+            sport: "strength",
+            coachOn: profile.aiCoachEnabled,
+          }),
           readSportUnits(tx, user.id),
         ]);
         return { overview, changes, runUnits };
@@ -77,8 +80,9 @@ export async function StrengthProgramme({
   const start = overview?.program.startDate;
   const spanYear =
     start && end && start.slice(0, 4) !== end.slice(0, 4) ? undefined : today.slice(0, 4);
+  // A list of folds is ruled rows that share their rules, never a stack of boxes (DESIGN.md).
   const dayList = (days: readonly ProgramDayPlan[]) => (
-    <ul className="space-y-3">
+    <ul className="[&>li+li]:-mt-px">
       {days.map((plan) => (
         <li key={plan.day.id}>
           <CycleDay
@@ -90,6 +94,22 @@ export async function StrengthProgramme({
       ))}
     </ul>
   );
+  const days = overview?.days.map(({ day }) => day) ?? [];
+  const pattern = overview
+    ? cycleRepeatLabel({ weeks: overview.program.weeks, days, repeats: overview.program.repeats })
+    : "";
+  // Where it has got to, in the words its card on Plan says it in (ADR 0058), said once here.
+  const position = overview
+    ? strengthPosition({
+        complete,
+        repeats: overview.program.repeats,
+        pattern,
+        currentCycle: overview.currentCycle,
+        cycles: overview.program.cycles,
+        nextDayIndex: overview.days.find((plan) => plan.isNext)?.day.dayIndex,
+        dayCount: overview.days.length,
+      })
+    : null;
   return (
     <>
       <PageHeader title="Strength programme" backHref="/plan" />
@@ -107,15 +127,11 @@ export async function StrengthProgramme({
                   {complete && <Badge tone="success">Complete</Badge>}
                 </div>
                 <p className="mt-1.5 text-sm text-ink-muted">
-                  {cycleRepeatLabel({
-                    weeks: overview.program.weeks,
-                    days: overview.days.map(({ day }) => day),
-                    repeats: overview.program.repeats,
-                  })}
+                  {pattern}
                   {" · "}
                   {programLengthLabel({
                     weeks: overview.program.weeks,
-                    days: overview.days.map(({ day }) => day),
+                    days,
                     repeats: overview.program.repeats,
                   })}
                 </p>
@@ -129,9 +145,7 @@ export async function StrengthProgramme({
                   the fact after it, when the line wraps. */}
               <p className="text-sm text-ink-muted tabular-nums">
                 {joinFacts([
-                  !complete &&
-                    !once &&
-                    `Cycle\u00a0${overview.currentCycle}\u00a0of\u00a0${overview.program.cycles}`,
+                  position?.replace(/ /g, "\u00a0"),
                   !complete && `${overview.progress.remaining}\u00a0days\u00a0left`,
                   overview.progress.skipped > 0 && `${overview.progress.skipped}\u00a0skipped`,
                 ])}
@@ -161,14 +175,6 @@ export async function StrengthProgramme({
                             ? formatIsoDate(overview.program.endDate, today.slice(0, 4))
                             : null,
                         ],
-                        [
-                          "Repeats",
-                          cycleRepeatLabel({
-                            weeks: overview.program.weeks,
-                            days: overview.days.map((entry) => entry.day),
-                            repeats: overview.program.repeats,
-                          }),
-                        ],
                       ]}
                     />
                   </div>
@@ -197,43 +203,35 @@ export async function StrengthProgramme({
                   }
                 />
               ) : (
-                <>
-                  {/* Every session the programme asks for, in the order it asks for them. */}
-                  <Section
-                    title={
-                      once
-                        ? "Your training sequence"
-                        : complete
-                          ? "Your training pattern"
-                          : `Cycle ${overview.currentCycle} of ${overview.program.cycles}`
-                    }
-                    description={
-                      once
-                        ? `${overview.days.length} days, trained once in order. Open a day to see its exercises and targets.`
-                        : `${overview.days.length} days in this repeating pattern. Open a day to see its exercises and targets.`
-                    }
-                  >
-                    {once && overview.days.length > 7
-                      ? Array.from({ length: Math.ceil(overview.days.length / 7) }, (_, index) => {
-                          const days = overview.days.slice(index * 7, index * 7 + 7);
-                          return (
+                // Every day the programme asks for, in the order it asks for them; the tab names
+                // the panel, and where the programme has got to is the card's, said once.
+                <div>
+                  {once && overview.days.length > 7 ? (
+                    <ul className="[&>li+li]:-mt-px">
+                      {Array.from({ length: Math.ceil(overview.days.length / 7) }, (_, index) => {
+                        const week = overview.days.slice(index * 7, index * 7 + 7);
+                        return (
+                          <li key={week[0]!.day.id}>
                             <Disclosure
-                              key={days[0]!.day.id}
-                              summary={`Days ${index * 7 + 1}–${index * 7 + days.length}`}
+                              summary={`Days ${index * 7 + 1}–${index * 7 + week.length}`}
+                              variant="inline"
                               defaultOpen={
-                                days.some(
+                                week.some(
                                   (plan) => plan.isNext || inProgress?.programDayId === plan.day.id,
                                 ) ||
                                 (complete && index === 0)
                               }
                             >
-                              {dayList(days)}
+                              {dayList(week)}
                             </Disclosure>
-                          );
-                        })
-                      : dayList(overview.days)}
-                  </Section>
-                </>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    dayList(overview.days)
+                  )}
+                </div>
               )}
             </div>
           </>

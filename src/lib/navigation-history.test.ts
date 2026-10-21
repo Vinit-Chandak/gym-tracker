@@ -11,20 +11,20 @@ afterEach(() => {
 it("keeps the exact previous route including history filters", () => {
   window.history.replaceState({ __NA: true }, "", "/progress/history?kind=cycling&from=2026-09-01");
   stop = trackNavigationHistory();
-  window.history.pushState({ __NA: true, tree: "next-state" }, "", "/training/activities/abc");
+  window.history.pushState({ __NA: true, tree: "next-state" }, "", "/progress/activities/abc");
   expect(previousAppPage()).toBe("/progress/history?kind=cycling&from=2026-09-01");
   expect(window.history.state.tree).toBe("next-state");
   window.history.replaceState(
     { __NA: true, tree: "new-tree" },
     "",
-    "/training/activities/abc?from=history",
+    "/progress/activities/abc?from=history",
   );
   expect(previousAppPage()).toBe("/progress/history?kind=cycling&from=2026-09-01");
   expect(window.history.state.tree).toBe("new-tree");
 });
 
 it("does not invent browser history for a direct link or return to a sign-in screen", () => {
-  window.history.replaceState(null, "", "/training/new?sport=swimming");
+  window.history.replaceState(null, "", "/today/log/new?sport=swimming");
   stop = trackNavigationHistory();
   expect(previousAppPage()).toBeNull();
   window.history.replaceState(null, "", "/login");
@@ -46,14 +46,14 @@ it("rejects unsafe or authentication destinations in a stored history marker", (
 });
 
 it("preserves the marker across tracker remounts and restores wrapped methods", () => {
-  window.history.replaceState(null, "", "/training/templates");
+  window.history.replaceState(null, "", "/gyms");
   const original = window.history.pushState;
   stop = trackNavigationHistory();
-  window.history.pushState({}, "", "/training/templates/new");
+  window.history.pushState({}, "", "/gyms/new");
   stop();
   expect(window.history.pushState).toBe(original);
   stop = trackNavigationHistory();
-  expect(previousAppPage()).toBe("/training/templates");
+  expect(previousAppPage()).toBe("/gyms");
 });
 
 it("does not count the same page, or one of its own sub-pages, as somewhere to go back to", () => {

@@ -92,6 +92,30 @@ function targetRange(
 }
 
 /**
+ * A step's pace and zone move as its other ranges do: inside what was approved, a quicker pace
+ * inside "4:05–4:15" or zone 2 out of "zones 2–3", is the coach's to choose; anything else is
+ * the athlete's to read. Absent and null are the same here: neither asks for anything.
+ */
+function intensityReasons(
+  before: { paceSecondsPerKm?: Range; heartRateZones?: Range },
+  after: { paceSecondsPerKm?: Range; heartRateZones?: Range },
+  path: string,
+): SportChangeReason[] {
+  const reasons: SportChangeReason[] = [];
+  if (!insideApproved(before.paceSecondsPerKm ?? null, after.paceSecondsPerKm ?? null))
+    reasons.push({
+      path: `${path}.paceSecondsPerKm`,
+      message: "A pace target outside its approved range is a proposal.",
+    });
+  if (!insideApproved(before.heartRateZones ?? null, after.heartRateZones ?? null))
+    reasons.push({
+      path: `${path}.heartRateZones`,
+      message: "A heart-rate zone outside its approved range is a proposal.",
+    });
+  return reasons;
+}
+
+/**
  * Classifies the difference between the prescription the athlete approved and the one the
  * coach wants to put in its place.
  *
@@ -129,9 +153,12 @@ export function assessSportChange(
     ["durationMs", "duration"],
     ["distanceMetres", "distance"],
     ["effort", "effort"],
+    ["paceSecondsPerKm", "pace"],
+    ["heartRateZones", "heart-rate zone"],
   ] as const) {
-    const before = approved.sessionTargets[key];
-    const after = proposed.sessionTargets[key];
+    // A pace or zone the session never had is absent rather than null (ADR 0059).
+    const before = approved.sessionTargets[key] ?? null;
+    const after = proposed.sessionTargets[key] ?? null;
     if (same(before, after)) continue;
     if (!insideApproved(before, after))
       reasons.push({
@@ -184,6 +211,7 @@ export function assessSportChange(
             path: `${path}.effort`,
             message: "A step effort outside its approved range is a proposal.",
           });
+        reasons.push(...intensityReasons(before, node, path));
         return;
       }
       if (node.kind === "repeat" && before.kind === "repeat") {
@@ -229,6 +257,7 @@ export function assessSportChange(
               path: `${stepPath}.effort`,
               message: "A step effort outside its approved range is a proposal.",
             });
+          reasons.push(...intensityReasons(previous, step, stepPath));
         });
       }
     });

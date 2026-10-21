@@ -19,30 +19,26 @@ const SPORT_MARK: Record<ActivitySport, "strength" | "run" | "ride" | "swim"> = 
 };
 
 /**
- * Choosing the sports this account trains (SPORT-01).
- *
- * The copy says what switching one off actually does, because the honest answer is "less than
- * you fear": history, templates and anything already agreed in a programme stay exactly where
- * they are. Taking a sport out of a programme is a separate, confirmed change.
+ * Choosing the sports this account trains (SPORT-01). What switching one off does, "less than
+ * you fear", is the Sports page's ⓘ: its history and anything already agreed in a programme stay
+ * where they are. Taking a sport out of a programme is a separate, confirmed change.
  */
 export function SportChoice({
   action,
   sports,
   enabled,
   submitLabel,
-  note,
 }: {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   sports: readonly ActivitySport[];
   enabled: readonly ActivitySport[];
   submitLabel: string;
-  note?: string;
 }) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [chosen, setChosen] = useState<ActivitySport[]>(() => [...enabled]);
 
   // Board Sports: a tile each, the chosen in ink with its mark on a ground square and a check;
-  // the note under them; the action pinned.
+  // the action pinned.
   return (
     <form action={formAction}>
       <input type="hidden" name="sports" value={chosen.join(",")} />
@@ -75,10 +71,6 @@ export function SportChoice({
           );
         })}
       </div>
-      <p className="onboarding-sub mt-3.5">
-        {note ??
-          "Turning a sport off tidies your shortcuts. Your history, templates and anything already in your programme stay as they are."}
-      </p>
       <PinnedActions stack>
         <FormError message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>

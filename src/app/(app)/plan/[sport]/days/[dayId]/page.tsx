@@ -1,0 +1,294 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { cache, Fragment, type ReactNode } from "react";
+import { z } from "zod";
+
+import { StartPlannedButton } from "@/app/(app)/today/plan-actions";
+import { Fact, MetaLine, PlanRows } from "@/app/(app)/today/today-parts";
+import { planRows } from "@/app/(app)/today/today-model";
+import { liftingStartOption } from "@/app/(app)/today/start-option";
+import { Art } from "@/components/art/art";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
+import { runSummary } from "@/components/run-plan";
+import { BackLink } from "@/components/shell/back-link";
+import { LoadingPage } from "@/components/shell/loading-page";
+import { DetailList } from "@/components/ui/detail-list";
+import { Disclosure } from "@/components/ui/disclosure";
+import { Figures } from "@/components/ui/figures";
+import { FitTitle } from "@/components/ui/fit-title";
+import { Glyph } from "@/components/ui/glyphs";
+import { PinnedActions } from "@/components/ui/pinned-actions";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import { setLengthFor } from "@/lib/distance-units";
+import { holdFigures } from "@/lib/facts";
+import { requireUser } from "@/server/auth";
+import { getActiveSession } from "@/server/queries/active-session";
+import { getWarmupProtocol } from "@/server/queries/reference";
+import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
+import { resolvePlannedDay } from "@/server/repositories/availability";
+import { listGyms } from "@/server/repositories/gyms";
+import { getProgramOverview, getSchedule } from "@/server/repositories/schedule";
+import { readSportUnits } from "@/server/repositories/sport-preferences";
+import { requireUuid } from "@/server/validation/params";
+
+import {
+  atGymLines,
+  dayOrder,
+  dayPageMaxModule,
+  dayPrintLabel,
+  type DayPart,
+  programmeDayParts,
+} from "../../programme-day";
+
+/**
+ * The day and what starting it would do, read once a request: the document is named from it
+ * too, as the screen is, by the day's name.
+ */
+const readDay = cache(async (dayId: string) => {
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  return withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [overview, schedule, gyms, runUnits] = await Promise.all([
+        getProgramOverview(tx, user.id, profile.timeZone, { prints: true }),
+        getSchedule(tx, user.id),
+        listGyms(tx, user.id),
+        readSportUnits(tx, user.id),
+      ]);
+      const plan = overview?.days.find((day) => day.day.id === dayId) ?? null;
+      const gym = gyms.find((each) => each.isActive && each.isDefault) ?? null;
+      const [warmup, resolved] = await Promise.all([
+        plan?.day.warmupProtocolId ? getWarmupProtocol(tx, plan.day.warmupProtocolId) : null,
+        // What Start would do with each exercise at the default gym, as starting it resolves
+        // them: read-only, and only for a day that lifts.
+        plan?.day.includesLifting && gym
+          ? resolvePlannedDay(tx, user.id, gym.id, plan.day.id, {
+              id: gym.id,
+              kind: gym.kind,
+              name: gym.name,
+            })
+          : null,
+      ]);
+      return {
+        overview,
+        plan,
+        warmup,
+        runUnits,
+        start:
+          plan && overview && schedule
+            ? liftingStartOption(schedule.state, overview.currentCycle, plan.day.dayIndex)
+            : null,
+        defaultGymId: gym?.id ?? null,
+        atGym: gym && resolved ? atGymLines(resolved, gym.name) : new Map<string, string>(),
+      };
+    },
+    { readOnly: true },
+  );
+});
+
+export async function generateMetadata(
+  props: PageProps<"/plan/[sport]/days/[dayId]">,
+): Promise<Metadata> {
+  const { sport, dayId } = await props.params;
+  // A malformed address is the page's to refuse; the title only names what is there.
+  if (sport !== "strength" || !z.uuid().safeParse(dayId).success) return { title: "Not found" };
+  const data = await readDay(dayId);
+  return { title: data.overview && data.plan ? data.plan.day.name : "Not found" };
+}
+
+/**
+ * A day of the programme, read before it is trained (board Programme day): its print, its name
+ * and focus, how long and how hard, then its rows in the order they are done in, the warm-up
+ * before what it warms up for, the run where the day puts it, each exercise with its
+ * prescription. Start workout starts this day at the default gym, as Train another day does; a
+ * day already done is done again as its next cycle's. While a workout is open nothing starts
+ * another: the session strip is the way back to it. A rest day says what it is, as Today does.
+ *
+ * Only the strength programme has days; a run, ride or swim programme has dated sessions, each
+ * with a page of its own (`/plan/sessions/[occurrenceId]`).
+ */
+export default async function ProgrammeDayPage(props: PageProps<"/plan/[sport]/days/[dayId]">) {
+  const { sport, dayId } = await props.params;
+  if (sport !== "strength") notFound();
+  requireUuid(dayId);
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  // The day being trained inks its sets as they are logged: a copy older than the latest set is
+  // drawn again.
+  const seen = await seenSetChanges();
+  const [inProgress, data] = await Promise.all([
+    // The per-request read the session strip also makes.
+    getActiveSession(user.id),
+    readDay(dayId),
+  ]);
+  // A day of a programme since replaced, or of someone else's, is not one of this cycle's.
+  if (!data.overview || !data.plan) notFound();
+  const { plan, warmup, start } = data;
+  const { day } = plan;
+  const drills = warmup?.drills.length ?? 0;
+  // The programme's own rows carry no load, so no unit is written into them. Each says what it
+  // becomes at the default gym where that is not itself.
+  const rows = planRows(plan.exercises, null, "", setLengthFor(profile)).map((row) => ({
+    ...row,
+    at: data.atGym.get(row.key) ?? null,
+  }));
+  const open = inProgress !== null && inProgress.programDayId === day.id;
+  // The day is drawn as its workout draws it: the one being trained, its sets and its warm-up
+  // inked as they are done, else the one that did it this cycle.
+  const parts = programmeDayParts(plan, {
+    drills,
+    warmup: true,
+    session: open ? inProgress.print : plan.print,
+  });
+  const rest = !day.includesLifting && !day.includesRun;
+  // The rows in the order the day is done in, as its print draws them (`dayOrder`): the warm-up
+  // before what it warms up for, and the run where the day is written to have it ("Lower + easy
+  // run" last). The last row takes no rule under it.
+  const listed: Record<DayPart, boolean> = {
+    "warm-up": Boolean(warmup),
+    run: day.includesRun,
+    lifting: rows.length > 0,
+  };
+  const order = dayOrder(day).filter((part) => listed[part]);
+  const last = order.at(-1);
+  // On a day that only runs, minutes its time already says above are not said again.
+  const runLine =
+    plan.run &&
+    runSummary(plan.run, data.runUnits, { dayTime: day.includesLifting ? null : day.timeNote });
+
+  const rowsOf: Record<DayPart, ReactNode> = {
+    "warm-up": warmup && (
+      <li className={last === "warm-up" ? "plan-row plan-row-last" : "plan-row"}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="plan-row-name">{warmup.name}</span>
+          <span className="type-meta-small text-ink-2 tabular-nums">
+            {drills} {drills === 1 ? "drill" : "drills"}
+          </span>
+        </span>
+      </li>
+    ),
+    run: (
+      <li className={last === "run" ? "plan-row plan-row-last" : "plan-row"}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="plan-row-name">Run</span>
+          {runLine && (
+            <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
+              {runLine}
+            </span>
+          )}
+        </span>
+      </li>
+    ),
+    lifting: <PlanRows rows={rows} isLast={last === "lifting"} />,
+  };
+
+  return (
+    <FreshAfterSets seen={seen} loading={<LoadingPage />}>
+      <header className="page-header page-width pt-safe">
+        <div className="page-header-bar">
+          <BackLink fallback="/plan/strength" />
+        </div>
+      </header>
+      <div className="page-width pb-8">
+        {parts.length > 0 && (
+          <figure className="programme-day-print">
+            <Art
+              kind="print"
+              parts={parts}
+              label={dayPrintLabel(plan, parts, drills, open)}
+              // A rest day's crescent alone stands quiet, not as tall as the band.
+              maxModule={dayPageMaxModule(parts)}
+              className="size-full"
+            />
+          </figure>
+        )}
+        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-3">
+          {day.name}
+        </FitTitle>
+        {/* What the coach wrote, its figures held to their units ("then 20 min easy") and read
+            in its words' voice, as Today and Choose a day say it: a number in a phrase is not a
+            fact standing on its own, as the time under it is (the Two Voices Rule). */}
+        {day.focus && <p className="mt-0.5 type-meta text-ink-2">{holdFigures(day.focus)}</p>}
+        {(day.timeNote || day.effortNote || open) && (
+          <MetaLine className="mt-0.5">
+            {open && <Fact glyph="play">In progress</Fact>}
+            {day.timeNote && (
+              <Fact glyph="rest" label="Time">
+                <Figures>{holdFigures(day.timeNote)}</Figures>
+              </Fact>
+            )}
+            {day.effortNote && <Fact>{day.effortNote}</Fact>}
+          </MetaLine>
+        )}
+
+        {/* A rest day asks for nothing but rest, and the routine when it has one (ADR 0005),
+            which its row lists. */}
+        {rest &&
+          (plan.status === "completed" ? (
+            <p className="mt-3 flex items-start gap-2 type-body">
+              <Glyph name="check" className="mt-0.5 glyph-18" />
+              <span>Rest day done.</span>
+            </p>
+          ) : (
+            !warmup && <p className="mt-3 type-body text-ink-2">Nothing to train.</p>
+          ))}
+
+        <ul aria-label={day.name} className="mt-2">
+          {order.map((part) => (
+            <Fragment key={part}>{rowsOf[part]}</Fragment>
+          ))}
+        </ul>
+
+        {/* The run's stop rule in view, as the session's page keeps it: a safety rule is
+            need-to-know. How to run it, and the day's own notes, are a tap away. */}
+        {plan.run?.stopRule && (
+          <div className="mt-3">
+            <DetailList entries={[["Stop if", plan.run.stopRule]]} />
+          </div>
+        )}
+        {(plan.run?.paceNote || plan.run?.progressionNote || day.notes) && (
+          <div className="mt-3">
+            {(plan.run?.paceNote || plan.run?.progressionNote) && (
+              <Disclosure summary="How to run it" variant="inline">
+                <DetailList
+                  entries={[
+                    ["Pace", plan.run?.paceNote],
+                    ["Progression", plan.run?.progressionNote],
+                  ]}
+                />
+              </Disclosure>
+            )}
+            {day.notes && (
+              <Disclosure summary="Notes" variant="inline">
+                <p className="type-meta [overflow-wrap:break-word] whitespace-pre-wrap">
+                  {day.notes}
+                </p>
+              </Disclosure>
+            )}
+          </div>
+        )}
+
+        {/* One workout at a time: while one is open, this day starts nothing (Today's rule). */}
+        {inProgress && !open && start && (
+          <p className="mt-3 type-meta text-ink-2">Finish or discard your open workout first.</p>
+        )}
+        {!inProgress && start && (
+          <PinnedActions stack>
+            <StartPlannedButton
+              gymId={data.defaultGymId}
+              programDayId={day.id}
+              dayIndex={day.dayIndex}
+              fromCycleIndex={start.cycleIndex}
+              label={start.label === "Start" ? "Start workout" : start.label}
+              glyph="play"
+            />
+          </PinnedActions>
+        )}
+      </div>
+    </FreshAfterSets>
+  );
+}

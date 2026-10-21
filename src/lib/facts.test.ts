@@ -1,6 +1,6 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { FACT_SEPARATOR, holdFigures, holdHyphens, joinFacts } from "./facts";
+import { FACT_SEPARATOR, holdFigures, holdHyphens, joinFacts, readsAs } from "./facts";
 
 it("holds each dot to the fact after it, so a wrapped line never ends on a dot", () => {
   expect(joinFacts(["6 foods", "1 meal"])).toBe("6 foods · 1 meal");
@@ -49,4 +49,12 @@ it("lets a long compound break at a hyphen, so it never runs wider than a narrow
 it("leaves out facts that say nothing", () => {
   expect(joinFacts([null, "2 sets", undefined, "", false, "40 min"])).toBe("2 sets · 40 min");
   expect(joinFacts([null, false])).toBe("");
+});
+
+describe("readsAs", () => {
+  it("reads held figures as the words they are, case aside", () => {
+    expect(readsAs("6 × 800 m", holdFigures("6 × 800\u00a0m"))).toBe(true);
+    expect(readsAs("Tempo 20–25 min", holdFigures("tempo 20–25 min"))).toBe(true);
+    expect(readsAs("Intervals: 6 × 800 m", "6 × 800 m")).toBe(false);
+  });
 });

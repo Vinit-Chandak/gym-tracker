@@ -17,6 +17,7 @@ import type {
   SwimmingEnvironment,
   SwimStroke,
 } from "./activity";
+import type { StepPhase } from "./activity-prescription";
 import {
   checkNumber,
   CYCLING_CADENCE,
@@ -25,6 +26,7 @@ import {
   DURATION_MS,
   ELEVATION_GAIN_METRES,
   HEART_RATE,
+  LAP_LIMIT,
   LENGTHS,
   POOL_LENGTH_NATIVE,
   POWER_WATTS,
@@ -35,6 +37,7 @@ import {
   withinPrecision,
   type LimitProblem,
 } from "./activity-limits";
+import type { RunType } from "./run-types";
 
 /**
  * What each endurance sport actually records, and what may honestly be derived from it
@@ -54,18 +57,36 @@ export function nativeDistance(value: number, unit: DistanceUnit | PoolUnit): Na
   return { value, unit, metres: toMetres(value, unit) };
 }
 
+/**
+ * One lap or split of a run, as a watch lists them (ADR 0059): a rep of an interval session, the
+ * jog after it, a mile of a long run. Its distance or its time may be unknown, never both — a
+ * timed rep is a time whose distance nobody measured, and it stays unknown rather than becoming
+ * the planned one. `phase` says what the lap was for, in the plan's words.
+ */
+export type RunningLap = {
+  phase: StepPhase | null;
+  distance: NativeDistance | null;
+  durationMs: number | null;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+};
+
 export type RunningActualV1 = {
   sport: "running";
   environment: RunningEnvironment;
   /** Required: a run is distance and duration, as it has always been here (RUN-01). */
   distance: NativeDistance;
   durationMs: number;
+  /** What kind of run it was; null when the athlete did not say. */
+  runType: RunType | null;
   surface: string | null;
   elevationGainMetres: number | null;
   treadmillInclinePercent: number | null;
   averageHeartRate: number | null;
   maxHeartRate: number | null;
   cadenceStepsPerMinute: number | null;
+  /** In the order they were run. Empty when the run was recorded as a whole. */
+  laps: RunningLap[];
 };
 
 export type CyclingActualV1 = {
@@ -230,6 +251,59 @@ function checkHeartRates(
     });
 }
 
+/** The highest heart rate a run recorded, its laps included: what a new maximum is read from. */
+export function runPeakHeartRate(actual: RunningActualV1): number | null {
+  const readings = [actual.maxHeartRate, ...actual.laps.map((lap) => lap.maxHeartRate)].filter(
+    (value): value is number => value !== null,
+  );
+  return readings.length > 0 ? Math.max(...readings) : null;
+}
+
+/** A lap's pace per kilometre, when both its distance and its time were recorded. */
+export function lapPaceSecondsPerKm(lap: RunningLap): number | null {
+  if (lap.distance === null || lap.durationMs === null) return null;
+  return paceSecondsPerKm(lap.distance.metres, lap.durationMs);
+}
+
+/**
+ * Laps may say less than the run did — the reps of a session and not its warm-up — but never
+ * more: laps longer than the whole are a typo. Each lap's own time rounds to the second on a
+ * watch, so a second a lap is allowed for, and a hundredth of the distance for GPS.
+ */
+function checkLaps(problems: LimitProblem[], actual: RunningActualV1): void {
+  if (actual.laps.length > LAP_LIMIT) {
+    problems.push({ field: "laps", message: `Keep a run to ${LAP_LIMIT} laps.` });
+    return;
+  }
+  let metres = 0;
+  let ms = 0;
+  actual.laps.forEach((lap, index) => {
+    const label = `lap ${index + 1}`;
+    if (lap.distance === null && lap.durationMs === null) {
+      problems.push({ field: "laps", message: `Give ${label} a distance, a time or both.` });
+      return;
+    }
+    if (lap.distance !== null) {
+      if (!(lap.distance.metres > 0))
+        problems.push({ field: "laps", message: `Enter ${label}'s distance as more than zero.` });
+      else checkDistanceValue(problems, "laps", lap.distance, "running", `${label}'s distance`);
+      metres += lap.distance.metres;
+    }
+    if (lap.durationMs !== null) {
+      checkDuration(problems, "laps", lap.durationMs, `${label}'s time`);
+      ms += lap.durationMs;
+    }
+    const before = problems.length;
+    checkHeartRates(problems, lap.averageHeartRate, lap.maxHeartRate);
+    for (const problem of problems.splice(before))
+      problems.push({ field: "laps", message: `${label}: ${problem.message}` });
+  });
+  if (ms > actual.durationMs + actual.laps.length * 1000)
+    problems.push({ field: "laps", message: "The laps add up to longer than the run." });
+  if (actual.distance.metres > 0 && metres > actual.distance.metres * 1.01 + 10)
+    problems.push({ field: "laps", message: "The laps add up to further than the run." });
+}
+
 function checkDuration(
   problems: LimitProblem[],
   field: string,
@@ -304,6 +378,7 @@ export function validateActual(actual: EnduranceActual): LimitProblem[] {
       "cadence",
     );
     checkHeartRates(problems, actual.averageHeartRate, actual.maxHeartRate);
+    checkLaps(problems, actual);
     return problems;
   }
 

@@ -312,9 +312,6 @@ export function SplitBuilder({
             </li>
           ))}
         </ul>
-        {day.exercises.length === 0 && (
-          <p className="setup-note">Nothing yet: a day without exercises is a rest day.</p>
-        )}
         <Button
           variant="tonal"
           size="lg"
@@ -450,28 +447,26 @@ export function SplitBuilder({
   }
 
   return (
-    <OnboardingFrame
-      steps={steps}
-      current="start"
-      back="/welcome/programme"
-      title="Your split"
-      sub="Name your days and add what you do on each. Each exercise starts at its usual sets and reps; change any of them."
-    >
+    <OnboardingFrame steps={steps} current="start" back="/welcome/programme" title="Your split">
       <ul aria-label="Days" className="mt-4.5 border-t border-hair">
-        {days.map((day, i) => (
-          <li key={i} className="border-b border-hair">
-            <button type="button" onClick={() => go(`?day=${i + 1}`)} className="split-day">
-              <span className="split-day-number">{i + 1}</span>
-              <span className="min-w-0 flex-1">
-                <span className="split-row-name">
-                  {day.name.trim() || (day.exercises.length > 0 ? `Day ${i + 1}` : "Rest")}
+        {days.map((day, i) => {
+          const name = day.name.trim() || (day.exercises.length > 0 ? `Day ${i + 1}` : "Rest");
+          return (
+            <li key={i} className="border-b border-hair">
+              <button type="button" onClick={() => go(`?day=${i + 1}`)} className="split-day">
+                <span className="split-day-number">{i + 1}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="split-row-name">{name}</span>
+                  {/* A day named Rest with nothing on it says so once. */}
+                  {!(day.exercises.length === 0 && /^rest$/i.test(name)) && (
+                    <span className="split-row-sub">{dayLine(day)}</span>
+                  )}
                 </span>
-                <span className="split-row-sub">{dayLine(day)}</span>
-              </span>
-              <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
-            </button>
-          </li>
-        ))}
+                <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
+              </button>
+            </li>
+          );
+        })}
         {days.length < 14 && (
           <li className="border-b border-hair">
             <button

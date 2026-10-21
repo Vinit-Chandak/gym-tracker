@@ -12,9 +12,10 @@ test("literal pages cannot stand in for unvisited dynamic screens", () => {
     "/food/my-foods",
     "/food/my-foods/meals/[id]",
     "/food/my-foods/meals/new",
-    "/training/programmes/[sport]",
-    "/training/programmes/new",
-    "/training/programmes/archived",
+    "/plan/[sport]",
+    "/plan/new",
+    "/plan/past",
+    "/plan/history",
     "/workouts/[sessionId]",
     "/workouts/start",
   ]);
@@ -23,8 +24,9 @@ test("literal pages cannot stand in for unvisited dynamic screens", () => {
     "/food/targets",
     "/food/my-foods",
     "/food/my-foods/meals/new",
-    "/training/programmes/new",
-    "/training/programmes/archived",
+    "/plan/new",
+    "/plan/past",
+    "/plan/history",
     "/workouts/start",
   ]) {
     assert.equal(match(literal), literal);
@@ -32,7 +34,7 @@ test("literal pages cannot stand in for unvisited dynamic screens", () => {
   assert.equal(match("/exercises/bench-press"), "/exercises/[exerciseId]");
   assert.equal(match("/food/breakfast"), "/food/[meal]");
   assert.equal(match("/food/my-foods/meals/meal-123"), "/food/my-foods/meals/[id]");
-  assert.equal(match("/training/programmes/running"), "/training/programmes/[sport]");
+  assert.equal(match("/plan/running"), "/plan/[sport]");
   assert.equal(match("/workouts/session-123"), "/workouts/[sessionId]");
   assert.equal(match("/food/missing/child"), null);
 });

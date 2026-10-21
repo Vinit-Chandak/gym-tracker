@@ -18,11 +18,7 @@ export default function NotFound() {
     <main className="flex min-h-dvh flex-col">
       <PageHeader title="Not found" />
       <PageContent>
-        <EmptyState
-          icon={MapPin}
-          title="Nothing here"
-          description="That page does not exist. The link may be out of date, or the address may have a typo."
-        />
+        <EmptyState icon={MapPin} title="Nothing here" description="That page does not exist." />
         <LinkButton href="/today" className="w-full">
           Back to Today
         </LinkButton>

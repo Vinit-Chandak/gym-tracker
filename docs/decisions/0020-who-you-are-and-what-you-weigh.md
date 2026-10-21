@@ -63,7 +63,9 @@ body weight field said "Body weight (kg)" to everyone, including accounts set to
 
 4. **Body weight is a record, not a field.** `body_weight_logs` holds one reading per day per
    account. Finishing a session with a weight writes one; changing the weight on the profile
-   writes one. `recordBodyWeight` is the only thing that writes `profiles.body_weight_kg`, and
+   writes one (since [ADR 0060](0060-every-page-under-its-tab.md), Today › Log › Body weight
+   does, and the profile no longer asks for a weight). `recordBodyWeight` is the only thing that
+   writes `profiles.body_weight_kg`, and
    it sets it from whichever reading is newest — so correcting last month cannot rewrite what
    somebody weighs now, while correcting today does. **Progress → Body** draws the trend above
    the muscle map, in the account's own unit.
@@ -88,7 +90,9 @@ body weight field said "Body weight (kg)" to everyone, including accounts set to
   supports — breaks the invariant on day one.
 - **Existing accounts cannot save a profile until they complete it.** The Settings form parses
   with the same schema as setup, so an account with no height must add one before it can change
-  its name. This is deliberate: the alternative is two definitions of a complete profile.
+  its name. This is deliberate: the alternative is two definitions of a complete profile. (Since
+  ADR 0060 body weight is not one of its answers, and setup's first step shares the units
+  schema with Profile › Units and time zone.)
 - **`SETUP.md` step 4.2 is now load-bearing** and says so. The failure it describes is silent
   at every layer, which is why it is written out twice — in the step, and again as its own
   section.

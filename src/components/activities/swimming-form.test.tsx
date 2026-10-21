@@ -124,9 +124,27 @@ it("drops back to a real choice when the swim moves to open water", () => {
   expect(screen.queryByRole("textbox", { name: "Lengths" })).toBeNull();
 });
 
-it("says plainly that an unknown distance stays unknown", () => {
-  swim();
-  expect(screen.getByText(/Nothing is made up for the distance/)).toBeTruthy();
+it("keeps an unknown distance unknown: nothing to fill in, nothing sent", () => {
+  const { container } = swim();
+  expect(screen.getByRole("radio", { name: "Not known" })).toHaveProperty("checked", true);
+  expect(screen.queryByLabelText("Distance")).toBeNull();
+  expect(new FormData(container.querySelector("form")!).has("distanceValue")).toBe(false);
+  // How the app treats a blank is not said on the form.
+  expect(screen.queryByText(/Nothing is made up/)).toBeNull();
+});
+
+/**
+ * What a length is, and that elapsed time counts the rests, decide the figures typed: both stay
+ * in view (WCAG 3.3.2), in a few words, until a count gives its distance.
+ */
+it("says in view what a length is and what elapsed time counts", () => {
+  swim({ distanceMethod: "lengths", poolLengthValue: "25" });
+  expect(screen.getByText("Rests included")).toBeTruthy();
+  expect(screen.getByText("One length is one end to the other")).toBeTruthy();
+  cleanup();
+  swim({ distanceMethod: "lengths", poolLengthValue: "25", lengths: "16" });
+  expect(screen.queryByText("One length is one end to the other")).toBeNull();
+  expect(screen.getByRole("status").textContent).toContain("400\u00a0m");
 });
 
 it("gives no pace until a swimming time is stated", () => {

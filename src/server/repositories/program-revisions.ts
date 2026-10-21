@@ -8,6 +8,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import {
   applyProgramPatch,
@@ -51,8 +52,12 @@ function toView(row: Proposal): ProposalView | null {
   return { ...row, patch: patch.data, lines: describePatch(patch.data) };
 }
 
-/** Proposals still waiting on the athlete, newest first. */
-export async function listOpenProposals(db: DbOrTx, userId: string): Promise<ProposalView[]> {
+/** Proposals still waiting on the athlete, newest first: one sport's programme's, where given. */
+export async function listOpenProposals(
+  db: DbOrTx,
+  userId: string,
+  sport?: ActivitySport,
+): Promise<ProposalView[]> {
   const rows = await db
     .select({ proposal: programChangeProposals })
     .from(programChangeProposals)
@@ -66,6 +71,7 @@ export async function listOpenProposals(db: DbOrTx, userId: string): Promise<Pro
         // offered: it stays in the record below, where it reads as history rather than as a
         // decision still waiting.
         eq(programs.status, "active"),
+        sport ? eq(programs.sport, sport) : undefined,
       ),
     )
     .orderBy(desc(programChangeProposals.createdAt))

@@ -1342,6 +1342,8 @@ export class YearSimulation {
         averageHeartRate: a.random() < 0.5 ? 135 + Math.round(a.random() * 30) : null,
         maxHeartRate: null,
         cadenceStepsPerMinute: null,
+        runType: null,
+        laps: [],
       };
     else if (sport === "cycling")
       actual = {

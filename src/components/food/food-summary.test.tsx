@@ -87,13 +87,13 @@ describe("the day", () => {
     ).toBeTruthy();
   });
 
-  it("heaps the bowl over its rim past the target, to the tenth of a kcal", () => {
+  it("heaps the bowl over its rim past the target, in whole kcal", () => {
     const target = macroTargets({ dailyKcal: 501, proteinPerKg: 1.8, fatPercent: 25 }, null, null);
     render(
       <FoodSummary eaten={eaten(551.2)} target={target} entries={[entry("dinner", MILK, 1060)]} />,
     );
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
-      "The bowl heaped over its rim, filled by Dinner 551.2 kcal: 551.2 of 501 kcal.",
+      "The bowl heaped over its rim, filled by Dinner 551 kcal: 551 of 501 kcal.",
     );
   });
 

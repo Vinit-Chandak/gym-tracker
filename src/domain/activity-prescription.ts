@@ -7,10 +7,13 @@ import type { EnduranceSport } from "./activity";
 import {
   DISTANCE_METRES,
   DURATION_MS,
+  HEART_RATE_ZONE_TARGET,
+  PACE_TARGET_SECONDS_PER_KM,
   PRESCRIBED_EFFORT,
   PRESCRIPTION_LIMITS,
   TEXT_LIMITS,
 } from "./activity-limits";
+import { RUN_TYPES } from "./run-types";
 
 /**
  * What an endurance session asks for (plan §5.1).
@@ -64,6 +67,39 @@ const effortRange = range(
 );
 
 /**
+ * How fast and how hard, beside how much (ADR 0059). A pace reads fastest first, as every range
+ * reads low to high: 4:05–4:15 per kilometre is [245, 255]. Zones are the athlete's own five, so
+ * "zone 2" means their zone 2 whatever their maximum is, and is shown in their own beats.
+ *
+ * Both are optional rather than null by default, unlike the fields above, and on purpose: a
+ * prescription stored before they existed is read back without them and must still compare
+ * equal to itself once parsed, or every saved session would look changed to the next edit
+ * (`jsonEqual` reads a null as a value and an absent key as nothing).
+ */
+/**
+ * A pace is kept to a tenth of a second a kilometre, which is what lets one typed per mile come
+ * back as it was typed: a second a mile is 0.62 of one a kilometre, so whole seconds would turn
+ * 9:00 a mile into 9:01.
+ */
+const paceSeconds = z
+  .number()
+  .min(PACE_TARGET_SECONDS_PER_KM.min)
+  .max(PACE_TARGET_SECONDS_PER_KM.max)
+  .refine(
+    (value) => Math.abs(value * 10 - Math.round(value * 10)) < 1e-6,
+    "A pace is kept to a tenth of a second",
+  );
+const paceRange = z
+  .tuple([paceSeconds, paceSeconds])
+  .refine(([fast, slow]) => fast <= slow, "A pace range reads fastest first");
+const zoneRange = z
+  .tuple([
+    z.number().int().min(HEART_RATE_ZONE_TARGET.min).max(HEART_RATE_ZONE_TARGET.max),
+    z.number().int().min(HEART_RATE_ZONE_TARGET.min).max(HEART_RATE_ZONE_TARGET.max),
+  ])
+  .refine(([low, high]) => low <= high, "A zone range reads low to high");
+
+/**
  * The unit a distance was written in, so an editor can give it back as it was typed. Only that:
  * every screen reads a target in the athlete's own unit, and the metres are what is compared.
  */
@@ -82,6 +118,9 @@ export const prescriptionStepSchema = z.object({
   /** One primary axis per step: a step is measured by time or by distance, not both. */
   target: stepTargetSchema,
   effort: effortRange.nullable().default(null),
+  /** A run step's pace, per kilometre; read per mile by an athlete in miles. */
+  paceSecondsPerKm: paceRange.optional(),
+  heartRateZones: zoneRange.optional(),
   stroke: z.enum(SWIM_STROKES).nullable().default(null),
   notes: z.string().max(TEXT_LIMITS.stepNotes).nullable().default(null),
 });
@@ -102,6 +141,8 @@ export const prescriptionNodeSchema = z.discriminatedUnion("kind", [
 
 /** The running-specific instructions the old programme wrote, kept as their own fields. */
 export const runningInstructionsSchema = z.object({
+  /** What kind of run it is: easy, long, tempo, intervals… (`run-types.ts`). */
+  sessionType: z.enum(RUN_TYPES).optional(),
   paceNote: z.string().max(300).nullable().default(null),
   progressionNote: z.string().max(300).nullable().default(null),
   /** When to cut the run short, in this runner's own terms. */
@@ -123,6 +164,9 @@ export const endurancePrescriptionSchema = z
         distanceMetres: distanceRange.nullable().default(null),
         distanceUnit: writtenIn,
         effort: effortRange.nullable().default(null),
+        /** An easy run's whole pace or zone, where it has no steps to carry one. */
+        paceSecondsPerKm: paceRange.optional(),
+        heartRateZones: zoneRange.optional(),
       })
       .default({ durationMs: null, distanceMetres: null, effort: null }),
     nodes: z.array(prescriptionNodeSchema).default([]),
@@ -158,6 +202,12 @@ export const endurancePrescriptionSchema = z
           code: "custom",
           message: "Only a swim step has a stroke",
           path: [...path, "stroke"],
+        });
+      if (step.paceSecondsPerKm && (value.sport !== "running" || step.action === "rest"))
+        ctx.addIssue({
+          code: "custom",
+          message: "Only a run or walk step has a pace target",
+          path: [...path, "paceSecondsPerKm"],
         });
       if (
         step.target.kind === "distance" &&
@@ -228,6 +278,12 @@ export const endurancePrescriptionSchema = z
         code: "custom",
         message: "Only a running prescription carries running instructions",
         path: ["running"],
+      });
+    if (value.sessionTargets.paceSecondsPerKm && value.sport !== "running")
+      ctx.addIssue({
+        code: "custom",
+        message: "Only a run has a pace target",
+        path: ["sessionTargets", "paceSecondsPerKm"],
       });
     if (JSON.stringify(value).length > PRESCRIPTION_LIMITS.payloadBytes)
       ctx.addIssue({ code: "custom", message: "That session is too large to store", path: [] });
@@ -357,8 +413,10 @@ export function durationTargetParts(ms: number | readonly [number, number]): {
  * What a session asks for as one figure and its unit — "8 × 50" m, "5" km, "25–30" min — with
  * any distance in the reader's own unit for the sport. Null when it asks for nothing measurable.
  *
- * One repeated block names the session; otherwise its overall targets do, distance first; and
- * failing both, what its written steps add up to.
+ * Its main work names it. A repeated block does, unless work written on its own is more of the
+ * session (ADR 0059): an easy run with strides is its run, not its strides. Otherwise its overall
+ * targets do, distance first; then its one work step, as a tempo is its twenty minutes and a race
+ * its distance; and failing those, what its written steps add up to.
  */
 export function prescriptionTarget(
   prescription: EndurancePrescription,
@@ -366,20 +424,41 @@ export function prescriptionTarget(
 ): { figure: string; unit: string } | null {
   const distance = (metres: number | readonly [number, number]) =>
     sportDistanceParts(metres, prescription.sport, units);
+  const parts = (target: PrescriptionStep["target"]) =>
+    target.kind === "distance" ? distance(target.metres) : durationTargetParts(target.ms);
+  const work = prescription.nodes.filter(
+    (node): node is PrescriptionStep => node.kind === "step" && node.phase === "work",
+  );
   const block = prescription.nodes.find((node) => node.kind === "repeat");
-  if (block && block.kind === "repeat" && block.steps[0]) {
-    const target = block.steps[0].target;
-    const each =
-      target.kind === "distance" ? distance(target.metres) : durationTargetParts(target.ms);
+  if (block && block.kind === "repeat" && block.steps[0] && !outweighs(work, block)) {
+    const each = parts(block.steps[0].target);
     return { figure: `${block.repetitions} × ${each.figure}`, unit: each.unit };
   }
   const { distanceMetres, durationMs } = prescription.sessionTargets;
   if (distanceMetres) return distance(distanceMetres);
   if (durationMs) return durationTargetParts(durationMs);
+  if (work.length === 1) return parts(work[0]!.target);
   const totals = prescriptionTotals(prescription);
   if (totals.distanceMetres) return distance(totals.distanceMetres);
   if (totals.durationMs) return durationTargetParts(totals.durationMs);
   return null;
+}
+
+/**
+ * Whether work written on its own is more of the session than a block's work: 35 minutes easy
+ * beside six 20-second strides, or 8 km beside them. Measured the same way they are compared;
+ * measured differently, the work on its own is the session, as strides and drills are written
+ * after a run and not instead of it.
+ */
+function outweighs(work: readonly PrescriptionStep[], block: PrescriptionRepeat): boolean {
+  if (work.length === 0) return false;
+  const kind = block.steps[0]!.target.kind;
+  if (work.some((step) => step.target.kind !== kind)) return true;
+  const amount = (step: PrescriptionStep) =>
+    step.target.kind === "duration" ? step.target.ms[1] : step.target.metres[1];
+  const reps = block.steps.filter((step) => step.phase === "work" && step.target.kind === kind);
+  const blockWork = reps.reduce((sum, step) => sum + amount(step), 0) * block.repetitions;
+  return work.some((step) => amount(step) > blockWork);
 }
 
 /** A one-line description for a card: "8 × 50 m", "25–30 min", "8.05 km". */

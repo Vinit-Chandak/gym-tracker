@@ -24,7 +24,7 @@ export const RECOVERY_LABELS: Record<
     long: "Sleep",
     unit: "h",
     // The rule in ink is the check-in's own threshold, said where the graph is explained.
-    hint: `Hours slept before training. The line at ${SHORT_SLEEP_HOURS} h is where the check-in warns: under it, hold loads rather than add to them.`,
+    hint: `Hours slept the night before; under ${SHORT_SLEEP_HOURS} h the check-in says to hold loads.`,
   },
   sleepQuality: {
     short: "Quality",
@@ -153,7 +153,7 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
         }}
         note={{
           label: `About ${label.long.toLowerCase()}`,
-          content: `${label.hint} From the check-in before each workout; a blank answer stays blank and is left out of every average.`,
+          content: `${label.hint} Blank answers are left out of averages.`,
         }}
         // A span whose check-ins left this answer blank says so, not that there were none.
         empty={

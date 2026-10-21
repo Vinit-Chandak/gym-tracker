@@ -15,13 +15,15 @@ import { EquipmentStepForm } from "./equipment-step-form";
 
 export const metadata: Metadata = { title: "Equipment" };
 
-/** The line under the question: what is taken as there, and what to do here. */
-function sub(kind: "gym" | "home" | "outdoor"): string {
-  if (kind === "gym")
-    return "The usual gym kit is taken as there. Add what’s special now, or when a workout needs it.";
-  if (kind === "home")
-    return "Tick what you own. Bodyweight exercises need nothing, so leave it blank if that’s you.";
-  return "Tick what’s there. Bodyweight exercises need nothing, so leave it blank if that’s you.";
+/**
+ * The line under the question, at home or outdoors: what ticking nothing means, which a choice
+ * that may be left blank says on the screen (WCAG 3.3.2). At a gym none is needed: the usual kit
+ * stands counted as the step's first line.
+ */
+function sub(kind: "gym" | "home" | "outdoor"): string | undefined {
+  return kind === "gym"
+    ? undefined
+    : "Bodyweight exercises need nothing: leave it blank if that’s you.";
 }
 
 /**

@@ -168,3 +168,37 @@ it("treats a half-named occurrence as an ad hoc log rather than guessing", async
   expect(state.formError).toBe("Something went wrong. Please try again.");
   expect(mocks.getDb).toHaveBeenCalled();
 });
+
+/** ADR 0059: laps arrive as one JSON list; a forged or unreadable one is refused as laps. */
+it("refuses laps it cannot read, and a run type that is not one", async () => {
+  const garbled = await saveActivityAction(null, {}, runningForm({ laps: "{not a list" }));
+  expect(garbled.fieldErrors?.laps).toMatch(/could not be read/);
+  const wrongShape = await saveActivityAction(
+    null,
+    {},
+    runningForm({ laps: JSON.stringify([{ phase: "sprint" }]) }),
+  );
+  expect(wrongShape.fieldErrors?.laps).toBeDefined();
+  const runType = await saveActivityAction(null, {}, runningForm({ runType: "jog" }));
+  expect(runType.fieldErrors?.runType).toMatch(/kind of run/);
+  expect(mocks.getDb).not.toHaveBeenCalled();
+});
+
+it("takes readable laps and a run type on to the database", async () => {
+  mocks.getDb.mockImplementation(() => {
+    throw new Error("reached the database");
+  });
+  const laps = JSON.stringify([
+    {
+      phase: "work",
+      distanceValue: 800,
+      distanceUnit: "m",
+      durationMs: 180_000,
+      averageHeartRate: 168,
+      maxHeartRate: 176,
+    },
+  ]);
+  const state = await saveActivityAction(null, {}, runningForm({ laps, runType: "intervals" }));
+  expect(state.fieldErrors).toBeUndefined();
+  expect(mocks.getDb).toHaveBeenCalled();
+});

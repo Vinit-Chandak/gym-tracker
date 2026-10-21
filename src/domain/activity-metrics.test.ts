@@ -12,8 +12,11 @@ import {
   speedMetresPerSecond,
   swimPaceSecondsPer100,
   validateActual,
+  lapPaceSecondsPerKm,
+  runPeakHeartRate,
   type CyclingActualV1,
   type RunningActualV1,
+  type RunningLap,
   type SwimmingActualV1,
 } from "./activity-metrics";
 
@@ -30,6 +33,8 @@ const run = (overrides: Partial<RunningActualV1> = {}): RunningActualV1 => ({
   averageHeartRate: null,
   maxHeartRate: null,
   cadenceStepsPerMinute: null,
+  runType: null,
+  laps: [],
   ...overrides,
 });
 
@@ -75,6 +80,57 @@ describe("running", () => {
       "maxHeartRate",
     );
     expect(validateActual(run({ averageHeartRate: 150, maxHeartRate: 172 }))).toEqual([]);
+  });
+});
+
+describe("a run's laps (ADR 0059)", () => {
+  const lap = (overrides: Partial<RunningLap> = {}): RunningLap => ({
+    phase: "work",
+    distance: nativeDistance(800, "m"),
+    durationMs: 3 * MINUTE,
+    averageHeartRate: null,
+    maxHeartRate: null,
+    ...overrides,
+  });
+
+  it("takes reps as distances and times, or a time alone, and paces only what was measured", () => {
+    const timed = lap({ distance: null, durationMs: 2 * MINUTE });
+    expect(validateActual(run({ laps: [lap(), timed, lap({ phase: "recovery" })] }))).toEqual([]);
+    expect(lapPaceSecondsPerKm(lap())).toBe(225);
+    expect(lapPaceSecondsPerKm(timed)).toBeNull();
+  });
+
+  it("refuses a lap that says neither how far nor how long", () => {
+    const problems = validateActual(
+      run({ laps: [lap(), lap({ distance: null, durationMs: null })] }),
+    );
+    expect(problems).toEqual([
+      { field: "laps", message: "Give lap 2 a distance, a time or both." },
+    ]);
+  });
+
+  it("refuses laps that add up to more than the run", () => {
+    const tooLong = Array.from({ length: 11 }, () => lap());
+    expect(validateActual(run({ laps: tooLong })).map((problem) => problem.message)).toEqual([
+      "The laps add up to longer than the run.",
+      "The laps add up to further than the run.",
+    ]);
+  });
+
+  it("checks each lap's heart rate and says which lap", () => {
+    expect(
+      validateActual(run({ laps: [lap({ averageHeartRate: 170, maxHeartRate: 160 })] })),
+    ).toEqual([
+      { field: "laps", message: "lap 1: Maximum heart rate cannot be below the average." },
+    ]);
+  });
+
+  it("reads a run's peak heart rate from its laps as well as its whole", () => {
+    expect(runPeakHeartRate(run({ maxHeartRate: 181 }))).toBe(181);
+    expect(runPeakHeartRate(run({ maxHeartRate: 181, laps: [lap({ maxHeartRate: 189 })] }))).toBe(
+      189,
+    );
+    expect(runPeakHeartRate(run())).toBeNull();
   });
 });
 

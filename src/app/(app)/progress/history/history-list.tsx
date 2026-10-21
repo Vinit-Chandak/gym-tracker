@@ -21,7 +21,7 @@ export type HistoryItem = {
   title: string;
   /** Its time and where: "19:00 · Anytime Fitness"; a recovery reading's answers. */
   subtitle: string;
-  href?: Route<`/workouts/${string}` | `/runs/${string}` | `/training/activities/${string}`>;
+  href?: Route<`/workouts/${string}` | `/runs/${string}` | `/progress/activities/${string}`>;
   meta: string;
   gymId: string | null;
   exercises: { id: string; name: string; machineId: string | null; machineName: string | null }[];

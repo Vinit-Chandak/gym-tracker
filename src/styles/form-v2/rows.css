@@ -455,16 +455,16 @@ li:last-child > .sheet-row {
 /* At large text the avatar and Edit must not squeeze the name and follow counts into a
    narrow middle column. Keep those controls together, with the identity across the next row. */
 @container person-card (width < 15rem) {
-  .person-card-head:has(.round-icon-button) {
+  .person-card-head:has(.profile-edit-button) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
-  .person-card-head:has(.round-icon-button) > .person-card-text {
+  .person-card-head:has(.profile-edit-button) > .person-card-text {
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  .person-card-head > .round-icon-button {
+  .person-card-head > .profile-edit-button {
     grid-column: 2;
     grid-row: 1;
   }
@@ -485,13 +485,16 @@ li:last-child > .sheet-row {
   font-weight: 700;
   line-height: 1.3;
 }
-/* A glyph in a round surface button: Edit profile. */
-.round-icon-button {
-  display: grid;
-  width: var(--ov-target);
-  height: var(--ov-target);
+/* Edit profile: its glyph and its word on a surface pill, which grows with the text. */
+.profile-edit-button {
+  display: inline-flex;
+  min-width: var(--ov-target);
+  min-height: var(--ov-target);
   flex-shrink: 0;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--ov-u));
+  padding-inline: calc(14 * var(--ov-u));
   border-radius: 9999px;
   background: var(--ov-surface);
 }
@@ -1614,10 +1617,7 @@ li:last-child > .picker-row {
   accent-color: var(--ov-ink);
 }
 
-/* A row that opens in place (board Summary: Save or repeat this workout). */
-.disclosure {
-  border-bottom: 1px solid var(--ov-hair);
-}
+/* A row that opens what it names (board Summary: Save or repeat this workout). */
 .disclosure-summary {
   display: flex;
   min-height: calc(56 * var(--ov-u));
@@ -1626,15 +1626,6 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-body);
   cursor: pointer;
   list-style: none;
-}
-.disclosure-summary::-webkit-details-marker {
-  display: none;
-}
-.disclosure-chevron {
-  flex-shrink: 0;
-}
-.disclosure[open] .disclosure-chevron {
-  rotate: 180deg;
 }
 
 /* ---------- the one error a screen can meet (board Offline) ---------- */
@@ -1772,6 +1763,94 @@ html:has(.standalone-error) {
 }
 .more-details-summary::-webkit-details-marker {
   display: none;
+}
+/* The fold's chevron at the row's end, turned while its own fold is open. */
+.more-details-chevron {
+  color: var(--ov-ink-2);
+  transition: rotate var(--ov-duration-feedback) var(--ov-ease-out);
+}
+details[open] > .more-details-summary > .more-details-chevron {
+  rotate: 180deg;
+}
+/* A run's laps (ADR 0059): one box per lap, its number, kind and remove on one line, then its
+   distance, unit, time and heart rate folding into as many columns as fit. */
+.laps-count {
+  margin-left: auto;
+  color: var(--ov-ink-2);
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+}
+.laps {
+  display: grid;
+  gap: calc(10 * var(--ov-u));
+}
+.lap-row {
+  display: grid;
+  gap: calc(8 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.lap-row-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: calc(8 * var(--ov-u));
+}
+.lap-row-number {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lap-row-head > :nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.lap-row-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+.lap-row-pace {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-variant-numeric: tabular-nums;
+}
+/* A run's written steps (ADR 0059): each step a box on surface, its title and its moves on one
+   line, then its fields folding into as many columns as fit. A repeated block is outlined, its
+   steps boxes inside it, so what repeats is plain at a glance. */
+.step-editor {
+  display: grid;
+  gap: calc(8 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.step-editor-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: calc(4 * var(--ov-u));
+}
+.step-editor-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+.step-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  gap: calc(8 * var(--ov-u));
+}
+.repeat-editor {
+  display: grid;
+  gap: calc(10 * var(--ov-u));
+  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-card);
 }
 /* What the plan asked for, on surface: its figure, then how it is meant to feel. */
 .target-card {

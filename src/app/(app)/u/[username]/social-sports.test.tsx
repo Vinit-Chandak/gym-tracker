@@ -103,7 +103,8 @@ vi.mock("@/components/ui/sport-span-controls", () => ({
 vi.mock("@/components/graph/graph-range-context", () => ({
   GraphRangeProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
-vi.mock("@/components/ui/info-tip", () => ({
+vi.mock("@/components/ui/info-tip", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/ui/info-tip")>()),
   InfoTip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 vi.mock("@/app/(app)/profile/friends/leaderboard/leaderboard-controls", () => ({
@@ -276,13 +277,16 @@ it("reads a running comparison's distances and paces in the viewer's own unit", 
 });
 
 it.each([
-  [true, "This is what a follower sees of your training."],
+  [true, "As your followers see it."],
   [false, "Sharing is off: followers see only your profile card."],
 ])("your own page, sharing %s, says what a follower sees", async (shareTraining, line) => {
   mocks.directory.mockResolvedValue(me);
   mocks.profile.mockResolvedValue({ shareTraining });
   const html = renderToStaticMarkup(await PersonPage(props("strength")));
   expect(html).toContain(line);
+  // Where it is changed is a link, not directions to it.
+  expect(html).toMatch(/<a [^>]*href="\/profile\/privacy"[^>]*>Privacy<\/a>/);
+  expect(html).not.toContain("Profile › Privacy");
   expect(mocks.profile).toHaveBeenCalledWith(expect.anything(), "me");
 });
 
@@ -395,19 +399,17 @@ describe("a board with nobody on it", () => {
   it("says nobody ran in the period, rather than ranking everyone as a dash", async () => {
     mocks.rankCircle.mockReturnValue([row("me", null, null), row("friend", null, null)]);
     const html = await board({ sport: "running" });
-    expect(html).toContain("No runs from you or the people you follow in the last 30 days.");
+    expect(html).toContain("No runs in the last 30 days.");
     expect(html).not.toContain("@friend");
     const pace = await board({ sport: "running", metric: "best_pace", period: "7d" });
-    expect(pace).toContain(
-      "No run of 1 km or more from you or the people you follow in the last 7 days.",
-    );
+    expect(pace).toContain("No runs of 1 km or more in the last 7 days.");
   });
 
   it("ranks as before once anybody has a number, the rest trailing as a dash", async () => {
     mocks.rankCircle.mockReturnValue([row("friend", 3, 1), row("me", null, null)]);
     const html = await board({ sport: "running" });
     expect(html).toContain("@friend");
-    expect(html).not.toContain("No runs from you");
+    expect(html).not.toContain("No runs in");
   });
 });
 

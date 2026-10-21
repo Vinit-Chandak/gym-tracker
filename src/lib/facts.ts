@@ -55,3 +55,14 @@ export function holdHyphens(name: string): string {
     );
   });
 }
+
+/**
+ * Whether two texts read the same: a no-break space as a space, the joiners above as nothing,
+ * case aside. A name that only repeats the figure beside it ("6 × 800 m" over "6 × 800 m") is
+ * said once.
+ */
+export function readsAs(a: string, b: string): boolean {
+  const read = (text: string) =>
+    text.replace(/⁠/g, "").replace(/\s+/gu, " ").trim().toLocaleLowerCase();
+  return read(a) === read(b);
+}

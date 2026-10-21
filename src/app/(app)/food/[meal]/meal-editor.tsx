@@ -239,7 +239,7 @@ export function MealEditor({
               <FoodRowText
                 name={query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
                 tile={<RowGlyph name="bolt" />}
-                meta="Calories and macros, just this once"
+                meta="Just this once"
                 wraps
               />
             </button>

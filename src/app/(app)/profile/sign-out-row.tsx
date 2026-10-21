@@ -28,8 +28,8 @@ function SubmitRow({ unsaved }: { unsaved: number }) {
           <span className="nav-row-label nav-row-label-bold">{label}</span>
           <span role="status" className="nav-row-sub">
             {unsaved === 1
-              ? "An activity you have not saved is kept on this device. Signing out deletes it."
-              : `${unsaved} activities you have not saved are kept on this device. Signing out deletes them.`}
+              ? "Deletes 1 unsaved activity from this device."
+              : `Deletes ${unsaved} unsaved activities from this device.`}
           </span>
         </span>
       ) : (

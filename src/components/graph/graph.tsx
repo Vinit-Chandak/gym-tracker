@@ -390,51 +390,65 @@ export function Graph({
         className,
       )}
     >
-      <div id={readoutId} className="graph-readout" aria-live="polite">
-        <p className="graph-readout-head">
-          <span className="graph-readout-label">{readout.label}</span>
-          {note && !selected && (
+      <div className="graph-readout relative">
+        {/* What is read swaps here and is announced; the note's ⓘ stands outside it, laid over
+            the end of the caption's line, so a change of mark is never said with "About …",
+            and the plot it describes is not described by it. The caption keeps the ⓘ's room
+            clear: its target less its hang into the gutter (graph.css), and the line's gap. */}
+        <div id={readoutId} aria-live="polite">
+          <p
+            className={cn(
+              "graph-readout-head",
+              note && !selected && "pr-[calc(var(--ov-target)-0.375rem-8*var(--ov-u))]",
+            )}
+          >
+            <span className="graph-readout-label">{readout.label}</span>
+          </p>
+          {against && second ? (
+            <div className="graph-readout-pair">
+              <ReadoutSide
+                name={against.names[0]}
+                line="first"
+                side={readout}
+                reading={selected !== null}
+              />
+              <ReadoutSide
+                name={against.names[1]}
+                line="second"
+                side={readout.against ?? { figure: null }}
+                reading={selected !== null}
+              />
+            </div>
+          ) : (
+            <div className="graph-readout-body">
+              <p className="graph-readout-value">
+                {readout.figure === null ? (
+                  <span className="type-figure-l">—</span>
+                ) : (
+                  <Figure text={readout.figure} unit={readout.unit} />
+                )}
+                {/* Held even when empty, so a mark without a second line keeps the figure in
+                    place. Its figures in Jost, whose zero is plain: "36,390 lb a week · 13
+                    workouts". */}
+                <span className="graph-readout-context">
+                  {readout.context ? <Figures>{readout.context}</Figures> : "\u00a0"}
+                </span>
+              </p>
+              {selected && readout.href && (
+                <Link href={readout.href} className="graph-readout-open">
+                  {readout.action ?? "Open"}
+                  <Glyph name="chevronRight" className="glyph-18" />
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+        {note && !selected && (
+          <span className="absolute top-0 right-0 flex min-h-[calc(22*var(--ov-u))] items-center">
             <InfoTip label={note.label} className="graph-readout-note">
               {note.content}
             </InfoTip>
-          )}
-        </p>
-        {against && second ? (
-          <div className="graph-readout-pair">
-            <ReadoutSide
-              name={against.names[0]}
-              line="first"
-              side={readout}
-              reading={selected !== null}
-            />
-            <ReadoutSide
-              name={against.names[1]}
-              line="second"
-              side={readout.against ?? { figure: null }}
-              reading={selected !== null}
-            />
-          </div>
-        ) : (
-          <div className="graph-readout-body">
-            <p className="graph-readout-value">
-              {readout.figure === null ? (
-                <span className="type-figure-l">—</span>
-              ) : (
-                <Figure text={readout.figure} unit={readout.unit} />
-              )}
-              {/* Held even when empty, so a mark without a second line keeps the figure in place.
-                  Its figures in Jost, whose zero is plain: "36,390 lb a week · 13 workouts". */}
-              <span className="graph-readout-context">
-                {readout.context ? <Figures>{readout.context}</Figures> : "\u00a0"}
-              </span>
-            </p>
-            {selected && readout.href && (
-              <Link href={readout.href} className="graph-readout-open">
-                {readout.action ?? "Open"}
-                <Glyph name="chevronRight" className="glyph-18" />
-              </Link>
-            )}
-          </div>
+          </span>
         )}
       </div>
 

@@ -103,28 +103,30 @@ export function SessionDetails({
         </section>
       )}
 
-      <section className="mt-4">
-        <h3 className="caption-head">Check-in</h3>
-        {readings.length === 0 ? (
-          <p className="mt-1 type-meta text-ink-2">Nothing recorded before this session.</p>
-        ) : (
-          <dl className="mt-1 type-meta">
-            {readings.map(([label, value]) => (
-              <Row key={label} label={label} value={value} />
-            ))}
-          </dl>
-        )}
-        {/* A way to another screen: a row that ends in its chevron, not words that look read. */}
-        {!readOnly && (
-          <Link
-            href={`/workouts/${session.id}/check-in`}
-            className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between gap-3 font-bold"
-          >
-            {readings.length === 0 ? "Add a check-in" : "Edit the check-in"}
-            <Glyph name="chevronRight" className="glyph-20 shrink-0 text-ink-2" />
-          </Link>
-        )}
-      </section>
+      {/* With no readings, Add a check-in says there are none; a finished session with none
+          leaves the section out, as it leaves out a body weight never given. */}
+      {(readings.length > 0 || !readOnly) && (
+        <section className="mt-4">
+          <h3 className="caption-head">Check-in</h3>
+          {readings.length > 0 && (
+            <dl className="mt-1 type-meta">
+              {readings.map(([label, value]) => (
+                <Row key={label} label={label} value={value} />
+              ))}
+            </dl>
+          )}
+          {/* A way to another screen: a row that ends in its chevron, not words that look read. */}
+          {!readOnly && (
+            <Link
+              href={`/workouts/${session.id}/check-in`}
+              className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between gap-3 font-bold"
+            >
+              {readings.length === 0 ? "Add a check-in" : "Edit the check-in"}
+              <Glyph name="chevronRight" className="glyph-20 shrink-0 text-ink-2" />
+            </Link>
+          )}
+        </section>
+      )}
     </Sheet>
   );
 }

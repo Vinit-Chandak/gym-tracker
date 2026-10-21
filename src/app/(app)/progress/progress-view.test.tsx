@@ -47,7 +47,12 @@ const data: ProgressData = {
     graph: foodGraph([], MONTH, TODAY),
     targets: { kcal: null, protein: null },
   },
-  body: { range: MONTH, points: [{ date: "2026-10-04", value: 76.8 }], unit: "kg" },
+  body: {
+    range: MONTH,
+    points: [{ date: "2026-10-04", value: 76.8 }],
+    unit: "kg",
+    recorded: true,
+  },
   muscles: { from: "2026-10-05", to: "2026-10-11", volume: emptyMuscleVolume(), totalSets: 0 },
   recovery: { range: MONTH, graph: recoveryGraph([], MONTH, TODAY) },
 };

@@ -9,8 +9,8 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS } from "@/domain/activity";
-import { BODY_LOAD_UNITS, GYM_KINDS, TRAINING_EXPERIENCES } from "@/domain/types";
-import { chosenSportUnits, DISTANCE_UNITS, POOL_UNITS } from "@/lib/distance-units";
+import { GYM_KINDS, TRAINING_EXPERIENCES } from "@/domain/types";
+import { chosenSportUnits } from "@/lib/distance-units";
 import { SETUP_PLACE_NAMES } from "@/lib/setup-place";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -25,9 +25,10 @@ import {
   StarterChoiceError,
 } from "@/server/repositories/starter-equipment";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
-import { timeZoneSchema, UNKNOWN_TIME_ZONE } from "@/server/validation/profile";
+import { UNKNOWN_TIME_ZONE, unitsInputSchema } from "@/server/validation/profile";
 
-const youStepSchema = z.object({
+/** The two answers, and the units and zone as Profile › Units and time zone checks them. */
+const youStepSchema = unitsInputSchema.extend({
   trainingExperience: z.enum(TRAINING_EXPERIENCES, {
     error: "Choose the one that sounds like you.",
   }),
@@ -35,10 +36,6 @@ const youStepSchema = z.object({
     (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : []),
     z.array(z.enum(ACTIVITY_SPORTS)).min(1, "Choose at least one.").max(ACTIVITY_SPORTS.length),
   ),
-  preferredUnit: z.enum(BODY_LOAD_UNITS),
-  distanceUnit: z.enum(DISTANCE_UNITS),
-  poolUnit: z.enum(POOL_UNITS),
-  timeZone: timeZoneSchema,
 });
 
 /**

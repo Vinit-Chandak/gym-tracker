@@ -92,11 +92,12 @@ function routesFor(username) {
   const routes = [
     "/today",
     "/today/choose",
-    "/training",
+    "/plan",
     "/training/programme",
     "/training/scheduled",
     "/training/templates",
-    "/training/new?sport=running",
+    "/today/log/new?sport=running",
+    "/today/log/body-weight",
     "/food",
     "/food/breakfast",
     "/food/dinner",
@@ -113,8 +114,9 @@ function routesFor(username) {
     "/progress/calendar",
     "/profile",
     "/profile/edit",
-    "/profile/programme",
-    "/profile/programme/history",
+    "/profile/units",
+    "/plan/strength",
+    "/plan/history",
     "/profile/friends",
     "/profile/friends/people",
     "/profile/friends/find",
@@ -143,9 +145,9 @@ function routesFor(username) {
   if (id.gym) routes.push(`/gyms/${id.gym}`, `/gyms/${id.gym}/programme`, `/gyms/${id.gym}/edit`);
   if (id.gym && id.machine) routes.push(`/gyms/${id.gym}/equipment/${id.machine}`);
   for (const activity of id.activities)
-    routes.push(`/training/activities/${activity.id}`, `/training/activities/${activity.id}/edit`);
-  for (const day of id.programDays.slice(0, 2)) routes.push(`/training/days/${day}`);
-  if (id.occurrence) routes.push(`/training/programme/occurrences/${id.occurrence}`);
+    routes.push(`/progress/activities/${activity.id}`, `/progress/activities/${activity.id}/edit`);
+  for (const day of id.programDays.slice(0, 2)) routes.push(`/plan/strength/days/${day}`);
+  if (id.occurrence) routes.push(`/plan/sessions/${id.occurrence}`);
   if (id.friend)
     routes.push(
       `/u/${id.friend}`,

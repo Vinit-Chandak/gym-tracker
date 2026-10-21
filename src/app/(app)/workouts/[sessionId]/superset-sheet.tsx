@@ -102,8 +102,8 @@ export function SupersetSheet({
         <p className="flex items-center gap-1 text-sm text-ink-muted">
           This workout only
           <InfoTip label="About supersets">
-            Grouped exercises are done back to back. The grouping belongs to this workout: the
-            programme is unchanged, and logged sets stay where they are.
+            Grouped exercises are done back to back. The programme is unchanged, and logged sets
+            stay where they are.
           </InfoTip>
         </p>
 

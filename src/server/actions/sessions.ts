@@ -32,6 +32,7 @@ import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { rememberSlotFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
 import {
+  PICKED_UP_FROM_TODAY,
   completeRestSlotsBefore,
   getSchedule,
   pendingCycleForDay,
@@ -1070,7 +1071,7 @@ export async function pickUpFromTodayAction(
     for (const { ref, part } of skip)
       await skipSlotPart(tx, user.id, schedule.program, ref, part, {
         occurredOn: today,
-        note: "Picked up from today",
+        note: PICKED_UP_FROM_TODAY,
       });
     // A passed rest day is dated by its own day, so it never reads as finished today.
     for (const { ref, date } of rest)

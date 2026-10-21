@@ -45,7 +45,7 @@ function revalidateSchedule(occurrenceId: string): void {
   revalidatePath("/today");
   // Plan's week and each programme's weeks show where a session stands (ADR 0058).
   revalidatePath("/plan", "layout");
-  revalidatePath(`/training/programme/occurrences/${occurrenceId}`);
+  revalidatePath(`/plan/sessions/${occurrenceId}`);
 }
 
 export async function skipOccurrenceAction(
@@ -123,7 +123,7 @@ export async function rescheduleOccurrenceAction(
   }
   if (!moved) return { fieldErrors: { scheduledOn: MOVE_TO_PAST }, values: formValues(formData) };
   revalidateSchedule(occurrenceId);
-  redirect(`/training/programme/occurrences/${occurrenceId}`);
+  redirect(`/plan/sessions/${occurrenceId}`);
 }
 
 const scheduleSchema = z.object({

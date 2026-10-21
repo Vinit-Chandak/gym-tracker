@@ -109,7 +109,15 @@ export type Schedule = {
   program: ActiveProgram;
   days: ScheduleDay[];
   state: ScheduleState;
+  /**
+   * The days "Pick up from today" skipped, rather than the athlete one at a time, which Plan's
+   * week stands where the calendar put them (ADR 0058). Absent from a schedule built by hand.
+   */
+  pickedUp?: SlotRef[];
 };
+
+/** The note "Pick up from today" leaves on each day it skips (ADR 0051). */
+export const PICKED_UP_FROM_TODAY = "Picked up from today";
 
 /**
  * The active programme with its days and slot events, in one statement. The days and events
@@ -161,6 +169,12 @@ export async function getSchedule(
         ))
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
+      pickedUp: sql<SlotRef[]>`coalesce((
+        select json_agg(json_build_object('cycleIndex', e.cycle_index, 'dayIndex', e.day_index))
+        from program_slot_events e
+        where e.program_id = programs.id and e.part = 'session' and e.status = 'skipped'
+          and e.note = ${PICKED_UP_FROM_TODAY}
+      ), '[]'::json)`,
     })
     .from(programs)
     .where(
@@ -198,6 +212,7 @@ export async function getSchedule(
       startDayIndex: program.startDayIndex,
       events: row.events.filter((event) => event.part === "session"),
     },
+    pickedUp: row.pickedUp,
   };
 }
 

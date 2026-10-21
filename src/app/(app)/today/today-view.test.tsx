@@ -25,6 +25,7 @@ vi.mock("@/server/actions/sessions", () => ({
   completeRestSlotAction: vi.fn(),
   discardSessionAction: vi.fn(),
   finishLeftOpenAction: vi.fn(),
+  pickUpFromTodayAction: vi.fn(),
 }));
 vi.mock("@/server/actions/coach", () => ({ requestCoachPlanAction: vi.fn() }));
 vi.mock("@/server/actions/gyms", () => ({ setDefaultGymAction: vi.fn() }));
@@ -289,7 +290,7 @@ it("offers to finish a workout left open as of its last set, and nothing closes 
   expect(
     (screen.getByRole("button", { name: /^Finish it as of/ }) as HTMLButtonElement).disabled,
   ).toBe(true);
-  expect(screen.getByText(/A set on this device is not saved yet/)).toBeTruthy();
+  expect(screen.getByText("Unsaved set: resume to save or remove it.")).toBeTruthy();
   localStorage.clear();
   cleanup();
 
@@ -309,10 +310,9 @@ it("puts another open session first, and says why the day cannot start", () => {
   const [first] = screen.getAllByRole("article");
   expect(within(first!).getByRole("heading").textContent).toBe("Unplanned session");
   expect(within(first!).getByRole("button", { name: "Discard empty session" })).toBeTruthy();
+  // In Log's words for the same state.
   expect(
-    within(card("Easy Run + Arms")).getByText(
-      "Finish or discard your open session to start this one.",
-    ),
+    within(card("Easy Run + Arms")).getByText("Finish or discard your open workout first."),
   ).toBeTruthy();
   expect(screen.queryByRole("link", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
@@ -356,6 +356,40 @@ it("names a workout started from a saved routine after the routine, open and fin
   expect(lift.textContent).toContain("Unplanned");
   expect(lift.textContent).toContain("48\u00a0min");
   expect(screen.queryByText("Unplanned session")).toBeNull();
+});
+
+it("names a finished unplanned workout in Done by its first two exercises", () => {
+  const unplanned = {
+    id: "lift-2",
+    sport: "strength" as const,
+    startedAt: new Date("2026-09-11T04:18:00.000Z"),
+    durationMs: 2_880_000,
+    distanceMetres: null,
+    environment: null,
+    occurrenceId: null,
+    sessionId: "lift-2",
+    programDayId: null,
+    dayName: null,
+    title: null,
+    gymName: "Anytime Fitness",
+  };
+  const { unmount } = show({
+    logged: [{ ...unplanned, exercises: ["Pull-up", "Bent-over row", "Barbell curl"] }],
+  });
+  const done = within(screen.getByRole("region", { name: "Done" }));
+  // Each name held at its hyphen (a word joiner after it), as every row holds one.
+  const lift = done.getByRole("link", { name: /Pull-\u2060up, Bent-\u2060over row/ });
+  expect(lift.getAttribute("href")).toBe("/workouts/lift-2?from=today");
+  // Its name no longer says it was unplanned, so the row does.
+  expect(lift.textContent).toContain("Unplanned");
+  unmount();
+
+  // With nothing logged in it, it is still the unplanned session it was.
+  show({ logged: [{ ...unplanned, exercises: [] }] });
+  const empty = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
+    name: /Unplanned session/,
+  });
+  expect(empty.textContent).not.toMatch(/Unplanned session.*Unplanned/);
 });
 
 it("says once that an empty session was discarded, and drops it from the address", async () => {
@@ -487,7 +521,7 @@ it("keeps what a day finished today did as rows, and leaves the next day to Plan
   const ran = within(screen.getByRole("region", { name: "Done" })).getByRole("link", {
     name: /Run/,
   });
-  expect(ran.getAttribute("href")).toBe("/training/activities/activity-1?from=today");
+  expect(ran.getAttribute("href")).toBe("/progress/activities/activity-1?from=today");
   expect(ran.textContent).toContain("5.1");
   expect(ran.textContent).not.toContain("Unplanned");
 });
@@ -509,13 +543,36 @@ it("names a day that only runs for the day, with its focus, as a lifting day's c
   });
   const tempoCard = card("Tempo run");
   expect(within(tempoCard).getByText("Threshold")).toBeTruthy();
-  // The pace note keeps its place beside the focus, and in the plan under the fold.
-  expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(2);
+  // The pace note is said once, in the plan under the fold, not again beside the focus.
+  expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(1);
+  const toggle = within(tempoCard).getByRole("button", { name: /^Tempo run/ });
+  const fold = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+  expect(within(fold).getByText("Talk-test; slower than push pace")).toBeTruthy();
   expect(within(tempoCard).getByRole("link", { name: "Log run: 37–47 min" })).toBeTruthy();
-  // Unfolded, the time is one range with its unit said once, as everywhere else, held at its
-  // dash where the line wraps.
-  expect(tempoCard.textContent).toContain("37\u2060–\u206047\u00a0min");
+  // The time is one range with its unit said once, at the head beside the name: the fold does
+  // not say it again, nor as "37 min–47 min".
+  expect(toggle.textContent).toContain("37–47 min");
+  expect(fold.textContent).not.toContain("47");
   expect(tempoCard.textContent).not.toContain("37 min–47 min");
+});
+
+it("folds under a run's head only what its head does not already say", () => {
+  const easy: ScheduledOccurrence = {
+    ...run("run-easy", [30, 30]),
+    prescription: endurancePrescriptionSchema.parse({
+      prescriptionVersion: PRESCRIPTION_VERSION,
+      sport: "running",
+      sessionTargets: { durationMs: [30 * 60_000, 30 * 60_000], effort: [2, 3] },
+    }),
+  };
+  show({ programmeOccurrences: [easy] });
+  const runCard = card("Run");
+  const toggle = within(runCard).getByRole("button", { name: /^Run/ });
+  const fold = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+  // "30 min" beside the name; under the fold, the effort alone, held whole where it wraps.
+  expect(toggle.textContent).toContain("30 min");
+  expect(fold.textContent).toContain("Effort 2\u2060–\u20603 of\u00a05");
+  expect(fold.textContent).not.toContain("30");
 });
 
 it("keeps what was logged today with no card of its own on the day, inked done", () => {
@@ -550,7 +607,7 @@ it("keeps what was logged today with no card of its own on the day, inked done",
   });
   expect(ride.textContent).toContain("Unplanned");
   expect(ride.textContent).toContain("51:32");
-  expect(ride.getAttribute("href")).toBe("/training/activities/ride-1?from=today");
+  expect(ride.getAttribute("href")).toBe("/progress/activities/ride-1?from=today");
   // The rest day is still the day's, with its own way to be marked done.
   expect(screen.getByRole("button", { name: "Mark rest day done" })).toBeTruthy();
 });
@@ -611,7 +668,7 @@ it("says a run skipped today once, as a row that opens it to undo the skip", () 
     name: /Run/,
   });
   expect(row.textContent).toContain("Skipped");
-  expect(row.getAttribute("href")).toBe("/training/programme/occurrences/run-skipped");
+  expect(row.getAttribute("href")).toBe("/plan/sessions/run-skipped");
 });
 
 it("says skipping a day that also runs skips only its workout", () => {
@@ -626,12 +683,45 @@ it("says skipping a day that also runs skips only its workout", () => {
   fireEvent.click(screen.getByRole("button", { name: /More options/ }));
   fireEvent.click(screen.getByRole("button", { name: "Skip the workout" }));
   expect(screen.getByText("Skip the workout?")).toBeTruthy();
+  expect(screen.getByText("Your run stays on Today.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Skip workout" })).toBeTruthy();
+});
+
+/** Today's head after a gap: "36 missed" (ADR 0058, Words), never "sessions behind". */
+it("counts the missed days under the date, with Pick up from today", () => {
+  const missed = Array.from({ length: 3 }, (_, i) => ({
+    cycleIndex: 1,
+    dayIndex: i + 1,
+    name: `Day ${i + 1}`,
+  }));
+  show({ plan: { ...plan(), missed } });
   expect(
     screen.getByText(
-      "The run stays on Today. Skip it from its own card if you are not running either.",
+      (_, element) => element?.tagName === "P" && element.textContent === "3 missed",
     ),
   ).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Skip workout" })).toBeTruthy();
+  expect(screen.queryByText(/behind/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Pick up from today" })).toBeTruthy();
+});
+
+/**
+ * Said once: with gyms to choose from and none set, the gym's chip says "Choose a gym", and no
+ * line under the facts says it again; Start waits until one is chosen.
+ */
+it("asks for a gym on the chip alone, and holds Start until one is chosen", () => {
+  show({
+    gyms: [
+      { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: false },
+      { id: "g2", name: "Home", kind: "home", isDefault: false },
+    ],
+  });
+  const workout = within(card("Easy Run + Arms"));
+  expect(workout.getByRole("button", { name: "Choose a gym" })).toBeTruthy();
+  expect(workout.queryByText(/to start/)).toBeNull();
+  expect(
+    (workout.getByRole("button", { name: "Start workout: Easy Run + Arms" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
 });
 
 /** Audit B1: an account that only swims was told to add a gym, as its only way forward. */
@@ -649,6 +739,11 @@ it("never asks someone who does not lift for a gym, and leads with Log instead",
 it("still asks a lifter with nowhere to train to add a gym", () => {
   show({ gyms: [], plan: null, programmeOccurrences: [], sports: ["strength"] });
   expect(screen.getByText("Add a gym to start training")).toBeTruthy();
+  // The heading and its button carry the task; how planning uses a gym is not said here.
+  expect(screen.queryByText(/equipment/)).toBeNull();
+  expect(screen.getByRole("link", { name: "Add your first gym" }).getAttribute("href")).toBe(
+    "/gyms/new",
+  );
 });
 
 /** Audit B7: after choosing to log their own workouts, Today led with "Choose a programme". */

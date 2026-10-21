@@ -85,6 +85,31 @@ describe("a workout in History", () => {
     );
     expect(workoutItem(lift("ad-hoc", at), clock).title).toBe("Unplanned session");
   });
+
+  it("is named by its first two exercises with a set, when no day or routine names it", () => {
+    const exercise = (name: string, logged: boolean) => ({
+      exerciseId: name,
+      name,
+      machineId: null,
+      machineName: null,
+      logged,
+    });
+    const item = workoutItem(
+      {
+        ...lift("ad-hoc", "2026-10-11T03:00:00Z"),
+        exercises: [
+          // Added and skipped: it names nothing, though History still filters by it.
+          exercise("Barbell squat", false),
+          exercise("Pull-up", true),
+          exercise("Bent-over row", true),
+          exercise("Barbell curl", true),
+        ],
+      },
+      historyClock("Asia/Kolkata"),
+    );
+    expect(item.title).toBe("Pull-up, Bent-over row");
+    expect(item.exercises.map((e) => e.name)).toContain("Barbell squat");
+  });
 });
 
 describe("a run in History", () => {

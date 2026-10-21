@@ -6,9 +6,12 @@ import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
+import { Select } from "@/components/ui/select";
 import { formatPaceSeconds, paceSecondsPerKm, pacePerUnit } from "@/domain/activity-metrics";
+import { RUN_TYPE_LABELS, RUN_TYPES, type RunType } from "@/domain/run-types";
 import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import type { PlannedLap } from "@/lib/run-laps";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
@@ -29,7 +32,9 @@ import {
   TargetCard,
   useFormValues,
   type ActivityFormValues,
+  type PlanTarget,
 } from "./activity-form-fields";
+import { LapsEditor } from "./laps-editor";
 
 /**
  * Logging a run, on the shared routes (plan §4.3).
@@ -50,6 +55,9 @@ const DISTANCE_UNITS = [
   { value: "mi", label: "mi" },
 ];
 
+/** Offered, not imposed: a surface is still the athlete's own words where these do not fit. */
+const SURFACES = ["Road", "Trail", "Track", "Grass", "Sand", "Mixed"];
+
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   initial: ActivityFormValues;
@@ -57,7 +65,7 @@ type Props = {
   /** The occurrence being logged, with the revision pinned when the form opened. */
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
   /** What the plan asked for, kept beside the form rather than inside it. */
-  target?: { title: string; lines: string[] } | null;
+  target?: PlanTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
@@ -68,6 +76,8 @@ type Props = {
   openDetails?: boolean;
   /** The unit the athlete reads runs in, which a recorded run opens in. */
   readIn?: DistanceUnit;
+  /** The planned session's steps, which the laps can be laid out from (ADR 0059). */
+  plannedLaps?: readonly PlannedLap[];
 };
 
 export function RunningForm({
@@ -82,6 +92,7 @@ export function RunningForm({
   keptEffort = null,
   openDetails = false,
   readIn,
+  plannedLaps = [],
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
@@ -120,7 +131,7 @@ export function RunningForm({
       />
       {target && (
         <div className="mt-3">
-          <TargetCard title={target.title} lines={target.lines} />
+          <TargetCard {...target} />
         </div>
       )}
 
@@ -130,6 +141,20 @@ export function RunningForm({
           options={ENVIRONMENTS}
           defaultValue={values("environment") || "outdoor"}
         />
+      </div>
+      {/* What kind of run it was: a planned session's own kind to start with, which is context
+          and not a measurement, and anything the athlete chooses instead (ADR 0059). */}
+      <div className="mt-1.5">
+        <Field label="Kind of run" aside="Optional" error={errors?.runType}>
+          <Select name="runType" defaultValue={values("runType")}>
+            <option value="">Not said</option>
+            {RUN_TYPES.map((type: RunType) => (
+              <option key={type} value={type}>
+                {RUN_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </Select>
+        </Field>
       </div>
       <div className="mt-1.5">
         <DistanceField
@@ -161,6 +186,13 @@ export function RunningForm({
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
       </div>
 
+      <LapsEditor
+        initial={values("laps")}
+        planned={plannedLaps}
+        readIn={(readIn ?? "km") as DistanceUnit}
+        error={errors?.laps}
+      />
+
       <MoreDetails
         defaultOpen={openDetails}
         hasErrors={[
@@ -178,9 +210,19 @@ export function RunningForm({
         ].some((field) => Boolean(errors?.[field]))}
       >
         <ActivityStartFields values={values} errors={errors} />
-        <Field label="Surface" hint="Optional" error={errors?.surface}>
-          <Input name="surface" defaultValue={values("surface")} placeholder="Road, trail…" />
+        <Field label="Surface" aside="Optional" error={errors?.surface}>
+          <Input
+            name="surface"
+            list="run-surfaces"
+            defaultValue={values("surface")}
+            placeholder="Road, trail, track…"
+          />
         </Field>
+        <datalist id="run-surfaces">
+          {SURFACES.map((surface) => (
+            <option key={surface} value={surface} />
+          ))}
+        </datalist>
         <div className="grid grid-cols-2 gap-2">
           <ElevationField values={values} errors={errors} readIn={readIn} />
           <Field label="Incline %" error={errors?.treadmillInclinePercent}>

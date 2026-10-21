@@ -64,3 +64,12 @@ it("names the strip's time as the time left", () => {
   render(<RestTime sessionId="named" />);
   expect(screen.getByRole("timer", { name: "Rest, 2 minutes 14 seconds left" })).toBeTruthy();
 });
+
+it("says once, politely, that the rest is over", () => {
+  act(() => startRestTimer("over", 2));
+  render(<RestPill sessionId="over" />);
+  const live = document.querySelector('[aria-live="polite"]')!;
+  expect(live.textContent).toBe("");
+  act(() => vi.advanceTimersByTime(2_000));
+  expect(live.textContent).toBe("Rest over");
+});

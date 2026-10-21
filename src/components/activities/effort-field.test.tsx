@@ -27,11 +27,16 @@ it("offers five steps and Not sure, and nothing between them", () => {
   expect(offered).toEqual(["1", "2", "3", "4", "5", "unsure"]);
 });
 
-it("says what the ends of the scale mean", () => {
+it("says what the ends of the scale mean, and offers Not sure as an answer", () => {
   render(<EffortField value="" />);
-  expect(screen.getByText(/1 very easy to 5 maximal/)).toBeTruthy();
-  // "Not sure" is an answer, and the hint has to keep saying so (LOG-03).
-  expect(screen.getByText(/Not sure is an answer/)).toBeTruthy();
+  const ends = screen.getByText("1 very easy to 5 maximal");
+  // The scale is described by its ends, which a screen reader hears with it.
+  expect(screen.getByRole("radiogroup", { name: "Effort" }).getAttribute("aria-describedby")).toBe(
+    ends.id,
+  );
+  // "Not sure" is an answer (LOG-03): offered as one, with no sentence under the tray saying so.
+  expect(screen.getByRole("radio", { name: "Not sure" })).toBeTruthy();
+  expect(screen.queryByText(/Not sure is an answer/)).toBeNull();
 });
 
 it("keeps the chosen answer when the form comes back with an error elsewhere", () => {
@@ -60,7 +65,11 @@ it("offers to keep an unconfirmed legacy effort, chosen from the start", () => {
   const kept = screen.getByRole("radio", { name: "As recorded" }) as HTMLInputElement;
   expect(kept.value).toBe("keep");
   expect(kept.defaultChecked).toBe(true);
-  expect(screen.getByText(/keeps the earlier 3\/5, still unconfirmed/)).toBeTruthy();
+  // Chosen for the athlete, so what it keeps stays in view under the tray, and is read with it.
+  const line = screen.getByText("As recorded keeps the earlier 3/5, still unconfirmed.");
+  expect(
+    screen.getByRole("radiogroup", { name: "Effort" }).getAttribute("aria-describedby"),
+  ).toContain(line.id);
 });
 
 it("offers nothing to keep on a new log", () => {

@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { SetupCoach } from "@/components/coaching/setup-coach";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { placeInSentence } from "@/lib/setup-place";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readSetupState, setupStepsOf } from "@/server/queries/setup-state";
@@ -16,7 +15,7 @@ export const metadata: Metadata = { title: "What should the coach plan?" };
 /**
  * Board What should the coach plan?: the coach's questions for someone who already trains, from
  * How do you want to start?. One screen in the setup frame, with one title and one Back (audit
- * U4, U12): what setup already knows is said in the line under the title, not asked again.
+ * U4, U12): what setup already knows is not asked again, nor read back.
  */
 export default async function WelcomeCoachPage() {
   const user = await requireProfiledUser();
@@ -40,7 +39,6 @@ export default async function WelcomeCoachPage() {
       current="start"
       back="/welcome/programme"
       title="What should the coach plan?"
-      sub={`It already knows ${placeInSentence(state.place)}, that you train${runs ? ", and that you run" : ""}.`}
     >
       <SetupCoach userId={user.id} profile={profile} place={state.place} runs={runs} detailed />
     </OnboardingFrame>

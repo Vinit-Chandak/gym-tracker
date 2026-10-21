@@ -3,6 +3,7 @@
 import { Graph } from "@/components/graph/graph";
 import { bucketLabel, counted, dayLabel, decimal } from "@/components/graph/labels";
 import { thinRecords } from "@/components/graph/thin";
+import { LinkButton } from "@/components/ui/button";
 import type { BodyLoadUnit } from "@/domain/types";
 
 import type { ProgressData } from "../progress-types";
@@ -19,7 +20,8 @@ const change = (value: number, unit: BodyLoadUnit) => {
 
 /**
  * Body weight (ADR 0042, ADR 0047): as recorded, a point per reading, the latest the summary.
- * The muscles a week trained are a section of their own.
+ * The muscles a week trained are a section of their own. With no reading at all yet, the
+ * section is its empty state, one line and the way to log the first (IA audit M8).
  */
 export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "today">) {
   const { range, points, unit } = body;
@@ -27,6 +29,16 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
   const last = points.at(-1);
   // Past about sixty readings, a point per week or month: their average.
   const line = thinRecords(points, range, { reduce: "mean" });
+
+  if (!body.recorded && points.length === 0)
+    return (
+      <div className="mt-6">
+        <h2 className="type-heading">No readings yet</h2>
+        <LinkButton href="/today/log/body-weight" variant="tonal" className="mt-3">
+          Log body weight
+        </LinkButton>
+      </div>
+    );
 
   return (
     <div className="mt-3">
@@ -75,9 +87,10 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
         note={{
           label: "About body weight",
           content:
-            "One reading a day: the weight given when a workout is finished, or set from Profile → Edit profile. A second reading on the same day replaces the first.",
+            "One reading a day: logged from Today › Log, or given when a workout is finished. A second that day replaces the first.",
         }}
-        empty="No readings in this range. Weight given when you finish a workout appears here, and you can set it any day from Profile → Edit profile."
+        // Where a reading comes from is the ⓘ's to say.
+        empty="No readings in this range."
       />
     </div>
   );

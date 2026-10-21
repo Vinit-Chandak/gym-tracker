@@ -57,7 +57,6 @@ export function CustomExerciseForm({
         setSaving(false);
       }}
     >
-      <h1 className="text-xl font-medium">Add your own exercise</h1>
       <Field label="Exercise name">
         <Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
@@ -92,8 +91,10 @@ export function CustomExerciseForm({
         </Select>
       </Field>
       <fieldset>
-        <legend className="mb-2 text-sm text-ink-muted">
-          Primary muscles (optional if unknown)
+        {/* Optional at the label's end, as a field's (DESIGN.md, Inputs and choices). */}
+        <legend className="mb-2 flex w-full items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+          Primary muscles
+          <span className="ml-auto font-medium text-ink-2">Optional</span>
         </legend>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(7rem,45%)),1fr))] gap-2">
           {MUSCLE_GROUPS.map((m) => (
@@ -111,7 +112,8 @@ export function CustomExerciseForm({
           ))}
         </div>
       </fieldset>
-      <Field label="Registered machine (required for machine exercises)">
+      {/* Said on the screen, not in an ⓘ: an exercise of these kinds cannot be saved without it. */}
+      <Field label="Machine" hint="Needed for machine, Smith machine, cable and cardio exercises.">
         <Select value={equipment} onChange={(e) => setEquipment(e.target.value)}>
           <option value="">No registered machine</option>
           {machines.map((m) => (
@@ -130,7 +132,7 @@ export function CustomExerciseForm({
         </p>
       )}
       <Button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Save to my exercise library"}
+        {busy ? "Saving…" : "Save exercise"}
       </Button>
     </form>
   );

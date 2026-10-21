@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { useActionState, useState, useTransition, type ReactNode } from "react";
 
 import { Button, LinkButton, type ButtonVariant } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
@@ -243,10 +244,10 @@ export function MoreOptions({
             {/* The workout alone: titled with the day's name, the sheet read as skipping all of it. */}
             {skip.runOwed && (
               <p className="type-body [overflow-wrap:break-word] text-ink-2">
-                The run stays on Today. Skip it from its own card if you are not running either.
+                Your run stays on Today.
               </p>
             )}
-            <Field label="Reason" hint="Optional">
+            <Field label="Reason" aside="Optional">
               <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
             </Field>
             {!state.ok && <ActionError>{state.error}</ActionError>}
@@ -272,9 +273,7 @@ export function MoreOptions({
                     "coach",
                     coachLabel,
                     coach.requestsLeft <= 0 && (
-                      <span className="type-meta-small text-ink-2">
-                        No requests left today; the coach plans overnight.
-                      </span>
+                      <span className="type-meta-small text-ink-2">No requests left today</span>
                     ),
                   )}
                 </button>
@@ -334,7 +333,7 @@ export function SkipPartButton({
       </Button>
       <Sheet open={open} onClose={() => setOpen(false)} title={title}>
         <form action={formAction} className="space-y-4">
-          <Field label="Reason" hint="Optional">
+          <Field label="Reason" aside="Optional">
             <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
           </Field>
           {!state.ok && <ActionError>{state.error}</ActionError>}
@@ -379,8 +378,9 @@ export function CompleteRestButton({
 /**
  * After a gap, the waiting sequence is a long way behind the calendar. Rather than a large
  * "behind" number, Today offers to pick up from today (owner, 11 October 2026): the days missed
- * are skipped in one go, and the programme carries on from the day it has for today. Said in
- * full before anything is written, since every missed day becomes a skip.
+ * are skipped in one go, and the programme carries on from the day it has for today. Where it
+ * carries on from, and that every missed day stays as a skip, is said before anything is
+ * written; which days those are is folded under it.
  */
 export function PickUpFromToday({
   missed,
@@ -408,11 +408,13 @@ export function PickUpFromToday({
       {/* The count's basis is its own width, so the button goes under it, at the end, before it
           would squeeze it: from a basis of zero it stood a letter a line beside it at 200% text. */}
       <div className="pick-up flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* "36 missed" (ADR 0058, Words): the figure in Jost, the word in ink 2. */}
         <p className="min-w-0 flex-auto type-meta [overflow-wrap:break-word] text-ink-2">
-          <span className="figures">{count}</span> {count === 1 ? "session" : "sessions"} behind
+          <span className="figures">{count}</span> missed
         </p>
+        {/* One quiet row with its count, never a filled button over the day's first card. */}
         <Button
-          variant="secondary"
+          variant="text"
           className="ml-auto"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
@@ -423,21 +425,23 @@ export function PickUpFromToday({
       <Sheet open={open} onClose={() => setOpen(false)} title="Pick up from today">
         <form action={formAction} className="space-y-4">
           <p className="type-body [overflow-wrap:break-word]">
-            Skip the {sessions} you missed and carry on from{" "}
-            {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. They
-            stay in the programme as skipped.
+            Your programme carries on from{" "}
+            {resumeDayName ? <strong>{resumeDayName}</strong> : "the day planned for today"}. The
+            missed sessions stay in it as skipped.
           </p>
-          <ul className="type-meta ruled-list">
-            {listed.map((day) => (
-              <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
-                <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{day.name}</span>
-                <span className="shrink-0 text-ink-2">Cycle {day.cycleIndex}</span>
-              </li>
-            ))}
-            {count > listed.length && (
-              <li className="py-2 text-ink-2">and {count - listed.length} more</li>
-            )}
-          </ul>
+          <Disclosure summary="Missed sessions" meta={String(count)} variant="inline">
+            <ul className="type-meta ruled-list">
+              {listed.map((day) => (
+                <li key={`${day.cycleIndex}:${day.dayIndex}`} className="flex gap-2 py-2">
+                  <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{day.name}</span>
+                  <span className="shrink-0 text-ink-2">Cycle {day.cycleIndex}</span>
+                </li>
+              ))}
+              {count > listed.length && (
+                <li className="py-2 text-ink-2">and {count - listed.length} more</li>
+              )}
+            </ul>
+          </Disclosure>
           {!state.ok && <ActionError>{state.error}</ActionError>}
           <Button type="submit" size="lg" className="w-full" disabled={saving}>
             {saving ? "Skipping…" : `Skip ${sessions} and pick up`}

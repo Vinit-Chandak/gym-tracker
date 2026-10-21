@@ -1,25 +1,28 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
-import { activities, programDays, savedRoutines, sharedSessionStats } from "@/db/schema";
+import { activities, exercises, programDays, savedRoutines, sharedSessionStats } from "@/db/schema";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { sessionName } from "@/lib/labels";
+import { namingExercises, sessionName } from "@/lib/labels";
 import { parseDateRange } from "@/server/validation/date-range";
 
 import { readLoggedOn } from "./activity-analytics";
 import { readHistoryWorkouts } from "./history";
 import { saveRoutine, startSavedRoutine } from "./manual-training";
 import {
+  addExercisesToSession,
   discardSession,
   finishSession,
   getInProgressSession,
   getSessionDetail,
   listSessions,
+  logSet,
   sessionNameParts,
+  skipExercise,
   startAdHocSession,
   startPlannedSession,
 } from "./sessions";
@@ -27,7 +30,8 @@ import { readWorkouts } from "./training-data";
 
 /**
  * A workout started from a saved routine goes by the routine's name, as it was when Start was
- * pressed, on every screen of the athlete's own; a friend still reads "Workout" (ADR 0026).
+ * pressed, on every screen of the athlete's own; a finished unplanned one by its first two
+ * exercises (owner, 20 October 2026); a friend still reads "Workout" (ADR 0026).
  */
 
 let t: TestDatabase;
@@ -79,17 +83,23 @@ async function namesOf(sessionId: string) {
     const parts = await sessionNameParts(tx, userId, sessionId);
     return {
       // The workout, its summary, the finish page and the logger.
-      detail: sessionName(detail.day?.name, detail.title),
+      detail: sessionName(detail.day?.name, detail.title, namingExercises(detail)),
       // Today's open card and the session strip, while it is open.
       open: open?.id === sessionId ? sessionName(open.dayName, open.title) : null,
       listed: finished ? sessionName(finished.dayName, finished.title) : null,
-      history: history ? sessionName(history.dayName, history.title) : null,
+      history: history
+        ? sessionName(
+            history.dayName,
+            history.title,
+            history.exercises.filter((e) => e.logged).map((e) => e.name),
+          )
+        : null,
       // Today's finished box.
-      logged: logged ? sessionName(logged.dayName, logged.title) : null,
+      logged: logged ? sessionName(logged.dayName, logged.title, logged.exercises) : null,
       // A day of the calendar.
-      day: day ? sessionName(day.day?.name, day.title) : null,
+      day: day ? sessionName(day.day?.name, day.title, namingExercises(day)) : null,
       // Add exercise's way back from a finished workout.
-      parts: sessionName(parts.dayName, parts.title),
+      parts: sessionName(parts.dayName, parts.title, detail.completedAt ? parts.exercises : []),
     };
   });
 }
@@ -173,4 +183,70 @@ it("keeps an ad hoc workout unplanned and a programme day's workout named for it
       .where(eq(activities.id, planned.sessionId)),
   );
   expect(parent?.title).toBeNull();
+});
+
+it("names a finished unplanned workout by its first two exercises wherever the athlete reads it", async () => {
+  const bySlug = async (slug: string) => {
+    const [row] = await t.db
+      .select({ id: exercises.id })
+      .from(exercises)
+      .where(eq(exercises.slug, slug));
+    return row!.id;
+  };
+  const chosen = await Promise.all(
+    ["leg-press-45", "pull-up", "barbell-row", "barbell-curl"].map(bySlug),
+  );
+  const { sessionId } = await as((tx) => startAdHocSession(tx, userId, { gymId }));
+  const { workoutExerciseIds } = await as((tx) =>
+    addExercisesToSession(
+      tx,
+      userId,
+      sessionId,
+      chosen.map((exerciseId) => ({ exerciseId, equipmentInstanceId: null })),
+    ),
+  );
+  const [legPress, ...done] = workoutExerciseIds;
+  // The leg press was taken: skipped before a set, it names nothing.
+  await as((tx) => skipExercise(tx, userId, legPress!, "Machine taken"));
+  for (const workoutExerciseId of done)
+    await as((tx) =>
+      logSet(tx, userId, {
+        workoutExerciseId,
+        setIndex: 1,
+        setType: "working",
+        weight: 20,
+        reps: 8,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+
+  // Still open, it keeps the name it was started under.
+  expect(await namesOf(sessionId)).toMatchObject({
+    detail: "Unplanned session",
+    open: "Unplanned session",
+    day: "Unplanned session",
+  });
+
+  await as((tx) => finishSession(tx, userId, sessionId, { notes: null, bodyWeightKg: null }));
+  const name = "Pull-up, Barbell bent-over row";
+  expect(await namesOf(sessionId)).toMatchObject({
+    detail: name,
+    open: null,
+    history: name,
+    logged: name,
+    day: name,
+    parts: name,
+  });
+
+  // A friend's copy says neither: it is "Workout", as an unnamed day's is (ADR 0026).
+  const [shared] = await as((tx) =>
+    tx
+      .select({ title: sharedSessionStats.title })
+      .from(sharedSessionStats)
+      .where(
+        and(eq(sharedSessionStats.userId, userId), eq(sharedSessionStats.sourceId, sessionId)),
+      ),
+  );
+  expect(shared?.title).toBe("Workout");
 });

@@ -43,11 +43,7 @@ export default async function ComparePickPage() {
         ) : (
           <>
             <Card>
-              <EmptyState
-                icon={Scales}
-                title="Follow someone to compare"
-                description="A comparison is between you and a person you follow who shares their training."
-              />
+              <EmptyState icon={Scales} title="Follow someone to compare" />
             </Card>
             <Card>
               <PeopleSearch autoFocus />

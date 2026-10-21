@@ -81,7 +81,7 @@ export function SentRequestRow({ person }: { person: Person & { id: string } }) 
         open={open}
         onClose={() => setOpen(false)}
         title="Cancel request?"
-        description={`@${person.username} has not answered yet. You can ask again at any time.`}
+        description="You can ask again later."
         confirmLabel="Cancel request"
         pendingLabel="Cancelling…"
         pending={pending}

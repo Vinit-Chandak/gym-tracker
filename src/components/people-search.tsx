@@ -81,7 +81,7 @@ export function PeopleSearch({
       {failed && (
         <div className="space-y-2">
           <p role="alert" className="text-sm text-danger">
-            Could not load people. Please try again.
+            Could not load people.
           </p>
           <Button
             variant="secondary"
@@ -91,14 +91,13 @@ export function PeopleSearch({
               setAttempt((value) => value + 1);
             }}
           >
-            Retry search
+            Try again
           </Button>
         </div>
       )}
       {results && results.length === 0 && (
         <p className="text-sm text-ink-muted">
-          Nobody called that.
-          {isEmailQuery(trimmed) ? " An email has to match exactly." : ""}
+          {isEmailQuery(trimmed) ? "No account has that exact email." : "Nobody called that."}
         </p>
       )}
       {results && results.length > 0 && (

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { applyProposalAction, rejectProposalAction } from "@/server/actions/coach";
 import { attempted } from "@/lib/offline-submit";
 
@@ -60,10 +61,13 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
           </li>
         ))}
       </ul>
+      {/* The coach's reasoning is a tap away, under Why, as on a change's own screen. */}
       {proposal.rationale && (
-        <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line">
-          {proposal.rationale}
-        </p>
+        <Disclosure summary="Why" variant="inline">
+          <p className="text-sm [overflow-wrap:break-word] whitespace-pre-line">
+            {proposal.rationale}
+          </p>
+        </Disclosure>
       )}
       <p className="text-xs text-ink-muted tabular-nums">{proposal.createdAt}</p>
       {error && (

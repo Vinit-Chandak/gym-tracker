@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { coachingAction } from "@/components/coaching/client-action";
 import { Button } from "@/components/ui/button";
+import { Glyph } from "@/components/ui/glyphs";
 import { requestProgramReviewAction } from "@/server/actions/coaching-workflow";
 import type { ActivitySport } from "@/domain/activity";
 
@@ -57,14 +58,13 @@ export function RequestReview({
   const waiting = !reviewing ? availability.waiting : null;
   // Queued used to read as reviewing: a review that failed at four in the morning said the
   // coach was reviewing all day, and hid the button that could have started it.
+  // What stands now, never when or how the coach runs: the button under it is the way on.
   const line = reviewing
     ? "The coach is reviewing your programme."
     : waiting
-      ? `${
-          waiting.attempted
-            ? "The coach could not finish your last review."
-            : "Your review has not started yet."
-        } It tries again at its next nightly run, or ask for it now.`
+      ? waiting.attempted
+        ? "The coach could not finish your last review."
+        : "Your review has not started yet."
       : !availability.canAsk
         ? `You can ask again from ${availability.nextOn}.`
         : availability.lastOn
@@ -87,7 +87,15 @@ export function RequestReview({
               : "Ask the coach for a review"}
         </Button>
       )}
-      {line && <p className="px-1 text-center text-xs text-ink-muted">{line}</p>}
+      {line && (
+        <p className="flex items-center justify-center gap-1.5 px-1 text-center text-xs text-ink-muted">
+          {/* The coach at work is the dial that waits, as its note draws it (DESIGN.md). */}
+          {reviewing && (
+            <Glyph name="wait" className="glyph-16 shrink-0 motion-safe:animate-spin" />
+          )}
+          {line}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}

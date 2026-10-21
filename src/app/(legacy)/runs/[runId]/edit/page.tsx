@@ -22,5 +22,5 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
     { readOnly: true },
   );
   if (!activityId) return <LegacyUnavailable />;
-  redirect(`/training/activities/${activityId}/edit`);
+  redirect(`/progress/activities/${activityId}/edit`);
 }

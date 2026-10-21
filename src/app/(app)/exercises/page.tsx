@@ -18,11 +18,12 @@ export default async function ExercisesPage() {
   return (
     <>
       <PageHeader title="Exercises" backHref="/profile" />
+      {/* The search leads; adding one of your own ends the list, under what a search found. */}
       <PageContent>
+        <ExerciseLibrary exercises={exercises} />
         <LinkButton href="/exercises/new" variant="secondary">
           Add your own exercise
         </LinkButton>
-        <ExerciseLibrary exercises={exercises} />
       </PageContent>
     </>
   );

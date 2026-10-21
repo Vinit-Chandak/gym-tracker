@@ -153,6 +153,13 @@ export const programBlueprintSchema = z
     /** Absent only on historical combined blueprints; new authoring always selects a sport. */
     sport: programmeSportSchema.optional(),
     enduranceSessions: z.array(programmeEnduranceSessionSchema).max(730).optional(),
+    /**
+     * The date the author meant day offset 0 to be (ADR 0059). An endurance programme is dated
+     * from its start, so a marathon built to finish on race day finishes there only if it starts
+     * when its author counted from: the review screen offers this date first, and the athlete
+     * still chooses. Absent, the review starts from today, as it always has.
+     */
+    startsOn: z.iso.date().optional(),
     slug: slug.max(60),
     // These four are what someone typing a programme in by hand leaves blank, so they say
     // what to do rather than reporting the shape of the value that was missing.

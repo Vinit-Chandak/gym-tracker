@@ -36,9 +36,9 @@ export function SignUpForm() {
           Check your inbox
         </p>
         <p className="type-body text-ink-2">
-          A confirmation link was sent to{" "}
+          Open the link sent to{" "}
           <span className="font-bold [overflow-wrap:break-word] text-ink">{state.checkEmail}</span>.
-          Open it to finish setting up your account. If it is not there, look in your spam folder.
+          Not there? Look in spam.
         </p>
         <p className="type-meta text-ink-2">
           Already registered?{" "}

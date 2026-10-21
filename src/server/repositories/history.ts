@@ -13,6 +13,8 @@ type HistoryExercise = {
   name: string;
   machineId: string | null;
   machineName: string | null;
+  /** A set was logged on it: what an unplanned workout is named by (`sessionName`). */
+  logged: boolean;
 };
 
 /**
@@ -49,7 +51,8 @@ export async function readHistoryWorkouts(
           'exerciseId', e.exercise_id,
           'name', x.name,
           'machineId', m.id,
-          'machineName', m.name
+          'machineName', m.name,
+          'logged', exists(select 1 from set_logs s where s.workout_exercise_id = e.id)
         ) order by e.order_index)
         from workout_exercises e
         join exercises x on x.id = e.exercise_id

@@ -37,6 +37,16 @@ export function guideHasContent(guidance: ExerciseGuidance): boolean {
 }
 
 /**
+ * Whether all there is to the guide is one link (a demonstration, or the form guide where there
+ * is no written guide): one action, which stands as itself rather than folded (DESIGN.md, Folds).
+ */
+export function guideIsOneLink(guidance: ExerciseGuidance): boolean {
+  const { guide, notes, ownNotes, logNote, demonstrations, formUrl } = guidance;
+  const links = demonstrations.length + (!guide && formUrl ? 1 : 0);
+  return !guide && !ownNotes && !notes && !logNote && links === 1;
+}
+
+/**
  * How to do an exercise (plan: exercise technique and media), the same in the workout's
  * Technique tab and in the library: the guide's Setup, Steps, Cues and Common mistakes, then How
  * to log, then the programme's cue when the slot has one, then the demonstration and the way to
@@ -126,8 +136,8 @@ export function ExerciseGuide({
         <a href={formUrl} target="_blank" rel="noopener noreferrer" className="guide-link">
           <span className="min-w-0 flex-1">Read a form guide</span>
           <span className="sr-only"> (opens in your browser)</span>
-          {/* Leaving the app: an arrow, not the chevron that goes deeper in it. */}
-          <Glyph name="arrowRight" className="glyph-20" />
+          {/* A chevron, as every row here that opens something ends; its name says it leaves. */}
+          <Glyph name="chevronRight" className="glyph-20" />
         </a>
       )}
       {libraryHref && (

@@ -5,6 +5,7 @@ import {
   equipmentLoadLabel,
   exerciseOnMachine,
   nameSaysEquipment,
+  namingExercises,
   programmeLabel,
   rangeLabel,
   restLabel,
@@ -27,6 +28,32 @@ describe("labels", () => {
     expect(sessionName(undefined, undefined)).toBe("Unplanned session");
     // A programme day keeps its own name, whatever else the workout carries.
     expect(sessionName("Upper A", "Push day at home")).toBe("Upper A");
+    expect(sessionName("Upper A", null, ["Pull-up"])).toBe("Upper A");
+    expect(sessionName(null, "Push day at home", ["Pull-up"])).toBe("Push day at home");
+  });
+
+  it("names a finished unplanned workout by its first two exercises (owner, 20 October 2026)", () => {
+    expect(sessionName(null, null, ["Pull-up", "Bent-over row", "Barbell curl"])).toBe(
+      "Pull-up, Bent-over row",
+    );
+    expect(sessionName(null, null, ["Pull-up"])).toBe("Pull-up");
+    // An exercise done twice over is named once, and the next one takes the second place.
+    expect(sessionName(null, null, ["Pull-up", "Pull-up", "Dip"])).toBe("Pull-up, Dip");
+    expect(sessionName(null, null, [])).toBe("Unplanned session");
+  });
+
+  it("names a workout by the exercises it logged, and only once it is finished", () => {
+    const slot = (name: string, sets: number) => ({
+      exercise: { name },
+      sets: Array.from({ length: sets }, () => ({})),
+    });
+    const exercises = [slot("Barbell squat", 0), slot("Leg press", 3), slot("Leg curl", 2)];
+    // The squat was added and skipped, so nothing of it names the workout.
+    expect(namingExercises({ completedAt: "2026-10-20T08:00:00Z", exercises })).toEqual([
+      "Leg press",
+      "Leg curl",
+    ]);
+    expect(namingExercises({ completedAt: null, exercises })).toEqual([]);
   });
 
   it("says a workout's name whole in the session's chrome only while it is short", () => {

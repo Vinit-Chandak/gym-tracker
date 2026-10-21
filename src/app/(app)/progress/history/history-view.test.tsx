@@ -3,8 +3,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { FACT_SEPARATOR } from "@/lib/facts";
-
 import type { HistoryItem } from "./history-list";
 import { HISTORY_PAGE_SIZE, HistoryView } from "./history-view";
 
@@ -149,10 +147,11 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "";
   const { rerender } = render(<HistoryView {...props} />);
   expect(HISTORY_PAGE_SIZE).toBe(10);
-  // Held whole, so at large text the line wraps at the dot, not "page 1" over "of 3". Read as
-  // it is set: the matcher folds a no-break space into an ordinary one.
-  expect(screen.getByText(whole("23 entries · page 1 of 3")).textContent).toBe(
-    ["23 entries", "page 1 of 3"].join(FACT_SEPARATOR),
+  // The count, held to its noun; the page being read is the tabs' to say, not the count's.
+  expect(screen.getByText(whole("23 entries")).textContent).toBe("23\u00a0entries");
+  expect(screen.queryByText(/page 1 of 3/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Page 1 of 3" }).getAttribute("aria-current")).toBe(
+    "page",
   );
   expect(screen.getByText("Workout 1")).toBeTruthy();
   expect(screen.getByText("Workout 10")).toBeTruthy();
@@ -169,9 +168,14 @@ it("lists ten entries a page, newest first, and turns the page with its tabs", (
   navigation.query = "page=9";
   rerender(<HistoryView {...props} />);
   expect(screen.getByText("Workout 23")).toBeTruthy();
-  // Where the list stops short of its dates, its last page says where, and only its last.
+  // Where the list stops short of its dates, its last page says so, and only its last; the way
+  // further back is its ⓘ's.
   rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
-  expect(screen.getByRole("note").textContent).toContain("The list ends at");
+  expect(screen.getByRole("note").textContent).toBe("Older entries are not listed.");
+  fireEvent.click(screen.getByRole("button", { name: "About older entries" }));
+  expect(screen.getAllByRole("note")[1]?.textContent).toBe(
+    "Choose earlier dates under Filters to list them.",
+  );
   navigation.query = "page=2";
   rerender(<HistoryView {...props} stopsAfter="2026-09-06" />);
   expect(screen.queryByRole("note")).toBeNull();

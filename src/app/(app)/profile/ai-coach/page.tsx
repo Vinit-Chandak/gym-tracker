@@ -54,14 +54,14 @@ export default async function AiCoachSettingsPage() {
   const status = !configured
     ? "Coaching is not set up on this server yet."
     : !canRequest && profile.aiCoachEnabled
-      ? "On-demand coaching is unavailable. Your notes are saved for the next coach run."
+      ? "Asking the coach is unavailable right now."
       : workflow
         ? null
         : pending
           ? `Planning now · requested ${formatDateTime(pending.requestedAt, profile.timeZone, year)}`
           : plan
             ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone, year)}`
-            : "Your first plan arrives after the next overnight run.";
+            : "No plan yet.";
 
   return (
     <>
@@ -72,7 +72,6 @@ export default async function AiCoachSettingsPage() {
       </header>
       <div className="page-width pb-8">
         <AiCoachSettings
-          workflow={workflow}
           enabled={profile.aiCoachEnabled}
           status={status}
           noteId={crypto.randomUUID()}
@@ -96,7 +95,13 @@ export default async function AiCoachSettingsPage() {
             id: attempt.id,
             when: formatDateTime(attempt.requestedAt, profile.timeZone, year),
             trigger: attempt.trigger === "nightly" ? "Overnight" : "You asked",
-            status: attempt.status,
+            // Where it stands in plain words, never the stored state's name.
+            status:
+              attempt.status === "planned"
+                ? "Planned"
+                : attempt.status === "failed"
+                  ? "Could not finish"
+                  : "Waiting",
             gymName: attempt.gymName,
             error: attempt.error,
           }))}

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { aboutLabel } from "./about-label";
 import { InfoTip, placeNote } from "./info-tip";
 
 afterEach(() => {
@@ -77,21 +78,64 @@ it("repositions an open note after rotating into a narrower viewport", () => {
   vi.restoreAllMocks();
 });
 
-it("keeps a note outside a sheet's scroll clip but inside its native modal", () => {
+it("shows the note in the top layer where there is one, and closes it with its sheet", () => {
+  const shown = vi.fn(function (this: HTMLElement) {
+    this.setAttribute("data-shown", "");
+  });
+  // jsdom has no popover API: stand one in, as Safari 17 and Chrome 114 have.
+  Object.defineProperty(HTMLElement.prototype, "showPopover", {
+    value: shown,
+    configurable: true,
+  });
+  try {
+    render(
+      <dialog open>
+        <div style={{ overflow: "hidden", height: 60 }}>
+          <InfoTip label="About supersets">Keep both exercises together.</InfoTip>
+        </div>
+      </dialog>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "About supersets" }));
+    // jsdom hides every [popover] it cannot show, so the note is looked up as hidden.
+    const note = screen.getByRole("note", { hidden: true });
+    // Above the card's clip, but still inside the sheet in the page, so it stays interactive.
+    expect(shown).toHaveBeenCalledTimes(1);
+    expect(note.getAttribute("popover")).toBe("manual");
+    expect(screen.getByRole("dialog").contains(note)).toBe(true);
+    fireEvent.pointerDown(note);
+    expect(screen.getByRole("note", { hidden: true })).toBeTruthy();
+    fireEvent(screen.getByRole("dialog"), new Event("close"));
+    expect(screen.queryByRole("note", { hidden: true })).toBeNull();
+  } finally {
+    delete (HTMLElement.prototype as { showPopover?: unknown }).showPopover;
+  }
+});
+
+it("leaves focus on its button and puts the note next in reading order", () => {
   render(
-    <dialog open>
-      <div style={{ overflow: "hidden", height: 60 }}>
-        <InfoTip label="About supersets">Keep both exercises together.</InfoTip>
-      </div>
-    </dialog>,
+    <div>
+      <InfoTip label="About supersets">Keep both exercises together.</InfoTip>
+      <button type="button">Save</button>
+    </div>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "About supersets" }));
-  const dialog = screen.getByRole("dialog");
-  expect(screen.getByRole("note").parentElement).toBe(dialog);
-  fireEvent.pointerDown(screen.getByRole("note"));
-  expect(screen.getByRole("note")).toBeTruthy();
-  fireEvent(dialog, new Event("close"));
+  const button = screen.getByRole("button", { name: "About supersets" });
+  button.focus();
+  fireEvent.click(button);
+  // A screen reader hears "expanded" on the button, then the note on its next swipe.
+  expect(document.activeElement).toBe(button);
+  expect(button.nextElementSibling).toBe(screen.getByRole("note"));
+  expect(button.getAttribute("aria-describedby")).toBeNull();
+  // Focus moving to another control closes it, so it never covers what has focus.
+  const save = screen.getByRole("button", { name: "Save" });
+  fireEvent.blur(button, { relatedTarget: save });
   expect(screen.queryByRole("note")).toBeNull();
+});
+
+it("names a tip after its label in the label's own case", () => {
+  expect(aboutLabel("Weekly distance")).toBe("About weekly distance");
+  expect(aboutLabel("Max HR")).toBe("About max HR");
+  expect(aboutLabel("RIR")).toBe("About RIR");
+  expect(aboutLabel("e1RM")).toBe("About e1RM");
 });
 
 it("moves long help above its button and bounds it to a keyboard-sized visual viewport", () => {

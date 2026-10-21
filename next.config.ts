@@ -66,14 +66,60 @@ const nextConfig: NextConfig = {
       // Logging anything Today's cards do not offer is Today's Log now (ADR 0058).
       { source: "/training/log", destination: "/today/log", permanent: true },
       { source: "/today/choose", destination: "/today/log?sport=strength", permanent: true },
+      // Each page moved under the tab that owns it (owner, 20 October 2026): a scheduled session,
+      // a programme day, the strength programme's builder, drafts, requests and past requests
+      // under Plan; logging a run, ride or swim under Today's Log; a logged one under Progress.
+      // The coach's notes, emails and bookmarks still say the old paths.
+      {
+        source: "/training/programme/occurrences/:occurrenceId",
+        destination: "/plan/sessions/:occurrenceId",
+        permanent: true,
+      },
+      {
+        source: "/training/days/:dayId",
+        destination: "/plan/strength/days/:dayId",
+        permanent: true,
+      },
+      { source: "/profile/programme/manual", destination: "/plan/strength/edit", permanent: true },
+      { source: "/profile/programme/drafts/:id", destination: "/plan/drafts/:id", permanent: true },
+      {
+        source: "/profile/programme/drafts/:id/programme",
+        destination: "/plan/drafts/:id/programme",
+        permanent: true,
+      },
+      { source: "/profile/programme/jobs/:id", destination: "/plan/requests/:id", permanent: true },
+      { source: "/profile/programme/history", destination: "/plan/history", permanent: true },
+      // The coach's questions for a new strength programme are New programme's, as every sport's.
+      {
+        source: "/profile/programme/create",
+        destination: "/plan/new?sport=strength&method=coach",
+        permanent: true,
+      },
+      { source: "/training/new", destination: "/today/log/new", permanent: true },
+      {
+        source: "/training/activities/:activityId",
+        destination: "/progress/activities/:activityId",
+        permanent: true,
+      },
+      {
+        source: "/training/activities/:activityId/edit",
+        destination: "/progress/activities/:activityId/edit",
+        permanent: true,
+      },
+      {
+        source: "/training/activities/:activityId/counts-as",
+        destination: "/progress/activities/:activityId/counts-as",
+        permanent: true,
+      },
       // Resolve simple run aliases before the app shell streams. A client-side streamed
       // redirect can race that shell's navigation prefetches in WebKit. Planned links and
-      // legacy run IDs still need the authenticated identifier lookup in their pages.
+      // legacy run IDs still need the authenticated identifier lookup in their pages. A new run
+      // is logged through Log, which asks what it counts as (ADR 0058).
       { source: "/runs", destination: "/plan", permanent: false },
       {
         source: "/runs/new",
         missing: [{ type: "query", key: "planned" }],
-        destination: "/training/new?sport=running",
+        destination: "/today/log?sport=running",
         permanent: false,
       },
     ];

@@ -16,6 +16,8 @@ import { ACTIVITY_SPORTS, type ActivitySport, type SwimStroke } from "@/domain/a
 import { adherenceBySport, resolveOccurrence } from "@/domain/occurrences";
 import type { AdherenceCounts } from "@/domain/occurrences";
 
+import { loggedExerciseNames } from "./strength-day";
+
 /**
  * What the four sports add up to (plan §9.1).
  *
@@ -427,6 +429,11 @@ export type LoggedActivity = {
    */
   title: string | null;
   gymName: string | null;
+  /**
+   * A workout's exercises with a set logged, in its order, which name it when nothing else does
+   * (`sessionName`); none for a run, a ride or a swim.
+   */
+  exercises?: string[];
 };
 
 /**
@@ -457,6 +464,7 @@ export async function readLoggedOn(
       dayName: programDays.name,
       title: activities.title,
       gymName: gyms.name,
+      exercises: loggedExerciseNames,
     })
     .from(activities)
     .leftJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
@@ -482,6 +490,7 @@ export async function readLoggedOn(
   return rows.map((row) => ({
     ...row,
     distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+    exercises: row.exercises ?? [],
   }));
 }
 

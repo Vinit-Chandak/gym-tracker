@@ -11,7 +11,9 @@ import { RetireProgramme } from "./retire-programme";
 
 /**
  * Editing is the everyday action. Replacement, duplication and ending the programme stay
- * together under More options, on the programme's own page (ADR 0058).
+ * together under More options, on the programme's own page (ADR 0058). A past programme's one
+ * action, Duplicate programme, stands as itself: a fold never holds a single action (DESIGN.md,
+ * Folds).
  */
 export function ProgrammeTools({
   id,
@@ -36,11 +38,8 @@ export function ProgrammeTools({
     const result = await coachingAction(() => copyProgramAction(id, duplicate));
     if (result.ok)
       startNavigation(() =>
-        router.push(
-          (result.value.sport === "strength"
-            ? `/profile/programme/manual?draft=${result.value.id}`
-            : `/plan/${result.value.sport}/edit?draft=${result.value.id}`) as Route,
-        ),
+        // Each sport's builder is under its programme's page, strength's too.
+        router.push(`/plan/${result.value.sport}/edit?draft=${result.value.id}` as Route),
       );
     else setError(result.error);
     setBusy(false);
@@ -56,34 +55,39 @@ export function ProgrammeTools({
         {active && finished && (
           <LinkButton href={`/plan/new?sport=${sport}` as Route}>New programme</LinkButton>
         )}
-        <Disclosure summary="More options" variant="inline" className="programme-management-more">
-          <div className="space-y-2">
-            {active && !finished && (
-              <LinkButton
-                href={`/plan/new?sport=${sport}` as Route}
-                variant="secondary"
-                className="w-full"
-              >
-                Replace programme
-              </LinkButton>
-            )}
-            <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
-              Duplicate programme
-            </Button>
-            {active && <RetireProgramme id={id} sport={sport} disabled={pending} />}
-          </div>
-        </Disclosure>
+        {active ? (
+          <Disclosure summary="More options" variant="inline" className="programme-management-more">
+            <div className="space-y-2">
+              {!finished && (
+                <LinkButton
+                  href={`/plan/new?sport=${sport}` as Route}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  Replace programme
+                </LinkButton>
+              )}
+              <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
+                Duplicate programme
+              </Button>
+              <RetireProgramme id={id} sport={sport} disabled={pending} />
+            </div>
+          </Disclosure>
+        ) : (
+          <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
+            {pending ? "Opening…" : "Duplicate programme"}
+          </Button>
+        )}
       </div>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      {navigating && (
-        <p role="status" className="text-sm text-ink-2">
-          Opening programme draft…
-        </p>
-      )}
+      {/* The pressed button already reads "Opening…"; a screen reader hears where it goes. */}
+      <p role="status" className="sr-only">
+        {navigating ? "Opening programme draft…" : ""}
+      </p>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import {
   TargetCard,
   useFormValues,
   type ActivityFormValues,
+  type PlanTarget,
 } from "./activity-form-fields";
 
 /**
@@ -75,7 +76,7 @@ type Props = {
   initial: ActivityFormValues;
   submissionKey: string;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: PlanTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
@@ -155,7 +156,7 @@ export function SwimmingForm({
       />
       {target && (
         <div className="mt-3">
-          <TargetCard title={target.title} lines={target.lines} />
+          <TargetCard {...target} />
         </div>
       )}
 
@@ -172,6 +173,7 @@ export function SwimmingForm({
         />
       </div>
       <div className="mt-1.5">
+        {/* What to count is said in view, in two words: it decides the figure typed. */}
         <DurationField
           label="Elapsed time"
           hint="Rests included"
@@ -206,11 +208,6 @@ export function SwimmingForm({
               {errors.distanceMethod}
             </p>
           )}
-          {method === "unknown" && (
-            <p className="type-caption font-medium text-ink-2">
-              The time still counts. Nothing is made up for the distance.
-            </p>
-          )}
         </div>
 
         {method === "lengths" && (
@@ -234,6 +231,8 @@ export function SwimmingForm({
             />
             <RowStepper
               label="Lengths"
+              // What one is, in view until there is a count, since it decides what is counted;
+              // then the distance the count comes to.
               hint={
                 derivedMetres !== null ? (
                   <span role="status">
@@ -245,7 +244,7 @@ export function SwimmingForm({
                       : ""}
                   </span>
                 ) : (
-                  "One length is one trip from one end to the other"
+                  "One length is one end to the other"
                 )
               }
               name="lengths"
@@ -306,7 +305,8 @@ export function SwimmingForm({
         <Field
           group
           label="Swimming time"
-          hint="Optional — the time actually swimming, without the rests"
+          aside="Optional"
+          hint="Rests left out"
           error={errors?.activeMs ?? errors?.activeMinutes ?? errors?.activeSeconds}
         >
           <div className="grid grid-cols-2 gap-2">
@@ -344,7 +344,7 @@ export function SwimmingForm({
             ))}
           </Select>
         </Field>
-        <Field label="Strokes taken" hint="Optional" error={errors?.strokeCount}>
+        <Field label="Strokes taken" aside="Optional" error={errors?.strokeCount}>
           <Input
             name="strokeCount"
             inputMode="numeric"

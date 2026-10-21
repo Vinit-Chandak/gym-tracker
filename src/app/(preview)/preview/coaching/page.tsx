@@ -309,7 +309,7 @@ export default async function CoachingPreview({
                 },
               ]}
               library={library}
-              base="/profile/programme"
+              base="/plan"
               configured
               initialStep={Math.min(4, Math.max(0, Number(step) || 0))}
             />
@@ -321,7 +321,7 @@ export default async function CoachingPreview({
             initial={{ id: ID, revision: 1, blueprint }}
             library={library}
             warmups={[...WARMUP_PROTOCOLS]}
-            base="/profile/programme"
+            base="/plan"
           />
         )}
         {view === "draft" && (
@@ -358,7 +358,7 @@ export default async function CoachingPreview({
             }}
             library={library}
             today="2026-09-12"
-            base="/profile/programme"
+            base="/plan"
             stale={false}
             machines={[]}
             preferredUnit="kg"
@@ -387,7 +387,7 @@ export default async function CoachingPreview({
               },
             ]}
             today="2026-09-19"
-            base="/profile/programme"
+            base="/plan"
           />
         )}
         {view === "request" && (

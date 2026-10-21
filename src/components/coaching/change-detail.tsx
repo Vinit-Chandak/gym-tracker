@@ -7,12 +7,12 @@ import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
-import { Glyph } from "@/components/ui/glyphs";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import { NavRow } from "@/components/ui/nav-row";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
-import type { ActivitySport } from "@/domain/activity";
+import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import type { ChangeSummary } from "@/domain/program-change-summary";
 import {
   approveProgramChangeAction,
@@ -23,6 +23,7 @@ import {
 
 import { coachingAction } from "./client-action";
 import { ProgramDiffView } from "./program-diff-view";
+import { builderPath, type ProgrammeBase } from "./programme-paths";
 
 export type ChangeRequestTag = {
   id: string;
@@ -54,7 +55,7 @@ export type ChangeDetailProps = {
   /** The athlete's own asks this change answers, to tag the lines they produced. */
   requests: readonly ChangeRequestTag[];
   today: string;
-  base: "/welcome/programme" | "/profile/programme";
+  base: ProgrammeBase;
 };
 
 /** The athlete's own words, short enough to sit on a line of the diff. */
@@ -72,7 +73,8 @@ function shortQuote(quote: string): string {
  * Nothing else is restated: not the ask (the previous screen showed it), not that approval is
  * needed (the buttons say so), not when it applies (approving updates every week still to
  * come, immediately). The coach's reasoning is offered only when something in the change is
- * the coach's own idea rather than an answer to an ask.
+ * the coach's own idea rather than an answer to an ask, folded under Why and closed: the
+ * difference is the decision (DESIGN.md, Coach note).
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
@@ -118,10 +120,17 @@ export function ChangeDetail(props: ChangeDetailProps) {
     else setError(result.error ?? "Could not save this change. Please retry.");
     setSaving(false);
   };
+  // Decided, it goes back to its programme's page, where its changes and the coach's answers are
+  // (ADR 0058): the strength programme's at its Changes.
+  const sport = props.sport ?? "strength";
   const back = () =>
     startNavigation(() =>
       router.push(
-        props.base === "/profile/programme" ? "/plan" : (`${props.base}?view=changes` as Route),
+        (props.base !== "/plan"
+          ? `${props.base}?view=changes`
+          : sport === "strength"
+            ? "/plan/strength?view=changes"
+            : `/plan/${sport}`) as Route,
       ),
     );
 
@@ -134,11 +143,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
       </h2>
       {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
       {why && (
-        <details open className="change-why">
-          <summary className="change-why-summary">
-            <Glyph name="info" className="glyph-18" />
-            Why
-          </summary>
+        <Disclosure summary="Why" variant="inline" className="mt-2.5">
           {props.rationale && (
             <p className="type-meta leading-[1.45] [overflow-wrap:break-word] whitespace-pre-wrap">
               {props.rationale}
@@ -153,7 +158,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
               ))}
             </ul>
           )}
-        </details>
+        </Disclosure>
       )}
 
       <div className="mt-1">
@@ -167,8 +172,8 @@ export function ChangeDetail(props: ChangeDetailProps) {
         <div className="mt-3.5 space-y-3">
           <p className="type-meta-small text-ink-2">
             {props.replacing
-              ? "This replaces your current programme for this sport. The new programme starts on the date below. Your completed history is kept."
-              : "This changes the programme’s structure, so it starts a new block. Your completed history is kept."}
+              ? `Replaces your current ${ACTIVITY_SPORT_LABELS[props.sport ?? "strength"].toLowerCase()} programme. Your history stays.`
+              : "This starts a new block. Your history stays."}
           </p>
           <Field label="Start date">
             <Input
@@ -272,7 +277,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
                   href={
                     (props.sport && props.sport !== "strength"
                       ? `/plan/${props.sport}/edit?draft=${props.draftId}`
-                      : `${props.base}/manual?draft=${props.draftId}`) as Route
+                      : builderPath(props.base, `?draft=${props.draftId}`)) as Route
                   }
                   className="text-action"
                 >
@@ -285,17 +290,17 @@ export function ChangeDetail(props: ChangeDetailProps) {
       )}
 
       {/* The whole programme as it would be — after the difference, not before it. */}
-      {props.base === "/profile/programme" && (
+      {props.base === "/plan" && (
         <ul className="mt-3">
           <NavRow
             href={`${props.base}/drafts/${props.draftId}/programme` as Route}
             glyph="table"
             label={
               open
-                ? "See the full programme with these changes"
+                ? "Full programme with these changes"
                 : props.status === "activated"
-                  ? "See the full programme it made"
-                  : "See the full programme it proposed"
+                  ? "Full programme it made"
+                  : "Full programme it proposed"
             }
           />
         </ul>

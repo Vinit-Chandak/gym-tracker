@@ -27,5 +27,5 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
     { readOnly: true },
   );
   if (!activityId) return <LegacyUnavailable />;
-  redirect(`/training/activities/${activityId}`);
+  redirect(`/progress/activities/${activityId}`);
 }

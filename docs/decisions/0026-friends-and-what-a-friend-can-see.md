@@ -149,7 +149,10 @@ From the year audit of the friends' screens:
   used), so renaming or deleting the routine later rewrites no workout. A programme day's workout
   keeps the day's name, and an ad hoc one stays "Unplanned session" (`sessionName`). Workouts
   started from a routine before this recorded no routine and keep "Unplanned session": a name read
-  back from their exercises would be a guess. A follower still reads the programme day's name or
+  back from their exercises would be a guess. (Amended by
+  [ADR 0060](0060-every-page-under-its-tab.md), on the owner's word: once finished, a workout no
+  day or routine names is called after its first two exercises with a set logged, not after a
+  routine; one still open, or with nothing logged, stays "Unplanned session".) A follower still reads the programme day's name or
   "Workout", as listed above: a routine's name is the athlete's own label, as a run's title is, and
   the shared copy is generated, never the athlete's words. The coach's read of a workout carries
   it, as it carries the athlete's notes: the API, the review's context and the preparation's. A

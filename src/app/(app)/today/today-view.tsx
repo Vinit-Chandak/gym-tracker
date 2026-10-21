@@ -89,9 +89,10 @@ export type TodayViewProps = {
 };
 
 /**
- * What the coach is doing about the day, only when there is something to say: that it is
- * planning now, that it has not reached the session, or that its plan was made for another
- * gym. A passage of the workout's card, never a box of its own.
+ * What the coach is doing about the day, only when there is something to say, in one line: that
+ * it is planning now, that it has not reached the session, or that its plan was made for another
+ * gym. Never how or when the coach works, nor where a control is (DESIGN.md, Activity cards). A
+ * passage of the workout's card, never a box of its own.
  */
 function CoachStatus({
   coach,
@@ -130,9 +131,8 @@ function CoachStatus({
   if (coach.plan && !coach.matchesGym) {
     return (
       <CoachNote small flat>
-        The coach prepared this for {coach.plan.gymName}
-        {gymName ? `, not ${gymName}` : ""}. Prepare it again from More options, or start by the
-        rule.
+        Prepared for {coach.plan.gymName}
+        {gymName ? `, not ${gymName}` : ""}.
       </CoachNote>
     );
   }
@@ -142,7 +142,7 @@ function CoachStatus({
   if (coach.failure && !coach.plan) {
     return (
       <CoachNote tone="failed" small flat>
-        The coach could not prepare this session, so your programme&apos;s own targets apply.
+        Preparation failed: programme targets apply.
       </CoachNote>
     );
   }
@@ -438,7 +438,7 @@ export function TodayView({
                 <Progress session={inProgress} today={today} timeZone={timeZone} />
               </State>
             ) : openElsewhere ? (
-              <State>Finish or discard your open session to start this one.</State>
+              <State>Finish or discard your open workout first.</State>
             ) : (
               <>
                 {coach && (
@@ -449,7 +449,9 @@ export function TodayView({
                     timeZone={timeZone}
                   />
                 )}
-                {defaultGym === null && <State>Choose a gym to start.</State>}
+                {/* With gyms to choose from, the chip says "Choose a gym" itself; with none at
+                    all there is no chip to say it. */}
+                {defaultGym === null && gyms.length === 0 && <State>Add a gym to start.</State>}
               </>
             )
           }
@@ -618,7 +620,7 @@ export function TodayView({
     ...logged.map((activity) => {
       const title =
         activity.sport === "strength"
-          ? sessionName(activity.dayName, activity.title)
+          ? sessionName(activity.dayName, activity.title, activity.exercises)
           : ((activity.occurrenceId ? titles.get(activity.occurrenceId) : null) ??
             activity.title ??
             enduranceName(activity.sport));
@@ -629,7 +631,7 @@ export function TodayView({
           href={
             (activity.sport === "strength" && activity.sessionId
               ? `/workouts/${activity.sessionId}${originQuery("today")}`
-              : `/training/activities/${activity.id}${originQuery("today")}`) as Route
+              : `/progress/activities/${activity.id}${originQuery("today")}`) as Route
           }
           lead={<Art kind="mark" sport={MARK[activity.sport]} size={20} state="done" />}
           label={holdHyphens(title)}
@@ -640,7 +642,7 @@ export function TodayView({
     ...skippedToday.map((occurrence) => (
       <NavRow
         key={occurrence.id}
-        href={`/training/programme/occurrences/${occurrence.id}` as Route}
+        href={`/plan/sessions/${occurrence.id}` as Route}
         lead={<Art kind="mark" sport={MARK[occurrence.sport]} size={20} state="skipped" />}
         label={holdHyphens(occurrence.prescription?.title ?? enduranceName(occurrence.sport))}
         value="Skipped"
@@ -694,9 +696,6 @@ export function TodayView({
             <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>
               Add a gym to start training
             </FitTitle>
-            <p className="mt-2 type-body text-ink-2">
-              Its equipment decides which exercises your plan can use, and how far a load steps up.
-            </p>
             <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
               Add your first gym
             </LinkButton>

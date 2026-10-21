@@ -125,6 +125,8 @@ describe("history projection", () => {
             name: e.exercise.name,
             machineId: e.equipment?.id ?? null,
             machineName: e.equipment?.name ?? null,
+            // What names an unplanned workout: an exercise with a set logged (`sessionName`).
+            logged: e.sets.length > 0,
           })),
         })),
     );
@@ -177,6 +179,8 @@ function logged(sport: "running" | "cycling", date: string): SaveActivityInput {
             averageHeartRate: null,
             maxHeartRate: null,
             cadenceStepsPerMinute: null,
+            runType: null,
+            laps: [],
           }
         : {
             sport,

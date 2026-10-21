@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PlanView, type PlanCard } from "@/app/(app)/plan/plan-view";
 import type { WeekSession } from "@/domain/plan-week";
+import type { NewProgrammeRequest } from "@/server/repositories/sport-programmes";
 
 import { PreviewShell } from "../../preview-shell";
 
@@ -49,9 +50,10 @@ const session = (
   title,
   status,
   occurrenceId: sport === "strength" ? null : `00000000-0000-4000-8000-0000000001${key}`,
+  dayId: sport === "strength" ? `00000000-0000-4000-8000-0000000002${key}` : null,
 });
 
-/** The week of a Tuesday: Monday lifted and missed its run, today lifts and runs. */
+/** The week of a Tuesday: Monday, gone by, lifted and missed its run; today lifts and runs. */
 const WEEK: WeekSession[] = [
   session("10", MONDAY, "strength", "Upper A", "done"),
   session("11", MONDAY, "running", "Easy run", "missed"),
@@ -63,6 +65,21 @@ const WEEK: WeekSession[] = [
   session("60", "2026-10-24", "running", "Long run", "planned"),
 ];
 
+/** A first swimming programme from the coach, waiting to be started (ADR 0059). */
+const DRAFTS = [
+  {
+    id: "preview-draft",
+    sport: "swimming" as const,
+    status: "ready" as const,
+    name: "Swim base: 8 weeks",
+  },
+];
+
+/** A first cycling programme asked of the coach, still being written (ADR 0059). */
+const REQUESTS: NewProgrammeRequest[] = [
+  { id: "preview-request", sport: "cycling", status: "writing" },
+];
+
 /** Plan with made-up programmes: `?state=empty` is an account with none yet. */
 export default async function PlanPreviewPage(props: PageProps<"/preview/plan">) {
   const { state } = await props.searchParams;
@@ -71,6 +88,8 @@ export default async function PlanPreviewPage(props: PageProps<"/preview/plan">)
     <PreviewShell tab="/plan">
       <PlanView
         cards={empty ? [] : CARDS}
+        drafts={empty ? [] : DRAFTS}
+        requests={empty ? [] : REQUESTS}
         sessions={empty ? [] : WEEK}
         monday={MONDAY}
         today={TODAY}

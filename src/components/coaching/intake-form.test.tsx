@@ -69,7 +69,7 @@ it("asks which route you want before it asks anything else", async () => {
     />,
   );
   expect(screen.getByText("Which sounds like you?")).toBeTruthy();
-  expect(screen.queryByText("Training days")).toBeNull();
+  expect(screen.queryByText("Days you can train")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Set it up in detail" }));
   await screen.findByLabelText("What are you training for?");
   await waitFor(() =>
@@ -86,7 +86,7 @@ it("keeps preview edits and navigation local without saving intake or requesting
     target: { value: "Example edits must stay local." },
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  await screen.findByText("Training days");
+  await screen.findByText("Days you can train");
   expect(saveCoachIntakeAction).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Step 5 of 5: Review" }));
   fireEvent.click(await screen.findByRole("button", { name: "Create my programme" }));
@@ -125,7 +125,7 @@ it("can request a programme while the starting point and reports are unknown", a
   render(<CoachIntakeForm {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "Step 5 of 5: Review" }));
   await screen.findByRole("button", { name: "Create my programme" });
-  expect(screen.getByText("Not reported")).toBeTruthy();
+  expect(screen.getByText("Not answered")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Create my programme" }));
   await waitFor(() =>
     expect(createCoachProgramAction).toHaveBeenCalledWith(id, expect.any(String)),
@@ -154,7 +154,7 @@ it("saves the latest brief before leaving a step and shows a failed save", async
     target: { value: "Updated prompt with the user's own requirements." },
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  await screen.findByText("Training days");
+  await screen.findByText("Days you can train");
   expect(saveCoachIntakeAction).toHaveBeenCalledWith(
     expect.objectContaining({ prompt: "Updated prompt with the user's own requirements." }),
     1,

@@ -12,7 +12,7 @@ export default function NotFound() {
         <EmptyState
           icon={MapPin}
           title="Nothing here"
-          description="That page or item does not exist, or it belongs to a different account."
+          description="It does not exist, or it belongs to another account."
         />
       </PageContent>
     </>

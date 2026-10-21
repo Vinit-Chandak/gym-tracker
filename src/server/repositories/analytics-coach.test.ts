@@ -139,6 +139,8 @@ beforeAll(async () => {
         averageHeartRate: null,
         maxHeartRate: null,
         cadenceStepsPerMinute: null,
+        runType: null,
+        laps: [],
       },
       startedAt: new Date("2026-09-08T00:00:00Z"),
       recordedTimeZone: "Asia/Kolkata",

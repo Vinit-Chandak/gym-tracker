@@ -1,5 +1,7 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import { z } from "zod";
 
 import { SessionRecordsCard } from "@/components/records-card";
 import { PageHeader } from "@/components/shell/page-header";
@@ -9,7 +11,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { canEditWorkout, lastEditDay } from "@/domain/workout-edits";
 import { setLengthFor } from "@/lib/distance-units";
 import { ORIGIN_PARAM, originQuery, parseOrigin, workoutBackPath, workoutOrigin } from "@/lib/nav";
-import { sessionName } from "@/lib/labels";
+import { namingExercises, sessionName } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -17,24 +19,17 @@ import { getSessionDetail } from "@/server/repositories/sessions";
 import { readSessionRecords } from "@/server/repositories/shared-stats";
 import { requireUuid } from "@/server/validation/params";
 
-import { toSessionVM } from "./view-model";
+import { toSessionVM, type SessionVM } from "./view-model";
 import { WorkoutView } from "./workout-view";
 
-export const metadata: Metadata = { title: "Session" };
-
-export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
-  const { sessionId } = await props.params;
-  requireUuid(sessionId);
-  const searchParams = await props.searchParams;
-  const requestedOrigin = parseOrigin(searchParams[ORIGIN_PARAM]);
-  // Finish session lands here saying so: the summary, once (board Summary).
-  const justFinished = searchParams.finished === "1";
+/**
+ * The session, once a request: the page draws it and the document is named from it. Only reads,
+ * so no athlete lock: this also renders after every change to an exercise, beside the shell's
+ * own read of the open session.
+ */
+const readWorkout = cache(async (sessionId: string) => {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  // The sets saved after this render are added by the browser, which knows which ones it holds.
-  const seen = await seenSetChanges();
-  // Only reads, so no athlete lock: this also renders after every change to an exercise, beside
-  // the shell's own read of the open session.
   const found = await withUser(
     getDb(),
     user.id,
@@ -63,11 +58,39 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     },
     { readOnly: true },
   );
-  if (!found) notFound();
-  const { session: data, records } = found;
+  return found && { user, requestProfile, ...found };
+});
+
+/** Its day's, its routine's or, once finished, what it held (`sessionName`), as its title. */
+const titleOf = (session: SessionVM) =>
+  sessionName(session.day?.name, session.title, namingExercises(session));
+
+/** Named as its title is: "Lower A", "Pull-up, Bent-over row", "Unplanned session". */
+export async function generateMetadata(
+  props: PageProps<"/workouts/[sessionId]">,
+): Promise<Metadata> {
+  const { sessionId } = await props.params;
+  // A malformed address is the page's to refuse; the title only names what is there.
+  if (!z.uuid().safeParse(sessionId).success) return { title: "Not found" };
+  const read = await readWorkout(sessionId);
+  return { title: read ? titleOf(read.session) : "Not found" };
+}
+
+export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
+  const { sessionId } = await props.params;
+  requireUuid(sessionId);
+  const searchParams = await props.searchParams;
+  const requestedOrigin = parseOrigin(searchParams[ORIGIN_PARAM]);
+  // Finish session lands here saying so: the summary, once (board Summary).
+  const justFinished = searchParams.finished === "1";
+  // The sets saved after this render are added by the browser, which knows which ones it holds.
+  const seen = await seenSetChanges();
+  const read = await readWorkout(sessionId);
+  if (!read) notFound();
+  const { user, requestProfile, session: data, records } = read;
   const origin = requestedOrigin ?? (data.loggedRetrospectively ? "today" : null);
 
-  const title = sessionName(data.day?.name, data.title);
+  const title = titleOf(data);
   // A finished workout can be changed for a week after its day (ADR 0049).
   const startedAt = new Date(data.startedAt);
   const editUntil =

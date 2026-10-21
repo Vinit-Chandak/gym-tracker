@@ -399,8 +399,10 @@ of its paper. State is thinned (to do), full (done) or dashed (skipped); context
 size) means the same on every form; a new sport is its family's form with one cut. A
 print carries no words: the rows under it name its parts in the same order.
 
-The interface says as little as it can. State is shown by ink rather than words, nothing is said
-twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a
+The interface says as little as it can. It shows what the athlete needs to act or to know where
+they stand, and nothing else: an explanation is a tap away, behind an ⓘ or a fold, never running
+text on the screen. State is shown by ink rather than words, nothing is said twice on one screen,
+and every name starts at one left edge. Motion is ink, not decoration: a
 press answers a touch, a set lands in the log when the server has it, words swap in place,
 sheets follow the finger.
 
@@ -427,7 +429,8 @@ and marks says how. The Dinner board predates this.
 
 - A black-and-white interface; colour only ever means a family of sport, as a print or a mark.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
-- Minimal words: no repeated information, no state said in words where ink says it.
+- Minimal words: no repeated information, no state said in words where ink says it, and no
+  explanation on the screen: it waits behind an ⓘ or a fold (The Need-to-Know Rule).
 - One left edge: every name starts at the gutter; a mark leads a row only where it names a sport
   (food rows aside: Rows and marks).
 - Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
@@ -581,6 +584,36 @@ saved routine's may be, is "Workout" there ("Back to the workout") and whole as 
 
 **The Floors Rule.** Nothing typed or entered is under 16 px; no label is under 12 px.
 
+**The Need-to-Know Rule.** A screen shows what the athlete needs to act or to know where they
+stand: figures, states, labels, choices, errors and the one action. No sentence on a screen
+explains how the app, the coach or a plan works, says what will happen when it is obvious, or
+repeats what a figure already says. What someone may still want to know is a tap away: a sentence
+or two (about 140 characters at most) in one ⓘ beside the label or heading it explains, a longer
+passage behind a fold whose summary names it, closed. An ⓘ sits beside the words it explains,
+never inside a heading, a label, a summary or a line that updates itself. A field's help is its
+ⓘ, and so is a row stepper's. The line under a field or a stepper row is kept for its error, or
+for what its value comes to or needs right now (Checking…, Available, Pace 6:46 /km, Last 75.2 kg,
+what saving it will replace), never for help. Never behind an ⓘ, because a screen reader must not
+have to open one to finish the task (WCAG 3.3.2): a label, a unit, Optional, an error, a status,
+what a blank will do, and a rule a value must meet to be saved (a format, a length, a size, a
+range), which is said before typing, in the label when a few words do it ("Goal time, h:mm:ss")
+or on the line under the field, and checked once the field is left. A placeholder is an example,
+never the rule. Where a label can carry the question, it does. An empty
+state is one short line and its action. Consequences that cannot be undone (deleting, ending,
+discarding) are said, once and briefly, where the action is (owner, 20 October 2026). This
+replaces ADR 0014's one short hint under a field.
+
+A screen that asks for a decision (start a programme, approve a change) puts it on its first
+screen, and what led to it (the coach's reasoning, its doubts, every session in full) folds under
+it. A row that opens a choice may carry one line under its name saying what the choice is, in a
+few words, never how it works. A value the app filled in from the profile or the logs says so in
+a word or two beside its label ("From your logs"), never in a sentence under it. A failure is said
+in the athlete's words: what failed, what is unchanged, what to do; text the coach or the server
+wrote for whoever runs them is never the message, and may sit folded under Details. A safety
+instruction from the coach ("Stop if…") is need-to-know and stays in view, one line; the coach's
+other notes on a session (pace, progression, how to run it) fold under its plan. A date reads in
+the app's notation ("Thu 10 Dec"), never raw or ISO.
+
 ## Layout
 
 Every screen is laid out from its device rather than scaled from one size: 402 × 874 and
@@ -674,13 +707,13 @@ its key is shown, so two readings of one width can never leave the workout witho
   the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
   the session strip folds into them and stands down: its key ends their last line, beside the
   last action while that action's longest word still fits (its words may wrap), else on a line
-  of its own at the end, and always on its own after a field, which keeps its width (AI coach's
-  note); the actions come down to the tab bar. A multi-step form's actions, kept on screen as a
-  card (Create a programme), are pinned actions too: at large text Back has a line to itself,
+  of its own at the end, and always on its own after a field, which keeps its width; the actions
+  come down to the tab bar. A multi-step form's actions, kept on screen as a card (New strength
+  programme), are pinned actions too: at large text Back has a line to itself,
   and the key takes the rest of it, so the card grows by nothing. The tab bar, the strip and the
   actions had held 28 to 63% of a phone's screen at 200% text; folded, 20 to 50%, the most where
-  the action is long (Delete everything at 320 × 568), a field keeps its line (AI coach), or a
-  step keeps two actions on screen (Create a programme).
+  the action is long (Delete everything at 320 × 568), a field keeps its line, or a step keeps
+  two actions on screen (New strength programme).
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -795,9 +828,10 @@ machine, never the stack: the rowing machine's as the rowing machine, the statio
 indoor bike; cardio done on none (battle ropes, a sled) has no glyph, and says Cardio in words.
 The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark, kept from
 the first alphabet; it is not a print); the app icon is
-the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
-stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
-ground at the gutter, never in a box; their links are ink and underlined.
+the mark on paper (light) or ink (dark), with corners of 22.5% of its size. Sign in and Create
+account stand the mark beside the name in Jost (Title) and the tagline under it in ink 2; the
+password screens carry the mark and the name alone. Every form stands on the ground at the
+gutter, never in a box, and their links are ink and underlined.
 
 ### Named Rules
 
@@ -825,7 +859,7 @@ and every control answers a press.
 
 - **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it);
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log run on Today's card);
   on a card, the control surface on a surface (Do again, Save under a select).
   **Waiting:** surface with ink 2, surface 2 on a card, for a button waiting on something (Save
   while RIR is empty, Saving…, Send answer with no answer, Try again offline). **Outline:** a
@@ -833,7 +867,8 @@ and every control answers a press.
   (48 dp on Android), the control surface (on a card, the control surface on a surface), a
   glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
-  confirmed, never in the primary place. An option that discards a day (Skip this session) stands
+  confirmed, never in the primary place while it would lose a record. One that loses nothing
+  (discarding an empty session or an untouched draft) may be the primary. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
 - **Press:** scale 0.97 in 120 ms, `cubic-bezier(0.23, 1, 0.32, 1)`; none with reduced motion.
 - **Focus:** a 3-px ink outline at 2-px offset, ringed in ground so it shows on ink.
@@ -893,8 +928,10 @@ and every control answers a press.
   the same way while a machine question is open before the first set: tapped, "Answer the
   machine question first" shows and the question takes the focus. The question's answers
   never wait on Save.
-- **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
-  the buttons line up row under row (hours slept, a run's distance and duration).
+- **In a row:** a label left, with its ⓘ where it needs one and under it only the figure the
+  row makes or remembers (Pace 6:46 /km, Last time 7 h), never a sentence; −, the value in a
+  fixed 120-pt column, + right, so the buttons line up row under row (hours slept, a run's
+  distance and duration).
 - **Nothing a phone's number pad lacks** (owner, 20 October 2026): a duration is typed in digits,
   its colons placed from the right as a timer's are (2530 is 25:30, 10530 is 1:05:30), and
   written as the clock writes it once left (0:75 is 1:15); a distance is two figures, the whole
@@ -905,8 +942,8 @@ and every control answers a press.
 
 - **The pill:** surface, 36 pt in a 44-pt target, a dial that empties clockwise from twelve and
   the time. One tap
-  opens +30 s and Stop. At zero it reads Go for 60 s. It lives in the session's header. When a
-  set is saved it starts again, its dial full.
+  opens +30 s and Stop. At zero it reads Go for 60 s, and a screen reader hears "Rest over" once,
+  politely. It lives in the session's header. When a set is saved it starts again, its dial full.
 - **The session strip:** ink, 52 pt, `card` corners: the session's mark and name, the dial and
   the time, Resume on on-ink. The system's one shadow.
 - **The strip, folded** (large text, on a screen with pinned actions): a key on the control
@@ -935,7 +972,9 @@ and every control answers a press.
   warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
   opens the drills in a sheet.
 - A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
-  words do not name it (History, a day, Friends). A setting or a menu option is led by its glyph.
+  words do not name it (History, a day, Friends). A chooser of sports (Log, New programme, setup)
+  leads each row with its sport's mark drawn as a session still to do: full and dashed are for
+  sessions done and skipped. A setting or a menu option is led by its glyph.
 - A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
 - A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 RIR · [dial] 3–4 min"; a run's
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
@@ -950,15 +989,16 @@ and every control answers a press.
   in `control`, its name in `ink-2`. The tile is drawn first and read after the name. The name
   keeps one line and what is under it (a meal's foods, a food's portion, the meals a
   macronutrient's food was eaten at) one more, each ending in an ellipsis, so every row is 58 pt
-  at 100% text; a name with nothing under it is centred on its tile, and Quick add's line alone
-  wraps at large text, since it says what the row does. What the row comes to trails as a whole
+  at 100% text; a name with nothing under it is centred on its tile, and Quick add's line, "Just
+  this once", alone wraps at large text. What the row comes to trails as a whole
   figure in Jost over its unit, both centred in a column four tabular digits wide (4 × 0.614 em),
   so every row's words end at one edge: kcal (1,000.8 is 1001, written without a comma), or a
   macronutrient's grams ("<1" under one; a dash for a food logged without it). A five-digit figure
-  widens its own row's column rather than being cut. Totals (a day's, a meal's, a saved meal's)
-  keep their tenth. Saved meals stand under Meals and foods under Foods, each the most eaten
-  first, five meals or ten foods a page with History's page tabs under them (ADR 0044), so Foods
-  starts where it did however many meals there are; a new search starts each at its first page.
+  widens its own row's column rather than being cut. Energy is whole kcal everywhere, totals as
+  rows are (owner, 20 October 2026). Saved meals stand under Meals and foods under Foods, each the
+  most eaten first, five meals or ten foods a page with History's page tabs under them (ADR 0044),
+  so Foods starts where it did however many meals there are; a new search starts each at its first
+  page.
   A section's last row is unruled. Nothing trails a row to say it can be added or opened: the row
   is the control.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
@@ -969,7 +1009,8 @@ and every control answers a press.
 One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section, an
 exercise's page and a friend's compare page. Top to bottom:
 
-- **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end, the figure (Figure
+- **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end (beside the live
+  readout, never inside it, so reading a mark never announces the ⓘ), the figure (Figure
   L, its unit in Caption, ink 2) and one line of context (Meta small, ink 2). It holds the graph's
   one summary (the total, the average a day, the latest, the best in the span), and swaps in place
   to the mark being read: its day, week or month, its figure and what made it, with the way into
@@ -1029,7 +1070,31 @@ good is the target or the goal, which a rule or the readout says, not a directio
   app's own advice under its name, such as Recovery check), an optional heading, then body text.
   Two lines at most, More opens the rest in place, and Less folds it again; More shows only when
   the words are really cut. At most one per screen, or per card on Today; never on a print, never
-  in colour. The coach planning is the same block, its glyph a dial that waits.
+  in colour. The coach preparing, waiting or failing is the same block, its glyph a dial that
+  waits, holding one line of state ("Preparing for Anytime Fitness · since 04:00", "Not prepared
+  yet: programme targets apply") and at most one action (Prepare now). It never says how or when
+  the coach runs, or that the screen updates itself.
+- The coach's reasoning on a draft is its note, two lines then More; what the coach is unsure
+  about is a fold under it with its count at the end of the row, and a change's reasoning is
+  folded under Why, closed.
+
+### Folds
+
+- One fold, `Disclosure`: a summary at the row's edge that names what is inside ("Programme
+  details", "What the coach is unsure about"), then what a reader needs without opening it ("6",
+  "3 runs · 11.5 km · 26 Oct"), and its chevron at the end, as an activity card's. `box` stands on
+  the page, `inline` is a ruled row inside a box, `footer` is a box's last row. Never the
+  browser's own triangle.
+- Closed, unless it holds an error to fix, the week under way or the day in progress.
+- A list of folds (weeks, days gone by, steps) is ruled `inline` rows inside one section, never a
+  stack of boxes; `box` is for a fold standing alone on a page.
+- The summary is the fold's name and holds words only (no heading, link or control); it says what
+  is inside, never only a value, and what stands at its end is read with it. A fold that is a
+  section of the page is a heading with a button, as Today's cards are.
+- A fold that holds a field opens itself when the field is refused, by the server or by the
+  browser's own check, and the field takes the focus.
+- A fold holds more than one thing: a single action stands as itself ("Duplicate programme"),
+  never alone behind More options.
 - Inside a card the note is a passage of the card, not a box: no surface, the caption and the
   words under a `hair` rule, whole. A card in a card is never drawn.
 
@@ -1041,10 +1106,12 @@ good is the target or the goal, which a rule or the readout says, not a directio
   dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 700, 24), a run's
   figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
 - Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
-  choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's pace
-  note and its time of day); then what is happening now, in ink 2 (In progress · Started 17:23 ·
-  0 sets, the coach preparing it, "Finish or discard your open session to start this one."). A
-  session done or skipped today is not a card but a row under Done (ADR 0058).
+  choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's time
+  of day, which takes no glyph: the dial is a duration's, the calendar a date's); then, only when it is news, one line of state in ink 2 (In progress · Started 17:23 ·
+  0 sets; Preparing for Anytime Fitness · since 04:00; "Finish or discard your open workout
+  first."). A card never says how or when the coach works, or where a control is; a run's pace
+  note and how to do it are the fold's, said once. A session done or skipped today is not a card
+  but a row under Done (ADR 0058).
 - The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
   folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
   with its prescription); a run, ride or swim
@@ -1066,7 +1133,15 @@ good is the target or the goal, which a rule or the readout says, not a directio
 ### Inputs and choices
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
-  (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
+  (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
+  value comes to, in caption. A placeholder is an example that could not be taken for an answer
+  ("For example, a sore left knee");
+  a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
+  the label's aside on every optional field, inside a fold of optional fields too, read with the
+  field and never the line under it. Effort names its ends on its
+  label's line ("1 very easy to 5 maximal"), with no sentence under the tray, save on a correction
+  that offers As recorded: the line under the tray says what that pre-chosen answer keeps. A search field leads
+  with the glyph.
 - **Segmented:** surface tray (surface 2 on a card), 3-px inset; the chosen segment ink; a segment
   is never narrower than its label on one line ("30 days", "Free weight"), and the tray folds
   before a label would wrap, onto rows as even as fit: four as two and two, never three and one
@@ -1080,8 +1155,10 @@ good is the target or the goal, which a rule or the readout says, not a directio
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
   Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its
-  drawing, its box and name, and its purpose, with ⓘ in its corner beside the label, two to a row
-  down to 320 pt and one at 200% text. **A set taken as given** (the gym basics): one ruled row
+  drawing, its box and its name, with ⓘ in its corner beside the label, two to a row down to
+  320 pt and one at 200% text. What a thing is for and how to recognise it are in that ⓘ, unless
+  two meanings share a name and the purpose is what tells them apart; rows to choose equipment
+  from are the same, name and box, ⓘ at the end. **A set taken as given** (the gym basics): one ruled row
   that counts it and names a few, with Review opening it as tiles to untick. **Several from a
   list** (Add exercise, the full equipment list): rows whose box is a ring at the end, filled ink
   when chosen, holding the choice's place where order matters (Add exercise); what is chosen adds
@@ -1101,13 +1178,12 @@ good is the target or the goal, which a rule or the readout says, not a directio
   of them), and at most one action at the end of its bar, a word (Edit, Done) or a glyph (Filters,
   More) on the content's edge, never a filled button, which would fill the bar from the screen's
   top edge; a session screen has its back or minimise, the rest pill, and at most Finish and More.
-  Today's head is the date and the cycle as seven squares, wordless while the programme is on
-  track; behind is news, so "1 session behind" stands beside the squares. From two behind, with
-  no workout open, the count stands under the date with its way out, Pick up from today (ADR
-  0051): beside the count while the count fits whole, else under it at the end, and at large text
-  under it at the row's width. The squares are 9 pt and grow with the reader's text by half, as
-  glyphs do (13.5 at 200%): days done in ink, today ringed, a skipped day dashed, the rest a
-  hairline.
+  Nothing on the screen repeats the back link as a button ("Back to Plan").
+  Today's head is the date, with Log at its end. Where the programme has got to is Plan's (ADR
+  0058), so Today shows no cycle and no count while it is on track. From two missed training
+  days, with no workout open, the count stands under the date as "36 missed" (ADR 0058, Words)
+  with its way out, Pick up from today (ADR 0051): beside the count while the count fits whole,
+  else under it at the end, and at large text under it at the row's width.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Page tabs:** a long list's pages (History, ten entries a page; food's Meals and Foods, five
@@ -1160,6 +1236,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   notes". The library says it only where drafts are reviewed: elsewhere a guide awaiting review
   would be announced on nearly every exercise, so How to do it says only what there is, and is
   left out when there is nothing. The Technique tab always says it, rather than stand blank.
+- On the exercise's library page the guide is folded under How to do it, closed: the page leads
+  with the athlete's own record. The workout's Technique tab shows it open, since there the guide
+  is the tab.
 - A demonstration is a row that opens YouTube: "Watch demonstration", the channel under it. No
   thumbnail, no embedded player: a video's colour would be the only colour on the screen. An
   in-app player waits for testing on real phones and the owner's approval, and would mount only
@@ -1199,7 +1278,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
   paper, the day's one figure (the kcal eaten, written against its target as the macronutrients
-  are: "1,152.5 / 2,300 kcal") on the ground above it; the paper keeps air above
+  are: "1,153 / 2,300 kcal") on the ground above it; the paper keeps air above
   the rim, or the heap's height when that is more. A portion being added shows as a thinned layer
   before it is logged.
 
@@ -1214,6 +1293,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   a list that mixes them, or with its tile where it is a food row (Rows and marks).
 - **Do** let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink
   cannot say.
+- **Do** let a label, a glyph or a state replace a sentence: the question as a field's label, the
+  edit glyph on a line that opens, a held control's reason in a few words beside it ("Needs Share
+  training").
 - **Do** give a new sport its family's form with one cut, and check it reads at 12 px.
 - **Do** lay a new screen out at 320, 375, 402 and 440 pt and Android's 360 dp, in light and
   dark, and at 200% text, before calling it done.
@@ -1225,6 +1307,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   emphasis, selection or Progress charts.
 - **Don't** say the same thing twice on a screen, or put words on a print; don't draw a box or a
   mark beside a name to say what its words already say.
+- **Don't** explain on a screen how the app, the coach or a plan works, or narrate what a control
+  will do: show the figure, state or choice, and put anything more behind an ⓘ or a fold.
 - **Don't** draw a line under a print, or set its composition against one edge of the paper.
 - **Don't** draw a dashed edge for anything but skipped.
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested

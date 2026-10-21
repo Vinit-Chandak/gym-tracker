@@ -160,18 +160,16 @@ async function runDevice(device) {
       await field(page, "Form notes").fill(
         "Use a controlled lowering phase and keep both shoulders comfortable.",
       );
-      await button(page, "Save to my exercise library").click();
+      await button(page, "Save exercise").click();
       await expect(
         page.getByRole("alert").filter({ hasText: "Choose the registered equipment" }),
       ).toBeVisible();
       const [machine] =
         await sql`select id from equipment_instances where user_id=${userId} and is_active limit 1`;
-      await field(page, "Registered machine (required for machine exercises)").selectOption(
-        machine.id,
-      );
+      await field(page, "Machine").selectOption(machine.id);
       await clickWithSlowNavigation(
         page,
-        button(page, "Save to my exercise library"),
+        button(page, "Save exercise"),
         /\/exercises\/[0-9a-f-]{36}(?:\?|$)/,
       );
       await page.waitForURL(/\/exercises\/[0-9a-f-]{36}$/);
@@ -183,7 +181,7 @@ async function runDevice(device) {
       assert.equal(custom.default_prescription_type, "reps");
     });
     await step("coach-intake-autosave-reload-and-reports", async () => {
-      await go("/profile/programme/create");
+      await go("/plan/new?sport=strength&method=coach");
       if (await button(page, "Set it up in detail").count())
         await button(page, "Set it up in detail").click();
       await field(page, "What are you training for?").selectOption("other");
@@ -200,15 +198,10 @@ async function runDevice(device) {
       await button(page, "Continue").click();
       for (const day of ["Monday", "Wednesday", "Friday"])
         await page
-          .getByRole("group", { name: /^Training days/ })
+          .getByRole("group", { name: /^Days you can train/ })
           .getByRole("button", { name: day, exact: true })
           .click();
       await field(page, "Usual session length (minutes)").fill("50");
-      await expect(
-        page.getByText("Running, cycling and swimming have their own programmes in Training.", {
-          exact: false,
-        }),
-      ).toBeVisible();
       await expect(field(page, "Runs a week")).toHaveCount(0);
       await button(page, "Continue").click();
       await field(page, "How long have you been training?").selectOption("intermediate");
@@ -220,7 +213,7 @@ async function runDevice(device) {
       );
       await field(page, "Leave these out entirely").selectOption("barbell-bench-press");
       await button(page, "Continue").click();
-      await field(page, "If you already lift, what are you lifting?").fill(
+      await field(page, "What you lift now").fill(
         "Squat 65 kg for 8, row 40 kg for 10, RIR 3. Restart after a week away.",
       );
       const contents = Buffer.from(
@@ -277,10 +270,10 @@ async function runDevice(device) {
       await clickWithSlowNavigation(
         page,
         button(page, "Save and exit"),
-        /\/profile\/programme(?:\?|$)/,
+        /\/plan\/strength(?:\?|$)/,
       );
-      await page.waitForURL(/\/profile\/programme$/);
-      await go("/profile/programme/create");
+      await page.waitForURL(/\/plan\/strength$/);
+      await go("/plan/new?sport=strength&method=coach");
       await expect(field(page, "Weight (lb)")).toHaveValue("180");
       const [intake] =
         await sql`select answers from coach_intakes where user_id=${userId} order by revision desc limit 1`;
@@ -329,7 +322,7 @@ async function runDevice(device) {
         );
       }
       for (const target of await page
-        .getByRole("group", { name: /^Training days/ })
+        .getByRole("group", { name: /^Days you can train/ })
         .getByRole("button")
         .all()) {
         const box = await target.boundingBox();
@@ -352,8 +345,8 @@ async function runDevice(device) {
         )
         .toBe(false);
       await enabled.click();
-      await page.waitForURL(/\/training\/programmes\/new$/);
-      await expect(page.getByRole("heading", { name: "Add programme", exact: true })).toBeVisible();
+      await page.waitForURL(/\/plan\/new$/);
+      await expect(page.getByRole("heading", { name: "New programme", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Strength", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Running", exact: true })).toBeVisible();
       assert.equal(
@@ -409,7 +402,7 @@ async function runDevice(device) {
           ),
         ]);
         await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeDisabled();
-        await field(page, "Notes for the coach").fill(note);
+        await field(page, "Notes for every programme").fill(note);
       } finally {
         releaseSwitch();
         // The held answer is given before the route goes: stopping interception first would let
@@ -426,15 +419,15 @@ async function runDevice(device) {
         .toBe(true);
       await expect(page.getByRole("switch", { name: "AI coach", exact: true })).toBeEnabled();
       await settle();
-      await expect(field(page, "Notes for the coach")).toHaveValue(note);
-      await button(page, "Send note").click();
+      await expect(field(page, "Notes for every programme")).toHaveValue(note);
+      await button(page, "Send").click();
       await expect
         .poll(async () =>
           (await sql`select text from coach_notes where user_id=${userId}`).map((row) => row.text),
         )
         .toContain(note);
       await go("/profile/ai-coach");
-      await page.getByRole("tab", { name: "Notes & memory", exact: true }).click();
+      await page.locator("summary").filter({ hasText: "Your notes" }).click();
       await expect(page.getByText(note, { exact: true })).toBeVisible();
       await go("/profile/coach");
       await field(page, "Name").fill("Local audit read access");
@@ -460,10 +453,10 @@ async function runDevice(device) {
     await step("running-intake-saves-separately-and-reloads", async () => {
       const [strengthBefore] =
         await sql`select id,revision,answers from coach_intakes where user_id=${userId} and sport='strength' order by revision desc limit 1`;
-      await go("/training/programmes/new");
+      await go("/plan/new");
       await page.getByRole("link", { name: "Running", exact: true }).click();
-      await page.waitForURL(/\/training\/programmes\/new\?sport=running&scope=programme$/);
-      await page.getByRole("link", { name: "Create with the coach", exact: true }).click();
+      await page.waitForURL(/\/plan\/new\?sport=running$/);
+      await page.getByRole("link", { name: /^With the coach/ }).click();
       await page.waitForURL(/method=coach$/);
       const goal = "Build one steady easy run a week alongside my lifting programme.";
       await field(page, "What are you training for?").fill(goal);
@@ -500,7 +493,7 @@ async function runDevice(device) {
         strengthBefore,
         "Running setup must not replace lifting answers",
       );
-      await go("/training/programmes/new?sport=running&scope=programme&method=coach");
+      await go("/plan/new?sport=running&method=coach");
       await expect(field(page, "What are you training for?")).toHaveValue(goal);
       await expect(field(page, "Sessions a week")).toHaveValue("1");
       await expect(field(page, "Minutes per session")).toHaveValue("30");
@@ -512,7 +505,7 @@ async function runDevice(device) {
       );
     });
     await step("manual-draft-routine-save-and-reload", async () => {
-      await go("/profile/programme/manual");
+      await go("/plan/strength/edit");
       await field(page, "Programme name").fill(programmeName);
       await field(page, "Number of weeks").fill("4");
       await field(page, "Programme notes").fill(
@@ -522,21 +515,21 @@ async function runDevice(device) {
       await button(page, "Add a day").click();
       await field(page, "Day name").fill(routineName);
       await field(page, "Usual weekday").selectOption("1");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await field(page, "Focus").fill("Controlled upper-body strength");
-      await field(page, "Time available / notes").fill("45 minutes including a gradual warm-up");
+      await field(page, "Time").fill("45 minutes including a gradual warm-up");
       await field(page, "Find an exercise").fill(customName);
       await field(page, "Exercise to add").selectOption(custom.slug);
       await button(page, "Add exercise").click();
       const press = page.getByRole("group", { name: customName, exact: true });
       await field(press, "Sets").fill("3");
-      await field(press, "Reps minimum").fill("8");
-      await field(press, "Reps maximum").fill("12");
+      await field(press, "Reps from").fill("8");
+      await field(press, "Reps to").fill("12");
       await openDisclosure(press, "Rest, effort and progression");
-      await field(press, "Rest seconds minimum").fill("60");
-      await field(press, "Rest seconds maximum").fill("90");
-      await field(press, "Superset group (optional)").fill("Controlled work and core");
-      await field(press, "Load / calibration guidance").fill(
+      await field(press, "Rest seconds from").fill("60");
+      await field(press, "Rest seconds to").fill("90");
+      await field(press, "Superset").fill("Controlled work and core");
+      await field(press, "Load note").fill(
         "Start with a comfortable machine load, then increase gradually.",
       );
       await field(page, "Find an exercise").fill("Plank");
@@ -544,22 +537,20 @@ async function runDevice(device) {
       await button(page, "Add exercise").click();
       const plank = page.getByRole("group", { name: "Plank", exact: true });
       await field(plank, "Sets").fill("2");
-      await field(plank, "Seconds minimum").fill("30");
-      await field(plank, "Seconds maximum").fill("45");
+      await field(plank, "Seconds from").fill("30");
+      await field(plank, "Seconds to").fill("45");
       await openDisclosure(plank, "Rest, effort and progression");
-      await field(plank, "Rest seconds minimum").fill("45");
-      await field(plank, "Rest seconds maximum").fill("60");
-      await field(plank, "Superset group (optional)").fill("Controlled work and core");
-      await button(page, "Save this day as a routine").click();
-      await expect(page.getByRole("status").filter({ hasText: "to your routines" })).toBeVisible();
+      await field(plank, "Rest seconds from").fill("45");
+      await field(plank, "Rest seconds to").fill("60");
+      await field(plank, "Superset").fill("Controlled work and core");
       await button(page, "Add a day").click();
       await field(page, "Day name").fill("Recovery and mobility");
       await field(page, "Usual weekday").selectOption("3");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await button(page, "Move day earlier").click();
       await expect(field(page, "Day to edit")).toHaveValue("0");
       await expect(field(page, "Day name")).toHaveValue("Recovery and mobility");
-      await openDisclosure(page, "Day details and options");
+      await openDisclosure(page, "Day details");
       await button(page, "Move day later").click();
       await expect(field(page, "Day to edit")).toHaveValue("1");
       await button(page, "Save draft").click();
@@ -577,15 +568,12 @@ async function runDevice(device) {
           ["Recovery and mobility", 3],
         ],
       );
-      const [routines] =
-        await sql`select count(*)::int as count from saved_routines where user_id=${userId}`;
-      assert.equal(routines.count, 1);
-      await go(`/profile/programme/manual?draft=${draftId}`);
+      await go(`/plan/strength/edit?draft=${draftId}`);
       await openDisclosure(page, "Programme settings");
       await expect(field(page, "Programme name")).toHaveValue(programmeName);
       await expect(field(page, "Number of weeks")).toHaveValue("4");
       await expect(
-        field(page.getByRole("group", { name: customName, exact: true }), "Reps maximum"),
+        field(page.getByRole("group", { name: customName, exact: true }), "Reps to"),
       ).toHaveValue("12");
       await field(page, "Programme notes").fill(
         "Edited after reloading; retain the saved prescriptions and day order.",
@@ -601,13 +589,13 @@ async function runDevice(device) {
       await clickWithSlowNavigation(
         page,
         button(page, "Review programme"),
-        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+        /\/plan\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
       );
-      await page.waitForURL(`/profile/programme/drafts/${draftId}`);
+      await page.waitForURL(`/plan/drafts/${draftId}`);
       await expect(page.getByRole("heading", { name: programmeName, exact: true })).toBeVisible();
-      await expect(button(page, "Start my programme")).toBeEnabled();
-      await button(page, "Start my programme").click();
-      await page.waitForURL(/\/training$/);
+      await expect(button(page, "Start programme")).toBeEnabled();
+      await button(page, "Start programme").click();
+      await page.waitForURL(/\/plan$/);
       [activeProgram] =
         await sql`select id,family_id,version from programs where user_id=${userId} and status='active'`;
       assert.equal(activeProgram.version, 1);
@@ -615,18 +603,18 @@ async function runDevice(device) {
         await sql`select status,activated_program_id from program_drafts where id=${draftId}`;
       assert.equal(draft.status, "activated");
       assert.equal(draft.activated_program_id, activeProgram.id);
-      await go("/profile/programme?view=cycle");
+      await go("/plan/strength?view=cycle");
       await expect(page.getByText(programmeName, { exact: true })).toBeVisible();
     });
     await step("cloned-coach-proposal-request-revisions", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Ask for changes").click();
       await field(page, "what you would like changed").fill(
         "Keep three sets for now and review again after a comfortable week.",
       );
       await button(page, "Send").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,closed_as,revision_note_id from program_drafts where id=${proposal.id}`;
       assert.equal(draft.status, "rejected");
@@ -640,29 +628,29 @@ async function runDevice(device) {
     });
     await step("cloned-coach-proposal-decline", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Decline").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,closed_as from program_drafts where id=${proposal.id}`;
       assert.equal(draft.status, "rejected");
       assert.equal(draft.closed_as, "declined");
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await expect(page.getByText(/You declined this on/)).toBeVisible();
       await expect(button(page, "Approve")).toHaveCount(0);
     });
     await step("cloned-coach-proposal-approve-keeps-lineage", async () => {
       const proposal = await cloneProposal();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await page
-        .getByRole("link", { name: "See the full programme with these changes", exact: true })
+        .getByRole("link", { name: "Full programme with these changes", exact: true })
         .click();
-      await page.waitForURL(`/profile/programme/drafts/${proposal.id}/programme`);
+      await page.waitForURL(`/plan/drafts/${proposal.id}/programme`);
       await page.locator("summary").filter({ hasText: routineName }).click();
       await expect(page.getByText(customName, { exact: true }).first()).toBeVisible();
-      await go(`/profile/programme/drafts/${proposal.id}`);
+      await go(`/plan/drafts/${proposal.id}`);
       await button(page, "Approve").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [draft] =
         await sql`select status,activated_program_id from program_drafts where id=${proposal.id}`;
       const [active] =
@@ -714,7 +702,7 @@ async function runDevice(device) {
     });
     await step("reuse-and-edit-routine-without-changing-original", async () => {
       const [routine] = await sql`select id,day from saved_routines where user_id=${userId}`;
-      await go("/profile/programme/manual");
+      await go("/plan/strength/edit");
       await field(page, "Programme name").fill(
         "Audit reusable routine — a separate edited programme",
       );
@@ -732,30 +720,30 @@ async function runDevice(device) {
       assert.equal(draft.blueprint.days[0].exercises[0].sets, 5);
       const [unchanged] = await sql`select day from saved_routines where id=${routine.id}`;
       assert.deepEqual(unchanged.day, routine.day);
-      await go(`/profile/programme/manual?draft=${draft.id}`);
+      await go(`/plan/strength/edit?draft=${draft.id}`);
       await expect(
         field(page.getByRole("group", { name: customName, exact: true }), "Sets"),
       ).toHaveValue("5");
       await clickWithSlowNavigation(
         page,
         button(page, "Review programme"),
-        /\/profile\/programme\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
+        /\/plan\/drafts\/[0-9a-f-]{36}(?:\?|$)/,
       );
-      await page.waitForURL(`/profile/programme/drafts/${draft.id}`);
+      await page.waitForURL(`/plan/drafts/${draft.id}`);
       await button(page, "Discard").click();
-      await page.waitForURL(/\/training$/);
+      await page.waitForURL(/\/plan$/);
       const [discarded] = await sql`select status from program_drafts where id=${draft.id}`;
       assert.equal(discarded.status, "rejected");
     });
     await step("duplicate-programme-waits-for-slow-navigation", async () => {
-      await go("/profile/programme");
+      await go("/plan/strength");
       await openDisclosure(page.locator(".programme-management").first(), "More options");
       await clickWithSlowNavigation(
         page,
         button(page, "Duplicate programme").first(),
-        "**/profile/programme/manual?draft=*",
+        "**/plan/strength/edit?draft=*",
       );
-      await page.waitForURL(/\/profile\/programme\/manual\?draft=/);
+      await page.waitForURL(/\/plan\/strength\/edit\?draft=/);
       await openDisclosure(page, "Programme settings");
       await expect(field(page, "Programme name")).toBeVisible();
     });

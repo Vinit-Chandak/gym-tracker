@@ -66,15 +66,22 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         series={series}
         outer={outer}
       />
-      <details className="group text-xs text-ink-muted">
+      {/* The graph's View values row: its name, how many values, the chevron at the end. */}
+      <details className="text-xs text-ink-muted">
         <summary className="flex min-h-[var(--ov-target)] cursor-pointer list-none items-center gap-1.5 font-medium select-none">
+          <span className="min-w-0 flex-1">
+            View values
+            {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
+            <span className="sr-only"> for {title}</span>
+          </span>
+          <span className="tabular-nums">
+            <span className="sr-only">, </span>
+            {axes.length}
+          </span>
           <ChevronDown
-            className="shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+            className="shrink-0 transition-[rotate] duration-[var(--ov-duration-feedback)] [details[open]>summary>&]:rotate-180"
             aria-hidden
           />
-          View values
-          {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
-          <span className="sr-only"> for {title}</span>
         </summary>
         <table className="w-full table-fixed text-left [overflow-wrap:break-word] tabular-nums">
           <caption className="sr-only">{title} by axis</caption>

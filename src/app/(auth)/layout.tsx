@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 
 import { AppMark } from "@/components/shell/app-mark";
-import { APP_NAME, APP_TAGLINE } from "@/lib/app";
+import { APP_NAME } from "@/lib/app";
+
+import { AuthTagline } from "./auth-tagline";
 
 /**
  * Signing in, signing up and resetting a password (DESIGN.md, Shapes): the name as the system
- * draws it, its mark beside it in Jost, and the tagline under it in ink 2. Then the page, on the
- * ground at the gutter, like every other screen of the app.
+ * draws it, its mark beside it in Jost, and on Sign in and Create account the tagline under it
+ * in ink 2. Then the page, on the ground at the gutter, like every other screen of the app.
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -24,7 +26,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <AppMark size={46} />
             {APP_NAME}
           </h1>
-          <p className="mt-2 type-meta text-balance text-ink-2">{APP_TAGLINE}</p>
+          <AuthTagline />
         </header>
         <div className="mt-8 space-y-6 [@media(height<700px)]:mt-5">{children}</div>
       </div>

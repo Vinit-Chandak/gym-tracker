@@ -25,7 +25,6 @@ const draft = own(fixtures.drafts).id;
 const exercise = fixtures.exercises.find((e) => e.slug === "barbell-bench-press").id;
 const activities = fixtures.activities.filter((a) => a.userId === vinit && a.sport !== "strength");
 const occurrences = fixtures.occurrences.filter((a) => a.userId === vinit);
-const templates = fixtures.templates.filter((a) => a.userId === vinit);
 // The app deliberately accepts at most one year per query. Walk the full seeded
 // history in supported windows, instead of accidentally auditing its fallback range.
 const historyWindows = [];
@@ -42,11 +41,11 @@ if (fixtures.history) {
 const routes = [
   "/",
   "/today",
-  "/today/choose",
-  "/runs",
-  "/runs/new",
-  `/runs/${run}`,
-  `/runs/${run}/edit`,
+  "/today/log",
+  "/today/log?sport=strength",
+  "/today/log/body-weight",
+  `/progress/activities/${run}`,
+  `/progress/activities/${run}/edit`,
   "/food",
   // Keep populated food states in the sweep even when the saved seed anchor is yesterday.
   ...(fixtures.history
@@ -90,22 +89,21 @@ const routes = [
     ? ["/oauth/consent?authorization_id=local-screen-audit"]
     : []),
   "/profile/edit",
+  "/profile/units",
   "/profile/privacy",
   "/profile/password",
   "/profile/delete-account",
   "/profile/coach",
   "/profile/ai-coach",
-  "/profile/programme",
-  "/profile/programme?view=changes",
-  "/profile/programme/create",
-  "/profile/programme/manual",
-  "/profile/programme/history",
-  "/profile/routines",
-  `/profile/programme/drafts/${draft}`,
-  `/profile/programme/drafts/${draft}/programme`,
+  "/profile/heart-rate",
+  "/plan/new?sport=strength&method=coach",
+  "/plan/strength/edit",
+  "/plan/history",
+  `/plan/drafts/${draft}`,
+  `/plan/drafts/${draft}/programme`,
   `/welcome/programme/drafts/${draft}`,
   ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/welcome/programme/jobs/${j.id}`),
-  ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/profile/programme/jobs/${j.id}`),
+  ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/plan/requests/${j.id}`),
   "/profile/friends",
   "/profile/friends/people",
   "/profile/friends/people?people=followers",
@@ -132,44 +130,34 @@ const routes = [
   "/exercises/new",
   `/exercises/${exercise}`,
   `/workouts/${workout}`,
-  "/training",
-  "/training/log",
-  "/training/programmes/new",
-  "/training/programmes/new?scope=session",
-  "/training/programmes/archived",
+  // Today and Plan (ADR 0058); the routes they replaced are audit-legacy-routes.mjs's.
+  "/plan",
+  "/plan/new",
+  "/plan/past",
   ...["strength", "running", "cycling", "swimming"].flatMap((sport) => [
-    `/training/log?sport=${sport}`,
-    `/training/log?sport=${sport}&date=${fixtures.history.to}`,
-    `/training/programmes/${sport}`,
-    ...(sport === "strength" ? [] : [`/training/programmes/${sport}/edit`]),
-    `/training/programmes/new?sport=${sport}`,
-    `/training/programmes/new?sport=${sport}&method=coach`,
-    `/training/programmes/new?sport=${sport}&scope=session&method=coach`,
+    `/today/log?sport=${sport}`,
+    `/today/log?sport=${sport}&date=${fixtures.history.to}`,
+    `/plan/${sport}`,
+    ...(sport === "strength" ? [] : [`/plan/${sport}/edit`]),
+    `/plan/new?sport=${sport}`,
+    `/plan/new?sport=${sport}&method=coach`,
   ]),
   ...(fixtures.programDays ?? [])
     .filter((day) => day.userId === vinit)
-    .map((day) => `/training/days/${day.id}`),
+    .map((day) => `/plan/strength/days/${day.id}`),
   `/workouts/start?gym=${gym}`,
-  "/training/scheduled",
-  "/training/programme",
   "/profile/sports",
-  "/training/templates",
-  "/training/templates/new",
   ...["running", "cycling", "swimming"].flatMap((sport) => {
     const activity = activities.find((a) => a.sport === sport);
     const occurrence = occurrences.find(
       (a) => a.sport === sport && !a.familyId && a.disposition === "pending",
     );
-    const template = templates.find((a) => a.sport === sport);
     return [
-      `/training/new?sport=${sport}`,
-      `/training/schedule?sport=${sport}`,
-      `/training/programme?sport=${sport}`,
-      `/training/activities/${activity.id}`,
-      `/training/activities/${activity.id}/edit`,
-      `/training/programme/occurrences/${occurrence.id}`,
-      `/training/new?occurrence=${occurrence.id}`,
-      `/training/templates/${template.id}/edit`,
+      `/today/log/new?sport=${sport}`,
+      `/progress/activities/${activity.id}`,
+      `/progress/activities/${activity.id}/edit`,
+      `/plan/sessions/${occurrence.id}`,
+      `/today/log/new?occurrence=${occurrence.id}`,
       `/u/shreyash?sport=${sport}`,
       `/profile/friends/leaderboard?sport=${sport}`,
       `/u/shreyash/compare?sport=${sport}`,
@@ -245,24 +233,27 @@ for (const config of configurations.filter((c) =>
       route === "/"
         ? "/today"
         : route === "/runs"
-          ? "/training"
+          ? "/plan"
           : route === "/runs/new"
-            ? "/training/new?sport=running"
+            ? "/today/log?sport=running"
             : route.startsWith("/runs/")
-              ? route.replace("/runs/", "/training/activities/")
+              ? route.replace("/runs/", "/progress/activities/")
               : beforeFirstStep
                 ? "/welcome"
                 : route;
     // Setup's draft page reads only a first programme: a revision of a running one, and the job
-    // that wrote it, open on Profile.
+    // that wrote it, open on Plan.
     const arrived = (url) =>
       url.href === new URL(expectedRoute, baseURL).href ||
       (/^\/welcome\/programme\/(?:drafts|jobs)\//.test(route) &&
-        /^\/profile\/programme\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
+        /^\/plan\/drafts\/[0-9a-f-]{36}$/.test(url.pathname));
     try {
       await freshPage();
       const started = performance.now();
-      const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
+      // A page whose row links prefetch (Log's planned workouts) can keep a request open in
+      // Chromium long after it is usable: wait for quiet, then settle for the loaded page.
+      const response = await page.goto(route, { waitUntil: "load", timeout: 30_000 });
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       // A streamed redirect can briefly reach network-idle while only its shell is visible.
       // Wait for the promised destination and real page content before judging that screen.
       await page.waitForURL(arrived, { timeout: 15_000 });
@@ -423,13 +414,13 @@ for (const config of configurations.filter((c) =>
         : persona === "sam"
           ? [
               "/today",
-              "/training",
+              "/plan",
               "/food",
               "/progress/history",
               "/progress",
               "/progress/calendar",
               `/progress/day/${fixtures.history?.to ?? "2026-10-07"}`,
-              "/profile/programme",
+              "/plan/strength",
               "/gyms",
               "/profile/friends",
             ]
@@ -442,7 +433,6 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme/create",
               "/welcome/programme/manual",
               "/welcome/programme/split",
-              "/welcome/programme/template",
             ];
     for (const [i, route] of extra.entries()) await visit(route, persona, i);
   }
@@ -477,7 +467,6 @@ for (const config of configurations.filter((c) =>
               "/welcome/programme",
               "/welcome/programme/create",
               "/welcome/programme/split",
-              "/welcome/programme/template",
               "/welcome/programme/manual",
             ]
           : ["/welcome/programme"];

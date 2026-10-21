@@ -82,9 +82,7 @@ try {
   await check(
     "Quick add validates calories, retains input and logs unnamed food on the selected day",
     async () => {
-      await foods()
-        .getByRole("button", { name: "Quick add Calories and macros, just this once" })
-        .click();
+      await foods().getByRole("button", { name: "Quick add Just this once" }).click();
       await expect(dialog().getByRole("heading", { name: "Quick add", exact: true })).toBeVisible();
       await expect(dialog().getByLabel("Nutrition per")).toHaveCount(0);
       await expect(dialog().getByLabel("Amount eaten")).toHaveCount(0);
@@ -123,7 +121,7 @@ try {
       await foods()
         .getByRole("button", { name: /^Quick add “Meal out”/ })
         .click();
-      await expect(dialog().getByLabel("Name (optional)", { exact: true })).toHaveValue("Meal out");
+      await expect(dialog().getByLabel("Name", { exact: true })).toHaveValue("Meal out");
       await dialog().getByLabel("kcal", { exact: true }).fill("640");
       await dialog().getByLabel("Carbs g", { exact: true }).fill("75");
       await page.waitForLoadState("networkidle");
@@ -180,9 +178,7 @@ try {
   await check(
     "Quick add dialog fits narrow phones and enlarged text in light and dark themes",
     async () => {
-      await foods()
-        .getByRole("button", { name: "Quick add Calories and macros, just this once" })
-        .click();
+      await foods().getByRole("button", { name: "Quick add Just this once" }).click();
       for (const theme of ["light", "dark"]) {
         for (const font of [16, 32]) {
           await page.setViewportSize({ width: 320, height: 568 });

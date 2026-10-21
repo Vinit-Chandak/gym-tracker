@@ -237,7 +237,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
             }}
             note={{
               label: "About pace",
-              content: `Each run's average pace, time over distance; faster is higher. The average is the runs' total time over their total distance, so a long run counts for every ${unit === "mi" ? "mile" : "kilometre"} of it.`,
+              content: `Each run's pace, time over distance; faster is higher. The average weighs every ${unit === "mi" ? "mile" : "kilometre"}, so long runs count for more.`,
             }}
             empty="No runs with a pace in this range."
           />

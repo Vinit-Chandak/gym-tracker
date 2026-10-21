@@ -41,6 +41,7 @@ import {
   backToSession,
   LOAD_UNIT_LABELS,
   measureUnitSuffix,
+  namingExercises,
   sessionChromeName,
   sessionName,
   SUGGESTION_KIND_LABELS,
@@ -121,9 +122,10 @@ const isEffortMessage = (message: string | null) =>
 
 const STORAGE_UNAVAILABLE =
   "Browser storage is unavailable. Keep this page open until your sets are saved.";
-const AUTO_WARMUP = "Saved as a warm-up: well under today’s working weight, with no RIR.";
-const DECLINE =
-  "Repeated comparable decline. Keep the baseline pending coach review and reassess current recovery.";
+const AUTO_WARMUP = "Saved as a warm-up: light, no RIR.";
+/** The app's warning after sessions in a row below the one before: what to do, in plain words. */
+const decline = (sessions: number) =>
+  `Down ${sessions} sessions in a row: keep the baseline and check your recovery.`;
 
 const rirName = (value: string) =>
   value === "1" ? "1 rep in reserve" : `${value} reps in reserve`;
@@ -589,7 +591,8 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const workoutName = sessionName(session.day?.name, session.title);
+  // Its name as the record's title says it once finished (`sessionName`), the way back to it.
+  const workoutName = sessionName(session.day?.name, session.title, namingExercises(session));
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
@@ -1305,7 +1308,7 @@ export function ExerciseLogger({
                         className="-ml-[10px]"
                         onClick={() => sets.restore(row)}
                       >
-                        Discard this local draft
+                        Discard draft
                       </Button>
                     </div>
                   ))}
@@ -1363,7 +1366,7 @@ export function ExerciseLogger({
               {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
                 <p className="mt-3 flex items-start gap-1.5 type-meta-small font-semibold">
                   <Glyph name="warn" className="mt-0.5 glyph-16" />
-                  <span>{DECLINE}</span>
+                  <span>{decline(exercise.regressionStreak)}</span>
                 </p>
               )}
               <ExerciseHistory
@@ -1476,12 +1479,9 @@ export function ExerciseLogger({
             </section>
           ) : editable ? (
             <section aria-label="Sets" className="entry">
-              {message
-                ? slotMessage("warn", message, "alert")
-                : // Amending, the sets above are what is changed: each line opens its own.
-                  amending &&
-                  sets.loggedSets.length > 0 &&
-                  slotMessage("info", "Tap a set to change or delete it.", "status")}
+              {/* Amending, the sets above are what is changed: each line opens its own, as it
+                  does while logging, and says so in its name ("… Edit"). */}
+              {message && slotMessage("warn", message, "alert")}
               <div className="entry-save">
                 <Button
                   variant="tonal"

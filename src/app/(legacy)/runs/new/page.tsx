@@ -10,7 +10,8 @@ import { occurrenceForLegacyPlannedRun } from "@/server/legacy-routes";
 export const metadata: Metadata = { title: "Log a run" };
 
 /**
- * The old run logger, now an alias onto the shared one (plan §3.2).
+ * The old run logger, now an alias onto the shared one (plan §3.2); without a plan it is Log's,
+ * which asks what the run counts as (ADR 0058).
  *
  * `?planned=` names one exact plan. It resolves through the durable identifier map or it does
  * not resolve at all: falling back to another plan would log the wrong session (AT-NAV-07).
@@ -27,7 +28,7 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
       { readOnly: true },
     );
     if (!occurrenceId) return <LegacyUnavailable />;
-    redirect(`/training/new?occurrence=${occurrenceId}`);
+    redirect(`/today/log/new?occurrence=${occurrenceId}`);
   }
-  redirect("/training/new?sport=running");
+  redirect("/today/log?sport=running");
 }

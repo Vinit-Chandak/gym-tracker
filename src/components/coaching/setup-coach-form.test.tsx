@@ -67,9 +67,9 @@ it("says what the coach still needs under each question, all at once", () => {
 it("asks someone who already trains how long a session runs, and folds the rest away", () => {
   show(true);
   fireEvent.click(screen.getByRole("button", { name: "Create my programme" }));
-  expect(screen.getByText("Choose how long a session.")).toBeTruthy();
+  expect(screen.getByText("Choose a session length.")).toBeTruthy();
   expect(screen.getByText("What you lift now")).toBeTruthy();
-  expect(screen.getByText("Anything to avoid?")).toBeTruthy();
+  expect(screen.getByText("Injuries or movements to avoid")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Just log workouts for now" })).toBeNull();
 });
 

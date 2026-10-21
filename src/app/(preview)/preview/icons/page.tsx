@@ -148,7 +148,7 @@ export default function PreviewIconsPage() {
         </List>
         <Section
           title="Selected icon family"
-          description="Phosphor Duotone · AI coach uses the brain symbol. Sample content above uses the real interface components."
+          info="Phosphor Duotone · AI coach uses the brain symbol. Sample content above uses the real interface components."
         >
           <ul className="grid grid-cols-3 gap-x-2 gap-y-6 py-4 sm:grid-cols-4">
             {SYMBOLS.map(([label, Icon]) => (

@@ -148,5 +148,12 @@ it("reads an exercise's sets from the server once one is chosen, and lets it go 
 it("says so when a group's sets carried no load, rather than drawing nothing", () => {
   route.search = "group=core";
   draw();
-  expect(screen.getByText(/bodyweight and timed sets add no volume/)).toBeTruthy();
+  expect(
+    screen.getByText("No loaded sets in this range. Choose an exercise to see its reps or time."),
+  ).toBeTruthy();
+  // Why they add nothing is a tap away, in the graph's ⓘ.
+  fireEvent.click(screen.getByRole("button", { name: "About volume" }));
+  expect(screen.getByRole("note").textContent).toContain(
+    "bodyweight, timed and stack sets add none",
+  );
 });

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { AmountSheet } from "@/components/food/amount-sheet";
 import { FoodRowText, RowGlyph, RowKcal } from "@/components/food/food-row";
 import { FOODS_PER_PAGE, FoodSection } from "@/components/food/food-section";
+import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
@@ -243,7 +244,12 @@ export function MealBuilder({
           />
         </div>
       ) : (
-        <p className="type-meta-small text-ink-2">No foods yet. Make one in My foods first.</p>
+        <p className="type-meta-small text-ink-2">
+          No foods yet.{" "}
+          <Link href={leaveTo} className="font-bold text-ink underline underline-offset-2">
+            Make one in My foods
+          </Link>
+        </p>
       )}
 
       {formError && (

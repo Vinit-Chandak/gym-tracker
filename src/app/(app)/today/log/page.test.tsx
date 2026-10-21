@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
-import LogPage from "./page";
+import LogPage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   sports: vi.fn(),
@@ -134,12 +135,26 @@ afterEach(() => {
 });
 
 describe("Log (ADR 0058)", () => {
-  it("asks what was done, from the sports the athlete trains", async () => {
+  it("asks what was done, from the sports the athlete trains, then body weight", async () => {
     const html = await render();
-    expect(hrefs(html)).toEqual(["/today/log?sport=strength", "/today/log?sport=running"]);
+    // Named for all it logs, a body weight reading among them (IA audit M8).
+    expect(html).toContain("<h1>Log</h1>");
+    expect(hrefs(html)).toEqual([
+      "/today/log?sport=strength",
+      "/today/log?sport=running",
+      "/today/log/body-weight",
+    ]);
     expect(html).toContain("Workout");
     expect(html).toContain("Run");
     expect(html).not.toContain("Ride");
+    expect(text(html)).toContain("Body weight");
+  });
+
+  it("names the document as its header: Log, then the sport chosen", async () => {
+    const title = async (search: Record<string, string>) =>
+      (await generateMetadata(props(search))).title;
+    expect(await title({})).toBe("Log");
+    expect(await title({ sport: "running" })).toBe("Log a run");
   });
 
   it("refuses a sport it does not know", async () => {
@@ -171,11 +186,49 @@ describe("Log (ADR 0058)", () => {
       expect(text(html)).toContain("Unplanned run");
     });
 
+    /**
+     * Impeccable review, 20 October 2026: Counts as listed nine rows all named "Run". Each is
+     * named as Today's card and the session's page name it (ADR 0059): its own name, else its
+     * kind, else its sport, with its figure on the line under it beside where it stands. A name
+     * that only repeats its figure gives way to its kind. Its mark is drawn still to do.
+     */
+    it("names each session as Today does, its figure on the line under it", async () => {
+      const planned = (extra: Record<string, unknown>) =>
+        endurancePrescriptionSchema.parse({
+          prescriptionVersion: PRESCRIPTION_VERSION,
+          sport: "running",
+          sessionTargets: { durationMs: [30 * 60_000, 30 * 60_000] },
+          ...extra,
+        });
+      mocks.between.mockResolvedValue([
+        occurrence(1, TODAY, { prescription: planned({ title: "Hill reps" }) }),
+        occurrence(2, "2026-10-17", {
+          prescription: planned({ running: { sessionType: "long" } }),
+        }),
+        occurrence(3, "2026-10-22", {
+          prescription: planned({ title: "30 min", running: { sessionType: "easy" } }),
+        }),
+        occurrence(4, "2026-10-23", { prescription: planned({}) }),
+      ]);
+      const html = await render({ sport: "running" });
+      const rows = [...html.matchAll(/<li class="nav-row-item">(.*?)<\/li>/g)].map(([, row]) =>
+        text(row!),
+      );
+      expect(rows).toEqual([
+        "Hill repsToday · 30 min",
+        "Long runSat 17 Oct · missed · 30 min",
+        "Easy runThu 22 Oct · early · 30 min",
+        "RunFri 23 Oct · early · 30 min",
+        "Unplanned run",
+      ]);
+      expect(html).toContain("var(--ov-print-run-todo)");
+    });
+
     it("is unplanned without asking when nothing is planned", async () => {
       const html = await render({ sport: "running" });
       expect(html).not.toContain("Counts as");
       expect(html).toContain('<p class="meta">Unplanned</p>');
-      expect(html).toContain('action="/training/new"');
+      expect(html).toContain('action="/today/log/new"');
       expect(html).not.toContain('name="occurrence"');
       expect(html).toContain('data-back="/today/log"');
     });
@@ -183,9 +236,10 @@ describe("Log (ADR 0058)", () => {
     it("counts as a missed session while logged on the day it was done", async () => {
       mocks.between.mockResolvedValue([todays, missed]);
       const html = await render({ sport: "running", counts: missed.id });
+      // The day it was planned for is said once, in the header; When is the day it was done.
       expect(text(html)).toContain("Counts as Run · Sat 17 Oct");
       expect(html).toContain(`name="occurrence" value="${missed.id}"`);
-      expect(text(html)).toContain("Planned for Sat 17 Oct.");
+      expect(text(html).match(/Sat 17 Oct/g)).toHaveLength(1);
       expect(html).toMatch(/type="date" max="2026-10-20"[^>]* name="date" value="2026-10-20"/);
       expect(html).toContain('data-back="/today/log?sport=running"');
     });
@@ -209,7 +263,7 @@ describe("Log (ADR 0058)", () => {
         "/today/log?sport=strength&amp;counts=unplanned",
       ]);
       expect(html).toContain("Next in your programme");
-      expect(html).toContain("Done this cycle; trains it again");
+      expect(html).toContain("Done this cycle");
       expect(html).toContain("This cycle");
       expect(html).not.toContain("Rest");
       expect(html).toContain("Unplanned workout");

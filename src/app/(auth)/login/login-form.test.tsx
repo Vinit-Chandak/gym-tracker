@@ -41,8 +41,12 @@ it("ties a sign-in that did not work to both fields", () => {
   const { container } = render(<LoginForm />);
   for (const input of container.querySelectorAll("input[name=email], input[name=password]")) {
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    const said = document.getElementById(input.getAttribute("aria-describedby")!);
-    expect(said?.textContent).toBe("That email and password combination did not work.");
+    // Among what describes it: the password's Show, its aside, is read with it too.
+    const said = input
+      .getAttribute("aria-describedby")!
+      .split(" ")
+      .map((id) => document.getElementById(id)?.textContent);
+    expect(said).toContain("That email and password combination did not work.");
   }
 });
 

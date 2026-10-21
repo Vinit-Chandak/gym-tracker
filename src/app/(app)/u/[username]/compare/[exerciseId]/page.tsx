@@ -50,6 +50,11 @@ import { socialWindow } from "@/server/validation/period";
 
 export const metadata: Metadata = { title: "Compare exercise" };
 
+/** A metric's name inside a sentence: "top weight", but "est. 1RM", its initialism kept. */
+function inSentence(label: string): string {
+  return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
 /** The metrics that gain "× body weight" when both people share theirs (decision 5). */
 const RATIO_METRICS: ReadonlySet<SharedMetric> = new Set(["e1rm", "top_weight"]);
 
@@ -161,6 +166,13 @@ export default async function CompareExercisePage(
   const theirs = bests.get(them.id);
   // Both readings are here only when both opted in: the policy on the table decides.
   const ratio = readings.has(me.id) && readings.has(them.id);
+  // A second sentence at most in the bests' ⓘ: what an empty est. 1RM, or a ratio, reads.
+  const bestNote = [
+    metric === "e1rm" ? "Est. 1RM needs a set of 1–10 reps" : null,
+    ratio ? "×\u00a0latest\u00a0BW is today's weight" : null,
+  ]
+    .filter(Boolean)
+    .join("; ");
   const stronger = strongerVerdict(
     mine?.find((b) => b.metric === metric)?.value ?? null,
     theirs?.find((b) => b.metric === metric)?.value ?? null,
@@ -205,7 +217,7 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set; under a top weight, how many working sets were at it and the most reps the best of them reached. Best set volume is the biggest single set, its load × reps. Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? ' An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads "—".' : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (×\u00a0latest\u00a0BW), since you both share it: today's weight, not the weight on the day of the lift." : ""}`}
+          info={`All-time bests; Stronger goes to whoever leads on ${inSentence(metricLabel(metric, exercise))}, and a tie shows nobody.${bestNote ? ` ${bestNote}.` : ""}`}
         >
           <Card>
             <CompareTable

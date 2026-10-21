@@ -16,9 +16,9 @@ afterEach(cleanup);
  * the last word, so the label ends "logged ›" wherever it wraps.
  */
 it("holds its chevron to the label's last word", () => {
-  render(<CardLink href="/training/activities/a1">See what you logged</CardLink>);
+  render(<CardLink href="/progress/activities/a1">See what you logged</CardLink>);
   const link = screen.getByRole("link", { name: "See what you logged" });
-  expect(link.getAttribute("href")).toBe("/training/activities/a1");
+  expect(link.getAttribute("href")).toBe("/progress/activities/a1");
   expect(link.className).toBe("activity-card-link");
   const end = link.querySelector(".activity-card-link-end")!;
   expect(link.firstChild?.textContent).toBe("See what you ");

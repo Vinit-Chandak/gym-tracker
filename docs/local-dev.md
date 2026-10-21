@@ -121,6 +121,13 @@ Alex and Sam accounts, creates and finishes workouts, and can create Sam's first
 Newly seeded training histories also include complete, fatigue-only and skipped check-ins;
 rerunning setup leaves existing accounts and their readings intact.
 
+`npm run audit:running` checks every running screen against the running fixtures that setup and
+seed write (`scripts/dev/seed-audit-running.ts`, ADR 0059): Priya's 5K block in kilometres and
+Alex's 10K block in miles, their logged runs with laps, and heart-rate zones by reserve and of
+Alex's own. It opens Plan, the programme, a session and its log form, a logged run's laps and
+zones, the heart-rate page and the programme editor in Chromium on a Pixel 7, and keeps a
+screenshot of each under `output/flow-audit/running/`. It takes `AUDIT_CHROMIUM_PATH`.
+
 ## Food audit
 
 The food runner uses a dedicated local database and resets Sam's food fixtures. It also changes

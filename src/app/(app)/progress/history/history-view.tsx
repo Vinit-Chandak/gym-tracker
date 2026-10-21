@@ -5,16 +5,15 @@ import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import { DateRangeFields } from "@/components/date-range-fields";
-import { dayLabel } from "@/components/graph/labels";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Figures } from "@/components/ui/figures";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
 import { PageTabs } from "@/components/ui/page-tabs";
 import { Select } from "@/components/ui/select";
-import { joinFacts } from "@/lib/facts";
 import { formatDateRange } from "@/lib/format";
 
 import { HistoryList, type HistoryItem } from "./history-list";
@@ -69,7 +68,7 @@ export function HistoryView({
   gyms: { id: string; name: string }[];
   /**
    * The oldest day listed, where the list stops short of the dates it covers (its readers send
-   * only the newest records); null when every entry is here.
+   * only the newest records); null when every entry is here. Its last page says so.
    */
   stopsAfter?: string | null;
 }) {
@@ -255,13 +254,10 @@ export function HistoryView({
             {error}
           </p>
         )}
+        {/* The count alone: the page being read is the page tabs' to say, under the list. */}
         <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
-          {/* Each fact held whole, so the line wraps at the dot before "page 1 of 18". */}
           <Figures>
-            {joinFacts([
-              `${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`,
-              pages > 1 && `page\u00a0${page}\u00a0of\u00a0${pages}`,
-            ])}
+            {`${shown.length.toLocaleString("en-GB")}\u00a0${shown.length === 1 ? "entry" : "entries"}`}
           </Figures>
         </p>
         {shown.length > 0 ? (
@@ -270,22 +266,29 @@ export function HistoryView({
         ) : (
           <div className="mt-6">
             <h2 className="type-heading">No matching activity</h2>
-            <p className="mt-1 type-body text-ink-2">
-              Try a wider date range or clear the filters.
-            </p>
-            {active > 0 && (
+            {/* The way on: the filters that hid it, else logging the first. */}
+            {active > 0 ? (
               <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
                 Clear filters
               </Button>
+            ) : (
+              <LinkButton href="/today/log" variant="tonal" className="mt-3">
+                Log a session
+              </LinkButton>
             )}
           </div>
         )}
-        {/* Said where it matters: at the end of the list, not over every page of it. */}
+        {/* Said where it matters: at the end of the list, not over every page of it. Where it
+            stops is the last day over it, and the way further back is the ⓘ's. */}
         {stopsAfter && page === pages && shown.length > 0 && (
-          <p role="note" className="mt-4 type-meta text-ink-2">
-            The list ends at {dayLabel(stopsAfter, today)}: earlier entries are behind the funnel,
-            under dates.
-          </p>
+          <div className="mt-4 flex items-center gap-1">
+            <p role="note" className="type-meta text-ink-2">
+              Older entries are not listed.
+            </p>
+            <InfoTip label="About older entries">
+              Choose earlier dates under Filters to list them.
+            </InfoTip>
+          </div>
         )}
         <PageTabs
           page={page}

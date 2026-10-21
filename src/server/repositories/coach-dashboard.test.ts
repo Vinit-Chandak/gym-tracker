@@ -144,7 +144,6 @@ it("includes every sport, creation drafts, reusable sessions and more than twent
   );
   expect(dashboard.proposals.some((item) => item.id === foreign.id)).toBe(false);
   expect(dashboard.programmes.map((item) => item.pending)).toEqual([2, 2, 2, 2]);
-  expect(dashboard.waiting).toBe(8);
   expect(JSON.parse(JSON.stringify(dashboard))).toEqual(dashboard);
 });
 
@@ -243,7 +242,6 @@ it("does not let another sport or session creation hide a failure and settles ex
     ]),
   );
   expect(dashboard.expiredJobs).toBe(true);
-  expect(dashboard.waiting).toBe(1);
   const [stored] = await t.db.select().from(coachJobs).where(eq(coachJobs.id, expired.id));
   expect(stored?.status).toBe("claimed");
   await job(userId, "running", { status: "succeeded", createdAt: now });
@@ -251,7 +249,7 @@ it("does not let another sport or session creation hide a failure and settles ex
   expect(recovered.jobs.some((item) => item.id === failed.id)).toBe(false);
 });
 
-it("keeps all-sport settled requests, new programmes, sessions and automatic changes in history", async () => {
+it("keeps all-sport settled requests, new programmes and sessions in history", async () => {
   const userId = await athlete();
   const programmeDraft = await draft(userId, "running", {
     status: "activated",
@@ -259,18 +257,6 @@ it("keeps all-sport settled requests, new programmes, sessions and automatic cha
   });
   const sessionDraft = await draft(userId, "swimming", { status: "activated", standalone: true });
   const revision = await draft(userId, "cycling", { status: "rejected", closedAs: "revised" });
-  const reviewJob = await job(userId, "running");
-  await t.db.insert(coachWeeklyReviews).values({
-    userId,
-    sport: "running",
-    jobId: reviewJob.id,
-    periodStart: new Date("2026-10-01T00:00:00Z"),
-    periodEnd: now,
-    outcome: "automatic",
-    rationale: "Adjusted easy running targets.",
-    draftId: programmeDraft.id,
-    completedAt: now,
-  });
   await t.db.insert(coachProgramRequests).values({
     id: crypto.randomUUID(),
     userId,
@@ -300,13 +286,6 @@ it("keeps all-sport settled requests, new programmes, sessions and automatic cha
       sport: "swimming",
       state: "not_recommended",
       detail: "Recover first.",
-    }),
-  ]);
-  expect(dashboard.recentChanges).toEqual([
-    expect.objectContaining({
-      id: programmeDraft.id,
-      sport: "running",
-      title: "First running block",
     }),
   ]);
 });

@@ -73,7 +73,7 @@ export function CheckInForm({
           Sleep
         </h2>
         <RowStepper
-          label={retrospective ? "Sleep the night before this workout" : "Hours last night"}
+          label={retrospective ? "Hours the night before" : "Hours last night"}
           hint={lastSleepHours !== null ? `Last time ${lastSleepHours} h` : undefined}
           name="sleepHours"
           defaultValue={value("sleepHours")}
@@ -98,7 +98,7 @@ export function CheckInForm({
 
       <section aria-labelledby="check-in-feel">
         <h2 id="check-in-feel" className="caption-head mt-3.5">
-          {retrospective ? "How you felt before this workout" : "How you feel"}
+          {retrospective ? "How you felt" : "How you feel"}
         </h2>
         <ScaleField
           label="General fatigue"

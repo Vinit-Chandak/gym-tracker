@@ -87,8 +87,10 @@ What a neighbouring tracker could not truthfully copy (checked against the code,
   This is an online PWA: private pages and submissions need a connection, while unsent drafts
   stay on the device for recovery. Private pages are not cached by the service worker.
 - The coach plans daily at 04:00 and on request (three requests a day), and writes summaries,
-  notes, warnings and questions that the app shows as text.
-- Each account sets its units (kilograms and centimetres, or pounds and feet) and its time zone.
+  notes, warnings and questions that the app shows in the coach's note: two lines, then More.
+  How the coach works is never said on a screen.
+- Each account sets its units (kilograms and centimetres, or pounds and feet) and its time zone,
+  in Profile › Units and time zone.
 
 ## Capabilities and Constraints
 
@@ -97,23 +99,40 @@ screen must keep is [the feature inventory](docs/ui-redesign/revamp/features.md)
 may move, regroup, rename or put behind a tap anything listed there, never drop it.
 
 Plan holds what comes next and how it is built. This week lists every sport's sessions by date,
-Monday to Sunday: today's point to Today, past ones read Done, Skipped or Missed, and a run, ride or
-swim opens its page to move or skip it. Each existing programme has a card (its sport, name, how it
-runs, where it has got to and any change waiting) and one page, `/plan/[sport]`, with its weeks or
-days, Edit programme, Request a change, coach review and changes to approve. Replace, Duplicate and
-End programme sit under the page's More options; an ended or replaced programme is under Past
-programmes. New programme asks for a sport, then Repeating, Progressive or With the coach; there are
-no templates. General AI coach settings, and notes for every programme at once, remain in Profile,
-which lists no programmes of its own. Each sport has its own intake, review cadence and programme
-requests; the account switch, request quota and evidence history remain shared. Existing drafts and
-history remain reachable ([Plan direction](docs/ui-redesign/training-programmes.md)).
+Monday to Sunday, each day gone by folded to what became of it: today's point to Today, past ones
+read Done, Skipped or Missed, a run, ride or swim opens its page to move or skip it, and a lifting
+day opens its day's page, drawn once, where it was done or skipped or where the sequence will reach
+it. Each existing programme has a card (its sport, name, how it runs, where it has got to and any
+change waiting) and one page, `/plan/[sport]`, with its weeks or days, Edit programme, what waits
+for you from the coach, what is with the coach and what it changed on its own, Request a change,
+coach review and that programme's past requests and changes (strength's under Changes). Replace,
+Duplicate and End programme sit under the page's More options; an ended or replaced programme is
+under Past programmes. New programme asks for a sport, then Repeating, Progressive or With the
+coach, which for strength is its whole intake, plans and reports to attach included; there are no
+templates. Profile › AI coach keeps the coach's switch, what it is working on, notes for every
+programme at once, what it remembers and the access tokens; it names a programme waiting for you
+only by its state and links to that programme's page. Each sport has its own intake, review cadence
+and programme requests; the account switch, request quota and evidence history remain shared.
+Existing drafts and history remain reachable ([Plan direction](docs/ui-redesign/training-programmes.md),
+[ADR 0060](docs/decisions/0060-every-page-under-its-tab.md)).
 
 Logging is Today's. A card starts or logs the session it stands for, and Log takes anything
-else: late, early, unplanned or done earlier. A saved run, ride or swim changes what it counts
-as on its own page (Counts as). Session templates, saved routines and Save as routine, the
+else: late, early, unplanned or done earlier, and a body weight reading, as a workout's Finish
+does. A saved run, ride or swim changes what it counts as on its own page (Counts as). Session templates, saved routines and Save as routine, the
 session library, one-off scheduling (Scheduled by you) and single sessions from the coach are
 set aside for now: a session is planned by a programme or unplanned. Their pages redirect, and
 their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+
+Running has its own way in ([ADR 0059](docs/decisions/0059-running-programmes-laps-and-heart-rate-zones.md)).
+With the coach, a running programme starts from the runner's goal (a race on a date, or a goal
+without one), a recent race or time trial, their usual week and longest run, and the days they can
+run, filled in from their logs where it can be; the coach writes it from running's own reference,
+the runner's logged weeks and their other programmes, keeping hard running off heavy leg days
+where it can. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
+as steps, each ended by a time or a distance, with a pace or a heart-rate zone. A logged run keeps
+its kind, outdoor or treadmill, and its laps from the watch with their heart rate. Heart-rate
+zones are the athlete's own: Profile › Heart rate zones holds the maximum (entered, raised by a
+harder run, or estimated from age), the resting heart rate and how the zones are worked out.
 
 **What must not change** ([decisions implementation must preserve](docs/ui-redesign/README.md#decisions-that-implementation-must-preserve)):
 
@@ -138,8 +157,15 @@ their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-pl
 An exercise counts reps, seconds or metres. Set types: Warm-up, Working, Back-off, Drop, AMRAP,
 To failure. Targets read "3 × 8–12 @ 1–2 RIR"; a programme's place reads
 "Every week · Week 3 of 8" or "Progressive · Day 12 of 40". A planned session is Done, Skipped
-or Missed, and one no programme planned is Unplanned. The words Today and Plan replaced are
-listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
+or Missed, and one no programme planned is Unplanned. A planned session is named by its title,
+else its kind, else its sport ("Tempo run", "Easy run", "Run"), the same on Today, Plan, Log and
+its page, with its figure beside it ("30 min", "2.5–3.0 km"), never in its place. A workout is
+named by its programme day, else the routine it was started from, else, once finished, its first
+two exercises with a set logged ("Pull-up, Bent-over row"); one still open, or with nothing
+logged, is "Unplanned session", and a friend reads "Workout". The coach's
+settled requests and changes are "Past requests and changes", never History, which is
+Progress's. The words Today
+and Plan replaced are listed in [ADR 0058](docs/decisions/0058-today-and-plan.md), Words.
 
 **Technical.** Next.js 16 (App Router), React 19, Tailwind CSS v4, Supabase and Drizzle. The
 JavaScript budgets are targets: +5 KiB gzip on the shared shell and +15 KiB per route, with any
@@ -153,28 +179,49 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 ## Information map
 
 Where each fact lives. Another screen may link to it by name, never restate its details or
-repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)). A date that orients a list
+(a week's range, a session's weekday) is not a restated fact, and stands wherever the list
+stands.
 
-| Fact                                                            | Home                                           |
-| --------------------------------------------------------------- | ---------------------------------------------- |
-| Today's sessions, every sport's                                 | Today, a card each                             |
-| Starting or resuming a workout                                  | Today, the workout's card                      |
-| Logging a session owed today                                    | Today, its card                                |
-| Logging anything else: late, early, unplanned or done earlier   | Today › Log                                    |
-| Skipping today's workout; the coach's preparation               | Today, the workout card's More options         |
-| Picking up from today after missed days                         | Today, under the date                          |
-| What was done today                                             | Today › Done, a row each that opens its record |
-| This week's sessions by date                                    | Plan › This week                               |
-| Moving or skipping a run, ride or swim                          | Plan › This week › the session's page          |
-| How a programme runs and where it has got to                    | Plan › the programme's card and page           |
-| A programme's progress, weeks or days; editing or ending it     | Plan › the programme's page                    |
-| Starting a new programme                                        | Plan › New programme                           |
-| Asking the coach for a change; coach review; changes to approve | Plan › the programme's page                    |
-| Programmes ended or replaced                                    | Plan › Past programmes                         |
-| What a logged run, ride or swim counts as                       | Its page › Counts as                           |
-| History, records, the calendar and trends                       | Progress                                       |
-| Meals, foods and food targets                                   | Food                                           |
-| Coach settings, sports, gyms and machines                       | Profile                                        |
+A page's route begins with its home's tab, and that tab is the one lit: `/today` (Log's form is
+`/today/log/new`, a body weight `/today/log/body-weight`), `/plan` (a session `/plan/sessions/…`, a
+strength day `/plan/strength/days/…`, each builder `/plan/[sport]/edit`, the coach's questions
+`/plan/new?…&method=coach`, drafts, requests and past requests), `/food`, `/progress` and
+`/profile` (Units and time zone `/profile/units`); or with a section the shell maps to a tab:
+`/workouts` (a session is Today's), and `/gyms`, `/exercises` and `/u` (Profile's). A record more
+than one tab opens, a finished workout or a logged run, ride or swim (`/progress/activities/…`),
+keeps the tab its link names, else Progress. A back link names the page it returns to ("Running
+programme"). Old paths redirect permanently ([ADR 0060](docs/decisions/0060-every-page-under-its-tab.md)).
+
+| Fact                                                                               | Home                                           |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Today's sessions, every sport's                                                    | Today, a card each                             |
+| Starting or resuming a workout                                                     | Today, the workout's card                      |
+| Logging a session owed today                                                       | Today, its card                                |
+| Logging anything else: late, early, unplanned or done earlier                      | Today › Log                                    |
+| A body weight reading                                                              | Today › Log › Body weight; a workout's Finish  |
+| Skipping today's workout; the coach's preparation                                  | Today, the workout card's More options         |
+| Picking up from today after missed days                                            | Today, under the date                          |
+| What was done today                                                                | Today › Done, a row each that opens its record |
+| This week's sessions by date                                                       | Plan › This week                               |
+| Moving or skipping a run, ride or swim                                             | Plan › This week › the session's page          |
+| How a programme runs and where it has got to                                       | Plan › the programme's card and page           |
+| A programme's progress, weeks or days; editing or ending it                        | Plan › the programme's page                    |
+| A programme day's exercises and targets                                            | Plan › the day's page                          |
+| Starting a new programme                                                           | Plan › New programme                           |
+| A first programme, from the request to its start                                   | Plan, beside the programme cards               |
+| Asking the coach about a programme; its changes, questions and past requests       | Plan › the programme's page                    |
+| Programmes ended or replaced                                                       | Plan › Past programmes                         |
+| What a logged run, ride or swim counts as                                          | Its page › Counts as                           |
+| History, records, the calendar and trends                                          | Progress                                       |
+| Body weight over time                                                              | Progress › Body weight                         |
+| Meals, foods and food targets                                                      | Food                                           |
+| The coach's switch, work in hand, notes for every programme, memory, access tokens | Profile › AI coach                             |
+| Name, username, height, date of birth, sex and training goal                       | Profile › Edit profile                         |
+| Units and time zone                                                                | Profile › Units and time zone                  |
+| Sports, gyms and machines                                                          | Profile                                        |
+| Maximum and resting heart rate, and the zones                                      | Profile › Heart rate zones                     |
+| A run's laps and its time in each zone                                             | Its page                                       |
 
 ## Brand Commitments
 
@@ -218,10 +265,17 @@ Checked against the decisions above and the owner's notes (2 October 2026):
    gap is unknown, never zero.
 5. **Yours unless shared.** A friend sees a short, separate list, and only once allowed to
    follow.
-6. **Say it once.** A screen says each thing once, in as few words as it needs, and shows state
-   rather than spelling it out. Added from the owner's notes on the Form v2 canvas. The
+6. **Say it once, and only what is needed.** A screen says each thing once, in as few words as it
+   needs, and shows state rather than spelling it out. It carries what the athlete needs to act
+   or to know where they stand, and nothing about how the app, the coach or a plan works; an
+   explanation someone may want is a tap away, in an ⓘ or a fold (owner, 20 October 2026;
+   `DESIGN.md`, The Need-to-Know Rule). Added from the owner's notes on the Form v2 canvas. The
    [Information map](#information-map) lists each fact's home; elsewhere it is a link by name
-   ([ADR 0058](docs/decisions/0058-today-and-plan.md)).
+   ([ADR 0058](docs/decisions/0058-today-and-plan.md)). Where another rule here, in `DESIGN.md`
+   or in the feature inventory asks a screen to show more, this principle wins, except for what
+   accessibility needs on the screen itself: a control's label, a rule or format a value must
+   meet, an error and its fix, a change of status and a consequence that cannot be undone. Those
+   are not explanations, and they stay.
 
 ## Accessibility & Inclusion
 
@@ -229,5 +283,8 @@ Checked against the decisions above and the owner's notes (2 October 2026):
   "Skip to content" link ([the shell](docs/ui-redesign/revamp/features.md#everywhere-the-shell)).
 - Tap targets and editable text never shrink to fit a layout.
 - Reduced motion is honoured; `DESIGN.md` sets how.
+- An ⓘ is a button beside the words it explains: opening it keeps focus where it is, and its note
+  is read next. A fold is a `Disclosure` named for what it holds. Neither covers what it explains
+  at 320 px and 200% text.
 - The audit scripts run axe. _Undecided:_ whether a named standard, such as WCAG 2.2 AA, is
   required.

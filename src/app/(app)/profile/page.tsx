@@ -47,8 +47,8 @@ export default async function ProfilePage() {
   );
 
   // Board Profile: the person, then rows in the order they are needed: who you know, what you
-  // train, how it looks and who can see it, the account, and the way out. A row says only
-  // where it goes, or what it is set to; everything behind it has its own page.
+  // train, how it looks, what it measures in and who can see it, the account, and the way out.
+  // A row says only where it goes, or what it is set to; everything behind it has its own page.
   return (
     <>
       <PageHeader title="Profile" />
@@ -62,8 +62,15 @@ export default async function ProfilePage() {
           countsLinkToFriends
           href={`/u/${profile.username}`}
           action={
-            <Link href="/profile/edit" aria-label="Edit profile" className="round-icon-button">
-              <Glyph name="edit" className="glyph-20" />
+            // The pencil says its word (IA audit M8): a glyph alone was a way in nobody guessed.
+            // Its name says what it edits, starting with the word it shows.
+            <Link
+              href="/profile/edit"
+              aria-label="Edit profile"
+              className="profile-edit-button type-meta font-bold"
+            >
+              <Glyph name="edit" className="glyph-18" />
+              Edit
             </Link>
           }
         />
@@ -90,6 +97,8 @@ export default async function ProfilePage() {
           <ul>
             {/* Which sports the app offers, chosen in setup and changed only here. */}
             <NavRow href="/profile/sports" glyph="distance" label="Sports" />
+            {/* The zones a plan's "zone 2" and a run's heart rate are read against (ADR 0059). */}
+            <NavRow href="/profile/heart-rate" glyph="heart" label="Heart rate zones" />
             <NavRow href="/gyms" glyph="pin" label="Gyms and machines" />
             <NavRow href="/exercises" glyph="book" label="Exercise library" />
             <RestTimerSetting enabled={profile.restTimerEnabled} />
@@ -103,6 +112,7 @@ export default async function ProfilePage() {
           </h2>
           <ul>
             <AppearanceRow />
+            <NavRow href="/profile/units" glyph="ruler" label="Units and time zone" />
             <NavRow href="/profile/privacy" glyph="lock" label="Privacy" />
           </ul>
         </section>
@@ -113,7 +123,6 @@ export default async function ProfilePage() {
           </h2>
           <ul>
             <NavRow href="/profile/password" glyph="password" label="Password" />
-            <NavRow href="/profile/coach" glyph="key" label="Coach access" />
           </ul>
         </section>
 

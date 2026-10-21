@@ -6,7 +6,9 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { joinFacts } from "@/lib/facts";
+import { formatIsoDate } from "@/lib/format";
 import { UNPLANNED_SESSION } from "@/lib/labels";
 import { startSessionAction, type StartRequest } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
@@ -59,13 +61,17 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
   const search = await props.searchParams;
   const start = startRequest(search);
   if (!start) redirect("/today");
+  // Done earlier: the day it was done, as every other day is said ("Sat 18 Oct").
+  let doneOn: string | null = null;
   if (search.date !== undefined || search.time !== undefined) {
     const profile = await getRequestProfile(user.id, user.email);
-    const at = fromDateTimeLocal(`${one(search.date)}T${one(search.time)}`, profile.timeZone, {
+    const date = one(search.date);
+    const at = fromDateTimeLocal(`${date}T${one(search.time)}`, profile.timeZone, {
       rejectNonexistent: true,
     });
-    if (!at || at > new Date()) notFound();
+    if (!date || !at || at > new Date()) notFound();
     start.startedAt = at.toISOString();
+    doneOn = formatIsoDate(date, todayInTimeZone(profile.timeZone).slice(0, 4));
   }
   const [open, { schedule, sleep }] = await Promise.all([
     getActiveSession(user.id),
@@ -94,10 +100,8 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
   return (
     <SessionPage
       title={start.startedAt ? "Log this workout" : "How are you today?"}
-      meta={joinFacts([
-        start.startedAt ? `${one(search.date)} · ${name}` : `Before ${name}`,
-        "Optional recovery check-in",
-      ])}
+      // Every reading may be left blank: said once, for the page, not on each of them.
+      meta={joinFacts([doneOn, doneOn ? name : `Before ${name}`, "Optional"])}
       // Started from a card or from Log, both Today's (ADR 0058).
       back={{ href: "/today", label: "Today" }}
     >

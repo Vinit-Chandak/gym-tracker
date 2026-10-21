@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { ProposalCard } from "@/app/(app)/profile/programme/proposals";
 import type { ReviewAvailability } from "@/app/(app)/profile/programme/request-review";
@@ -35,7 +35,6 @@ export type CoachDashboard = {
   }[];
   proposals: CoachDashboardProposal[];
   requests: CoachDashboardRequest[];
-  recentChanges: { id: string; title: string; sport: ActivitySport; when: string }[];
   history: {
     requests: CoachDashboardRequest[];
     changes: {
@@ -60,7 +59,6 @@ export type CoachDashboard = {
     error: string | null;
   }[];
   expiredJobs: boolean;
-  waiting: number;
 };
 
 export type CoachDashboardOptions = {
@@ -75,10 +73,12 @@ const kindOf = (draft: { standalone: boolean; baseProgramId: string | null }) =>
   draft.standalone ? "session" : draft.baseProgramId ? "change" : "programme";
 
 /**
- * A coach inbox spans every sport. It includes creation and saved-session drafts as well as
- * changes to existing programmes; otherwise a first running programme has nowhere to appear.
- * Only closed history is capped. An open question or draft never disappears behind a limit.
- * The returned dates are display strings so clients need no database or server-only imports.
+ * What the AI coach page reads, across every sport: the coach's work in hand, and what waits on
+ * the athlete, which the page names programme by programme and links to each programme's page
+ * (ADR 0058). It includes creation and saved-session drafts as well as changes to existing
+ * programmes; otherwise a first running programme has nowhere to appear. Only closed history is
+ * capped. An open question or draft never disappears behind a limit. The returned dates are
+ * display strings so clients need no database or server-only imports.
  */
 export async function loadCoachDashboard(
   db: DbOrTx,
@@ -91,7 +91,7 @@ export async function loadCoachDashboard(
   const day = (date: Date) => formatDay(date, timeZone, year);
   const jobSport = sql`coalesce(${coachJobs.target}->>'sport', 'strength')`;
   const jobScope = sql`coalesce(${coachJobs.target}->>'scope', 'programme')`;
-  const [active, drafts, open, pastRequests, pastDrafts, recent, reviews, legacy, rawJobs] =
+  const [active, drafts, open, pastRequests, pastDrafts, reviews, legacy, rawJobs] =
     await Promise.all([
       activeSportProgrammes(db, userId),
       db
@@ -136,29 +136,6 @@ export async function loadCoachDashboard(
         )
         .orderBy(desc(programDrafts.updatedAt))
         .limit(30),
-      db
-        .select({
-          id: programDrafts.id,
-          title: programDrafts.headline,
-          name: programDrafts.blueprint,
-          sport: programDrafts.sport,
-          completedAt: coachWeeklyReviews.completedAt,
-        })
-        .from(coachWeeklyReviews)
-        .innerJoin(
-          programDrafts,
-          and(eq(programDrafts.id, coachWeeklyReviews.draftId), eq(programDrafts.userId, userId)),
-        )
-        .where(
-          and(
-            eq(coachWeeklyReviews.userId, userId),
-            eq(coachWeeklyReviews.outcome, "automatic"),
-            eq(programDrafts.status, "activated"),
-            gte(coachWeeklyReviews.completedAt, new Date(now.getTime() - 7 * 86_400_000)),
-          ),
-        )
-        .orderBy(desc(coachWeeklyReviews.completedAt))
-        .limit(12),
       db
         .selectDistinctOn([coachWeeklyReviews.sport], {
           sport: coachWeeklyReviews.sport,
@@ -258,12 +235,6 @@ export async function loadCoachDashboard(
     programmes,
     proposals,
     requests,
-    recentChanges: recent.map((change) => ({
-      id: change.id,
-      title: change.title || change.name.name,
-      sport: change.sport,
-      when: day(change.completedAt),
-    })),
     history: {
       requests: pastRequests.map((request) => ({
         id: request.id,
@@ -305,10 +276,5 @@ export async function loadCoachDashboard(
     })),
     jobs,
     expiredJobs: settledJobs.expired,
-    waiting:
-      proposals.length +
-      requests.filter((request) => request.state === "needs_answer").length +
-      legacy.length +
-      jobs.filter((job) => job.status === "needs_input").length,
   };
 }

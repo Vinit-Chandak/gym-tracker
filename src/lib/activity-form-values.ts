@@ -1,4 +1,5 @@
 import type { EnduranceActual } from "@/domain/activity-metrics";
+import { postedLaps } from "@/lib/run-laps";
 
 const text = (value: number | string | null | undefined) => (value == null ? "" : String(value));
 
@@ -18,6 +19,8 @@ export function activityFormValues(actual: EnduranceActual): Record<string, stri
   if (actual.sport === "running")
     return {
       ...values,
+      runType: actual.runType ?? "",
+      laps: actual.laps.length > 0 ? JSON.stringify(postedLaps(actual.laps)) : "",
       surface: text(actual.surface),
       elevationGainMetres: text(actual.elevationGainMetres),
       treadmillInclinePercent: text(actual.treadmillInclinePercent),

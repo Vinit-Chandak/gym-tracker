@@ -2,7 +2,7 @@ import { modalityGlyph, typeGlyph, type GlyphName } from "@/components/ui/glyphs
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
 import type { SetLengthUnit } from "@/lib/distance-units";
-import { FACT_SEPARATOR } from "@/lib/facts";
+import { joinFacts } from "@/lib/facts";
 import type { PlanMachineType } from "@/server/repositories/coach-plans";
 import type { PlannedExercisePreview } from "@/server/repositories/schedule";
 
@@ -87,13 +87,16 @@ export function planRows(
       exerciseId: entry.exerciseId,
       name: dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName,
       glyph: (machine ? typeGlyph(machine) : null) ?? modalityGlyph(slot?.modality),
+      // An exercise the coach added with no sets has no line of its own but its machine: its
+      // loads are suggested as it is logged, as any exercise's are.
       line: dropped
         ? slot
           ? prescription(slot, length)
           : ""
-        : `${line ?? (slot ? prescription(slot, length) : "By the rule")}${
-            entry.equipmentInstanceName ? `${FACT_SEPARATOR}${entry.equipmentInstanceName}` : ""
-          }`,
+        : joinFacts([
+            line ?? (slot ? prescription(slot, length) : null),
+            entry.equipmentInstanceName,
+          ]),
       note: entry.note || null,
       dropped,
       sets: working > 0 ? working : (slot?.sets ?? 0),

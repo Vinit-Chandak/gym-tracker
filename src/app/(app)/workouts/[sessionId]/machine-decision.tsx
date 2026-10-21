@@ -156,7 +156,7 @@ export function MachineDecision({
     run(
       () => actions.archiveMachine(exercise.id, machine.id),
       () => setGone(null),
-      `${machine.name} archived. Its sets stay in your history.`,
+      `${machine.name} archived. Its history is kept.`,
     );
 
   // "Has it gone?": a registered machine says the type is here.
@@ -180,7 +180,7 @@ export function MachineDecision({
               Archive {machine.name}
             </Button>
           ))}
-          <p className="type-meta-small text-ink-2">Archived, its sets stay in your history.</p>
+          <p className="type-meta-small text-ink-2">Its history is kept.</p>
           <div className="flex flex-wrap gap-2">
             {/* A substitute moves the exercise where unsaved drafts cannot follow it. */}
             {blocked ? (
@@ -420,9 +420,9 @@ export function MachineGoneSheet({
   const machine = exercise.equipment;
   if (!machine) return null;
   return (
+    // The title asks, and the two answers are the buttons: gone, or out of use today.
     <Sheet open={open} onClose={onClose} title={`${machine.name} not here?`}>
-      <p className="type-body">Has it gone, or is it only out of use today?</p>
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 space-y-2">
         <Button
           variant="danger"
           className="w-full"
@@ -442,7 +442,7 @@ export function MachineGoneSheet({
         >
           It&rsquo;s gone: archive it
         </Button>
-        <p className="type-meta-small text-ink-2">Archived, its sets stay in your history.</p>
+        <p className="type-meta-small text-ink-2">Its history is kept.</p>
         <LinkButton
           href={`/workouts/${session.id}/exercises/${exercise.id}/substitute?remember=0` as Route}
           variant="tonal"

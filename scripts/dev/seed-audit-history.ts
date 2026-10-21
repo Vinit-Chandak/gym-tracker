@@ -305,6 +305,8 @@ function actualFor(person: Person, index: number, month: number): EnduranceActua
     averageHeartRate: 138 + (index % 4),
     maxHeartRate: 169,
     cadenceStepsPerMinute: month % 3 === 0 ? null : 165,
+    runType: null,
+    laps: [],
   };
 }
 

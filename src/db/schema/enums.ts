@@ -26,6 +26,7 @@ import {
   TRAINING_GOALS,
 } from "../../domain/types";
 import { TRAINING_SPORTS } from "../../domain/sport-scope";
+import { HEART_RATE_ZONE_METHODS, MAX_HEART_RATE_SOURCES } from "../../domain/heart-rate";
 
 export const gymKindEnum = pgEnum("gym_kind", GYM_KINDS);
 export const resistanceModeEnum = pgEnum("resistance_mode", RESISTANCE_MODES);
@@ -54,3 +55,5 @@ export const followStatusEnum = pgEnum("follow_status", FOLLOW_STATUSES);
 export const trainingGoalEnum = pgEnum("training_goal", TRAINING_GOALS);
 export const trainingExperienceEnum = pgEnum("training_experience", TRAINING_EXPERIENCES);
 export const trainingSportEnum = pgEnum("training_sport", TRAINING_SPORTS);
+export const heartRateZoneMethodEnum = pgEnum("heart_rate_zone_method", HEART_RATE_ZONE_METHODS);
+export const maxHeartRateSourceEnum = pgEnum("max_heart_rate_source", MAX_HEART_RATE_SOURCES);

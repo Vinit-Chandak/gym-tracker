@@ -9,6 +9,13 @@ vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
 
 afterEach(cleanup);
 
+/** What a control is described by, in order: its aside, then the line under it. */
+const described = (control: Element) =>
+  (control.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter(Boolean)
+    .map((id) => document.getElementById(id)?.textContent);
+
 const props = {
   action: async () => ({}),
   initialBodyWeight: "",
@@ -17,26 +24,41 @@ const props = {
   sessionId: "session",
 };
 
-it("says the last reading beside the field, never as a grey figure in it, and never submits it", () => {
+it("says the last reading under the field, never as a grey figure in it, and never submits it", () => {
   const { container } = render(<FinishForm {...props} lastBodyWeight="64.9" />);
   const field = screen.getByRole("textbox", { name: "Body weight (kg)" }) as HTMLInputElement;
   // A grey figure in a field is a suggestion that will be recorded (the logger's); this is not.
   expect(field.hasAttribute("placeholder")).toBe(false);
-  expect(
-    screen.getByText("Optional. Last reading 64.9 kg; what you type is today's."),
-  ).toBeTruthy();
+  // Optional is the label's aside; the line under the field is the figure it remembers.
+  expect(described(field)).toEqual(["Optional", "Last 64.9\u00a0kg"]);
   expect(field.value).toBe("");
   expect(new FormData(container.querySelector("form")!).get("bodyWeight")).toBe("");
 });
 
 it("names no reading to an account that has never recorded one", () => {
   render(<FinishForm {...props} lastBodyWeight="" />);
-  expect(screen.getByText("Optional. What you type is today's reading.")).toBeTruthy();
+  const field = screen.getByRole("textbox", { name: "Body weight (kg)" });
+  expect(described(field)).toEqual(["Optional"]);
+});
+
+it("asks the coach's questions in the notes' example only while there is a coach", () => {
+  render(<FinishForm {...props} lastBodyWeight="" coach />);
+  expect(screen.getByRole("textbox", { name: "Notes" }).getAttribute("placeholder")).toBe(
+    "How it went, anything the coach should know…",
+  );
+  cleanup();
+
+  render(<FinishForm {...props} lastBodyWeight="" />);
+  expect(screen.getByRole("textbox", { name: "Notes" }).getAttribute("placeholder")).toBe(
+    "How it went…",
+  );
+  expect(screen.queryByText(/coach/)).toBeNull();
 });
 
 it("offers to discard a session with nothing logged before finishing it as a record", () => {
   render(<FinishForm {...props} lastBodyWeight="" nothingLogged />);
-  expect(screen.getByText("Nothing logged.")).toBeTruthy();
+  // Said once, over the way out, whose buttons say what each keeps or drops.
+  expect(screen.getAllByText(/Nothing logged/)).toHaveLength(1);
   const discard = screen.getByRole("button", { name: "Discard session" });
   const finish = screen.getByRole("button", { name: "Finish anyway" });
   // Discarding comes first; finishing stays, for a day of exercises skipped with their reasons.

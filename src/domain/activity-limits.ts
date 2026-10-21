@@ -60,6 +60,13 @@ export const EFFORT: Bound = { min: 1, max: 5 };
  */
 export const PRESCRIBED_EFFORT: Bound = { min: 0, max: 5 };
 export const HEART_RATE: Bound = { min: 20, max: 300 };
+/**
+ * A pace a plan may ask for, in seconds per kilometre: from a sprinter's 1:30 to a brisk walk's
+ * 20:00. Kept per kilometre whatever the athlete reads, as distances are kept in metres.
+ */
+export const PACE_TARGET_SECONDS_PER_KM: Bound = { min: 90, max: 1200 };
+/** Heart-rate zones a plan may ask for, of the athlete's own five (`heart-rate.ts`). */
+export const HEART_RATE_ZONE_TARGET: Bound = { min: 1, max: 5 };
 export const RUNNING_CADENCE: Bound = { min: 0, max: 400 };
 export const CYCLING_CADENCE: Bound = { min: 0, max: 300 };
 export const POWER_WATTS: Bound = { min: 0, max: 5_000 };
@@ -95,6 +102,9 @@ export const TEXT_LIMITS = {
 
 /** A future start beyond this is a clock disagreement, not a plan; a plan is not an actual. */
 export const FUTURE_START_TOLERANCE_MS = 5 * MINUTE;
+
+/** Laps a run may record: a lap button pressed every 400 m of a half marathon is 53. */
+export const LAP_LIMIT = 100;
 
 /** Draft protection (§5.3) and the edit claim, which is a lease and not a timer. */
 export const DRAFT_LIMITS = { bytes: 128 * 1024, perAccount: 20, ageDays: 90 } as const;

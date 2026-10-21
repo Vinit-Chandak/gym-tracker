@@ -154,7 +154,7 @@ try {
       "Programme creation · Choose a track",
       "disposable",
       async () => {
-        await visit("/profile/programme/create");
+        await visit("/plan/new?sport=strength&method=coach");
         await expect(page.getByRole("heading", { name: "Which sounds like you?" })).toBeVisible();
       },
     );

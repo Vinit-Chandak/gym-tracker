@@ -1,9 +1,9 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
-import { enduranceName } from "@/components/activities/endurance-line";
+import { enduranceTarget, plannedName } from "@/components/activities/endurance-line";
+import { alreadySays } from "@/components/activities/prescription-lines";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
-import { RequestChange } from "@/components/coaching/request-change";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
@@ -15,19 +15,24 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type EnduranceSport } from "@/domain/activity";
-import { describePrescription } from "@/domain/activity-prescription";
+import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import { endurancePattern } from "@/domain/programme-pattern";
-import { todayInTimeZone } from "@/domain/program-calendar";
+import { RUN_TYPE_LABELS } from "@/domain/run-types";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { holdHyphens, joinFacts } from "@/lib/facts";
-import { canRunCoachJobs, isCoachServiceConfigured } from "@/lib/env";
+import { formatIsoShortDay } from "@/lib/format";
+import { isCoachServiceConfigured } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { athleteReviewStatus } from "@/server/repositories/coaching-jobs";
 import { programmeOccurrences, type ProgrammeOccurrence } from "@/server/repositories/occurrences";
-import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { getActiveProgram } from "@/server/repositories/schedule";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
-import { RequestReview } from "@/app/(app)/profile/programme/request-review";
+import { endurancePosition } from "@/server/repositories/sport-programmes";
+import {
+  loadProgrammeChanges,
+  ProgrammeCoach,
+  ProgrammeWaiting,
+} from "@/app/(app)/profile/programme/changes";
 
 import { currentProgrammeWeek, sessionsInProgrammeWeek } from "./programme-weeks";
 import { StrengthProgramme } from "./strength-programme";
@@ -55,8 +60,12 @@ function sessionStatus(session: ProgrammeOccurrence, today: string): string | un
 
 /**
  * A run, ride or swim programme (ADR 0058): what it is, how it runs and how far through it you
- * are, then its weeks. The weeks say what each asks for without dates, which are Plan's week:
- * a session opens to move, skip or change it. Strength has its own page, its days in order.
+ * are, what waits for you from the coach, then its weeks. Each week says what it asks for and the
+ * day it starts, which orients the list (PRODUCT.md, Information map); a session's own date is
+ * Plan's week's and its page's, where it opens to move, skip or change it. Under the weeks, the
+ * rest of its dealings with the coach, as the strength programme's Changes holds them: what is
+ * with the coach, what it changed on its own, asking for a change or a review, and the way to
+ * its past requests and changes. Strength has its own page, its days in order.
  */
 export default async function SportProgrammePage({
   params,
@@ -75,18 +84,19 @@ export default async function SportProgrammePage({
     getDb(),
     user.id,
     async (tx) => {
-      const [programme, drafts, units, review] = await Promise.all([
+      const [programme, units, changes] = await Promise.all([
         getActiveProgram(tx, user.id, sport),
-        listProgramDrafts(tx, user.id),
         readSportUnits(tx, user.id),
-        athleteReviewStatus(tx, user.id, new Date(), sport),
+        loadProgrammeChanges(tx, user.id, profile.timeZone, {
+          sport,
+          coachOn: profile.aiCoachEnabled,
+        }),
       ]);
       return {
         programme,
         sessions: programme ? await programmeOccurrences(tx, user.id, programme.familyId) : [],
-        drafts: drafts.filter((draft) => draft.sport === sport && !draft.standalone),
         units,
-        review,
+        changes,
       };
     },
     { readOnly: true },
@@ -108,6 +118,9 @@ export default async function SportProgrammePage({
   const weeks = programme.weeks ?? 1;
   const start = programme.startDate ?? null;
   const currentWeek = currentProgrammeWeek(start, weeks, today);
+  // A block not reached yet is not under way: the line under the bar says when it starts, and its
+  // first week carries that day like every other week, never a second "Starts".
+  const waiting = start !== null && today < start;
   const asked = data.sessions.filter((session) => session.resolution.kind !== "cancelled");
   const done = asked.filter(
     (session) =>
@@ -122,7 +135,6 @@ export default async function SportProgrammePage({
       withdrawn: session.resolution.kind === "cancelled",
     })),
   );
-  const coachOffered = profile.aiCoachEnabled && canRunCoachJobs() && isCoachServiceConfigured();
   // A note waits for the coach's next run, so it needs the coach on, not this server to start it.
   const changeOffered =
     profile.aiCoachEnabled &&
@@ -144,46 +156,27 @@ export default async function SportProgrammePage({
             max={asked.length || 1}
             label={`${done} of ${asked.length} sessions done`}
           />
+          {/* Where it has got to in its card's words on Plan, and the bar's figure. */}
+          <p className="text-sm text-ink-muted tabular-nums">
+            {joinFacts([
+              finished ? "Complete" : endurancePosition(start, weeks, today),
+              `${done} of ${asked.length} sessions done`,
+            ])}
+          </p>
           <ProgrammeTools id={programme.id} sport={sport} finished={finished} />
-          {(programme.notes || programme.splitFromProgramId) && (
+          {programme.notes && (
             <Disclosure summary="Programme details" variant="footer">
-              <div className="space-y-3 text-sm">
-                {programme.notes && (
-                  <p className="[overflow-wrap:break-word] whitespace-pre-wrap">
-                    {programme.notes}
-                  </p>
-                )}
-                {programme.splitFromProgramId && (
-                  <p className="text-ink-2">
-                    Separated from your previous combined plan. Your lifting progress and completed
-                    sessions are preserved.
-                  </p>
-                )}
-              </div>
+              <p className="text-sm [overflow-wrap:break-word] whitespace-pre-wrap">
+                {programme.notes}
+              </p>
             </Disclosure>
           )}
         </Card>
-        {data.drafts.length > 0 && (
-          <Section title="Changes">
-            <ul>
-              {data.drafts.map((draft) => (
-                <NavRow
-                  key={draft.id}
-                  href={
-                    (draft.status === "editing"
-                      ? `/plan/${sport}/edit?draft=${draft.id}`
-                      : `/profile/programme/drafts/${draft.id}`) as Route
-                  }
-                  glyph="note"
-                  label={draft.headline || draft.blueprint.name}
-                  sub={draft.status === "editing" ? "Draft in progress" : "Changes to review"}
-                />
-              ))}
-            </ul>
-          </Section>
-        )}
+        {/* The decisions first: what the coach proposed or asked, before the weeks. */}
+        <ProgrammeWaiting data={data.changes} />
         <Section title="Weeks">
-          <ul className="space-y-3">
+          {/* Ruled rows that share their rules (DESIGN.md, Folds): never a stack of boxes. */}
+          <ul className="[&>li+li]:-mt-px">
             {Array.from({ length: weeks }, (_, index) => index + 1).map((week) => {
               const inWeek = sessionsInProgrammeWeek(asked, start, weeks, week);
               const missed = inWeek.filter(
@@ -193,34 +186,50 @@ export default async function SportProgrammePage({
               const allDone =
                 inWeek.length > 0 &&
                 inWeek.every((session) => session.resolution.kind !== "incomplete");
+              // What the week adds up to, as a running plan is read (ADR 0059).
+              const volume = plannedVolume(inWeek.map((session) => session.prescription));
               return (
                 <li key={week}>
                   <Disclosure
                     summary={`Week ${week}`}
                     meta={joinFacts([
                       sessionCount(sport, inWeek.length),
-                      week === currentWeek && !finished
+                      plannedVolumeLine(volume, sport, data.units),
+                      // The day it starts orients the list (PRODUCT.md, Information map), so a
+                      // runner finds Thu 10 Dec.
+                      start && formatIsoShortDay(addDays(start, (week - 1) * 7)),
+                      week === currentWeek && !finished && !waiting
                         ? "Now"
                         : allDone
                           ? "Done"
-                          : missed > 0 && `${missed} missed`,
+                          : missed > 0 && `${missed}\u00a0missed`,
                     ])}
+                    variant="inline"
                     defaultOpen={week === currentWeek && !finished}
                   >
                     <ul className="ruled-list">
-                      {inWeek.map((session) => (
-                        <NavRow
-                          key={session.id}
-                          href={`/training/programme/occurrences/${session.id}` as Route}
-                          label={holdHyphens(session.prescription?.title ?? enduranceName(sport))}
-                          sub={
-                            session.prescription
-                              ? describePrescription(session.prescription, data.units)
-                              : undefined
-                          }
-                          value={sessionStatus(session, today)}
-                        />
-                      ))}
+                      {inWeek.map((session) => {
+                        // Named as Today and Plan's week name it (ADR 0059), and under the name
+                        // only what it does not already say: "Long run 4.5 mi" over "45 min".
+                        const type = session.prescription?.running?.sessionType;
+                        const name = plannedName(session.prescription, sport, data.units);
+                        const target = enduranceTarget(session.prescription, data.units);
+                        const figure = target && `${target.figure}\u00a0${target.unit}`;
+                        const kind = type ? RUN_TYPE_LABELS[type] : null;
+                        const sub = joinFacts([
+                          kind && !alreadySays(name, kind) && kind,
+                          figure && !alreadySays(name, figure) && figure,
+                        ]);
+                        return (
+                          <NavRow
+                            key={session.id}
+                            href={`/plan/sessions/${session.id}` as Route}
+                            label={holdHyphens(name)}
+                            sub={sub || undefined}
+                            value={sessionStatus(session, today)}
+                          />
+                        );
+                      })}
                     </ul>
                     {inWeek.length === 0 && (
                       <p className="py-2 text-sm text-ink-2">Nothing planned.</p>
@@ -231,26 +240,10 @@ export default async function SportProgrammePage({
             })}
           </ul>
         </Section>
-        {changeOffered && <RequestChange sport={sport} noteId={crypto.randomUUID()} />}
-        {coachOffered && (
-          <Disclosure
-            summary="Coach review"
-            defaultOpen={data.review.running || Boolean(data.review.waiting)}
-          >
-            <RequestReview
-              sport={sport}
-              availability={{
-                offered: true,
-                canAsk: data.review.canAsk,
-                running: data.review.running,
-                waiting: data.review.waiting,
-                nextOn: data.review.nextAt
-                  ? todayInTimeZone(profile.timeZone, data.review.nextAt)
-                  : null,
-              }}
-            />
-          </Disclosure>
-        )}
+        <ProgrammeCoach
+          data={data.changes}
+          request={changeOffered ? { noteId: crypto.randomUUID() } : null}
+        />
       </PageContent>
     </>
   );

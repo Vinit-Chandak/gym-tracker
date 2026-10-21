@@ -30,20 +30,21 @@ const occurrence = fixtures.occurrences.find(
 );
 assert(occurrence, "Seed a pending standalone running occurrence for Vinit first.");
 const cases = [
-  { route: "/runs/new", destination: "/training/new?sport=running", heading: "Log a run" },
+  { route: "/runs/new", destination: "/today/log?sport=running", heading: "Log a run" },
   {
+    // A bookmark of the form from before it moved under Today's Log: redirected, query and all.
     route: "/training/new?sport=cycling",
-    destination: "/training/new?sport=cycling",
+    destination: "/today/log/new?sport=cycling",
     heading: "Log a ride",
   },
   {
     route: `/training/new?occurrence=${occurrence.id}`,
-    destination: `/training/new?occurrence=${occurrence.id}`,
+    destination: `/today/log/new?occurrence=${occurrence.id}`,
     heading: "Log a run",
   },
   {
-    route: "/training/new?sport=swimming&_rsc=audit-bookmark",
-    destination: "/training/new?sport=swimming",
+    route: "/today/log/new?sport=swimming&_rsc=audit-bookmark",
+    destination: "/today/log/new?sport=swimming",
     heading: "Log a swim",
   },
 ];

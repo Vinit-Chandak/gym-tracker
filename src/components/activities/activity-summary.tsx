@@ -106,10 +106,9 @@ export function ActivitySummary({
             </ul>
           )}
           {unlisted > 0 && (
+            // Exercises someone made themselves are never shared (ADR 0026): counted, not named.
             <p className="mt-2 type-meta text-ink-2">
-              {unlisted}
-              {exercises.length > 0 ? " more" : ""} {unlisted === 1 ? "set" : "sets"} in exercises{" "}
-              {name} created, which are not shared.
+              {`${unlisted}${exercises.length > 0 ? " more" : ""} ${unlisted === 1 ? "set" : "sets"} in ${name}’s own exercises.`}
             </p>
           )}
         </section>

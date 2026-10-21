@@ -32,7 +32,8 @@ yards beside miles.
    what the weight unit gives (`chosenSportUnits`). So a stored unit always means "chosen apart
    from the weight unit", null always means "following it", and there is no third state. An
    account that never set its distances apart goes on following its weight unit when it changes.
-3. **The setting is in Edit profile, beside the weight.** The units control is now three, one
+3. **The setting is in Edit profile, beside the weight** (moved, unchanged, to Profile › Units and
+   time zone by [ADR 0060](0060-every-page-under-its-tab.md)). The units control is now three, one
    under the other, each a segmented control with its label and what it decides said under it:
    - **Weight**: kg or lb, as before, "Loads and body weight in pounds, height in feet and
      inches.";
@@ -103,7 +104,7 @@ yards beside miles.
 ## Consequences
 
 - Jordan reads miles, yard pools and yards with no change of his own. Anyone who wants
-  kilometres beside pounds says so once, in Edit profile.
+  kilometres beside pounds says so once, in Units and time zone.
 - A unit chosen to match the weight unit is not remembered as a choice. Someone in kilograms
   who picks miles, then switches to pounds and saves, follows the weight unit from then on, and
   would read kilometres again on going back to kilograms. Saving a distance equal to what the

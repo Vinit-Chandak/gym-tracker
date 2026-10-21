@@ -64,17 +64,22 @@ it("shows a successful unchanged programme without suggesting that the coach fai
   expect(markup).toContain("Your current plan still fits your goals.");
   expect(markup).toContain("Open Today");
   expect(markup).not.toContain("The coach could not finish");
-  expect(markup).not.toContain("Change my answers");
+  expect(markup).not.toContain("Try again");
 });
 
-it("keeps the retry action and error for an unsuccessful request", async () => {
+it("keeps the retry action for an unsuccessful request, the coach's own words under Details", async () => {
   mocks.job.status = "failed";
-  mocks.job.error = "Please try again.";
+  mocks.job.error = "The local audit worker was unavailable.";
   const markup = renderToStaticMarkup(
     await SetupJobPage({ params: Promise.resolve({ id: mocks.job.id }) }),
   );
   expect(markup).toContain("The coach could not finish");
-  expect(markup).toContain("Please try again.");
-  expect(markup).toContain("Change my answers");
+  expect(markup).toContain("Your answers are saved.");
+  // Said in the athlete's words; what the worker wrote is folded, closed, for whoever runs it.
+  expect(markup).toMatch(
+    /<details[^>]*>(?:(?!<\/details>).)*The local audit worker was unavailable\./s,
+  );
+  expect(markup).not.toMatch(/<details[^>]* open/);
+  expect(markup).toContain("Try again");
   expect(markup).not.toContain("Your current plan still fits your goals.");
 });

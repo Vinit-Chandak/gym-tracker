@@ -3,6 +3,7 @@
 import { useActionState, useState, type ReactNode } from "react";
 
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -30,6 +31,7 @@ import {
   TargetCard,
   useFormValues,
   type ActivityFormValues,
+  type PlanTarget,
 } from "./activity-form-fields";
 
 /**
@@ -67,7 +69,7 @@ type Props = {
   initial: ActivityFormValues;
   submissionKey: string;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: PlanTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
   /** The draft kept on this device, said after the last field. */
@@ -129,7 +131,7 @@ export function CyclingForm({
       />
       {target && (
         <div className="mt-3">
-          <TargetCard title={target.title} lines={target.lines} />
+          <TargetCard {...target} />
         </div>
       )}
 
@@ -159,23 +161,25 @@ export function CyclingForm({
           onUnitChange={setUnit}
           units={DISTANCE_UNITS}
           recorded={opened.recorded}
+          // Optional at the end of its name; once typed, the speed it makes under it.
+          aside="Optional"
           hint={
             speed !== null ? (
-              <span role="status">
-                Optional · overall average {formatSpeed(speed, unit as "km" | "mi")}
-              </span>
-            ) : (
-              "Optional"
-            )
+              <span role="status">{formatSpeed(speed, unit as "km" | "mi")}</span>
+            ) : undefined
           }
           error={errors?.distance ?? errors?.distanceValue}
         />
         <EffortField value={values("effort")} error={errors?.effort} kept={keptEffort} />
         {/* Hidden rather than removed indoors, so its answer is still sent and kept. */}
         <div className="space-y-1.5 pt-3 pb-1" hidden={environment === "indoor"}>
-          <p id="ride-assistance" className="type-meta-small font-bold">
-            Assistance
-          </p>
+          {/* The ⓘ beside the name, outside it, so the choices are named "Assistance" alone. */}
+          <div className="flex items-center gap-1">
+            <p id="ride-assistance" className="type-meta-small font-bold">
+              Assistance
+            </p>
+            <InfoTip label="About assistance">Assisted: a motor helped, as on an e-bike.</InfoTip>
+          </div>
           <SegmentedControl
             name="assistance"
             aria-labelledby="ride-assistance"

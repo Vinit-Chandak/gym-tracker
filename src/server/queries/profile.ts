@@ -64,21 +64,18 @@ export async function ensureProfile(
 }
 
 /**
- * The answers a profile is still missing, named as the profile screen asks for them.
+ * The answers Edit profile still needs, named as it asks for them.
  *
- * Setup asks for all of these, but accounts that existed before it did — or before a field was
- * added — are complete in their own terms and must not be shooed back through onboarding. The
- * Profile tab says what is missing instead, and the profile form is where it gets filled in.
+ * Accounts that existed before a question was asked — or before a field was added — are
+ * complete in their own terms and must not be shooed back through onboarding. The Profile tab
+ * says what is missing instead, and Edit profile is where it gets filled in. Body weight is not
+ * one of them: it is a reading, logged from Today › Log or a workout's Finish.
  */
 export function missingProfileDetails(
-  profile: Pick<
-    Profile,
-    "displayName" | "bodyWeightKg" | "heightCm" | "dateOfBirth" | "trainingGoal"
-  >,
+  profile: Pick<Profile, "displayName" | "heightCm" | "dateOfBirth" | "trainingGoal">,
 ): string[] {
   const missing: string[] = [];
   if (!profile.displayName) missing.push("name");
-  if (profile.bodyWeightKg === null) missing.push("body weight");
   if (profile.heightCm === null) missing.push("height");
   if (profile.dateOfBirth === null) missing.push("date of birth");
   if (profile.trainingGoal === null) missing.push("training goal");

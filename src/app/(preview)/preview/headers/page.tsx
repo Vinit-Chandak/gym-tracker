@@ -48,7 +48,7 @@ export default function PreviewHeadersPage() {
         />
       </div>
       <PageContent>
-        <Section title="What to look at" description="The title's baseline, and what sits on it.">
+        <Section title="What to look at" info="The title's baseline, and what sits on it.">
           <Card>
             <p className="text-sm text-ink-muted">
               The meta hangs off the far end of the title&apos;s own baseline rather than stacking

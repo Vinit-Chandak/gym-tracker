@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 
 import {
   activities,
@@ -11,6 +11,7 @@ import {
   programs,
 } from "@/db/schema";
 import type { Db, DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
 import { jsonEqual } from "@/domain/json-equal";
 import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
@@ -627,6 +628,48 @@ export async function withdrawFamilyOccurrences(
   now: Date = new Date(),
 ): Promise<number> {
   const today = todayInTimeZone(await schedulingZoneOf(tx, userId), now);
+  return withdrawPending(
+    tx,
+    userId,
+    and(eq(plannedOccurrences.familyId, familyId), gte(occurrenceVersions.scheduledOn, today)),
+    source,
+  );
+}
+
+/**
+ * Withdraws a sport's work that other programmes still carry, from the start of a new
+ * programme of that sport (ADR 0059). The runs an older combined strength programme kept would
+ * otherwise stand beside the running programme's own: two runs on one day, each counted
+ * missed when the other was done. What was logged, skipped or due before the start stays as it
+ * is, and the athlete's own unplanned sessions are no programme's to withdraw.
+ */
+export async function withdrawSportFromOtherProgrammes(
+  tx: DbOrTx,
+  userId: string,
+  input: { sport: ActivitySport; keepFamilyId: string; from: string; source: string },
+  now: Date = new Date(),
+): Promise<number> {
+  const today = todayInTimeZone(await schedulingZoneOf(tx, userId), now);
+  return withdrawPending(
+    tx,
+    userId,
+    and(
+      eq(plannedOccurrences.sport, input.sport),
+      isNotNull(plannedOccurrences.familyId),
+      ne(plannedOccurrences.familyId, input.keepFamilyId),
+      gte(occurrenceVersions.scheduledOn, input.from > today ? input.from : today),
+    ),
+    input.source,
+  );
+}
+
+/** Cancels the pending, unanswered occurrences a condition picks out, each with its event. */
+async function withdrawPending(
+  tx: DbOrTx,
+  userId: string,
+  which: SQL | undefined,
+  source: string,
+): Promise<number> {
   const ahead = await tx
     .select({ id: plannedOccurrences.id })
     .from(plannedOccurrences)
@@ -647,10 +690,9 @@ export async function withdrawFamilyOccurrences(
     .where(
       and(
         eq(plannedOccurrences.userId, userId),
-        eq(plannedOccurrences.familyId, familyId),
         eq(plannedOccurrences.disposition, "pending"),
         isNull(activities.id),
-        gte(occurrenceVersions.scheduledOn, today),
+        which,
       ),
     );
   if (ahead.length === 0) return 0;

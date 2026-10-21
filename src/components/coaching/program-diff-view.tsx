@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Art } from "@/components/art/art";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { DayOperation, DiffField } from "@/domain/program-diff";
 import {
@@ -63,11 +64,12 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
       {lines.map((line) =>
         line.field === "enduranceSessions" ? (
           <li key={line.field} className="space-y-2 py-2">
-            <details open={line.to.split("\n").length <= 4}>
-              <summary className="min-h-[var(--ov-target)] cursor-pointer py-2 font-medium">
-                Scheduled session changes
-              </summary>
-              <div className="space-y-3 pb-2">
+            <Disclosure
+              summary="Scheduled session changes"
+              variant="inline"
+              defaultOpen={line.to.split("\n").length <= 4}
+            >
+              <div className="space-y-3">
                 {line.from && line.from !== "None" && (
                   <div>
                     <p className="text-sm font-medium">Before</p>
@@ -83,7 +85,7 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
                   </p>
                 </div>
               </div>
-            </details>
+            </Disclosure>
           </li>
         ) : line.from !== null ? (
           <li key={line.field} className="diff-line">
@@ -249,14 +251,17 @@ function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
         <p className="diff-targets">Instructions only</p>
       )}
       {runs.notes.length > 0 && (
-        <details className="group mt-1">
-          <summary className="flex min-h-[var(--ov-target)] cursor-pointer list-none items-center type-meta-small font-bold">
-            {runs.notes.length === 1
+        <Disclosure
+          summary={
+            runs.notes.length === 1
               ? `New ${runs.notes[0]!.label.toLowerCase()} note`
-              : `New run notes (${runs.notes.map((note) => note.label.toLowerCase()).join(", ")})`}
-          </summary>
+              : `New run notes (${runs.notes.map((note) => note.label.toLowerCase()).join(", ")})`
+          }
+          variant="inline"
+          className="mt-1"
+        >
           <Lines lines={runs.notes} />
-        </details>
+        </Disclosure>
       )}
     </Operation>
   );

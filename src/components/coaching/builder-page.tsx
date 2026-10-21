@@ -11,6 +11,7 @@ import { requireProfiledUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { ProgramBuilder } from "./program-builder";
+import type { ProgrammeBase } from "./programme-paths";
 export async function ProgrammeBuilderPage({
   onboarding = false,
   draftId,
@@ -54,11 +55,12 @@ export async function ProgrammeBuilderPage({
       !["editing", "ready"].includes(data.initial.status))
   )
     notFound();
-  const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   return (
     <>
       <PageHeader
-        title="Strength programme builder"
+        // The run, ride and swim builder's name; the way back names the programme.
+        title="Programme builder"
         backHref={onboarding ? base : "/plan/strength"}
       />
       <PageContent>
@@ -71,7 +73,7 @@ export async function ProgrammeBuilderPage({
             straight back here and lose what was built (audit B5). */}
         {!onboarding && (
           <LinkButton href="/exercises/new" variant="ghost">
-            Add a custom exercise to your library
+            Add your own exercise
           </LinkButton>
         )}
       </PageContent>

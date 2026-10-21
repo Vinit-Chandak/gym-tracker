@@ -190,7 +190,7 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   fireEvent.click(inSheet().getByRole("button", { name: "Less Oats" }));
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "150");
   type("Amount eaten", "60");
-  expect(sheet().textContent).toContain("233.4 kcal");
+  expect(sheet().textContent).toContain("233 kcal");
   expect(sheet().textContent).toContain(
     "Carbs 40\u00a0g ·\u00a0Fat 4\u00a0g ·\u00a0Protein 10\u00a0g",
   );
@@ -266,14 +266,15 @@ it("makes a new food from what was searched for, the amount following the portio
 it("quick adds what was eaten from its figures alone, keeping nothing in My foods", async () => {
   editor();
   const quick = myFoods().getAllByRole("button")[0]!;
-  expect(quick.textContent).toBe("Quick add Calories and macros, just this once");
+  expect(quick.textContent).toBe("Quick add Just this once");
   fireEvent.click(quick);
   expect(inSheet().getByRole("heading", { name: "Quick add" })).toBeTruthy();
-  expect(sheet().textContent).toContain("It is not kept in My foods.");
   // What was eaten, as a whole: no portion to give, and no amount to scale it by.
   expect(inSheet().queryByLabelText("Nutrition per")).toBeNull();
   expect(inSheet().queryByLabelText("Amount eaten")).toBeNull();
-  expect(inSheet().getByLabelText("Name (optional)")).toHaveProperty("value", "");
+  expect(inSheet().getByLabelText("Name")).toHaveProperty("value", "");
+  // The name is the one thing a quick add may go without, said at the label's end.
+  expect(inSheet().getByText("Optional")).toBeTruthy();
 
   type("kcal", "720");
   type("Carbs g", "80");
@@ -303,7 +304,7 @@ it("names a quick add after the search it came from, and says a refused figure o
   editor();
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: " thali at work " } });
   fireEvent.click(myFoods().getByRole("button", { name: /^Quick add “thali at work”/ }));
-  expect(inSheet().getByLabelText("Name (optional)")).toHaveProperty("value", "thali at work");
+  expect(inSheet().getByLabelText("Name")).toHaveProperty("value", "thali at work");
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() =>
     expect(inSheet().getByLabelText("kcal").getAttribute("aria-invalid")).toBe("true"),
@@ -433,7 +434,7 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
   editor();
   fireEvent.click(screen.getByRole("button", { name: /^Shake/ }));
   expect(sheet().textContent).toContain("Whey 1.5 scoops");
-  expect(sheet().textContent).toContain("208.5 kcal");
+  expect(sheet().textContent).toContain("209 kcal");
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   expect(logSavedMealAction).toHaveBeenCalledWith({
@@ -479,7 +480,7 @@ it("searches foods by name, and saved meals by name or by what they hold, meals 
     myFoods()
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Quick add “granola” Calories and macros, just this once", "New food “granola”"]);
+  ).toEqual(["Quick add “granola” Just this once", "New food “granola”"]);
 });
 
 it("leads every meal and food with its tile, one line each, in whole kcal and with no plus", () => {
@@ -621,5 +622,5 @@ it("starts an account with nothing in My foods at New food, since nothing can be
     myFoods()
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Quick add Calories and macros, just this once", "New food"]);
+  ).toEqual(["Quick add Just this once", "New food"]);
 });

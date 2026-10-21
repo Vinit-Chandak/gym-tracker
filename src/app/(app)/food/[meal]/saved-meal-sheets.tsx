@@ -170,7 +170,7 @@ export function UnstarMealSheet({
       }}
       // The name is said in the sentence, where a long one wraps as words do, not in the title.
       title="Unstar this meal?"
-      description={`${saved.name} is deleted from My foods. The meals it was added to keep their foods.`}
+      description={`${saved.name} is deleted from My foods. Logged meals keep their foods.`}
       confirmLabel="Unstar"
       pendingLabel="Unstarring…"
       pending={pending}
