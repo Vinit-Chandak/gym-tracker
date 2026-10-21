@@ -1050,7 +1050,10 @@ every part is a lap with a kind, and the session's totals are its laps added up.
   recovery may be time alone, a standing rest, and its distance reads Standing. "+ Rep" copies the
   last rep's distance; "+ Recovery" copies the last recovery's time; both sit at the panel's foot.
 - **The totals come from the laps.** Distance and time are the laps added up, each marked From
-  laps, and nothing has to be typed twice. "Use the watch's totals instead" lets the athlete type
+  laps, and nothing has to be typed twice. A total comes from the laps only when every lap holds it: a rep
+  timed without its distance would make the distance too short, so the row says "Not every lap
+  has a distance" until the lap is given one or the watch's total is typed (a gap is unknown,
+  never zero). "Use the watch's totals instead" lets the athlete type
   the watch's own totals (warm-up jogs it did not split, a pause); typed totals are checked to be
   at least the laps' ("The laps add up to 3.47 km, more than 2.50 km", with "Use 3.47 km").
 - **Reps and recoveries make intervals.** A session whose laps hold reps and recoveries is

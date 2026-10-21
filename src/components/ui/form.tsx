@@ -179,15 +179,26 @@ export function SubmitButton({
  * chosen. A listener on the element itself does hear the reset, and cancelling it keeps every
  * field as it stands, which is what a form that failed to save wants: the athlete's choices, to
  * correct or retry. Attach the returned ref to the `<form>`.
+ *
+ * The listener follows the form itself, not the component: React sets the ref when the form
+ * mounts, which for a form inside a sheet is long after the component that holds it (Skip, Move,
+ * Pick up from today), so an effect run once at mount would find no form and never keep it.
  */
 export function useKeptForm(): RefObject<HTMLFormElement | null> {
-  const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    const form = ref.current;
-    if (!form) return;
+  const [ref] = useState(() => {
+    let form: HTMLFormElement | null = null;
     const keep = (event: Event) => event.preventDefault();
-    form.addEventListener("reset", keep);
-    return () => form.removeEventListener("reset", keep);
-  }, []);
+    return {
+      get current() {
+        return form;
+      },
+      set current(next: HTMLFormElement | null) {
+        if (next === form) return;
+        form?.removeEventListener("reset", keep);
+        form = next;
+        form?.addEventListener("reset", keep);
+      },
+    } as RefObject<HTMLFormElement | null>;
+  });
   return ref;
 }
