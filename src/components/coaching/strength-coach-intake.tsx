@@ -1,19 +1,19 @@
 import { and, eq, isNull, or } from "drizzle-orm";
-import { LinkButton } from "@/components/ui/button";
 import { getDb } from "@/db/client";
 import { exercises, gyms } from "@/db/schema";
 import { withUser } from "@/db/with-user";
-import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { coachRollout } from "@/lib/coach-rollout";
 import { TRAINING_GOAL_LABELS } from "@/lib/labels";
 import { ageOn } from "@/lib/units";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { coachIntakeSchema } from "@/domain/coaching-workflow";
+import { coachIntakeSchema, withKeptFiles } from "@/domain/coaching-workflow";
 import { requireProfiledUser } from "@/server/auth";
 import { latestIntake } from "@/server/repositories/coach-intakes";
 import { listCoachAttachments } from "@/server/repositories/coach-attachments";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { CoachPaused } from "./coach-paused";
 import { CoachIntakeForm } from "./intake-form";
+import { coachConfigured } from "./setup-coach";
 
 /**
  * The coach's questions for a new strength programme, whole: both routes, the brief, and the
@@ -49,20 +49,7 @@ export async function StrengthCoachIntake() {
       ]);
       // Deleted files are absent from a new editable view; historical confirmed intake stays immutable.
       return {
-        initial: initial
-          ? {
-              ...initial,
-              needsSave: initial.answers.attachmentIds.some(
-                (id) => !reports.some((f) => f.id === id),
-              ),
-              answers: {
-                ...initial.answers,
-                attachmentIds: initial.answers.attachmentIds.filter((id) =>
-                  reports.some((f) => f.id === id),
-                ),
-              },
-            }
-          : null,
+        initial: withKeptFiles(initial, reports),
         reports,
         locations,
         library,
@@ -71,16 +58,7 @@ export async function StrengthCoachIntake() {
     { readOnly: true },
   );
   const usual = data.locations.find((location) => location.isDefault) ?? data.locations[0];
-  if (!coachRollout().intake && !data.initial)
-    return (
-      // One short line and its action: building it by hand is still open.
-      <div className="space-y-3">
-        <p>The coach is not taking new programmes right now.</p>
-        <LinkButton href="/plan/new?sport=strength" variant="secondary">
-          Build it yourself
-        </LinkButton>
-      </div>
-    );
+  if (!coachRollout().intake && !data.initial) return <CoachPaused sport="strength" />;
   return (
     <CoachIntakeForm
       initial={data.initial}
@@ -106,12 +84,7 @@ export async function StrengthCoachIntake() {
       })}
       base="/plan"
       preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
-      configured={
-        process.env.COACH_WORKFLOW_ENABLED === "true" &&
-        coachRollout().generation &&
-        !!getCoachRoutine() &&
-        !!getCoachServiceToken()
-      }
+      configured={coachConfigured()}
     />
   );
 }

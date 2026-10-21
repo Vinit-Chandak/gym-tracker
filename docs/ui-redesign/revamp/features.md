@@ -305,7 +305,13 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
   Progressive ("Builds week by week") and With the coach ("Answer a few questions"). A sport with a programme says what a new
   one replaces ("Replaces {programme} when you start it. Your history stays."). Strength's With
   the coach is the whole intake (New to this or I already train, the brief, plans and reports to
-  attach), titled New strength programme.
+  attach), titled New strength programme. Running's asks Your goal, Your fitness now, When you
+  can run and Where you run; cycling's and swimming's ask the same sections in their words, with
+  What you ride (swim) now and the days. Every sport's takes Reports and plans (each kept file
+  ticked for this request or not, Download, Remove), What the coach asked (folded), and Ask the
+  coach for a programme pinned with Save answers under it; while the coach takes no new
+  programmes it says so in one line, with Build it yourself when nothing was answered yet
+  (ADR 0061).
 
 ### Actions
 

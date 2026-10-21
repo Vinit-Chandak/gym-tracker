@@ -2,7 +2,9 @@ import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
 import { Art } from "@/components/art/art";
+import { CoachPaused } from "@/components/coaching/coach-paused";
 import { RunningIntakeForm } from "@/components/coaching/running-intake-form";
+import { coachConfigured } from "@/components/coaching/setup-coach";
 import { SportIntakeForm } from "@/components/coaching/sport-intake-form";
 import { StrengthCoachIntake } from "@/components/coaching/strength-coach-intake";
 import { PageContent } from "@/components/shell/page-content";
@@ -16,12 +18,14 @@ import {
   isActivitySport,
   type ActivitySport,
 } from "@/domain/activity";
-import { coachIntakeSchema } from "@/domain/coaching-workflow";
+import { coachIntakeSchema, withKeptFiles } from "@/domain/coaching-workflow";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { coachRollout } from "@/lib/coach-rollout";
 import { holdHyphens } from "@/lib/facts";
 import { ageOn } from "@/lib/units";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { listCoachAttachments } from "@/server/repositories/coach-attachments";
 import { latestIntake } from "@/server/repositories/coach-intakes";
 import { runningSnapshot } from "@/server/repositories/running-coach-context";
 import { getActiveProgram } from "@/server/repositories/schedule";
@@ -43,8 +47,9 @@ function builderHref(sport: ActivitySport, mode: "repeating" | "progressive"): R
  * New programme (ADR 0058): a sport, then how it runs. Repeating is the same week or cycle again
  * and again; progressive changes as it builds; or the coach writes it from a few answers. There
  * are no templates for now. A sport that already has a programme says what a new one replaces.
- * With the coach, strength asks its whole set of questions, with plans and reports to attach,
- * running its own, and cycling and swimming the short ones.
+ * With the coach, strength asks its whole set of questions, running its own, and cycling and
+ * swimming theirs; every sport takes plans and reports to attach, and says so alike when the
+ * coach is taking no new programmes.
  */
 export default async function NewProgrammePage({
   searchParams,
@@ -68,6 +73,8 @@ export default async function NewProgrammePage({
           user.id,
           async (tx) => ({
             intake: await latestIntake(tx, user.id, selected, "programme"),
+            // The account's files, kept for the coach whichever sport they came in with.
+            reports: asksCoach ? await listCoachAttachments(tx, user.id) : [],
             active: await getActiveProgram(tx, user.id, selected),
             // A runner's logs answer some of the running questions before they are asked.
             running:
@@ -81,6 +88,8 @@ export default async function NewProgrammePage({
           { readOnly: true },
         )
       : null;
+  // Files removed since the answers were saved are no longer theirs to send.
+  const initial = data ? withKeptFiles(data.intake, data.reports) : null;
   const prefill = selected
     ? coachIntakeSchema.parse({
         programmeSport: selected,
@@ -117,20 +126,25 @@ export default async function NewProgrammePage({
           </ul>
         ) : strengthCoach ? (
           <StrengthCoachIntake />
+        ) : asksCoach && !coachRollout().intake && !initial ? (
+          <CoachPaused sport={selected} />
         ) : asksCoach && data!.running ? (
           <RunningIntakeForm
-            initial={data!.intake}
+            initial={initial}
             prefill={prefill!}
+            reports={data!.reports}
+            configured={coachConfigured()}
             snapshot={data!.running.snapshot}
             unit={data!.running.units.distanceUnit}
             today={today}
           />
-        ) : asksCoach ? (
+        ) : asksCoach && selected !== "running" && selected !== "strength" ? (
           <SportIntakeForm
             sport={selected}
-            scope="programme"
-            initial={data!.intake}
+            initial={initial}
             prefill={prefill!}
+            reports={data!.reports}
+            configured={coachConfigured()}
           />
         ) : (
           <div className="space-y-4">

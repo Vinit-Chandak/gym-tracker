@@ -295,7 +295,7 @@ async function runDevice(device) {
       });
       await expect(page.getByRole("alert").filter({ hasText: "correct file type" })).toBeVisible();
       assert.equal((await sql`select id from coach_attachments where user_id=${userId}`).length, 1);
-      await button(page, "Remove").click();
+      await button(page, "Remove training-history.txt").click();
       await expect(
         page.getByRole("checkbox", { name: "training-history.txt", exact: true }),
       ).toHaveCount(0);
@@ -450,54 +450,54 @@ async function runDevice(device) {
       });
       assert.equal(revoked.status(), 401);
     });
-    await step("running-intake-saves-separately-and-reloads", async () => {
+    await step("cycling-intake-saves-separately-and-reloads", async () => {
       const [strengthBefore] =
         await sql`select id,revision,answers from coach_intakes where user_id=${userId} and sport='strength' order by revision desc limit 1`;
       await go("/plan/new");
-      await page.getByRole("link", { name: "Running", exact: true }).click();
-      await page.waitForURL(/\/plan\/new\?sport=running$/);
+      await page.getByRole("link", { name: "Cycling", exact: true }).click();
+      await page.waitForURL(/\/plan\/new\?sport=cycling$/);
       await page.getByRole("link", { name: /^With the coach/ }).click();
       await page.waitForURL(/method=coach$/);
-      const goal = "Build one steady easy run a week alongside my lifting programme.";
+      const goal = "Build one steady easy ride a week alongside my lifting programme.";
       await field(page, "What are you training for?").fill(goal);
-      await field(page, "Sessions a week").fill("1");
-      await field(page, "Minutes per session").fill("30");
-      await field(page, "Your experience in running").selectOption("returning");
-      await field(page, "Where and with what can you train?").fill(
-        "Flat park paths and a treadmill when it rains.",
+      await field(page, "Rides a week").fill("1");
+      await field(page, "Minutes on a usual ride").fill("30");
+      await field(page, "Your cycling").selectOption("returning");
+      await field(page, "Where and with what can you ride?").fill(
+        "Flat lanes, and an indoor trainer when it rains.",
       );
-      await field(page, "Anything that limits your training?").fill(
+      await field(page, "Anything that limits your riding?").fill(
         "Keep the pace easy while returning after travel.",
       );
       await field(page, "Your brief").fill(
-        "Sunday mornings, one easy run. Keep my three lifting days unchanged.",
+        "Sunday mornings, one easy ride. Keep my three lifting days unchanged.",
       );
       await button(page, "Save answers").click();
       await expect(page.getByRole("status").filter({ hasText: "Answers saved." })).toBeVisible();
-      const [running] =
-        await sql`select id,answers from coach_intakes where user_id=${userId} and sport='running' order by revision desc limit 1`;
-      assert.equal(running.answers.programmeSport, "running");
-      assert.equal(running.answers.scope, "programme");
-      assert.equal(running.answers.sessionsPerWeek, 1);
-      assert.equal(running.answers.minutesPerSession, 30);
-      assert.equal(running.answers.sports.length, 1);
-      assert.equal(running.answers.sports[0].sport, "running");
-      assert.equal(running.answers.sports[0].sessionsPerWeek, 1);
-      assert.equal(running.answers.trainingLocation, null);
-      assert.equal(running.answers.gymId, null);
-      assert.notEqual(running.id, strengthBefore.id);
+      const [cycling] =
+        await sql`select id,answers from coach_intakes where user_id=${userId} and sport='cycling' order by revision desc limit 1`;
+      assert.equal(cycling.answers.programmeSport, "cycling");
+      assert.equal(cycling.answers.scope, "programme");
+      assert.equal(cycling.answers.sessionsPerWeek, 1);
+      assert.equal(cycling.answers.minutesPerSession, 30);
+      assert.equal(cycling.answers.sports.length, 1);
+      assert.equal(cycling.answers.sports[0].sport, "cycling");
+      assert.equal(cycling.answers.sports[0].sessionsPerWeek, 1);
+      assert.equal(cycling.answers.trainingLocation, null);
+      assert.equal(cycling.answers.gymId, null);
+      assert.notEqual(cycling.id, strengthBefore.id);
       const [strengthAfter] =
         await sql`select id,revision,answers from coach_intakes where user_id=${userId} and sport='strength' order by revision desc limit 1`;
       assert.deepEqual(
         strengthAfter,
         strengthBefore,
-        "Running setup must not replace lifting answers",
+        "Cycling setup must not replace lifting answers",
       );
-      await go("/plan/new?sport=running&method=coach");
+      await go("/plan/new?sport=cycling&method=coach");
       await expect(field(page, "What are you training for?")).toHaveValue(goal);
-      await expect(field(page, "Sessions a week")).toHaveValue("1");
-      await expect(field(page, "Minutes per session")).toHaveValue("30");
-      await expect(field(page, "Your experience in running")).toHaveValue("returning");
+      await expect(field(page, "Rides a week")).toHaveValue("1");
+      await expect(field(page, "Minutes on a usual ride")).toHaveValue("30");
+      await expect(field(page, "Your cycling")).toHaveValue("returning");
       assert.equal(
         (await sql`select count(*)::int as count from coach_jobs where user_id=${userId}`)[0].count,
         0,

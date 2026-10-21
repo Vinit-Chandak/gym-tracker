@@ -108,8 +108,10 @@ for you from the coach, what is with the coach and what it changed on its own, R
 coach review and that programme's past requests and changes (strength's under Changes). Replace,
 Duplicate and End programme sit under the page's More options; an ended or replaced programme is
 under Past programmes. New programme asks for a sport, then Repeating, Progressive or With the
-coach, which for strength is its whole intake, plans and reports to attach included; there are no
-templates. Profile › AI coach keeps the coach's switch, what it is working on, notes for every
+coach, which for strength is its whole intake; every sport's takes plans and reports to attach
+(the account's files, each ticked for a request or not), dictation into its long answers and the
+coach's earlier questions, and keeps its asking in view
+([ADR 0061](docs/decisions/0061-the-coach-asks-every-sport-alike.md)). There are no templates. Profile › AI coach keeps the coach's switch, what it is working on, notes for every
 programme at once, what it remembers and the access tokens; it names a programme waiting for you
 only by its state and links to that programme's page. Each sport has its own intake, review cadence
 and programme requests; the account switch, request quota and evidence history remain shared.
@@ -126,7 +128,8 @@ their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-pl
 Running has its own way in ([ADR 0059](docs/decisions/0059-running-programmes-laps-and-heart-rate-zones.md)).
 With the coach, a running programme starts from the runner's goal (a race on a date, or a goal
 without one), a recent race or time trial, their usual week and longest run, and the days they can
-run, filled in from their logs where it can be; the coach writes it from running's own reference,
+run, filled in from their logs where it can be, and any watch export or plan they attach; the
+coach writes it from running's own reference,
 the runner's logged weeks and their other programmes, keeping hard running off heavy leg days
 where it can. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
 as steps, each ended by a time or a distance, with a pace or a heart-rate zone. A logged run keeps
