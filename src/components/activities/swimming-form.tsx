@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -102,6 +102,8 @@ export function SwimmingForm({
   openDetails = false,
   readIn = "m",
 }: Props) {
+  // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
   const [environment, setEnvironment] = useState(() => values("environment") || "pool");
@@ -145,7 +147,7 @@ export function SwimmingForm({
   // Board Log a swim: where, the elapsed time, how the distance was measured and what that
   // came to, how hard it felt; everything optional behind one row; Save at the foot.
   return (
-    <form action={formAction}>
+    <form ref={form} action={formAction}>
       <input type="hidden" name="sport" value="swimming" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <input type="hidden" name="resourceId" value={values("resourceId")} />

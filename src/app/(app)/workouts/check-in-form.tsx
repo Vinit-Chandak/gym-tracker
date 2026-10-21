@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { RowStepper } from "@/components/ui/row-stepper";
 import { ScaleField } from "@/components/ui/scale-field";
@@ -63,11 +63,14 @@ export function CheckInForm({
   lastSleepHours = null,
   retrospective = false,
 }: Props) {
+  // A 1–5 scale that can be let go holds its choice in state; React's reset after a refused
+  // save would show and send the one it opened on instead (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
 
   return (
-    <form action={formAction}>
+    <form ref={form} action={formAction}>
       <section aria-labelledby="check-in-sleep">
         <h2 id="check-in-sleep" className="caption-head mt-3">
           Sleep

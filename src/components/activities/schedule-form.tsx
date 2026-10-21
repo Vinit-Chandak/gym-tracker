@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { Card } from "@/components/ui/card";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -40,6 +40,8 @@ export function ScheduleForm({
   today: string;
   templates: readonly ScheduleTemplateOption[];
 }) {
+  // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [selectedSport, setSelectedSport] = useState(sport);
   const [chosen, setChosen] = useState("");
@@ -47,7 +49,7 @@ export function ScheduleForm({
   const template = matchingTemplates.find((item) => item.id === chosen) ?? null;
 
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form ref={form} action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="What and when">
         <Card>
           <Field group label="Sport" error={state.fieldErrors?.sport}>
