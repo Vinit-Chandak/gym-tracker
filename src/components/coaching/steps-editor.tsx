@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useId, useState, type ComponentProps } from "react";
 
 import {
   clockEntry,
@@ -46,8 +46,8 @@ import {
  * heart-rate zone; a recovery is a jog, a walk or standing still. One level of repeats, as the
  * schema allows, and the schema's limits.
  *
- * A figure is typed freely and read when its field is left. One the session cannot hold — a
- * pace of a minute a kilometre, a rep of no distance — goes back to the last one it could.
+ * A figure is typed freely and read when its field is left. A refused figure stays visible
+ * with its error, and prevents saving until it is corrected.
  */
 
 type Range = [number, number];
@@ -139,24 +139,45 @@ function paceFrom(text: string, unit: DistanceUnit): number | null {
 function TypedInput({
   value,
   onCommit,
+  validate,
   clock = false,
   ...props
 }: Omit<ComponentProps<"input">, "value" | "defaultValue" | "onChange" | "onBlur"> & {
   value: string;
   onCommit: (text: string) => void;
+  validate?: (text: string) => string | undefined;
   clock?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
+  const problem = draft !== null ? validate?.(draft) : undefined;
+  const error = touched ? problem : undefined;
+  const errorId = useId();
   return (
-    <Input
-      {...props}
-      value={draft ?? value}
-      onChange={(event) => setDraft(clock ? clockEntry(event.target.value) : event.target.value)}
-      onBlur={() => {
-        if (draft !== null && draft !== value) onCommit(draft);
-        setDraft(null);
-      }}
-    />
+    <>
+      <Input
+        {...props}
+        value={draft ?? value}
+        aria-invalid={error ? true : props["aria-invalid"]}
+        aria-describedby={
+          [props["aria-describedby"], error ? errorId : undefined].filter(Boolean).join(" ") ||
+          undefined
+        }
+        data-typed-invalid={problem ? "true" : undefined}
+        onChange={(event) => setDraft(clock ? clockEntry(event.target.value) : event.target.value)}
+        onBlur={() => {
+          setTouched(true);
+          if (problem) return;
+          if (draft !== null && draft !== value) onCommit(draft);
+          setDraft(null);
+        }}
+      />
+      {error && (
+        <span id={errorId} role="alert" className="block text-sm font-bold text-danger-text">
+          {error}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -177,6 +198,10 @@ export function PaceZoneFields({
   unit: DistanceUnit;
   onChange: (next: { pace: Range | undefined; zones: Range | undefined }) => void;
 }) {
+  const validatePace = (text: string) =>
+    text.trim() !== "" && paceFrom(text, unit) === null
+      ? `Enter a pace from ${paceText(PACE_TARGET_SECONDS_PER_KM.min, unit)} to ${paceText(PACE_TARGET_SECONDS_PER_KM.max, unit)} per ${unit}, or clear it.`
+      : undefined;
   return (
     <div className="step-editor-fields">
       {/* The format is said in the label, before typing: a placeholder goes when typing starts. */}
@@ -185,6 +210,7 @@ export function PaceZoneFields({
           clock
           inputMode="numeric"
           value={pace ? paceText(pace[0], unit) : ""}
+          validate={validatePace}
           onCommit={(text) => {
             if (text.trim() === "") return onChange({ pace: undefined, zones });
             const value = paceFrom(text, unit);
@@ -194,10 +220,12 @@ export function PaceZoneFields({
       </Field>
       <Field label="Pace up to, m:ss" aside="Optional">
         <TypedInput
+          key={pace ? "pace" : "none"}
           clock
           inputMode="numeric"
           disabled={!pace}
           value={pace && pace[1] !== pace[0] ? paceText(pace[1], unit) : ""}
+          validate={validatePace}
           onCommit={(text) => {
             if (!pace) return;
             if (text.trim() === "") return onChange({ pace: [pace[0], pace[0]], zones });
@@ -371,6 +399,9 @@ function StepFields({
   }
   const amountLabel = MEASURE_WORDS[measure];
   const clock = measure === "duration";
+  const amountError = clock
+    ? "Enter a time greater than zero and no longer than 7 days."
+    : `Enter a distance greater than zero and at most ${fromMetres(DISTANCE_METRES.running.max, measure)} ${measure}.`;
   return (
     <div className="step-editor">
       <NodeHead title={title} placement={placement} />
@@ -417,9 +448,11 @@ function StepFields({
       <div className="step-editor-fields">
         <Field label={amountLabel}>
           <TypedInput
+            key={measure}
             clock={clock}
             inputMode={clock ? "numeric" : "decimal"}
             value={shown(range[0])}
+            validate={(text) => (read(text) === null ? amountError : undefined)}
             onCommit={(text) => {
               const value = read(text);
               if (value !== null) setRange(withFirst(range, value));
@@ -428,9 +461,13 @@ function StepFields({
         </Field>
         <Field label={`${amountLabel} up to`} aside="Optional">
           <TypedInput
+            key={measure}
             clock={clock}
             inputMode={clock ? "numeric" : "decimal"}
             value={range[1] !== range[0] ? shown(range[1]) : ""}
+            validate={(text) =>
+              text.trim() !== "" && read(text) === null ? amountError : undefined
+            }
             onCommit={(text) => {
               if (text.trim() === "") return setRange([range[0], range[0]]);
               const value = read(text);
@@ -549,16 +586,17 @@ export function StepsEditor({
                   <TypedInput
                     inputMode="numeric"
                     value={String(node.repetitions)}
+                    validate={(text) => {
+                      const count = Number(text);
+                      return !Number.isInteger(count) ||
+                        count < 2 ||
+                        count > PRESCRIPTION_LIMITS.repetitionsPerBlock
+                        ? `Enter a whole number of repeats from 2 to ${PRESCRIPTION_LIMITS.repetitionsPerBlock}.`
+                        : undefined;
+                    }}
                     onCommit={(text) => {
                       const repetitions = Number(text.trim());
-                      if (Number.isInteger(repetitions))
-                        replace(index, {
-                          ...node,
-                          repetitions: Math.min(
-                            PRESCRIPTION_LIMITS.repetitionsPerBlock,
-                            Math.max(2, repetitions),
-                          ),
-                        });
+                      replace(index, { ...node, repetitions });
                     }}
                   />
                 </Field>
@@ -569,6 +607,13 @@ export function StepsEditor({
                       clock
                       inputMode="numeric"
                       value={formatDuration(node.restBetweenMs / 1000)}
+                      validate={(text) => {
+                        if (text.trim() === "") return;
+                        const seconds = parseDuration(text);
+                        return seconds === null || seconds * 1000 > DURATION_MS.max
+                          ? "Enter a rest time no longer than 7 days, or clear it."
+                          : undefined;
+                      }}
                       onCommit={(text) => {
                         const seconds = parseDuration(text);
                         replace(index, {

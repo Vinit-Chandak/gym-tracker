@@ -45,6 +45,7 @@ import { coachingAction } from "./client-action";
 import { CoachFilesField, useCoachFiles, type CoachFile } from "./coach-files";
 import { CoachAsked } from "./coach-asked";
 import { DayPicker } from "./day-picker";
+import { useEditorReady } from "./use-editor-ready";
 
 /**
  * Asking the coach for a running programme (ADR 0059): what every running app asks before it
@@ -198,6 +199,7 @@ export function RunningIntakeForm({
   today: string;
 }) {
   const router = useRouter();
+  const ready = useEditorReady();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -345,6 +347,8 @@ export function RunningIntakeForm({
   // Filled in from the logs and not changed since: said in a word or two beside its label.
   const fromLogs = (key: keyof Draft, filled: boolean) =>
     filled && initial === null && draft[key] === opened[key] ? "From your logs" : undefined;
+
+  if (!ready) return <p role="status">Opening your questions…</p>;
 
   return (
     <form
@@ -680,7 +684,13 @@ export function RunningIntakeForm({
         >
           {pending ? "Saving…" : "Ask the coach for a programme"}
         </Button>
-        <button type="submit" value="save" disabled={busy} className="text-action w-full">
+        <button
+          type="submit"
+          value="save"
+          formNoValidate
+          disabled={busy}
+          className="text-action w-full"
+        >
           Save answers
         </button>
       </PinnedActions>

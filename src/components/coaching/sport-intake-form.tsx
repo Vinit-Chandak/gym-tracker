@@ -25,6 +25,7 @@ import { coachingAction } from "./client-action";
 import { CoachAsked } from "./coach-asked";
 import { CoachFilesField, useCoachFiles, type CoachFile } from "./coach-files";
 import { DayPicker } from "./day-picker";
+import { useEditorReady } from "./use-editor-ready";
 
 type Sport = "cycling" | "swimming";
 
@@ -123,6 +124,7 @@ export function SportIntakeForm({
 }) {
   const words = WORDS[sport];
   const router = useRouter();
+  const ready = useEditorReady();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -213,6 +215,8 @@ export function SportIntakeForm({
     if (created.ok) router.push(`/plan/requests/${created.value.jobId}` as Route);
     else setError(created.error);
   }
+
+  if (!ready) return <p role="status">Opening your questions…</p>;
 
   return (
     <form
@@ -365,7 +369,13 @@ export function SportIntakeForm({
         >
           {pending ? "Saving…" : "Ask the coach for a programme"}
         </Button>
-        <button type="submit" value="save" disabled={busy} className="text-action w-full">
+        <button
+          type="submit"
+          value="save"
+          formNoValidate
+          disabled={busy}
+          className="text-action w-full"
+        >
           Save answers
         </button>
       </PinnedActions>

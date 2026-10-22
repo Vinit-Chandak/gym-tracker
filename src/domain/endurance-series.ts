@@ -177,11 +177,19 @@ function changedPrescription(
   for (const key of Object.keys(proposed) as (keyof typeof proposed)[]) {
     if (key === "sessionTargets") {
       result.sessionTargets = { ...current.sessionTargets };
-      for (const target of Object.keys(
-        proposed.sessionTargets,
-      ) as (keyof typeof proposed.sessionTargets)[])
-        if (stable(original.sessionTargets[target]) !== stable(proposed.sessionTargets[target]))
-          Object.assign(result.sessionTargets, { [target]: proposed.sessionTargets[target] });
+      // A removed optional pace/zone is a change too. Iterating only the new keys kept the
+      // old target forever, even when the editor explicitly cleared it.
+      const targets = new Set([
+        ...Object.keys(original.sessionTargets),
+        ...Object.keys(proposed.sessionTargets),
+      ] as (keyof typeof proposed.sessionTargets)[]);
+      for (const target of targets) {
+        if (stable(original.sessionTargets[target]) === stable(proposed.sessionTargets[target]))
+          continue;
+        if (proposed.sessionTargets[target] === undefined)
+          Reflect.deleteProperty(result.sessionTargets, target);
+        else Object.assign(result.sessionTargets, { [target]: proposed.sessionTargets[target] });
+      }
     } else if (stable(original[key]) !== stable(proposed[key])) {
       // All fields come from a complete, typed prescription of this same sport.
       Object.assign(result, { [key]: proposed[key] });

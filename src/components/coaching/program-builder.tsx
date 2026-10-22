@@ -11,7 +11,13 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SavedNotice } from "@/components/ui/saved-notice";
 import { cycleCount, weekdayOffsets } from "@/domain/cycle-repeat";
-import type { BlueprintDay, BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
+import {
+  programBlueprintSchema,
+  type BlueprintDay,
+  type BlueprintExercise,
+  type ProgramBlueprint,
+} from "@/domain/program-blueprint";
+import type { z } from "zod";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
 import type { CycleRepeat } from "@/domain/types";
 import { WEEKDAY_NAMES } from "@/lib/labels";
@@ -21,6 +27,8 @@ import {
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
 import type { ProgrammeBase } from "./programme-paths";
+import { programmeFieldError } from "./programme-field-errors";
+import { useEditorReady } from "./use-editor-ready";
 
 type LibraryEntry = {
   slug: string;
@@ -77,6 +85,7 @@ export function ProgramBuilder({
   startRepeats?: CycleRepeat;
 }) {
   const router = useRouter();
+  const ready = useEditorReady();
   const [navigating, startNavigation] = useTransition();
   const [plan, setPlan] = useState<ProgramBlueprint>(() =>
     initial
@@ -110,7 +119,9 @@ export function ProgramBuilder({
   const [message, setMessage] = useState<string | null>(null);
   const [removedDay, setRemovedDay] = useState<{ day: BlueprintDay; index: number } | null>(null);
   const busy = saving || navigating;
-  const nameError = showProblems && !plan.name ? "Name your programme." : undefined;
+  const nameError = showProblems && !plan.name.trim() ? "Name your programme." : undefined;
+  const validation = showProblems ? programBlueprintSchema.safeParse(plan) : null;
+  const issues = validation && !validation.success ? validation.error.issues : [];
   const weeksError =
     showProblems && (!Number.isInteger(plan.weeks) || plan.weeks < 1 || plan.weeks > 52)
       ? "Enter a whole number of weeks from 1 to 52."
@@ -164,9 +175,20 @@ export function ProgramBuilder({
     setShowProblems(true);
     setError(null);
     setMessage(null);
+    const parsed = programBlueprintSchema.safeParse(plan);
+    const dayIssue =
+      !parsed.success &&
+      parsed.error.issues.find(
+        (issue) => issue.path[0] === "days" && typeof issue.path[1] === "number",
+      );
+    if (dayIssue) setSelectedDay(dayIssue.path[1] as number);
     try {
       const result = await coachingAction(() =>
-        saveProgramDraftAction({ ...plan, repeats }, draft?.id, draft?.revision),
+        saveProgramDraftAction(
+          { ...plan, name: plan.name.trim(), repeats },
+          draft?.id,
+          draft?.revision,
+        ),
       );
       if (!result.ok) throw new Error(result.error);
       setDraft({ id: result.value.id, revision: result.value.revision });
@@ -188,7 +210,7 @@ export function ProgramBuilder({
 
   return (
     <form className="space-y-6" noValidate onSubmit={(event) => event.preventDefault()}>
-      <fieldset disabled={busy} className="min-w-0 space-y-6">
+      <fieldset disabled={!ready || busy} className="min-w-0 space-y-6">
         <Disclosure
           summary="Programme settings"
           meta={plan.name ? `${plan.name} · ${plan.weeks} weeks` : undefined}
@@ -377,7 +399,7 @@ export function ProgramBuilder({
             aria-label={`Edit day ${d + 1}`}
             className="space-y-4 border-t border-line pt-5"
           >
-            <Field label="Day name">
+            <Field label="Day name" error={programmeFieldError(issues, ["days", d, "name"])}>
               <Input
                 maxLength={80}
                 value={day.name}
@@ -385,7 +407,10 @@ export function ProgramBuilder({
               />
             </Field>
             {repeats === "weekly" && plan.days.length < 7 && (
-              <Field label="Usual weekday">
+              <Field
+                label="Usual weekday"
+                error={programmeFieldError(issues, ["days", d, "dayOfWeek"])}
+              >
                 <Select
                   value={day.dayOfWeek || ""}
                   onChange={(event) => dayChange(d, { dayOfWeek: Number(event.target.value) })}
@@ -496,6 +521,15 @@ export function ProgramBuilder({
                   }
                   first={index === 0}
                   repeated={repeats !== "once"}
+                  issues={issues
+                    .filter(
+                      (issue) =>
+                        issue.path[0] === "days" &&
+                        issue.path[1] === d &&
+                        issue.path[2] === "exercises" &&
+                        issue.path[3] === index,
+                    )
+                    .map((issue) => ({ ...issue, path: issue.path.slice(4) }))}
                   onChange={(patch) =>
                     dayChange(d, {
                       exercises: day.exercises.map((exercise, i) =>
@@ -556,10 +590,10 @@ export function ProgramBuilder({
         {message && !preview && <SavedNotice>{message}</SavedNotice>}
         <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
         <div className="flex flex-wrap gap-2">
-          <Button disabled={busy} onClick={() => save(true)}>
+          <Button disabled={!ready || busy} onClick={() => save(true)}>
             {busy ? "Saving…" : "Review programme"}
           </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
+          <Button variant="secondary" disabled={!ready || busy} onClick={() => save(false)}>
             Save draft
           </Button>
         </div>
@@ -576,6 +610,7 @@ function ExerciseEditor({
   onChange,
   onMove,
   onRemove,
+  issues,
 }: {
   entry: BlueprintExercise;
   name: string;
@@ -584,6 +619,7 @@ function ExerciseEditor({
   onChange: (patch: Partial<BlueprintExercise>) => void;
   onMove: () => void;
   onRemove: () => void;
+  issues: readonly z.core.$ZodIssue[];
 }) {
   const measure = entry.reps ? "reps" : entry.duration ? "duration" : "distance";
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -591,7 +627,7 @@ function ExerciseEditor({
     <fieldset className="min-w-0 space-y-3 border-b border-line pb-5">
       <legend className="mb-3 text-lg font-medium [overflow-wrap:break-word]">{name}</legend>
       <div className="adaptive-grid">
-        <Field label="Sets">
+        <Field label="Sets" error={programmeFieldError(issues, ["sets"])}>
           <Input
             type="number"
             inputMode="numeric"
@@ -621,14 +657,26 @@ function ExerciseEditor({
       <RangeFields
         label={measure === "reps" ? "Reps" : measure === "duration" ? "Seconds" : "Metres"}
         value={entry[measure] ?? [NaN, NaN]}
+        errors={[
+          programmeFieldError(issues, [measure, 0]),
+          programmeFieldError(issues, [measure, 1]),
+        ]}
         onChange={(range) => onChange({ [measure]: range })}
       />
-      <Disclosure summary="Rest, effort and progression" variant="inline">
+      <Disclosure
+        summary="Rest, effort and progression"
+        variant="inline"
+        defaultOpen={issues.some((issue) => ["rest", "rir"].includes(String(issue.path[0])))}
+      >
         <div className="space-y-4">
           <RangeFields
             label="Rest seconds"
             legend="Rest (s)"
             value={entry.rest}
+            errors={[
+              programmeFieldError(issues, ["rest", 0]),
+              programmeFieldError(issues, ["rest", 1]),
+            ]}
             onChange={(rest) => onChange({ rest })}
           />
           <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
@@ -641,7 +689,15 @@ function ExerciseEditor({
             Set a reps-in-reserve target
           </label>
           {entry.rir && (
-            <RangeFields label="RIR" value={entry.rir} onChange={(rir) => onChange({ rir })} />
+            <RangeFields
+              label="RIR"
+              value={entry.rir}
+              errors={[
+                programmeFieldError(issues, ["rir", 0]),
+                programmeFieldError(issues, ["rir", 1]),
+              ]}
+              onChange={(rir) => onChange({ rir })}
+            />
           )}
           <label className="flex min-h-[var(--ov-target)] items-center gap-2 text-sm">
             <input
@@ -719,17 +775,19 @@ function RangeFields({
   legend = label,
   value,
   onChange,
+  errors,
 }: {
   label: string;
   legend?: string;
   value: [number, number];
   onChange: (value: [number, number]) => void;
+  errors?: [string | undefined, string | undefined];
 }) {
   return (
     <fieldset className="min-w-0 space-y-2">
       <legend className="text-sm font-medium">{legend}</legend>
       <div className="adaptive-grid">
-        <Field label="From">
+        <Field label="From" error={errors?.[0]}>
           <Input
             aria-label={`${label} from`}
             type="number"
@@ -740,7 +798,7 @@ function RangeFields({
             onChange={(event) => onChange([event.target.valueAsNumber, value[1]])}
           />
         </Field>
-        <Field label="To">
+        <Field label="To" error={errors?.[1]}>
           <Input
             aria-label={`${label} to`}
             type="number"

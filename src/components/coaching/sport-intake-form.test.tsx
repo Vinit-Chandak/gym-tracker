@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import { coachIntakeSchema } from "@/domain/coaching-workflow";
 import {
   createCoachProgramAction,
@@ -69,6 +70,58 @@ function answer(sport: "cycling" | "swimming") {
   fireEvent.change(screen.getByLabelText(words.perWeek), { target: { value: "3" } });
   fireEvent.change(screen.getByLabelText(words.minutes), { target: { value: "40" } });
 }
+
+it.each(["cycling", "swimming"] as const)(
+  "waits for change handlers before showing editable %s questions",
+  (sport) => {
+    const html = renderToString(
+      <SportIntakeForm
+        sport={sport}
+        initial={null}
+        prefill={coachIntakeSchema.parse({ programmeSport: sport })}
+        reports={[]}
+        configured={false}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).not.toMatch(/<(?:input|textarea|select)[\s>]/);
+  },
+);
+
+it.each(["cycling", "swimming"] as const)(
+  "saves a partial %s brief without a goal or schedule",
+  async (sport) => {
+    render(
+      <SportIntakeForm
+        sport={sport}
+        initial={null}
+        prefill={coachIntakeSchema.parse({ programmeSport: sport })}
+        reports={[]}
+        configured={false}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Your brief"), {
+      target: { value: "Keep this partial brief." },
+    });
+    const save = screen.getByRole("button", { name: "Save answers" });
+    // JSDOM ignores a submitter's formNoValidate; real clicks are covered by the browser audit.
+    expect(save).toHaveProperty("formNoValidate", true);
+    fireEvent(
+      save.closest("form")!,
+      new SubmitEvent("submit", { bubbles: true, cancelable: true, submitter: save }),
+    );
+    await screen.findByText("Answers saved.");
+    expect(saveCoachIntakeAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        programmeSport: sport,
+        prompt: "Keep this partial brief.",
+        sessionsPerWeek: null,
+      }),
+      null,
+    );
+    expect(createCoachProgramAction).not.toHaveBeenCalled();
+  },
+);
 
 it("keeps typed answers when a save loses its connection", async () => {
   vi.mocked(saveCoachIntakeAction).mockRejectedValue(new TypeError("Failed to fetch"));

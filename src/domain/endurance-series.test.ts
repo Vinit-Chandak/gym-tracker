@@ -97,6 +97,32 @@ describe("editing repeated endurance work", () => {
     expect(enduranceSessionGroups(next).map((group) => group.indexes)).toEqual([[0, 2, 3], [1]]);
   });
 
+  it.each(["this", "future_repeats"] as const)(
+    "removes cleared optional pace and zone targets within the %s scope",
+    (scope) => {
+      const seed = session();
+      seed.prescription.sessionTargets.paceSecondsPerKm = [330, 360];
+      seed.prescription.sessionTargets.heartRateZones = [2, 3];
+      const repeats = repeatEnduranceSession(seed, { everyDays: 7, throughDayOffset: 27 });
+      const prescription = structuredClone(repeats[1]!.prescription);
+      delete prescription.sessionTargets.paceSecondsPerKm;
+      delete prescription.sessionTargets.heartRateZones;
+      const next = updateEnduranceSession(repeats, 1, { prescription }, { scope });
+      for (const [index, entry] of next.entries()) {
+        const cleared = index === 1 || (scope === "future_repeats" && index > 1);
+        expect(entry.prescription.sessionTargets.paceSecondsPerKm).toEqual(
+          cleared ? undefined : [330, 360],
+        );
+        expect(entry.prescription.sessionTargets.heartRateZones).toEqual(
+          cleared ? undefined : [2, 3],
+        );
+        expect(entry.prescription.sessionTargets.durationMs).toEqual([1800000, 1800000]);
+        expect(entry.lineageId).toBe(repeats[index]!.lineageId);
+      }
+      expect(repeats[1]!.prescription.sessionTargets.paceSecondsPerKm).toEqual([330, 360]);
+    },
+  );
+
   it("a date change updates its week and moves only the selected occurrence", () => {
     const repeats = repeatEnduranceSession(session(), { everyDays: 7, throughDayOffset: 27 });
     const next = updateEnduranceSession(

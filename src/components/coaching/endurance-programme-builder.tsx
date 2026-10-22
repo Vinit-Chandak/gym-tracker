@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,49 @@ import {
 } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
 import { PaceZoneFields, StepsEditor } from "./steps-editor";
+import { programmeFieldError } from "./programme-field-errors";
+import { useEditorReady } from "./use-editor-ready";
 
 type Scope = "this" | "future_repeats";
+
+/** An invalid date stays correctable; it must not move a session into the frozen past. */
+function SessionDateField({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: string;
+  min: string;
+  max: string;
+  onChange: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const entered = draft ?? value;
+  const error =
+    draft !== null && (!entered || entered < min || entered > max)
+      ? `Choose a session date from ${min} to ${max}.`
+      : undefined;
+  return (
+    <Field label="Session date" info="Only this session moves." error={error}>
+      <Input
+        type="date"
+        min={min}
+        max={max}
+        value={entered}
+        data-typed-invalid={error ? "true" : undefined}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (!next || next < min || next > max) setDraft(next);
+          else {
+            setDraft(null);
+            onChange(next);
+          }
+        }}
+      />
+    </Field>
+  );
+}
 
 /** A distance's unit in words, as the steps editor writes it, for the legend over its range. */
 const UNIT_WORDS = { km: "Kilometres", mi: "Miles", m: "Metres", yd: "Yards" } as const;
@@ -90,6 +131,8 @@ export function EnduranceProgrammeBuilder({
   startView?: "pattern" | "week";
 }) {
   const router = useRouter();
+  const ready = useEditorReady();
+  const form = useRef<HTMLFormElement>(null);
   const [pending, start] = useTransition();
   const [plan, setPlan] = useState<ProgramBlueprint>(
     () =>
@@ -138,11 +181,16 @@ export function EnduranceProgrammeBuilder({
   const [repeatDays, setRepeatDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
   const [showProblems, setShowProblems] = useState(false);
-  const nameError = showProblems && !plan.name ? "Name your programme." : undefined;
+  const nameError = showProblems && !plan.name.trim() ? "Name your programme." : undefined;
+  const validation = showProblems ? programBlueprintSchema.safeParse(plan) : null;
+  const issues = validation && !validation.success ? validation.error.issues : [];
+  const validWeeks = Number.isInteger(plan.weeks) && plan.weeks >= 1 && plan.weeks <= 52;
+  // Keep the entered value for correction; only a bounded value may reach calendar rendering.
+  const calendarWeeks = Number.isFinite(plan.weeks)
+    ? Math.max(1, Math.min(52, Math.floor(plan.weeks)))
+    : 1;
   const weeksError =
-    showProblems && (!Number.isInteger(plan.weeks) || plan.weeks < 1 || plan.weeks > 52)
-      ? "Enter a whole number of weeks from 1 to 52."
-      : undefined;
+    showProblems && !validWeeks ? "Enter a whole number of weeks from 1 to 52." : undefined;
   // What stops a change, said under the field it is about, which its fold opens to show.
   const [fieldError, setFieldError] = useState<{
     field: "weeks" | "repeat";
@@ -206,13 +254,11 @@ export function EnduranceProgrammeBuilder({
   ) {
     if (!session) return;
     const previous = session.prescription.sessionTargets[field];
-    const value = input === "" ? null : Number(input) * scale;
-    const next: [number, number] | null =
-      value === null
-        ? null
-        : end === 0
-          ? [value, previous?.[1] ?? value]
-          : [previous?.[0] ?? value, value];
+    const value = input === "" ? NaN : Number(input) * scale;
+    const range: [number, number] =
+      end === 0 ? [value, previous?.[1] ?? value] : [previous?.[0] ?? value, value];
+    // Clearing one end must not silently erase the other. Both blank means no target.
+    const next = range.every(Number.isNaN) ? null : range;
     update({
       prescription: {
         ...session.prescription,
@@ -224,9 +270,36 @@ export function EnduranceProgrammeBuilder({
     setShowProblems(true);
     setError(null);
     setMessage(null);
-    const parsed = programBlueprintSchema.safeParse(plan);
+    // A typed step may still hold a refused edit. Never save its previous valid value as if
+    // the edit succeeded. Reveal the field even when its disclosure has since been closed.
+    const invalid = form.current?.querySelector<HTMLInputElement>('[data-typed-invalid="true"]');
+    if (invalid) {
+      let parent = invalid.parentElement;
+      while (parent) {
+        if (parent instanceof HTMLDetailsElement) parent.open = true;
+        parent = parent.parentElement;
+      }
+      invalid.focus();
+      return;
+    }
+    const parsed = programBlueprintSchema.safeParse({ ...plan, name: plan.name.trim() });
     if (!parsed.success) {
-      setError(parsed.error.issues.map((issue) => issue.message).join(" "));
+      const sessionIssue = parsed.error.issues.find(
+        (issue) => issue.path[0] === "enduranceSessions" && typeof issue.path[1] === "number",
+      );
+      if (sessionIssue) {
+        const index = sessionIssue.path[1] as number;
+        setSelected(index);
+        setWeek(sessions[index]!.weekIndex);
+      }
+      const general = parsed.error.issues.filter((issue) => {
+        if (issue.path[0] === "name" || issue.path[0] === "weeks") return false;
+        return !(
+          issue.path[3] === "sessionTargets" &&
+          ["durationMs", "distanceMetres", "effort"].includes(String(issue.path[4]))
+        );
+      });
+      setError(general.map((issue) => issue.message).join(" ") || null);
       return;
     }
     const result = await coachingAction(() =>
@@ -287,8 +360,13 @@ export function EnduranceProgrammeBuilder({
       : selected;
 
   return (
-    <form className="space-y-6 pb-24" noValidate onSubmit={(event) => event.preventDefault()}>
-      <fieldset disabled={pending} className="min-w-0 space-y-6">
+    <form
+      ref={form}
+      className="space-y-6 pb-24"
+      noValidate
+      onSubmit={(event) => event.preventDefault()}
+    >
+      <fieldset disabled={!ready || pending} className="min-w-0 space-y-6">
         <div className="space-y-3">
           <Field label="Programme name" error={nameError}>
             <Input
@@ -376,7 +454,7 @@ export function EnduranceProgrammeBuilder({
                   choose(sessions.findIndex((entry) => entry.weekIndex === next));
                 }}
               >
-                {Array.from({ length: Math.max(1, Math.min(52, plan.weeks || 1)) }, (_, i) => (
+                {Array.from({ length: calendarWeeks }, (_, i) => (
                   <option key={i + 1} value={i + 1}>
                     Week {i + 1}
                   </option>
@@ -403,7 +481,11 @@ export function EnduranceProgrammeBuilder({
         </section>
 
         {session && (view === "pattern" || session.weekIndex === week) && (
-          <section aria-label="Session editor" className="space-y-4 border-t border-line pt-5">
+          <section
+            key={`${session.lineageId}:${session.originalWeekIndex ?? session.weekIndex}`}
+            aria-label="Session editor"
+            className="space-y-4 border-t border-line pt-5"
+          >
             {/* Its name is the field below; its date and how it repeats are said once here. */}
             <p className="text-sm text-ink-2">
               {formatIsoDate(addDays(anchorDate, session.dayOffset), year)}
@@ -496,7 +578,22 @@ export function EnduranceProgrammeBuilder({
                         {([0, 1] as const).map((end) => (
                           // "From" and "To" under the legend, each named whole for a screen
                           // reader ("Minutes from"): the legend is not said three times.
-                          <Field key={end} label={end === 0 ? "From" : "To"}>
+                          <Field
+                            key={end}
+                            label={end === 0 ? "From" : "To"}
+                            error={programmeFieldError(
+                              issues,
+                              [
+                                "enduranceSessions",
+                                selected,
+                                "prescription",
+                                "sessionTargets",
+                                field,
+                                end,
+                              ],
+                              scale,
+                            )}
+                          >
                             <Input
                               aria-label={`${label} ${end === 0 ? "from" : "to"}`}
                               type="number"
@@ -504,7 +601,7 @@ export function EnduranceProgrammeBuilder({
                               min={0}
                               max={field === "effort" ? 5 : undefined}
                               value={
-                                session.prescription.sessionTargets[field]
+                                Number.isFinite(session.prescription.sessionTargets[field]?.[end])
                                   ? Number(
                                       (
                                         session.prescription.sessionTargets[field]![end] / scale
@@ -571,21 +668,17 @@ export function EnduranceProgrammeBuilder({
                 )}
                 <Disclosure summary="Date and instructions" variant="inline">
                   <div className="space-y-3">
-                    <Field label="Session date" info="Only this session moves.">
-                      <Input
-                        type="date"
-                        min={continuing && today > anchorDate ? today : anchorDate}
-                        max={addDays(anchorDate, Math.max(1, plan.weeks) * 7 - 1)}
-                        value={addDays(anchorDate, session.dayOffset)}
-                        onChange={(event) => {
-                          if (event.target.value) {
-                            const offset = daysBetween(anchorDate, event.target.value);
-                            update({ dayOffset: offset });
-                            setWeek(Math.floor(offset / 7) + 1);
-                          }
-                        }}
-                      />
-                    </Field>
+                    <SessionDateField
+                      key={`${anchorDate}:${today}:${calendarWeeks}`}
+                      min={continuing && today > anchorDate ? today : anchorDate}
+                      max={addDays(anchorDate, calendarWeeks * 7 - 1)}
+                      value={addDays(anchorDate, session.dayOffset)}
+                      onChange={(date) => {
+                        const offset = daysBetween(anchorDate, date);
+                        update({ dayOffset: offset });
+                        setWeek(Math.floor(offset / 7) + 1);
+                      }}
+                    />
                     <Field label="Time" aside="Optional">
                       <Input
                         type="time"
@@ -633,6 +726,7 @@ export function EnduranceProgrammeBuilder({
                     <Button
                       variant="secondary"
                       disabled={
+                        !validWeeks ||
                         !Number.isInteger(repeatDays) ||
                         repeatDays < 1 ||
                         repeatDays > 364 ||
@@ -716,7 +810,7 @@ export function EnduranceProgrammeBuilder({
           )}
           <Button
             variant="secondary"
-            disabled={sessions.length >= 730 || plan.weeks < 1}
+            disabled={sessions.length >= 730 || !validWeeks}
             onClick={() => {
               const template = templates.find((entry) => entry.id === templateId);
               const earliest = continuing ? Math.max(0, daysBetween(anchorDate, today)) : 0;
@@ -758,10 +852,14 @@ export function EnduranceProgrammeBuilder({
         {message === "Draft saved." && <SavedNotice>{message}</SavedNotice>}
         <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
         <div className="flex flex-wrap gap-2">
-          <Button disabled={pending} onClick={() => start(() => save(true))}>
+          <Button disabled={!ready || pending} onClick={() => start(() => save(true))}>
             {pending ? "Saving…" : "Review programme"}
           </Button>
-          <Button variant="secondary" disabled={pending} onClick={() => start(() => save(false))}>
+          <Button
+            variant="secondary"
+            disabled={!ready || pending}
+            onClick={() => start(() => save(false))}
+          >
             Save draft
           </Button>
         </div>

@@ -131,17 +131,54 @@ it("reads a distance in kilometres or miles, and a pace per mile", () => {
   expect(within(step).getByLabelText("Pace per mi, m:ss")).toHaveProperty("value", "9:00");
 });
 
-it("gives back a figure the session cannot hold, and keeps a range low to high", () => {
+it("keeps a refused figure visible for correction, and keeps a range low to high", () => {
   render(<Harness />);
   fireEvent.click(screen.getByRole("button", { name: "Add step" }));
   const step = stepBox("1. Warm-up");
   type(within(step).getByLabelText("Pace per km, m:ss"), "30");
-  expect(within(step).getByLabelText("Pace per km, m:ss")).toHaveProperty("value", "");
+  expect(within(step).getByLabelText("Pace per km, m:ss")).toHaveProperty("value", "0:30");
+  expect(within(step).getByLabelText("Pace per km, m:ss").getAttribute("aria-invalid")).toBe(
+    "true",
+  );
+  expect(within(step).getByRole("alert").textContent).toContain("pace");
   type(within(step).getByLabelText("Time"), "1500");
   type(within(step).getByLabelText("Time up to"), "1000");
   expect(stored()[0]).toMatchObject({ target: { kind: "duration", ms: [600000, 900000] } });
   type(within(step).getByLabelText("Time up to"), "");
   expect(stored()[0]).toMatchObject({ target: { kind: "duration", ms: [600000, 600000] } });
+});
+
+it.each(["", "1", "101", "2.5"])(
+  "audit: refuses repeat count %s instead of silently changing it",
+  (value) => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Add repeats" }));
+    const times = screen.getByLabelText("Times");
+    type(times, value);
+    expect(times).toHaveProperty("value", value);
+    expect(times.getAttribute("aria-invalid")).toBe("true");
+    expect(stored()[0]).toMatchObject({ repetitions: 6 });
+    type(times, "8");
+    expect(times.getAttribute("aria-invalid")).not.toBe("true");
+    expect(stored()[0]).toMatchObject({ repetitions: 8 });
+  },
+);
+
+it("clears an invalid upper pace when the optional pace target is removed", () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole("button", { name: "Add step" }));
+  const step = stepBox("1. Warm-up");
+  type(within(step).getByLabelText("Pace per km, m:ss"), "530");
+  type(within(step).getByLabelText("Pace up to, m:ss"), "30");
+  expect(within(step).getByLabelText("Pace up to, m:ss").getAttribute("data-typed-invalid")).toBe(
+    "true",
+  );
+  type(within(step).getByLabelText("Pace per km, m:ss"), "");
+  const upper = within(step).getByLabelText("Pace up to, m:ss");
+  expect(upper).toHaveProperty("value", "");
+  expect(upper).toHaveProperty("disabled", true);
+  expect(upper.getAttribute("data-typed-invalid")).toBeNull();
+  expect(stored()[0]).not.toHaveProperty("paceSecondsPerKm");
 });
 
 it("puts new work before a closing cool-down, and moves and removes steps", () => {

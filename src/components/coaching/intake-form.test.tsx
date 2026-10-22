@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import { coachIntakeSchema } from "@/domain/coaching-workflow";
 import { CoachIntakeForm } from "./intake-form";
 import {
@@ -59,6 +60,12 @@ beforeEach(() => {
     value: { userId: id, jobId: id, created: true },
   });
   vi.mocked(removeCoachAttachmentAction).mockResolvedValue({ ok: true, value: undefined });
+});
+
+it("waits for change handlers before showing editable strength questions", () => {
+  const html = renderToString(<CoachIntakeForm {...props} />);
+  expect(html).toContain('role="status"');
+  expect(html).not.toMatch(/<(?:input|textarea|select)[\s>]/);
 });
 
 it("asks which route you want before it asks anything else", async () => {

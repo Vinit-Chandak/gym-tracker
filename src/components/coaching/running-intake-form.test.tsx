@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import { coachIntakeSchema } from "@/domain/coaching-workflow";
 import {
   createCoachProgramAction,
@@ -72,6 +73,39 @@ function answer() {
   fireEvent.change(screen.getByLabelText("Runs a week"), { target: { value: "3" } });
   fireEvent.change(screen.getByLabelText("Minutes on a usual run"), { target: { value: "40" } });
 }
+
+it("waits for change handlers before showing editable coach questions", () => {
+  const html = renderToString(
+    <RunningIntakeForm {...props} initial={null} reports={[]} configured={false} />,
+  );
+  expect(html).toContain('role="status"');
+  expect(html).not.toMatch(/<(?:input|textarea|select)[\s>]/);
+});
+
+it("saves partial answers without requiring a goal or training schedule", async () => {
+  render(<RunningIntakeForm {...props} initial={null} reports={[]} configured={false} />);
+  fireEvent.change(screen.getByLabelText("In your own words"), {
+    target: { value: "Keep my partial running brief." },
+  });
+  const save = screen.getByRole("button", { name: "Save answers" });
+  // JSDOM validates the form even for a formNoValidate submitter; the browser audit covers
+  // the real click. Dispatch the resulting submit here to check the partial saved payload.
+  expect(save).toHaveProperty("formNoValidate", true);
+  fireEvent(
+    save.closest("form")!,
+    new SubmitEvent("submit", { bubbles: true, cancelable: true, submitter: save }),
+  );
+  await screen.findByText("Answers saved.");
+  expect(saveCoachIntakeAction).toHaveBeenCalledWith(
+    expect.objectContaining({
+      programmeSport: "running",
+      prompt: "Keep my partial running brief.",
+      sessionsPerWeek: null,
+    }),
+    null,
+  );
+  expect(createCoachProgramAction).not.toHaveBeenCalled();
+});
 
 it("asks with the run history and plans ticked for this request", async () => {
   render(
