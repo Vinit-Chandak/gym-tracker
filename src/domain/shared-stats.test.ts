@@ -368,6 +368,23 @@ describe("runStats", () => {
       "2026-09-08",
     );
   });
+  it("shares no pace for a run with breaks, so it is never a best pace", () => {
+    const run = {
+      id: "run-2",
+      startedAt: new Date("2026-09-08T07:00:00Z"),
+      durationSeconds: 1500,
+      distanceMeters: 6000,
+    };
+    expect(runStats({ ...run, runType: "intervals" }, "UTC")).toMatchObject({
+      distanceMeters: 6000,
+      durationSeconds: 1500,
+      paceSecondsPerKm: null,
+    });
+    expect(
+      runStats({ ...run, runType: "tempo", laps: [{ phase: "recovery" }] }, "UTC").paceSecondsPerKm,
+    ).toBeNull();
+    expect(runStats({ ...run, runType: "easy" }, "UTC").paceSecondsPerKm).toBe(250);
+  });
 });
 
 describe("detectRecords", () => {

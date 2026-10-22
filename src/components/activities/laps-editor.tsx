@@ -9,6 +9,8 @@ import { Select } from "@/components/ui/select";
 import { STEP_PHASES, type StepPhase } from "@/domain/activity-prescription";
 import { LAP_LIMIT } from "@/domain/activity-limits";
 import { formatPaceSeconds, pacePerUnit, paceSecondsPerKm } from "@/domain/activity-metrics";
+import { unlappedMs } from "@/domain/run-segments";
+import { joinFacts } from "@/lib/facts";
 import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { readPostedLaps, type LapUnit, type PlannedLap, type PostedLap } from "@/lib/run-laps";
 
@@ -131,10 +133,33 @@ function askedTime(asked: PlannedLap["asked"] | undefined): string | undefined {
   return asked && "durationMs" in asked ? formatDuration(asked.durationMs / 1000) : undefined;
 }
 
+/**
+ * "Laps total 24:10 of the run's 30:00": said only when every lap has a time and they leave some
+ * of the run unaccounted for, or claim more than it, beyond a watch's rounding. Laps that do not
+ * add up are each read on their own, never joined (ADR 0062), so the athlete sees why.
+ */
+function lapCoverage(laps: readonly PostedLap[], totalMs: number): string | null {
+  if (laps.length === 0 || !(totalMs > 0)) return null;
+  const gap = unlappedMs({
+    distanceMetres: 0,
+    durationMs: totalMs,
+    runType: null,
+    laps: laps.map((lap) => ({
+      phase: lap.phase,
+      distanceMetres: null,
+      durationMs: lap.durationMs,
+    })),
+  });
+  if (gap === null || gap === 0) return null;
+  const lapped = laps.reduce((sum, lap) => sum + lap.durationMs!, 0);
+  return `Laps total ${formatDuration(Math.round(lapped / 1000))} of the run's ${formatDuration(Math.round(totalMs / 1000))}`;
+}
+
 export function LapsEditor({
   initial,
   planned,
   readIn,
+  totalMs = 0,
   error,
 }: {
   /** The posted list the form opened on: a draft's, a refused save's or a saved run's. */
@@ -142,13 +167,15 @@ export function LapsEditor({
   /** The planned session's steps, offered as empty laps; none for an unplanned run. */
   planned: readonly PlannedLap[];
   readIn: DistanceUnit;
+  /** The run's own time as typed, to say when the laps do not add up to it. */
+  totalMs?: number;
   error?: string;
 }) {
   const id = useId();
   const [rows, setRows] = useState<LapRow[]>(() => readPostedLaps(initial).map(rowFromPosted));
   const [open, setOpen] = useState(() => rows.length > 0 || Boolean(error));
   const postedRows = rows.map(posted);
-  const summary = workSummary(postedRows, readIn);
+  const summary = joinFacts([workSummary(postedRows, readIn), lapCoverage(postedRows, totalMs)]);
 
   function change(key: string, patch: Partial<LapRow>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));

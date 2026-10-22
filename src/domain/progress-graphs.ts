@@ -354,10 +354,16 @@ export type RunInput = {
   environment: "outdoor" | "treadmill";
   metres: number;
   seconds: number;
+  /**
+   * False for a run with breaks in it (intervals, hills, sprints, run-walk, or a recovery lap):
+   * its distance and time are totals, not a pace anybody ran (ADR 0062). Absent is a steady run.
+   */
+  continuous?: boolean;
 };
 
 export type RunPoint = RunInput & {
-  /** Seconds per kilometre; none without distance. */ pace: number | null;
+  /** Seconds per kilometre; none without distance, or for a run with breaks. */
+  pace: number | null;
 };
 
 export type RunBucket = Slot & {
@@ -402,7 +408,10 @@ export function runningGraph(
     totals.metres += run.metres;
     totals.seconds += run.seconds;
     totals.runs += 1;
-    points.push({ ...run, pace: paceOf(run.metres, run.seconds) });
+    points.push({
+      ...run,
+      pace: run.continuous === false ? null : paceOf(run.metres, run.seconds),
+    });
   }
   return {
     buckets: buckets.map(({ ids, ...bucket }) => ({

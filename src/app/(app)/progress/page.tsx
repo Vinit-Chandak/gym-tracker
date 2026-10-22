@@ -5,6 +5,7 @@ import { withUser } from "@/db/with-user";
 import { EARLIEST_DAY, rangeOf, readWindowOf } from "@/domain/graph-range";
 import { macroTargets } from "@/domain/nutrition";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { hasBreaks } from "@/domain/run-segments";
 import {
   earliestOf,
   exerciseSessions,
@@ -144,6 +145,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
       environment: run.environment,
       metres: run.distanceMeters,
       seconds: run.durationSeconds,
+      // A run with breaks counts towards distance and time, never as a point of pace.
+      continuous: !hasBreaks(run),
     }))
     .reverse();
   const strengthRange = rangeFor(data.strength.map((row) => row.date));

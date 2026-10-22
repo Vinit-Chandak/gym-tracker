@@ -150,6 +150,8 @@ function asItem(done: Done): HistoryItem {
       distanceMeters: done.km * 1000,
       durationSeconds: done.seconds,
       averagePaceSecondsPerKm: done.seconds / done.km,
+      runType: null,
+      laps: [],
       gymId: null,
       surface: null,
       title: null,

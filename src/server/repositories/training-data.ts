@@ -15,7 +15,9 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domain/activity";
+import type { RunningLap } from "@/domain/activity-metrics";
 import { paceSecondsPerKm } from "@/domain/pace";
+import type { RunType } from "@/domain/run-types";
 import type { DateRange } from "@/server/validation/date-range";
 
 import { printedSessionOf, sessionPrintColumns } from "./session-prints";
@@ -209,7 +211,12 @@ export type RunActivity = {
   environment: RunningEnvironment;
   durationSeconds: number;
   distanceMeters: number;
+  /** The whole run's: with breaks in it, not a pace anybody ran (`hasBreaks`, ADR 0062). */
   averagePaceSecondsPerKm: number | null;
+  /** What kind of run it was; null when the athlete did not say (ADR 0059). */
+  runType: RunType | null;
+  /** Its laps as recorded, in order; empty when it was recorded as a whole. */
+  laps: RunningLap[];
   /** The number and how far it can be trusted; a migrated one stays unconfirmed (LOG-03). */
   effort: Effort;
   surface: string | null;
@@ -236,6 +243,8 @@ const RUN_COLUMNS = {
   occurrenceId: activities.occurrenceId,
   environment: runningActivityDetails.environment,
   distanceMetres: runningActivityDetails.distanceMetres,
+  runType: runningActivityDetails.runType,
+  laps: runningActivityDetails.laps,
   surface: runningActivityDetails.surface,
   gymId: runningActivityDetails.legacyGymId,
   programRunId: runningActivityDetails.legacyProgramRunId,
@@ -258,6 +267,8 @@ function toRunActivity(row: RunRow): RunActivity {
     durationSeconds,
     distanceMeters: row.distanceMetres,
     averagePaceSecondsPerKm: paceSecondsPerKm(row.distanceMetres, durationSeconds),
+    runType: row.runType,
+    laps: row.laps,
     effort: effortFromStorage(row.effortValue, row.effortStatus),
     surface: row.surface,
     title: row.title,

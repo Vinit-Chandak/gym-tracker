@@ -350,6 +350,20 @@ describe("running", () => {
     expect(averagePace(runningGraph(runs.slice(0, 2), MONTH, TODAY).points)).toBe(375);
     expect(averagePace([{ metres: 0, seconds: 600 }])).toBeNull();
   });
+
+  it("counts a run with breaks in distance and time, never as a pace", () => {
+    const session = {
+      id: "r5",
+      date: "2026-09-24",
+      environment: "outdoor" as const,
+      metres: 6000,
+      seconds: 2400,
+      continuous: false,
+    };
+    const graph = runningGraph([...runs, session], MONTH, TODAY);
+    expect(graph.totals).toMatchObject({ metres: 18000, runs: 5 });
+    expect(graph.points.find((point) => point.id === "r5")!.pace).toBeNull();
+  });
 });
 
 describe("food", () => {

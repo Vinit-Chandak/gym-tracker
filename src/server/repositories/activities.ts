@@ -413,6 +413,8 @@ async function projectSharedStats(
         startedAt,
         durationSeconds: Math.round(actual.durationMs / 1000),
         distanceMeters: actual.distance.metres,
+        runType: actual.runType,
+        laps: actual.laps,
       },
       timeZone,
     );

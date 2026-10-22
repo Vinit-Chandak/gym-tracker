@@ -133,7 +133,11 @@ coach writes it from running's own reference,
 the runner's logged weeks and their other programmes, keeping hard running off heavy leg days
 where it can. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
 as steps, each ended by a time or a distance, with a pace or a heart-rate zone. A logged run keeps
-its kind, outdoor or treadmill, and its laps from the watch with their heart rate. Heart-rate
+its kind, outdoor or treadmill, and its laps from the watch with their heart rate. Its best efforts
+and the coach's reading of it come from what was actually run: a lap's own time, laps joined only
+when the record shows them back to back, a session run in pieces counted rep by rep and never as a
+whole, and only a race or a time trial taken as a race
+([ADR 0062](docs/decisions/0062-efforts-from-what-was-actually-run.md)). Heart-rate
 zones are the athlete's own: Profile › Heart rate zones holds the maximum (entered, raised by a
 harder run, or estimated from age), the resting heart rate and how the zones are worked out.
 

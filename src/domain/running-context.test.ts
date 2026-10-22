@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { RecordedLap } from "./run-segments";
 import {
   bestEfforts,
+  fastestReps,
+  latestRaceOrTrial,
   legLoad,
   longestRunWithin,
   predictions,
+  predictsRaces,
   riegelSeconds,
   runMix,
   runningWeeks,
@@ -25,6 +29,7 @@ const run = (
   runType: null,
   environment: "outdoor",
   effort: null,
+  laps: [],
   ...overrides,
 });
 
@@ -72,6 +77,9 @@ describe("best efforts and what they predict", () => {
         on: "2026-10-14",
         sourceId: "activity:c",
         effort: 5,
+        runType: "time_trial",
+        part: "whole run",
+        rep: false,
       },
       {
         label: "10K",
@@ -80,8 +88,127 @@ describe("best efforts and what they predict", () => {
         on: "2026-10-06",
         sourceId: "activity:d",
         effort: null,
+        runType: null,
+        part: "whole run",
+        rep: false,
       },
     ]);
+  });
+
+  const lap = (metres: number, seconds: number, phase: RecordedLap["phase"] = null) => ({
+    phase,
+    distanceMetres: metres,
+    durationMs: seconds * 1000,
+  });
+
+  it("finds a 5K inside a longer run from laps run back to back, as they were run", () => {
+    // Ten 1 km laps adding up to the run: laps 4–8 were the fastest five.
+    const paces = [330, 325, 320, 290, 288, 286, 289, 291, 320, 330];
+    const long = run("l", "2026-10-18", 10, paces.reduce((sum, value) => sum + value, 0) / 60, {
+      runType: "long",
+      laps: paces.map((seconds) => lap(1000, seconds)),
+    });
+    const efforts = bestEfforts([long]);
+    expect(efforts.find((effort) => effort.label === "5K")).toMatchObject({
+      seconds: 1444,
+      part: "laps 4–8",
+      rep: false,
+    });
+    expect(efforts.find((effort) => effort.label === "1K")).toMatchObject({
+      seconds: 286,
+      part: "lap 6",
+    });
+    // A kilometre lap says nothing of its fastest 400 m: nobody measured it.
+    expect(efforts.find((effort) => effort.label === "400 m")).toBeUndefined();
+  });
+
+  it("counts a rep at its own distance, and never the session's total", () => {
+    // 6 × 400 m with a walk after each but the last, and a total that holds the walks.
+    const laps = Array.from({ length: 6 }, (_, i) => [
+      lap(400, i === 1 ? 84 : 90, "work"),
+      ...(i < 5 ? [lap(100, 90, "recovery")] : []),
+    ]).flat();
+    const session = run("i", "2026-10-13", 2.9, 18, { runType: "intervals", effort: 4, laps });
+    expect(bestEfforts([session])).toEqual([
+      {
+        label: "400 m",
+        metres: 400,
+        seconds: 84,
+        on: "2026-10-13",
+        sourceId: "activity:i",
+        effort: 4,
+        runType: "intervals",
+        part: "rep 2 of 6",
+        rep: true,
+      },
+    ]);
+  });
+
+  it("keeps a rep that matches no benchmark at its own distance, never a guessed one", () => {
+    // 3 × 2 minutes of 500 m: not a 400 m nobody timed, but 500 m in 2:00.
+    const session = run("r", "2026-10-15", 1.5, 6, {
+      runType: "intervals",
+      laps: [lap(500, 120), lap(500, 118), lap(500, 122)],
+    });
+    expect(bestEfforts([session])).toEqual([]);
+    expect(fastestReps([session])).toEqual([
+      {
+        metres: 500,
+        seconds: 118,
+        paceSecondsPerKm: 236,
+        on: "2026-10-15",
+        sourceId: "activity:r",
+        effort: null,
+        runType: "intervals",
+        part: "rep 2 of 3",
+      },
+    ]);
+  });
+
+  it("takes reps within 5 per cent of one another as the same distance", () => {
+    const one = run("a", "2026-10-01", 0.8, 3, {
+      runType: "intervals",
+      laps: [lap(400, 90), lap(410, 89)],
+    });
+    const two = run("b", "2026-10-08", 2, 8, {
+      runType: "intervals",
+      laps: [lap(1000, 230), lap(1000, 228)],
+    });
+    expect(fastestReps([one, two]).map((rep) => [rep.metres, rep.seconds])).toEqual([
+      // 410 m in 1:29 is the faster pace of the pair.
+      [410, 89],
+      [1000, 228],
+    ]);
+  });
+
+  it("predicts races only from an unrested effort of three and a half minutes to 230", () => {
+    expect(predictsRaces({ seconds: 1500, rep: false })).toBe(true);
+    expect(predictsRaces({ seconds: 200, rep: false })).toBe(false);
+    expect(predictsRaces({ seconds: 231 * 60, rep: false })).toBe(false);
+    expect(predictsRaces({ seconds: 240, rep: true })).toBe(false);
+  });
+
+  it("offers only a race or a time trial as a recent race, never a fast training run", () => {
+    const fast = run("f", "2026-10-19", 5.02, 21, { runType: "tempo" });
+    expect(latestRaceOrTrial([fast, run("u", "2026-10-18", 5, 22)])).toBeNull();
+    // A race is its course's distance at its own time, though the watch measured it short.
+    const race = run("r", "2026-10-11", 4.9, 25, { runType: "race" });
+    expect(latestRaceOrTrial([fast, race])).toEqual({
+      label: "5K",
+      metres: 5000,
+      seconds: 1500,
+      on: "2026-10-11",
+    });
+    // A time trial is the watch's distance, scaled to the one it stands for; the latest wins.
+    const trial = run("t", "2026-10-14", 5.1, 24, { runType: "time_trial" });
+    expect(latestRaceOrTrial([race, trial])).toMatchObject({ label: "5K", seconds: 1412 });
+    // Any other distance keeps its own.
+    expect(latestRaceOrTrial([run("o", "2026-10-15", 7, 35, { runType: "race" })])).toEqual({
+      label: "Another distance",
+      metres: 7000,
+      seconds: 2100,
+      on: "2026-10-15",
+    });
   });
 
   it("predicts with Riegel's exponent", () => {

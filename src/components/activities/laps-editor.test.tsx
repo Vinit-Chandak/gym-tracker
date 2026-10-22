@@ -46,3 +46,25 @@ it("lays out the plan's laps empty, and fills in the plan's figures only when as
     screen.queryByRole("button", { name: "Fill in the planned distances and times" }),
   ).toBeNull();
 });
+
+it("says when the laps leave some of the run's time unaccounted for", () => {
+  const lap = (durationMs: number): PostedLap => ({
+    phase: "work",
+    distanceValue: 500,
+    distanceUnit: "m",
+    durationMs,
+    averageHeartRate: null,
+    maxHeartRate: null,
+  });
+  const laps = [lap(120_000), lap(118_000), lap(122_000)];
+  const view = render(
+    <LapsEditor initial={JSON.stringify(laps)} planned={[]} readIn="km" totalMs={600_000} />,
+  );
+  // Six minutes in laps, ten in the run: the recoveries were not lapped.
+  expect(screen.getByRole("status").textContent).toContain("Laps total 6:00 of the run's 10:00");
+  view.unmount();
+
+  // Laps that add up to the run, within a watch's rounding, need no word.
+  render(<LapsEditor initial={JSON.stringify(laps)} planned={[]} readIn="km" totalMs={361_000} />);
+  expect(screen.getByRole("status").textContent).not.toContain("Laps total");
+});

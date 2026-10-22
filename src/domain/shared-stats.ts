@@ -5,8 +5,11 @@ import { unroundedEstimated1RM } from "./analytics";
 import { ASSISTED_EQUIPMENT_TYPES } from "./load-steps";
 import { addExerciseVolume, emptyMuscleVolume } from "./muscle-volume";
 import type { MuscleSets } from "./muscle-split";
+import type { StepPhase } from "./activity-prescription";
 import { paceSecondsPerKm } from "./pace";
 import { todayInTimeZone } from "./program-calendar";
+import { hasBreaks } from "./run-segments";
+import type { RunType } from "./run-types";
 import type { TrainingSport } from "./sport-scope";
 import type {
   ExerciseModality,
@@ -352,6 +355,9 @@ export type StatsRun = {
   startedAt: Date;
   durationSeconds: number;
   distanceMeters: number;
+  /** Its kind and laps, so a run with breaks shares no pace (ADR 0062). Absent is steady. */
+  runType?: RunType | null;
+  laps?: readonly { phase: StepPhase | null }[];
   /**
    * The local date frozen on the run when it was saved, in the zone it was recorded in. Given,
    * it is the shared row's date, so a rebuild cannot move a run logged while travelling to
@@ -400,7 +406,11 @@ export function enduranceStats(
 
 /** A run's shared row: distance, time and pace; outdoor and treadmill are not told apart. */
 export function runStats(run: StatsRun, timeZone: string): SessionStats {
-  const pace = paceSecondsPerKm(run.distanceMeters, run.durationSeconds);
+  // A session run in pieces has totals, not a pace anybody ran: it shares none, so it is never
+  // a friend's best pace either (ADR 0062).
+  const pace = hasBreaks({ runType: run.runType ?? null, laps: run.laps ?? [] })
+    ? null
+    : paceSecondsPerKm(run.distanceMeters, run.durationSeconds);
   return {
     sport: "run",
     sourceId: run.id,

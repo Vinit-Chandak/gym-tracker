@@ -190,6 +190,7 @@ export function RunningForm({
         initial={values("laps")}
         planned={plannedLaps}
         readIn={(readIn ?? "km") as DistanceUnit}
+        totalMs={durationMs}
         error={errors?.laps}
       />
 
