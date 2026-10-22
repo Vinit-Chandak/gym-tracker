@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { FormError } from "@/components/ui/form";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Section } from "@/components/ui/section";
@@ -348,11 +349,7 @@ export function SportIntakeForm({
           actions). Saving stays open while the coach takes no new programmes. */}
       <PinnedActions stack>
         <FormError message={error ?? undefined} />
-        {message && (
-          <p role="status" className="type-meta-small text-ink-2">
-            {message}
-          </p>
-        )}
+        {message && <SavedNotice>{message}</SavedNotice>}
         {!configured && (
           <p className="type-meta-small text-ink-2">
             The coach is not taking new programmes right now.

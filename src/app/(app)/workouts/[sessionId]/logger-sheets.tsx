@@ -6,6 +6,7 @@ import { useId, useState, type ReactNode } from "react";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { FormError } from "@/components/ui/form";
 import { FigureInput } from "@/components/ui/figure-input";
 import { FigureText } from "@/components/ui/figure-text";
 import { emWidth } from "@/components/ui/fit";
@@ -310,6 +311,20 @@ function SetEditor({
     draft.setType !== original.setType ||
     DRAFT_VALUE_FIELDS.some((field) => draft[field] !== original[field]);
   const failed = row.dirty && row.error !== null;
+  const refusedField = fields.find((field) => field.field === row.errorField);
+  const refusedValue = refusedField ? draft[refusedField.field] : "";
+  const stillRefused = Boolean(
+    refusedField &&
+    (refusedValue === row[refusedField.field] ||
+      refusedValue.trim() === "" ||
+      !Number.isFinite(Number(refusedValue)) ||
+      Number(refusedValue) < refusedField.min ||
+      Number(refusedValue) > refusedField.max ||
+      (refusedField.keeps === "decimal" &&
+        refusedField.inputMode === "numeric" &&
+        !Number.isInteger(Number(refusedValue)))),
+  );
+  const shownError = refusedField && !stillRefused ? null : row.error;
 
   const set = (field: DraftValueField, value: string, effort: boolean) =>
     setDraft((current) => ({
@@ -350,13 +365,21 @@ function SetEditor({
         {fields.map((field) => {
           const effort = field.info !== null;
           const value = draft[field.field];
+          const invalid = Boolean(shownError && row.errorField === field.field);
           return (
             <div
               key={field.field}
-              className="flex items-center justify-between gap-3 border-b border-hair py-2.5"
+              className="set-editor-field flex items-center justify-between gap-3 border-b border-hair py-2.5"
+              data-field-error={invalid || undefined}
             >
               <span className="flex min-w-0 flex-col">
-                <span className="type-heading text-[length:var(--ov-type-body)] [overflow-wrap:break-word]">
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5 type-heading text-[length:var(--ov-type-body)] [overflow-wrap:break-word]",
+                    invalid && "text-danger-text",
+                  )}
+                >
+                  {invalid && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
                   {field.inputLabel}
                 </span>
                 {field.hint && (
@@ -396,6 +419,7 @@ function SetEditor({
                     className="shrink-0"
                     inputMode={field.inputMode}
                     aria-label={field.inputLabel}
+                    aria-invalid={invalid || undefined}
                     value={value}
                     placeholder="–"
                     disabled={row.saving}
@@ -445,15 +469,7 @@ function SetEditor({
           );
         })}
       </div>
-      {row.error && (
-        <p
-          role="alert"
-          className="flex items-start gap-2 text-[length:var(--ov-type-meta)] leading-[1.4] font-semibold"
-        >
-          <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:break-word]">{row.error}</span>
-        </p>
-      )}
+      {shownError && <FormError message={shownError} />}
       <div className="grid gap-2">
         <Button size="lg" disabled={row.saving || (!changed && !failed)} onClick={update}>
           {row.saving ? "Saving…" : failed && !changed ? "Retry" : "Update"}

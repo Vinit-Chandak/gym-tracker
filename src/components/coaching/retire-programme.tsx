@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { archiveProgramAction } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "./client-action";
@@ -50,6 +51,7 @@ export function RetireProgramme({
             on are removed, and any not done can then only be logged as unplanned. Everything you
             logged stays.
           </p>
+          <FormError message={error ?? undefined} />
           <div className="grid gap-2 min-[420px]:grid-cols-2">
             <Button
               variant="danger"
@@ -79,11 +81,6 @@ export function RetireProgramme({
               Keep it
             </Button>
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          )}
         </div>
       )}
     </>

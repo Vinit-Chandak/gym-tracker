@@ -67,6 +67,8 @@ export type RowState = {
   logged: SetVM | null;
   saving: boolean;
   error: string | null;
+  /** A locally refused value, so its own control can carry the danger signal. */
+  errorField?: DraftValueField | null;
   dirty: boolean;
   /** The athlete picked this row's type, so nothing reads it as anything else. */
   typeChosen?: boolean;
@@ -476,6 +478,23 @@ export function useSetRows({
       effortVersion: touch === "rir" || touch === "rpe" ? EFFORT_INPUT_VERSION : row.effortVersion,
       dirty: true,
     };
+    // A keystroke is not a correction until the refused value can be saved. In particular,
+    // an empty effort or RPE 0 keeps its message, and fractional yards keep their own edge.
+    if (touch && row.errorField === touch) {
+      const value = next[touch].trim() === "" ? null : Number(next[touch]);
+      const valid =
+        value !== null &&
+        Number.isFinite(value) &&
+        (touch === "rir"
+          ? value >= 0 && value <= 10
+          : touch === "rpe"
+            ? value >= 1 && value <= 10
+            : value > 0 && (touch !== "distance" || length !== "yd" || Number.isInteger(value)));
+      if (valid) {
+        next.error = null;
+        next.errorField = null;
+      }
+    }
     remember(next);
     update(row.setIndex, next);
   };
@@ -507,13 +526,16 @@ export function useSetRows({
     const rir = measure === "reps" ? resolve(row, "rir", {}) : null;
     const rpe = measure !== "reps" ? resolve(row, "rpe", {}) : null;
     if (reps === null && duration === null && distance === null) {
-      update(row.setIndex, { error: missingValue(measure, length) });
+      update(row.setIndex, {
+        error: missingValue(measure, length),
+        errorField: measure === "reps" ? "reps" : measure === "duration" ? "duration" : "distance",
+      });
       return;
     }
     // Yards are whole, which is what makes a set read back as it was typed (ADR 0055). The pad
     // has no point, but a keyboard or a paste can bring one: it is refused, never rounded away.
     if (distance !== null && length === "yd" && !Number.isInteger(distance)) {
-      update(row.setIndex, { error: "Enter the distance in whole yards." });
+      update(row.setIndex, { error: "Enter the distance in whole yards.", errorField: "distance" });
       return;
     }
     // A set well under today's working load, saved with no RIR before any of the work, is the
@@ -553,12 +575,13 @@ export function useSetRows({
       rpe,
     });
     if (effortIssue) {
-      update(row.setIndex, { error: effortIssue });
+      update(row.setIndex, { error: effortIssue, errorField: measure === "reps" ? "rir" : "rpe" });
       return;
     }
     if (setType !== "warmup" && row.effortVersion !== EFFORT_INPUT_VERSION) {
       update(row.setIndex, {
         error: `Review and re-enter actual ${measure === "reps" ? "RIR" : "RPE"} before saving this older entry.`,
+        errorField: measure === "reps" ? "rir" : "rpe",
       });
       return;
     }
@@ -579,6 +602,7 @@ export function useSetRows({
       saving: true,
       dirty: true,
       error: null,
+      errorField: null,
     };
     remember(submitted);
     update(row.setIndex, submitted);

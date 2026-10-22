@@ -115,11 +115,6 @@ const RPE_NEEDED = effortError({
   rir: null,
   rpe: null,
 })!;
-const isEffortMessage = (message: string | null) =>
-  message === RIR_NEEDED ||
-  message === RPE_NEEDED ||
-  (message?.startsWith("Review and re-enter actual") ?? false);
-
 const STORAGE_UNAVAILABLE =
   "Browser storage is unavailable. Keep this page open until your sets are saved.";
 const AUTO_WARMUP = "Saved as a warm-up: light, no RIR.";
@@ -820,12 +815,7 @@ export function ExerciseLogger({
   // ---------- the entry's edits and Save ----------
   const editEntry = (patch: Partial<RowState>, touch: DraftValueField) => {
     if (!entryRow) return;
-    // Entering the effort Save was waiting for clears the sentence that asked for it.
-    const clears =
-      (touch === "rir" || touch === "rpe") && isEffortMessage(entryRow.error)
-        ? { error: null }
-        : {};
-    sets.editRow(entryRow, { ...patch, ...clears }, touch);
+    sets.editRow(entryRow, patch, touch);
   };
 
   const startTyping = (field: DraftValueField) => {
@@ -943,20 +933,26 @@ export function ExerciseLogger({
     text: string,
     role: "alert" | "status",
     id?: string,
+    danger = role === "alert",
   ) => (
-    <p id={id} role={role} className="entry-slot entry-slot-message">
+    <p
+      id={id}
+      role={role}
+      className="entry-slot entry-slot-message"
+      data-signal={danger ? "danger" : undefined}
+    >
       <Glyph name={glyphName} className="mt-px glyph-18" />
       <span className="min-w-0 [overflow-wrap:break-word]">{text}</span>
     </p>
   );
   const slot: ReactNode = entryRow?.error ? (
-    slotMessage(isEffortMessage(entryRow.error) ? "info" : "warn", entryRow.error, "alert", hintId)
+    slotMessage("warn", entryRow.error, "alert", hintId)
   ) : message ? (
     slotMessage("warn", message, "alert")
   ) : autoWarmupRow ? (
     // Said on the status line as the set lands; drawn here with its way back.
-    <p className="entry-slot entry-slot-message">
-      <Glyph name="info" className="mt-px glyph-18" />
+    <p className="entry-slot entry-slot-message" data-signal="success">
+      <Glyph name="check" className="mt-px glyph-18" />
       <span className="min-w-0">
         {AUTO_WARMUP}{" "}
         <button
@@ -974,7 +970,7 @@ export function ExerciseLogger({
       </span>
     </p>
   ) : sets.storageError ? (
-    slotMessage("warn", STORAGE_UNAVAILABLE, "alert")
+    slotMessage("warn", STORAGE_UNAVAILABLE, "alert", undefined, false)
   ) : planDone ? (
     <p className="entry-slot entry-slot-message">
       <Glyph name="check" className="mt-px glyph-18" />
@@ -1443,6 +1439,7 @@ export function ExerciseLogger({
               typing={typing}
               metrics={{ figure: size * figureGrow, target }}
               alert={alert}
+              errorId={hintId}
               onEdit={editEntry}
               onType={startTyping}
               onTypingEnd={() => setTyping(null)}

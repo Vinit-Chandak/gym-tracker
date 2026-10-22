@@ -3,6 +3,7 @@
 import { useActionState, useState, type ReactNode } from "react";
 
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -14,6 +15,7 @@ import { formatPaceSeconds } from "@/domain/activity-metrics";
 import { formatDistance, toMetres, type PoolUnit } from "@/lib/distance-units";
 import { SWIM_STROKE_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { cn } from "@/lib/utils";
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -191,12 +193,21 @@ export function SwimmingForm({
         />
 
         <div className="space-y-1.5 border-b border-hair pt-3 pb-3">
-          <p id="swim-method" className="type-meta-small font-bold">
+          <p
+            id="swim-method"
+            className={cn(
+              "flex items-center gap-1.5 type-meta-small font-bold",
+              errors?.distanceMethod && "text-danger-text",
+            )}
+          >
+            {errors?.distanceMethod && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
             How it was measured
           </p>
           <SegmentedControl
             name="distanceMethod"
             aria-labelledby="swim-method"
+            aria-invalid={errors?.distanceMethod ? true : undefined}
+            aria-describedby={errors?.distanceMethod ? "swim-method-error" : undefined}
             options={
               environment === "open_water"
                 ? METHODS.filter((item) => item.value !== "lengths")
@@ -207,7 +218,11 @@ export function SwimmingForm({
             columns={3}
           />
           {errors?.distanceMethod && (
-            <p role="alert" className="type-meta-small font-semibold">
+            <p
+              id="swim-method-error"
+              role="alert"
+              className="type-meta-small font-bold text-danger-text"
+            >
               {errors.distanceMethod}
             </p>
           )}

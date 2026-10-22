@@ -101,7 +101,8 @@ export function YouStep({
   const steps = setupSteps({ experience, lifts, kind: null });
   const first = name?.trim().split(/\s+/)[0];
   const experienceError = !answered.experience ? state.fieldErrors?.trainingExperience : undefined;
-  const sportsError = !answered.sports ? state.fieldErrors?.sports : undefined;
+  const sportsError =
+    !answered.sports || sports.length === 0 ? state.fieldErrors?.sports : undefined;
 
   return (
     <div className="onboarding page-width">
@@ -118,10 +119,15 @@ export function YouStep({
           role="radiogroup"
           aria-labelledby="you-experience-label"
           aria-describedby={experienceError ? "you-experience-error" : undefined}
+          aria-invalid={experienceError ? true : undefined}
+          data-field-error={experienceError ? "true" : undefined}
           className="you-group"
         >
           <div className="flex items-center gap-1">
             <span id="you-experience-label" className="you-label">
+              {experienceError && (
+                <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />
+              )}
               Which sounds like you?
             </span>
             <InfoTip label="About these answers">
@@ -164,8 +170,14 @@ export function YouStep({
         <fieldset
           className="you-group"
           aria-describedby={sportsError ? "you-sports-error" : undefined}
+          aria-labelledby="you-sports-label"
+          aria-invalid={sportsError ? true : undefined}
+          data-field-error={sportsError ? "true" : undefined}
         >
-          <legend className="you-label">What do you train?</legend>
+          <legend id="you-sports-label" className="you-label">
+            {sportsError && <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />}
+            What do you train?
+          </legend>
           <input type="hidden" name="sports" value={sports.join(",")} />
           <div className="sport-chips">
             {ACTIVITY_SPORTS.map((sport) => {

@@ -60,7 +60,7 @@ export function LinkRow<T extends string>({
     <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
         <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
-          {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
+          {icon && <RowIcon icon={icon} className={cn(danger && "text-danger-glyph")} />}
           <div className="min-w-0 flex-[1_1_8rem]">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {/* min-w-0: a flex item is otherwise as wide as its longest word, and a word too

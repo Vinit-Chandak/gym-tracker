@@ -1,8 +1,9 @@
 "use client";
 
-import { startTransition, useActionState, useId, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
@@ -19,13 +20,12 @@ const INITIAL: SignUpState = {};
  * none of these again.
  *
  * As on sign-in, the browser's own validation bubble is off and each sentence stands under the
- * field it is about, in ink, led by its glyph; what was typed stays typed, the password
+ * field it is about, in danger text, led by its glyph; what was typed stays typed, the password
  * included, so a slip is corrected rather than typed again.
  */
 export function SignUpForm() {
   const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
   const [shown, setShown] = useState(false);
-  const alertId = useId();
   const general = state.error && !state.field;
 
   if (state.checkEmail) {
@@ -103,13 +103,8 @@ export function SignUpForm() {
           required
         />
       </Field>
-      {general && (
-        <p id={alertId} role="alert" className="flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:break-word]">{state.error}</span>
-        </p>
-      )}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <FormError message={general ? state.error : undefined} />
+      <Button type="submit" size="lg" className="w-full" disabled={pending} aria-busy={pending}>
         {pending ? "Creating account…" : "Create account"}
       </Button>
     </form>

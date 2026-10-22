@@ -17,7 +17,11 @@ import { usernameAvailable } from "@/server/repositories/people";
 export type SignInState = { error?: string; field?: "email" | "password" };
 export type SignUpState = { error?: string; field?: "email" | "password"; checkEmail?: string };
 export type PasswordResetState = { error?: string; sent?: boolean };
-export type PasswordChangeState = { error?: string; done?: boolean };
+export type PasswordChangeState = {
+  error?: string;
+  field?: "password" | "confirmPassword";
+  done?: boolean;
+};
 
 const AUTH_TIMEOUT_MS = 15_000;
 const UNREACHABLE_MESSAGE =
@@ -246,7 +250,12 @@ export async function updatePasswordAction(
       confirmPassword: formData.get("confirmPassword"),
     });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Check the password and try again." };
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0];
+    return {
+      error: issue?.message ?? "Check the password and try again.",
+      ...(field === "password" || field === "confirmPassword" ? { field } : {}),
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -261,7 +270,7 @@ export async function updatePasswordAction(
   if (transport) return { error: transport };
   if (value?.error) {
     if (value.error.code === "same_password") {
-      return { error: "That is already your password. Choose a different one." };
+      return { error: "That is already your password. Choose a different one.", field: "password" };
     }
     return { error: value.error.message };
   }

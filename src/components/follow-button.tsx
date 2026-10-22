@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
@@ -95,11 +96,7 @@ export function FollowButton({
         >
           {pending && !asking ? "…" : FOLLOW_LABELS[state]}
         </Button>
-        {error && !asking && (
-          <p role="alert" className="mt-1 text-xs text-danger">
-            {error}
-          </p>
-        )}
+        {error && !asking && <FormError message={error ?? undefined} />}
       </div>
       <ConfirmSheet
         open={asking === "cancel"}

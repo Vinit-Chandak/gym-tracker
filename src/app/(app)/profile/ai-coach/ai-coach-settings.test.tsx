@@ -93,6 +93,7 @@ it("is one column: no tabs, no programme picker, and a note for every programme"
   expect(screen.queryByRole("tab")).toBeNull();
   expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.getByRole("heading", { name: "Notes for every programme" })).toBeTruthy();
+  const previousEditor = note();
   fireEvent.change(note(), { target: { value: "I have less time next week." } });
   fireEvent.submit(note().closest("form")!);
   await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Note sent."));
@@ -100,6 +101,9 @@ it("is one column: no tabs, no programme picker, and a note for every programme"
   expect(submitted.get("sport")).toBeNull();
   expect(submitted.get("userNotes")).toBe("I have less time next week.");
   expect(note().value).toBe("");
+  // A new editor starts with clean native validity; an emptied, previously submitted required
+  // textarea would otherwise remain :user-invalid alongside the saved confirmation.
+  expect(note()).not.toBe(previousEditor);
   // Starting a strength programme is New programme's, not a link of the coach's.
   expect(screen.queryByRole("link", { name: /strength programme|shared reports/i })).toBeNull();
   // Access for a coach of the athlete's own is a row of the coach's page.

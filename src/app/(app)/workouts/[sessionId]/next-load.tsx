@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { Input } from "@/components/ui/input";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { knownLoads, leastAssistance, stepHarder, type LoadLadder } from "@/domain/load-steps";
 import { attempted } from "@/lib/offline-submit";
 import { sanitizeNumberEntry } from "@/domain/sets";
@@ -61,23 +64,29 @@ export function NextLoad({
   const [value, setValue] = useState(guess === null ? "" : String(guess));
   const [saved, setSaved] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState(false);
   const [pending, startTransition] = useTransition();
   const label = assisted
     ? `Next step down from ${from} ${unitLabel}`
     : `Next up from ${from} ${unitLabel}`;
   const inputId = `next-load-${equipmentInstanceId}`;
   const guessed = guess !== null && value === String(guess);
+  const validLoad = (text: string) => {
+    const load = Number(text);
+    return Number.isFinite(load) && load > 0 && (assisted ? load < from : load > from);
+  };
 
   if (saved !== null)
     return (
-      <p role="status" className="text-sm text-ink-muted">
+      <SavedNotice>
         Saved: {saved} {unitLabel} is on this machine.
-      </p>
+      </SavedNotice>
     );
 
   const save = () => {
     const load = Number(value);
-    if (!(load > 0) || (assisted ? load >= from : load <= from)) {
+    if (!validLoad(value)) {
+      setFieldError(true);
       setError(
         assisted
           ? `Enter a weight below ${from} ${unitLabel}.`
@@ -87,6 +96,7 @@ export function NextLoad({
     }
     startTransition(async () => {
       setError(null);
+      setFieldError(false);
       const outcome = await attempted(
         () => confirmMachineLoadAction(equipmentInstanceId, load),
         "Could not save. Check your connection and try again.",
@@ -107,7 +117,13 @@ export function NextLoad({
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <span className="flex flex-wrap items-baseline gap-x-1.5">
-          <label htmlFor={inputId} className="text-ink-muted">
+          <label
+            htmlFor={inputId}
+            className={
+              fieldError ? "flex items-center gap-1.5 font-bold text-danger-text" : "text-ink-muted"
+            }
+          >
+            {fieldError && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
             {label}
           </label>
           {guessed && (
@@ -122,21 +138,37 @@ export function NextLoad({
             inputMode="decimal"
             autoComplete="off"
             value={value}
-            onChange={(event) => setValue(sanitizeNumberEntry(event.target.value))}
+            onChange={(event) => {
+              const next = sanitizeNumberEntry(event.target.value);
+              setValue(next);
+              if (fieldError && validLoad(next)) {
+                setError(null);
+                setFieldError(false);
+              }
+            }}
             className="w-20 text-right tabular-nums"
-            aria-describedby={guessed ? `${inputId}-from` : undefined}
+            aria-invalid={fieldError || undefined}
+            aria-describedby={
+              fieldError ? `${inputId}-error` : guessed ? `${inputId}-from` : undefined
+            }
           />
           <span className="text-ink-muted">{unitLabel}</span>
           <Button type="submit" size="sm" variant="ghost" disabled={pending || value === ""}>
-            Save
+            {pending ? "Saving…" : "Save"}
           </Button>
         </div>
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
+      {error && fieldError ? (
+        <p
+          id={`${inputId}-error`}
+          role="alert"
+          className="type-meta-small font-bold text-danger-text"
+        >
           {error}
         </p>
-      )}
+      ) : error ? (
+        <FormError message={error} />
+      ) : null}
     </form>
   );
 }

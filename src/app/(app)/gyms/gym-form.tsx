@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { GYM_KINDS, type GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
+import { gymInputSchema } from "@/server/validation/gyms";
 
 export type GymFormValues = { name: string; kind: GymKind; address: string; notes: string };
 
@@ -20,42 +21,55 @@ type GymFormProps = {
 
 const KIND_OPTIONS = GYM_KINDS.map((kind) => ({ value: kind, label: GYM_KIND_LABELS[kind] }));
 
-function asKind(value: string | undefined, fallback: GymKind): GymKind {
-  return (GYM_KINDS as readonly string[]).includes(value ?? "") ? (value as GymKind) : fallback;
-}
-
 export function GymForm({ action, initial, submitLabel }: GymFormProps) {
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
-  const value = (key: keyof GymFormValues): string => state.values?.[key] ?? initial?.[key] ?? "";
+  const [values, setValues] = useState<GymFormValues>(
+    initial ?? { name: "", kind: "gym", address: "", notes: "" },
+  );
+  const error = (key: keyof GymFormValues) =>
+    state.fieldErrors?.[key] && !gymInputSchema.shape[key].safeParse(values[key]).success
+      ? state.fieldErrors[key]
+      : undefined;
+  const change = <K extends keyof GymFormValues>(key: K, value: GymFormValues[K]) =>
+    setValues((current) => ({ ...current, [key]: value }));
 
   return (
-    <form action={formAction} className="space-y-5">
-      <Field label="Name" error={state.fieldErrors?.name}>
+    <form ref={form} action={formAction} className="space-y-5">
+      <Field label="Name" error={error("name")}>
         <Input
           name="name"
-          defaultValue={value("name")}
+          value={values.name}
+          onChange={(event) => change("name", event.target.value)}
           maxLength={80}
           autoComplete="off"
           required
         />
       </Field>
-      <Field group label="Type" error={state.fieldErrors?.kind}>
+      <Field group label="Type" error={error("kind")}>
         <SegmentedControl
           name="kind"
           options={KIND_OPTIONS}
-          defaultValue={asKind(state.values?.kind, initial?.kind ?? "gym")}
+          value={values.kind}
+          onChange={(kind) => change("kind", kind)}
         />
       </Field>
-      <Field label="Address" aside="Optional" error={state.fieldErrors?.address}>
+      <Field label="Address" aside="Optional" error={error("address")}>
         <Input
           name="address"
-          defaultValue={value("address")}
+          value={values.address}
+          onChange={(event) => change("address", event.target.value)}
           maxLength={200}
           autoComplete="street-address"
         />
       </Field>
-      <Field label="Notes" aside="Optional" error={state.fieldErrors?.notes}>
-        <Textarea name="notes" defaultValue={value("notes")} maxLength={1000} />
+      <Field label="Notes" aside="Optional" error={error("notes")}>
+        <Textarea
+          name="notes"
+          value={values.notes}
+          onChange={(event) => change("notes", event.target.value)}
+          maxLength={1000}
+        />
       </Field>
       <FormError message={state.formError} />
       <SubmitButton>{submitLabel}</SubmitButton>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import type { ActivitySport } from "@/domain/activity";
 import { copyProgramAction } from "@/server/actions/coaching-workflow";
 import { RetireProgramme } from "./retire-programme";
@@ -46,6 +47,7 @@ export function ProgrammeTools({
   }
   return (
     <div className="space-y-2">
+      <FormError message={error ?? undefined} />
       <div className="programme-management">
         {active && !finished && (
           <Button variant="primary" disabled={pending} onClick={() => copy(false)}>
@@ -79,11 +81,6 @@ export function ProgrammeTools({
           </Button>
         )}
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
       {/* The pressed button already reads "Opening…"; a screen reader hears where it goes. */}
       <p role="status" className="sr-only">
         {navigating ? "Opening programme draft…" : ""}

@@ -73,6 +73,21 @@ it("asks someone who already trains how long a session runs, and folds the rest 
   expect(screen.queryByRole("button", { name: "Just log workouts for now" })).toBeNull();
 });
 
+it("keeps an out-of-range body answer marked while it is being corrected", () => {
+  show();
+  fireEvent.change(screen.getByLabelText("Height"), { target: { value: "10" } });
+  fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "62" } });
+  fireEvent.change(screen.getByLabelText("Age"), { target: { value: "29" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create my programme" }));
+  const height = screen.getByLabelText("Height");
+  expect(height.getAttribute("aria-invalid")).toBe("true");
+  fireEvent.change(height, { target: { value: "20" } });
+  expect(height.getAttribute("aria-invalid")).toBe("true");
+  expect(screen.getByText("Enter a height between 50 and 260 cm.")).toBeTruthy();
+  fireEvent.change(height, { target: { value: "165" } });
+  expect(height.getAttribute("aria-invalid")).not.toBe("true");
+});
+
 it("saves the answers, asks the coach, and moves on to the writing screen", async () => {
   actions.save.mockResolvedValue({ ok: true, value: { id: "intake-1", revision: 1 } });
   actions.create.mockResolvedValue({ ok: true, value: { jobId: "job-1" } });

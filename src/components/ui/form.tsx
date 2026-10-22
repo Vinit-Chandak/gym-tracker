@@ -1,7 +1,14 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -38,11 +45,19 @@ function refusedIn(form: HTMLFormElement): Refused[] {
   const seen = new Set<Element | string>();
   const refused: Refused[] = [];
   for (const element of form.querySelectorAll<HTMLElement>('[aria-invalid="true"]')) {
-    const field = element.closest<HTMLElement>('[data-field-error="true"]');
-    const label = field?.querySelector("label")?.textContent?.trim();
+    // A whole fold may be refused while its individual inputs carry aria-invalid directly.
+    // Find the input's own field first, or every lap error is named after the fold's first label.
+    const field = element.closest<HTMLElement>(
+      '.ov-field, .row-stepper, .scale, [data-field-error="true"]',
+    );
+    // A split figure shares its row's label; other controls already expose their own name.
+    // A group's first radio label is an answer ("kg", "5"), never the group's name.
+    const label = field?.matches(".row-stepper")
+      ? field.querySelector("label")?.textContent?.trim()
+      : undefined;
     // A lap's field is named with its lap ("lap 4 time"), as the run has a time of its own.
     const lap = element.closest(".lap-row")?.querySelector(".lap-row-number")?.textContent?.trim();
-    const own = label || nameOf(element);
+    const own = label || nameOf(element) || field?.querySelector("label")?.textContent?.trim();
     const name = own && lap ? `${lap} ${own[0]!.toLowerCase()}${own.slice(1)}` : own;
     const key = field ?? name;
     if (!name || !key || seen.has(key)) continue;
@@ -65,14 +80,30 @@ const controlOf = (element: HTMLElement) =>
  * connection, the server) is said here in the app's words. A sentence a field already says is
  * never said again here.
  */
-export function FormError({ message }: { message?: string }) {
+export function FormError({
+  message,
+  formId,
+  action,
+  trackFields = true,
+}: {
+  message?: string;
+  /** A sheet can pin its actions outside the form they submit. */
+  formId?: string;
+  /** A retry or recovery action for a failure unrelated to an individual field. */
+  action?: ReactNode;
+  /** Independent actions inside another form must not repeat that form's field summary. */
+  trackFields?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [refused, setRefused] = useState<Refused[]>([]);
   const [repeated, setRepeated] = useState(false);
 
   useLayoutEffect(() => {
-    const form = ref.current?.closest("form");
-    if (!form) return;
+    if (!trackFields) return;
+    const form = formId
+      ? ref.current?.ownerDocument.getElementById(formId)
+      : ref.current?.closest("form");
+    if (!(form instanceof HTMLFormElement)) return;
     const read = () => {
       const now = refusedIn(form);
       // Its own bar is inside the form it watches: an unchanged list keeps its identity, so
@@ -99,10 +130,10 @@ export function FormError({ message }: { message?: string }) {
       attributeFilter: ["aria-invalid"],
     });
     return () => observer.disconnect();
-  }, [message]);
+  }, [message, formId, trackFields]);
 
-  const first = refused[0];
-  const showMessage = Boolean(message) && !repeated;
+  const first = trackFields ? refused[0] : undefined;
+  const showMessage = Boolean(message) && (!trackFields || !repeated);
   return (
     <div ref={ref} className="space-y-2 empty:hidden" data-refused-save>
       {first && (
@@ -126,14 +157,15 @@ export function FormError({ message }: { message?: string }) {
         </div>
       )}
       {showMessage && (
-        <p
+        <div
           role="alert"
           tabIndex={-1}
           className="flex items-start gap-2.5 rounded-control bg-danger-tint px-[calc(14*var(--ov-u))] py-2.5 text-[length:var(--ov-type-meta-small)] leading-snug font-bold text-danger-text"
         >
           <Glyph name="warn" className="glyph-20 shrink-0 text-danger-glyph" />
           <span className="min-w-0 [overflow-wrap:break-word]">{message}</span>
-        </p>
+          {action}
+        </div>
       )}
     </div>
   );

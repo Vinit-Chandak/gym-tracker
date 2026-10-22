@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
+import { Glyph } from "@/components/ui/glyphs";
+
 function subscribe(listener: () => void) {
   window.addEventListener("online", listener);
   window.addEventListener("offline", listener);
@@ -51,9 +53,10 @@ export function Connectivity() {
     <div
       ref={ref}
       role="status"
-      className="connectivity border-b border-warning bg-surface text-center text-sm text-warning"
+      className="connectivity flex items-center justify-center gap-2 border-b border-hair bg-surface text-center text-sm text-ink"
     >
-      You&apos;re offline. Drafts stay on this device.
+      <Glyph name="offline" className="glyph-18 shrink-0" />
+      <span>You&apos;re offline. Drafts stay on this device.</span>
     </div>
   );
 }

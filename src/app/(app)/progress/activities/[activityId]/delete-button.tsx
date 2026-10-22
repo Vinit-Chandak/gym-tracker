@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { deleteActivityAction } from "@/server/actions/activities";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 
@@ -63,11 +64,7 @@ export function DeleteActivityButton({
       >
         {pending ? "Deleting…" : armed ? `Delete this ${noun}` : "Delete activity"}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error} />}
     </div>
   );
 }

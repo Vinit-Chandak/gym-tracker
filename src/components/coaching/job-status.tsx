@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button, LinkButton } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { answerCoachQuestionsAction } from "@/server/actions/coaching-workflow";
 import type { CoachJob } from "@/server/repositories/coaching-jobs";
 import { coachingAction } from "./client-action";
@@ -213,14 +214,10 @@ export function CoachQuestions({
         ))}
       </ol>
       <p className="text-xs text-ink-subtle">Answer what you can; the coach decides the rest.</p>
+      <FormError message={error ?? undefined} />
       <Button className="flex w-full" disabled={busy || !answered} onClick={send}>
         {busy ? "Sending…" : "Send answers"}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

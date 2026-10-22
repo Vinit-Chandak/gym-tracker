@@ -3,6 +3,7 @@
 import { useActionState, useState, type ReactNode } from "react";
 
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
@@ -11,6 +12,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatSpeed, speedMetresPerSecond } from "@/domain/activity-metrics";
 import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { cn } from "@/lib/utils";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
@@ -180,7 +182,14 @@ export function CyclingForm({
         <div className="space-y-1.5 pt-3 pb-1" hidden={environment === "indoor"}>
           {/* The ⓘ beside the name, outside it, so the choices are named "Assistance" alone. */}
           <div className="flex items-center gap-1">
-            <p id="ride-assistance" className="type-meta-small font-bold">
+            <p
+              id="ride-assistance"
+              className={cn(
+                "flex items-center gap-1.5 type-meta-small font-bold",
+                errors?.assistance && "text-danger-text",
+              )}
+            >
+              {errors?.assistance && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
               Assistance
             </p>
             <InfoTip label="About assistance">Assisted: a motor helped, as on an e-bike.</InfoTip>
@@ -188,12 +197,18 @@ export function CyclingForm({
           <SegmentedControl
             name="assistance"
             aria-labelledby="ride-assistance"
+            aria-invalid={errors?.assistance ? true : undefined}
+            aria-describedby={errors?.assistance ? "ride-assistance-error" : undefined}
             options={ASSISTANCE}
             defaultValue={values("assistance") || "unknown"}
             columns={3}
           />
           {errors?.assistance && (
-            <p role="alert" className="type-meta-small font-semibold">
+            <p
+              id="ride-assistance-error"
+              role="alert"
+              className="type-meta-small font-bold text-danger-text"
+            >
               {errors.assistance}
             </p>
           )}

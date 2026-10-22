@@ -4,6 +4,7 @@ import { ChevronRight } from "@/components/ui/icons";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Sheet } from "@/components/ui/sheet";
 import { supersetHues, supersetStyle } from "@/lib/superset-colors";
@@ -167,11 +168,7 @@ export function SupersetSheet({
           })}
         </ul>
 
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
+        {error && <FormError message={error} />}
 
         <Button
           size="lg"

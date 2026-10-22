@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
@@ -46,11 +47,7 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
           </Button>
         </span>
       </PersonRow>
-      {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
     </div>
   );
 }

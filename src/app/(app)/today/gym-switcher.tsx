@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import type { GymKind } from "@/domain/types";
@@ -104,12 +105,7 @@ export function GymChoice({
             {workflow ? "Asking the coach…" : "Changing gym…"}
           </p>
         )}
-        {error && (
-          <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
-            <Glyph name="warn" className="mt-px glyph-18" />
-            {error}
-          </p>
-        )}
+        {error && <FormError message={error} />}
         <GymRows gyms={gyms} chosenId={chosenId} onChoose={choose} disabled={pending} />
         {pickedGym && (
           <Button

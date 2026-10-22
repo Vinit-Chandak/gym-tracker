@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useOptimistic, useState, useTransition } from "react";
 
 import { Glyph } from "@/components/ui/glyphs";
@@ -35,11 +36,7 @@ export function RestTimerSetting({ enabled }: { enabled: boolean }) {
         <span className="nav-row-label">Rest timer</span>
         <Switch label="Rest timer" checked={shown} onChange={change} disabled={pending} />
       </div>
-      {error && (
-        <p role="alert" className="pb-2 type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
     </li>
   );
 }

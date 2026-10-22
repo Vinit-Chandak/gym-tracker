@@ -6,6 +6,7 @@ import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { Switch } from "@/components/ui/switch";
 import {
   HEART_RATE_ZONE_METHODS,
@@ -53,7 +54,7 @@ export function HeartRateForm({
   // The switch and the zone method are held in state: React's reset after the action would put
   // them back to how the page opened on screen and in the next save (PRODUCT.md, principle 8).
   const form = useKeptForm();
-  const [state, formAction] = useActionState(
+  const [state, formAction, pending] = useActionState(
     keepsFormOnDisconnect(saveHeartRateAction),
     INITIAL_FORM_STATE,
   );
@@ -125,6 +126,7 @@ export function HeartRateForm({
       <Field
         group
         label="How zones are worked out"
+        error={errors?.zoneMethod}
         info="Of maximum: zones start at 50, 60, 70, 80 and 90% of it. Of reserve: the same shares of maximum − resting, added to resting."
         hint={
           method === "reserve" && resting.trim() === ""
@@ -148,11 +150,7 @@ export function HeartRateForm({
           </legend>
           <div className="heart-rate-floors">
             {ZONE_NUMBERS.map((zone, index) => (
-              <Field
-                key={zone}
-                label={`Zone ${zone}`}
-                error={zone === 1 ? errors?.zone1 : undefined}
-              >
+              <Field key={zone} label={`Zone ${zone}`} error={errors?.[`zone${zone}`]}>
                 <Input
                   name={`zone${zone}`}
                   inputMode="numeric"
@@ -166,9 +164,7 @@ export function HeartRateForm({
       )}
       <FormError message={state.formError} />
       <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-      <p className="sr-only" role="status">
-        {saved ? "Heart rate zones saved" : ""}
-      </p>
+      {saved && !pending && <SavedNotice>Heart rate zones saved</SavedNotice>}
     </form>
   );
 }

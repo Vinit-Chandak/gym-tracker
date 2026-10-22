@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -90,11 +91,7 @@ export function SignOutRow({ userId }: { userId: string }) {
         }}
       >
         <SubmitRow unsaved={unsaved} />
-        {error && (
-          <p role="alert" className="pb-2 type-meta-small font-semibold">
-            {error}
-          </p>
-        )}
+        {error && <FormError message={error ?? undefined} />}
       </form>
     </li>
   );

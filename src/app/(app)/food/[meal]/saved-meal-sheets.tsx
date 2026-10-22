@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useId, useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
@@ -87,11 +88,7 @@ export function SaveMealSheet({
       title="Star meal"
       footer={
         <div className="space-y-3">
-          {formError && (
-            <p role="alert" className="type-meta-small font-semibold">
-              {formError}
-            </p>
-          )}
+          <FormError message={formError ?? undefined} formId={formId} />
           <Button type="submit" form={formId} size="lg" className="w-full" disabled={saving}>
             {saving ? "Saving…" : "Save meal"}
           </Button>
@@ -252,11 +249,7 @@ export function SavedMealSheet({
       footer={
         <div className="space-y-3">
           <Preview amounts={addUp(saved.items.map(eaten))} />
-          {formError && (
-            <p role="alert" className="type-meta-small font-semibold">
-              {formError}
-            </p>
-          )}
+          {formError && <FormError message={formError ?? undefined} />}
           <Button size="lg" className="w-full" disabled={busy} onClick={add}>
             {adding ? "Adding…" : `Add to ${place.mealLabel}`}
           </Button>

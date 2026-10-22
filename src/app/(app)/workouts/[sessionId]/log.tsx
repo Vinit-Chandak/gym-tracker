@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { onRamp, rampSize } from "@/components/ui/fit";
-import { Glyph } from "@/components/ui/glyphs";
+import { FormError } from "@/components/ui/form";
 import type { LoadUnit, PrescriptionType } from "@/domain/types";
 import { setLengthIn, SET_LENGTH_WORDS, type SetLengthUnit } from "@/lib/distance-units";
 
@@ -298,11 +298,6 @@ function LogLine({
 }
 
 /** A set whose change has not reached the server says so under its line. */
-function LineNote({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="flex items-start gap-1.5 pb-2 type-meta-small text-ink">
-      <Glyph name="warn" className="mt-0.5 glyph-16" />
-      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
-    </p>
-  );
+function LineNote({ children }: { children: string }) {
+  return <FormError message={children} />;
 }

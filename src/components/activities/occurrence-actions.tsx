@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -55,6 +55,7 @@ export function OccurrenceActions({
     keepsFormOnDisconnect(rescheduleOccurrenceAction.bind(null, occurrenceId)),
     INITIAL_FORM_STATE,
   );
+  const moveForm = useKeptForm();
 
   /** Runs one action, its refusal said beside the button that asked for it. */
   const run = (
@@ -96,15 +97,11 @@ export function OccurrenceActions({
             </InfoTip>
           )}
         </div>
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
+        {error && <FormError message={error} />}
       </Card>
 
       <Card>
-        <form action={moveAction} className="space-y-2">
+        <form ref={moveForm} action={moveAction} className="space-y-2">
           <Field label="Move to" error={moveState.fieldErrors?.scheduledOn}>
             {/* A missed session opens on today, the first day it can go to. */}
             <Input
@@ -142,11 +139,7 @@ export function OccurrenceActions({
           >
             {pending ? "Saving…" : removing ? "Remove this session" : "Remove from the calendar"}
           </Button>
-          {removeError && (
-            <p role="alert" className="text-sm text-danger">
-              {removeError}
-            </p>
-          )}
+          {removeError && <FormError message={removeError} />}
         </Card>
       )}
     </div>

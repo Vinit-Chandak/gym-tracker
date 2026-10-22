@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import type { BowlMeal } from "@/components/art/geometry";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { scaleFood, type Food, type Meal } from "@/domain/nutrition";
 import { holdFigures, joinFacts } from "@/lib/facts";
@@ -12,6 +13,7 @@ import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { useFoodActions } from "@/components/food/food-actions";
 
 import { AmountField, Preview, typedAmount } from "@/components/food/amount-field";
+import { amountProblem } from "@/components/food/amount-sheet";
 import type { MealTotal } from "@/components/food/food-summary";
 
 /**
@@ -80,6 +82,7 @@ export function PortionSheet({
   const [submissionKey] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [retryRemove, setRetryRemove] = useState(false);
   const [saving, startSaving] = useTransition();
   const [removing, startRemoving] = useTransition();
   const content = useRef<HTMLFormElement>(null);
@@ -101,6 +104,7 @@ export function PortionSheet({
 
   const save = () =>
     startSaving(async () => {
+      setRetryRemove(false);
       setFormError(null);
       const outcome = await attempted(
         () =>
@@ -137,6 +141,7 @@ export function PortionSheet({
   const remove = () =>
     startRemoving(async () => {
       if (target.kind !== "entry") return;
+      setRetryRemove(true);
       setFormError(null);
       const outcome = await attempted(
         () => deleteEntryAction(target.entryId),
@@ -172,11 +177,23 @@ export function PortionSheet({
                 : undefined
             }
           />
-          {formError && (
-            <p role="alert" className="type-meta-small font-semibold">
-              {formError}
-            </p>
-          )}
+          <FormError
+            message={formError ?? undefined}
+            formId={formId}
+            action={
+              formError ? (
+                <Button
+                  type="button"
+                  onClick={retryRemove ? remove : save}
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                >
+                  Retry
+                </Button>
+              ) : undefined
+            }
+          />
           <Button type="submit" form={formId} size="lg" className="w-full" disabled={busy}>
             {target.kind === "log"
               ? saving
@@ -208,7 +225,10 @@ export function PortionSheet({
         <AmountField
           label="Amount eaten"
           value={value}
-          onChange={setValue}
+          onChange={(next) => {
+            setValue(next);
+            if (error) setError(amountProblem(food, next) ?? undefined);
+          }}
           unit={food.unit}
           portionAmount={food.portionAmount}
           name={food.name}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { RunningForm } from "./running-form";
@@ -180,7 +180,10 @@ it("types the watch's totals instead, and offers the laps' figure when one is sh
   fireEvent.change(screen.getByLabelText("Distance, after the point"), {
     target: { value: "00" },
   });
-  fireEvent.submit(container.querySelector("form")!);
+  // Settle the async action before reading its refusal, including under full-suite load.
+  await act(async () => {
+    fireEvent.submit(container.querySelector("form")!);
+  });
 
   // A figure and its unit are held together by a no-break space, which \s matches.
   const refused = await screen.findByText(/^The laps add up to 1\.47\skm, more than 1\.00\skm\.$/);

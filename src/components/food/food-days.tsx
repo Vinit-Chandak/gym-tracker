@@ -374,8 +374,12 @@ function CalendarSheet({
         </ol>
         {readFailed && (
           <div className="mt-3 space-y-2">
-            <p role="alert" className="type-meta-small text-ink-2">
-              Could not load this month&apos;s food. Check your connection.
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-control bg-tray p-3 type-meta-small font-semibold text-ink"
+            >
+              <Glyph name="warn" className="glyph-18 shrink-0" />
+              <span>Could not load this month&apos;s food. Check your connection.</span>
             </p>
             <button
               type="button"

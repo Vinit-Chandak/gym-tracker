@@ -8,6 +8,7 @@ import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { NavRow } from "@/components/ui/nav-row";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -188,11 +189,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
         <PinnedActions stack>
           {/* Over the actions, as a form's error is, so the last action stays last: at large
               text the folded session strip shares its line (rows.css). */}
-          {error && (
-            <p role="alert" className="type-meta-small font-semibold">
-              {error}
-            </p>
-          )}
+          <FormError message={error ?? undefined} />
           {coach && revising ? (
             <>
               <SpeechTextarea

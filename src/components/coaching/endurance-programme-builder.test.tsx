@@ -69,6 +69,19 @@ async function saved() {
   return vi.mocked(saveProgramDraftAction).mock.calls.at(-1)![0] as ProgramBlueprint;
 }
 
+it("marks invalid programme weeks until they are corrected, keeping the programme name", async () => {
+  setup();
+  const weeks = screen.getByLabelText("Length in weeks");
+  fireEvent.change(weeks, { target: { value: "0" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Enter a whole number of weeks from 1 to 52.");
+  fireEvent.change(weeks, { target: { value: "53" } });
+  expect(weeks.getAttribute("aria-invalid")).toBe("true");
+  fireEvent.change(weeks, { target: { value: "4" } });
+  expect(weeks.getAttribute("aria-invalid")).not.toBe("true");
+  expect(screen.getByLabelText("Programme name")).toHaveProperty("value", "Running plan");
+});
+
 it("opens a new programme and adds a valid editable session", () => {
   render(
     <EnduranceProgrammeBuilder

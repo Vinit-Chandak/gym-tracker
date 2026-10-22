@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 
+import { Glyph } from "./glyphs";
 import { SegmentedControl } from "./segmented-control";
 
 const FIVE = ["1", "2", "3", "4", "5"].map((value) => ({ value, label: value }));
@@ -37,7 +38,8 @@ export function ScaleField({
   const id = useId();
   return (
     <div className="scale" data-field-error={error ? "true" : undefined}>
-      <p id={id} className="scale-name">
+      <p id={id} className="scale-name flex items-center gap-1.5">
+        {error && <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />}
         {label}
       </p>
       <SegmentedControl
@@ -65,7 +67,7 @@ export function ScaleField({
         )}
       </p>
       {error && (
-        <p id={`${id}-error`} role="alert" className="type-meta-small font-semibold">
+        <p id={`${id}-error`} role="alert" className="type-meta-small font-bold text-danger-text">
           {error}
         </p>
       )}

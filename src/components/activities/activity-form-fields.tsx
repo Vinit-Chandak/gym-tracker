@@ -558,7 +558,8 @@ export function EffortField({
   return (
     <div className="effort-field" data-field-error={error ? "true" : undefined}>
       <p className="effort-field-head">
-        <span id={id} className="font-bold">
+        <span id={id} className="flex items-center gap-1.5 font-bold">
+          {error && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
           Effort
         </span>
         <span id={`${id}-ends`} className="effort-field-ends">

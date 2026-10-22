@@ -265,9 +265,9 @@ it("says what went wrong over the actions, so the last action still ends their l
   expect(alert.textContent).toBe("Could not save this change. Please retry.");
   // At large text the folded session strip shares the last action's line (rows.css), which must
   // be Ask for changes, not the error.
-  const stack = alert.parentElement!;
-  expect(stack.className).toBe("pinned-actions-stack");
-  expect(stack.firstElementChild).toBe(alert);
+  const stack = alert.closest(".pinned-actions-stack")!;
+  expect(stack).not.toBeNull();
+  expect(stack.firstElementChild?.contains(alert)).toBe(true);
   expect(stack.lastElementChild?.className).toBe("pinned-fold");
   expect(stack.lastElementChild?.previousElementSibling?.textContent).toBe("Ask for changes");
 });

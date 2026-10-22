@@ -7,6 +7,7 @@ import { FollowButton } from "@/components/follow-button";
 import { PersonRow } from "@/components/person-row";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Glyph } from "@/components/ui/glyphs";
 import { List } from "@/components/ui/link-row";
 import { isEmailQuery } from "@/domain/username";
 import { searchPeopleAction, type PersonResult } from "@/server/actions/people";
@@ -80,7 +81,11 @@ export function PeopleSearch({
       </p>
       {failed && (
         <div className="space-y-2">
-          <p role="alert" className="text-sm text-danger">
+          <p
+            role="alert"
+            className="flex items-start gap-2 rounded-control bg-tray p-3 type-meta-small font-semibold text-ink"
+          >
+            <Glyph name="warn" className="glyph-18 shrink-0" />
             Could not load people.
           </p>
           <Button
