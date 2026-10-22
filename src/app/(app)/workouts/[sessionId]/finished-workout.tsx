@@ -13,6 +13,7 @@ import { boldEmWidth, emWidth, textEmWidth } from "@/components/ui/fit";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatSets, loadReadingOf, workingSetCount } from "@/domain/sets";
 import type { SetLengthUnit } from "@/lib/distance-units";
@@ -483,6 +484,7 @@ export function FinishedWorkout({
 
         {justFinished && (
           <PinnedActions stack>
+            <SavedNotice>Workout saved</SavedNotice>
             <Link href={summaryDestination} className={buttonClassName("primary", "lg", "w-full")}>
               Done
             </Link>

@@ -87,3 +87,72 @@ it("falls back to Back where the path belongs to no section", () => {
   render(<PageHeader title="Somewhere" backHref="/login" />);
   expect(screen.getByRole("link", { name: "Back" }).textContent).toBe("Back");
 });
+
+/**
+ * Owner, 21 October 2026 (DESIGN.md, Tab roots): the lit tab already says where you are, so a
+ * tab's root opens on its subject, in Title, never on the tab's name; its h1 still names the tab
+ * first for a screen reader.
+ */
+it("opens a tab's root on its subject, the h1 naming the tab first", () => {
+  render(
+    <PageHeader
+      tab="Today"
+      title="Wednesday"
+      said="21 October"
+      meta="21 October · 1 of 3 done"
+      action={<a href="/today/log">Log</a>}
+    />,
+  );
+  const heading = screen.getByRole("heading", { level: 1, name: "Today, Wednesday 21 October" });
+  // Only the subject is shown: the tab and the date the line under it shows are said.
+  const shown = [...heading.childNodes]
+    .filter((node) => !(node instanceof Element && node.classList.contains("sr-only")))
+    .map((node) => node.textContent)
+    .join("")
+    .trim();
+  expect(shown).toBe("Wednesday");
+  expect(heading.className).toContain("page-root-title");
+  expect(screen.getByText("21 October · 1 of 3 done").closest(".page-root-meta")).not.toBeNull();
+  expect(screen.getByRole("link", { name: "Log" }).closest(".page-root-action")).not.toBeNull();
+  // No way back: a root is where a tab starts.
+  expect(screen.queryByRole("link", { name: /^Back/ })).toBeNull();
+});
+
+it("stands a chooser where the headline stands, the h1 naming it for a screen reader", () => {
+  render(
+    <PageHeader
+      tab="Progress"
+      title="Running"
+      chooser={<button type="button">Running</button>}
+      meta="6 Jul – 29 Sept 2026"
+    />,
+  );
+  const heading = screen.getByRole("heading", { level: 1, name: "Progress, Running" });
+  expect(heading.className).toBe("sr-only");
+  expect(
+    screen.getByRole("button", { name: "Running" }).closest(".page-root-chooser"),
+  ).not.toBeNull();
+  // With nothing at its end, the headline has the row.
+  expect(document.querySelector(".page-root-action")).toBeNull();
+  expect((document.querySelector(".page-root-head") as HTMLElement).style.flexBasis).toBe("");
+});
+
+it("leads with the avatar, and keeps the headline its own room before its action", () => {
+  render(
+    <PageHeader
+      tab="Profile"
+      title="Vinit Chandak"
+      lead={<span data-testid="avatar">V</span>}
+      meta="@vinit"
+      action={<a href="/profile/edit">Edit</a>}
+    />,
+  );
+  expect(screen.getByRole("heading", { level: 1, name: "Profile, Vinit Chandak" })).toBeTruthy();
+  expect(screen.getByTestId("avatar").closest(".page-root-lead")).not.toBeNull();
+  // Edit goes under the name where the name would not have its own width beside it, and the
+  // name goes under the avatar where its longest word would not.
+  const head = document.querySelector(".page-root-head") as HTMLElement;
+  expect(head.style.flexBasis).toContain("6.76 * var(--ov-type-title) + 70 * var(--ov-u)");
+  const text = document.querySelector(".page-root-text") as HTMLElement;
+  expect(text.style.flexBasis).toContain("3.92 * var(--ov-type-title)");
+});

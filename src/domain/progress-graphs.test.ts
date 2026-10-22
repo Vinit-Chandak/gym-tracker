@@ -351,18 +351,13 @@ describe("running", () => {
     expect(averagePace([{ metres: 0, seconds: 600 }])).toBeNull();
   });
 
-  it("counts a run with breaks in distance and time, never as a pace", () => {
-    const session = {
-      id: "r5",
-      date: "2026-09-24",
-      environment: "outdoor" as const,
-      metres: 6000,
-      seconds: 2400,
-      continuous: false,
-    };
-    const graph = runningGraph([...runs, session], MONTH, TODAY);
-    expect(graph.totals).toMatchObject({ metres: 18000, runs: 5 });
+  it("counts a session of reps and rests in the totals, and leaves it out of the pace line", () => {
+    const intervals = { ...runs[0]!, id: "r5", metres: 1470, seconds: 536, withRests: true };
+    const graph = runningGraph([...runs.slice(0, 2), intervals], MONTH, TODAY);
+    expect(graph.totals).toEqual({ metres: 9470, seconds: 3536, runs: 3 });
     expect(graph.points.find((point) => point.id === "r5")!.pace).toBeNull();
+    // The line's average is the continuous runs' alone, as Progress draws it from paced points.
+    expect(averagePace(graph.points.filter((point) => point.pace !== null))).toBe(375);
   });
 });
 

@@ -539,7 +539,22 @@ button.log-line {
   color: var(--ov-control);
 }
 .figure-empty[data-alert="true"] {
-  color: var(--ov-ink);
+  color: var(--ov-danger-text);
+}
+
+/* A refused set identifies its own figure as well as the message above Save. */
+.stepper[data-field-error="true"] .stepper-figure,
+.set-editor-field[data-field-error="true"] .row-stepper-figure {
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
+.stepper[data-field-error="true"] .figure-input,
+.set-editor-field[data-field-error="true"] .figure-input {
+  border-bottom-color: var(--ov-danger-line);
+}
+.stepper[data-field-error="true"] .stepper-units-line {
+  color: var(--ov-danger-text);
 }
 
 /* Typing a figure: the value selected in ink over a solid rule; the buttons step aside. No
@@ -599,6 +614,25 @@ button.log-line {
   font-size: var(--ov-type-meta);
   font-weight: 600;
   line-height: 1.4;
+}
+.entry-slot-message[data-signal] {
+  padding: calc(8 * var(--ov-u)) calc(10 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  font-weight: 700;
+}
+.entry-slot-message[data-signal="danger"] {
+  background: var(--ov-danger-tint);
+  color: var(--ov-danger-text);
+}
+.entry-slot-message[data-signal="danger"] > svg {
+  color: var(--ov-danger-glyph);
+}
+.entry-slot-message[data-signal="success"] {
+  background: var(--ov-success-tint);
+  color: var(--ov-success-text);
+}
+.entry-slot-message[data-signal="success"] > svg {
+  color: var(--ov-success-glyph);
 }
 .entry-slot-action {
   min-height: var(--ov-target);

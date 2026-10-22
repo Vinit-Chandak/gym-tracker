@@ -83,7 +83,10 @@ const RECENT_RUNS_MEANING =
  * against is the kind of thing that reads as an easy week rather than as a changed unit.
  */
 function coachRunView(run: RunActivity) {
-  const reading = runReading(run, "laps");
+  const reading = runReading(
+    { ...run, runType: run.runType ?? null, laps: run.laps ?? [] },
+    "laps",
+  );
   return {
     id: run.id,
     startedAt: run.startedAt,

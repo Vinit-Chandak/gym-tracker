@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PinnedActions } from "@/components/ui/pinned-actions";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import type { EnduranceSport } from "@/domain/activity";
 import {
   endurancePrescriptionSchema,
@@ -135,6 +137,12 @@ export function EnduranceProgrammeBuilder({
   const [scope, setScope] = useState<Scope>("future_repeats");
   const [repeatDays, setRepeatDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
+  const [showProblems, setShowProblems] = useState(false);
+  const nameError = showProblems && !plan.name ? "Name your programme." : undefined;
+  const weeksError =
+    showProblems && (!Number.isInteger(plan.weeks) || plan.weeks < 1 || plan.weeks > 52)
+      ? "Enter a whole number of weeks from 1 to 52."
+      : undefined;
   // What stops a change, said under the field it is about, which its fold opens to show.
   const [fieldError, setFieldError] = useState<{
     field: "weeks" | "repeat";
@@ -213,6 +221,7 @@ export function EnduranceProgrammeBuilder({
     });
   }
   async function save(review: boolean) {
+    setShowProblems(true);
     setError(null);
     setMessage(null);
     const parsed = programBlueprintSchema.safeParse(plan);
@@ -278,10 +287,10 @@ export function EnduranceProgrammeBuilder({
       : selected;
 
   return (
-    <div className="space-y-6 pb-24">
+    <form className="space-y-6 pb-24" noValidate onSubmit={(event) => event.preventDefault()}>
       <fieldset disabled={pending} className="min-w-0 space-y-6">
         <div className="space-y-3">
-          <Field label="Programme name">
+          <Field label="Programme name" error={nameError}>
             <Input
               value={plan.name}
               maxLength={120}
@@ -292,14 +301,16 @@ export function EnduranceProgrammeBuilder({
             summary="Programme settings"
             meta={`${plan.weeks || "—"} weeks`}
             variant="inline"
-            defaultOpen={fieldError?.field === "weeks"}
+            defaultOpen={Boolean(weeksError) || fieldError?.field === "weeks"}
           >
             <div className="space-y-3">
               {/* What saving needs, said before it is typed rather than behind an ⓘ. */}
               <Field
                 label="Length in weeks"
                 hint="Move or remove any sessions past the new end before saving."
-                error={fieldError?.field === "weeks" ? fieldError.message : undefined}
+                error={
+                  weeksError ?? (fieldError?.field === "weeks" ? fieldError.message : undefined)
+                }
               >
                 <Input
                   type="number"
@@ -738,24 +749,23 @@ export function EnduranceProgrammeBuilder({
           </Button>
         </div>
       </fieldset>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p role="status" className="text-sm">
+      {message && message !== "Draft saved." && (
+        <p role="status" className="text-sm text-ink-2">
           {message}
         </p>
       )}
-      <PinnedActions>
-        <Button disabled={pending} onClick={() => start(() => save(true))}>
-          {pending ? "Saving…" : "Review programme"}
-        </Button>
-        <Button variant="secondary" disabled={pending} onClick={() => start(() => save(false))}>
-          Save draft
-        </Button>
+      <PinnedActions stack>
+        {message === "Draft saved." && <SavedNotice>{message}</SavedNotice>}
+        <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={pending} onClick={() => start(() => save(true))}>
+            {pending ? "Saving…" : "Review programme"}
+          </Button>
+          <Button variant="secondary" disabled={pending} onClick={() => start(() => save(false))}>
+            Save draft
+          </Button>
+        </div>
       </PinnedActions>
-    </div>
+    </form>
   );
 }

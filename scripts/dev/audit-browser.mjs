@@ -138,7 +138,9 @@ const routes = [
     `/today/log?sport=${sport}`,
     `/today/log?sport=${sport}&date=${fixtures.history.to}`,
     `/plan/${sport}`,
-    ...(sport === "strength" ? [] : [`/plan/${sport}/edit`]),
+    ...(sport === "strength"
+      ? []
+      : [`/plan/${sport}/edit?mode=repeating`, `/plan/${sport}/edit?mode=progressive`]),
     `/plan/new?sport=${sport}`,
     `/plan/new?sport=${sport}&method=coach`,
   ]),
@@ -156,6 +158,7 @@ const routes = [
       `/today/log/new?sport=${sport}`,
       `/progress/activities/${activity.id}`,
       `/progress/activities/${activity.id}/edit`,
+      `/progress/activities/${activity.id}/counts-as`,
       `/plan/sessions/${occurrence.id}`,
       `/today/log/new?occurrence=${occurrence.id}`,
       `/u/shreyash?sport=${sport}`,

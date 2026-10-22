@@ -64,7 +64,10 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   // Typed in digits, kept as the minutes it posts, and shown again as the clock writes it.
   expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42:00");
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
-  await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/progress/activities/saved-id"));
+  await waitFor(() =>
+    // The record opens saying it was kept, with Undo for a new one.
+    expect(mocks.replace).toHaveBeenCalledWith("/progress/activities/saved-id?saved=new"),
+  );
   expect(action.mock.calls[0]![1].get("submissionKey")).toBe(stored.submissionKey);
   expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0);
 });

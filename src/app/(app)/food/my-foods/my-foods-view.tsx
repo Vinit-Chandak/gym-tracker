@@ -1,5 +1,7 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import type { Route } from "next";
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
@@ -114,6 +116,7 @@ export function MyFoodsView({
     startTransition(async () => {
       if (kind === "food") hideFood(item.id);
       else hideMeal(item.id);
+      setSaid("");
       setError(null);
       const outcome = await attempted(
         () => (kind === "food" ? deleteFoodAction(item.id) : deleteSavedMealAction(item.id)),
@@ -161,13 +164,14 @@ export function MyFoodsView({
         <li>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setSaid("");
               setSheet((current) => ({
                 key: current.key + 1,
                 open: true,
                 view: { kind: "library", name: newName },
-              }))
-            }
+              }));
+            }}
             className="food-row"
           >
             <FoodRowText
@@ -183,11 +187,7 @@ export function MyFoodsView({
         </li>
       </ul>
 
-      {error && (
-        <p role="alert" className="mt-3 type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
 
       <FoodSection
         title="Meals"
@@ -229,13 +229,14 @@ export function MyFoodsView({
             >
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  setSaid("");
                   setSheet((current) => ({
                     key: current.key + 1,
                     open: true,
                     view: { kind: "edit", food },
-                  }))
-                }
+                  }));
+                }}
                 className="food-row"
               >
                 <FoodRowText
@@ -250,9 +251,11 @@ export function MyFoodsView({
         )}
       />
 
-      <p aria-live="polite" className="sr-only">
-        {said}
-      </p>
+      {said && (
+        <div className="food-saved-notice">
+          <SavedNotice key={said}>{said}</SavedNotice>
+        </div>
+      )}
 
       {view && (
         <FoodSheet

@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,7 @@ export function UseRunMaximum({ bpm, on }: { bpm: number; on: string }) {
       >
         {pending ? "Saving…" : `Use ${bpm} as my maximum`}
       </Button>
-      {error && (
-        <p role="alert" className="type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
     </Card>
   );
 }

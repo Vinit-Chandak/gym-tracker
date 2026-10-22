@@ -236,8 +236,12 @@ function StoredEditor(props: Props) {
       } catch {
         /* Saving the activity succeeded even if storage is blocked. */
       }
+      // The record opens saying it was kept (DESIGN.md, Inputs and choices: a record kept): a
+      // new one with Undo, a correction without, since undoing it would delete the record.
+      const query = originQuery(props.origin ?? null);
+      const saved = `saved=${props.activityId ? "changed" : "new"}`;
       router.replace(
-        `/progress/activities/${result.savedActivityId}${originQuery(props.origin ?? null)}`,
+        `/progress/activities/${result.savedActivityId}${query ? `${query}&${saved}` : `?${saved}`}`,
       );
     }
     return result;

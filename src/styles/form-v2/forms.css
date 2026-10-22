@@ -1,0 +1,205 @@
+/*
+ * Forms and the two signals (DESIGN.md: Colors › Signals, Layout › Forms, Inputs and choices;
+ * amended 21 October 2026).
+ *
+ * A field that cannot be saved is said in red where it is: its label and its words in the danger
+ * text, its edge in the danger line, its ground in the danger tint. Field and Input do that for
+ * the plain fields themselves (field.tsx, input.tsx); these rules give the same mark to the
+ * controls that are drawn differently: a row's stepper figure, a 1–5 scale, a tray of choices
+ * and a fold that holds a refused field. The mark stays until the field can be saved, because it
+ * follows the field's error, which only a save that succeeds clears.
+ */
+
+/* ---------- a refused stepper row (a run's distance or time) ---------- */
+.row-stepper[data-field-error="true"] > .row-stepper-text > label,
+.row-stepper[data-field-error="true"] > .row-stepper-text > span > label,
+.row-stepper[data-field-error="true"] > .row-stepper-text > [role="alert"] {
+  color: var(--ov-danger-text);
+}
+.row-stepper[data-field-error="true"] > .row-stepper-text > [role="alert"] {
+  font-weight: 700;
+}
+/* The figure's rule, which says which figure is typed, is the danger line while it is refused. */
+.row-stepper[data-field-error="true"] .figure-input {
+  border-bottom-color: var(--ov-danger-line);
+}
+.row-stepper[data-field-error="true"] .row-stepper-figure {
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
+
+/* ---------- a refused choice: a 1–5 scale or any tray of choices ---------- */
+.scale[data-field-error="true"] > .scale-name,
+[data-field-error="true"] > .select-row > label {
+  color: var(--ov-danger-text);
+}
+[data-field-error="true"] > .select-row {
+  padding-inline: calc(10 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
+[role="radiogroup"][aria-invalid="true"],
+.effort-field[data-field-error="true"] .scale [role="radiogroup"] {
+  border-radius: var(--ov-radius-control);
+  background-color: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
+.effort-field[data-field-error="true"] > .effort-field-head > :first-child,
+.effort-field[data-field-error="true"] > [role="alert"] {
+  color: var(--ov-danger-text);
+}
+.effort-field[data-field-error="true"] > [role="alert"] {
+  font-weight: 700;
+}
+
+/* ---------- a fold that holds a refused field (laps, More details) ---------- */
+.more-details[data-field-error="true"] > .more-details-summary {
+  color: var(--ov-danger-text);
+}
+.more-details[data-field-error="true"] [role="alert"] {
+  color: var(--ov-danger-text);
+  font-weight: 700;
+}
+
+/* ---------- panels on the grouped ground (DESIGN.md, Forms) ---------- */
+/* A form or a settings list stands as panels on the grouped ground, each under its caption, so
+   its sections read as sections. Inside a panel a tray of choices steps to the panel's own tray,
+   and a field is a filled tray rather than an outline; focused, it takes the ink edge. */
+.ov-grouped {
+  background: var(--ov-grouped);
+}
+.ov-panel {
+  --ov-tray: var(--ov-panel-tray);
+  --ov-surface-control: var(--ov-panel-tray);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+  --ov-waiting: var(--ov-panel-tray);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
+}
+/* A page of settings is grouped from its top: the headline stands on the grouped ground too. */
+.ov-grouped-page {
+  min-height: 100dvh;
+  background: var(--ov-grouped);
+}
+/* The grouped ground is the light theme's surface, so what stands on it steps a tone off it, as
+   on any surface (DESIGN.md, Neutral): a tonal button takes the control surface on a surface.
+   Inside a panel it steps back to the panel's own tray. The page's own ground under the content
+   and behind an overscroll is grouped too, so no white band shows past the last panel. */
+.ov-grouped-page,
+.ov-grouped {
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+}
+.app-content:has(.ov-grouped-page),
+body:has(.ov-grouped-page) {
+  background: var(--ov-grouped);
+}
+/* A list of rows in a panel: the rows keep their rules, inset by the panel's padding. */
+.ov-panel-list {
+  padding: 0 calc(16 * var(--ov-u));
+}
+/* A form on the grouped ground: the ground under everything in it, the pinned Save and its fade
+   included, is the grouped one, and so is the page around it. */
+.ov-grouped {
+  --ov-ground: var(--ov-grouped);
+}
+.app-content:has(form.ov-grouped),
+body:has(form.ov-grouped) {
+  background: var(--ov-grouped);
+}
+/* A choice of tiles standing on the grouped ground (Outdoor, Treadmill): an unchosen tile is a
+   panel there, or it would be the ground's own fill and read as a stray word. */
+.ov-grouped .peer:not(:checked) + .where-choice-tile {
+  background: var(--ov-panel);
+}
+/* A panel of rows and fields: the rows' own rules and padding, inset by the panel's. */
+.ov-panel-body {
+  padding: calc(6 * var(--ov-u)) calc(16 * var(--ov-u));
+}
+.ov-panel-body > .min-w-0:first-child {
+  padding-top: calc(8 * var(--ov-u));
+  padding-bottom: calc(6 * var(--ov-u));
+}
+/* The panel's own edge ends its last row: no rule under it. */
+.ov-panel-body > :last-child {
+  border-bottom-width: 0;
+}
+.ov-panel-body > .effort-field {
+  padding: calc(6 * var(--ov-u)) 0;
+}
+.ov-panel-body > .more-details > .more-details-summary {
+  color: var(--ov-ink);
+}
+.ov-panel-caption {
+  margin: calc(20 * var(--ov-u)) calc(4 * var(--ov-u)) calc(6 * var(--ov-u));
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+  line-height: 1.3;
+}
+.ov-panel :where(.ov-input:not([aria-invalid="true"])) {
+  border-color: transparent;
+  background-color: var(--ov-panel-tray);
+}
+.ov-panel :where(.ov-input:not([aria-invalid="true"]):focus) {
+  border-color: var(--ov-ink);
+}
+/* Native required/email/number validation refuses the save before a server action runs. */
+.ov-input:user-invalid,
+.ov-panel .ov-input:user-invalid {
+  border-color: var(--ov-danger-line);
+  background-color: var(--ov-danger-tint);
+}
+.ov-field:has(.ov-input:user-invalid) > .ov-field-label {
+  color: var(--ov-danger-text);
+}
+.ov-field:has(.ov-input:user-invalid) > .ov-field-label > .field-invalid-glyph {
+  display: block;
+}
+/* Rows inside a panel are ruled like any list; the panel's own edge ends the last. */
+.ov-panel > .row-stepper:last-child,
+.ov-panel > :last-child > .row-stepper:last-child {
+  border-bottom: 0;
+}
+/* A lap inside the laps panel stands on the panel's tray, as a step does. */
+.ov-panel .lap-row {
+  background: var(--ov-panel-tray);
+}
+
+/* A lap's fields stand three to a row: their insets are narrower, so a standing recovery's
+   distance reads Standing whole rather than cut short. */
+.lap-row-fields .ov-input {
+  padding-inline: calc(10 * var(--ov-u));
+}
+
+/* ---------- a record kept ---------- */
+/* The success bar (saved-notice.tsx): the success tint with its check, over the tab bar. */
+.saved-notice {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: calc(10 * var(--ov-u));
+  padding: calc(6 * var(--ov-u)) calc(8 * var(--ov-u)) calc(6 * var(--ov-u)) calc(14 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-success-tint);
+  color: var(--ov-success-text);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.saved-notice > svg {
+  flex: none;
+  color: var(--ov-success-glyph);
+}
+
+/* Forced colours keep the marks as edges, since tints are dropped there. */
+@media (forced-colors: active) {
+  .row-stepper[data-field-error="true"] .row-stepper-figure,
+  [role="radiogroup"][aria-invalid="true"],
+  [data-field-error="true"] > .select-row,
+  .saved-notice {
+    outline: 2px solid CanvasText;
+  }
+}

@@ -80,5 +80,11 @@ stream.
 db:backfill:shared-stats`.
 - A session logged without laps gives no best effort and no reps; saying its kind and its laps is
   how it counts.
+- PR #128 (21 October) had already left an interval session's overall pace out of trends,
+  records and the coach, by a narrower rule: intervals, or laps holding reps and recoveries.
+  `paceHasRests` now asks `hasBreaks`, so the form's rep pace and "Overall, with rests", History,
+  Progress, sharing and the coach all read one rule; laps holding reps and recoveries still
+  suggest Intervals as the kind. The reps' pace takes the work laps, or every unmarked lap where
+  none is marked work, as best efforts do.
 - `src/domain/run-segments.ts` holds the rules; `src/domain/running-context.ts` the efforts, reps,
   predictions and the recent race.

@@ -3,9 +3,11 @@
 import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormError, useKeptForm } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { attempted, keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import {
   createCoachTokenAction,
@@ -18,10 +20,12 @@ function Revoke({ id }: { id: string }) {
     [error, setError] = useState<string>();
   return (
     <div>
+      <FormError message={error} />
       <Button
         variant="danger"
         size="sm"
         disabled={pending}
+        aria-busy={pending}
         onClick={() =>
           startTransition(async () => {
             const outcome = await attempted(
@@ -34,11 +38,6 @@ function Revoke({ id }: { id: string }) {
       >
         {pending ? "Revoking…" : "Revoke"}
       </Button>
-      {error && (
-        <p role="alert" className="text-xs text-danger">
-          {error}
-        </p>
-      )}
     </div>
   );
 }
@@ -57,6 +56,9 @@ export function TokenManager({
     expired: boolean;
   }[];
 }) {
+  // A refused token keeps its name and expiry (PRODUCT.md, principle 8); a token made empties
+  // them for the next, because its fields are keyed on it below.
+  const form = useKeptForm();
   const [state, action, pending] = useActionState(
     keepsErrorOnDisconnect(createCoachTokenAction),
     {} as TokenState,
@@ -76,28 +78,31 @@ export function TokenManager({
             never change your training data.
           </InfoTip>
         </h2>
-        <form action={action} className="space-y-3">
+        <form ref={form} action={action} className="space-y-3">
           <Field label="Name">
-            <Input name="name" required maxLength={80} placeholder="My coach" />
+            <Input
+              key={state.token ?? "new"}
+              name="name"
+              required
+              maxLength={80}
+              placeholder="My coach"
+            />
           </Field>
           <Field label="Expires after">
-            <Select name="days" defaultValue="90">
+            <Select key={state.token ?? "new"} name="days" defaultValue="90">
               <option value="30">30 days</option>
               <option value="90">90 days</option>
               <option value="365">1 year</option>
             </Select>
           </Field>
-          <Button type="submit" disabled={pending} className="w-full">
+          <FormError message={state.error} />
+          <Button type="submit" disabled={pending} aria-busy={pending} className="w-full">
             {pending ? "Creating…" : "Create token"}
           </Button>
         </form>
-        {state.error && (
-          <p role="alert" className="text-sm text-danger">
-            {state.error}
-          </p>
-        )}
         {state.token && hidden !== state.token && (
           <div className="space-y-3 rounded-control border border-accent p-3">
+            <SavedNotice key={state.token}>Coach token created.</SavedNotice>
             <p className="text-sm font-medium">Copy it now; it is shown only once.</p>
             <textarea
               readOnly
@@ -134,11 +139,13 @@ export function TokenManager({
                 Hide token
               </Button>
             </div>
-            {copyFailed && (
-              <p role="alert" className="text-sm text-danger">
-                Could not copy it. Select the token above and copy it by hand.
-              </p>
-            )}
+            <FormError
+              message={
+                copyFailed
+                  ? "Could not copy it. Select the token above and copy it by hand."
+                  : undefined
+              }
+            />
           </div>
         )}
       </Card>

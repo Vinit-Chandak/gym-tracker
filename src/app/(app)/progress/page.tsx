@@ -5,7 +5,6 @@ import { withUser } from "@/db/with-user";
 import { EARLIEST_DAY, rangeOf, readWindowOf } from "@/domain/graph-range";
 import { macroTargets } from "@/domain/nutrition";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { hasBreaks } from "@/domain/run-segments";
 import {
   earliestOf,
   exerciseSessions,
@@ -145,8 +144,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
       environment: run.environment,
       metres: run.distanceMeters,
       seconds: run.durationSeconds,
-      // A run with breaks counts towards distance and time, never as a point of pace.
-      continuous: !hasBreaks(run),
+      // An interval session's pace with its rests is not the athlete's running pace: its point
+      // is left off the pace line, while its distance and time still count (DESIGN.md, Laps).
+      withRests: run.withRests,
     }))
     .reverse();
   const strengthRange = rangeFor(data.strength.map((row) => row.date));
@@ -164,7 +164,9 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
-      <div className="progress page-width pt-safe">
+      {/* The header and the section each take the page's width: the header is a tab root's
+          (DESIGN.md, Tab roots), the same on every tab. */}
+      <div className="progress">
         <ProgressView
           data={{
             today,

@@ -4,7 +4,8 @@ import { useActionState, useState, type FormEvent } from "react";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -44,6 +45,7 @@ export function FinishForm({
   latestFinish,
 }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   // Whether anything was typed above: with nothing logged, it decides which way out leads.
   const [typed, setTyped] = useState(
@@ -56,9 +58,9 @@ export function FinishForm({
     setTyped(filled("notes") || filled("bodyWeight"));
   };
   return (
-    <form action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
+    <form ref={form} action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
       {recordedStart && (
-        <Field label="Finished at">
+        <Field label="Finished at" error={state.fieldErrors?.finishedAt}>
           <Input
             name="finishedAt"
             type="datetime-local"
@@ -102,8 +104,14 @@ export function FinishForm({
         <FormError message={state.formError} />
         {/* Finishing would leave these unresolved drafts stranded on the device. */}
         {drafts > 0 && (
-          <p role="alert" className="type-meta-small font-semibold">
-            Save or remove {drafts} unsaved {drafts === 1 ? "set" : "sets"} first.
+          <p
+            role="alert"
+            className="flex items-start gap-2 rounded-control bg-surface p-2.5 type-meta-small font-semibold"
+          >
+            <Glyph name="warn" className="glyph-18" />
+            <span>
+              Save or remove {drafts} unsaved {drafts === 1 ? "set" : "sets"} first.
+            </span>
           </p>
         )}
         {/* The buttons under it say what each way out keeps or drops. */}

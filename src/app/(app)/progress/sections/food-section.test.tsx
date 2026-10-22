@@ -69,32 +69,26 @@ function barFills(measure: "kcal" | "protein", targets = TARGETS) {
   );
 }
 
-it("sets apart the days that reach the protein target, today still the bar in ink", () => {
+/** The graph's two strengths, food's ochre in its graph (graph.css: thinned and full). */
+const THIN = "var(--graph-thin)";
+const FULL = "var(--graph-full)";
+
+it("draws food's graph in its ochre", () => {
+  const { container } = draw("kcal");
+  expect(container.querySelector(".graph")!.getAttribute("data-pigment")).toBe("food");
+});
+
+it("sets apart the days that reach the protein target, today still the bar in full", () => {
   // 139.6 g reads 140 against a target that reads 140: reached. Today reached it too.
-  expect(barFills("protein")).toEqual([
-    "var(--ov-control)",
-    "var(--ov-ink-2)",
-    "var(--ov-ink-2)",
-    "var(--ov-ink)",
-  ]);
+  expect(barFills("protein")).toEqual([THIN, "var(--ov-ink-2)", "var(--ov-ink-2)", FULL]);
 });
 
 it("sets apart the days that reach the calorie target", () => {
-  expect(barFills("kcal")).toEqual([
-    "var(--ov-ink-2)",
-    "var(--ov-control)",
-    "var(--ov-ink-2)",
-    "var(--ov-ink)",
-  ]);
+  expect(barFills("kcal")).toEqual(["var(--ov-ink-2)", THIN, "var(--ov-ink-2)", FULL]);
 });
 
 it("sets nothing apart without a target to reach", () => {
-  expect(barFills("protein", { kcal: null, protein: null })).toEqual([
-    "var(--ov-control)",
-    "var(--ov-control)",
-    "var(--ov-control)",
-    "var(--ov-ink)",
-  ]);
+  expect(barFills("protein", { kcal: null, protein: null })).toEqual([THIN, THIN, THIN, FULL]);
 });
 
 it("says aloud which days reached the target, in the values a screen reader reads", () => {

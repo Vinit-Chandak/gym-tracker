@@ -12,7 +12,15 @@ import {
   speedMetresPerSecond,
   swimPaceSecondsPer100,
   validateActual,
+  countedRunPace,
+  lapFigures,
   lapPaceSecondsPerKm,
+  lapsDistance,
+  lapsMakeIntervals,
+  lapsTime,
+  lapTotals,
+  paceHasRests,
+  repPace,
   runPeakHeartRate,
   type CyclingActualV1,
   type RunningActualV1,
@@ -100,29 +108,111 @@ describe("a run's laps (ADR 0059)", () => {
     expect(lapPaceSecondsPerKm(timed)).toBeNull();
   });
 
-  it("refuses a lap that says neither how far nor how long", () => {
+  it("refuses a lap that says neither how far nor how long, at that lap", () => {
     const problems = validateActual(
       run({ laps: [lap(), lap({ distance: null, durationMs: null })] }),
     );
     expect(problems).toEqual([
-      { field: "laps", message: "Give lap 2 a distance, a time or both." },
+      { field: "laps.1", message: "Give lap 2 a distance, a time or both." },
     ]);
   });
 
-  it("refuses laps that add up to more than the run", () => {
+  it("says a lap's distance and time at that lap's own field", () => {
+    expect(
+      validateActual(
+        run({ laps: [lap(), lap({ distance: nativeDistance(2000, "km"), durationMs: 0 })] }),
+      ),
+    ).toEqual([
+      { field: "laps.1.distance", message: "Enter lap 2's distance up to 1000 km." },
+      {
+        field: "laps.1.time",
+        message: "Enter lap 2's time as more than zero and under seven days.",
+      },
+      // The run's own total is then short of its laps too, and says so where it is typed.
+      { field: "distance", message: "The laps add up to 2000.80 km, more than 5.00 km." },
+    ]);
+  });
+
+  it("says typed totals short of the laps at the total, with what the laps add up to", () => {
     const tooLong = Array.from({ length: 11 }, () => lap());
-    expect(validateActual(run({ laps: tooLong })).map((problem) => problem.message)).toEqual([
-      "The laps add up to longer than the run.",
-      "The laps add up to further than the run.",
+    expect(validateActual(run({ laps: tooLong }))).toEqual([
+      { field: "duration", message: "The laps add up to 33:00, longer than 30:00." },
+      { field: "distance", message: "The laps add up to 8.80 km, more than 5.00 km." },
     ]);
+    // Within a second a lap and a hundredth of the distance, a watch's rounding is not a typo.
+    const close = Array.from({ length: 6 }, () => lap({ durationMs: 5 * MINUTE + 300 }));
+    expect(validateActual(run({ distance: nativeDistance(4.75, "km"), laps: close }))).toEqual([]);
   });
 
-  it("checks each lap's heart rate and says which lap", () => {
+  it("checks each lap's heart rate and says it at that lap", () => {
     expect(
       validateActual(run({ laps: [lap({ averageHeartRate: 170, maxHeartRate: 160 })] })),
     ).toEqual([
-      { field: "laps", message: "lap 1: Maximum heart rate cannot be below the average." },
+      {
+        field: "laps.0.maxHeartRate",
+        message: "Maximum heart rate cannot be below the average.",
+      },
     ]);
+  });
+
+  it("adds the laps up, a standing recovery adding time and no distance", () => {
+    const laps = [
+      lap({ distance: nativeDistance(0.47, "km"), durationMs: 120_000 }),
+      lap({ phase: "recovery", distance: null, durationMs: 90_000 }),
+      lap({ distance: nativeDistance(0.51, "km"), durationMs: 117_000 }),
+    ];
+    const sums = lapTotals(laps.map(lapFigures));
+    expect(sums).toEqual({
+      metres: 980,
+      durationMs: 327_000,
+      distanceKnown: true,
+      timeKnown: true,
+    });
+    expect([lapsDistance(sums), lapsTime(sums)]).toEqual([980, 327_000]);
+    expect(lapTotals([])).toMatchObject({ distanceKnown: false, timeKnown: false });
+  });
+
+  it("leaves a total unknown when a lap does not hold its part, never shorter by it", () => {
+    // A rep timed with no distance: the run's distance is not the other laps' alone.
+    const timedRep = lapTotals(
+      [lap(), lap({ distance: null, durationMs: 60_000 })].map(lapFigures),
+    );
+    expect([lapsDistance(timedRep), lapsTime(timedRep)]).toEqual([null, 240_000]);
+    // A warm-up with its distance and no time: the run's time is not the reps' alone.
+    const untimed = lapTotals([lap({ phase: "warmup", durationMs: null }), lap()].map(lapFigures));
+    expect([lapsDistance(untimed), lapsTime(untimed)]).toEqual([1600, null]);
+  });
+
+  it("reads reps with recoveries as intervals, and reps alone or splits as not", () => {
+    expect(lapsMakeIntervals([{ phase: "work" }, { phase: "recovery" }])).toBe(true);
+    expect(lapsMakeIntervals([{ phase: "work" }, { phase: "work" }])).toBe(false);
+    expect(lapsMakeIntervals([{ phase: null }, { phase: "recovery" }])).toBe(false);
+  });
+
+  it("paces the reps that have both a distance and a time, and says how many", () => {
+    const laps = [
+      lap({ phase: "warmup", distance: nativeDistance(2, "km"), durationMs: 12 * MINUTE }),
+      lap({ distance: nativeDistance(400, "m"), durationMs: 96_000 }),
+      lap({ phase: "recovery", distance: null, durationMs: 90_000 }),
+      lap({ distance: nativeDistance(400, "m"), durationMs: 98_000 }),
+      lap({ distance: null, durationMs: 100_000 }),
+    ];
+    expect(repPace(laps.map(lapFigures))).toEqual({ secondsPerKm: 242.5, reps: 2 });
+    expect(repPace([lapFigures(lap({ phase: "recovery" }))])).toBeNull();
+  });
+
+  it("counts a session with rests by its reps' pace, never its overall pace", () => {
+    const laps = [
+      lap({ distance: nativeDistance(1, "km"), durationMs: 4 * MINUTE }),
+      lap({ phase: "recovery", distance: null, durationMs: 2 * MINUTE }),
+      lap({ distance: nativeDistance(1, "km"), durationMs: 4 * MINUTE }),
+    ];
+    const intervals = run({ distance: nativeDistance(2, "km"), durationMs: 10 * MINUTE, laps });
+    expect(paceHasRests(intervals)).toBe(true);
+    expect(countedRunPace(intervals)).toEqual({ kind: "reps", secondsPerKm: 240, reps: 2 });
+    // Called intervals without laps: its pace has its rests in it, and no reps to read instead.
+    expect(countedRunPace(run({ runType: "intervals" }))).toBeNull();
+    expect(countedRunPace(run())).toEqual({ kind: "overall", secondsPerKm: 360 });
   });
 
   it("reads a run's peak heart rate from its laps as well as its whole", () => {

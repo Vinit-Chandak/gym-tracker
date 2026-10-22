@@ -38,7 +38,8 @@ export function SelectRow({
   return (
     <div data-field-error={error ? "true" : undefined}>
       <div className="select-row">
-        <label htmlFor={id} className="font-bold">
+        <label htmlFor={id} className="flex items-center gap-1.5 font-bold">
+          {error && <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />}
           {label}
         </label>
         <span aria-hidden className="select-row-value">
@@ -66,7 +67,7 @@ export function SelectRow({
         </select>
       </div>
       {error && (
-        <p id={`${id}-error`} role="alert" className="type-meta-small font-semibold">
+        <p id={`${id}-error`} role="alert" className="type-meta-small font-bold text-danger-text">
           {error}
         </p>
       )}

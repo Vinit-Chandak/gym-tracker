@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { applyProposalAction, rejectProposalAction } from "@/server/actions/coach";
 import { attempted } from "@/lib/offline-submit";
 
@@ -70,11 +71,7 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
         </Disclosure>
       )}
       <p className="text-xs text-ink-muted tabular-nums">{proposal.createdAt}</p>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error ?? undefined} />
       <div className="action-row">
         <Button
           variant="secondary"

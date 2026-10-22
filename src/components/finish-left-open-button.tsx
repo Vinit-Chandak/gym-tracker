@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 import { attempted } from "@/lib/offline-submit";
@@ -64,12 +65,7 @@ export function FinishLeftOpenButton({
             : `${drafts} unsaved sets: resume to save or remove them.`}
         </p>
       )}
-      {error && (
-        <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:break-word]">{error}</span>
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} trackFields={false} />}
     </div>
   );
 }

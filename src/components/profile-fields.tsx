@@ -164,10 +164,7 @@ export function ProfileFields({
         />
       </Field>
 
-      <div className="space-y-1.5">
-        <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">
-          Sex
-        </span>
+      <Field group label="Sex" error={errors?.sex}>
         <SegmentedControl
           name="sex"
           aria-label="Sex"
@@ -176,12 +173,7 @@ export function ProfileFields({
           onChange={setSex}
           columns={2}
         />
-        {errors?.sex && (
-          <span role="alert" className="block type-meta-small font-semibold">
-            {errors.sex}
-          </span>
-        )}
-      </div>
+      </Field>
 
       <Field label="Training goal" error={errors?.trainingGoal}>
         <Select

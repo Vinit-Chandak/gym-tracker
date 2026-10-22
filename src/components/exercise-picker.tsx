@@ -110,7 +110,11 @@ export function ExercisePicker(props: ExercisePickerProps) {
       )}
 
       {error && (
-        <p role="alert" className="mt-2 type-meta-small font-semibold">
+        <p
+          role="alert"
+          className="mt-2 flex items-start gap-2 rounded-control bg-danger-tint p-3 type-meta-small font-bold text-danger-text"
+        >
+          <Glyph name="warn" className="glyph-18 shrink-0 text-danger-glyph" />
           {error}
         </p>
       )}

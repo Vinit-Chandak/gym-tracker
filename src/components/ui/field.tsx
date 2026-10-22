@@ -2,7 +2,10 @@
 
 import { Children, cloneElement, isValidElement, useId, type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { aboutLabel } from "./about-label";
+import { Glyph } from "./glyphs";
 import { InfoTip } from "./info-tip";
 
 type ControlProps = {
@@ -55,6 +58,11 @@ export function Field({
   const control = controls.find(
     (child) => isValidElement<ControlProps>(child) && child.props.type !== "hidden",
   );
+  // Some composite forms explain several inputs in one shared message (a lap, sign-in).
+  // The input's own invalid state still marks its label and glyph, without repeating that message.
+  const invalid = Boolean(
+    error || (isValidElement<ControlProps>(control) && control.props["aria-invalid"]),
+  );
   const controlId =
     htmlFor ??
     (isValidElement<ControlProps>(control) ? control.props.id : undefined) ??
@@ -71,14 +79,28 @@ export function Field({
   );
 
   return (
-    <div className="min-w-0 space-y-1.5" data-field-error={error ? "true" : undefined}>
+    <div className="ov-field min-w-0 space-y-1.5" data-field-error={invalid ? "true" : undefined}>
       <div
         className={
           labelHidden
             ? "sr-only"
-            : "flex flex-wrap items-center gap-x-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink"
+            : cn(
+                "ov-field-label flex flex-wrap items-center gap-x-1 text-[length:var(--ov-type-meta-small)] font-bold",
+                // A field that cannot be saved says so in its label too (DESIGN.md, Inputs).
+                invalid ? "text-danger-text" : "text-ink",
+              )
         }
       >
+        {!labelHidden && (
+          <Glyph
+            name="warn"
+            className={cn(
+              "field-invalid-glyph glyph-16 shrink-0 text-danger-glyph",
+              !invalid && "hidden",
+            )}
+            aria-hidden
+          />
+        )}
         {group ? (
           text
         ) : (
@@ -122,7 +144,7 @@ export function Field({
           role={error ? "alert" : undefined}
           className={
             error
-              ? "flex items-start gap-1.5 text-[length:var(--ov-type-meta-small)] font-semibold text-ink"
+              ? "flex items-start gap-1.5 text-[length:var(--ov-type-meta-small)] font-bold text-danger-text"
               : "block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
           }
         >

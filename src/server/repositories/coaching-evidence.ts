@@ -449,7 +449,7 @@ export async function readCoachingEvidence(
         distance: run.distanceMeters,
         duration: run.durationSeconds,
         // Its kind, whether it had breaks and what its reps came to (ADR 0062).
-        ...runReading(run, "summary"),
+        ...runReading({ ...run, runType: run.runType ?? null, laps: run.laps ?? [] }, "summary"),
         rpe: run.effort.value,
         effortReported: run.effort.status === "reported",
         mode: run.environment,

@@ -416,7 +416,9 @@ try {
   await check("Malformed dates and occurrence links fail safely", async () => {
     // Only Muscles steps by the week, so only Muscles reads one and says so (ADR 0047).
     await go("/progress?view=muscles&week=9999-99-99");
-    await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Progress, Muscles", exact: true }),
+    ).toBeVisible();
     await expect(page.getByText(/That week is not a valid date/)).toBeVisible();
     await go("/today/log/new?occurrence=not-a-uuid&sport=running");
     await expect(page.getByRole("heading", { name: "Nothing here", exact: true })).toBeVisible();

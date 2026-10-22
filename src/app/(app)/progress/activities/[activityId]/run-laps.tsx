@@ -1,4 +1,3 @@
-import { PHASE_WORDS } from "@/components/activities/prescription-lines";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import {
@@ -10,11 +9,13 @@ import {
 import { zoneOf, zoneTimeFromLaps, ZONE_NAMES, type ResolvedHeartRate } from "@/domain/heart-rate";
 import { formatDuration } from "@/domain/pace";
 import { formatSportDistance, type SportUnits } from "@/lib/distance-units";
+import { LAP_KIND_LABELS, STANDING } from "@/lib/run-laps";
 
 /**
- * A run's laps, as its watch listed them (ADR 0059): what each was for, how far and how long,
- * the pace where both were recorded, and the heart rate against the athlete's zones. A lap
- * missing a distance or a time shows a dash, never a figure worked out from the plan.
+ * A run's laps, as its watch listed them (ADR 0059): what each was for (a Rep, a Recovery), how
+ * far and how long, the pace where both were recorded, and the heart rate against the athlete's
+ * zones. A lap missing a distance or a time shows a dash, never a figure worked out from the
+ * plan; a recovery with no distance was a rest standing still, and says Standing.
  *
  * Five columns fit a phone: the pace's unit is said once, in its heading, and a lap's highest
  * heart rate shows beside its average where there is room for it.
@@ -60,12 +61,17 @@ export function RunLaps({
                 <tr key={index} data-phase={lap.phase ?? undefined}>
                   <th scope="row">
                     <span className="run-laps-number">{index + 1}</span>
-                    {lap.phase && <span className="run-laps-phase">{PHASE_WORDS[lap.phase]}</span>}
+                    {lap.phase && (
+                      <span className="run-laps-phase">{LAP_KIND_LABELS[lap.phase]}</span>
+                    )}
                   </th>
                   <td>
                     {lap.distance
                       ? formatSportDistance(lap.distance.metres, "running", units)
-                      : "—"}
+                      : // A recovery with no distance was a rest standing still, not a gap.
+                        lap.phase === "recovery"
+                        ? STANDING
+                        : "—"}
                   </td>
                   <td>{lap.durationMs === null ? "—" : formatDuration(lap.durationMs / 1000)}</td>
                   <td>

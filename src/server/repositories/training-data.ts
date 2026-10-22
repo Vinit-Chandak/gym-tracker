@@ -15,7 +15,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domain/activity";
-import type { RunningLap } from "@/domain/activity-metrics";
+import { lapFigures, paceHasRests, repPace, type RunningLap } from "@/domain/activity-metrics";
 import { paceSecondsPerKm } from "@/domain/pace";
 import type { RunType } from "@/domain/run-types";
 import type { DateRange } from "@/server/validation/date-range";
@@ -211,12 +211,23 @@ export type RunActivity = {
   environment: RunningEnvironment;
   durationSeconds: number;
   distanceMeters: number;
-  /** The whole run's: with breaks in it, not a pace anybody ran (`hasBreaks`, ADR 0062). */
+  /**
+   * The pace the run counts as (`countedRunPace`): its distance over its time, or for a session
+   * with rests its reps' pace, null where no rep has both. The overall pace of reps with rests
+   * between them is never this: it would read as the athlete running slower than they do.
+   */
   averagePaceSecondsPerKm: number | null;
-  /** What kind of run it was; null when the athlete did not say (ADR 0059). */
-  runType: RunType | null;
-  /** Its laps as recorded, in order; empty when it was recorded as a whole. */
-  laps: RunningLap[];
+  /** What kind of run the athlete called it, or null. Always read; absent only on a mock. */
+  runType?: RunType | null;
+  /**
+   * A session of reps and rests (`paceHasRests`): its own distance over its time is "Overall,
+   * with rests", and is left out of pace trends and records. Absent is a continuous run.
+   */
+  withRests?: boolean;
+  /** The reps' pace and how many reps it is read from, for a session with rests; else null. */
+  repPace?: { secondsPerKm: number; reps: number } | null;
+  /** Its laps as recorded, in order; empty when it was recorded as a whole (ADR 0062). */
+  laps?: RunningLap[];
   /** The number and how far it can be trusted; a migrated one stays unconfirmed (LOG-03). */
   effort: Effort;
   surface: string | null;
@@ -259,6 +270,11 @@ type RunRow = {
 function toRunActivity(row: RunRow): RunActivity {
   // A completed endurance activity always carries a duration; the database says so.
   const durationSeconds = Math.round((row.durationMs ?? 0) / 1000);
+  const laps = row.laps ?? [];
+  const withRests = paceHasRests({ runType: row.runType, laps });
+  // A session with rests counts by its reps' pace; its overall pace never stands for the
+  // athlete's running pace in History, the coach's evidence or anything built on this.
+  const reps = withRests ? repPace(laps.map(lapFigures)) : null;
   return {
     id: row.id,
     startedAt: row.startedAt,
@@ -266,9 +282,13 @@ function toRunActivity(row: RunRow): RunActivity {
     environment: row.environment,
     durationSeconds,
     distanceMeters: row.distanceMetres,
-    averagePaceSecondsPerKm: paceSecondsPerKm(row.distanceMetres, durationSeconds),
+    averagePaceSecondsPerKm: withRests
+      ? (reps?.secondsPerKm ?? null)
+      : paceSecondsPerKm(row.distanceMetres, durationSeconds),
     runType: row.runType,
-    laps: row.laps,
+    withRests,
+    repPace: reps,
+    laps,
     effort: effortFromStorage(row.effortValue, row.effortStatus),
     surface: row.surface,
     title: row.title,

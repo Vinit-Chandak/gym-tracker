@@ -1,0 +1,748 @@
+{
+  "date": "2026-10-22",
+  "branch": "codex/theme-all-screens",
+  "base": "7190d1fe",
+  "themeAuthority": [
+    "DESIGN.md",
+    "src/styles/form-v2/palette.css",
+    "src/styles/form-v2/foundation.css"
+  ],
+  "localEnvironment": {
+    "app": "http://localhost:3101",
+    "previews": "http://localhost:3100",
+    "authentication": "http://127.0.0.1:54322",
+    "database": "overload_audit_theme",
+    "historyMonths": 6,
+    "baselineSeededUsers": 56,
+    "disposableAccountsAddedForSetup": true
+  },
+  "production": {
+    "pageTemplates": 85,
+    "coveredLight": 85,
+    "coveredDark": 85,
+    "screenChecks": 410,
+    "screenChecksPerMode": {
+      "light": 205,
+      "dark": 205
+    },
+    "browserErrors": 0,
+    "accessibilityViolations": 0,
+    "horizontalOverflow": 0,
+    "primaryEngine": "Chromium Pixel 7",
+    "additionalEngines": ["Chromium desktop 1440×1000", "WebKit 390×844"],
+    "measuredColorPairs": 164,
+    "contrastMinimums": {
+      "text": 4.5,
+      "glyphsAndEdges": 3
+    },
+    "focusedThemeRecords": 48,
+    "oauthAndBoundaryRecords": 18,
+    "passwordSaveAndReauthenticationRecords": 10,
+    "legacyChecksAcrossEngines": 50,
+    "routes": [
+      {
+        "template": "/",
+        "light": ["/"],
+        "dark": ["/"]
+      },
+      {
+        "template": "/exercises",
+        "light": ["/exercises"],
+        "dark": ["/exercises"]
+      },
+      {
+        "template": "/exercises/[exerciseId]",
+        "light": ["/exercises/43353373-f1d1-4929-8ab6-f10f239a31c8"],
+        "dark": ["/exercises/43353373-f1d1-4929-8ab6-f10f239a31c8"]
+      },
+      {
+        "template": "/exercises/new",
+        "light": ["/exercises/new"],
+        "dark": ["/exercises/new"]
+      },
+      {
+        "template": "/food",
+        "light": ["/food", "/food?day=2026-10-22"],
+        "dark": ["/food", "/food?day=2026-10-22"]
+      },
+      {
+        "template": "/food/[meal]",
+        "light": [
+          "/food/breakfast?day=2026-10-22",
+          "/food/lunch?day=2026-10-22",
+          "/food/dinner?day=2026-10-22",
+          "/food/breakfast",
+          "/food/morning-snack",
+          "/food/lunch",
+          "/food/afternoon-snack",
+          "/food/evening-snack",
+          "/food/dinner",
+          "/food/late-night-snack"
+        ],
+        "dark": [
+          "/food/breakfast?day=2026-10-22",
+          "/food/lunch?day=2026-10-22",
+          "/food/dinner?day=2026-10-22",
+          "/food/breakfast",
+          "/food/morning-snack",
+          "/food/lunch",
+          "/food/afternoon-snack",
+          "/food/evening-snack",
+          "/food/dinner",
+          "/food/late-night-snack"
+        ]
+      },
+      {
+        "template": "/food/my-foods",
+        "light": ["/food/my-foods"],
+        "dark": ["/food/my-foods"]
+      },
+      {
+        "template": "/food/my-foods/meals/[id]",
+        "light": ["/food/my-foods/meals/04d7d28b-f681-44e4-b5bb-1d20665fb5fb"],
+        "dark": ["/food/my-foods/meals/04d7d28b-f681-44e4-b5bb-1d20665fb5fb"]
+      },
+      {
+        "template": "/food/my-foods/meals/new",
+        "light": ["/food/my-foods/meals/new"],
+        "dark": ["/food/my-foods/meals/new"]
+      },
+      {
+        "template": "/food/targets",
+        "light": ["/food/targets"],
+        "dark": ["/food/targets"]
+      },
+      {
+        "template": "/forgot-password",
+        "light": ["/forgot-password"],
+        "dark": ["/forgot-password"]
+      },
+      {
+        "template": "/gyms",
+        "light": ["/gyms"],
+        "dark": ["/gyms"]
+      },
+      {
+        "template": "/gyms/[gymId]",
+        "light": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901"],
+        "dark": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901"]
+      },
+      {
+        "template": "/gyms/[gymId]/edit",
+        "light": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/edit"],
+        "dark": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/edit"]
+      },
+      {
+        "template": "/gyms/[gymId]/equipment/[equipmentId]",
+        "light": [
+          "/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/equipment/e6545944-3159-4674-a610-ea31d7c94c55"
+        ],
+        "dark": [
+          "/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/equipment/e6545944-3159-4674-a610-ea31d7c94c55"
+        ]
+      },
+      {
+        "template": "/gyms/[gymId]/equipment/new",
+        "light": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/equipment/new"],
+        "dark": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/equipment/new"]
+      },
+      {
+        "template": "/gyms/[gymId]/programme",
+        "light": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/programme"],
+        "dark": ["/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/programme"]
+      },
+      {
+        "template": "/gyms/[gymId]/programme/[exerciseId]/fallback",
+        "light": [
+          "/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/programme/43353373-f1d1-4929-8ab6-f10f239a31c8/fallback"
+        ],
+        "dark": [
+          "/gyms/44d6113d-76f7-492f-bb91-02e20b3a6901/programme/43353373-f1d1-4929-8ab6-f10f239a31c8/fallback"
+        ]
+      },
+      {
+        "template": "/gyms/new",
+        "light": ["/gyms/new"],
+        "dark": ["/gyms/new"]
+      },
+      {
+        "template": "/login",
+        "light": ["/login"],
+        "dark": ["/login"]
+      },
+      {
+        "template": "/oauth/consent",
+        "light": ["/oauth/consent?authorization_id=local-screen-audit"],
+        "dark": ["/oauth/consent?authorization_id=local-screen-audit"]
+      },
+      {
+        "template": "/plan",
+        "light": ["/plan"],
+        "dark": ["/plan"]
+      },
+      {
+        "template": "/plan/[sport]",
+        "light": ["/plan/strength", "/plan/running", "/plan/cycling", "/plan/swimming"],
+        "dark": ["/plan/strength", "/plan/running", "/plan/cycling", "/plan/swimming"]
+      },
+      {
+        "template": "/plan/[sport]/days/[dayId]",
+        "light": [
+          "/plan/strength/days/2135c72e-b83e-454b-9102-eaa028f417c3",
+          "/plan/strength/days/cd2c2213-8943-4093-8a29-15b708d6ff82",
+          "/plan/strength/days/9d791612-47d6-4de6-9345-533709fe74a9",
+          "/plan/strength/days/844793c1-04f9-4ea2-9b47-7b32e52d9b39",
+          "/plan/strength/days/19caf1af-600b-4840-a087-e10a00020521",
+          "/plan/strength/days/e0153b5f-5e99-41f1-a3ae-fc5aa0d3f08c",
+          "/plan/strength/days/b69d4913-6825-425d-a143-db271003fb7f"
+        ],
+        "dark": [
+          "/plan/strength/days/2135c72e-b83e-454b-9102-eaa028f417c3",
+          "/plan/strength/days/cd2c2213-8943-4093-8a29-15b708d6ff82",
+          "/plan/strength/days/9d791612-47d6-4de6-9345-533709fe74a9",
+          "/plan/strength/days/844793c1-04f9-4ea2-9b47-7b32e52d9b39",
+          "/plan/strength/days/19caf1af-600b-4840-a087-e10a00020521",
+          "/plan/strength/days/e0153b5f-5e99-41f1-a3ae-fc5aa0d3f08c",
+          "/plan/strength/days/b69d4913-6825-425d-a143-db271003fb7f"
+        ]
+      },
+      {
+        "template": "/plan/[sport]/edit",
+        "light": [
+          "/plan/strength/edit",
+          "/plan/running/edit?mode=repeating",
+          "/plan/running/edit?mode=progressive",
+          "/plan/cycling/edit?mode=repeating",
+          "/plan/cycling/edit?mode=progressive",
+          "/plan/swimming/edit?mode=repeating",
+          "/plan/swimming/edit?mode=progressive"
+        ],
+        "dark": [
+          "/plan/strength/edit",
+          "/plan/running/edit?mode=repeating",
+          "/plan/running/edit?mode=progressive",
+          "/plan/cycling/edit?mode=repeating",
+          "/plan/cycling/edit?mode=progressive",
+          "/plan/swimming/edit?mode=repeating",
+          "/plan/swimming/edit?mode=progressive"
+        ]
+      },
+      {
+        "template": "/plan/drafts/[id]",
+        "light": ["/plan/drafts/4f55e4e5-e2a8-4bf3-89f1-690e086e859d"],
+        "dark": ["/plan/drafts/4f55e4e5-e2a8-4bf3-89f1-690e086e859d"]
+      },
+      {
+        "template": "/plan/drafts/[id]/programme",
+        "light": ["/plan/drafts/4f55e4e5-e2a8-4bf3-89f1-690e086e859d/programme"],
+        "dark": ["/plan/drafts/4f55e4e5-e2a8-4bf3-89f1-690e086e859d/programme"]
+      },
+      {
+        "template": "/plan/history",
+        "light": ["/plan/history"],
+        "dark": ["/plan/history"]
+      },
+      {
+        "template": "/plan/new",
+        "light": [
+          "/plan/new?sport=strength&method=coach",
+          "/plan/new",
+          "/plan/new?sport=strength",
+          "/plan/new?sport=running",
+          "/plan/new?sport=running&method=coach",
+          "/plan/new?sport=cycling",
+          "/plan/new?sport=cycling&method=coach",
+          "/plan/new?sport=swimming",
+          "/plan/new?sport=swimming&method=coach"
+        ],
+        "dark": [
+          "/plan/new?sport=strength&method=coach",
+          "/plan/new",
+          "/plan/new?sport=strength",
+          "/plan/new?sport=running",
+          "/plan/new?sport=running&method=coach",
+          "/plan/new?sport=cycling",
+          "/plan/new?sport=cycling&method=coach",
+          "/plan/new?sport=swimming",
+          "/plan/new?sport=swimming&method=coach"
+        ]
+      },
+      {
+        "template": "/plan/past",
+        "light": ["/plan/past"],
+        "dark": ["/plan/past"]
+      },
+      {
+        "template": "/plan/requests/[id]",
+        "light": [
+          "/plan/requests/66cec57c-2f6c-4d8e-85d0-93acffbe8dbc",
+          "/plan/requests/edcb8599-8467-4ec5-98ea-5cccb5b96478",
+          "/plan/requests/286952cc-1edf-4974-8719-87acb94faf2e"
+        ],
+        "dark": [
+          "/plan/requests/66cec57c-2f6c-4d8e-85d0-93acffbe8dbc",
+          "/plan/requests/edcb8599-8467-4ec5-98ea-5cccb5b96478",
+          "/plan/requests/286952cc-1edf-4974-8719-87acb94faf2e"
+        ]
+      },
+      {
+        "template": "/plan/sessions/[occurrenceId]",
+        "light": [
+          "/plan/sessions/a33abfac-da85-4e76-8b53-76e6a4f291c2",
+          "/plan/sessions/eeb4cede-4f51-48ae-996f-5ab97be66338",
+          "/plan/sessions/816897c0-4525-4106-ad63-57f8faa21428"
+        ],
+        "dark": [
+          "/plan/sessions/a33abfac-da85-4e76-8b53-76e6a4f291c2",
+          "/plan/sessions/eeb4cede-4f51-48ae-996f-5ab97be66338",
+          "/plan/sessions/816897c0-4525-4106-ad63-57f8faa21428"
+        ]
+      },
+      {
+        "template": "/profile",
+        "light": ["/profile"],
+        "dark": ["/profile"]
+      },
+      {
+        "template": "/profile/ai-coach",
+        "light": ["/profile/ai-coach"],
+        "dark": ["/profile/ai-coach"]
+      },
+      {
+        "template": "/profile/coach",
+        "light": ["/profile/coach"],
+        "dark": ["/profile/coach"]
+      },
+      {
+        "template": "/profile/delete-account",
+        "light": ["/profile/delete-account"],
+        "dark": ["/profile/delete-account"]
+      },
+      {
+        "template": "/profile/edit",
+        "light": ["/profile/edit"],
+        "dark": ["/profile/edit"]
+      },
+      {
+        "template": "/profile/friends",
+        "light": ["/profile/friends"],
+        "dark": ["/profile/friends"]
+      },
+      {
+        "template": "/profile/friends/compare",
+        "light": ["/profile/friends/compare"],
+        "dark": ["/profile/friends/compare"]
+      },
+      {
+        "template": "/profile/friends/find",
+        "light": ["/profile/friends/find"],
+        "dark": ["/profile/friends/find"]
+      },
+      {
+        "template": "/profile/friends/leaderboard",
+        "light": [
+          "/profile/friends/leaderboard",
+          "/profile/friends/leaderboard?sport=running",
+          "/profile/friends/leaderboard?sport=cycling",
+          "/profile/friends/leaderboard?sport=swimming"
+        ],
+        "dark": [
+          "/profile/friends/leaderboard",
+          "/profile/friends/leaderboard?sport=running",
+          "/profile/friends/leaderboard?sport=cycling",
+          "/profile/friends/leaderboard?sport=swimming"
+        ]
+      },
+      {
+        "template": "/profile/friends/people",
+        "light": ["/profile/friends/people", "/profile/friends/people?people=followers"],
+        "dark": ["/profile/friends/people", "/profile/friends/people?people=followers"]
+      },
+      {
+        "template": "/profile/heart-rate",
+        "light": ["/profile/heart-rate"],
+        "dark": ["/profile/heart-rate"]
+      },
+      {
+        "template": "/profile/password",
+        "light": ["/profile/password"],
+        "dark": ["/profile/password"]
+      },
+      {
+        "template": "/profile/privacy",
+        "light": ["/profile/privacy"],
+        "dark": ["/profile/privacy"]
+      },
+      {
+        "template": "/profile/sports",
+        "light": ["/profile/sports"],
+        "dark": ["/profile/sports"]
+      },
+      {
+        "template": "/profile/units",
+        "light": ["/profile/units"],
+        "dark": ["/profile/units"]
+      },
+      {
+        "template": "/progress",
+        "light": [
+          "/progress",
+          "/progress?view=body",
+          "/progress?view=muscles",
+          "/progress?view=running",
+          "/progress?view=strength",
+          "/progress?view=recovery",
+          "/progress?view=food",
+          "/progress?from=2026-05-01&to=2026-10-22"
+        ],
+        "dark": [
+          "/progress",
+          "/progress?view=body",
+          "/progress?view=muscles",
+          "/progress?view=running",
+          "/progress?view=strength",
+          "/progress?view=recovery",
+          "/progress?view=food",
+          "/progress?from=2026-05-01&to=2026-10-22"
+        ]
+      },
+      {
+        "template": "/progress/activities/[activityId]",
+        "light": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2"
+        ],
+        "dark": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2"
+        ]
+      },
+      {
+        "template": "/progress/activities/[activityId]/counts-as",
+        "light": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8/counts-as",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37/counts-as",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2/counts-as"
+        ],
+        "dark": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8/counts-as",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37/counts-as",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2/counts-as"
+        ]
+      },
+      {
+        "template": "/progress/activities/[activityId]/edit",
+        "light": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8/edit",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37/edit",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2/edit"
+        ],
+        "dark": [
+          "/progress/activities/47da7447-6341-4afa-bf19-d0fd6f8dabc8/edit",
+          "/progress/activities/d92302c4-b328-46f0-a2c5-9d260dda3b37/edit",
+          "/progress/activities/2a15d6db-46fc-4144-91f4-af7975b5b9b2/edit"
+        ]
+      },
+      {
+        "template": "/progress/calendar",
+        "light": ["/progress/calendar"],
+        "dark": ["/progress/calendar"]
+      },
+      {
+        "template": "/progress/day/[date]",
+        "light": ["/progress/day/2026-10-22"],
+        "dark": ["/progress/day/2026-10-22"]
+      },
+      {
+        "template": "/progress/history",
+        "light": [
+          "/progress/history",
+          "/progress/history?kind=run",
+          "/progress/history?from=2026-05-01&to=2026-10-22"
+        ],
+        "dark": [
+          "/progress/history",
+          "/progress/history?kind=run",
+          "/progress/history?from=2026-05-01&to=2026-10-22"
+        ]
+      },
+      {
+        "template": "/reset-password",
+        "light": ["/reset-password"],
+        "dark": ["/reset-password"]
+      },
+      {
+        "template": "/runs",
+        "light": ["/runs"],
+        "dark": ["/runs"]
+      },
+      {
+        "template": "/runs/[runId]",
+        "light": ["/runs/47da7447-6341-4afa-bf19-d0fd6f8dabc8"],
+        "dark": ["/runs/47da7447-6341-4afa-bf19-d0fd6f8dabc8"]
+      },
+      {
+        "template": "/runs/[runId]/edit",
+        "light": ["/runs/47da7447-6341-4afa-bf19-d0fd6f8dabc8/edit"],
+        "dark": ["/runs/47da7447-6341-4afa-bf19-d0fd6f8dabc8/edit"]
+      },
+      {
+        "template": "/runs/new",
+        "light": ["/runs/new"],
+        "dark": ["/runs/new"]
+      },
+      {
+        "template": "/signup",
+        "light": ["/signup"],
+        "dark": ["/signup"]
+      },
+      {
+        "template": "/today",
+        "light": ["/today"],
+        "dark": ["/today"]
+      },
+      {
+        "template": "/today/log",
+        "light": [
+          "/today/log",
+          "/today/log?sport=strength",
+          "/today/log?sport=strength&date=2026-10-22",
+          "/today/log?sport=running",
+          "/today/log?sport=running&date=2026-10-22",
+          "/today/log?sport=cycling",
+          "/today/log?sport=cycling&date=2026-10-22",
+          "/today/log?sport=swimming",
+          "/today/log?sport=swimming&date=2026-10-22"
+        ],
+        "dark": [
+          "/today/log",
+          "/today/log?sport=strength",
+          "/today/log?sport=strength&date=2026-10-22",
+          "/today/log?sport=running",
+          "/today/log?sport=running&date=2026-10-22",
+          "/today/log?sport=cycling",
+          "/today/log?sport=cycling&date=2026-10-22",
+          "/today/log?sport=swimming",
+          "/today/log?sport=swimming&date=2026-10-22"
+        ]
+      },
+      {
+        "template": "/today/log/body-weight",
+        "light": ["/today/log/body-weight"],
+        "dark": ["/today/log/body-weight"]
+      },
+      {
+        "template": "/today/log/new",
+        "light": [
+          "/today/log/new?sport=running",
+          "/today/log/new?occurrence=a33abfac-da85-4e76-8b53-76e6a4f291c2",
+          "/today/log/new?sport=cycling",
+          "/today/log/new?occurrence=eeb4cede-4f51-48ae-996f-5ab97be66338",
+          "/today/log/new?sport=swimming",
+          "/today/log/new?occurrence=816897c0-4525-4106-ad63-57f8faa21428"
+        ],
+        "dark": [
+          "/today/log/new?sport=running",
+          "/today/log/new?occurrence=a33abfac-da85-4e76-8b53-76e6a4f291c2",
+          "/today/log/new?sport=cycling",
+          "/today/log/new?occurrence=eeb4cede-4f51-48ae-996f-5ab97be66338",
+          "/today/log/new?sport=swimming",
+          "/today/log/new?occurrence=816897c0-4525-4106-ad63-57f8faa21428"
+        ]
+      },
+      {
+        "template": "/u/[username]",
+        "light": [
+          "/u/vinit",
+          "/u/shreyash",
+          "/u/priya",
+          "/u/alex",
+          "/u/shreyash?sport=running",
+          "/u/shreyash?sport=cycling",
+          "/u/shreyash?sport=swimming"
+        ],
+        "dark": [
+          "/u/vinit",
+          "/u/shreyash",
+          "/u/priya",
+          "/u/alex",
+          "/u/shreyash?sport=running",
+          "/u/shreyash?sport=cycling",
+          "/u/shreyash?sport=swimming"
+        ]
+      },
+      {
+        "template": "/u/[username]/activities/[sharedStatId]",
+        "light": ["/u/shreyash/activities/506ee516-99c5-4e9b-b853-c8dd69fcae21"],
+        "dark": ["/u/shreyash/activities/506ee516-99c5-4e9b-b853-c8dd69fcae21"]
+      },
+      {
+        "template": "/u/[username]/compare",
+        "light": [
+          "/u/shreyash/compare",
+          "/u/shreyash/compare?sport=running",
+          "/u/shreyash/compare?sport=cycling",
+          "/u/shreyash/compare?sport=swimming"
+        ],
+        "dark": [
+          "/u/shreyash/compare",
+          "/u/shreyash/compare?sport=running",
+          "/u/shreyash/compare?sport=cycling",
+          "/u/shreyash/compare?sport=swimming"
+        ]
+      },
+      {
+        "template": "/u/[username]/compare/[exerciseId]",
+        "light": ["/u/shreyash/compare/43353373-f1d1-4929-8ab6-f10f239a31c8"],
+        "dark": ["/u/shreyash/compare/43353373-f1d1-4929-8ab6-f10f239a31c8"]
+      },
+      {
+        "template": "/warm",
+        "light": ["/warm"],
+        "dark": ["/warm"]
+      },
+      {
+        "template": "/welcome",
+        "light": ["/welcome"],
+        "dark": ["/welcome"]
+      },
+      {
+        "template": "/welcome/equipment",
+        "light": ["/welcome/equipment"],
+        "dark": ["/welcome/equipment"]
+      },
+      {
+        "template": "/welcome/gym",
+        "light": ["/welcome/gym"],
+        "dark": ["/welcome/gym"]
+      },
+      {
+        "template": "/welcome/programme",
+        "light": ["/welcome/programme"],
+        "dark": ["/welcome/programme"]
+      },
+      {
+        "template": "/welcome/programme/create",
+        "light": ["/welcome/programme/create"],
+        "dark": ["/welcome/programme/create"]
+      },
+      {
+        "template": "/welcome/programme/drafts/[id]",
+        "light": ["/welcome/programme/drafts/3468c4b2-5965-4aed-a19d-7e0ab4d4856e"],
+        "dark": ["/welcome/programme/drafts/3468c4b2-5965-4aed-a19d-7e0ab4d4856e"]
+      },
+      {
+        "template": "/welcome/programme/jobs/[id]",
+        "light": [
+          "/welcome/programme/jobs/edcb8599-8467-4ec5-98ea-5cccb5b96478",
+          "/welcome/programme/jobs/286952cc-1edf-4974-8719-87acb94faf2e",
+          "/welcome/programme/jobs/44379609-0855-47a3-92bc-350d1c51a96a",
+          "/welcome/programme/jobs/39aff669-64b7-44a6-9097-55d1b45dc24a",
+          "/welcome/programme/jobs/92aeec72-1f7d-448f-9aa8-e103c5727e70",
+          "/welcome/programme/jobs/dd86cd47-62d3-4358-a676-e8e83fb8e1e2",
+          "/welcome/programme/jobs/5e21484d-e71c-4a3e-97c7-71d36e9c2df5"
+        ],
+        "dark": [
+          "/welcome/programme/jobs/edcb8599-8467-4ec5-98ea-5cccb5b96478",
+          "/welcome/programme/jobs/286952cc-1edf-4974-8719-87acb94faf2e",
+          "/welcome/programme/jobs/44379609-0855-47a3-92bc-350d1c51a96a",
+          "/welcome/programme/jobs/39aff669-64b7-44a6-9097-55d1b45dc24a",
+          "/welcome/programme/jobs/92aeec72-1f7d-448f-9aa8-e103c5727e70",
+          "/welcome/programme/jobs/dd86cd47-62d3-4358-a676-e8e83fb8e1e2",
+          "/welcome/programme/jobs/5e21484d-e71c-4a3e-97c7-71d36e9c2df5"
+        ]
+      },
+      {
+        "template": "/welcome/programme/manual",
+        "light": ["/welcome/programme/manual"],
+        "dark": ["/welcome/programme/manual"]
+      },
+      {
+        "template": "/welcome/programme/split",
+        "light": ["/welcome/programme/split"],
+        "dark": ["/welcome/programme/split"]
+      },
+      {
+        "template": "/welcome/sports",
+        "light": ["/welcome/sports"],
+        "dark": ["/welcome/sports"]
+      },
+      {
+        "template": "/workouts/[sessionId]",
+        "light": [
+          "/workouts/db15d2b9-6519-4b69-9094-16443755d8b0",
+          "/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848"
+        ],
+        "dark": [
+          "/workouts/db15d2b9-6519-4b69-9094-16443755d8b0",
+          "/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848"
+        ]
+      },
+      {
+        "template": "/workouts/[sessionId]/add-exercise",
+        "light": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/add-exercise"],
+        "dark": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/add-exercise"]
+      },
+      {
+        "template": "/workouts/[sessionId]/check-in",
+        "light": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/check-in"],
+        "dark": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/check-in"]
+      },
+      {
+        "template": "/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute",
+        "light": [
+          "/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/exercises/464293ad-9fd5-46e1-9b3d-a3a07ea1ab98/substitute"
+        ],
+        "dark": [
+          "/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/exercises/464293ad-9fd5-46e1-9b3d-a3a07ea1ab98/substitute"
+        ]
+      },
+      {
+        "template": "/workouts/[sessionId]/finish",
+        "light": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/finish"],
+        "dark": ["/workouts/aeaa74db-c5e2-440d-91b7-6d244accc848/finish"]
+      },
+      {
+        "template": "/workouts/start",
+        "light": ["/workouts/start?gym=44d6113d-76f7-492f-bb91-02e20b3a6901"],
+        "dark": ["/workouts/start?gym=44d6113d-76f7-492f-bb91-02e20b3a6901"]
+      }
+    ]
+  },
+  "evidence": {
+    "root": "output/audit-theme-2026-10-22",
+    "gallery": "output/audit-theme-2026-10-22/index.html",
+    "accountAndFood": "output/audit-theme-2026-10-22/account-food/summary.json",
+    "training": "output/audit-theme-2026-10-22/training/report.json",
+    "planAndCoach": "output/audit-theme-2026-10-22/plan-coach/audit-report.json",
+    "routeInventory": "output/audit-theme-2026-10-22/route-inventory.json"
+  },
+  "verification": {
+    "productionBuild": "passed",
+    "typecheck": "passed",
+    "changedFileLint": "passed",
+    "changedFileFormat": "passed",
+    "relatedTests": "passed in affected areas; batches overlap and are not summed",
+    "fullSuite": "run once before release: 3711 passed and 2 failed across 442 files in 418 seconds; test-only synchronization corrections made both failed cases pass on focused reruns; already-passing cases were not repeated",
+    "verifiedTestCases": 3713
+  },
+  "limits": [
+    "Authentication, OAuth callback and coach job states used local simulators or fixtures.",
+    "External email delivery, external OAuth grants and live coach-provider handoff were not exercised.",
+    "Route coverage and representative faults do not establish every possible input or failure permutation.",
+    "Production route sweep preceded the final isolated invalid-amount surface and action-only summary fixes; those states were recaptured after the final production rebuild."
+  ],
+  "developmentPreviews": {
+    "pageTemplates": 13,
+    "screenCaptures": 26,
+    "visuallyReviewed": true,
+    "accessibilityViolations": 0,
+    "horizontalOverflow": 0,
+    "initialRuntimeDiagnosticCases": 6,
+    "targetedRechecksPassed": 6,
+    "preciseColdStartupCause": "not established",
+    "evidence": "output/audit-theme-2026-10-22/plan-coach/preview-results.json"
+  }
+}

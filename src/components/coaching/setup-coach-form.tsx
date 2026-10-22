@@ -162,13 +162,17 @@ export function SetupCoachForm({
   const [inches, setInches] = useState(() => String(height?.inches ?? ""));
 
   function change(patch: Partial<CoachIntake>) {
-    setAnswers((current) => ({ ...current, ...patch }));
+    const nextAnswers = { ...answers, ...patch };
+    setAnswers(nextAnswers);
     setError(null);
-    // An answer given clears what was said about it.
+    // A correction clears only once that answer can be saved, not on its first keystroke.
+    const remaining = problems(nextAnswers, detailed);
     setShown((current) => {
       const next = { ...current };
-      for (const key of Object.keys(patch) as Key[]) delete next[key];
-      if ("preferredDays" in patch) delete next.sessionsPerWeek;
+      for (const key of Object.keys(current) as Key[]) {
+        if (remaining[key]) next[key] = remaining[key];
+        else delete next[key];
+      }
       return next;
     });
   }
@@ -583,7 +587,7 @@ function FigureField({
   );
 }
 
-/** What is wrong with a group, under it, in ink and led by its glyph. */
+/** What is wrong with a group, under it, in danger text and led by its glyph. */
 function Problem({ id, message }: { id?: string; message?: string }) {
   if (!message) return null;
   return (

@@ -65,7 +65,7 @@ export function InstallSection() {
       <h2 id="profile-app" className="caption-head mt-4.5">
         App
       </h2>
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         <li className="nav-row-item">
           <button
             type="button"

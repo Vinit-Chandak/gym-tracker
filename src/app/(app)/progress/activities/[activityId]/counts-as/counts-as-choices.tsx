@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { useState, useTransition } from "react";
 
 import Link from "@/components/ui/app-link";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { countActivityAsAction } from "@/server/actions/activities";
@@ -96,11 +97,7 @@ export function CountsAsChoices({
           Saving…
         </p>
       )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error} />}
     </div>
   );
 }

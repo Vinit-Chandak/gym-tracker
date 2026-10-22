@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { coachingAction } from "@/components/coaching/client-action";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { requestProgramReviewAction } from "@/server/actions/coaching-workflow";
 import type { ActivitySport } from "@/domain/activity";
@@ -96,11 +97,7 @@ export function RequestReview({
           {line}
         </p>
       )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error ?? undefined} />
     </div>
   );
 }

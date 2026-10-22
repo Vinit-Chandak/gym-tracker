@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import { useOptimistic, useState, useTransition } from "react";
 
 import { Switch } from "@/components/ui/switch";
@@ -151,11 +152,7 @@ function SavedSwitch({
           <Switch label={label} checked={shown} onChange={change} disabled={pending} />
         </span>
       </div>
-      {error && (
-        <p role="alert" className="pb-1 type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
     </li>
   );
 }

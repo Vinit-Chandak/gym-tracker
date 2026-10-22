@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, useKeptForm } from "@/components/ui/form";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Textarea } from "@/components/ui/input";
@@ -152,7 +153,7 @@ export function AiCoachSettings({
     state !== INITIAL_FORM_STATE && !state.fieldErrors && !state.formError && !state.values;
   const [fresh, setFresh] = useState({ id: noteId, after: state });
   if (saved && fresh.after !== state) {
-    setFresh({ id: noteId, after: state });
+    setFresh({ id: crypto.randomUUID(), after: state });
     setText("");
   }
   const change = (next: boolean) =>
@@ -196,11 +197,7 @@ export function AiCoachSettings({
           {status}
         </p>
       )}
-      {error && (
-        <p role="alert" className="coach-notice">
-          {error}
-        </p>
-      )}
+      <FormError message={error ?? undefined} />
 
       {(jobs.length > 0 || attempts.length > 0) && (
         <Section title="Working on">
@@ -258,6 +255,7 @@ export function AiCoachSettings({
           {/* The heading names it; a programme's own asks are its page's Request a change. */}
           <Field label="Notes for every programme" labelHidden error={state.fieldErrors?.userNotes}>
             <Textarea
+              key={fresh.id}
               ref={textarea}
               name="userNotes"
               rows={3}
@@ -274,9 +272,7 @@ export function AiCoachSettings({
             <Glyph name="send" className="glyph-18" />
             {sending ? "Sending…" : "Send"}
           </Button>
-          <p role="status" className="text-sm font-semibold empty:hidden">
-            {saved && !text ? "Note sent." : ""}
-          </p>
+          {saved && !text && <SavedNotice key={fresh.id}>Note sent.</SavedNotice>}
         </form>
       </Section>
 

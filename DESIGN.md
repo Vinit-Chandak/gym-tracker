@@ -1,6 +1,6 @@
 ---
 name: Overload
-description: "Form v2, the art is your training: a black-and-white phone interface whose only colour is prints drawn from what the athlete logged."
+description: "Form v2, the art is your training: an ink-and-paper phone interface where every colour says something: a sport's pigment on its prints, marks and data, red for what must be fixed and green for what was kept."
 colors:
   ground: "#ffffff"
   surface: "#f4f4f5"
@@ -12,7 +12,7 @@ colors:
   ink: "#16171b"
   ink-2: "#5b5d64"
   control: "#85878e"
-  hair: "#e6e6e9"
+  hair: "#d8d9dc"
   on-ink: "#ffffff"
   on-ink-2: "#b4b6bd"
   scrim: "rgba(22, 23, 27, 0.42)"
@@ -24,9 +24,9 @@ colors:
   surface-control-on-surface-dark: "#2b2c32"
   surface-control-on-surface-pressed-dark: "#35363c"
   ink-dark: "#edeef0"
-  ink-2-dark: "#a3a6ae"
-  control-dark: "#73767e"
-  hair-dark: "#26272c"
+  ink-2-dark: "#b2b5bc"
+  control-dark: "#787b83"
+  hair-dark: "#37383c"
   on-ink-dark: "#111214"
   on-ink-2-dark: "#4c4f57"
   scrim-dark: "rgba(0, 0, 0, 0.6)"
@@ -64,6 +64,29 @@ colors:
   print-ochre: "#c98712"
   print-straw: "#f7d47e"
   on-food: "#16171b"
+  food-edge: "#b07a12"
+  grouped: "#f4f4f5"
+  panel: "#ffffff"
+  grouped-dark: "#111214"
+  panel-dark: "#1b1c20"
+  panel-tray: "#f4f4f5"
+  panel-tray-dark: "#26272c"
+  danger-glyph: "#cc2147"
+  danger-text: "#a31f3a"
+  danger-line: "#e42b52"
+  danger-tint: "#f9ebec"
+  success-glyph: "#1d883b"
+  success-text: "#1c6c31"
+  success-line: "#279845"
+  success-tint: "#d9f9dc"
+  danger-glyph-dark: "#f2868e"
+  danger-text-dark: "#ebb8ba"
+  danger-line-dark: "#e2445d"
+  danger-tint-dark: "#47191e"
+  success-glyph-dark: "#4ac867"
+  success-text-dark: "#7ee28f"
+  success-line-dark: "#3f9c53"
+  success-tint-dark: "#17311b"
   print-strength-dark: "#8796f5"
   print-run-dark: "#f2704f"
   print-ride-dark: "#a08cf0"
@@ -384,9 +407,11 @@ components:
 
 **Creative North Star: "The art is your training"**
 
-Overload is a black-and-white instrument that stays out of the way between sets: ink on white,
-light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is
-the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged
+Overload is an instrument of ink and paper that stays out of the way between sets: ink on white,
+light ink on near-black in dark, two typefaces, flat surfaces and hairlines. Every colour on it
+says something. A sport's pigment names that sport wherever it is drawn (its prints, its marks,
+the bars and lines of its data); red says what must be fixed and green what was kept; the rest is
+ink. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged
 and nothing else, so the art is the record and the reward at once. A day's print says what is
 owed and fills with ink as it is done; the month holds every activity of every day, a tile of
 paper for each day and an icon for each activity.
@@ -425,9 +450,20 @@ digits wide. Saved meals stand under Meals and foods under Foods, the most eaten
 a time (ADR 0046). These lists are the exception to one left edge and to text that wraps; Rows
 and marks says how. The Dinner board predates this.
 
+**Amended 21 October 2026, from the owner's notes on the built app.** The interface had become
+black and white everywhere but the art: an error was an ink box no one could find, a form was a
+stack of boxes, and empty screens read as unfinished. Colour now does work (The Colour Is
+Information Rule), with red and green as the only signals; forms stand in panels on a grouped
+ground; a refused field turns red where it is; a tab's root leads with its subject and no longer
+repeats the tab's name; the tab icons are redrawn so no two look alike; a run's laps carry their
+kind and make its totals (Laps and intervals). The palette was chosen by measurement: every pair
+below passes on the surface it sits on, in both themes. The Form v2 generator and boards predate
+this amendment; where they differ, this file wins.
+
 **Key Characteristics:**
 
-- A black-and-white interface; colour only ever means a family of sport, as a print or a mark.
+- Ink and paper for the interface. Colour is information: a sport's pigment on its prints, marks
+  and data; red for what must be fixed; green for what was kept. Nothing else is coloured.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
 - Minimal words: no repeated information, no state said in words where ink says it, and no
   explanation on the screen: it waits behind an ⓘ or a fold (The Need-to-Know Rule).
@@ -440,12 +476,14 @@ and marks says how. The Dinner board predates this.
 
 ## Colors
 
-Ink and white for the interface; seven artist's pigments, on warm paper, for the art.
+Ink and white for the interface; seven artist's pigments for the sports, on warm paper in the art
+and on the ground in their data; two signals.
 
 ### Primary
 
-- **Press Ink** (`ink`; `ink-dark` in dark): all text, the primary button, what is chosen,
-  selected text, the focus ring, and every graph (see Graphs). On ink, text is **On-ink**.
+- **Press Ink** (`ink`; `ink-dark` in dark): all text, the one filled action, what is chosen,
+  selected text, the focus ring, links, the tab bar, and graphs that belong to no sport (body
+  weight, recovery, a friend's compare). On ink, text is **On-ink**.
 
 ### Secondary
 
@@ -467,8 +505,32 @@ lighter pigments for dark paper:
   (`print-ochre`) to **Straw** (`print-straw`); text on it is `on-food`.
 - **Umber** (`print-play`): play, reserved (climbing, racket sports).
 
-In the interface a sport's mark, the small form leading a row where a list mixes sports, takes the
-same pigment.
+In the interface a sport's pigment marks that sport's own things and nothing else: its mark (the
+small form leading a row where a list mixes sports), the progress of its programme, the bars and
+lines of its graphs, and, on a run's or a ride's own page, its time in each heart-rate zone as
+five densities of the pigment, from a pale wash to full. Those densities appear nowhere else:
+effort, RIR and a lap's figures already say how hard, and a colour beside them would only repeat
+them. Food's mark in a list takes an edge of **Food edge** (`food-edge`), an ochre, so cadmium
+holds 3:1 on white and on paper; its graphs draw in that ochre.
+
+### Signals
+
+Two, each a ramp of four: a **tint** for the background of what it marks, a **line** for its
+edge, a **glyph** colour for its glyph, and a **text** colour for its words. Form's older name
+for each (`danger`, `success`) reads its text colour. Each comes with
+its glyph and words, never alone.
+
+- **Danger** (`danger-glyph`, `danger-text`, `danger-line`, `danger-tint`, and their `-dark`): a field
+  that cannot be saved as it is, a save that failed, and the words of an action that loses a
+  record (Delete account). Crimson, at OKLCH hue 16, 15.7° from vermilion and 16.5° from rose.
+- **Success** (`success-glyph`, `success-text`, `success-line`, `success-tint`, and their `-dark`): a
+  record kept (Run saved, with Undo), and a new personal record. Green, at hue 148, 23° from
+  viridian.
+
+There is no warning or information colour. A notice (offline, a draft kept on this device) is a
+tray in ink with its glyph; a missed day is its dashed mark and the word Missed in ink 2; a coach's
+caution is the coach note. Amber would sit within 15° of vermilion, umber or cadmium, and a third
+signal would dilute the two.
 
 ### Neutral
 
@@ -487,7 +549,11 @@ same pigment.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
   that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
-- **Hair** (`hair`): row rules and the tab bar's top edge.
+- **Hair** (`hair`): row rules and the tab bar's top edge; `#d8d9dc` (APCA Lc 20 on white) and
+  `#37383c` on a dark panel, a step darker than before, so a rule separates what it divides.
+- **Grouped** (`grouped`) and **Panel** (`panel`): a form or a list of settings stands as panels
+  (white; the lifted surface in dark) on the grouped ground, so its sections read as sections and
+  not as one stack of boxes (Forms).
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
   not in the volume, and a rest day's crescent still to come.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
@@ -499,15 +565,27 @@ same pigment.
 
 ### Named Rules
 
-**The Black-and-White Rule.** The interface is ink on ground. Colour appears only in prints and
-in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never
-marks status, an error, a link, emphasis, a selection or a chart: warnings, failures, selected
-text and every Progress chart are ink. The calendar is not a chart: its days are paper, and its
-icons are in the sports' own pigments.
+**The Colour Is Information Rule** (21 October 2026; it replaces the Black-and-White Rule). Every
+colour on a screen answers one question: which sport (its pigment), how hard on a run's or ride's
+own page (its zones' densities), or right and wrong (green and red). The chrome is ink: text,
+buttons, selection, focus, links, the tab bar. A pigment never marks a status, an error, a link,
+emphasis or a selection, and a signal never marks a sport. One colour, one meaning, everywhere:
+hues within 15° are the same colour. No colour repeats what a figure or a word beside it already
+says.
+
+**The One Filled Action Rule.** A screen fills one action, in ink (inverted in dark): the one
+that finishes its task. Its peers are tonal. A sport's colour is never a button.
+
+**The Measured Pair Rule.** A colour is chosen by measuring it on the surface it sits on: text
+4.5:1, marks, lines, glyphs and field edges 3:1, rules APCA Lc 15 or more, in light and in dark. A
+new token lands with its pairs measured (`better-colors`); a failing pair is fixed by lightness,
+never by hue.
 
 **The Thinned, Full, Dashed Rule.** Thinned pigment with an edge of the full pigment is to do;
-full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and
-nothing else.
+full pigment is done; a dashed edge is owed and not done: skipped, or missed once its day has
+passed (21 October 2026: with no warning colour, a missed session is its dashed mark and the word
+Missed, as a skipped one is its dashed mark and Skipped). A warm-up is grey. Dashed means not done
+and nothing else.
 
 **The Quiet Dark Rule.** In dark, prints are pulled on near-black paper with lighter pigments
 and light ink, so the art is never the brightest thing on the screen. Dark swaps every token
@@ -526,7 +604,8 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 
 ### Hierarchy
 
-- **Title** (700, 36 px, 1; 32 under 360 pt): a destination's name (Plan, Profile).
+- **Title** (700, 36 px, 1; 32 under 360 pt): a tab root's headline, which is its subject (the
+  day, This week, the section, the athlete's name), never the tab's name.
 - **Display** (700, 34 px, 1.05): a nested screen's or an exercise's name. A long name steps
   down 4, then to 26, then wraps to two lines.
 - **Sheet title** (700, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
@@ -658,15 +737,33 @@ its key is shown, so two readings of one width can never leave the workout witho
   Food rows, wherever food is listed, are another exception (owner, 8 October 2026): every row
   is led by its tile, the tiles in one column and the names at one edge after them (Rows and
   marks).
-- **Today:** the date, with Log beside it; then one card per session still owed, 12 apart: an
+  Forms and settings are the third (owner, 21 October 2026): their sections stand as panels on the
+  grouped ground (Forms), the rows inside a panel ruled like any list.
+- **Tab roots** (owner, 21 October 2026): the lit tab already says where you are, so a tab's root
+  never repeats its name. It opens on its subject, in Title, at the same place and size on every
+  tab, with what it needs to say under it in Meta and at most one action at its end: Today the day
+  ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day it
+  shows (its intake is the big figure under the day strip, said once), Progress the section being
+  read (its chooser), Profile the athlete's name after the avatar, its Meta the handle and the
+  follower and following counts, which open their lists. Its
+  h1 still names the tab first for a screen reader ("Today, Wednesday 21 October"). A nested page
+  keeps its title: the tab names the section, not the page.
+- **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session still owed, 12 apart: an
   open session that is not the day's first, then the workout (or the rest day), then each run,
   ride and swim. Nothing is pinned over the tab bar: each card carries its own next step. Under
   the cards, "Done" lists what was finished, logged or skipped today as rows, each opening its
   record. The programme's position and the next day are Plan's, never Today's (ADR 0058); with
-  nothing owed and nothing done, Log a session is the page's own button.
-- **Plan:** This week, Monday to Sunday, every sport's sessions as rows under their day, each with
-  its mark and where it stands (Done, Skipped, Missed, Today); then one card per programme; then
-  Past programmes (ADR 0058).
+  nothing owed and nothing done, the rest day's crescent stands on its paper, "Nothing planned"
+  under it, and Log a session is the page's one filled action.
+- **Plan:** "This week" as its headline with its dates under it; the week as seven day papers in
+  the month's grammar (each day's marks in their state, today ringed in ink); then every sport's
+  sessions as rows under their day, each with its mark and where it stands (Done, Skipped, Missed,
+  Today); then the week's steps, named from today ("‹ Last week", "Next week ›"); a day paper
+  with one session opens it, and one with several leads to its rows; then one card per programme, its weeks a row of segments in its sport's pigment (done
+  full, the current week thinned, the rest `surface`); then Past programmes (ADR 0058).
+- **Forms** (owner, 21 October 2026): a form's sections (a run's laps, its totals, its effort, the
+  rest folded) stand as panels on the grouped ground, each under its caption, 20 apart; inside a
+  panel, rows are ruled and a field is a filled tray. The one filled action is pinned at the foot.
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
@@ -809,8 +906,11 @@ Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only
 calendar's icons are the exception, and are used on the month and its counts alone: a dumbbell
 for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment and drawn bolder
 (2.3 to 2.9), told apart by their shape so the month never asks a reader to tell pigments apart.
-Everywhere else a sport is its mark, the form itself. The five
-destination icons are drawn from the first forms: outlined, filled where you are. Equipment
+Everywhere else a sport is its mark, the form itself. The five destination icons (owner, 21
+October 2026) are told apart by their silhouettes, outlined, and filled where you are: Today is
+the app's mark (the slab and the disc on their line), in ultramarine and vermilion where you are;
+Plan a calendar, its head and today's square filled; Food the bowl with its heap; Progress the
+loaded bar, a barbell side on with three plates growing, its plates filled; Profile the person. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
 bench, the ab wheel front on, a rowing machine, a stair climber and an elliptical side on, a ski
 erg front on) and where (outdoors, treadmill, indoor bike, pool, open water, home) are glyphs,
@@ -866,7 +966,8 @@ and every control answers a press.
   1.5-px control border (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt
   (48 dp on Android), the control surface (on a card, the control surface on a surface), a
   glyph (− and +).
-- **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
+- **Destructive:** a 2-px ink outline, its glyph leading (Delete everything), its words in the
+  danger text where they lose a record (Delete account); grey until it is
   confirmed, never in the primary place while it would lose a record. One that loses nothing
   (discarding an empty session or an untouched draft) may be the primary. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
@@ -938,6 +1039,31 @@ and every control answers a press.
   and the digits after the point, each on the number pad, the point drawn between them and the
   two drawn against it (5.2). A swim's metres or yards is one whole figure.
 
+### Laps and intervals
+
+How a watch records a session (owner, 21 October 2026, after Garmin, Strava and Apple's Workout):
+every part is a lap with a kind, and the session's totals are its laps added up.
+
+- **A lap's kind:** Warm-up, Rep, Recovery or Cool-down, said first in its row; a lap with no kind
+  is a Lap. A rep's row is ink and 700; the rest are ink 2.
+- **What a lap takes:** a distance, a time or both, and the heart rate if the watch had one. A
+  recovery may be time alone, a standing rest, and its distance reads Standing. "+ Rep" copies the
+  last rep's distance; "+ Recovery" copies the last recovery's time; both sit at the panel's foot.
+- **The totals come from the laps.** Distance and time are the laps added up, each marked From
+  laps, and nothing has to be typed twice. A total comes from the laps only when every lap holds it: a rep
+  timed without its distance would make the distance too short, so the row says "Not every lap
+  has a distance" until the lap is given one or the watch's total is typed (a gap is unknown,
+  never zero). "Use the watch's totals instead" lets the athlete type
+  the watch's own totals (warm-up jogs it did not split, a pause); typed totals are checked to be
+  at least the laps' ("The laps add up to 3.47 km, more than 2.50 km", with "Use 3.47 km").
+- **Reps and recoveries make intervals.** A session whose laps hold reps and recoveries is
+  Intervals until the athlete chooses another kind of run, and the chooser says From laps.
+- **The pace that counts:** for a session run in pieces (intervals, hills, sprints, run-walk) or
+  any run with a lap marked recovery, the reps' pace ("4:01 /km over 3 reps") leads the form, the
+  record's page and what the coach reads; the session's own pace is said only as "Overall, with
+  rests", and never feeds a pace trend, a record or a running pace the coach plans from. Its
+  records are its reps, each at its own distance, never the session whole (ADR 0062).
+
 ### Rest
 
 - **The pill:** surface, 36 pt in a 44-pt target, a dial that empties clockwise from twelve and
@@ -1002,7 +1128,8 @@ and every control answers a press.
   A section's last row is unruled. Nothing trails a row to say it can be added or opened: the row
   is the control.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
-  Never a pigment tile.
+  Never a pigment tile. A record set in the span being read carries a success-tinted "Record"
+  tag before its figure.
 
 ### Graphs
 
@@ -1024,12 +1151,16 @@ exercise's page and a friend's compare page. Top to bottom:
   (a 1–5 answer) is drawn whole. A value that matters (sleep's 6 h, today's food target) is a
   1-pt rule in ink, its label in the margin in ink, 700; the readout or the graph's ⓘ says what
   it is.
-- **Marks:** bars are totals, in `control`, the latest in ink, up to 14 pt wide, their tops
-  rounded (3 pt) and their feet square on the baseline. Against food's target, a bar that reaches
-  it (in the whole kcal or grams its figure is written in) is in `ink-2`, between the two, so a
-  day that made it never looks like the bar being read. A line is a measurement that rises and
-  falls: 2 pt of ink, round joins, an open point on each reading (ground with an ink ring) while
-  there are forty or fewer, the latest a full ink point with a ground ring. Past about sixty
+- **Marks** (amended 21 October 2026): a graph of one sport draws in its pigment, one hue per
+  graph; a graph that belongs to no sport (body weight, sleep, recovery, a friend's compare) draws
+  in ink. Bars are totals, in the thinned pigment (`control` for ink), the latest in the full
+  pigment (ink), up to 14 pt wide, their tops rounded (3 pt) and their feet square on the
+  baseline. Food's graphs draw in its ochre; against food's target, a bar that reaches it (in the
+  whole kcal or grams its figure is written in) is in `ink-2`, so a day that made it never looks
+  like the bar being read. A line is a measurement that rises and falls: 2 pt of the pigment (ink),
+  round joins, an open point on each reading (ground with a ring) while there are forty or fewer,
+  the latest a full point with a ground ring. A run's or a ride's time in each zone is a row per
+  zone, its bar in that zone's density of the pigment and its minutes at the end. Past about sixty
   records a line is grouped by week or month, so it never becomes a band. A bucket with nothing
   in it has no mark: missing is never drawn as zero, and a gap breaks a bucketed line.
 - **The dates** under the plot are the calendar's own boundaries, as many as fit evenly: each
@@ -1134,7 +1265,21 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
-  value comes to, in caption. A placeholder is an example that could not be taken for an answer
+  value comes to, in caption. Inside a panel (Forms) a field is a filled tray instead: `surface`
+  (the tray in dark), no border, 44 to 52 pt, and focused it takes a 2-px ink ring.
+- **A field that cannot be saved** (owner, 21 October 2026): the field takes the danger tint and a
+  1.5-px danger line, its label the danger text led by the alert glyph, and the line under it says
+  in the danger text, 700, what to type ("Enter whole beats a minute, such as 165."), with the way
+  out where there is one ("Use 3.47 km"). It stays until the value can be saved, not until a key
+  is pressed. Every value typed and every choice made survives the refusal, a select's included.
+- **A refused save:** over Save, in the pinned actions, a danger-tinted bar with the up arrow says
+  how many things to fix and where ("2 to fix: lap 4, distance"); it is a link to the first, and
+  Save itself scrolls there and focuses it. The fields say the rest; the bar never repeats their
+  sentences. A failure that is not a field's (the connection, the server) is said in the bar in
+  the app's words, with Retry.
+- **A record kept:** a success-tinted bar with the check glyph says what was kept ("Run saved as
+  intervals"), with Undo where it can be undone, over the tab bar for six seconds, and to a screen
+  reader as a status. A placeholder is an example that could not be taken for an answer
   ("For example, a sore left knee");
   a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
   the label's aside on every optional field, inside a fold of optional fields too, read with the
@@ -1167,19 +1312,20 @@ good is the target or the goal, which a rule or the readout says, not a directio
 ### Navigation
 
 - **Tab bar:** Today, Plan, Food, Progress, Profile on ground under a `hair` rule; 24-pt
-  icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
-  are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
+  icons over 13-pt labels, each as tall as the others (Shapes says how each is drawn). Where you
+  are is ink, its icon filled (Today's in its pigments) and its label 700. The labels always
+  show: the mark alone would not say Today. Filters is a funnel; Set options are the
   sliders. Where you are is the tab the way back leads into (NAV-03): a workout, run, ride or
   swim keeps the tab its link names (Profile, from an exercise's page), and with none is
   History's, so Progress; the open workout and the summary Finish lands on are Today's, layers
   over the tabs, and the summary's Edit stays Today's (October 2026).
-- **Headers:** a destination has its title and at most one action; a nested screen has a back
+- **Headers:** a tab's root opens on its subject (Tab roots) with at most one action; a nested screen has a back
   link that names where it goes, a person's page by their name (never "People", which is the list
   of them), and at most one action at the end of its bar, a word (Edit, Done) or a glyph (Filters,
   More) on the content's edge, never a filled button, which would fill the bar from the screen's
   top edge; a session screen has its back or minimise, the rest pill, and at most Finish and More.
   Nothing on the screen repeats the back link as a button ("Back to Plan").
-  Today's head is the date, with Log at its end. Where the programme has got to is Plan's (ADR
+  Today's head is the day, with Log at its end. Where the programme has got to is Plan's (ADR
   0058), so Today shows no cycle and no count while it is on track. From two missed training
   days, with no workout open, the count stands under the date as "36 missed" (ADR 0058, Words)
   with its way out, Pick up from today (ADR 0051): beside the count while the count fits whole,
@@ -1293,6 +1439,10 @@ good is the target or the goal, which a rule or the readout says, not a directio
   a list that mixes them, or with its tile where it is a food row (Rows and marks).
 - **Do** let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink
   cannot say.
+- **Do** say a refused field in place, in red, with how to fix it, and a kept record in green,
+  with Undo.
+- **Do** complete every task a change touches in the running app, with the variants athletes
+  bring (laps alone, a refused save, miles, dark, 320 pt, 200% text), before calling it done.
 - **Do** let a label, a glyph or a state replace a sentence: the question as a field's label, the
   edit glyph on a line that opens, a held control's reason in a few words beside it ("Needs Share
   training").
@@ -1303,14 +1453,17 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 ### Don't:
 
-- **Don't** use a pigment for anything but a family of sport: not for errors, warnings, links,
-  emphasis, selection or Progress charts.
+- **Don't** use a pigment for anything but its own sport (its prints, marks and data), red and
+  green for anything but what must be fixed and what was kept, or any colour to repeat what a
+  figure or a word already says (an effort of 4 needs no bar beside it).
+- **Don't** ask for what the app can work out (a run's totals when its laps are timed), or lose
+  anything typed or chosen when a save is refused.
 - **Don't** say the same thing twice on a screen, or put words on a print; don't draw a box or a
   mark beside a name to say what its words already say.
 - **Don't** explain on a screen how the app, the coach or a plan works, or narrate what a control
   will do: show the figure, state or choice, and put anything more behind an ⓘ or a fold.
 - **Don't** draw a line under a print, or set its composition against one edge of the paper.
-- **Don't** draw a dashed edge for anything but skipped.
+- **Don't** draw a dashed edge for anything but a session owed and not done (skipped or missed).
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
   value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.

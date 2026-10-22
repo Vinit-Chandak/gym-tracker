@@ -93,30 +93,36 @@ export function ProgressView({ data }: { data: ProgressData }) {
             ) : null
           }
         />
-        {error && (
-          <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
-            <Glyph name="warn" className="mt-px glyph-18" />
-            {error}
-          </p>
-        )}
+        <div className="page-width">
+          {error && (
+            <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+              <Glyph name="warn" className="mt-px glyph-18" />
+              {error}
+            </p>
+          )}
 
-        {/* Only the chosen section is mounted; the controls above it keep their state. */}
-        <section
-          aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
-          className="min-w-0"
-        >
-          {tab === "overview" && (
-            <OverviewSection month={data.month} overview={data.overview} today={data.today} />
-          )}
-          {tab === "strength" && (
-            <StrengthSection strength={data.strength} exercise={data.exercise} today={data.today} />
-          )}
-          {tab === "muscles" && <MusclesSection muscles={data.muscles} today={data.today} />}
-          {tab === "running" && <RunningSection running={data.running} today={data.today} />}
-          {tab === "food" && <FoodSection food={data.food} today={data.today} />}
-          {tab === "recovery" && <RecoverySection recovery={data.recovery} today={data.today} />}
-          {tab === "body" && <BodyWeightSection body={data.body} today={data.today} />}
-        </section>
+          {/* Only the chosen section is mounted; the controls above it keep their state. */}
+          <section
+            aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
+            className="min-w-0"
+          >
+            {tab === "overview" && (
+              <OverviewSection month={data.month} overview={data.overview} today={data.today} />
+            )}
+            {tab === "strength" && (
+              <StrengthSection
+                strength={data.strength}
+                exercise={data.exercise}
+                today={data.today}
+              />
+            )}
+            {tab === "muscles" && <MusclesSection muscles={data.muscles} today={data.today} />}
+            {tab === "running" && <RunningSection running={data.running} today={data.today} />}
+            {tab === "food" && <FoodSection food={data.food} today={data.today} />}
+            {tab === "recovery" && <RecoverySection recovery={data.recovery} today={data.today} />}
+            {tab === "body" && <BodyWeightSection body={data.body} today={data.today} />}
+          </section>
+        </div>
       </div>
     </GraphRangeProvider>
   );

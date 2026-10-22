@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
-import { Glyph } from "@/components/ui/glyphs";
+import { FormError } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
@@ -133,12 +133,7 @@ export function CoachWaiting({
           >
             {busy ? "Starting…" : "Prepare now"}
           </Button>
-          {error && (
-            <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
-              <Glyph name="warn" className="mt-px glyph-18" />
-              {error}
-            </p>
-          )}
+          {error && <FormError message={error} />}
         </>
       }
     >
@@ -199,12 +194,7 @@ export function CoachRequestPanel({
           placeholder="Short on time, knee is sore, …"
         />
       </Field>
-      {error && (
-        <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error} />}
       <Button size="lg" className="w-full" disabled={pending || !gymId} onClick={submit}>
         {pending ? "Asking…" : workflow ? "Prepare for this gym" : "Ask the coach"}
       </Button>

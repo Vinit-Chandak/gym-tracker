@@ -344,13 +344,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{EXERCISE_CATEGORY_LABELS[exercise.category]}</Badge>
             <Badge>{EXERCISE_MODALITY_LABELS[exercise.modality]}</Badge>
-            <Badge tone={exercise.loadPortability === "global" ? "success" : "accent"}>
-              {LOAD_PORTABILITY_LABELS[exercise.loadPortability]}
-            </Badge>
+            <Badge>{LOAD_PORTABILITY_LABELS[exercise.loadPortability]}</Badge>
             <InfoTip label="About load comparability">
               {LOAD_PORTABILITY_HELP[exercise.loadPortability]}
             </InfoTip>
-            {!exercise.isActive && <Badge tone="danger">Excluded</Badge>}
+            {!exercise.isActive && <Badge>Excluded</Badge>}
           </div>
 
           <div className="space-y-1">

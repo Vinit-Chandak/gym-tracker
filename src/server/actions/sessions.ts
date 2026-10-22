@@ -883,8 +883,12 @@ export async function finishSessionAction(
     (tx) => getSessionRecord(tx, user.id, sessionId),
     { readOnly: true },
   );
+  // The finish time is a field's: refused there, where it turns red, and not again over Save.
   if (session?.loggedRetrospectively && !session.completedAt && !parsed.data.finishedAt)
-    return { formError: "Enter when this workout actually ended.", values: formValues(formData) };
+    return {
+      fieldErrors: { finishedAt: "Enter when this workout actually ended." },
+      values: formValues(formData),
+    };
   try {
     const profile = await getRequestProfile(user.id, user.email);
     const completedAt = parsed.data.finishedAt
@@ -892,7 +896,7 @@ export async function finishSessionAction(
       : undefined;
     if (parsed.data.finishedAt && (!completedAt || completedAt > new Date()))
       return {
-        formError: "Enter the actual finish time, no later than now.",
+        fieldErrors: { finishedAt: "Enter the actual finish time, no later than now." },
         values: formValues(formData),
       };
     await finishAndRecord(user, sessionId, {

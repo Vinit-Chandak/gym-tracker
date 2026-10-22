@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 
-import { PersonCard } from "@/components/person-card";
 import { AppearanceRow } from "@/components/shell/appearance-row";
 import { InstallSection } from "@/components/shell/install-row";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
+import { Avatar } from "@/components/ui/avatar";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
 import { getDb } from "@/db/client";
@@ -14,6 +15,7 @@ import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { countRequests } from "@/server/repositories/follows";
 import { getDirectoryProfileById } from "@/server/repositories/people";
+import { FACT_SEPARATOR } from "@/lib/facts";
 
 import { RestTimerSetting } from "./rest-timer-setting";
 import { SignOutRow } from "./sign-out-row";
@@ -46,34 +48,64 @@ export default async function ProfilePage() {
     { readOnly: true },
   );
 
+  // Each count keeps its word on its line ("2 following", never "2 / following").
+  const followers = `${counts.followers}\u00a0${counts.followers === 1 ? "follower" : "followers"}`;
+  const following = `${counts.following}\u00a0following`;
+  const publicPage = `/u/${profile.username}` as const;
+
   // Board Profile: the person, then rows in the order they are needed: who you know, what you
   // train, how it looks, what it measures in and who can see it, the account, and the way out.
   // A row says only where it goes, or what it is set to; everything behind it has its own page.
   return (
-    <>
-      <PageHeader title="Profile" />
-      <div className="page-width pb-8">
-        {/* What a friend sees of you (ADR 0026); your avatar or name opens your page as a
-            follower sees it. A detail still missing is said here rather than only behind Edit
-            profile: a detail nobody knows is missing is a detail nobody adds. */}
-        <PersonCard
-          person={profile}
-          counts={counts}
-          countsLinkToFriends
-          href={`/u/${profile.username}`}
-          action={
-            // The pencil says its word (IA audit M8): a glyph alone was a way in nobody guessed.
-            // Its name says what it edits, starting with the word it shows.
-            <Link
-              href="/profile/edit"
-              aria-label="Edit profile"
-              className="profile-edit-button type-meta font-bold"
-            >
-              <Glyph name="edit" className="glyph-18" />
-              Edit
+    // Settings stand as panels on the grouped ground (DESIGN.md, Layout: Forms and settings).
+    <div className="ov-grouped-page">
+      {/* The athlete is the headline (DESIGN.md, Tab roots), their avatar before it: what a
+          friend sees of you (ADR 0026). The handle opens your page as a follower sees it, and
+          the avatar the same for a thumb; the counts open the lists they count. */}
+      <PageHeader
+        tab="Profile"
+        title={profile.displayName || profile.username}
+        lead={
+          <Link href={publicPage} tabIndex={-1} aria-hidden className="shrink-0 rounded-full">
+            <Avatar
+              username={profile.username}
+              displayName={profile.displayName}
+              size="header"
+              className="person-card-avatar"
+            />
+          </Link>
+        }
+        meta={
+          <span className="min-w-0">
+            <Link href={publicPage} className="tap-area">
+              @{profile.username}
             </Link>
-          }
-        />
+            {FACT_SEPARATOR}
+            <Link href="/profile/friends/people?people=followers" className="tap-area">
+              <Figures>{followers}</Figures>
+            </Link>
+            {FACT_SEPARATOR}
+            <Link href="/profile/friends/people?people=following" className="tap-area">
+              <Figures>{following}</Figures>
+            </Link>
+          </span>
+        }
+        action={
+          // The pencil says its word (IA audit M8): a glyph alone was a way in nobody guessed.
+          // Its name says what it edits, starting with the word it shows.
+          <Link
+            href="/profile/edit"
+            aria-label="Edit profile"
+            className="profile-edit-button type-meta font-bold"
+          >
+            <Glyph name="edit" className="glyph-18" />
+            Edit
+          </Link>
+        }
+      />
+      <div className="page-width pb-8">
+        {/* A detail still missing is said here rather than only behind Edit profile: a detail
+            nobody knows is missing is a detail nobody adds. */}
         {missing.length > 0 && (
           <Link href="/profile/edit" className="person-card-warning">
             <Glyph name="warn" className="glyph-18 shrink-0" />
@@ -81,7 +113,7 @@ export default async function ProfilePage() {
           </Link>
         )}
 
-        <ul className="mt-0.5">
+        <ul className="ov-panel ov-panel-list mt-0.5">
           <NavRow
             href="/profile/friends"
             glyph="people"
@@ -94,7 +126,7 @@ export default async function ProfilePage() {
           <h2 id="profile-training" className="caption-head mt-4.5">
             Training
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             {/* Which sports the app offers, chosen in setup and changed only here. */}
             <NavRow href="/profile/sports" glyph="distance" label="Sports" />
             {/* The zones a plan's "zone 2" and a run's heart rate are read against (ADR 0059). */}
@@ -110,7 +142,7 @@ export default async function ProfilePage() {
           <h2 id="profile-preferences" className="caption-head mt-4.5">
             Preferences
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             <AppearanceRow />
             <NavRow href="/profile/units" glyph="ruler" label="Units and time zone" />
             <NavRow href="/profile/privacy" glyph="lock" label="Privacy" />
@@ -121,18 +153,18 @@ export default async function ProfilePage() {
           <h2 id="profile-account" className="caption-head mt-4.5">
             Account
           </h2>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             <NavRow href="/profile/password" glyph="password" label="Password" />
           </ul>
         </section>
 
         <InstallSection />
 
-        <ul className="mt-3">
+        <ul className="ov-panel ov-panel-list mt-4.5">
           <SignOutRow userId={user.id} />
           <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
         </ul>
       </div>
-    </>
+    </div>
   );
 }

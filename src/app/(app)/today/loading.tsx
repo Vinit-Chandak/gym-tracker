@@ -1,19 +1,18 @@
+import { RootLoadingHeader } from "@/components/shell/loading-page";
 import { LoadingMessage } from "@/components/shell/navigation-feedback";
 
 /**
- * Today while it loads, in Today's own geometry (DESIGN.md, Today): the head's line and two
- * cards, so the day arrives into its places rather than replacing a page of rows with a title
- * Today does not have.
+ * Today while it loads, in Today's own geometry (DESIGN.md, Today): the headline's place, the
+ * day, as every tab root's is (Tab roots), then two cards, so the day arrives into its places
+ * rather than replacing a page of rows with a title Today does not have.
  */
 export default function Loading() {
   return (
-    <>
-      <h1 className="sr-only">Today</h1>
-      <div className="today page-width">
+    <div className="today page-wide">
+      <RootLoadingHeader tab="Today" />
+      <div className="page-width">
         <div role="status" aria-live="polite">
-          <header className="today-head">
-            <LoadingMessage title="Today" />
-          </header>
+          <LoadingMessage title="Today" />
           <div aria-hidden="true" className="motion-safe:animate-pulse">
             <ul className="today-cards">
               {[0, 1].map((card) => (
@@ -30,6 +29,6 @@ export default function Loading() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

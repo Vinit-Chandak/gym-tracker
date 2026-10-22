@@ -27,7 +27,7 @@ import {
 import type { Db, DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { liftingAdherence } from "@/domain/analytics";
-import { hasBreaks, runReading } from "@/domain/run-segments";
+import { runReading } from "@/domain/run-segments";
 import {
   reviewPlan,
   STRENGTH_COMPOUND_SLUGS,
@@ -870,8 +870,8 @@ export async function planningContext(
     distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
     // Only a run without breaks has a pace; a session's reps say how it went (ADR 0062).
-    paceSecondsPerKm: hasBreaks(run) ? null : run.averagePaceSecondsPerKm,
-    ...runReading(run, "summary"),
+    paceSecondsPerKm: run.withRests ? null : run.averagePaceSecondsPerKm,
+    ...runReading({ ...run, runType: run.runType ?? null, laps: run.laps ?? [] }, "summary"),
     rpe: run.effort.value,
     effortReported: run.effort.status === "reported",
     programRunId: run.programRunId,

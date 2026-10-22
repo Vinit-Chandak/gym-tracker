@@ -1,16 +1,19 @@
 import type { Route } from "next";
 import type { ReactNode } from "react";
 
+import { REST_PAGE_MODULE } from "@/app/(app)/plan/[sport]/programme-day";
 import { Art } from "@/components/art/art";
+import type { PrintPart } from "@/components/art/geometry";
 import { enduranceName } from "@/components/activities/endurance-line";
 import { EnduranceCard, isOutstanding } from "@/components/activities/today-activities";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { FinishLeftOpenButton } from "@/components/finish-left-open-button";
+import { PageHeader } from "@/components/shell/page-header";
+import { dayAndMonth, weekdayName } from "@/components/shell/root-dates";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { Figures } from "@/components/ui/figures";
-import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { NavRow } from "@/components/ui/nav-row";
 import type { ActivitySport } from "@/domain/activity";
@@ -25,7 +28,7 @@ import {
   type SportUnits,
 } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, holdHyphens, joinFacts } from "@/lib/facts";
-import { formatIsoWeekdayDay, formatTime, formatTimeOrDateTime } from "@/lib/format";
+import { formatTime, formatTimeOrDateTime } from "@/lib/format";
 import { sessionName, UNPLANNED_SESSION } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { LoggedActivity } from "@/server/repositories/activity-analytics";
@@ -52,6 +55,9 @@ import { Fact, PlanRows } from "./today-parts";
  * Today offers to pick up from today instead (owner, 11 October 2026).
  */
 const PICK_UP_AFTER = 2;
+
+/** A day that asks for nothing, as its print draws it: the crescent, still to come. */
+const REST_PRINT: readonly PrintPart[] = [{ kind: "rest", state: "todo" }];
 
 export type TodayViewProps = {
   today: string;
@@ -664,6 +670,11 @@ export function TodayView({
 
   // ---------- the page ----------
   const empty = cards.length === 0 && doneRows.length === 0 && !needsGym;
+  // How far the day has got: what was done of what was done and is still owed. A session
+  // skipped is neither, and with nothing owed there is nothing to count.
+  const doneCount = doneRows.length - skippedToday.length;
+  const dayCount = cards.length > 0 ? `${doneCount} of ${doneCount + cards.length} done` : null;
+  const date = dayAndMonth(today, today.slice(0, 4));
   // Nothing planned and nothing done: logging is the page itself. Otherwise it waits up top.
   const logButton = (primary: boolean) => (
     <LinkButton
@@ -677,26 +688,42 @@ export function TodayView({
     </LinkButton>
   );
   return (
-    <>
-      {/* Left open overnight, the installed app would go on showing yesterday as today. */}
-      <h1 className="sr-only">Today</h1>
-      <div className="today page-width page-wide">
-        <header className="today-head">
-          <p className="type-heading tabular-nums">{formatIsoWeekdayDay(today)}</p>
-          {!empty && logButton(false)}
-        </header>
+    <div className="today page-wide">
+      {/* The day is the headline (DESIGN.md, Tab roots), its date and how far it has got under
+          it, Log at its end. The h1 says the date with the day, so the date shown under it is
+          not read twice. Left open overnight, the installed app would go on showing yesterday
+          as today. */}
+      <PageHeader
+        tab="Today"
+        title={weekdayName(today)}
+        said={date}
+        meta={
+          <span className="min-w-0">
+            <span aria-hidden="true">{date}</span>
+            {dayCount && (
+              <span>
+                <span aria-hidden="true">{FACT_SEPARATOR}</span>
+                <Figures>{dayCount}</Figures>
+              </span>
+            )}
+          </span>
+        }
+        action={empty ? undefined : logButton(false)}
+      />
+      <div className="page-width">
         {discarded && <DiscardedNote />}
         {/* A gap of more than a session or two: offered once, under the date, never in a card. */}
         {plan && plan.suggestion && plan.missed.length >= PICK_UP_AFTER && !sessionOpen && (
           <PickUpFromToday missed={plan.missed} resumeDayName={plan.pickUpDay?.name ?? null} />
         )}
         {cards.length > 0 && <ul className="today-cards">{cards}</ul>}
+        {/* An empty state is one short line and its action (DESIGN.md, Need-to-Know). */}
         {needsGym && (
-          <section className="today-empty mt-3">
-            <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>
+          <section aria-labelledby="today-gym" className="today-empty">
+            <h2 id="today-gym" className="type-heading">
               Add a gym to start training
-            </FitTitle>
-            <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
+            </h2>
+            <LinkButton href="/gyms/new" size="lg" className="w-full">
               Add your first gym
             </LinkButton>
           </section>
@@ -707,15 +734,25 @@ export function TodayView({
             <ul className="ruled-list">{doneRows}</ul>
           </section>
         )}
+        {/* Nothing owed and nothing done: the rest day's crescent on its paper, quiet as it is on
+            a rest day's own page, then the day in a word and Log a session, the page's one
+            filled action (DESIGN.md, Today). */}
         {empty && (
-          <section className="today-empty mt-3">
-            <FitTitle sizes={{ base: 36, short: 32, narrow: 30 }}>
+          <section aria-labelledby="today-empty" className="today-empty">
+            <Art
+              kind="print"
+              parts={REST_PRINT}
+              maxModule={REST_PAGE_MODULE}
+              fallback={{ width: 362, height: 120 }}
+              className="today-empty-print"
+            />
+            <h2 id="today-empty" className="type-heading [overflow-wrap:break-word]">
               {plan && !plan.suggestion ? `${plan.program.name} is complete` : "Nothing planned"}
-            </FitTitle>
-            <div className="mt-4">{logButton(true)}</div>
+            </h2>
+            {logButton(true)}
           </section>
         )}
       </div>
-    </>
+    </div>
   );
 }

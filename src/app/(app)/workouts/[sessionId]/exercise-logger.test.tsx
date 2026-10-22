@@ -389,6 +389,17 @@ it("refuses a point in yards rather than running its figures together", () => {
   expect(field("Yards").value).toBe("27.5");
   press("Save");
   expect(screen.getByRole("alert").textContent).toContain("Enter the distance in whole yards.");
+  expect(screen.getByRole("alert").dataset.signal).toBe("danger");
+  expect(
+    screen.getByRole("button", { name: "27.5 yards. Type yards" }).closest<HTMLElement>(".stepper")
+      ?.dataset.fieldError,
+  ).toBe("true");
+  fill({ Yards: "27.6" });
+  expect(field("Yards").getAttribute("aria-invalid")).toBe("true");
+  expect(screen.getByRole("alert").textContent).toContain("Enter the distance in whole yards.");
+  fill({ Yards: "28" });
+  expect(field("Yards").hasAttribute("aria-invalid")).toBe(false);
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(actions.log).not.toHaveBeenCalled();
 });
 
@@ -779,6 +790,14 @@ it("refuses an RPE of 0 in the app's own words, before anything is sent", async 
   fill({ Seconds: "45", RPE: "0" });
   press("Save");
   expect(await screen.findByText("Enter effort from 1 (very easy) to 10 (maximal).")).toBeTruthy();
+  fill({ RPE: "" });
+  expect(field("RPE").getAttribute("aria-invalid")).toBe("true");
+  expect(screen.getByRole("alert").textContent).toContain("Enter effort from 1");
+  fill({ RPE: "0" });
+  expect(field("RPE").getAttribute("aria-invalid")).toBe("true");
+  fill({ RPE: "7" });
+  expect(field("RPE").hasAttribute("aria-invalid")).toBe(false);
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(actions.log).not.toHaveBeenCalled();
 });
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { attempted } from "@/lib/offline-submit";
 import { discardSessionAction } from "@/server/actions/sessions";
@@ -58,12 +59,7 @@ export function DiscardSessionButton({
           <span className="min-w-0 [overflow-wrap:break-word]">{words}</span>
         </button>
       )}
-      {error && (
-        <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:break-word]">{error}</span>
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} trackFields={false} />}
     </div>
   );
 }

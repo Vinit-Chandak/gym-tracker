@@ -4,9 +4,9 @@ import { useActionState, useState, useSyncExternalStore } from "react";
 
 import { TimeZoneSelect } from "@/components/time-zone-select";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
-import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { BODY_LOAD_UNITS, type BodyLoadUnit } from "@/domain/types";
 import {
   followsWeight,
@@ -74,7 +74,7 @@ function useBrowserTimeZone(): string | null {
  * was set apart from the weight unit (ADR 0055). Pools are asked of a swimmer only.
  */
 export function UnitsForm({ values }: { values: UnitsValues }) {
-  const [state, formAction] = useActionState(
+  const [state, formAction, pending] = useActionState(
     keepsFormOnDisconnect(saveUnitsAction),
     INITIAL_FORM_STATE,
   );
@@ -126,75 +126,48 @@ export function UnitsForm({ values }: { values: UnitsValues }) {
   return (
     <form ref={form} action={formAction} className="space-y-4">
       {/* Each unit a choice of two, with what it decides in its ⓘ. */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink">
-          <span id="units-weight">Weight</span>
-          <InfoTip label="About weight">
-            Loads and body weight, and height with them: centimetres with kg, feet and inches with
-            lb.
-          </InfoTip>
-        </div>
+      <Field
+        group
+        label="Weight"
+        error={errors?.preferredUnit}
+        info="Loads and body weight, and height with them: centimetres with kg, feet and inches with lb."
+      >
         <SegmentedControl
           name="preferredUnit"
-          aria-labelledby="units-weight"
           options={UNIT_OPTIONS}
           value={unit}
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
-        {errors?.preferredUnit && (
-          <span role="alert" className="block type-meta-small font-semibold">
-            {errors.preferredUnit}
-          </span>
-        )}
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink">
-          <span id="units-distance">Distance</span>
-          <InfoTip label="About distance">
-            Runs and rides. Carries and sleds go in metres with km, in yards with miles.
-          </InfoTip>
-        </div>
+      <Field
+        group
+        label="Distance"
+        error={errors?.distanceUnit}
+        info="Runs and rides. Carries and sleds go in metres with km, in yards with miles."
+      >
         <SegmentedControl
           name="distanceUnit"
-          aria-labelledby="units-distance"
           options={DISTANCE_OPTIONS}
           value={distances.distanceUnit}
           onChange={(distanceUnit) => chooseDistance("distanceUnit", distanceUnit)}
           columns={2}
         />
-        {errors?.distanceUnit && (
-          <span role="alert" className="block type-meta-small font-semibold">
-            {errors.distanceUnit}
-          </span>
-        )}
-      </div>
+      </Field>
 
       {/* Anyone who does not swim is not asked: their pool goes on as it is, following the
           weight unit unless it was set apart. */}
       {values.swims ? (
-        <div className="space-y-1.5">
-          <span
-            id="units-pool"
-            className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink"
-          >
-            Pools
-          </span>
+        <Field group label="Pools" error={errors?.poolUnit}>
           <SegmentedControl
             name="poolUnit"
-            aria-labelledby="units-pool"
             options={POOL_OPTIONS}
             value={distances.poolUnit}
             onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
             columns={2}
           />
-          {errors?.poolUnit && (
-            <span role="alert" className="block type-meta-small font-semibold">
-              {errors.poolUnit}
-            </span>
-          )}
-        </div>
+        </Field>
       ) : (
         <input type="hidden" name="poolUnit" value={distances.poolUnit} />
       )}
@@ -213,9 +186,7 @@ export function UnitsForm({ values }: { values: UnitsValues }) {
 
       <FormError message={state.formError} />
       <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-      <p className="sr-only" role="status">
-        {saved ? "Units and time zone saved" : ""}
-      </p>
+      {saved && !pending && <SavedNotice>Units and time zone saved</SavedNotice>}
     </form>
   );
 }

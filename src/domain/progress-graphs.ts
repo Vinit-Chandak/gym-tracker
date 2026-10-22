@@ -355,10 +355,11 @@ export type RunInput = {
   metres: number;
   seconds: number;
   /**
-   * False for a run with breaks in it (intervals, hills, sprints, run-walk, or a recovery lap):
-   * its distance and time are totals, not a pace anybody ran (ADR 0062). Absent is a steady run.
+   * A session of reps and rests (`paceHasRests`): its distance and time count in the totals,
+   * but it is left out of the pace line. Its overall pace has the rests in it, and its reps'
+   * pace (400 m at a time) is not comparable with a continuous run's either.
    */
-  continuous?: boolean;
+  withRests?: boolean;
 };
 
 export type RunPoint = RunInput & {
@@ -408,10 +409,7 @@ export function runningGraph(
     totals.metres += run.metres;
     totals.seconds += run.seconds;
     totals.runs += 1;
-    points.push({
-      ...run,
-      pace: run.continuous === false ? null : paceOf(run.metres, run.seconds),
-    });
+    points.push({ ...run, pace: run.withRests ? null : paceOf(run.metres, run.seconds) });
   }
   return {
     buckets: buckets.map(({ ids, ...bucket }) => ({

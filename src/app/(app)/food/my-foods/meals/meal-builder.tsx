@@ -1,5 +1,6 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -196,11 +197,7 @@ export function MealBuilder({
             ))}
           </ul>
         )}
-        {errors.items && (
-          <p role="alert" className="mt-2 type-meta-small font-semibold">
-            {errors.items}
-          </p>
-        )}
+        {errors.items && <FormError message={errors.items ?? undefined} />}
       </section>
 
       {foods.length > 0 ? (
@@ -252,11 +249,7 @@ export function MealBuilder({
         </p>
       )}
 
-      {formError && (
-        <p role="alert" className="type-meta-small font-semibold">
-          {formError}
-        </p>
-      )}
+      {formError && <FormError message={formError ?? undefined} />}
       {saved && (
         <Button variant="danger" className="w-full" disabled={busy} onClick={remove}>
           {deleting ? "Deleting…" : "Delete meal"}

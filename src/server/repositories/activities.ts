@@ -30,6 +30,7 @@ import {
 import {
   actualDurationMs,
   distanceFromLengths,
+  paceHasRests,
   validateActual,
   type EnduranceActual,
 } from "@/domain/activity-metrics";
@@ -413,8 +414,8 @@ async function projectSharedStats(
         startedAt,
         durationSeconds: Math.round(actual.durationMs / 1000),
         distanceMeters: actual.distance.metres,
-        runType: actual.runType,
-        laps: actual.laps,
+        // Reps with rests share no pace: their overall pace is no pace anyone ran.
+        withRests: paceHasRests(actual),
       },
       timeZone,
     );
