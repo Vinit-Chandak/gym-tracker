@@ -23,6 +23,7 @@ import {
   repPace,
 } from "@/domain/activity-metrics";
 import { DURATION_MS } from "@/domain/activity-limits";
+import { hasBreaks } from "@/domain/run-segments";
 import { RUN_TYPE_LABELS, RUN_TYPES, type RunType } from "@/domain/run-types";
 import { fromMetres, roundTo, toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -235,10 +236,15 @@ export function RunningForm({
   const paceUnit: DistanceUnit = unit === "mi" ? "mi" : "km";
   // Pace per the unit the distance is read in: miles make a pace per mile.
   const pace = pacePerUnit(paceSecondsPerKm(metres, durationMs), paceUnit);
-  const rests = lapsMakeIntervals(figures);
-  const reps = repPace(figures);
   // Reps with recoveries are intervals until the athlete chooses another kind (DESIGN.md).
-  const inferredKind = runType === "" && rests;
+  const inferredKind = runType === "" && lapsMakeIntervals(figures);
+  // Whether the run's own pace has rests in it, by the rule every reader of a run uses (ADR
+  // 0062): a session run in pieces, or any lap marked recovery. Its reps' pace then leads.
+  const rests = hasBreaks({
+    runType: inferredKind ? "intervals" : ((runType || null) as RunType | null),
+    laps: figures,
+  });
+  const reps = repPace(figures);
 
   const errors = state.fieldErrors;
   // A total short of its laps is said as it now stands, and no longer once it is not short:
@@ -471,6 +477,7 @@ export function RunningForm({
             distance: Boolean(refusedDistance) && distanceFromLaps && lapMetres === null,
             time: Boolean(refusedTime) && timeFromLaps && lapMs === null,
           }}
+          totalMs={timeFromLaps ? undefined : typedMs}
         />
       </div>
 

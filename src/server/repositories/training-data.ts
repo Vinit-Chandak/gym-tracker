@@ -15,7 +15,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domain/activity";
-import { lapFigures, paceHasRests, repPace } from "@/domain/activity-metrics";
+import { lapFigures, paceHasRests, repPace, type RunningLap } from "@/domain/activity-metrics";
 import { paceSecondsPerKm } from "@/domain/pace";
 import type { RunType } from "@/domain/run-types";
 import type { DateRange } from "@/server/validation/date-range";
@@ -226,6 +226,8 @@ export type RunActivity = {
   withRests?: boolean;
   /** The reps' pace and how many reps it is read from, for a session with rests; else null. */
   repPace?: { secondsPerKm: number; reps: number } | null;
+  /** Its laps as recorded, in order; empty when it was recorded as a whole (ADR 0062). */
+  laps?: RunningLap[];
   /** The number and how far it can be trusted; a migrated one stays unconfirmed (LOG-03). */
   effort: Effort;
   surface: string | null;
@@ -286,6 +288,7 @@ function toRunActivity(row: RunRow): RunActivity {
     runType: row.runType,
     withRests,
     repPace: reps,
+    laps,
     effort: effortFromStorage(row.effortValue, row.effortStatus),
     surface: row.surface,
     title: row.title,

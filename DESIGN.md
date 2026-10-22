@@ -1058,9 +1058,11 @@ every part is a lap with a kind, and the session's totals are its laps added up.
   at least the laps' ("The laps add up to 3.47 km, more than 2.50 km", with "Use 3.47 km").
 - **Reps and recoveries make intervals.** A session whose laps hold reps and recoveries is
   Intervals until the athlete chooses another kind of run, and the chooser says From laps.
-- **The pace that counts:** for intervals, the reps' pace ("4:01 /km over 3 reps") leads the form,
-  the record's page and what the coach reads; the session's own pace is said only as "Overall,
-  with rests", and never feeds a pace trend, a record or a running pace the coach plans from.
+- **The pace that counts:** for a session run in pieces (intervals, hills, sprints, run-walk) or
+  any run with a lap marked recovery, the reps' pace ("4:01 /km over 3 reps") leads the form, the
+  record's page and what the coach reads; the session's own pace is said only as "Overall, with
+  rests", and never feeds a pace trend, a record or a running pace the coach plans from. Its
+  records are its reps, each at its own distance, never the session whole (ADR 0062).
 
 ### Rest
 

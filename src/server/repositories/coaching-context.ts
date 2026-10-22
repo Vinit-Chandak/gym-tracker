@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { EFFORT } from "@/domain/activity-limits";
+import { runReading } from "@/domain/run-segments";
 import { COACH_POLICY } from "@/domain/coach-policy";
 import {
   COACH_RUNNING_REFERENCE,
@@ -64,6 +65,10 @@ import { changeFingerprints, diffPrograms } from "@/domain/program-diff";
 import { bandDistance, bandEmphasis, defaultBand, repBandTable } from "@/domain/rep-bands";
 import { sharedExercises } from "@/server/queries/reference";
 
+/** What a run in recentRuns says, beside its totals (ADR 0062). */
+const RECENT_RUNS_MEANING =
+  "Each run's totals, with its kind (runType), its laps as recorded (phase, distance, time, pace, heart rate) and unlappedSeconds, the time in its total that no lap holds (a stop or a recovery that was not lapped; null without timed laps). hadBreaks is a session run in pieces (intervals, hills, sprints, run-walk) or any run with a recovery lap: its averagePaceSecondsPerKm is null, because its total may hold the recoveries or leave them out, and reps says what its reps came to. Read a session from its reps and laps, never from its total; read a lap's time as its own.";
+
 /**
  * A run as the coach's narrative context has always listed one.
  *
@@ -78,6 +83,10 @@ import { sharedExercises } from "@/server/queries/reference";
  * against is the kind of thing that reads as an easy week rather than as a changed unit.
  */
 function coachRunView(run: RunActivity) {
+  const reading = runReading(
+    { ...run, runType: run.runType ?? null, laps: run.laps ?? [] },
+    "laps",
+  );
   return {
     id: run.id,
     startedAt: run.startedAt,
@@ -85,13 +94,9 @@ function coachRunView(run: RunActivity) {
     mode: run.environment,
     durationSeconds: run.durationSeconds,
     distanceMeters: run.distanceMeters,
-    // The running pace the coach reads: a continuous run's average. A session of reps and rests
-    // gives none here, since its overall pace has the rests in it (DESIGN.md, Laps and
-    // intervals), and its reps' pace below, named as the reps'.
-    averagePaceSecondsPerKm: run.withRests ? null : run.averagePaceSecondsPerKm,
-    repPaceSecondsPerKm: run.repPace ? Math.round(run.repPace.secondsPerKm) : null,
-    reps: run.repPace?.reps ?? null,
-    runType: run.runType ?? null,
+    // A run with breaks has totals, not a pace anybody ran: its reps and laps say how it went.
+    averagePaceSecondsPerKm: reading.wholeRunPace ? run.averagePaceSecondsPerKm : null,
+    ...reading,
     rpe: run.effort.value,
     effortScale: { min: EFFORT.min, max: EFFORT.max },
     effortReported: run.effort.status === "reported",
@@ -251,7 +256,11 @@ export async function coachJobContext(
       userId,
       { start: range.start, end: range.end },
       { order: "desc", limit: 61 },
-    ).then((rows) => ({ hasMore: rows.length > 60, runs: rows.slice(0, 60).map(coachRunView) })),
+    ).then((rows) => ({
+      hasMore: rows.length > 60,
+      runs: rows.slice(0, 60).map(coachRunView),
+      meaning: RECENT_RUNS_MEANING,
+    })),
     readRecovery(db, userId, range),
     readWeeklyTrainingVolume(db, userId, profile.timeZone, evidenceEnd, 8),
     db
