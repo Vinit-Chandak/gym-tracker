@@ -54,6 +54,7 @@ export type ProgrammeAudit = {
   programId: string;
   familyId: string;
   name: string;
+  sport: string;
   status: string;
   version: number;
   weeks: number;
@@ -89,13 +90,14 @@ export async function auditProgrammeSchedules(
     programId: string;
     familyId: string;
     name: string;
+    sport: string;
     status: string;
     version: number;
     weeks: number | null;
     startDate: string | null;
   }>(
     await db.execute(sql`
-    select g.id as "programId", g.family_id as "familyId", g.name, g.status, g.version,
+    select g.id as "programId", g.family_id as "familyId", g.name, g.sport, g.status, g.version,
            g.weeks, g.start_date::text as "startDate"
     from programs g
     where g.status <> 'archived'
@@ -144,7 +146,7 @@ export async function auditProgrammeSchedules(
       weeks: programme.weeks ?? 8,
       days,
       slots,
-      findings: findingsFor(days, slots),
+      findings: findingsFor(days, slots, programme.sport),
     });
   }
 
@@ -168,7 +170,17 @@ export async function auditProgrammeSchedules(
  * athlete who is behind their programme — the sequence shifts and the dates do not — so the
  * counts are printed beside each slot and nothing is claimed about them.
  */
-function findingsFor(days: readonly DayRow[], slots: readonly SlotRow[]): string[] {
+function findingsFor(days: readonly DayRow[], slots: readonly SlotRow[], sport: string): string[] {
+  // Independent endurance programmes have dated occurrences, not strength-cycle slots.
+  // Missing cycle_day_index is expected; a different sport in their family is not.
+  if (sport !== "strength")
+    return slots.flatMap((slot) =>
+      slot.sport !== sport
+        ? [
+            `A ${sport} programme contains ${slot.pending + slot.answered} ${slot.sport} occurrence(s).`,
+          ]
+        : [],
+    );
   const findings: string[] = [];
   const byWeekday = new Map<number, DayRow[]>();
   for (const day of days) {
@@ -220,7 +232,7 @@ export function formatAudit(audit: ScheduleAudit): string {
   if (audit.programmes.length === 0) lines.push("No active or draft programme.");
   for (const programme of audit.programmes) {
     lines.push(
-      `${programme.name} (${programme.status} v${programme.version}, ${programme.weeks} weeks, from ${programme.startDate ?? "no start date"})`,
+      `${programme.name} (${programme.sport}, ${programme.status} v${programme.version}, ${programme.weeks} weeks, from ${programme.startDate ?? "no start date"})`,
       `  family ${programme.familyId}`,
       "  days:",
       ...programme.days.map(

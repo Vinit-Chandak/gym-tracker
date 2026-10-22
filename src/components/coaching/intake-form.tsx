@@ -4,6 +4,7 @@ import { CoachAsked } from "./coach-asked";
 import { CoachFilesField, sendCoachFiles, type CoachFile } from "./coach-files";
 import { requestPath, type ProgrammeBase } from "./programme-paths";
 import { DayPicker } from "./day-picker";
+import { useEditorReady } from "./use-editor-ready";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
@@ -89,6 +90,7 @@ export function CoachIntakeForm({
   preview?: boolean;
 }) {
   const router = useRouter();
+  const ready = useEditorReady();
   const [navigating, startNavigation] = useTransition();
   const [answers, setAnswers] = useState<CoachIntake>(() =>
     withProfileDetails(initial?.answers ?? null, prefill),
@@ -271,6 +273,8 @@ export function CoachIntakeForm({
       setSubmitting(false);
     }
   }
+
+  if (!ready) return <p role="status">Opening your questions…</p>;
 
   // Nothing is asked before the route is chosen: the two ask for different things.
   if (answers.track === null)

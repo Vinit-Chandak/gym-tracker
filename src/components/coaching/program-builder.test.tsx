@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
+import { renderToString } from "react-dom/server";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { ProgramBuilder } from "./program-builder";
 import {
@@ -90,6 +91,19 @@ function renderBuilder(
     />,
   );
 }
+
+it("keeps server-rendered inputs disabled until their change handlers are ready", () => {
+  const container = document.createElement("div");
+  container.innerHTML = renderToString(
+    <ProgramBuilder initial={null} base="/plan" warmups={[]} library={library} />,
+  );
+  expect(container.querySelector("input")!.matches(":disabled")).toBe(true);
+  expect(
+    Array.from(container.querySelectorAll("button")).every((button) => button.matches(":disabled")),
+  ).toBe(true);
+  renderBuilder();
+  expect(screen.getByLabelText("Programme name").matches(":disabled")).toBe(false);
+});
 
 it("keeps invalid programme weeks marked until they can be saved", async () => {
   renderBuilder(blueprint());
@@ -327,4 +341,26 @@ it("says what a way of repeating does in the ⓘ beside Repeats, not under the f
   expect(screen.queryByText(rule)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "About repeats" }));
   expect(screen.getByRole("note").textContent).toBe(rule);
+});
+
+it.each([
+  ["Sets", "0", "Enter 1 or more."],
+  ["Sets", "1.5", "Enter a whole number."],
+  ["Reps to", "101", "Enter 100 or less."],
+  ["Rest seconds to", "1201", "Enter 1200 or less."],
+  ["RIR to", "11", "Enter 10 or less."],
+])("marks an invalid %s at that field and reveals its day", async (label, value, error) => {
+  renderBuilder(blueprint());
+  if (label.startsWith("Rest") || label.startsWith("RIR"))
+    openDisclosure("Rest, effort and progression");
+  if (label.startsWith("RIR"))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Set a reps-in-reserve target" }));
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  selectDay(1);
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText(error);
+  expect(screen.getByLabelText("Day name")).toHaveProperty("value", "Session 1");
+  expect(screen.getByLabelText(label).getAttribute("aria-invalid")).toBe("true");
+  if (label.startsWith("Rest") || label.startsWith("RIR"))
+    expect(screen.getByLabelText(label).closest("details")?.open).toBe(true);
 });
