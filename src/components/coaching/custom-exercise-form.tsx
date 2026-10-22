@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -15,6 +16,10 @@ import {
 } from "@/domain/types";
 import { EXERCISE_CATEGORY_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 import { createCustomExerciseAction } from "@/server/actions/manual-training";
+
+const MACHINE_NEEDED = "Choose the registered equipment for this exercise.";
+const needsMachine = (modality: string) =>
+  ["machine", "smith_machine", "cable", "cardio"].includes(modality);
 export function CustomExerciseForm({
   machines,
 }: {
@@ -32,6 +37,7 @@ export function CustomExerciseForm({
     [error, setError] = useState<string | null>(null),
     [saving, setSaving] = useState(false);
   const busy = saving || navigating;
+  const machineError = error === MACHINE_NEEDED && needsMachine(modality) && !equipment;
   return (
     <form
       className="space-y-4"
@@ -71,7 +77,14 @@ export function CustomExerciseForm({
         </Select>
       </Field>
       <Field label="Equipment / movement type">
-        <Select required value={modality} onChange={(e) => setModality(e.target.value)}>
+        <Select
+          required
+          value={modality}
+          onChange={(e) => {
+            setModality(e.target.value);
+            if (error === MACHINE_NEEDED && !needsMachine(e.target.value)) setError(null);
+          }}
+        >
           <option value="">Choose a type</option>
           {EXERCISE_MODALITIES.map((value) => (
             <option key={value} value={value}>
@@ -113,8 +126,18 @@ export function CustomExerciseForm({
         </div>
       </fieldset>
       {/* Said on the screen, not in an ⓘ: an exercise of these kinds cannot be saved without it. */}
-      <Field label="Machine" hint="Needed for machine, Smith machine, cable and cardio exercises.">
-        <Select value={equipment} onChange={(e) => setEquipment(e.target.value)}>
+      <Field
+        label="Machine"
+        hint="Needed for machine, Smith machine, cable and cardio exercises."
+        error={machineError ? MACHINE_NEEDED : undefined}
+      >
+        <Select
+          value={equipment}
+          onChange={(e) => {
+            setEquipment(e.target.value);
+            if (error === MACHINE_NEEDED && e.target.value) setError(null);
+          }}
+        >
           <option value="">No registered machine</option>
           {machines.map((m) => (
             <option key={m.id} value={m.id}>
@@ -126,11 +149,7 @@ export function CustomExerciseForm({
       <Field label="Form notes">
         <Textarea maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error ?? undefined} />
       <Button type="submit" disabled={busy}>
         {busy ? "Saving…" : "Save exercise"}
       </Button>

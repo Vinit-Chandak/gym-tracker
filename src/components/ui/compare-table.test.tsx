@@ -37,7 +37,7 @@ it("puts the two people across the top and says the difference from the viewer's
   );
   const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
   expect(headers).toEqual(["Metric", "You", "Phani"]);
-  expect(screen.getByText(whole("+20%")).parentElement!.className).toContain("text-success");
+  expect(screen.getByText(whole("+20%")).parentElement!.className).toContain("text-ink-muted");
   // The leading value is the heavier one.
   expect(screen.getByText(whole("6,240 kg")).parentElement!.className).toContain("font-semibold");
   expect(screen.getByText(whole("5,200 kg")).parentElement!.className).not.toContain(
@@ -165,6 +165,6 @@ it("labels equal and behind without colour, and lets a faster pace lead", () => 
     />,
   );
   expect(screen.getByText(whole("−16.7%")).parentElement!.className).toContain("text-ink-muted");
-  expect(screen.getByText(whole("−8.3%")).parentElement!.className).toContain("text-success");
+  expect(screen.getByText(whole("−8.3%")).parentElement!.className).toContain("text-ink-muted");
   expect(screen.getByText(whole("5:30 /km")).parentElement!.className).toContain("font-semibold");
 });

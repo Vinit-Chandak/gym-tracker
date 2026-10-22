@@ -6,7 +6,7 @@ import { useActionState, useState, useTransition, type ReactNode } from "react";
 import { Button, LinkButton, type ButtonVariant } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
-import { useKeptForm } from "@/components/ui/form";
+import { FormError, useKeptForm } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
@@ -22,14 +22,9 @@ import { CoachRequestPanel, type CoachGym } from "./coach-actions";
 
 const INITIAL: ActionResult = { ok: true };
 
-/** What went wrong, in ink, led by the warning glyph: never red, never a pigment. */
-function ActionError({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
-      <Glyph name="warn" className="mt-px glyph-18" />
-      <span className="min-w-0 [overflow-wrap:break-word]">{children}</span>
-    </p>
-  );
+/** A refused change uses the same danger signal as a refused form save. */
+function ActionError({ children }: { children: string }) {
+  return <FormError message={children} />;
 }
 
 /** What More options needs to offer the coach: where it can plan, and whether it may today. */

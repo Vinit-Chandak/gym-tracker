@@ -165,8 +165,7 @@ it("does not log a preview quick add to the signed-in account", async () => {
   fireEvent.click(screen.getByRole("button", { name: /^Quick add/ }));
   type("kcal", "400");
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
-  expect(await inSheet().findByRole("alert")).toHaveProperty(
-    "textContent",
+  expect((await inSheet().findByRole("alert")).textContent).toContain(
     "This is a preview. Changes are not saved.",
   );
   expect(logQuickFoodAction).not.toHaveBeenCalled();
@@ -213,12 +212,12 @@ it("keeps the sheet and its amount when the connection drops, and retries as the
   fireEvent.click(myFoods().getByRole("button", { name: /^Whey 1 scoop/ }));
   fireEvent.click(inSheet().getByRole("button", { name: "More Whey" }));
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
-  expect((await inSheet().findByRole("alert")).textContent).toBe(OFFLINE_SUBMIT_MESSAGE);
+  expect((await inSheet().findByRole("alert")).textContent).toContain(OFFLINE_SUBMIT_MESSAGE);
   expect(sheet().open).toBe(true);
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "1.5");
 
-  // The failure is said inside the save's transition; Add comes back once it ends.
-  fireEvent.click(await inSheet().findByRole("button", { name: "Add to Breakfast" }));
+  // Retry keeps the original submission key, so a lost reply cannot log a second portion.
+  fireEvent.click(await inSheet().findByRole("button", { name: "Retry" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   const [first, second] = vi.mocked(logFoodAction).mock.calls.map(([draft]) => draft);
   expect(second).toEqual(first);
@@ -312,7 +311,12 @@ it("names a quick add after the search it came from, and says a refused figure o
   expect(sheet().open).toBe(true);
   expect(inSheet().getByRole("alert").textContent).toBe("Enter the kcal.");
 
+  type("kcal", ".");
+  expect(inSheet().getByLabelText("kcal").getAttribute("aria-invalid")).toBe("true");
+  expect(inSheet().getByRole("alert").textContent).toBe("Enter a number.");
+
   type("kcal", "650");
+  expect(inSheet().getByLabelText("kcal").getAttribute("aria-invalid")).toBeNull();
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   const [first, second] = vi.mocked(logQuickFoodAction).mock.calls.map(([draft]) => draft);
@@ -354,6 +358,17 @@ it("changes how much of a food was eaten, or takes it out of the meal", async ()
   await waitFor(() => expect(sheet().open).toBe(false));
   expect(deleteEntryAction).toHaveBeenCalledWith(MILK_300.id);
   expect(screen.getByText("Milk removed.")).toBeTruthy();
+});
+
+it("retries the failed removal without saving the portion instead", async () => {
+  vi.mocked(deleteEntryAction).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  editor();
+  fireEvent.click(screen.getByRole("button", { name: /^Milk 300 ml/ }));
+  fireEvent.click(inSheet().getByRole("button", { name: "Remove from meal" }));
+  fireEvent.click(await inSheet().findByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(deleteEntryAction).toHaveBeenCalledTimes(2);
+  expect(updateEntryAction).not.toHaveBeenCalled();
 });
 
 it("takes a swiped-away food out at once, and brings it back if that does not go through", async () => {

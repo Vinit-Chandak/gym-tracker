@@ -152,6 +152,7 @@ export default async function SportProgrammePage({
             {joinFacts([pattern, `${weeks} ${weeks === 1 ? "week" : "weeks"}`])}
           </p>
           <ProgressBar
+            sport={sport}
             value={done}
             max={asked.length || 1}
             label={`${done} of ${asked.length} sessions done`}

@@ -93,10 +93,7 @@ export function CompareTable({
                 >
                   <span className="block font-medium">{row.label}</span>
                   <span
-                    className={cn(
-                      "block text-xs whitespace-nowrap tabular-nums",
-                      ahead ? "text-success" : "text-ink-muted",
-                    )}
+                    className={cn("block text-xs whitespace-nowrap tabular-nums", "text-ink-muted")}
                   >
                     {ahead && <span aria-hidden>↑ </span>}
                     {behind && <span aria-hidden>↓ </span>}

@@ -60,6 +60,8 @@ for (const [engine, device, repetitions] of [
   const browser = await launch(engine);
   const context = await browser.newContext({ ...device, baseURL, deviceScaleFactor: 1 });
   const check = async (name, work, target = context) => {
+    if (process.env.AUDIT_CHECK_FILTER && !new RegExp(process.env.AUDIT_CHECK_FILTER).test(name))
+      return;
     const page = await target.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -124,7 +126,7 @@ for (const [engine, device, repetitions] of [
           page.getByRole("heading", { name: "Not available", exact: true }),
         ).toBeVisible();
         // The only way on is back, into Plan: the header's back link.
-        await expect(page.getByRole("link", { name: "Plan", exact: true })).toHaveAttribute(
+        await expect(page.getByRole("link", { name: "Back to Plan", exact: true })).toHaveAttribute(
           "href",
           "/plan",
         );

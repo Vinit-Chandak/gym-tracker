@@ -26,9 +26,20 @@
 .row-stepper[data-field-error="true"] .row-stepper-figure {
   border-radius: var(--ov-radius-control);
   background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
 }
 
 /* ---------- a refused choice: a 1–5 scale or any tray of choices ---------- */
+.scale[data-field-error="true"] > .scale-name,
+[data-field-error="true"] > .select-row > label {
+  color: var(--ov-danger-text);
+}
+[data-field-error="true"] > .select-row {
+  padding-inline: calc(10 * var(--ov-u));
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
 [role="radiogroup"][aria-invalid="true"],
 .effort-field[data-field-error="true"] .scale [role="radiogroup"] {
   border-radius: var(--ov-radius-control);
@@ -135,6 +146,18 @@ body:has(form.ov-grouped) {
 .ov-panel :where(.ov-input:not([aria-invalid="true"]):focus) {
   border-color: var(--ov-ink);
 }
+/* Native required/email/number validation refuses the save before a server action runs. */
+.ov-input:user-invalid,
+.ov-panel .ov-input:user-invalid {
+  border-color: var(--ov-danger-line);
+  background-color: var(--ov-danger-tint);
+}
+.ov-field:has(.ov-input:user-invalid) > .ov-field-label {
+  color: var(--ov-danger-text);
+}
+.ov-field:has(.ov-input:user-invalid) > .ov-field-label > .field-invalid-glyph {
+  display: block;
+}
 /* Rows inside a panel are ruled like any list; the panel's own edge ends the last. */
 .ov-panel > .row-stepper:last-child,
 .ov-panel > :last-child > .row-stepper:last-child {
@@ -175,6 +198,7 @@ body:has(form.ov-grouped) {
 @media (forced-colors: active) {
   .row-stepper[data-field-error="true"] .row-stepper-figure,
   [role="radiogroup"][aria-invalid="true"],
+  [data-field-error="true"] > .select-row,
   .saved-notice {
     outline: 2px solid CanvasText;
   }

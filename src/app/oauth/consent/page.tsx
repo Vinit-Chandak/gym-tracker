@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { coachOAuthRedirect, readCoachConnectorConsent } from "@/server/coach-connector-consent";
+
+import { ConsentActions, type ConsentState } from "./consent-actions";
 
 export const metadata = { title: "Connect the coach backup" };
 
@@ -14,17 +15,23 @@ export default async function CoachConnectorConsentPage({
   const { data } = await readCoachConnectorConsent(id);
   if ("redirect_url" in data) redirect(coachOAuthRedirect(data.redirect_url));
 
-  async function decide(approve: boolean) {
+  async function decide(_state: ConsentState, form: FormData): Promise<ConsentState> {
     "use server";
+    const decision = form.get("decision");
+    if (decision !== "approve" && decision !== "decline")
+      return { error: "Choose whether to connect or decline." };
     const { supabase, data, id: authorizationId } = await readCoachConnectorConsent(id!);
     if ("redirect_url" in data) redirect(coachOAuthRedirect(data.redirect_url));
-    const result = approve
-      ? await supabase.auth.oauth.approveAuthorization(authorizationId, {
-          skipBrowserRedirect: true,
-        })
-      : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true });
+    const result =
+      decision === "approve"
+        ? await supabase.auth.oauth.approveAuthorization(authorizationId, {
+            skipBrowserRedirect: true,
+          })
+        : await supabase.auth.oauth.denyAuthorization(authorizationId, {
+            skipBrowserRedirect: true,
+          });
     if (result.error || !result.data)
-      throw new Error("The connection could not be saved. Please retry.");
+      return { error: "The connection could not be saved. Please retry." };
     redirect(coachOAuthRedirect(result.data.redirect_url));
   }
 
@@ -46,16 +53,7 @@ export default async function CoachConnectorConsentPage({
         You can revoke this connection in your Supabase OAuth grants or disable the backup on the
         server.
       </p>
-      <div className="flex flex-wrap gap-3">
-        <form action={decide.bind(null, true)}>
-          <Button type="submit">Connect ChatGPT backup</Button>
-        </form>
-        <form action={decide.bind(null, false)}>
-          <Button type="submit" variant="outline">
-            Decline
-          </Button>
-        </form>
-      </div>
+      <ConsentActions action={decide} />
     </main>
   );
 }

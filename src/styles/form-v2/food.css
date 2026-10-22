@@ -550,6 +550,15 @@
   align-items: baseline;
   gap: calc(4 * var(--ov-u));
 }
+/* A refused portion keeps the numeric field marked until its amount is valid. */
+[data-field-error="true"] > .amount-stepper .amount-figure {
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+}
+[data-field-error="true"] > .amount-stepper .figure-input {
+  border-bottom-color: var(--ov-danger-line);
+}
 /* Entry type (Jost 600, 42 pt), as the logging page writes a load: `.figure-input` inherits
    its font from where it stands, and here it stands beside a unit in words. */
 .amount-figure > .figure-input {
@@ -584,4 +593,19 @@
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
   font-weight: 600;
+}
+.food-saved-notice {
+  position: fixed;
+  right: max(var(--ov-gutter), env(safe-area-inset-right));
+  bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 12 * var(--ov-u));
+  left: max(var(--ov-gutter), env(safe-area-inset-left));
+  z-index: calc(var(--ov-z-nav) - 1);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.food-saved-notice > .saved-notice {
+  width: 100%;
+  max-width: calc(var(--content-width) - 2 * var(--ov-gutter));
+  pointer-events: auto;
 }

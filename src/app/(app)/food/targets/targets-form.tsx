@@ -28,6 +28,7 @@ import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { formatBodyWeight, LB_PER_KG } from "@/lib/units";
 import { useFoodActions } from "@/components/food/food-actions";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
+import { targetsInputSchema } from "@/server/validation/nutrition";
 
 /** A field's number, when it holds one inside the bounds; otherwise null. */
 function numberIn(value: string, bounds: { min: number; max: number }): number | null {
@@ -92,6 +93,12 @@ export function TargetsForm({
   );
   // A first set of targets follows the goal's split until protein or fat is changed by hand.
   const [following, setFollowing] = useState(targets === null && !state.values);
+  const [lastState, setLastState] = useState(state);
+  const [corrected, setCorrected] = useState<Record<string, boolean>>({});
+  if (lastState !== state) {
+    setLastState(state);
+    setCorrected({});
+  }
 
   const kcal = numberIn(dailyKcal, NUTRITION_LIMITS.dailyKcal);
   const fromSplit = kcal !== null ? splitTargets(split, Math.round(kcal), bodyWeightKg) : null;
@@ -109,6 +116,15 @@ export function TargetsForm({
       : null;
   const preview = typed ? macroTargets(typed, bodyWeightKg, goal) : null;
   const offerSplit = !following && typed !== null && !matchesSplit(typed, split, bodyWeightKg);
+  const checked = state.fieldErrors
+    ? targetsInputSchema.safeParse({ dailyKcal, proteinPerKg: shownProtein, fatPercent: shownFat })
+    : null;
+  const errorFor = (name: string) =>
+    !corrected[name]
+      ? state.fieldErrors?.[name]
+      : state.fieldErrors?.[name] && checked && !checked.success
+        ? checked.error.issues.find((issue) => issue.path[0] === name)?.message
+        : undefined;
 
   /** Protein or fat changed by hand: both keep what they show, and stop following the split. */
   const stopFollowing = () => {
@@ -134,18 +150,23 @@ export function TargetsForm({
     // After a failed save the form goes on showing what was typed, rather than being reset.
     <form ref={form} action={formAction} className="space-y-4">
       <div className="space-y-5">
-        <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
+        <Field label="Daily target, kcal" error={errorFor("dailyKcal")}>
           <Input
             name="dailyKcal"
             inputMode="numeric"
             autoComplete="off"
             placeholder="2400"
             value={dailyKcal}
-            onChange={(event) =>
+            onChange={(event) => {
               setDailyKcal(
                 sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.dailyKcal.max),
-              )
-            }
+              );
+              setCorrected((current) => ({
+                ...current,
+                dailyKcal: true,
+                ...(following ? { proteinPerKg: true } : {}),
+              }));
+            }}
           />
         </Field>
 
@@ -172,6 +193,7 @@ export function TargetsForm({
                     setProteinPerKg(String(fromSplit.proteinPerKg));
                   }
                   setFatPercent(String(fromSplit.fatPercent));
+                  setCorrected((current) => ({ ...current, proteinPerKg: true, fatPercent: true }));
                 }}
               >
                 Use this split
@@ -187,7 +209,7 @@ export function TargetsForm({
             a label that wraps takes it whole to the next line, never "g" / "per kg". */}
         <Field
           label={"Protein per body weight, g\u00a0per\u00a0kg"}
-          error={state.fieldErrors?.proteinPerKg}
+          error={errorFor("proteinPerKg")}
           hint={
             perKg !== null && (weighed || unit === "lb")
               ? joinFacts([
@@ -216,11 +238,12 @@ export function TargetsForm({
                   NUTRITION_LIMITS.proteinPerKg.max,
                 ),
               );
+              setCorrected((current) => ({ ...current, proteinPerKg: true }));
             }}
           />
         </Field>
 
-        <Field label="Fat, % of daily target" error={state.fieldErrors?.fatPercent}>
+        <Field label="Fat, % of daily target" error={errorFor("fatPercent")}>
           <Input
             name="fatPercent"
             inputMode="numeric"
@@ -231,6 +254,7 @@ export function TargetsForm({
               setFatPercent(
                 sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.fatPercent.max),
               );
+              setCorrected((current) => ({ ...current, fatPercent: true }));
             }}
           />
         </Field>

@@ -1,5 +1,7 @@
 "use client";
 
+import { FormError } from "@/components/ui/form";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
 import { FOODS_PER_PAGE, FoodSection, MEALS_PER_PAGE } from "@/components/food/food-section";
@@ -90,13 +92,15 @@ export function MealEditor({
     screen.entries,
     (current: readonly EntryRecord[], id: string) => current.filter((entry) => entry.id !== id),
   );
-  const open = (view: SheetView) =>
+  const open = (view: SheetView) => {
+    setSaid("");
     setSheet((current) => ({
       key: current.key + 1,
       open: true,
       view,
       held: { date, day, entries },
     }));
+  };
   const close = () => setSheet((current) => ({ ...current, open: false }));
   const top = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -121,6 +125,7 @@ export function MealEditor({
   const remove = (entry: EntryRecord) =>
     startTransition(async () => {
       hide(entry.id);
+      setSaid("");
       setError(null);
       const outcome = await attempted(
         () => deleteEntryAction(entry.id),
@@ -207,11 +212,7 @@ export function MealEditor({
           </ul>
         </div>
       )}
-      {error && (
-        <p role="alert" className="mt-3 type-meta-small font-semibold">
-          {error}
-        </p>
-      )}
+      {error && <FormError message={error ?? undefined} />}
 
       <div className="food-search mt-3">
         <Glyph name="search" className="glyph-20" />
@@ -306,9 +307,11 @@ export function MealEditor({
         />
       </div>
 
-      <p aria-live="polite" className="sr-only">
-        {said}
-      </p>
+      {said && (
+        <div className="food-saved-notice">
+          <SavedNotice key={said}>{said}</SavedNotice>
+        </div>
+      )}
 
       {view?.kind === "log" && (
         <PortionSheet

@@ -172,6 +172,7 @@ it("validates password confirmation and requires a current sign-in before changi
   const data = form({ password: "Local-test-password-1!", confirmPassword: "different" });
   expect(await updatePasswordAction({}, data)).toEqual({
     error: "The two passwords do not match.",
+    field: "confirmPassword",
   });
   expect(auth.updateUser).not.toHaveBeenCalled();
   data.set("confirmPassword", "Local-test-password-1!");
@@ -183,6 +184,7 @@ it("validates password confirmation and requires a current sign-in before changi
   auth.updateUser.mockResolvedValue({ error: { code: "same_password" } });
   expect(await updatePasswordAction({}, data)).toEqual({
     error: "That is already your password. Choose a different one.",
+    field: "password",
   });
   auth.updateUser.mockResolvedValue({ error: null });
   expect(await updatePasswordAction({}, data)).toEqual({ done: true });

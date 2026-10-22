@@ -9,6 +9,19 @@ import { Select } from "./select";
 
 afterEach(cleanup);
 
+it("marks a field whose refusal is explained by a shared error without repeating that error", () => {
+  const { container } = render(
+    <Field label="Max HR">
+      <Input aria-invalid aria-describedby="lap-error" />
+    </Field>,
+  );
+  expect(container.querySelector(".ov-field")?.getAttribute("data-field-error")).toBe("true");
+  expect(container.querySelector(".ov-field-label")?.className).toContain("text-danger-text");
+  expect(container.querySelector(".field-invalid-glyph")?.classList.contains("hidden")).toBe(false);
+  expect(screen.getByLabelText("Max HR").getAttribute("aria-describedby")).toBe("lap-error");
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("keeps the field name stable when validation feedback appears", () => {
   const view = render(
     <Field label="Sleep" hint="Hours">

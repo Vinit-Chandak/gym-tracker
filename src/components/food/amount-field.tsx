@@ -11,6 +11,7 @@ import { NUTRITION_LIMITS, toHundredth, type FoodAmounts, type FoodUnit } from "
 import { sanitizeNumberEntry } from "@/domain/sets";
 import { formatKcal, formatMacros } from "@/lib/format";
 import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 /** An amount as typed, when it is one worth scaling by: blank, nothing or not a number is not. */
 export function typedAmount(value: string): number | null {
@@ -82,7 +83,14 @@ export function AmountField({
   const what = name?.trim() ? ` ${name.trim()}` : "";
   return (
     <div className="min-w-0" data-field-error={error ? "true" : undefined}>
-      <label htmlFor={id} className="block type-meta-small font-bold">
+      <label
+        htmlFor={id}
+        className={cn(
+          "flex items-center gap-1.5 type-meta-small font-bold",
+          error && "text-danger-text",
+        )}
+      >
+        {error && <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />}
         {label}
       </label>
       <div className="amount-stepper">
@@ -123,7 +131,7 @@ export function AmountField({
         </button>
       </div>
       {error && (
-        <p id={errorId} role="alert" className="type-meta-small font-semibold">
+        <p id={errorId} role="alert" className="type-meta-small font-bold text-danger-text">
           {error}
         </p>
       )}

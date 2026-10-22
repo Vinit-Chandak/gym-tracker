@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import {
   NUTRITION_LIMITS,
@@ -25,7 +26,7 @@ const TOO_MUCH: Record<keyof FoodAmounts, string> = {
 };
 
 /** What is wrong with an amount as typed, in the words the server would use; null when nothing. */
-function amountProblem(food: Food, value: string): string | null {
+export function amountProblem(food: Food, value: string): string | null {
   if (value.trim() === "") return "Enter how much.";
   const parsed = Number(value.replace(",", "."));
   if (!Number.isFinite(parsed) || parsed < 0) return "Enter a number.";
@@ -81,6 +82,7 @@ export function AmountSheet({
       footer={
         <div className="space-y-3">
           <Preview amounts={scaleFood(food, current ?? 0)} />
+          <FormError formId={formId} />
           <Button type="submit" form={formId} size="lg" className="w-full">
             {submitLabel}
           </Button>
@@ -114,7 +116,7 @@ export function AmountSheet({
           value={value}
           onChange={(next) => {
             setValue(next);
-            setError(undefined);
+            if (error) setError(amountProblem(food, next) ?? undefined);
           }}
           unit={food.unit}
           portionAmount={food.portionAmount}

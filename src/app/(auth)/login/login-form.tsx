@@ -4,7 +4,7 @@ import { startTransition, useActionState, useId, useState } from "react";
 import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
-import { Glyph } from "@/components/ui/glyphs";
+import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { signInAction, type SignInState } from "@/server/actions/auth";
 
@@ -13,7 +13,7 @@ const INITIAL: SignInState = {};
 /**
  * Email, password, Sign in. The browser's own "fill out this field" bubble is turned off
  * (`noValidate`): it speaks US English over the page and vanishes; the app's sentence stands
- * instead, in ink, led by its glyph, as every error does. A sentence about one field stands
+ * instead, in danger text, led by its glyph. A sentence about one field stands
  * under that field and marks it; a sign-in that did not work is about both, so it stands under
  * the fields and both point at it. Show reveals the password to check it.
  *
@@ -77,12 +77,12 @@ export function LoginForm({ next }: { next?: string }) {
         />
       </Field>
       {both && (
-        <p id={alertId} role="alert" className="flex items-start gap-2 type-meta font-semibold">
-          <Glyph name="warn" className="mt-px glyph-18" />
-          <span className="min-w-0 [overflow-wrap:break-word]">{state.error}</span>
-        </p>
+        <span id={alertId} className="sr-only">
+          {state.error}
+        </span>
       )}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <FormError message={both ? state.error : undefined} />
+      <Button type="submit" size="lg" className="w-full" disabled={pending} aria-busy={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
       <Link

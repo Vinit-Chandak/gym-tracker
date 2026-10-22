@@ -3,6 +3,7 @@
 import { useActionState, useState, type ReactNode } from "react";
 
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { IconChoice } from "@/components/ui/icon-choice";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -25,6 +26,7 @@ import { DURATION_MS } from "@/domain/activity-limits";
 import { RUN_TYPE_LABELS, RUN_TYPES, type RunType } from "@/domain/run-types";
 import { fromMetres, roundTo, toMetres, type DistanceUnit } from "@/lib/distance-units";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { cn } from "@/lib/utils";
 import { postedLapFigures, type PlannedLap } from "@/lib/run-laps";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -144,7 +146,15 @@ function FromLapsRow({
       data-field-error={error ? "true" : undefined}
     >
       <span className="row-stepper-text">
-        <span className="font-bold [overflow-wrap:break-word]">{label}</span>
+        <span
+          className={cn(
+            "flex items-center gap-1.5 font-bold [overflow-wrap:break-word]",
+            error && "text-danger-text",
+          )}
+        >
+          {error && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
+          {label}
+        </span>
         <span className="row-stepper-hint">From laps</span>
         {figure === null && <span className="row-stepper-hint">{missing}</span>}
         {error && (

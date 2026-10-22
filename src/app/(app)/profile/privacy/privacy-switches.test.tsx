@@ -83,7 +83,7 @@ it("dims a sport's own switch while training is not shared, and still lets it ch
   // Training shared, the sports' switches say nothing more.
   fireEvent.click(screen.getByRole("switch", { name: "Share training with followers" }));
   await waitFor(() => expect(setPrivacyAction).toHaveBeenCalledWith("shareTraining", true));
-  expect(screen.queryByText("Needs Share training")).toBeNull();
+  await waitFor(() => expect(screen.queryAllByText("Needs Share training")).toHaveLength(0));
 });
 
 it("holds the sports' switches again when sharing training does not save", async () => {

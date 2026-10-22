@@ -210,6 +210,9 @@ export function RowStepper({
         {info || aside ? (
           <span className="flex flex-wrap items-center gap-x-1">
             <label htmlFor={id} className="max-w-full font-bold [overflow-wrap:break-word]">
+              {error && (
+                <Glyph name="warn" className="mr-1 inline-block glyph-16 text-danger-glyph" />
+              )}
               {label}
             </label>
             {info && <InfoTip label={aboutLabel(label)}>{info}</InfoTip>}
@@ -221,6 +224,9 @@ export function RowStepper({
           </span>
         ) : (
           <label htmlFor={id} className="font-bold [overflow-wrap:break-word]">
+            {error && (
+              <Glyph name="warn" className="mr-1 inline-block glyph-16 text-danger-glyph" />
+            )}
             {label}
           </label>
         )}

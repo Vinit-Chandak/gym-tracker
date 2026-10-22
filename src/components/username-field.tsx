@@ -59,7 +59,12 @@ export function UsernameField({
   }
 
   const candidate = normaliseUsername(value);
-  const problem = candidate === "" ? null : usernameProblem(candidate);
+  const problem =
+    candidate === ""
+      ? edited && required
+        ? "Enter a username."
+        : null
+      : usernameProblem(candidate);
   const askServer = candidate !== "" && candidate !== current && problem === null;
 
   useEffect(() => {
@@ -82,7 +87,7 @@ export function UsernameField({
 
   // Your own name typed back is neither taken nor new: the rules are all there is to say.
   const live: LiveState =
-    candidate === "" || candidate === current
+    (candidate === "" && problem === null) || candidate === current
       ? { kind: "idle" }
       : problem !== null
         ? { kind: "invalid", message: problem }
@@ -125,7 +130,7 @@ function liveFeedback(live: LiveState): { error?: string; hint?: string } {
     case "idle":
       return { hint: RULES };
     case "invalid":
-      return { hint: live.message };
+      return { error: live.message };
     case "checking":
       return { hint: "Checking…" };
     case "available":

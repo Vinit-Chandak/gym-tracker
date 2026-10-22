@@ -63,7 +63,7 @@ export default async function EquipmentPage(
         {!equipment.isActive && (
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <Badge tone="danger">Archived</Badge>
+              <Badge>Archived</Badge>
               <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, true)}>
                 <SubmitButton variant="secondary" size="sm">
                   Restore

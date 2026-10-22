@@ -4,6 +4,7 @@ import { MailCheck } from "@/components/ui/icons";
 import { startTransition, useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { requestPasswordResetAction, type PasswordResetState } from "@/server/actions/auth";
 
@@ -21,7 +22,7 @@ export function ForgotPasswordForm() {
   if (state.sent) {
     return (
       <p role="status" className="flex items-start gap-2 text-sm text-ink-muted">
-        <MailCheck className="mt-0.5 shrink-0 text-success" aria-hidden />
+        <MailCheck className="mt-0.5 shrink-0 text-ink" aria-hidden />
         If that address has an account, a reset link is on its way. It works once, within an hour.
       </p>
     );
@@ -40,11 +41,7 @@ export function ForgotPasswordForm() {
       <Field label="Email">
         <Input type="email" name="email" autoComplete="email" inputMode="email" required />
       </Field>
-      {state.error && (
-        <p role="alert" className="text-sm text-danger">
-          {state.error}
-        </p>
-      )}
+      <FormError message={state.error} />
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Sending…" : "Send reset link"}
       </Button>

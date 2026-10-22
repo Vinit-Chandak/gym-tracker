@@ -29,6 +29,9 @@ it("says why a name breaks the rules without asking the server", async () => {
   type("Vi");
   await settle();
   expect(screen.getByText("Use 3 to 20 characters.")).toBeTruthy();
+  expect(field().getAttribute("aria-invalid")).toBe("true");
+  type("");
+  expect(screen.getByRole("alert").textContent).toBe("Enter a username.");
   type("coach");
   await settle();
   expect(screen.getByText("That name is reserved.")).toBeTruthy();

@@ -51,7 +51,7 @@ function Person({
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0 font-medium [overflow-wrap:break-word]">{name}</p>
-      {stronger && <Badge tone="success">Stronger</Badge>}
+      {stronger && <Badge>Stronger</Badge>}
     </div>
   );
 }

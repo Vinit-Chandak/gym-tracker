@@ -24,8 +24,9 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   outline: "border-[1.5px] border-control bg-transparent text-ink disabled:text-ink-2",
   ghost: "bg-transparent px-2.5 text-ink disabled:text-control",
   text: "bg-transparent px-2.5 text-ink disabled:text-control",
-  // Destructive: a 2-px ink outline, grey until it can be confirmed.
-  danger: "border-2 border-ink bg-transparent text-ink disabled:border-control disabled:text-ink-2",
+  // Losing a record is said in danger text; the outline stays ink, grey while unavailable.
+  danger:
+    "border-2 border-ink bg-transparent text-danger-text disabled:border-control disabled:text-ink-2",
 };
 
 // Every size clears the 44-pt target (48 dp on Android); a primary action stands 56 tall.

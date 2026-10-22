@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { PinnedFold } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -283,11 +284,7 @@ export function CoachIntakeForm({
       />
     );
 
-  const failure = error && (
-    <p role="alert" className="text-sm text-danger">
-      {error}
-    </p>
-  );
+  const failure = <FormError message={error ?? undefined} />;
   const shared = { answers, change, unit: preferredUnit };
 
   if (answers.track === "guided")

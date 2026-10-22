@@ -90,6 +90,18 @@ function renderBuilder(
     />,
   );
 }
+
+it("keeps invalid programme weeks marked until they can be saved", async () => {
+  renderBuilder(blueprint());
+  const weeks = screen.getByRole("spinbutton", { name: "Number of weeks", hidden: true });
+  fireEvent.change(weeks, { target: { value: "0" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Enter a whole number of weeks from 1 to 52.");
+  fireEvent.change(weeks, { target: { value: "53" } });
+  expect(weeks.getAttribute("aria-invalid")).toBe("true");
+  fireEvent.change(weeks, { target: { value: "8" } });
+  expect(weeks.getAttribute("aria-invalid")).not.toBe("true");
+});
 function addDay() {
   fireEvent.click(screen.getByRole("button", { name: "Add a day" }));
 }
@@ -283,7 +295,7 @@ it("leaves programme validation to the server without creating endurance rows", 
     target: { value: "100000" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Review programme" }));
-  await screen.findByText("Choose 1 to 52 weeks.");
+  await screen.findByText("Enter a whole number of weeks from 1 to 52.");
   expect(saveProgramDraftAction).toHaveBeenLastCalledWith(
     expect.objectContaining({ sport: "strength", runs: [], weeks: 100000 }),
     undefined,

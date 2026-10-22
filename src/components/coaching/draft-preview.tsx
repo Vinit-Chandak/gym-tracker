@@ -8,6 +8,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
   activateProgramDraftAction,
@@ -265,11 +266,7 @@ export function DraftPreview({
             error={confirmingDiscard ? error : null}
             onConfirm={discard}
           />
-          {error && (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error ?? undefined} />
         </Card>
       ) : (
         <p className="text-sm text-ink-muted">{CLOSED[current.status] ?? current.status}</p>

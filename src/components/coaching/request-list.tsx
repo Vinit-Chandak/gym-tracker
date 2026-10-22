@@ -6,6 +6,7 @@ import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
@@ -157,6 +158,7 @@ function RequestRow({
           />
         </div>
       )}
+      <FormError message={error ?? undefined} />
       {(request.state === "needs_answer" || withdrawable) && (
         <div className="request-card-actions">
           {request.state === "needs_answer" && (
@@ -192,11 +194,6 @@ function RequestRow({
             </Button>
           )}
         </div>
-      )}
-      {error && (
-        <p role="alert" className="type-meta-small font-semibold">
-          {error}
-        </p>
       )}
     </div>
   );

@@ -5,9 +5,11 @@ import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FormError } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { cycleCount, weekdayOffsets } from "@/domain/cycle-repeat";
 import type { BlueprintDay, BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
@@ -104,9 +106,15 @@ export function ProgramBuilder({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showProblems, setShowProblems] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [removedDay, setRemovedDay] = useState<{ day: BlueprintDay; index: number } | null>(null);
   const busy = saving || navigating;
+  const nameError = showProblems && !plan.name ? "Name your programme." : undefined;
+  const weeksError =
+    showProblems && (!Number.isInteger(plan.weeks) || plan.weeks < 1 || plan.weeks > 52)
+      ? "Enter a whole number of weeks from 1 to 52."
+      : undefined;
   // Historical schedules stay unchanged until the athlete explicitly chooses a cadence.
   const repeats = plan.repeats;
   const d = Math.min(selectedDay, Math.max(0, plan.days.length - 1));
@@ -131,7 +139,7 @@ export function ProgramBuilder({
     });
     setDirty(true);
     setMessage(null);
-    setError(null);
+    if (nameError || weeksError) setError(null);
   }
   function dayChange(index: number, patch: Partial<BlueprintDay>) {
     change({ days: plan.days.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)) });
@@ -153,6 +161,7 @@ export function ProgramBuilder({
       return;
     }
     setSaving(true);
+    setShowProblems(true);
     setError(null);
     setMessage(null);
     try {
@@ -178,7 +187,7 @@ export function ProgramBuilder({
   }
 
   return (
-    <div className="space-y-6">
+    <form className="space-y-6" noValidate onSubmit={(event) => event.preventDefault()}>
       <fieldset disabled={busy} className="min-w-0 space-y-6">
         <Disclosure
           summary="Programme settings"
@@ -186,7 +195,7 @@ export function ProgramBuilder({
           defaultOpen={!initial || Boolean(error)}
         >
           <div className="space-y-4">
-            <Field label="Programme name">
+            <Field label="Programme name" error={nameError}>
               <Input
                 maxLength={120}
                 value={plan.name}
@@ -195,7 +204,7 @@ export function ProgramBuilder({
             </Field>
             {/* A progressive programme is as long as its days, said under Repeats. */}
             {repeats !== "once" && (
-              <Field label="Number of weeks">
+              <Field label="Number of weeks" error={weeksError}>
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -538,25 +547,24 @@ export function ProgramBuilder({
           </div>
         )}
       </fieldset>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-      {message && (
+      {message && preview && (
         <p role="status" className="text-sm text-ink-2">
           {message}
         </p>
       )}
-      <div className="sticky-actions flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => save(true)}>
-          {busy ? "Saving…" : "Review programme"}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
-          Save draft
-        </Button>
+      <div className="sticky-actions space-y-2">
+        {message && !preview && <SavedNotice>{message}</SavedNotice>}
+        <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={busy} onClick={() => save(true)}>
+            {busy ? "Saving…" : "Review programme"}
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
+            Save draft
+          </Button>
+        </div>
       </div>
-    </div>
+    </form>
   );
 }
 

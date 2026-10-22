@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input, INPUT_CLASS } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
@@ -19,7 +21,12 @@ import { FOOD_UNIT_LABELS } from "@/lib/labels";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import type { FoodRecord } from "@/server/repositories/nutrition";
-import type { FoodDraft } from "@/server/validation/nutrition";
+import {
+  createFoodSchema,
+  createLibraryFoodSchema,
+  quickFoodSchema,
+  type FoodDraft,
+} from "@/server/validation/nutrition";
 
 import { AmountField, Preview, typedAmount } from "./amount-field";
 import { useFoodActions } from "./food-actions";
@@ -124,6 +131,7 @@ export function FoodSheet({
   const [submissionKey] = useState(() => crypto.randomUUID());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [retryRemove, setRetryRemove] = useState(false);
   const [saving, startSaving] = useTransition();
   const [deleting, startDeleting] = useTransition();
   const content = useRef<HTMLFormElement>(null);
@@ -141,11 +149,35 @@ export function FoodSheet({
     invalid?.scrollIntoView?.({ block: "center" });
   }, [errors, busy]);
 
-  const set = (field: keyof FoodDraft, value: string) =>
-    setFields((current) => ({ ...current, [field]: value }));
+  // A refused field keeps its signal until the same rules that save it accept the correction.
+  const correct = (draft: FoodDraft, nextAmount: string, changed: string[]) => {
+    const checked =
+      target.kind === "quick"
+        ? quickFoodSchema.safeParse({ ...target, ...draft })
+        : target.kind === "create"
+          ? createFoodSchema.safeParse({ ...target, ...draft, amount: nextAmount })
+          : createLibraryFoodSchema.safeParse(draft);
+    const problems = checked.success ? [] : checked.error.issues;
+    setErrors((current) => {
+      const next = { ...current };
+      for (const field of changed) {
+        if (!current[field]) continue;
+        const problem = problems.find((issue) => issue.path[0] === field);
+        if (problem) next[field] = problem.message;
+        else delete next[field];
+      }
+      return next;
+    });
+  };
+  const set = (field: keyof FoodDraft, value: string) => {
+    const next = { ...fields, [field]: value };
+    setFields(next);
+    correct(next, eaten ?? next.portionAmount, [field, ...(eaten === null ? ["amount"] : [])]);
+  };
 
   const save = () =>
     startSaving(async () => {
+      setRetryRemove(false);
       setFormError(null);
       const outcome = await attempted(
         () =>
@@ -197,6 +229,7 @@ export function FoodSheet({
   const remove = () =>
     startDeleting(async () => {
       if (target.kind !== "edit") return;
+      setRetryRemove(true);
       setFormError(null);
       const outcome = await attempted(
         () => deleteFoodAction(target.food.id),
@@ -227,8 +260,6 @@ export function FoodSheet({
         )
       : { kcal: 0, carbsG: null, fatG: null, proteinG: null };
 
-  const figureErrors = FIGURES.map(({ field }) => errors[field]).filter(Boolean);
-  const figuresErrorId = `${formId}-figures-error`;
   const portionErrorId = `${formId}-portion-error`;
   const portionError = errors.portionAmount ?? errors.unit;
 
@@ -243,12 +274,31 @@ export function FoodSheet({
       footer={
         <div className="space-y-3">
           {creating && <Preview amounts={preview} />}
-          {formError && (
-            <p role="alert" className="text-sm text-danger">
-              {formError}
-            </p>
-          )}
-          <Button type="submit" form={formId} size="lg" className="w-full" disabled={busy}>
+          <FormError
+            message={formError ?? undefined}
+            formId={formId}
+            action={
+              formError ? (
+                <Button
+                  type="button"
+                  onClick={retryRemove ? remove : save}
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                >
+                  Retry
+                </Button>
+              ) : undefined
+            }
+          />
+          <Button
+            type="submit"
+            form={formId}
+            size="lg"
+            className="w-full"
+            disabled={busy}
+            aria-busy={saving}
+          >
             {target.kind === "create" || target.kind === "quick"
               ? saving
                 ? "Adding…"
@@ -282,7 +332,16 @@ export function FoodSheet({
 
           {!quick && (
             <div className="min-w-0 space-y-1.5">
-              <p id={`${formId}-portion`} className="text-sm font-medium text-ink-muted">
+              <p
+                id={`${formId}-portion`}
+                className={cn(
+                  "flex items-center gap-1.5 type-meta-small font-bold",
+                  portionError ? "text-danger-text" : "text-ink",
+                )}
+              >
+                {portionError && (
+                  <Glyph name="warn" className="glyph-16 shrink-0 text-danger-glyph" />
+                )}
                 Nutrition per
               </p>
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
@@ -300,16 +359,13 @@ export function FoodSheet({
                       sanitizeNumberEntry(event.target.value, "decimal", NUTRITION_LIMITS.amount),
                     )
                   }
-                  className={cn(
-                    INPUT_CLASS,
-                    "tabular-nums",
-                    errors.portionAmount && "border-danger",
-                  )}
+                  className={cn(INPUT_CLASS, "tabular-nums")}
                 />
                 <Select
                   value={fields.unit}
                   aria-label="Unit"
                   aria-invalid={errors.unit ? true : undefined}
+                  aria-describedby={portionError ? portionErrorId : undefined}
                   onChange={(event) => set("unit", event.target.value)}
                 >
                   {FOOD_UNITS.map((option) => (
@@ -320,7 +376,11 @@ export function FoodSheet({
                 </Select>
               </div>
               {portionError && (
-                <p id={portionErrorId} role="alert" className="text-sm text-danger">
+                <p
+                  id={portionErrorId}
+                  role="alert"
+                  className="type-meta-small font-bold text-danger-text"
+                >
                   {portionError}
                 </p>
               )}
@@ -334,11 +394,7 @@ export function FoodSheet({
               {FIGURES.map(({ field, label, max }) => {
                 const error = errors[field];
                 return (
-                  <label key={field} className="min-w-0 space-y-1">
-                    <span className="block text-xs text-ink-subtle">
-                      {label}
-                      {field === "kcal" && <span aria-hidden> *</span>}
-                    </span>
+                  <Field key={field} label={label} error={error}>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -346,33 +402,25 @@ export function FoodSheet({
                       value={fields[field]}
                       aria-label={label}
                       aria-required={field === "kcal" ? true : undefined}
-                      aria-invalid={error ? true : undefined}
-                      aria-describedby={error ? figuresErrorId : undefined}
                       onChange={(event) =>
                         set(field, sanitizeNumberEntry(event.target.value, "decimal", max))
                       }
-                      className={cn(
-                        INPUT_CLASS,
-                        "px-1 text-center tabular-nums",
-                        error && "border-danger",
-                      )}
+                      className={cn(INPUT_CLASS, "px-1 text-center tabular-nums")}
                     />
-                  </label>
+                  </Field>
                 );
               })}
             </div>
-            {figureErrors.length > 0 && (
-              <p id={figuresErrorId} role="alert" className="text-sm text-danger">
-                {figureErrors[0]}
-              </p>
-            )}
           </div>
 
           {creating && (
             <AmountField
               label="Amount eaten"
               value={amount}
-              onChange={setEaten}
+              onChange={(next) => {
+                setEaten(next);
+                correct(fields, next, ["amount"]);
+              }}
               unit={unit}
               portionAmount={portion ?? 1}
               name={fields.name}

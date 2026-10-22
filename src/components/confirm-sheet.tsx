@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 
 /**
@@ -32,11 +33,7 @@ export function ConfirmSheet({
     <Sheet open={open} onClose={onClose} title={title} dismissible={!pending}>
       <div className="space-y-4">
         <p className="text-sm text-ink-muted">{description}</p>
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error ?? undefined} />
         <Button
           variant="danger"
           size="lg"

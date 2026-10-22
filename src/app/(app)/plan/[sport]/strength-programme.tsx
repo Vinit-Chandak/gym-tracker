@@ -124,7 +124,7 @@ export async function StrengthProgramme({
                     {holdHyphens(overview.program.name)}
                   </h2>
                   {/* Today's word for it, "Programme complete", as the card's badge. */}
-                  {complete && <Badge tone="success">Complete</Badge>}
+                  {complete && <Badge>Complete</Badge>}
                 </div>
                 <p className="mt-1.5 text-sm text-ink-muted">
                   {pattern}
@@ -137,6 +137,7 @@ export async function StrengthProgramme({
                 </p>
               </div>
               <ProgressBar
+                sport="strength"
                 value={overview.progress.completed}
                 max={overview.progress.total}
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}

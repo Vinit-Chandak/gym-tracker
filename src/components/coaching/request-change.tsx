@@ -3,8 +3,9 @@
 import { useActionState, useState } from "react";
 
 import { Disclosure } from "@/components/ui/disclosure";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Textarea } from "@/components/ui/input";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import type { ActivitySport } from "@/domain/activity";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -21,6 +22,7 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
  * coach page's note is; once one is sent, the next note has an id of its own.
  */
 export function RequestChange({ sport, noteId }: { sport: ActivitySport; noteId: string }) {
+  const form = useKeptForm();
   const [state, formAction, sending] = useActionState(
     keepsFormOnDisconnect(saveCoachNotesAction),
     INITIAL_FORM_STATE,
@@ -41,11 +43,12 @@ export function RequestChange({ sport, noteId }: { sport: ActivitySport; noteId:
       summary="Request a change"
       defaultOpen={Boolean(state.fieldErrors || state.formError)}
     >
-      <form action={formAction} className="space-y-3">
+      <form ref={form} action={formAction} className="space-y-3">
         <input type="hidden" name="noteId" value={state.values?.noteId ?? note.id} />
         <input type="hidden" name="sport" value={sport} />
         <Field label="What should change?" error={state.fieldErrors?.userNotes}>
           <Textarea
+            key={note.id}
             name="userNotes"
             rows={3}
             value={text}
@@ -60,9 +63,7 @@ export function RequestChange({ sport, noteId }: { sport: ActivitySport; noteId:
         <SubmitButton pendingLabel="Sending…" className="w-full" disabled={!text.trim()}>
           Send to the coach
         </SubmitButton>
-        <p role="status" className="text-sm text-ink-2 empty:hidden">
-          {sent && !text ? "Sent to the coach." : ""}
-        </p>
+        {sent && !text && <SavedNotice key={note.id}>Sent to the coach.</SavedNotice>}
       </form>
     </Disclosure>
   );

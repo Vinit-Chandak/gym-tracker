@@ -220,7 +220,7 @@ it("keeps filters after a refused save even if the library later refreshes", asy
   type("Name", "Rice");
   type("kcal", "130");
   fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
-  expect(await inSheet().findByRole("alert")).toHaveProperty("textContent", "Try again.");
+  expect((await inSheet().findByRole("alert")).textContent).toContain("Try again.");
   rerender(<MyFoodsView library={{ foods: [OATS, WHEY], savedMeals: [] }} />);
   expect(window.location.search).toBe("?q=oats");
   expect(sheet().open).toBe(true);
@@ -332,8 +332,7 @@ it("lets preview food forms explain that they cannot change the signed-in accoun
   type("Name", "Preview oats");
   type("kcal", "389");
   fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
-  expect(await inSheet().findByRole("alert")).toHaveProperty(
-    "textContent",
+  expect((await inSheet().findByRole("alert")).textContent).toContain(
     "This is a preview. Changes are not saved.",
   );
   expect(createLibraryFoodAction).not.toHaveBeenCalled();

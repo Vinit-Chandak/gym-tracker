@@ -24,6 +24,7 @@ import { CoachNote } from "@/components/ui/coach-note";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
+import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { isLeftOpen, lastTrainedAt } from "@/domain/left-open";
@@ -208,12 +209,7 @@ function WarmupSheet({
                   </li>
                 ))}
           </ol>
-          {error && (
-            <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
-              <Glyph name="warn" className="mt-px glyph-18" />
-              {error}
-            </p>
-          )}
+          {error && <FormError message={error} />}
           <Button
             variant={done ? "tonal" : "primary"}
             size="lg"
@@ -298,9 +294,9 @@ function WarmupRow({
         {error && (
           <span
             role="alert"
-            className="mt-1 flex items-start gap-1.5 type-meta-small font-semibold"
+            className="mt-1 flex items-start gap-1.5 rounded-control bg-danger-tint p-2.5 type-meta-small font-bold text-danger-text"
           >
-            <Glyph name="warn" className="mt-0.5 glyph-16" />
+            <Glyph name="warn" className="mt-0.5 glyph-16 text-danger-glyph" />
             {error}
           </span>
         )}

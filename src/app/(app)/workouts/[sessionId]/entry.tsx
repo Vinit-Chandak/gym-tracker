@@ -65,6 +65,8 @@ type EntryProps = {
   metrics: { figure: number; target: number };
   /** The dash of an effort Save waits for inks after a tap on Save. */
   alert: boolean;
+  /** The message describing this row's refused field. */
+  errorId?: string;
   onEdit: (patch: Partial<RowState>, touch: DraftValueField) => void;
   onType: (field: DraftValueField) => void;
   onTypingEnd: () => void;
@@ -98,6 +100,7 @@ export function Entry({
   typing,
   metrics,
   alert,
+  errorId,
   onEdit,
   onType,
   onTypingEnd,
@@ -153,6 +156,7 @@ export function Entry({
   const stepper = (field: EntryField, key: string) => {
     const { value, state } = shown(field);
     const effort = field.info !== null;
+    const invalid = Boolean(row.error && row.errorField === field.field);
     const typed = typing !== null;
     const figure = (
       <span
@@ -166,7 +170,14 @@ export function Entry({
       </span>
     );
     return (
-      <div key={key} role="group" aria-label={field.unit} className="stepper" data-field={key}>
+      <div
+        key={key}
+        role="group"
+        aria-label={field.unit}
+        className="stepper"
+        data-field={key}
+        data-field-error={invalid || undefined}
+      >
         {typed ? (
           <span className="stepper-figure">
             <FigureInput
@@ -175,6 +186,8 @@ export function Entry({
               inputMode={field.inputMode}
               enterKeyHint="done"
               aria-label={field.inputLabel}
+              aria-invalid={invalid || undefined}
+              aria-describedby={invalid ? errorId : undefined}
               value={state === "empty" ? "" : value}
               placeholder="–"
               disabled={row.saving}
@@ -202,6 +215,7 @@ export function Entry({
             type="button"
             className="stepper-figure"
             aria-label={field.name(value, state)}
+            aria-describedby={invalid ? errorId : undefined}
             disabled={row.saving}
             onClick={() => press(field)}
           >
@@ -210,6 +224,7 @@ export function Entry({
         )}
         <span className="stepper-units">
           <span className="stepper-units-line">
+            {invalid && <Glyph name="warn" className="glyph-16 text-danger-glyph" />}
             {field.unit}
             {effort && !typed && (
               <button
