@@ -65,8 +65,26 @@ function rowFromPosted(lap: PostedLap): LapRow {
 }
 
 /** The rows a form opens on: a draft's, a refused save's or a saved run's posted laps. */
-export function lapRowsFrom(posted: string | undefined): LapRow[] {
-  return readPostedLaps(posted).map(rowFromPosted);
+export function lapRowsFrom(posted: string | undefined, entries?: string): LapRow[] {
+  const rows = readPostedLaps(posted).map(rowFromPosted);
+  // The parsed measurements cannot retain a typo or a partly typed number. Drafts keep the
+  // input text separately, while saved activities continue to use validated measurements.
+  if (!entries) return rows;
+  try {
+    const raw: unknown = JSON.parse(entries);
+    if (!Array.isArray(raw) || raw.length !== rows.length) return rows;
+    return rows.map((row, index) => {
+      const entry: unknown = raw[index];
+      if (!entry || typeof entry !== "object") return row;
+      const values = entry as Record<string, unknown>;
+      const restored = { ...row };
+      for (const field of ["distance", "duration", "averageHeartRate", "maxHeartRate"] as const)
+        if (typeof values[field] === "string") restored[field] = values[field];
+      return restored;
+    });
+  } catch {
+    return rows;
+  }
 }
 
 const typedNumber = (value: string): number | null => {
@@ -289,6 +307,10 @@ export function LapsEditor({
     <details
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
+      onInvalidCapture={(event) => {
+        event.currentTarget.open = true;
+        setOpen(true);
+      }}
       className="more-details"
       data-field-error={refused ? "true" : undefined}
     >
@@ -298,6 +320,18 @@ export function LapsEditor({
         <Glyph name="chevronDown" className="more-details-chevron glyph-20 shrink-0" />
       </summary>
       <input type="hidden" name="laps" value={rows.length > 0 ? JSON.stringify(postedRows) : ""} />
+      <input
+        type="hidden"
+        name="lapEntries"
+        value={JSON.stringify(
+          rows.map(({ distance, duration, averageHeartRate, maxHeartRate }) => ({
+            distance,
+            duration,
+            averageHeartRate,
+            maxHeartRate,
+          })),
+        )}
+      />
       {/* Each lap's fields say what they take, and the plan's figures show in them while they
           are empty; nothing here explains the watch. */}
       <div className="space-y-3 pt-1 pb-2">
@@ -328,9 +362,16 @@ export function LapsEditor({
                   row.phase !== "recovery",
                 time: missing.time && !typed(row.duration) && typed(row.distance),
               };
+              const unreadable = {
+                distance: typed(row.distance) && typedNumber(row.distance) === null,
+                averageHeartRate:
+                  typed(row.averageHeartRate) && typedBeats(row.averageHeartRate) === null,
+                maxHeartRate: typed(row.maxHeartRate) && typedBeats(row.maxHeartRate) === null,
+              };
               // The whole lap (no distance and no time) marks both of its measures.
               const invalid = (part: string, also?: string) =>
                 part in refusedHere ||
+                (part in unreadable && unreadable[part as keyof typeof unreadable]) ||
                 (also !== undefined && also in refusedHere) ||
                 (part in lacking && lacking[part as keyof typeof lacking])
                   ? true
@@ -375,6 +416,11 @@ export function LapsEditor({
                       <Input
                         inputMode="decimal"
                         value={row.distance}
+                        ref={(input) => {
+                          input?.setCustomValidity(
+                            unreadable.distance ? "Enter the distance as a number." : "",
+                          );
+                        }}
                         placeholder={
                           askedDistance(row.asked) ?? (row.phase === "recovery" ? STANDING : "—")
                         }
@@ -411,6 +457,13 @@ export function LapsEditor({
                       <Input
                         inputMode="numeric"
                         value={row.averageHeartRate}
+                        ref={(input) => {
+                          input?.setCustomValidity(
+                            unreadable.averageHeartRate
+                              ? "Heart rate is whole beats a minute."
+                              : "",
+                          );
+                        }}
                         placeholder="—"
                         aria-invalid={invalid("averageHeartRate")}
                         aria-describedby={describedBy}
@@ -423,6 +476,11 @@ export function LapsEditor({
                       <Input
                         inputMode="numeric"
                         value={row.maxHeartRate}
+                        ref={(input) => {
+                          input?.setCustomValidity(
+                            unreadable.maxHeartRate ? "Heart rate is whole beats a minute." : "",
+                          );
+                        }}
                         placeholder="—"
                         aria-invalid={invalid("maxHeartRate")}
                         aria-describedby={describedBy}

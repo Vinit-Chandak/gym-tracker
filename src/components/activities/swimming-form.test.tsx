@@ -153,6 +153,71 @@ it("gives no pace until a swimming time is stated", () => {
   expect(statuses.some((text) => text.includes("per 100"))).toBe(false);
 });
 
+it("shows a rejected total at the length count that produced it", async () => {
+  render(
+    <SwimmingForm
+      action={async () => ({ fieldErrors: { distance: "That swim distance is beyond 1,000 km." } })}
+      initial={{ ...initial, distanceMethod: "lengths", poolLengthValue: "1000", lengths: "2000" }}
+      submissionKey="swim"
+      submitLabel="Save swim"
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save swim" }));
+  expect(await screen.findByText("That swim distance is beyond 1,000 km.")).toBeTruthy();
+  expect(screen.getByLabelText("Lengths").getAttribute("aria-invalid")).toBe("true");
+});
+
+it("reveals a refused pool measurement after changing the distance method", async () => {
+  render(
+    <SwimmingForm
+      action={async () => ({
+        fieldErrors: { poolLengthValue: "Enter the pool length to at most 6 decimal places." },
+      })}
+      initial={{
+        ...initial,
+        distanceMethod: "manual",
+        poolLengthValue: "25.1234567",
+        distanceValue: "1000",
+      }}
+      submissionKey="swim"
+      submitLabel="Save swim"
+    />,
+  );
+  expect(screen.queryByLabelText("Pool length")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Save swim" }));
+  const input = await screen.findByLabelText("Pool length");
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  fireEvent.change(input, { target: { value: "25" } });
+  expect(new FormData(input.closest("form")!).get("poolLengthValue")).toBe("25");
+});
+
+it("previews decimal-comma swimming seconds consistently with the saved time", () => {
+  swim({
+    distanceMethod: "manual",
+    distanceValue: "100",
+    minutes: "10",
+    activeMinutes: "2",
+    activeSeconds: "30,5",
+  });
+  expect(screen.getByRole("status").textContent).toBe("2:30.5 per 100 m");
+});
+
+it.each([
+  ["0", "0"],
+  ["-1", "0"],
+  ["11", "0"],
+  ["2", "oops"],
+])("does not preview a pace for an invalid swimming time %s:%s", (activeMinutes, activeSeconds) => {
+  swim({
+    distanceMethod: "manual",
+    distanceValue: "100",
+    minutes: "10",
+    activeMinutes,
+    activeSeconds,
+  });
+  expect(screen.queryByRole("status")).toBeNull();
+});
+
 it("opens a distance entered in metres in the swimmer's yards, and keeps it until it is changed", () => {
   // Liam swims in yards; his open-water swim was entered as 1500 m, and its page reads 1,640 yd.
   const { container } = render(

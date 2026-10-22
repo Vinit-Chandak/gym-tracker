@@ -711,7 +711,7 @@ export function ElevationField({
     <Field label={`Elevation gain ${unit}`} error={errors?.elevationGainMetres}>
       <Input
         name={unit === "m" ? "elevationGainMetres" : undefined}
-        inputMode="numeric"
+        inputMode="decimal"
         value={figure}
         onChange={(event) => setFigure(event.target.value)}
         placeholder="—"
@@ -729,7 +729,7 @@ export function HeartRateFields({
   errors?: Record<string, string>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
       <Field label="Average heart rate" error={errors?.averageHeartRate}>
         <Input
           name="averageHeartRate"

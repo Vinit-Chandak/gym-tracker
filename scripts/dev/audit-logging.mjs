@@ -57,11 +57,13 @@ async function signedIn(email) {
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 120_000 });
+  await page.waitForLoadState("networkidle");
   return page;
 }
 
 /** Runs one walk; a step that throws fails it, with a screenshot, and the next walk goes on. */
 async function walk(name, email, steps) {
+  if (process.env.AUDIT_WALK && !new RegExp(process.env.AUDIT_WALK).test(name)) return;
   const page = await signedIn(email);
   try {
     await steps(page);
@@ -333,7 +335,8 @@ await walk("workout", "vinit@local.test", async (page) => {
   const start = page.getByRole("link", { name: /^Start workout/ });
   if (await start.count()) await start.click();
   else {
-    await page.goto("/today/log?sport=strength", { waitUntil: "networkidle" });
+    // Programme links prefetch streamed responses; readiness is the visible next-session link.
+    await page.goto("/today/log?sport=strength", { waitUntil: "domcontentloaded" });
     await page
       .getByRole("link", { name: /Next in your programme|Cycle \d+$/ })
       .first()

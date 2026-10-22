@@ -221,7 +221,11 @@ function StoredEditor(props: Props) {
     return draft;
   }
   function changed(event: FormEvent<HTMLDivElement>) {
-    const form = (event.target as HTMLInputElement).form;
+    // Steppers, units and lap buttons change controlled fields without a native change event.
+    // A click may start on the button's glyph, so find its form rather than reading target.form.
+    const target = event.target as Element;
+    if (event.type === "click" && target.closest("button")?.type !== "button") return;
+    const form = target.closest("form");
     if (form)
       queueMicrotask(() => {
         if (form.isConnected) persist(formValues(new FormData(form)));
@@ -259,6 +263,7 @@ function StoredEditor(props: Props) {
     target: props.target,
     submitLabel: props.submitLabel,
     keptEffort: props.keptEffort ?? null,
+    restoreEntryUnits: initialDraft.dirtyFields.length > 0,
     openDetails: startKept || Boolean(props.initial.entryDate),
   };
   // Said after the last field, so nothing moves down when the first thing typed keeps a draft.
@@ -289,7 +294,7 @@ function StoredEditor(props: Props) {
     </div>
   ) : null;
   return (
-    <div ref={wrapper} onChange={changed}>
+    <div ref={wrapper} onChange={changed} onClick={changed}>
       {props.sport === "running" && (
         <RunningForm
           key={initialDraft.draftId}

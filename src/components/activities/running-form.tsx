@@ -103,6 +103,8 @@ type Props = {
   openDetails?: boolean;
   /** The unit the athlete reads runs in, which a recorded run opens in. */
   readIn?: DistanceUnit;
+  /** An unsaved draft reopens in the distance unit the athlete chose while entering it. */
+  restoreEntryUnits?: boolean;
   /** The planned session's steps, which the laps can be laid out from (ADR 0059). */
   plannedLaps?: readonly PlannedLap[];
 };
@@ -187,6 +189,7 @@ export function RunningForm({
   keptEffort = null,
   openDetails = false,
   readIn,
+  restoreEntryUnits = false,
   plannedLaps = [],
 }: Props) {
   // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
@@ -195,7 +198,11 @@ export function RunningForm({
   const values = useFormValues(state, initial);
   // A run entered in kilometres opens in miles for a miles runner, and the other way round.
   const [opened] = useState(() =>
-    openDistance(values("distanceValue"), values("distanceUnit") || readIn || "km", readIn),
+    openDistance(
+      values("distanceValue"),
+      values("distanceUnit") || readIn || "km",
+      restoreEntryUnits ? undefined : readIn,
+    ),
   );
   const [distance, setDistance] = useState(opened.value);
   const [unit, setUnit] = useState(opened.unit);
@@ -203,8 +210,9 @@ export function RunningForm({
   const [duration, setDuration] = useState(() =>
     durationFromParts(values("hours"), values("minutes"), values("seconds")),
   );
+  const [environment, setEnvironment] = useState(() => values("environment") || "outdoor");
   const [runType, setRunType] = useState(() => values("runType"));
-  const [rows, setRows] = useState(() => lapRowsFrom(values("laps")));
+  const [rows, setRows] = useState(() => lapRowsFrom(values("laps"), values("lapEntries")));
   // The laps as they stood when the last save was sent, which its lap sentences name.
   const [submitted, setSubmitted] = useState<string[]>([]);
   // "Use the watch's totals instead": both totals typed, whatever the laps add up to.
@@ -307,7 +315,8 @@ export function RunningForm({
         <IconChoice
           name="environment"
           options={ENVIRONMENTS}
-          defaultValue={values("environment") || "outdoor"}
+          value={environment}
+          onChange={setEnvironment}
         />
       </div>
       {/* What kind of run it was: a planned session's own kind to start with, which is context
@@ -496,21 +505,34 @@ export function RunningForm({
               <option key={surface} value={surface} />
             ))}
           </datalist>
-          <div className="grid grid-cols-2 gap-2">
+          <div
+            className={
+              environment === "treadmill"
+                ? "grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2"
+                : undefined
+            }
+          >
             <ElevationField values={values} errors={errors} readIn={readIn} />
-            <Field label="Incline %" error={errors?.treadmillInclinePercent}>
-              <Input
-                name="treadmillInclinePercent"
-                inputMode="decimal"
-                defaultValue={values("treadmillInclinePercent")}
-                placeholder="—"
-              />
-            </Field>
+            {/* Keep a treadmill answer while toggling, but never submit it for an outdoor run. */}
+            <div hidden={environment !== "treadmill"}>
+              <Field
+                label="Incline %"
+                error={environment === "treadmill" ? errors?.treadmillInclinePercent : undefined}
+              >
+                <Input
+                  name="treadmillInclinePercent"
+                  inputMode="decimal"
+                  defaultValue={values("treadmillInclinePercent")}
+                  disabled={environment !== "treadmill"}
+                  placeholder="—"
+                />
+              </Field>
+            </div>
           </div>
           <Field label="Cadence steps/min" error={errors?.cadenceStepsPerMinute}>
             <Input
               name="cadenceStepsPerMinute"
-              inputMode="numeric"
+              inputMode="decimal"
               defaultValue={values("cadenceStepsPerMinute")}
               placeholder="—"
             />

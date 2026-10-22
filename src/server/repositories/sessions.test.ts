@@ -512,6 +512,76 @@ describe("decisions, substitutions and ad hoc sessions", () => {
     );
   });
 
+  it("uses a replacement's measurement without changing the programme or older recorded sets", async () => {
+    const lowerA = await dayId("Lower A");
+    const started = await withUser(t.db, user.id, (tx) =>
+      startPlannedSession(tx, user.id, {
+        gymId: samsungId,
+        programDayId: lowerA,
+        cycleIndex: 3,
+      }),
+    );
+    const read = () =>
+      withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, started.sessionId));
+    const original = exerciseRow((await read())!, "leg-press-45");
+    for (const [slug, measure] of [
+      ["plank", "duration"],
+      ["farmers-carry", "distance"],
+    ] as const) {
+      const [replacement] = await t.db.select().from(exercises).where(eq(exercises.slug, slug));
+      await withUser(t.db, user.id, (tx) =>
+        substituteExercise(tx, user.id, {
+          workoutExerciseId: original.id,
+          exerciseId: replacement!.id,
+          equipmentInstanceId: null,
+          reason: null,
+        }),
+      );
+      const swapped = (await read())!.exercises.find((exercise) => exercise.id === original.id)!;
+      expect(swapped.planned).toMatchObject({
+        programExerciseId: original.planned!.programExerciseId,
+        plannedExerciseName: original.planned!.plannedExerciseName,
+        sets: original.planned!.sets,
+        prescriptionType: measure,
+        repMin: null,
+        repMax: null,
+        rirMin: null,
+        rirMax: null,
+      });
+      expect(swapped.planned!.durationMinSeconds).toBe(
+        measure === "duration" ? replacement!.defaultDurationMinSeconds : null,
+      );
+      expect(swapped.planned!.distanceMinMeters).toBe(
+        measure === "distance" ? replacement!.defaultDistanceMinMeters : null,
+      );
+      expect(swapped.suggestion?.sets.every((set) => set.reps === null) ?? true).toBe(true);
+    }
+    const [unchanged] = await t.db
+      .select()
+      .from(programExercises)
+      .where(eq(programExercises.id, original.planned!.programExerciseId!));
+    expect(unchanged!.prescriptionType).toBe("reps");
+    // An entry saved under the older behavior must not be relabelled as metres on readback.
+    await withUser(t.db, user.id, (tx) =>
+      logSet(tx, user.id, {
+        workoutExerciseId: original.id,
+        setIndex: 1,
+        setType: "working",
+        weight: 0,
+        reps: 10,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+    expect(
+      (await read())!.exercises.find((exercise) => exercise.id === original.id)!.planned!
+        .prescriptionType,
+    ).toBe("reps");
+    await withUser(t.db, user.id, (tx) =>
+      finishSession(tx, user.id, started.sessionId, { notes: null, bodyWeightKg: null }),
+    );
+  });
+
   it("supports ad hoc sessions with exercises added on the fly", async () => {
     const started = await withUser(t.db, user.id, (tx) =>
       startAdHocSession(tx, user.id, { gymId: anytimeId }),

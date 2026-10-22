@@ -31,6 +31,7 @@ import {
   MoreDetails,
   NotesFields,
   openDistance,
+  parseDuration,
   postedDistance,
   TargetCard,
   useFormValues,
@@ -89,6 +90,8 @@ type Props = {
   openDetails?: boolean;
   /** The unit the athlete reads swims in; a pool measured in the other is also said in it. */
   readIn?: PoolUnit;
+  /** An unsaved draft reopens in the distance unit chosen while entering it. */
+  restoreEntryUnits?: boolean;
 };
 
 export function SwimmingForm({
@@ -103,6 +106,7 @@ export function SwimmingForm({
   keptEffort = null,
   openDetails = false,
   readIn = "m",
+  restoreEntryUnits = false,
 }: Props) {
   // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
   const form = useKeptForm();
@@ -115,7 +119,11 @@ export function SwimmingForm({
   const [lengths, setLengths] = useState(() => values("lengths"));
   // A swim entered in metres opens in yards for a yards swimmer, and the other way round.
   const [opened] = useState(() =>
-    openDistance(values("distanceValue"), values("distanceUnit") || readIn, readIn),
+    openDistance(
+      values("distanceValue"),
+      values("distanceUnit") || readIn,
+      restoreEntryUnits ? undefined : readIn,
+    ),
   );
   const [distance, setDistance] = useState(opened.value);
   const [distanceUnit, setDistanceUnit] = useState(opened.unit);
@@ -135,14 +143,26 @@ export function SwimmingForm({
   const activeMs =
     activeMinutes.trim() === "" && activeSeconds.trim() === ""
       ? null
-      : (Number(activeMinutes || 0) * 60 + Number(activeSeconds || 0)) * 1000;
+      : (Number(activeMinutes || 0) * 60 + Number(activeSeconds.replace(",", ".") || 0)) * 1000;
+  const elapsedMs = (parseDuration(elapsed) ?? 0) * 1000;
   const paceUnit = (method === "lengths" ? poolUnit : distanceUnit) as "m" | "yd";
   const pace =
-    activeMs !== null && derivedMetres !== null && derivedMetres > 0
+    activeMs !== null &&
+    Number.isFinite(activeMs) &&
+    activeMs > 0 &&
+    activeMs <= elapsedMs &&
+    derivedMetres !== null &&
+    Number.isFinite(derivedMetres) &&
+    derivedMetres > 0
       ? activeMs / 1000 / (toMetresPerHundred(derivedMetres, paceUnit) || 1)
       : null;
 
   const errors = state.fieldErrors;
+  // A retained pool measurement must remain editable when the server refuses it, even if
+  // the swimmer has since chosen a manual or unknown distance.
+  const showPoolLength =
+    environment === "pool" &&
+    (method === "lengths" || Boolean(errors?.poolLength ?? errors?.poolLengthValue));
   const poolUnitIndex = POOL_UNITS.findIndex((option) => option.value === poolUnit);
   const otherPoolUnit = POOL_UNITS[(poolUnitIndex + 1) % POOL_UNITS.length]!;
 
@@ -228,7 +248,7 @@ export function SwimmingForm({
           )}
         </div>
 
-        {method === "lengths" && (
+        {showPoolLength && (
           <>
             <input type="hidden" name="poolLengthUnit" value={poolUnit} />
             <RowStepper
@@ -247,6 +267,10 @@ export function SwimmingForm({
               more="Longer"
               error={errors?.poolLength ?? errors?.poolLengthValue}
             />
+          </>
+        )}
+        {method === "lengths" && (
+          <>
             <RowStepper
               label="Lengths"
               // What one is, in view until there is a count, since it decides what is counted;
@@ -273,12 +297,12 @@ export function SwimmingForm({
               inputMode="numeric"
               less="One fewer"
               more="One more"
-              error={errors?.lengths}
+              error={errors?.lengths ?? errors?.distance}
             />
           </>
         )}
 
-        {environment === "pool" && method !== "lengths" && (
+        {environment === "pool" && !showPoolLength && (
           <>
             <input type="hidden" name="poolLengthValue" value={poolLength} />
             <input type="hidden" name="poolLengthUnit" value={poolUnit} />
@@ -329,7 +353,7 @@ export function SwimmingForm({
             hint="Rests left out"
             error={errors?.activeMs ?? errors?.activeMinutes ?? errors?.activeSeconds}
           >
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
               <Field label="Minutes">
                 <Input
                   name="activeMinutes"
