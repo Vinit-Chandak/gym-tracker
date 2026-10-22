@@ -146,8 +146,15 @@ export function continuousStretches(run: RecordedRun): Stretch[] {
         if (!measured(laps[to]!)) break;
         metres += laps[to]!.distanceMetres!;
         ms += laps[to]!.durationMs!;
-        // Every lap, back to back, is the whole run again.
-        if (from === 0 && to === laps.length - 1) continue;
+        // Every lap, back to back, is the whole run again only when it says the same: laps of
+        // 5,000 m in 20:00 under a total of 20:01 are their own recorded effort, and kept.
+        if (
+          from === 0 &&
+          to === laps.length - 1 &&
+          Math.abs(metres - run.distanceMetres) < 0.5 &&
+          Math.abs(ms - run.durationMs) < 500
+        )
+          continue;
         stretches.push({
           metres,
           ms,

@@ -114,6 +114,24 @@ describe("a steady run", () => {
     expect(parts(steady)).toContain("laps 1–2");
   });
 
+  it("keeps the laps whole as their own effort when they differ from the totals", () => {
+    // One 5,000 m lap of 20:00 under a total of 20:01: both were recorded, and both stand.
+    const trial = run("time_trial", 5000, 1201, [lap(5000, 1200)]);
+    expect(continuousStretches(trial)).toEqual([
+      { metres: 5000, ms: 1_201_000, part: "whole run", rep: false },
+      { metres: 5000, ms: 1_200_000, part: "lap 1", rep: false },
+    ]);
+    // Laps holding 10.0 km of a run the watch made 10.6 km: the laps are a 10K the total is not.
+    const long = run("long", 10_600, 3000, [lap(5000, 1500), lap(5000, 1500)]);
+    expect(parts(long)).toEqual(["whole run", "lap 1", "laps 1–2", "lap 2"]);
+    // The same figures as the run are the whole run again, said once.
+    expect(parts(run("easy", 2000, 600, [lap(1000, 300), lap(1000, 300)]))).toEqual([
+      "whole run",
+      "lap 1",
+      "lap 2",
+    ]);
+  });
+
   it("keeps each lap's own time when the laps do not account for the run", () => {
     // A minute in the total that no lap holds: a stop that was not recorded. It slows no lap,
     // and no laps are joined across it, since nobody knows where it fell.
