@@ -363,7 +363,8 @@ export type RunInput = {
 };
 
 export type RunPoint = RunInput & {
-  /** Seconds per kilometre; none without distance. */ pace: number | null;
+  /** Seconds per kilometre; none without distance, or for a run with breaks. */
+  pace: number | null;
 };
 
 export type RunBucket = Slot & {

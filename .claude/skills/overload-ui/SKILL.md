@@ -137,9 +137,9 @@ does not play a second slide over Safari's own.
   A route that opens is not a task that works, and an audit that only opens routes says so in its
   title. A walk that will be repeated becomes a script under `scripts/dev/` that fails when the
   task fails.
-- Before a commit: typecheck, lint and format the changed files, and run the tests related to
-  them (`npx vitest related --run <files>`); the whole suite runs once before a push that reaches
-  shared code (`AGENTS.md`, Testing: only what changed).
+- Before a commit, a push or a merge: typecheck, lint and format the changed files, and run the
+  tests relevant to them (`npx vitest related --run <files>`); the whole suite runs only for a
+  change that spans most of the app at once (`AGENTS.md`, Testing: only what changed).
 - **Show a design proposal on the owner's phone.** Publish renders as a claude.ai artifact (the
   Design canvas, phone-sized boards), not inline chat widgets, which do not render on a phone.
   Name what the renders are for (a colour study is not a layout).

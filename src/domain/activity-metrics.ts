@@ -37,6 +37,7 @@ import {
   withinPrecision,
   type LimitProblem,
 } from "./activity-limits";
+import { hasBreaks } from "./run-segments";
 import type { RunType } from "./run-types";
 
 /**
@@ -332,16 +333,18 @@ export function lapsMakeIntervals(laps: readonly Pick<LapFigures, "phase">[]): b
 }
 
 /**
- * The reps' pace (DESIGN.md, Laps and intervals): the work laps that have both a distance and a
- * time, their distance over their time, and how many of them that is. A rep timed without a
- * distance is left out of it, not counted as standing still.
+ * The reps' pace (DESIGN.md, Laps and intervals): the reps that have both a distance and a time,
+ * their distance over their time, and how many of them that is. The reps are the work laps where
+ * any lap is marked work, else every lap marked as nothing else, as best efforts read them (ADR
+ * 0062). A rep timed without a distance is left out of it, not counted as standing still.
  */
 export function repPace(
   laps: readonly LapFigures[],
 ): { secondsPerKm: number; reps: number } | null {
+  const marked = laps.some((lap) => lap.phase === "work");
   const measured = laps.filter(
     (lap) =>
-      lap.phase === "work" &&
+      (marked ? lap.phase === "work" : lap.phase === null) &&
       lap.metres !== null &&
       lap.metres > 0 &&
       lap.durationMs !== null &&
@@ -354,12 +357,13 @@ export function repPace(
 }
 
 /**
- * Whether a run's own pace has its rests in it: a session the athlete calls intervals, or one
- * whose laps hold reps with recoveries between them, whatever kind it was called. Its distance
- * over its time is then the "Overall, with rests" figure, never the athlete's running pace.
+ * Whether a run's own pace has its rests in it: a session run in pieces (intervals, hills,
+ * sprints, run-walk), or any run with a lap marked recovery, whatever kind it was called (ADR
+ * 0062, `hasBreaks`). Its distance over its time is then the "Overall, with rests" figure, never
+ * the athlete's running pace, and it is no effort as a whole.
  */
 export function paceHasRests(actual: Pick<RunningActualV1, "runType" | "laps">): boolean {
-  return actual.runType === "intervals" || lapsMakeIntervals(actual.laps);
+  return hasBreaks(actual);
 }
 
 /** The pace a run counts as: its own, or for a session with rests its reps'. */

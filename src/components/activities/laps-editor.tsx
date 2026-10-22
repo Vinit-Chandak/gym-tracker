@@ -9,6 +9,8 @@ import { Select } from "@/components/ui/select";
 import { STEP_PHASES, type StepPhase } from "@/domain/activity-prescription";
 import { LAP_LIMIT } from "@/domain/activity-limits";
 import { formatPaceSeconds, pacePerUnit, paceSecondsPerKm } from "@/domain/activity-metrics";
+import { unlappedMs } from "@/domain/run-segments";
+import { joinFacts } from "@/lib/facts";
 import { toMetres, type DistanceUnit } from "@/lib/distance-units";
 import {
   LAP_KIND_LABELS,
@@ -139,6 +141,29 @@ function askedTime(asked: PlannedLap["asked"] | undefined): string | undefined {
   return asked && "durationMs" in asked ? formatDuration(asked.durationMs / 1000) : undefined;
 }
 
+/**
+ * "Laps total 6:00 of the run's 10:00": said when the run's own time was typed and the laps,
+ * every one timed, leave some of it unaccounted for beyond a watch's rounding. Such laps are each
+ * read on their own and never joined (ADR 0062), so the athlete sees why. Laps longer than the
+ * run are refused at its time instead.
+ */
+function lapCoverage(laps: readonly PostedLap[], totalMs: number | undefined): string | null {
+  if (laps.length === 0 || !totalMs || !(totalMs > 0)) return null;
+  const gap = unlappedMs({
+    distanceMetres: 0,
+    durationMs: totalMs,
+    runType: null,
+    laps: laps.map((lap) => ({
+      phase: lap.phase,
+      distanceMetres: null,
+      durationMs: lap.durationMs,
+    })),
+  });
+  if (gap === null || gap <= 0) return null;
+  const lapped = laps.reduce((sum, lap) => sum + lap.durationMs!, 0);
+  return `Laps total ${formatDuration(Math.round(lapped / 1000))} of the run's ${formatDuration(Math.round(totalMs / 1000))}`;
+}
+
 const LAP_PROBLEM = /^laps\.(\d+)(?:\.([A-Za-z]+))?$/;
 
 /**
@@ -168,6 +193,7 @@ export function LapsEditor({
   errors,
   submitted = [],
   missing = {},
+  totalMs,
 }: {
   rows: LapRow[];
   onRowsChange: Dispatch<SetStateAction<LapRow[]>>;
@@ -183,6 +209,8 @@ export function LapsEditor({
    * where it is typed, which is the way to save it (the other is the watch's own total).
    */
   missing?: { distance?: boolean; time?: boolean };
+  /** The run's time where it was typed, not taken from the laps: to say what they leave out. */
+  totalMs?: number;
 }) {
   const id = useId();
   const listError = errors?.laps;
@@ -197,7 +225,7 @@ export function LapsEditor({
     if (refused) setOpen(true);
   }
   const postedRows = rows.map(postedLap);
-  const summary = lapSummary(postedRows);
+  const summary = joinFacts([lapSummary(postedRows), lapCoverage(postedRows, totalMs)]);
   const fallbackUnit: LapUnit = readIn === "mi" ? "mi" : "m";
 
   function change(key: string, patch: Partial<LapRow>) {

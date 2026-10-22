@@ -19,6 +19,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { bodyLoad } from "@/domain/body-load";
+import { runReading } from "@/domain/run-segments";
 import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
 import { readAddedLoad, WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -447,6 +448,8 @@ export async function readCoachingEvidence(
         startedAt: run.startedAt.toISOString(),
         distance: run.distanceMeters,
         duration: run.durationSeconds,
+        // Its kind, whether it had breaks and what its reps came to (ADR 0062).
+        ...runReading({ ...run, runType: run.runType ?? null, laps: run.laps ?? [] }, "summary"),
         rpe: run.effort.value,
         effortReported: run.effort.status === "reported",
         mode: run.environment,
