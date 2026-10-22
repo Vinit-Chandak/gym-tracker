@@ -122,7 +122,8 @@ On a branch, in this order, each step a reviewable pull request:
 5. the remaining areas one at a time: Food, Progress and history, Programme and coach, Friends,
    Gyms and machines, Profile and settings, onboarding and auth.
 
-Each pull request passes `npm run check` and carries before-and-after captures from the
+Each pull request passes typecheck, lint and format on its files and the tests relevant to them
+(`AGENTS.md`, Testing: only what changed), and carries before-and-after captures from the
 existing scripts (`scripts/dev/audit-browser.mjs` at the iPhone 17 viewport, both themes).
 Those captures use WebKit and the browsers matching the repository's Playwright 1.63, which
 cloud sessions do not ship (they carry an older Chromium only). Install them in the cloud

@@ -10,18 +10,23 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Testing: only what changed
 
-The full suite takes about ten minutes. Do not run it as a routine check, and never run the same
-tests twice when nothing they cover has changed since they passed.
+The full suite takes about ten minutes. Run the tests relevant to the change, and only those:
+after a change, before a commit, before a push and before a merge alike (owner, 22 October 2026).
+Never run the same tests twice when nothing they cover has changed since they passed.
 
-- After a change, run the tests for what changed: `npx vitest related --run <changed files>` runs
-  every test that imports them (`git diff --name-only` lists the files). Add a test file you edited
-  by its own path.
+- Relevant means the tests of the code you changed: its own test file and the tests of what calls
+  it. `npx vitest related --run <changed files>` finds every test that imports them
+  (`git diff --name-only` lists the files); when a changed file is imported nearly everywhere and
+  that would be most of the suite, run the changed code's own tests and its direct callers'
+  instead. Add a test file you edited by its own path.
 - Typecheck with `npm run typecheck`, and lint and format only the changed files
   (`npx eslint <files>`, `npx prettier --check <files>`).
 - Re-run a test only after changing the code it covers. A test that passed and whose code has not
-  changed since is not run again.
-- The whole suite (`npm run test`, or `npm run check`, which includes it) runs at most once per set
-  of changes, just before pushing, and only when the change reaches shared code (`src/components/ui`,
-  `src/lib`, `src/db`, `src/server`, `next.config.ts`) or many areas at once. CI runs it on every
-  push.
-- When several agents work at once, none of them runs the whole suite; whoever pushes runs it once.
+  changed since is not run again; a small fix is followed by its own tests, not the suite.
+- The whole suite (`npm run test`, or `npm run check`, which includes it) runs only for a change
+  that spans most of the app at once (hundreds of screens: the app shell, a component every screen
+  uses, a framework or dependency upgrade), and then once, just before pushing. Reaching shared
+  code (`src/lib`, `src/server`, `src/domain`) is not by itself a reason: run the tests related to
+  the change. Nothing runs the suite on push: Vercel builds the app and runs no tests.
+- When several agents work at once, none of them runs the whole suite; whoever pushes a change
+  that spans the app runs it once.
