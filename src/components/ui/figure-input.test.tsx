@@ -56,3 +56,12 @@ it("stops replacing when the field is left untouched", () => {
   expect(input.hasAttribute("data-replacing")).toBe(false);
   expect(input.value).toBe("8");
 });
+
+it("selects the full figure so forward Delete and paste can replace it", () => {
+  render(<Field initial="123.45" />);
+  const input = screen.getByRole("textbox", { name: "Reps" }) as HTMLInputElement;
+  fireEvent.focus(input);
+  expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+  key(input, "", null, "deleteContentForward");
+  expect(input.value).toBe("");
+});

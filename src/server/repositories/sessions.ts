@@ -786,6 +786,48 @@ export async function getSessionDetail(
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
     const saved = row.we.savedPrescription ? manualPrescription(row.we.savedPrescription) : null;
+    const requested = row.planned ?? saved;
+    const logged = setRows.filter((set) => set.workoutExerciseId === row.we.id);
+    const measure = row.exercise.defaultPrescriptionType;
+    const substituted = row.planned
+      ? row.planned.exerciseId !== row.exercise.id
+      : row.we.savedPrescription?.exerciseSlug !== row.exercise.slug;
+    // A rep slot swapped for a hold or carry cannot supply its measurements. Keep the slot
+    // identity and set count, but use the replacement's own targets and effort convention.
+    // Existing sets in the old measure remain readable exactly as they were recorded.
+    const keepRecordedMeasure = logged.some(
+      (set) =>
+        (set.reps !== null && measure !== "reps") ||
+        (set.durationSeconds !== null && measure !== "duration") ||
+        (set.distanceMeters !== null && measure !== "distance"),
+    );
+    const prescription =
+      requested && substituted && requested.prescriptionType !== measure && !keepRecordedMeasure
+        ? {
+            ...requested,
+            prescriptionType: measure,
+            repMin: measure === "reps" ? row.exercise.defaultRepMin : null,
+            repMax: measure === "reps" ? row.exercise.defaultRepMax : null,
+            durationMinSeconds:
+              measure === "duration" ? row.exercise.defaultDurationMinSeconds : null,
+            durationMaxSeconds:
+              measure === "duration" ? row.exercise.defaultDurationMaxSeconds : null,
+            distanceMinMeters:
+              measure === "distance" ? row.exercise.defaultDistanceMinMeters : null,
+            distanceMaxMeters:
+              measure === "distance" ? row.exercise.defaultDistanceMaxMeters : null,
+            rirMin: measure === "reps" ? row.exercise.defaultRir : null,
+            rirMax: measure === "reps" ? row.exercise.defaultRir : null,
+            restMinSeconds: row.exercise.defaultRestSeconds,
+            restMaxSeconds: row.exercise.defaultRestSeconds,
+            perSide: false,
+            targetLoadNote: null,
+            progressionNotes: null,
+            keyCue: null,
+            progressionRule: null,
+            loadIncrement: null,
+          }
+        : requested;
     const rule = applyRule({
       asOf: session.session.startedAt,
       changes: coachingChanges,
@@ -793,7 +835,7 @@ export async function getSessionDetail(
       locationKind: session.gym.kind,
       timeZone:
         options.timeZone ?? (profile && "timeZone" in profile ? profile.timeZone : "Asia/Kolkata"),
-      planned: row.planned ?? saved,
+      planned: prescription,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
       ladder: row.equipment?.id ? ladders.get(row.equipment.id) : null,
@@ -833,8 +875,7 @@ export async function getSessionDetail(
       targets.kind !== "coach" &&
       ramp &&
       row.we.id === firstLift &&
-      ((row.planned ?? saved)?.prescriptionType ?? row.exercise.defaultPrescriptionType) ===
-        "reps" &&
+      (prescription?.prescriptionType ?? row.exercise.defaultPrescriptionType) === "reps" &&
       !ladder?.assisted
         ? withRamp(targets.sets, ramp, {
             step: weightStep,
@@ -897,39 +938,35 @@ export async function getSessionDetail(
             })(),
           }
         : null,
-      planned: row.planned
+      planned: prescription
         ? {
-            programExerciseId: row.planned.id,
+            programExerciseId: row.planned?.id ?? null,
             plannedExerciseName: row.plannedExerciseName ?? row.exercise.name,
-            sets: row.planned.sets,
-            prescriptionType: row.planned.prescriptionType,
-            repMin: row.planned.repMin,
-            repMax: row.planned.repMax,
-            durationMinSeconds: row.planned.durationMinSeconds,
-            durationMaxSeconds: row.planned.durationMaxSeconds,
-            distanceMinMeters: row.planned.distanceMinMeters,
-            distanceMaxMeters: row.planned.distanceMaxMeters,
-            perSide: row.planned.perSide,
-            rirMin: row.planned.rirMin,
-            rirMax: row.planned.rirMax,
-            restMinSeconds: row.planned.restMinSeconds,
-            restMaxSeconds: row.planned.restMaxSeconds,
-            targetLoadNote: row.planned.targetLoadNote,
-            progressionNotes: row.planned.progressionNotes,
-            keyCue: row.planned.keyCue,
+            sets: prescription.sets,
+            prescriptionType: prescription.prescriptionType,
+            repMin: prescription.repMin,
+            repMax: prescription.repMax,
+            durationMinSeconds: prescription.durationMinSeconds,
+            durationMaxSeconds: prescription.durationMaxSeconds,
+            distanceMinMeters: prescription.distanceMinMeters,
+            distanceMaxMeters: prescription.distanceMaxMeters,
+            perSide: prescription.perSide,
+            rirMin: prescription.rirMin,
+            rirMax: prescription.rirMax,
+            restMinSeconds: prescription.restMinSeconds,
+            restMaxSeconds: prescription.restMaxSeconds,
+            targetLoadNote: prescription.targetLoadNote,
+            progressionNotes: prescription.progressionNotes,
+            keyCue: prescription.keyCue,
           }
-        : saved
-          ? { ...saved, programExerciseId: null, plannedExerciseName: row.exercise.name }
-          : null,
+        : null,
       supersetGroup: row.we.supersetGroup,
       substitutionReason: row.we.substitutionReason,
       notes: row.we.notes,
       completedAt: row.we.completedAt,
       skippedAt: row.we.skippedAt,
       weightStep,
-      sets: setRows
-        .filter((s) => s.workoutExerciseId === row.we.id)
-        .map(({ workoutExerciseId: _ignored, ...set }) => set),
+      sets: logged.map(({ workoutExerciseId: _ignored, ...set }) => set),
       previous,
       basis: basisPerformance,
       suggestion,

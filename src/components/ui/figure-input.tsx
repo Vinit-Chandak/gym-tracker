@@ -33,8 +33,9 @@ export function FigureInput({
       onFocus={(event) => {
         const input = event.currentTarget;
         input.toggleAttribute(REPLACING, input.value !== "");
-        // Anything not typed over (a paste) goes after the figure, never into it.
-        input.setSelectionRange(input.value.length, input.value.length);
+        // Select on desktop so Delete and paste replace the highlighted figure too. Keep the
+        // first-input fallback below for mobile browsers that ignore this selection.
+        input.select();
         onFocus?.(event);
       }}
       onChange={(event) => {

@@ -149,3 +149,22 @@ it("says a refused lap's problem at that lap, on the fields at fault", () => {
   expect(lap(0).queryByRole("alert")).toBeNull();
   expect(lap(0).getByLabelText("Time").getAttribute("aria-invalid")).toBeNull();
 });
+
+it("blocks unreadable optional lap entries instead of saving them as unknown", () => {
+  const { container } = render(<Laps />);
+  fireEvent.click(screen.getByRole("button", { name: "+ Rep" }));
+  fireEvent.change(lap(0).getByLabelText("Distance"), { target: { value: "400" } });
+  const heartRate = lap(0).getByLabelText("Avg HR") as HTMLInputElement;
+  fireEvent.change(heartRate, { target: { value: "oops" } });
+  expect(heartRate.checkValidity()).toBe(false);
+  expect(heartRate.getAttribute("aria-invalid")).toBe("true");
+  const data = new FormData(container.querySelector("form")!);
+  const restored = lapRowsFrom(String(data.get("laps")), String(data.get("lapEntries")));
+  expect(restored[0]?.averageHeartRate).toBe("oops");
+  fireEvent.change(heartRate, { target: { value: "150" } });
+  expect(heartRate.checkValidity()).toBe(true);
+  expect(posted(container)[0]?.averageHeartRate).toBe(150);
+  const distance = lap(0).getByLabelText("Distance") as HTMLInputElement;
+  fireEvent.change(distance, { target: { value: "abc" } });
+  expect(distance.checkValidity()).toBe(false);
+});

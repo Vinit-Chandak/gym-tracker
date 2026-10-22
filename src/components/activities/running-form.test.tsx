@@ -17,6 +17,20 @@ const props = {
   submitLabel: "Save run",
 };
 
+it("only asks for a treadmill incline on a treadmill, keeping it when toggled back", () => {
+  const { container } = render(<RunningForm {...props} />);
+  const posted = () => new FormData(container.querySelector("form")!);
+  expect(screen.queryByRole("textbox", { name: "Incline %" })).toBeNull();
+  expect(posted().has("treadmillInclinePercent")).toBe(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Treadmill" }));
+  fireEvent.change(screen.getByLabelText("Incline %"), { target: { value: "2.5" } });
+  expect(posted().get("treadmillInclinePercent")).toBe("2.5");
+  fireEvent.click(screen.getByRole("radio", { name: "Outdoor" }));
+  expect(posted().has("treadmillInclinePercent")).toBe(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Treadmill" }));
+  expect(posted().get("treadmillInclinePercent")).toBe("2.5");
+});
+
 /**
  * A run logged on a phone's number pad, which has neither a colon nor a point: the time is
  * typed in digits and the colons place themselves, and the distance is its whole and what

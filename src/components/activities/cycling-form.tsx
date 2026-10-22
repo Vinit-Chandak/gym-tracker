@@ -82,6 +82,8 @@ type Props = {
   openDetails?: boolean;
   /** The unit the athlete reads rides in, which a recorded ride opens in. */
   readIn?: DistanceUnit;
+  /** An unsaved draft keeps its chosen distance unit; other fields use the profile's units. */
+  restoreEntryUnits?: boolean;
 };
 
 export function CyclingForm({
@@ -96,6 +98,7 @@ export function CyclingForm({
   keptEffort = null,
   openDetails = false,
   readIn,
+  restoreEntryUnits = false,
 }: Props) {
   // A refused save keeps every value and choice, a select's included (PRODUCT.md, principle 8).
   const form = useKeptForm();
@@ -103,7 +106,11 @@ export function CyclingForm({
   const values = useFormValues(state, initial);
   // A ride entered in kilometres opens in miles for a miles rider, and the other way round.
   const [opened] = useState(() =>
-    openDistance(values("distanceValue"), values("distanceUnit") || readIn || "km", readIn),
+    openDistance(
+      values("distanceValue"),
+      values("distanceUnit") || readIn || "km",
+      restoreEntryUnits ? undefined : readIn,
+    ),
   );
   const [distance, setDistance] = useState(opened.value);
   const [unit, setUnit] = useState(opened.unit);
@@ -232,11 +239,11 @@ export function CyclingForm({
           ].some((field) => Boolean(errors?.[field]))}
         >
           <ActivityStartFields values={values} errors={errors} />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
             <Field label="Average power W" error={errors?.averagePowerWatts}>
               <Input
                 name="averagePowerWatts"
-                inputMode="numeric"
+                inputMode="decimal"
                 defaultValue={values("averagePowerWatts")}
                 placeholder="—"
               />
@@ -244,7 +251,7 @@ export function CyclingForm({
             <Field label="Average cadence rpm" error={errors?.averageCadenceRpm}>
               <Input
                 name="averageCadenceRpm"
-                inputMode="numeric"
+                inputMode="decimal"
                 defaultValue={values("averageCadenceRpm")}
                 placeholder="—"
               />

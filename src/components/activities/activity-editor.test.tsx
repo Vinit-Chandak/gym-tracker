@@ -19,6 +19,45 @@ const props = {
   submitLabel: "Save activity",
 };
 
+it("keeps button-only duration, distance and unit changes through reload", async () => {
+  const action = vi.fn();
+  const units = { distanceUnit: "mi", poolUnit: "yd" } as const;
+  const first = render(<ActivityEditor {...props} units={units} action={action} />);
+  fireEvent.click(await screen.findByRole("button", { name: "A minute more" }));
+  fireEvent.click(screen.getByRole("button", { name: "More, 0.1 mi" }).querySelector("svg")!);
+  fireEvent.click(screen.getByRole("button", { name: "Distance in mi. Change to km" }));
+  await waitFor(() =>
+    expect(readDrafts(localStorage, props.userId).drafts[0]?.values).toMatchObject({
+      minutes: "1",
+      distanceValue: "0.1",
+      distanceUnit: "km",
+    }),
+  );
+  first.unmount();
+  render(<ActivityEditor {...props} units={units} action={action} />);
+  expect(await screen.findByText(/^Draft restored/)).toBeTruthy();
+  expect(screen.getByLabelText("Duration")).toHaveProperty("value", "1:00");
+  expect(screen.getByLabelText("Distance, after the point")).toHaveProperty("value", "1");
+  expect(screen.getByRole("button", { name: "Distance in km. Change to mi" })).toBeTruthy();
+  expect(screen.getByLabelText("Elevation gain ft")).toBeTruthy();
+});
+
+it("keeps lap additions even when no field was typed", async () => {
+  const action = vi.fn();
+  const first = render(<ActivityEditor {...props} sport="running" action={action} />);
+  fireEvent.click(await screen.findByText("Laps and intervals"));
+  fireEvent.click(screen.getByRole("button", { name: "+ Rep" }));
+  fireEvent.click(screen.getByRole("button", { name: "+ Recovery" }));
+  await waitFor(() => {
+    const value = readDrafts(localStorage, props.userId).drafts[0]?.values.laps;
+    expect(value && JSON.parse(value)).toHaveLength(2);
+  });
+  first.unmount();
+  render(<ActivityEditor {...props} sport="running" action={action} />);
+  expect(await screen.findByText(/^Draft restored/)).toBeTruthy();
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+});
+
 it("recovers a backdated draft even after its actual training date was corrected", async () => {
   const initial = {
     ...props.initial,

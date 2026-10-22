@@ -1359,8 +1359,18 @@ button.activity-card-toggle {
 .row-stepper-control {
   display: flex;
   flex-shrink: 0;
+  max-width: 100%;
   align-items: center;
   margin-left: auto;
+}
+/* Text can grow without making two buttons wider than a narrow panel. Keep their physical
+   targets and let the figure's column use the remaining room. */
+.row-stepper-control > .round-button {
+  width: calc(44 * var(--ov-u));
+  min-width: calc(44 * var(--ov-u));
+  height: calc(44 * var(--ov-u));
+  min-height: calc(44 * var(--ov-u));
+  flex-shrink: 0;
 }
 /* The value's fixed column. The whole column is the field's target: a tap anywhere in it types
    the value (row-stepper.tsx), and the field itself is never smaller than a target. The column
@@ -1378,7 +1388,7 @@ button.activity-card-toggle {
   cursor: text;
 }
 .row-stepper-figure > .figure-input {
-  min-width: var(--ov-target);
+  min-width: calc(44 * var(--ov-u));
   min-height: var(--ov-target);
   max-width: 100%;
   font-family: var(--ov-font-display);
@@ -1766,7 +1776,7 @@ html:has(.standalone-error) {
 /* A unit that can be changed (km or mi): its word, a target of its own; pressing it says the
    distance in the other. */
 .row-stepper-unit-button {
-  min-width: var(--ov-target);
+  min-width: calc(44 * var(--ov-u));
   min-height: var(--ov-target);
   padding: 0 calc(4 * var(--ov-u));
   cursor: pointer;
