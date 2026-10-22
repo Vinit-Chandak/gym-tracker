@@ -3,6 +3,11 @@
 Audited and repaired running, cycling, swimming and strength logging on
 `audit/exercise-logging`, created from `main` at `3466a83e`.
 
+Before release, integrated `main` at `6bca5480`, including its running-history and lap-coverage
+changes. The combined code passed 100 targeted tests in 9 files, a fresh production build,
+TypeScript, and lint/format checks for the merged forms. Browser-to-database follow-ups passed
+for running fields and lap validation in Chromium and WebKit, plus planned intervals in Chromium.
+
 The latest scoped browser checks pass: **40 Chromium cases and 40 WebKit cases**,
 combined across the initial runs and targeted follow-ups. These are different sets:
 Chromium includes the planned interval run; WebKit includes the full retrospective
@@ -49,7 +54,8 @@ The [verification summary](2026-10-22-exercise-logging-verification.json) record
   targeted workout follow-up. The workout follow-up includes offline recovery.
 - Regression tests cover draft buttons/units, numeric clearing, treadmill visibility,
   swim validation/preview, invalid lap text and substitution measurements/history.
-- The full test suite was not run; checks followed the repository's changed-code policy.
+- No completed full-suite result is claimed; release checks followed the updated repository
+  policy for the changed code and its direct callers.
 
 ## Environment and evidence
 
@@ -70,6 +76,9 @@ The consolidated browser record is `verified-browser-summary.json`. The final su
 check completed its set/checkbox assertions in `results-substitution-final.json`, then
 continued the finish validation in `results-substitution-finish.json`. Supplementary
 Chromium/database evidence is in `strength-manual.json` and the strength screenshots.
+Release follow-ups are in `results-release-main-integration.json` for each browser and
+`results-release-planned-main-integration.json` for Chromium. The earlier planned-run fixture
+had already been logged; only that local audit record was reset before repeating its case.
 
 Initial failures caused by stale audit selectors and navigation assumptions were corrected
 in the harness. WebKit's cancelled prefetches during viewport changes stopped affecting

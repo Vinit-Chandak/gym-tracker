@@ -122,6 +122,15 @@
   "changedFileLint": "passed",
   "changedFileFormat": "passed",
   "fullSuiteRun": false,
+  "releaseIntegration": {
+    "mainCommit": "6bca5480c998cc368c9753e51e8fef3ec8ad94c0",
+    "targetedTests": { "passed": 100, "files": 9 },
+    "browserFollowUps": { "chromiumPassed": 3, "webkitPassed": 2 },
+    "productionBuild": "passed",
+    "typecheck": "passed",
+    "changedFileLint": "passed",
+    "changedFileFormat": "passed"
+  },
   "evidenceRoot": "output/audit-logging-2026-10-22",
   "notes": [
     "Results combine initial runs and targeted follow-ups.",
