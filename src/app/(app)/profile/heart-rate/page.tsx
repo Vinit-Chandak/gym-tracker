@@ -11,6 +11,7 @@ import {
   estimatedMaxHeartRate,
   maxBasisLabel,
   maxZones,
+  resolveHeartRate,
   ZONE_FEEL,
   ZONE_METHOD_LABELS,
   ZONE_NUMBERS,
@@ -120,7 +121,7 @@ export default async function HeartRatePage() {
           defaultOpen={!resolved}
         >
           <HeartRateForm
-            inUse={settings.maxHeartRate === null ? (resolved?.max ?? null) : null}
+            inUse={resolveHeartRate({ ...settings, maxHeartRate: null }, age, highest)?.max ?? null}
             estimate={estimate}
             values={{
               maxHeartRate: settings.maxHeartRate,

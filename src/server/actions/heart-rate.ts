@@ -6,14 +6,14 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
-import { customFloorsProblem, resolveHeartRate } from "@/domain/heart-rate";
+import { resolveHeartRate } from "@/domain/heart-rate";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { heartRateSettingsOf, highestRecentRunHeartRate } from "@/server/repositories/heart-rate";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
-import { heartRateInputSchema } from "@/server/validation/heart-rate";
+import { heartRateFieldErrors, heartRateInputSchema } from "@/server/validation/heart-rate";
 import { ageOn } from "@/lib/units";
 
 /** Every screen that reads a zone: the page itself, a run's page and a plan's targets. */
@@ -75,18 +75,8 @@ export async function saveHeartRateAction(
         age,
         await highestRecentRunHeartRate(tx, user.id, today),
       );
-      if (input.restingHeartRate !== null && resolved && input.restingHeartRate >= resolved.max)
-        return { restingHeartRate: "Your resting heart rate must be below your maximum." };
-      if (custom) {
-        if (!resolved)
-          return {
-            maxHeartRate: "Enter your maximum heart rate, or add your date of birth, to set zones.",
-          };
-        if (floors.some((value) => value === null))
-          return { zone1: "Give a starting heart rate for each of the five zones." };
-        const problem = customFloorsProblem(floors as number[], resolved.max);
-        if (problem) return { zone1: problem };
-      }
+      const errors = heartRateFieldErrors(input, resolved?.max ?? null);
+      if (Object.keys(errors).length > 0) return errors;
       await tx
         .update(profiles)
         .set({

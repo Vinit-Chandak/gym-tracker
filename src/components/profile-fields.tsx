@@ -128,7 +128,7 @@ export function ProfileFields({
               <Input
                 type="text"
                 name="heightInches"
-                inputMode="numeric"
+                inputMode="decimal"
                 value={inches}
                 onChange={(event) => setInches(event.target.value)}
               />

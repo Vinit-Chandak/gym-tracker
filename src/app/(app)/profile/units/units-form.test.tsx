@@ -22,6 +22,13 @@ const posted = (container: HTMLElement, name: string) =>
   new FormData(container.querySelector("form")!).get(name);
 
 describe("units and time zone", () => {
+  it("removes success feedback when the units change again", async () => {
+    render(<UnitsForm values={saved} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Units and time zone saved");
+    chooseUnit("lb");
+    expect(screen.queryByText("Units and time zone saved")).toBeNull();
+  });
   it("holds the weight, the distance and the zone, with Save", () => {
     render(<UnitsForm values={saved} />);
     expect(screen.getByRole("radiogroup", { name: "Weight" })).toBeTruthy();

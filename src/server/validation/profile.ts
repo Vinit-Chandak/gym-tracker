@@ -47,7 +47,7 @@ const optionalNumber = z.preprocess(
     .transform((value, ctx) => {
       if (value === "") return null;
       const parsed = Number(value.replace(",", "."));
-      if (!Number.isFinite(parsed) || parsed < 0) {
+      if (!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value) || !Number.isFinite(parsed)) {
         ctx.addIssue({ code: "custom", message: "Enter a number." });
         return z.NEVER;
       }
@@ -125,37 +125,35 @@ export type UnitsInput = z.output<typeof unitsInputSchema>;
  * says which (`heightUnit`), so the conversion never has to guess; it leaves as centimetres,
  * which is how it is stored.
  */
-export const profileInputSchema = z
-  .object({
-    displayName: z.preprocess(
-      asString,
-      z
-        .string()
-        .trim()
-        .min(1, "Tell us what to call you.")
-        .max(80, "Keep this under 80 characters."),
-    ),
-    username: usernameSchema,
-    dateOfBirth: dateOfBirthSchema,
-    sex: sexSchema,
-    trainingGoal: z.enum(TRAINING_GOALS, { error: "Choose what you are training for." }),
-    /** Which of the height fields the form showed; centimetres unless it says otherwise. */
-    heightUnit: z.enum(HEIGHT_UNITS).catch("cm"),
-    heightCm: optionalNumber,
-    heightFeet: optionalNumber,
-    heightInches: optionalNumber,
-  })
+const heightInputSchema = z
+  .preprocess(
+    (input) => {
+      const values =
+        typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+      // Validate only the fields this form actually showed.
+      return values.heightUnit === "ftin"
+        ? { ...values, heightCm: undefined }
+        : { ...values, heightFeet: undefined, heightInches: undefined };
+    },
+    z.object({
+      heightUnit: z.enum(HEIGHT_UNITS).default("cm"),
+      heightCm: optionalNumber,
+      heightFeet: optionalNumber.refine((value) => value === null || Number.isInteger(value), {
+        message: "Enter feet as a whole number; put the rest in inches.",
+      }),
+      heightInches: optionalNumber.refine((value) => value === null || value < 12, {
+        message: "Enter inches from 0 to less than 12.",
+      }),
+    }),
+  )
   .transform((values, ctx) => {
     const imperial = values.heightUnit === "ftin";
     const heightPath = imperial ? "heightFeet" : "heightCm";
-    let heightCm: number | null = null;
-    if (imperial) {
-      if (values.heightFeet !== null || values.heightInches !== null) {
-        heightCm = toCentimetres(values.heightFeet ?? 0, values.heightInches ?? 0);
-      }
-    } else {
-      heightCm = values.heightCm;
-    }
+    const heightCm = imperial
+      ? values.heightFeet === null && values.heightInches === null
+        ? null
+        : toCentimetres(values.heightFeet ?? 0, values.heightInches ?? 0)
+      : values.heightCm;
     if (heightCm === null) {
       ctx.addIssue({ code: "custom", path: [heightPath], message: "Enter your height." });
       return z.NEVER;
@@ -170,15 +168,27 @@ export const profileInputSchema = z
       });
       return z.NEVER;
     }
-
-    return {
-      displayName: values.displayName,
-      username: values.username,
-      dateOfBirth: values.dateOfBirth,
-      sex: values.sex,
-      trainingGoal: values.trainingGoal,
-      heightCm,
-    };
+    return { heightCm };
   });
+
+// Validate height independently: an unanswered goal must not hide a height error until the
+// next save. The intersection combines all field errors in the same response.
+export const profileInputSchema = z.intersection(
+  z.object({
+    displayName: z.preprocess(
+      asString,
+      z
+        .string()
+        .trim()
+        .min(1, "Tell us what to call you.")
+        .max(80, "Keep this under 80 characters."),
+    ),
+    username: usernameSchema,
+    dateOfBirth: dateOfBirthSchema,
+    sex: sexSchema,
+    trainingGoal: z.enum(TRAINING_GOALS, { error: "Choose what you are training for." }),
+  }),
+  heightInputSchema,
+);
 
 export type ProfileInput = z.output<typeof profileInputSchema>;

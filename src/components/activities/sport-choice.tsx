@@ -6,6 +6,7 @@ import { Art } from "@/components/art/art";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
+import { SavedNotice } from "@/components/ui/saved-notice";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -34,8 +35,18 @@ export function SportChoice({
   enabled: readonly ActivitySport[];
   submitLabel: string;
 }) {
-  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
+  const [state, formAction, pending] = useActionState(
+    keepsFormOnDisconnect(action),
+    INITIAL_FORM_STATE,
+  );
   const [chosen, setChosen] = useState<ActivitySport[]>(() => [...enabled]);
+  const [editedState, setEditedState] = useState(state);
+  const saved =
+    state !== INITIAL_FORM_STATE &&
+    editedState !== state &&
+    !state.formError &&
+    !state.fieldErrors &&
+    !state.values;
 
   // Board Sports: a tile each, the chosen in ink with its mark on a ground square and a check;
   // the action pinned.
@@ -51,13 +62,15 @@ export function SportChoice({
               type="button"
               role="checkbox"
               aria-checked={on}
-              onClick={() =>
+              disabled={pending}
+              onClick={() => {
+                setEditedState(state);
                 setChosen((current) =>
                   current.includes(sport)
                     ? current.filter((item) => item !== sport)
                     : [...current, sport],
-                )
-              }
+                );
+              }}
               className="sport-tile"
             >
               <span className="sport-tile-mark">
@@ -72,8 +85,11 @@ export function SportChoice({
         })}
       </div>
       <PinnedActions stack>
-        <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+        <FormError message={state.formError ?? state.fieldErrors?.sports} />
+        {saved && !pending && <SavedNotice>Sports saved</SavedNotice>}
+        <SubmitButton pendingLabel="Saving…">
+          {state.formError ? "Retry" : submitLabel}
+        </SubmitButton>
       </PinnedActions>
     </form>
   );
