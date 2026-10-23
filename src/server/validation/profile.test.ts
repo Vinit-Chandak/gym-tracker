@@ -128,12 +128,31 @@ describe("profile input", () => {
   });
 
   it("rejects a height that is not a plausible number", () => {
-    for (const value of ["30", "300", "tall"]) {
+    for (const value of ["30", "300", "tall", "0xb2", "1.78e2", "Infinity", "-178"]) {
       expect(parse({ heightCm: value }).success, value).toBe(false);
     }
     expect(
       errorFor(profileInputSchema.safeParse({ ...imperial, heightFeet: "9" }), "heightFeet"),
     ).toBe("Enter a height between 1′ 8″ and 8′ 6″.");
+  });
+
+  it("reports height alongside the other missing answers in one save", () => {
+    const result = parse({ displayName: "", heightCm: "", dateOfBirth: "", trainingGoal: "" });
+    for (const field of ["displayName", "heightCm", "dateOfBirth", "trainingGoal"])
+      expect(errorFor(result, field), field).toBeDefined();
+  });
+
+  it("keeps feet whole and inches below twelve, accepting decimal inches", () => {
+    expect(
+      errorFor(profileInputSchema.safeParse({ ...imperial, heightFeet: "5.5" }), "heightFeet"),
+    ).toBeDefined();
+    expect(
+      errorFor(profileInputSchema.safeParse({ ...imperial, heightInches: "12" }), "heightInches"),
+    ).toBeDefined();
+    expect(profileInputSchema.safeParse({ ...imperial, heightInches: "10,5" }).data?.heightCm).toBe(
+      179.1,
+    );
+    expect(parse({ heightFeet: "not shown", heightInches: "not shown" }).success).toBe(true);
   });
 
   it("rejects a birth date that is not real, or not in the past", () => {

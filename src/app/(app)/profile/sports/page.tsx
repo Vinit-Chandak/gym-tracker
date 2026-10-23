@@ -25,7 +25,7 @@ export default async function SportsPage() {
         title="Sports"
         backHref="/profile"
         action={
-          <InfoTip label="About turning a sport off">
+          <InfoTip label="About turning a sport off" className="[&>button]:m-0">
             Only its shortcuts go. Its history, and anything already in your programme, stay as they
             are.
           </InfoTip>

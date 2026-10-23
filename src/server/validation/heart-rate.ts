@@ -4,13 +4,19 @@ import {
   HEART_RATE_ZONE_METHODS,
   MAX_HEART_RATE_BOUND,
   RESTING_HEART_RATE,
+  customFloorsProblem,
 } from "@/domain/heart-rate";
 import { HEART_RATE } from "@/domain/activity-limits";
 
 /** A whole number of beats a minute, or null when the field was left blank. */
 const beats = (label: string, bound: { min: number; max: number }) =>
   z.preprocess(
-    (value) => (typeof value === "string" && value.trim() !== "" ? value.trim() : null),
+    (value) => {
+      if (typeof value !== "string" || value.trim() === "") return null;
+      const typed = value.trim();
+      // A pasted hexadecimal or exponent expression is not a heart-rate reading.
+      return /^\d+(?:\.\d+)?$/.test(typed) ? typed : Number.NaN;
+    },
     z.coerce
       .number({ error: `Enter ${label} as a number.` })
       .int({ error: `Enter ${label} in whole beats a minute.` })
@@ -40,3 +46,33 @@ export const heartRateInputSchema = z.object({
 });
 
 export type HeartRateInput = z.output<typeof heartRateInputSchema>;
+
+/** Cross-field checks, shared by the saved settings and corrections made on the form. */
+export function heartRateFieldErrors(
+  input: HeartRateInput,
+  max: number | null,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (input.restingHeartRate !== null && max !== null && input.restingHeartRate >= max)
+    errors.restingHeartRate = "Your resting heart rate must be below your maximum.";
+  if (input.zoneMethod === "custom") {
+    if (max === null)
+      errors.maxHeartRate =
+        "Enter your maximum heart rate, or add your date of birth, to set zones.";
+    const floors = [input.zone1, input.zone2, input.zone3, input.zone4, input.zone5];
+    floors.forEach((floor, index) => {
+      if (floor === null) errors[`zone${index + 1}`] = `Enter where zone ${index + 1} starts.`;
+    });
+    if (max !== null && floors.every((floor) => floor !== null)) {
+      const problem = customFloorsProblem(floors, max);
+      if (problem) {
+        const outOfOrder = floors.findIndex(
+          (floor, index) => index > 0 && floor <= floors[index - 1]!,
+        );
+        const zone = outOfOrder > 0 ? outOfOrder + 1 : floors[4]! >= max ? 5 : 1;
+        errors[`zone${zone}`] = problem;
+      }
+    }
+  }
+  return errors;
+}

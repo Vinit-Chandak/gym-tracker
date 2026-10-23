@@ -7,6 +7,7 @@ import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { SavedNotice } from "@/components/ui/saved-notice";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { BODY_LOAD_UNITS, type BodyLoadUnit } from "@/domain/types";
 import {
   followsWeight,
@@ -79,7 +80,9 @@ export function UnitsForm({ values }: { values: UnitsValues }) {
     INITIAL_FORM_STATE,
   );
   const form = useKeptForm();
+  const [editedState, setEditedState] = useState(state);
   const saved =
+    editedState !== state &&
     state !== INITIAL_FORM_STATE &&
     state.fieldErrors === undefined &&
     state.formError === undefined &&
@@ -124,69 +127,78 @@ export function UnitsForm({ values }: { values: UnitsValues }) {
   }
 
   return (
-    <form ref={form} action={formAction} className="space-y-4">
-      {/* Each unit a choice of two, with what it decides in its ⓘ. */}
-      <Field
-        group
-        label="Weight"
-        error={errors?.preferredUnit}
-        info="Loads and body weight, and height with them: centimetres with kg, feet and inches with lb."
-      >
-        <SegmentedControl
-          name="preferredUnit"
-          options={UNIT_OPTIONS}
-          value={unit}
-          onChange={(next) => changeUnit(next as BodyLoadUnit)}
-          columns={2}
-        />
-      </Field>
-
-      <Field
-        group
-        label="Distance"
-        error={errors?.distanceUnit}
-        info="Runs and rides. Carries and sleds go in metres with km, in yards with miles."
-      >
-        <SegmentedControl
-          name="distanceUnit"
-          options={DISTANCE_OPTIONS}
-          value={distances.distanceUnit}
-          onChange={(distanceUnit) => chooseDistance("distanceUnit", distanceUnit)}
-          columns={2}
-        />
-      </Field>
-
-      {/* Anyone who does not swim is not asked: their pool goes on as it is, following the
-          weight unit unless it was set apart. */}
-      {values.swims ? (
-        <Field group label="Pools" error={errors?.poolUnit}>
+    <form
+      ref={form}
+      action={formAction}
+      onChange={() => setEditedState(state)}
+      className="space-y-4"
+      noValidate
+    >
+      <fieldset disabled={pending} className="min-w-0 space-y-4">
+        {/* Each unit a choice of two, with what it decides in its ⓘ. */}
+        <Field
+          group
+          label="Weight"
+          error={errors?.preferredUnit}
+          info="Loads and body weight, and height with them: centimetres with kg, feet and inches with lb."
+        >
           <SegmentedControl
-            name="poolUnit"
-            options={POOL_OPTIONS}
-            value={distances.poolUnit}
-            onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
+            name="preferredUnit"
+            options={UNIT_OPTIONS}
+            value={unit}
+            onChange={(next) => changeUnit(next as BodyLoadUnit)}
             columns={2}
           />
         </Field>
-      ) : (
-        <input type="hidden" name="poolUnit" value={distances.poolUnit} />
-      )}
 
-      {/* A place from a list, never typed: every day the app names is dated in it, and an
+        <Field
+          group
+          label="Distance"
+          error={errors?.distanceUnit}
+          info="Runs and rides. Carries and sleds go in metres with km, in yards with miles."
+        >
+          <SegmentedControl
+            name="distanceUnit"
+            options={DISTANCE_OPTIONS}
+            value={distances.distanceUnit}
+            onChange={(distanceUnit) => chooseDistance("distanceUnit", distanceUnit)}
+            columns={2}
+          />
+        </Field>
+
+        {/* Anyone who does not swim is not asked: their pool goes on as it is, following the
+          weight unit unless it was set apart. */}
+        {values.swims ? (
+          <Field group label="Pools" error={errors?.poolUnit}>
+            <SegmentedControl
+              name="poolUnit"
+              options={POOL_OPTIONS}
+              value={distances.poolUnit}
+              onChange={(poolUnit) => chooseDistance("poolUnit", poolUnit)}
+              columns={2}
+            />
+          </Field>
+        ) : (
+          <input type="hidden" name="poolUnit" value={distances.poolUnit} />
+        )}
+
+        {/* A place from a list, never typed: every day the app names is dated in it, and an
           abbreviation or an offset can mean one zone here and another in the graphs. */}
-      <Field label="Time zone" error={errors?.timeZone} hint={zoneHint}>
-        <TimeZoneSelect
-          name="timeZone"
-          value={timeZone}
-          detected={detected}
-          onChange={(event) => setEditedZone(event.target.value)}
-          required
-        />
-      </Field>
-
-      <FormError message={state.formError} />
-      <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-      {saved && !pending && <SavedNotice>Units and time zone saved</SavedNotice>}
+        <Field label="Time zone" error={errors?.timeZone} hint={zoneHint}>
+          <TimeZoneSelect
+            name="timeZone"
+            value={timeZone}
+            detected={detected}
+            onChange={(event) => setEditedZone(event.target.value)}
+            required
+          />
+        </Field>
+      </fieldset>
+      <PinnedActions stack>
+        <FormError message={state.formError} />
+        {saved && !pending && <SavedNotice>Units and time zone saved</SavedNotice>}
+        <SubmitButton pendingLabel="Saving…">{state.formError ? "Retry" : "Save"}</SubmitButton>
+      </PinnedActions>
     </form>
   );
 }

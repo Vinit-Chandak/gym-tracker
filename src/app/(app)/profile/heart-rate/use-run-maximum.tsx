@@ -32,6 +32,10 @@ export function UseRunMaximum({ bpm, on }: { bpm: number; on: string }) {
               "Could not save. Check your connection and try again.",
             );
             if (!outcome.ok) setError(outcome.message);
+            else if (!outcome.value.ok)
+              setError(
+                "That run reading is no longer available. Refresh to see your current zones.",
+              );
           })
         }
       >
