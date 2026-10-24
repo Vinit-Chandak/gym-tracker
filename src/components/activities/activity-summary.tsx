@@ -92,7 +92,7 @@ export function ActivitySummary({
       </dl>
       {(exercises.length > 0 || unlisted > 0) && (
         <section aria-labelledby="shared-exercises">
-          <h2 id="shared-exercises" className="caption-head mt-4.5">
+          <h2 id="shared-exercises" className="caption-head">
             Exercises
           </h2>
           {exercises.length > 0 && (

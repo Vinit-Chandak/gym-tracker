@@ -146,8 +146,11 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((current) => !current)}
+        // The full target, overhanging the line it sits on rather than heightening it: it takes
+        // one em, never more than the words beside it, so a label or a heading with a tip sits
+        // where one without sits (DESIGN.md, The Rhythm Rule).
         className={cn(
-          "-m-1.5 flex size-[var(--ov-target)] items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
+          "-mx-1.5 my-[calc((1em-var(--ov-target))/2)] flex size-[var(--ov-target)] items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
           open && "text-accent",
         )}
       >

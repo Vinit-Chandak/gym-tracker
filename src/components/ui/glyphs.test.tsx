@@ -183,11 +183,11 @@ it("lights Plan's calendar by its head and today's square, and Progress's bar by
   rerender(<Glyph name="training" filled />);
   expect(filledParts().map((part) => part.tagName)).toEqual(["path", "rect"]);
   expect(filledParts()[1]!.getAttribute("width")).toBe("3.4");
-  // The loaded bar: a bar and three plates growing, the plates filled where you are.
+  // The rise: three blocks, each a size up, climbing corner to corner, filled where you are.
   rerender(<Glyph name="progress" />);
   expect(filledParts()).toHaveLength(0);
-  expect(container.querySelector('path[d="M2 12h20"]')).not.toBeNull();
+  expect(container.querySelectorAll("rect")).toHaveLength(3);
   rerender(<Glyph name="progress" filled />);
-  expect(filledParts().map((part) => part.getAttribute("height"))).toEqual(["6", "11", "16"]);
+  expect(filledParts().map((part) => part.getAttribute("height"))).toEqual(["5", "6", "7"]);
   expect(GLYPH_LABELS.training).toBe("Plan");
 });

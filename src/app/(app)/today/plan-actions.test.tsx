@@ -94,8 +94,10 @@ it("keeps the count whole beside Pick up from today, or puts the button under it
   expect(row.lastElementChild).toBe(button);
   expect(button.classList).toContain("ml-auto");
   expect(row.classList).not.toContain("justify-between");
-  // A text button: the row stays quiet over the day's first card.
-  expect(button.classList).toContain("bg-transparent");
+  // Tonal, never filled: the row stays quiet over the day's first card, and the button still
+  // reads as one rather than as words beside the count (owner, 24 October 2026).
+  expect(button.classList).toContain("bg-surface-control");
+  expect(button.classList).not.toContain("bg-ink");
 });
 
 /**

@@ -6,10 +6,10 @@ import { aboutLabel } from "./about-label";
 import { InfoTip } from "./info-tip";
 
 /**
- * A section's name above its box or list, in the Caption every section's name takes (DESIGN.md,
- * Typography), at the gutter with the box's edge and the names under it (The One Left Edge
- * Rule). Quiet on purpose: the box beneath carries the group, so several of these on one screen
- * read as one page rather than a stack of headings, and nothing is drawn under the label.
+ * A section's name above its box or list, as every section's name is set (DESIGN.md,
+ * Typography: Section), at the gutter with the box's edge and the names under it (The One Left
+ * Edge Rule). Its row carries the heading's gaps (The Rhythm Rule), so a form's sections stand
+ * apart as sections and nothing is drawn under the name.
  */
 export function Section({
   title,
@@ -27,7 +27,7 @@ export function Section({
 }) {
   return (
     <section className={cn("min-w-0", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1.5">
+      <div className="heading-row">
         {/* The ⓘ stands beside the heading, never in it, so the heading reads as its name. */}
         <div className="flex items-center gap-1">
           <h2 className="caption-head">{title}</h2>

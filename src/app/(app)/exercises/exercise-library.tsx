@@ -37,7 +37,7 @@ function Group({ title, items }: { title: string; items: ExerciseListItem[] }) {
   const id = useId();
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="caption-head">
+      <h2 id={id} className="group-caption">
         {title}
       </h2>
       <ul>

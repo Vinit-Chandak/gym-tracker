@@ -50,7 +50,8 @@ html:has(.onboarding) .pinned-actions {
   margin-top: calc(8 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-display);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
+  letter-spacing: var(--ov-title-tracking);
   line-height: 1.08;
   overflow-wrap: break-word;
 }
@@ -415,7 +416,7 @@ html:has(.onboarding) .pinned-actions {
   gap: calc(12 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1;
   letter-spacing: var(--ov-title-tracking);
 }
@@ -1026,7 +1027,8 @@ button.equipment-tile:focus-visible {
   margin-top: calc(14 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-card-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
+  letter-spacing: var(--ov-title-tracking);
   line-height: 1.1;
   overflow-wrap: break-word;
 }
@@ -1043,4 +1045,20 @@ button.equipment-tile:focus-visible {
   font-size: var(--ov-type-meta);
   font-weight: 600;
   gap: calc(12 * var(--ov-u));
+}
+
+/* The week to choose days from (day-picker.tsx): seven in a row, folding to four and three only
+   where seven chips would each be narrower than a thumb's 36 pt. */
+.day-picker {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(4 * var(--ov-u));
+}
+fieldset:has(> .day-picker) {
+  container-type: inline-size;
+}
+@container (width < calc(7 * 36px + 6 * 4px)) {
+  .day-picker {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }

@@ -244,23 +244,24 @@ function weekTitle(monday: string, today: string): string {
 }
 
 /**
- * The weeks either side, under the week's rows as a list's pages are (DESIGN.md, Page tabs),
- * each named by where it stands from today ("Last week", "Next week"); the tab itself comes back
+ * The weeks either side, right under the week they step (DESIGN.md, Layout: Plan): two buttons of
+ * one size, each named by where it stands from today ("Last week", "Next week"), so they read as
+ * the week's own controls rather than as words at the foot of its rows; the tab itself comes back
  * to this one.
  */
 function WeekSteps({ monday, today }: { monday: string; today: string }) {
   const before = addDays(monday, -7);
   const after = addDays(monday, 7);
   return (
-    <nav aria-label="Weeks" className="plan-week-steps">
-      <Link href={`/plan?week=${before}` as Route} className="plan-week-step">
-        <Glyph name="chevronLeft" className="glyph-20" />
+    <nav aria-label="Weeks" className="action-row">
+      <LinkButton href={`/plan?week=${before}` as Route} variant="tonal" size="sm">
+        <Glyph name="chevronLeft" className="glyph-18" />
         {weekTitle(before, today)}
-      </Link>
-      <Link href={`/plan?week=${after}` as Route} className="plan-week-step">
+      </LinkButton>
+      <LinkButton href={`/plan?week=${after}` as Route} variant="tonal" size="sm">
         {weekTitle(after, today)}
-        <Glyph name="chevronRight" className="glyph-20" />
-      </Link>
+        <Glyph name="chevronRight" className="glyph-18" />
+      </LinkButton>
     </nav>
   );
 }
@@ -286,7 +287,9 @@ function Week({
   return (
     <section aria-label={label} className="plan-week">
       <WeekPapers days={days} monday={monday} today={today} units={units} />
-      {days.length === 0 && <p className="type-meta text-ink-2">Nothing planned.</p>}
+      <WeekSteps monday={monday} today={today} />
+      {/* An empty week is one quiet line where its rows would be (DESIGN.md, Need-to-Know). */}
+      {days.length === 0 && <p className="plan-week-empty">Nothing planned this week</p>}
       {gone.length > 0 && (
         // A day gone by is one closed row saying what became of it, its sessions a tap away
         // (DESIGN.md, Folds): ruled rows that share their rules, never a stack of boxes.
@@ -308,13 +311,12 @@ function Week({
         <ul className="plan-days">
           {ahead.map(({ date, sessions: onDay }) => (
             <li key={date} id={dayAnchor(date)} className="plan-day">
-              <p className="plan-day-name type-caption tabular-nums">{formatIsoDate(date, year)}</p>
+              <p className="group-caption tabular-nums">{formatIsoDate(date, year)}</p>
               <DayRows sessions={onDay} units={units} />
             </li>
           ))}
         </ul>
       )}
-      <WeekSteps monday={monday} today={today} />
     </section>
   );
 }
@@ -378,12 +380,25 @@ function Programme({ card }: { card: PlanCard }) {
         </span>
         {weeks && <ProgrammeWeeks sport={programme.sport} {...weeks} />}
         {draft && (
-          <span className="plan-programme-waiting type-meta-small">
-            {draft.status === "editing" ? "Draft in progress" : "Changes to review"}
-          </span>
+          <Waits state={draft.status === "editing" ? "Draft in progress" : "Changes to review"} />
         )}
       </Link>
     </li>
+  );
+}
+
+/**
+ * What a programme waits on, as the foot of its card: a ruled row with its mark of something to do
+ * and the chevron the card opens by, so it reads as the card's next step and never as a label
+ * pressed against its name.
+ */
+function Waits({ state }: { state: string }) {
+  return (
+    <span className="plan-programme-waiting">
+      <span aria-hidden className="plan-programme-waiting-dot" />
+      <span className="min-w-0 flex-1">{state}</span>
+      <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
+    </span>
   );
 }
 
@@ -420,7 +435,7 @@ function Waiting({
         <span className="plan-programme-name">
           {holdHyphens(name || `New ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme`)}
         </span>
-        <span className="plan-programme-waiting type-meta-small">{state}</span>
+        <Waits state={state} />
       </Link>
     </li>
   );
@@ -471,6 +486,7 @@ export function PlanView({
         action={
           empty ? undefined : (
             <LinkButton href="/plan/new" variant="tonal" size="sm">
+              <Glyph name="plus" className="glyph-18" />
               New programme
             </LinkButton>
           )
@@ -478,16 +494,19 @@ export function PlanView({
       />
       <div className="page-width space-y-[var(--section-gap)] pb-8">
         {empty && (
-          <Card>
-            <h2 className="text-lg font-medium">No programmes yet</h2>
-            <LinkButton href="/plan/new">New programme</LinkButton>
+          <Card className="space-y-[var(--ov-gap-block)]">
+            <h2 className="type-section">No programmes yet</h2>
+            <LinkButton href="/plan/new" size="lg" className="w-full">
+              <Glyph name="plus" className="glyph-18" />
+              New programme
+            </LinkButton>
           </Card>
         )}
         {(!empty || sessions.length > 0) && (
           <Week sessions={sessions} monday={monday} today={today} units={units} label={title} />
         )}
         {!empty && (
-          <section aria-labelledby="plan-programmes" className="space-y-3">
+          <section aria-labelledby="plan-programmes">
             <h2 id="plan-programmes" className="caption-head">
               Programmes
             </h2>

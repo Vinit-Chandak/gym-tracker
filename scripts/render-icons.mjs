@@ -65,8 +65,8 @@ const SHORTCUTS = {
   today: `<rect x="4" y="7" width="6" height="10" rx="1" fill="#2b40c8" stroke="#2b40c8"/><circle cx="16.5" cy="12.5" r="3.5" fill="#e5432a" stroke="#e5432a"/><path d="M3 20h18"/>`,
   food: `<path d="M2.5 10.5h19a9.5 9 0 0 1-19 0z" fill="${ink}"/><path d="M7 10.5a5 4.6 0 0 1 10 0" fill="${ink}"/>`,
   run: `<path d="M4.5 18.5c3.5 0 3.5-5.5 7-5.5s3.5-5.5 7-5.5"/><circle cx="4.5" cy="18.5" r="1.6" fill="${ink}" stroke="none"/><circle cx="18.5" cy="7.5" r="1.6" fill="${ink}" stroke="none"/>`,
-  // Progress is the loaded bar: a barbell side on, its three plates growing.
-  progress: `<path d="M2 12h20"/><rect x="5" y="9" width="2.6" height="6" rx="1" fill="${ink}"/><rect x="9.7" y="6.5" width="2.6" height="11" rx="1" fill="${ink}"/><rect x="14.4" y="4" width="2.6" height="16" rx="1" fill="${ink}"/>`,
+  // Progress is the rise: three blocks, each a size up, climbing corner to corner.
+  progress: `<rect x="2.5" y="16" width="5" height="5" rx="1.2" fill="${ink}"/><rect x="7.5" y="10" width="6" height="6" rx="1.4" fill="${ink}"/><rect x="13.5" y="3" width="7" height="7" rx="1.6" fill="${ink}"/>`,
 };
 const shortcut = (shapes) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
   <rect width="96" height="96" fill="${background}"/>

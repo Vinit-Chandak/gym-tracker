@@ -411,9 +411,11 @@ export function PickUpFromToday({
         <p className="min-w-0 flex-auto type-meta [overflow-wrap:break-word] text-ink-2">
           <span className="figures">{count}</span> missed
         </p>
-        {/* One quiet row with its count, never a filled button over the day's first card. */}
+        {/* One quiet row with its count, never a filled button over the day's first card: a
+            tonal one, so it reads as the button it is and not as words beside the count. */}
         <Button
-          variant="text"
+          variant="tonal"
+          size="sm"
           className="ml-auto"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"

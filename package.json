@@ -14,6 +14,7 @@
     "audit:screens": "node scripts/dev/audit-browser.mjs",
     "audit:all": "node scripts/dev/audit-suite.mjs",
     "audit:ui-controls": "node scripts/dev/audit-ui-controls.mjs",
+    "audit:consistency": "node scripts/dev/audit-consistency.mjs",
     "audit:quick-food": "node scripts/dev/audit-quick-food.mjs",
     "audit:activity-time": "node scripts/dev/audit-activity-time.mjs",
     "audit:legacy-routes": "node scripts/dev/audit-legacy-routes.mjs",

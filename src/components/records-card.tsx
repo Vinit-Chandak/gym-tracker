@@ -32,7 +32,7 @@ export function SessionRecordsCard({
   if (records.length === 0) return null;
   return (
     <section aria-labelledby="session-records">
-      <h2 id="session-records" className="caption-head mt-4.5">
+      <h2 id="session-records" className="caption-head">
         {records.length === 1 ? "1 record" : `${records.length} records`}
       </h2>
       <ul>
@@ -94,7 +94,7 @@ export function ExerciseBestsTiles({
   if (bests.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-medium">Your records</h2>
+      <h2 className="type-heading">Your records</h2>
       <StatTileRow>
         {bests.map((best) => (
           <StatTile

@@ -81,7 +81,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         {/* With nothing logged, the form says so once, over Discard session. */}
         {done.length > 0 && (
           <section aria-labelledby="finish-recorded">
-            <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
+            <h2 id="finish-recorded" className="caption-head flex justify-between gap-3">
               <span>Recorded</span>
               <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
             </h2>
@@ -111,7 +111,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         {/* Not done is a fact about the session, not an error. It is recorded as it stands. */}
         {(untouched.length > 0 || skipped.length > 0) && (
           <section aria-labelledby="finish-not-done">
-            <h2 id="finish-not-done" className="caption-head mt-3">
+            <h2 id="finish-not-done" className="caption-head">
               Not done
             </h2>
             <div className="not-done">

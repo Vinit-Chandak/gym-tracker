@@ -7,7 +7,8 @@
   margin-top: 2px;
   font-family: var(--ov-font-display);
   font-size: calc(calc(6.5 * var(--ov-u)) + 1.21875rem); /* 26, k 0.75 */
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
+  letter-spacing: var(--ov-title-tracking);
   line-height: 1.15;
   overflow-wrap: break-word;
 }
@@ -254,12 +255,9 @@
   font-weight: 700;
 }
 /* A list's count and the way to add to it, on one line. */
+/* A list's heading with its action at the end: a heading row (progress.css) whose action keeps
+   its words on a line. */
 .list-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: calc(18 * var(--ov-u));
   column-gap: calc(12 * var(--ov-u));
 }
 /* Each keeps its words together; when both cannot share the line, the action goes under. */

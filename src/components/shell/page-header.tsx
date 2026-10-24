@@ -57,17 +57,17 @@ type RootHeaderProps = {
  */
 function RootHeader({ tab, title, said, chooser, lead, meta, action }: RootHeaderProps) {
   const heard = `${tab}, ${title}${said ? ` ${said}` : ""}`;
-  // The headline's own width, as Jost 700 sets it (about 0.52 em a character), the chooser's
+  // The headline's own width, as Jost 800 sets it (about 0.53 em a character), the chooser's
   // chevron and the avatar added: the room it keeps before the action goes under it, so a name
   // stands on one line wherever the screen has the line for it ("Vinit Chandak"), and wraps
   // only where it does not.
-  const room = `min(100%, calc(${(title.length * 0.52 + (chooser ? 1 : 0)).toFixed(2)} * var(--ov-type-title)${
+  const room = `min(100%, calc(${(title.length * 0.53 + (chooser ? 1 : 0)).toFixed(2)} * var(--ov-type-title)${
     lead ? " + 70 * var(--ov-u)" : ""
   }))`;
-  // Beside the avatar, the headline keeps at least its longest word's room (about 0.56 em a
+  // Beside the avatar, the headline keeps at least its longest word's room (about 0.57 em a
   // letter), else it goes under the avatar rather than break inside a word (large text).
   const longest = Math.max(...title.split(/\s+/).map((word) => word.length));
-  const word = `min(100%, calc(${(longest * 0.56).toFixed(2)} * var(--ov-type-title)))`;
+  const word = `min(100%, calc(${(longest * 0.57).toFixed(2)} * var(--ov-type-title)))`;
   return (
     <header className="page-header page-root page-width pt-safe">
       <div className="page-root-top">

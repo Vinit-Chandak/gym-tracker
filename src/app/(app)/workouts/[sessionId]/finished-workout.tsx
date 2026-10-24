@@ -205,15 +205,19 @@ export function FinishedWorkout({
   useEffect(() => {
     if (!firstAdded) return;
     let words: ReturnType<typeof setTimeout> | undefined;
+    let gone: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
       listRef.current
         ?.querySelector<HTMLElement>(`[data-workout-exercise="${firstAdded}"]`)
         ?.focus();
       words = setTimeout(() => setAnnounced(addedWords), 400);
+      // Said, then gone (DESIGN.md, Inputs and choices: a confirmation never stays).
+      gone = setTimeout(() => setAnnounced(""), 3400);
     }, 0);
     return () => {
       clearTimeout(timer);
       clearTimeout(words);
+      clearTimeout(gone);
     };
   }, [firstAdded, addedWords]);
 
@@ -233,8 +237,8 @@ export function FinishedWorkout({
               <BackLink fallback={backHref} />
               {edit && (
                 <div className="page-header-action">
-                  {/* Edit and Done are words at the end of the bar, as a gym's Edit is, on the
-                      content's edge at every text size: a fill as tall as the bar (Android, large
+                  {/* Edit and Done are pills at the end of the bar, as a gym's Edit is, inside
+                      their targets at every text size: a fill as tall as the bar (Android, large
                       text) ran from the screen's top edge to the print. */}
                   {editing ? (
                     <button type="button" className="header-text-action" onClick={edit.onDone}>
@@ -317,7 +321,7 @@ export function FinishedWorkout({
         {records}
 
         <section aria-labelledby="finished-sets">
-          <h2 id="finished-sets" className="caption-head mt-4.5">
+          <h2 id="finished-sets" className="caption-head">
             {justFinished ? "Recorded" : editing ? "Exercises" : "Sets"}
           </h2>
           {editing && edit ? (
@@ -416,7 +420,7 @@ export function FinishedWorkout({
         {/* The warm-up is named once, on its row above. */}
         {!editing && notDone.length > 0 && (
           <section aria-labelledby="finished-not-done">
-            <h2 id="finished-not-done" className="caption-head mt-3.5">
+            <h2 id="finished-not-done" className="caption-head">
               Not done
             </h2>
             <p className="not-done">
@@ -441,7 +445,7 @@ export function FinishedWorkout({
 
         {!justFinished && checkIn.length > 0 && (
           <section aria-labelledby="finished-check-in">
-            <h2 id="finished-check-in" className="caption-head mt-4.5">
+            <h2 id="finished-check-in" className="caption-head">
               Check-in
             </h2>
             {/* Four to a row while the widest reading, its name or its figure, has a quarter of

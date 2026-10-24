@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { Field, Input } from "./input";
@@ -115,4 +115,44 @@ it("a standalone failed action offers retry without dropping the edited form", (
   expect(screen.getByRole("alert").textContent).toContain("Could not save.");
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(retry).toHaveBeenCalledOnce();
+});
+
+it("lets a refused save's bar go after four seconds, the fields keeping their marks, and says it again on the next refused save", () => {
+  vi.useFakeTimers();
+  try {
+    const { container } = render(
+      <form>
+        <Field label="Body weight" error="Enter a weight.">
+          <Input />
+        </Field>
+        <FormError message="The weight was not saved." />
+      </form>,
+    );
+    expect(screen.getByRole("button", { name: "1 to fix: body weight" })).toBeTruthy();
+    expect(screen.getByText("The weight was not saved.")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(4000));
+    expect(screen.queryByRole("button", { name: "1 to fix: body weight" })).toBeNull();
+    expect(screen.queryByText("The weight was not saved.")).toBeNull();
+    expect(screen.getByText("Enter a weight.")).toBeTruthy();
+    fireEvent.submit(container.querySelector("form")!);
+    expect(screen.getByRole("button", { name: "1 to fix: body weight" })).toBeTruthy();
+    expect(screen.getByText("The weight was not saved.")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps a failure with its own way out until it is taken", () => {
+  vi.useFakeTimers();
+  try {
+    render(
+      <form>
+        <FormError message="Could not save." action={<button type="button">Retry</button>} />
+      </form>,
+    );
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.getByRole("alert").textContent).toContain("Could not save.");
+  } finally {
+    vi.useRealTimers();
+  }
 });

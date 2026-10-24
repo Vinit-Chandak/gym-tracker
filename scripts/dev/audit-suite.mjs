@@ -46,6 +46,8 @@ for (const key of [
   "AUDIT_EXPAND_DETAILS",
   "AUDIT_ROUTE_FILTER",
   "AUDIT_UI_CHECK_FILTER",
+  "AUDIT_REPORT_ONLY",
+  "AUDIT_PERSONAS",
   "AUDIT_HISTORY_WEBKIT_SAMPLE",
 ])
   delete env[key];
@@ -65,6 +67,12 @@ add("screens-android-dark", "audit-browser", ["chromium"], {
   AUDIT_DEVICE: "android",
   AUDIT_THEME: "dark",
 });
+// One look across screens: equal actions, visible fields, heading faces and one header rhythm.
+for (const theme of ["light", "dark"])
+  add(`consistency-android-${theme}`, "audit-consistency", ["chromium"], {
+    AUDIT_DEVICE: "android",
+    AUDIT_THEME: theme,
+  });
 for (const device of ["narrow", "iphone"])
   add(`screens-${device}-large-text`, "audit-browser", [engineOf(device)], {
     AUDIT_DEVICE: device,

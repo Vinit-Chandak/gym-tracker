@@ -409,11 +409,11 @@ export function EnduranceProgrammeBuilder({
           </Disclosure>
         </div>
 
-        <section aria-label="Choose a session" className="space-y-3 border-t border-line pt-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <section aria-label="Choose a session" className="space-y-3">
+          <div className="heading-row">
             {/* The ⓘ beside the heading, never in it, so the heading reads as its name. */}
             <div className="flex items-center gap-1">
-              <h2 className="text-lg font-medium">Your sessions</h2>
+              <h2 className="caption-head">Your sessions</h2>
               {(continuing || view === "pattern") && (
                 <InfoTip label="About your sessions">
                   {[
@@ -649,7 +649,7 @@ export function EnduranceProgrammeBuilder({
                       </fieldset>
                     )}
                     <div className="space-y-3">
-                      <h3 className="font-medium">Steps</h3>
+                      <h3 className="type-heading">Steps</h3>
                       <StepsEditor
                         nodes={session.prescription.nodes}
                         unit={units.distanceUnit}
@@ -843,24 +843,23 @@ export function EnduranceProgrammeBuilder({
           </Button>
         </div>
       </fieldset>
-      {message && message !== "Draft saved." && (
-        <p role="status" className="text-sm text-ink-2">
-          {message}
-        </p>
-      )}
+      {/* A confirmation is said, then goes (SavedNotice), never left standing. */}
+      {message && message !== "Draft saved." && <SavedNotice key={message}>{message}</SavedNotice>}
       <PinnedActions stack>
         {message === "Draft saved." && <SavedNotice>{message}</SavedNotice>}
         <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={!ready || pending} onClick={() => start(() => save(true))}>
-            {pending ? "Saving…" : "Review programme"}
-          </Button>
+        {/* Peers, one size, the one that ends the task last (DESIGN.md, The Equal Actions Rule). */}
+        <div className="action-row">
           <Button
+            size="lg"
             variant="secondary"
             disabled={!ready || pending}
             onClick={() => start(() => save(false))}
           >
             Save draft
+          </Button>
+          <Button size="lg" disabled={!ready || pending} onClick={() => start(() => save(true))}>
+            {pending ? "Saving…" : "Review programme"}
           </Button>
         </div>
       </PinnedActions>

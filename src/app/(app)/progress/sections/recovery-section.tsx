@@ -74,7 +74,7 @@ export function RecoverySection({ recovery, today }: Pick<ProgressData, "recover
   const figure = (value: number) => decimal(value, 1);
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="progress-section">
       <SegmentedControl
         name="recovery-measure"
         aria-label="Recovery measure"

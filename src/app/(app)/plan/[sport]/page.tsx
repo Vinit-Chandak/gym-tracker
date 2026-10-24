@@ -8,6 +8,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { Disclosure } from "@/components/ui/disclosure";
 import { NavRow } from "@/components/ui/nav-row";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -108,9 +109,13 @@ export default async function SportProgrammePage({
       <>
         <PageHeader title={`${label} programme`} backHref="/plan" />
         <PageContent>
-          <Card>
-            <h2 className="text-lg font-medium">No {label.toLowerCase()} programme</h2>
-            <LinkButton href={`/plan/new?sport=${sport}` as Route}>New programme</LinkButton>
+          {/* An empty state is one short line and its action (DESIGN.md, Need-to-Know). */}
+          <Card className="space-y-[var(--ov-gap-block)]">
+            <h2 className="type-section">No {label.toLowerCase()} programme</h2>
+            <LinkButton href={`/plan/new?sport=${sport}` as Route} size="lg" className="w-full">
+              <Glyph name="plus" className="glyph-18" />
+              New programme
+            </LinkButton>
           </Card>
         </PageContent>
       </>
@@ -147,9 +152,7 @@ export default async function SportProgrammePage({
       <PageHeader title={`${label} programme`} backHref="/plan" />
       <PageContent>
         <Card>
-          <h2 className="text-xl font-medium [overflow-wrap:break-word]">
-            {holdHyphens(programme.name)}
-          </h2>
+          <h2 className="type-card-title">{holdHyphens(programme.name)}</h2>
           <p className="text-sm text-ink-2">
             {joinFacts([pattern, `${weeks} ${weeks === 1 ? "week" : "weeks"}`])}
           </p>

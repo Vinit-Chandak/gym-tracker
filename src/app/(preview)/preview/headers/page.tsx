@@ -64,7 +64,7 @@ export default function PreviewHeadersPage() {
             <p className="text-sm text-ink-muted">
               The meta hangs off the far end of the title&apos;s own baseline rather than stacking
               above it in uppercase. One level down, the way back names where it goes on a bar of
-              its own, with the screen&apos;s one action as a word at its end, and the title stands
+              its own, with the screen&apos;s one action as a pill at its end, and the title stands
               under it, so a nested page never reads like a top-level one.
             </p>
           </Card>

@@ -65,7 +65,7 @@ export async function SavedProgrammeWork({
   if (!intakes.length && !newProgrammes.length && !waiting.length) return null;
   return (
     <section aria-labelledby="saved-work">
-      <h2 id="saved-work" className="caption-head mt-3.5">
+      <h2 id="saved-work" className="caption-head">
         Your saved work
       </h2>
       <ul>

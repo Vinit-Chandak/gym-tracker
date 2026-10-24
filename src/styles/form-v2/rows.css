@@ -35,6 +35,15 @@
 }
 
 /* ---------- a screen's opening ---------- */
+/* Every screen's opening (DESIGN.md, Navigation; The Rhythm Rule): under the status bar, or 12 pt
+   from the top where nothing stands over the page, and one header gap over the screen's first
+   content, on every screen alike, so no screen starts its content where it likes (Muscles and
+   Running had opened 19 and 30 pt under their titles). The gap is the header's alone: what
+   follows it adds none of its own. */
+.page-header {
+  padding-top: max(env(safe-area-inset-top), calc(12 * var(--ov-u)));
+  margin-bottom: var(--ov-gap-header);
+}
 /* A destination: its title and at most one action, 52 pt from 4 under the top. */
 .page-header-top {
   display: flex;
@@ -58,7 +67,7 @@
   display: flex;
   min-height: calc(52 * var(--ov-u));
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: calc(6 * var(--ov-u)) calc(12 * var(--ov-u));
   padding-top: calc(4 * var(--ov-u));
 }
@@ -82,7 +91,7 @@
 .page-root-chooser .section-select-button {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1;
   letter-spacing: var(--ov-title-tracking);
   overflow-wrap: break-word;
@@ -103,7 +112,10 @@
   overflow-wrap: break-word;
   font-variant-numeric: tabular-nums lining-nums;
 }
+/* The action stands on the title's line, centred on it, never on the block the title and its
+   facts make together, where it floated between the two (Plan's New programme). */
 .page-root-action {
+  margin-top: calc((var(--ov-type-title) - var(--ov-target)) / 2);
   margin-left: auto;
 }
 /* A glyph alone (Food's calendar, Progress's funnel) stands on the content's edge, as a
@@ -144,6 +156,10 @@
 .page-header-bar > .page-header-action {
   margin-left: auto;
   padding-right: 2px;
+}
+/* A pill ends on the content's edge, where the bar's words would have. */
+.page-header-bar > .page-header-action:has(> .header-text-action) {
+  padding-right: calc(12 * var(--ov-u));
 }
 .page-header-action {
   display: flex;
@@ -364,6 +380,34 @@ li:last-child > .sheet-row {
   gap: calc(4 * var(--ov-u));
   margin: 0 auto;
 }
+/* ---------- actions side by side (DESIGN.md, The Equal Actions Rule, 24 October 2026) ---------- */
+/* Peers that share a row are one size: the same width and the same height whatever their words
+   (Back and Continue, Approve and Decline, + Rep and + Recovery), the one that ends the task
+   last, under the thumb. Where half the row cannot give a peer 8rem (a 320-pt phone, large
+   text), they stack, each the full width, in the same order. A quieter way out in words (Clear
+   laps, Discard draft) is not a peer: it stands under them, the row's width, as a text action. */
+.action-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  align-items: stretch;
+  gap: calc(10 * var(--ov-u));
+}
+.action-row > * {
+  width: 100%;
+  min-width: 0;
+}
+/* A decision's actions, one under another, each the full width: the action that decides, its
+   peers in a row, then the way out (a draft's Start programme, Ask for changes and Edit draft,
+   Discard draft). One gap between them all, so they read as one group. */
+.action-stack {
+  display: grid;
+  min-width: 0;
+  gap: calc(10 * var(--ov-u));
+}
+.action-stack > .text-action {
+  margin-top: calc(-4 * var(--ov-u));
+}
 /* A way out in words, as tall as a target: Skip check-in. */
 .text-action {
   display: grid;
@@ -505,7 +549,6 @@ li:last-child > .sheet-row {
 .person-card-head {
   display: flex;
   align-items: center;
-  margin-top: calc(6 * var(--ov-u));
   gap: calc(14 * var(--ov-u));
 }
 /* The initial is sized with its disc, not with the text: the name beside it says who it is, and
@@ -583,13 +626,13 @@ li:last-child > .sheet-row {
 }
 
 /* ---------- Edit profile ---------- */
-/* The account's email: a fact, not a field, its value at the end of a ruled row. */
+/* The account's email: a fact, not a field, its value at the end of a ruled row. The header's
+   gap is the space above it, so the row pads only above its rule. */
 .profile-email {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: calc(10 * var(--ov-u)) 0;
-  margin-top: calc(10 * var(--ov-u));
+  padding-bottom: calc(10 * var(--ov-u));
   border-bottom: 1px solid var(--ov-hair);
   font-size: var(--ov-type-meta);
   gap: calc(12 * var(--ov-u));
@@ -765,8 +808,8 @@ li:last-child > .sheet-row {
 .pinned-actions {
   container: pinned / inline-size;
 }
-/* A multi-step form's actions, kept on screen as a card inside the page's gutters, with 0.5rem
-   of padding of their own (globals.css). */
+/* A multi-step form's actions, kept on screen at its foot inside the page's gutters, with no
+   inset of their own (globals.css). */
 .sticky-actions {
   container: kept-actions / inline-size;
 }
@@ -840,12 +883,22 @@ li:last-child > .sheet-row {
     flex: 1 0 100%;
   }
 }
-/* Its box is the screen less the gutters and its padding, so it asks the same question 1rem
-   sooner. Its actions already wrap there, Back on a line of its own, and the key takes the rest
-   of Back's line (intake-form.tsx), so the card grows by nothing. */
-@container kept-actions (width < calc(13rem - 40px)) {
+/* Its box is the screen less the gutters, as the pinned actions' is, so it asks the same
+   question. There the key ends Back's line, Back taking the rest of it, and the step's action has
+   the next line to itself (intake-form.tsx), so the bar grows by nothing. */
+@container kept-actions (width < calc(14rem - 40px)) {
   .session-fold {
     display: flex;
+  }
+  .sticky-actions .action-row:has(.session-fold) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .sticky-actions .action-row:has(.session-fold) > :first-child {
+    flex: 1 1 0%;
+  }
+  .sticky-actions .action-row:has(.session-fold) > :last-child {
+    flex: 1 0 100%;
   }
 }
 /* A page of the session's own has no strip to fold (session.css), so it has no key either. */
@@ -887,7 +940,7 @@ html:has(.session-page) .session-fold {
 /* A screen's title at its measured size (fit-title.tsx). */
 .fit-title {
   font-family: var(--ov-font-display);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
   overflow-wrap: break-word;
@@ -902,11 +955,11 @@ html:has(.session-page) .session-fold {
 }
 
 /* ---------- one card per activity (DESIGN.md, Today) ---------- */
+/* The cards stand under the header's gap, or under the missed count's (The Rhythm Rule). */
 .today-cards {
   display: flex;
   flex-direction: column;
-  gap: var(--ov-space-12);
-  margin-top: var(--ov-space-14);
+  gap: var(--ov-gap-stack);
 }
 /* "Pick up from today", under the date: the count and its way out on one line while the count
    fits whole beside it, else the way out under it, at the end, as a name's button goes
@@ -914,7 +967,7 @@ html:has(.session-page) .session-fold {
    is; asked of the row, which spans the page's column, as the pinned actions ask of theirs. */
 .pick-up {
   container: pick-up / inline-size;
-  margin-block: var(--ov-space-4) var(--ov-space-10);
+  margin-block: 0 var(--ov-gap-stack);
 }
 @container pick-up (width < calc(14rem - 40px)) {
   .pick-up > button {
@@ -1009,7 +1062,7 @@ button.activity-card-toggle {
   min-width: 0;
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-card-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.1;
   letter-spacing: var(--ov-title-tracking);
   overflow-wrap: break-word;
@@ -1372,8 +1425,11 @@ button.activity-card-toggle {
   min-height: calc(44 * var(--ov-u));
   flex-shrink: 0;
 }
-/* The value's fixed column. The whole column is the field's target: a tap anywhere in it types
-   the value (row-stepper.tsx), and the field itself is never smaller than a target. The column
+/* The value's fixed column, one width on every row so − and + stand in one column down the
+   panel whatever the figure (a distance with its unit, a duration without one). It is drawn as
+   a field (input.tsx): the mode's ground in a control edge, inked and ringed while typed, so it
+   is plain where the figure is typed and the figure, selected, has room around it. The whole
+   column is the field's target: a tap anywhere in it types the value (row-stepper.tsx). It
    carries the figure's 26 as its own size, which row-stepper.tsx reads to know what a 26 is
    drawn at here (larger text, a wider screen) before it steps the figure down to fit. */
 .row-stepper-figure {
@@ -1381,16 +1437,27 @@ button.activity-card-toggle {
   width: calc(calc(120 * var(--ov-u)) + var(--ov-grow) * 2);
   min-width: 0;
   min-height: var(--ov-target);
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: calc(3 * var(--ov-u));
+  margin-inline: calc(4 * var(--ov-u));
+  padding: 0 calc(8 * var(--ov-u));
+  border: 1px solid var(--ov-control);
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-field);
   font-size: var(--ov-type-figure-l);
   cursor: text;
 }
+.row-stepper-figure:focus-within {
+  border-color: var(--ov-ink);
+  box-shadow: 0 0 0 1px var(--ov-ink);
+}
 .row-stepper-figure > .figure-input {
-  min-width: calc(44 * var(--ov-u));
-  min-height: var(--ov-target);
+  min-width: calc(32 * var(--ov-u));
+  min-height: calc(var(--ov-target) - 2px);
   max-width: 100%;
+  padding: 0;
+  border-bottom: 0;
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-figure-l);
   font-weight: 600;
@@ -1401,28 +1468,6 @@ button.activity-card-toggle {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 600;
-}
-/* A distance's figure in parts (DistanceField): the whole, the point drawn, and the digits after
-   it, each typed on the number pad and each a whole target, so the column is wider by one. */
-.row-stepper-figure-parts {
-  width: calc(calc(156 * var(--ov-u)) + var(--ov-grow) * 2);
-  gap: 0;
-}
-/* Each part keeps its whole target, its figure drawn against the point: 5.2, not 5 . 2. */
-.row-stepper-figure-parts > .figure-input:first-child {
-  text-align: right;
-}
-.row-stepper-point + .figure-input {
-  text-align: left;
-}
-.row-stepper-figure-parts > .row-stepper-unit {
-  margin-left: calc(3 * var(--ov-u));
-}
-.row-stepper-point {
-  font-family: var(--ov-font-display);
-  font-size: var(--ov-type-figure-l);
-  font-weight: 600;
-  line-height: 1.1;
 }
 
 /* A 1–5 scale: its name, the five in a tray, and what 1 and 5 mean under their own ends. */
@@ -1764,7 +1809,7 @@ html:has(.standalone-error) {
 .error-page-title {
   font-family: var(--ov-font-display);
   font-size: calc(calc(6.5 * var(--ov-u)) + 1.21875rem);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.1;
   letter-spacing: var(--ov-title-tracking);
 }
@@ -1879,16 +1924,23 @@ details[open] > .more-details-summary > .more-details-chevron {
   font-variant-numeric: tabular-nums lining-nums;
   font-weight: 600;
 }
+/* Each lap a ruled row of the laps panel, at the panel's own inset (DESIGN.md, The Rhythm Rule:
+   one inset, never two): a lap boxed in a tray inside the panel took a second inset, and its
+   fields, filled in the tray's own tone, could not be seen. */
 .laps {
   display: grid;
-  gap: calc(10 * var(--ov-u));
 }
 .lap-row {
   display: grid;
   gap: calc(8 * var(--ov-u));
-  padding: calc(10 * var(--ov-u)) calc(12 * var(--ov-u));
-  border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
+  padding: calc(12 * var(--ov-u)) 0;
+  container-type: inline-size;
+}
+.lap-row + .lap-row {
+  border-top: 1px solid var(--ov-hair);
+}
+.lap-row:first-child {
+  padding-top: 0;
 }
 .lap-row-head {
   display: flex;
@@ -1905,10 +1957,27 @@ details[open] > .more-details-summary > .more-details-chevron {
   min-width: 0;
   flex: 1 1 auto;
 }
+/* A lap's fields in two even rows, never three and two with a hole: distance, unit and time a
+   third each, then the two heart rates a half each; where a third would be narrower than a short
+   word, two to a row. */
 .lap-row-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: calc(8 * var(--ov-u));
+}
+.lap-row-fields > :nth-child(-n + 3) {
+  grid-column: span 2;
+}
+.lap-row-fields > :nth-child(n + 4) {
+  grid-column: span 3;
+}
+@container (width < 17rem) {
+  .lap-row-fields > * {
+    grid-column: span 3;
+  }
+  .lap-row-fields > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 .lap-row-pace {
   color: var(--ov-ink-2);
@@ -1968,14 +2037,35 @@ details[open] > .more-details-summary > .more-details-chevron {
 .effort-field [role="radiogroup"] > label:last-child {
   flex-grow: 1.6 !important;
 }
-/* A word as a nested screen's one action, at the end of its bar: Edit. */
+/* A nested screen's one action, at the end of its bar (Edit, Done): a tonal pill inside its
+   44-pt target, as Finish is an outline one, so it reads as a control and never as a stray word
+   (DESIGN.md, Buttons: Looks like a control). The pill is drawn under the words, 4 pt inside the
+   target above and below, so it grows with them and is never a fill as tall as the bar. */
 .header-text-action {
+  position: relative;
   display: flex;
   min-height: var(--ov-target-header, var(--ov-target));
   align-items: center;
-  padding: 0 calc(10 * var(--ov-u));
-  font-size: var(--ov-type-button);
+  padding: 0 calc(14 * var(--ov-u));
+  isolation: isolate;
+  font-size: var(--ov-type-meta);
   font-weight: 700;
+}
+.header-text-action::before {
+  position: absolute;
+  z-index: -1;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface-control);
+  content: "";
+  inset: calc(4 * var(--ov-u)) 0;
+}
+.header-text-action:active::before {
+  background: var(--ov-surface-control-pressed);
+}
+@media (forced-colors: active) {
+  .header-text-action::before {
+    border: 1px solid ButtonText;
+  }
 }
 
 /* ---------- equipment drawings (DESIGN.md, Illustrations) ---------- */
@@ -2120,4 +2210,91 @@ details[open] > .more-details-summary > .more-details-chevron {
 .fold-break {
   height: 0;
   margin-inline: -1px;
+}
+
+/* ---------- Profile: the athlete's card (owner, 24 October 2026) ---------- */
+/* One card leads Profile, where a tab's title stands: the person as one row that opens their
+   page (the avatar, the name in a card's title, the handle, the chevron), the two counts as two
+   figures that open their lists, then Edit profile in words, and a detail still missing as the
+   card's ruled foot. Every part is one target and says where it goes. */
+.profile-card {
+  display: grid;
+  gap: calc(12 * var(--ov-u));
+  padding: calc(8 * var(--ov-u)) var(--ov-pad-card) var(--ov-pad-card);
+}
+.profile-card-person {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: calc(14 * var(--ov-u));
+  padding-top: calc(8 * var(--ov-u));
+  color: inherit;
+}
+.profile-card-avatar {
+  width: calc(56 * var(--ov-u));
+  height: calc(56 * var(--ov-u));
+  flex-shrink: 0;
+  font-family: var(--ov-font-display);
+  font-size: calc(24 * var(--ov-u));
+  font-weight: var(--ov-title-weight);
+  line-height: 1;
+}
+.profile-card-name {
+  display: block;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-card-title);
+  font-weight: var(--ov-title-weight);
+  line-height: 1.12;
+  letter-spacing: var(--ov-title-tracking);
+  overflow-wrap: break-word;
+}
+.profile-card-handle {
+  display: block;
+  margin-top: 2px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+/* The counts: two halves of one row between rules, a figure over its word, each the target of
+   its list. */
+.profile-card-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-block: 1px solid var(--ov-hair);
+}
+.profile-card-count {
+  display: grid;
+  min-height: calc(56 * var(--ov-u));
+  align-content: center;
+  gap: 2px;
+  padding: calc(8 * var(--ov-u)) 0;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.profile-card-count + .profile-card-count {
+  padding-left: var(--ov-pad-card);
+  border-left: 1px solid var(--ov-hair);
+}
+.profile-card-figure {
+  color: var(--ov-ink);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.profile-card-missing {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: calc(10 * var(--ov-u));
+  margin: 0 calc(-1 * var(--ov-pad-card)) calc(-8 * var(--ov-u));
+  padding: calc(4 * var(--ov-u)) var(--ov-pad-card) 0;
+  border-top: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  line-height: 1.3;
 }

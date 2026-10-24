@@ -223,11 +223,30 @@ export function ChangeDetail(props: ChangeDetailProps) {
             </>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2">
+              {/* Peers, one size, the one that decides last, under the thumb (DESIGN.md, The
+                  Equal Actions Rule). */}
+              <div className="action-row">
+                <Button
+                  size="lg"
+                  variant="tonal"
+                  disabled={busy}
+                  onClick={() =>
+                    run(
+                      () =>
+                        coachingAction(() =>
+                          coach
+                            ? declineProgramChangeAction(props.draftId)
+                            : rejectProgramDraftAction(props.draftId),
+                        ),
+                      back,
+                    )
+                  }
+                >
+                  {coach ? "Decline" : "Discard"}
+                </Button>
                 <Button
                   size="lg"
                   disabled={busy || !startDate}
-                  className="min-w-0 flex-1 basis-[max-content]"
                   onClick={() =>
                     run(
                       () =>
@@ -249,24 +268,6 @@ export function ChangeDetail(props: ChangeDetailProps) {
                       : coach
                         ? "Approve"
                         : "Use these changes"}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="tonal"
-                  disabled={busy}
-                  onClick={() =>
-                    run(
-                      () =>
-                        coachingAction(() =>
-                          coach
-                            ? declineProgramChangeAction(props.draftId)
-                            : rejectProgramDraftAction(props.draftId),
-                        ),
-                      back,
-                    )
-                  }
-                >
-                  {coach ? "Decline" : "Discard"}
                 </Button>
               </div>
               {coach ? (

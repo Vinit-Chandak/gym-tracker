@@ -1,13 +1,12 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { Disclosure } from "@/components/ui/disclosure";
-import { FigureInput } from "@/components/ui/figure-input";
 import { FigureText } from "@/components/ui/figure-text";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input, Textarea } from "@/components/ui/input";
-import { figureWidth, RowStepper } from "@/components/ui/row-stepper";
+import { RowStepper } from "@/components/ui/row-stepper";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import {
@@ -23,6 +22,7 @@ import {
 import { FACT_SEPARATOR } from "@/lib/facts";
 import { dateTimeLocalCandidates, formatUtcOffset, timeZoneOffsetMinutes } from "@/lib/time";
 import { DECIMALS, EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
+import { sanitizeNumberEntry } from "@/domain/sets";
 import type { FormState } from "@/server/validation/form";
 
 /**
@@ -221,25 +221,17 @@ export function postedDistance(
   };
 }
 
-/** Digits alone: what a part of a figure typed on the number pad keeps. */
+/** Digits alone: what a figure typed on the number pad keeps. */
 const digitsOf = (raw: string) => raw.replace(/\D/g, "");
 
-/** A distance's whole as typed, without the zero it stood at before a figure was typed after it. */
-const wholeOf = (raw: string) =>
-  digitsOf(raw)
-    .replace(/^0+(?=\d)/, "")
-    .slice(0, 5);
-
-/** A distance's figure in its two parts: the whole, and the digits after the point. */
-export function distanceParts(value: string): { whole: string; fraction: string } {
-  const [whole = "", fraction = ""] = value.replace(",", ".").split(".");
-  return { whole, fraction };
-}
-
-/** The figure two parts make: "5" and "2" are 5.2, "" and "5" are 0.5, both blank none. */
-export function joinDistance(whole: string, fraction: string): string {
-  if (whole === "" && fraction === "") return "";
-  return fraction === "" ? whole : `${whole || "0"}.${fraction}`;
+/**
+ * A distance as typed on the decimal pad: digits and one point (a comma is one), no more places
+ * after it than a distance is kept to, never past the field's most.
+ */
+export function distanceEntry(raw: string): string {
+  const clean = sanitizeNumberEntry(raw, "decimal", 100_000);
+  const point = clean.indexOf(".");
+  return point < 0 ? clean : clean.slice(0, point + 1 + DECIMALS.distance);
 }
 
 /**
@@ -248,10 +240,10 @@ export function joinDistance(whole: string, fraction: string): string {
  * Both are stored; neither is re-derived. A recorded distance opened in another unit
  * (`openDistance`) is posted as it was entered until it is changed, and says what that was.
  *
- * A phone types it on the number pad, which has no point: the figure is two parts, the whole
- * and what follows the point, with the point drawn between them ("5" then "2" is 5.2 km). A
- * point typed into the whole, from a keyboard that has one, moves on to the part after it. A
- * distance counted in whole units (a swim's metres or yards) is one part.
+ * One figure, typed whole on the decimal pad ("5.2"), which iOS and Android both draw with its
+ * point: the figure in two parts, the whole and what followed the point each its own field, had
+ * a tap select one side of it and type into that side alone (owner, 24 October 2026). A distance
+ * counted in whole units (a swim's metres or yards) takes the number pad.
  */
 export function DistanceField({
   value,
@@ -288,17 +280,14 @@ export function DistanceField({
   /** Counted in whole units, a swim's metres or yards: one part, with no point. */
   whole?: boolean;
 }) {
-  const after = useRef<HTMLInputElement>(null);
   const at = units.findIndex((option) => option.value === unit);
   const other = units[(at + 1) % units.length] ?? units[0]!;
   const shown = units[at]?.label ?? unit;
   const posted = postedDistance(value, unit, recorded);
-  const kept = posted.value !== value || posted.unit !== unit;
-  const parts = distanceParts(value);
   return (
     <>
       <input type="hidden" name={unitName} value={posted.unit} />
-      {(kept || !whole) && <input type="hidden" name={name} value={posted.value} />}
+      <input type="hidden" name={name} value={posted.value} />
       <RowStepper
         label={label}
         aside={aside}
@@ -313,66 +302,11 @@ export function DistanceField({
             (posted.note ?? hint)
           )
         }
-        name={kept || !whole ? undefined : name}
         value={value}
         onChange={onValueChange}
         inputMode={whole ? "numeric" : "decimal"}
         placeholder={whole ? "–" : "0.00"}
-        figure={
-          whole
-            ? undefined
-            : ({ id, describedBy, invalid, fontSize }) => (
-                <>
-                  <FigureInput
-                    id={id}
-                    inputMode="numeric"
-                    value={parts.whole}
-                    placeholder="0"
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    onChange={(event) => {
-                      const typed = event.target.value.replace(",", ".");
-                      const point = typed.indexOf(".");
-                      if (point < 0) {
-                        onValueChange(joinDistance(wholeOf(typed), parts.fraction));
-                        return;
-                      }
-                      // A point typed here: what was before it is the whole, and the rest
-                      // comes after it, where the typing goes on.
-                      onValueChange(
-                        joinDistance(
-                          wholeOf(typed.slice(0, point)),
-                          digitsOf(typed.slice(point + 1)).slice(0, DECIMALS.distance),
-                        ),
-                      );
-                      after.current?.focus();
-                    }}
-                    style={{ width: figureWidth(parts.whole || "0"), fontSize }}
-                  />
-                  <span aria-hidden className="row-stepper-point" style={{ fontSize }}>
-                    .
-                  </span>
-                  <FigureInput
-                    ref={after}
-                    inputMode="numeric"
-                    value={parts.fraction}
-                    placeholder="00"
-                    aria-label={`${label}, after the point`}
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    onChange={(event) =>
-                      onValueChange(
-                        joinDistance(
-                          parts.whole,
-                          digitsOf(event.target.value).slice(0, DECIMALS.distance),
-                        ),
-                      )
-                    }
-                    style={{ width: figureWidth(parts.fraction || "00"), fontSize }}
-                  />
-                </>
-              )
-        }
+        sanitize={whole ? undefined : distanceEntry}
         unit={shown}
         onUnit={
           units.length > 1

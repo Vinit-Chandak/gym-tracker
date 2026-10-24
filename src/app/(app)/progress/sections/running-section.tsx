@@ -100,7 +100,7 @@ export function RunningSection({ running, today }: Pick<ProgressData, "running" 
   );
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="progress-section">
       <SegmentedControl
         name="run-metric"
         aria-label="Running measure"

@@ -25,6 +25,13 @@ owns what and which rule wins.
 
 When a third-party skill contradicts 1–3, follow 1–3 and say so in one line.
 
+**These rules are living, not scripture** (owner, 24 October 2026). Precedence settles a
+disagreement; it does not make a rule right. When a screen shows that a rule here or in
+`DESIGN.md` is wrong, or says nothing where it should (unequal buttons, a field with no box, a
+heading in body type, a gap padded twice), fix the screen and rewrite the rule in the same change,
+dated and attributed, so the next change cannot repeat it. An owner's complaint about something
+basic is evidence that a rule was missing or wrong, never only that one screen slipped.
+
 ## One owner per job
 
 | Job                                                                                           | Owner                               | Supporting                                    |
@@ -92,7 +99,9 @@ When a third-party skill contradicts 1–3, follow 1–3 and say so in one line.
 | Status colours           | `better-colors` builds only the status ramps the product renders; the Uxcel skills assume four                                                                 | Two: danger and success. A notice is a tray in ink with its glyph; there is no warning amber                                                                                                                                                                                                                             |
 | Glass, blur, gradients   | `apple-design` uses translucent materials; `taste-app-screens` and `frontend-design` read glass and gradient washes as generated                               | No glass, blur or decorative gradient. A fade at a scroll edge, where content passes under pinned actions, is the one gradient, because it says there is more                                                                                                                                                            |
 | Fact separators          | `frontend-design` lists meta strings joined by middle dots as template chrome                                                                                  | A meta line's facts keep the app's separator (`FACT_SEPARATOR`), because they are facts the athlete reads in a row; never use it as decoration or to join words a sentence could join                                                                                                                                    |
-| Validation timing        | `ux-inputs-and-forms` and `ux-error-recovery` validate a field when it is left; Overload's forms check what can be checked as it is typed                      | A rule a value must meet is said before typing; a field is marked in red when it is left or when Save is refused, never while it is being typed, and the mark stays until the value can be saved                                                                                                                         |
+| Validation timing        | `ux-inputs-and-forms` and `ux-error-recovery` validate a field when it is left; Overload's forms check what can be checked as it is typed                      | A rule a value must meet is said before typing; a field is marked in red when it is left or when Save is refused, never while it is being typed; the mark stays until the value can be saved and never waits for a save to go through, while the refused save's bar goes after four seconds (owner, 24 October 2026)     |
+| How long a message stays | `ux-error-recovery` keeps an error until it is fixed; toast guidance runs four to ten seconds                                                                  | `DESIGN.md`, Inputs and choices: a record kept stands three seconds (held while touched or focused, so Undo is never pulled away), a refused save's bar four, a failure with Retry until it is taken; nothing that reports a moment stays on the screen                                                                  |
+| Spacing scale            | `ux-layout-spacing-grids` builds an 8-pt scale and lets each layout pick its steps                                                                             | `DESIGN.md`'s Rhythm Rule: six named gaps, each with one job (header, section, heading, stack, block, a card's inset), every gap from one source, no twin padding or margins. A new gap is a new rule, never a one-off value                                                                                             |
 
 ## Limits in force
 
@@ -148,6 +157,14 @@ does not play a second slide over Safari's own.
   The script uses WebKit, which a cloud session has only if the environment's setup script
   installs it; without it, capture the Android profile in Chromium (`AUDIT_DEVICE=android`,
   `AUDIT_CHROMIUM_PATH`) and say which engine the screens came from.
+- Run the consistency audit, `npm run audit:consistency`, in both themes (`AUDIT_THEME=dark`)
+  against the local audit server, after any change to a shared piece (a header, a field, a
+  button, a card, a token). It fails a screen whose peer actions differ in size or width, whose
+  field shows no box, whose 20-pt-or-larger text is not Jost or whose heading is lighter than
+  600, whose steppers do not line up, that repeats a sentence three times or more, or whose
+  header-to-content gap is off its kind's. A fault it cannot see (a control that does nothing, a
+  message that never goes) is still a fault: walk it, then teach the audit when it can be
+  measured.
 - Read every changed screen for words it does not need (The Need-to-Know Rule): a sentence that
   explains the app, the coach or a plan goes, and help moves into an ⓘ or a fold.
 - Tests assert what a screen does (roles, names, states, figures), not its explanatory sentences;

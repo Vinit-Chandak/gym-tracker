@@ -144,7 +144,7 @@ export function MyFoodsView({
   return (
     <>
       {(library.foods.length > 0 || library.savedMeals.length > 0) && (
-        <div className="food-search mt-3">
+        <div className="food-search">
           <Glyph name="search" className="glyph-20" />
           <input
             type="search"

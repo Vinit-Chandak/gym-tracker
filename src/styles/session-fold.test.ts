@@ -13,7 +13,6 @@ const read = (path: string) =>
   readFileSync(resolve(__dirname, path), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const rows = read("form-v2/rows.css");
 const globals = read("../app/globals.css");
-const foundation = read("form-v2/foundation.css");
 
 /** Each `@container <name> (...)` block: its condition and its body. */
 function containers(css: string): { name: string; condition: string; body: string }[] {
@@ -66,11 +65,11 @@ const gutter = (screen: number) => (screen < 360 ? 16 : 20);
 /**
  * How wide each box that holds the key is on a screen, from what the CSS declares beside it:
  * the pinned actions pad themselves by the gutters; a form's kept actions stand inside the
- * page's gutters and pad themselves by --ov-space-3 on each side.
+ * page's gutters with no inset of their own (DESIGN.md, The Rhythm Rule: one inset, never two).
  */
 const boxes: Record<string, (screen: number, root: number) => number> = {
   pinned: (screen) => screen - 2 * gutter(screen),
-  "kept-actions": (screen, root) => screen - 2 * gutter(screen) - 2 * 0.5 * root,
+  "kept-actions": (screen) => screen - 2 * gutter(screen),
 };
 
 it("stands the strip down only while its key has a box, never from a query of its own", () => {
@@ -85,9 +84,9 @@ it("measures each place's box as the CSS lays it out", () => {
   );
   expect(declared(rows, /\n\.pinned-actions/, "container")).toBe("pinned / inline-size");
   expect(declared(rows, /\n\.sticky-actions/, "container")).toBe("kept-actions / inline-size");
-  expect(declared(globals, /@utility sticky-actions/, "padding")).toBe("var(--ov-space-3)");
-  expect(declared(foundation, /:where\(\[data-overload-design="form-v2"\]\)/, "--ov-space-3")).toBe(
-    "0.5rem",
+  // Above and below only: the page's gutters are its sides.
+  expect(declared(globals, /@utility sticky-actions/, "padding")).toBe(
+    "calc(10 * var(--ov-u)) 0 calc(4 * var(--ov-u))",
   );
   expect(declared(globals, /@utility page-width/, "padding-left")).toBe(
     "max(var(--page-gutter), env(safe-area-inset-left))",

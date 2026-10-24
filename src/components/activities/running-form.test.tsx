@@ -32,20 +32,20 @@ it("only asks for a treadmill incline on a treadmill, keeping it when toggled ba
 });
 
 /**
- * A run logged on a phone's number pad, which has neither a colon nor a point: the time is
- * typed in digits and the colons place themselves, and the distance is its whole and what
- * follows the point, the point drawn between them.
+ * A run logged on a phone: the distance typed whole on the decimal pad, which has its point, and
+ * the time in digits on the number pad, its colons placing themselves.
  */
-it("takes a run's distance and time in digits alone, and says the pace they make", () => {
+it("takes a run's distance whole and its time in digits, and says the pace they make", () => {
   const { container } = render(<RunningForm {...props} />);
   const posted = () => new FormData(container.querySelector("form")!);
-  const whole = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
-  const after = screen.getByLabelText("Distance, after the point") as HTMLInputElement;
+  const distance = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
   const time = screen.getByLabelText("Duration") as HTMLInputElement;
-  for (const field of [whole, after, time]) expect(field.getAttribute("inputmode")).toBe("numeric");
+  expect(distance.getAttribute("inputmode")).toBe("decimal");
+  expect(time.getAttribute("inputmode")).toBe("numeric");
+  // One field: nothing is split at the point, so nothing selects or types one side of it.
+  expect(screen.queryByLabelText("Distance, after the point")).toBeNull();
 
-  fireEvent.change(whole, { target: { value: "5" } });
-  fireEvent.change(after, { target: { value: "2" } });
+  fireEvent.change(distance, { target: { value: "5.2" } });
   fireEvent.change(time, { target: { value: "2530" } });
   expect(time.value).toBe("25:30");
   expect(posted().get("distanceValue")).toBe("5.2");
@@ -58,31 +58,19 @@ it("takes a run's distance and time in digits alone, and says the pace they make
   expect(screen.getByRole("status").textContent).toBe("Pace 4:54 /km");
 });
 
-it("drops the zero a whole stood at once a figure is typed after it", () => {
-  render(<RunningForm {...props} />);
-  const whole = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
-  fireEvent.change(screen.getByLabelText("Distance, after the point"), { target: { value: "5" } });
-  expect(whole.value).toBe("0");
-  fireEvent.change(whole, { target: { value: "08" } });
-  expect(whole.value).toBe("8");
-});
-
-it("moves on after a point typed into the whole, from a keyboard that has one", () => {
+it("reads a comma as the point, as some phones' decimal pads write it", () => {
   const { container } = render(<RunningForm {...props} />);
-  const whole = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
-  const after = screen.getByLabelText("Distance, after the point") as HTMLInputElement;
-  fireEvent.change(whole, { target: { value: "10.55" } });
-  expect([whole.value, after.value]).toEqual(["10", "55"]);
-  expect(document.activeElement).toBe(after);
+  const distance = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
+  fireEvent.change(distance, { target: { value: "10,55" } });
+  expect(distance.value).toBe("10.55");
   expect(new FormData(container.querySelector("form")!).get("distanceValue")).toBe("10.55");
 });
 
-it("steps the distance by a tenth and the time by a minute, in their parts", () => {
+it("steps the distance by a tenth and the time by a minute", () => {
   render(<RunningForm {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "More, 0.1 km" }));
   fireEvent.click(screen.getByRole("button", { name: "More, 0.1 km" }));
-  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("0");
-  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("2");
+  expect((screen.getAllByLabelText("Distance")[0] as HTMLInputElement).value).toBe("0.2");
   const time = screen.getByLabelText("Duration") as HTMLInputElement;
   fireEvent.change(time, { target: { value: "2530" } });
   fireEvent.click(screen.getByRole("button", { name: "A minute more" }));
@@ -98,7 +86,7 @@ it("writes a time left past sixty as the clock does", () => {
   expect(time.value).toBe("1:15");
 });
 
-it("opens a recorded run in its parts and keeps its time to the tenth until it is changed", () => {
+it("opens a recorded run and keeps its time to the tenth until it is changed", () => {
   const { container } = render(
     <RunningForm
       {...props}
@@ -113,8 +101,7 @@ it("opens a recorded run in its parts and keeps its time to the tenth until it i
     />,
   );
   const posted = () => new FormData(container.querySelector("form")!);
-  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("21");
-  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("1");
+  expect((screen.getAllByLabelText("Distance")[0] as HTMLInputElement).value).toBe("21.1");
   expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("1:52:07");
   // Nothing typed, so nothing rounded: the record's tenth goes back as it came.
   fireEvent.blur(screen.getByLabelText("Duration"));
@@ -186,14 +173,12 @@ it("types the watch's totals instead, and offers the laps' figure when one is sh
   typeIntervals();
   fireEvent.click(screen.getByRole("button", { name: "Use the watch’s totals instead" }));
   // The steppers start from the laps' figures, so only what differs is typed.
-  const whole = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
-  expect([whole.value, (screen.getByLabelText("Duration") as HTMLInputElement).value]).toEqual([
-    "1",
+  const distance = screen.getAllByLabelText("Distance")[0] as HTMLInputElement;
+  expect([distance.value, (screen.getByLabelText("Duration") as HTMLInputElement).value]).toEqual([
+    "1.47",
     "8:56",
   ]);
-  fireEvent.change(screen.getByLabelText("Distance, after the point"), {
-    target: { value: "00" },
-  });
+  fireEvent.change(distance, { target: { value: "1.00" } });
   // Settle the async action before reading its refusal, including under full-suite load.
   await act(async () => {
     fireEvent.submit(container.querySelector("form")!);

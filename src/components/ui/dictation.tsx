@@ -302,7 +302,8 @@ export function SpeechTextarea({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className={cn(
-            "min-h-24 w-full min-w-0 resize-y rounded-control border border-line-strong bg-surface p-[calc(12*var(--ov-u))] text-[length:var(--ov-text-input)] leading-snug text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none",
+            // Drawn as every field is (input.tsx): the mode's ground in a control edge.
+            "min-h-24 w-full min-w-0 resize-y rounded-control border border-control bg-field p-[calc(12*var(--ov-u))] text-[length:var(--ov-text-input)] leading-snug text-ink placeholder:text-ink-2 focus:border-ink focus:shadow-[0_0_0_1px_var(--ov-ink)] focus:outline-none aria-invalid:border-danger-line aria-invalid:bg-danger-tint",
             dictation.supported && "pb-14",
           )}
         />

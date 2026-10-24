@@ -256,8 +256,7 @@ async function endurance(sport, mode) {
       await field("Distance").fill("900");
     } else {
       await field("Duration").fill("2500");
-      await field("Distance").fill(sport === "running" ? "4" : "12");
-      await field("Distance, after the point").fill("0");
+      await field("Distance").fill(sport === "running" ? "4.0" : "12.0");
     }
     await page
       .getByRole("radiogroup", { name: "Effort", exact: true })

@@ -45,11 +45,7 @@ export function StatTile({
       <dt className="flex items-center gap-0.5 text-xs leading-tight text-ink-muted">
         {/* A label longer than any the row was sized for wraps rather than running on. */}
         <span className="min-w-0 [overflow-wrap:break-word]">{label}</span>
-        {info && (
-          <InfoTip label={aboutLabel(label)} className="-my-2">
-            {info}
-          </InfoTip>
-        )}
+        {info && <InfoTip label={aboutLabel(label)}>{info}</InfoTip>}
       </dt>
       {/* A stat is a figure (DESIGN.md, The Two Voices Rule): its digits in Jost, whose zero is
           plain, and any word with it ("Machine", "kg") in Atkinson. */}

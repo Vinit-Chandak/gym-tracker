@@ -34,7 +34,7 @@ export function FoodSection({ food, today }: Pick<ProgressData, "food" | "today"
   const figure = (value: number) => decimal(value, 0);
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="progress-section">
       <SegmentedControl
         name="food-metric"
         aria-label="Food measure"

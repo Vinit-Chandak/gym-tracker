@@ -265,7 +265,7 @@ export function EquipmentStepForm({ step, art, preview = false }: Props) {
           {step.suggestions.length > 0 &&
             (atGym ? (
               <section aria-labelledby="suggestions-title">
-                <h2 id="suggestions-title" className="caption-head mt-4">
+                <h2 id="suggestions-title" className="caption-head">
                   {step.experience === "new" ? "What else is here?" : "Often missed"}
                 </h2>
                 <EquipmentRows
@@ -634,7 +634,7 @@ function GroupedRows({ items, ...rowProps }: RowProps & { items: readonly Starte
   }, [items]);
   return groups.map((group) => (
     <Fragment key={group.key}>
-      <h3 className="caption-head mt-3.5">{group.title}</h3>
+      <h3 className="group-caption">{group.title}</h3>
       <EquipmentRows items={group.items} label={group.title} {...rowProps} />
     </Fragment>
   ));
@@ -659,7 +659,7 @@ function SearchResults({
       : `Nothing is called “${query.trim()}”`;
   return (
     <div>
-      <p role="status" className="caption-head mt-3.5">
+      <p role="status" className="group-caption">
         {said}
       </p>
       {candidates.length > 1 && (
@@ -903,7 +903,7 @@ function AboutSheet({
       {item.purpose && <p className="mt-2 type-body">{item.purpose}</p>}
       {item.identification && (
         <>
-          <h3 className="caption-head mt-3">How to recognise it</h3>
+          <h3 className="group-caption">How to recognise it</h3>
           <p className="mt-1 type-body">{item.identification}</p>
         </>
       )}

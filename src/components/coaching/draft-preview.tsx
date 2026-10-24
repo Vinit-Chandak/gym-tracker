@@ -21,7 +21,6 @@ import {
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
 import { EFFORT } from "@/domain/activity-limits";
-import { cycleLayout, inferCycleRepeat } from "@/domain/cycle-repeat";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import { setTargetIn, type SetLengthUnit } from "@/lib/distance-units";
 import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
@@ -36,37 +35,11 @@ import { plannedRaceDate, startOn, suggestedStart } from "@/domain/programme-sta
 import { planRunDays } from "@/domain/run-days";
 import { formatIsoDate } from "@/lib/format";
 import { AskForChangesSheet, type CoachAnswer } from "./ask-for-changes";
+import { draftShape } from "./draft-shape";
 import { CoachQuestions } from "./coach-questions";
 import { EnduranceDraftWeeks } from "./endurance-draft-weeks";
 import { builderPath, type ProgrammeBase } from "./programme-paths";
 import { RunDaysSheet } from "./run-days-sheet";
-
-/**
- * "6 weeks · 4 days per cycle · 91 sets a cycle", counting one of anything as one — with the
- * cycle said the way it repeats: "3 days a week", or "11 cycles of 4 days".
- */
-function shape(blueprint: ProgramBlueprint): string {
-  if (blueprint.sport && blueprint.sport !== "strength")
-    return `${blueprint.weeks} weeks · ${blueprint.enduranceSessions?.length ?? 0} sessions`;
-  const sets = blueprint.days.reduce(
-    (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
-    0,
-  );
-  const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
-  // A first programme that has not chosen takes the repeat its days suggest when it starts.
-  const plan = { ...blueprint, repeats: blueprint.repeats ?? inferCycleRepeat(blueprint.days) };
-  const { cycles, byWeekday } = cycleLayout(plan);
-  if (blueprint.repeats === "once")
-    return `${blueprint.weeks} weeks · ${blueprint.days.length} days · Progressive`;
-  const days = plural(blueprint.days.length, "day");
-  const cycle =
-    blueprint.days.length === 7
-      ? `${days} per cycle`
-      : byWeekday
-        ? `${days} a week`
-        : `${plural(cycles, "cycle")} of ${days}`;
-  return joinFacts([plural(blueprint.weeks, "week"), cycle, `${plural(sets, "set")} a cycle`]);
-}
 
 /** How a draft stopped being open, in a word or two. */
 const CLOSED: Partial<Record<ProgramDraft["status"], string>> = {
@@ -115,6 +88,7 @@ export function DraftPreview({
   length,
   units = DEFAULT_SPORT_UNITS,
   preview = false,
+  titled = true,
 }: {
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
@@ -127,6 +101,11 @@ export function DraftPreview({
   length: SetLengthUnit;
   units?: SportUnits;
   preview?: boolean;
+  /**
+   * Whether the preview names the programme itself. Off where the page's own title is the
+   * programme's name, so the screen never stands two headlines over each other.
+   */
+  titled?: boolean;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
@@ -255,12 +234,12 @@ export function DraftPreview({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-medium [overflow-wrap:break-word]">
-          {current.blueprint.name}
-        </h2>
-        <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
-      </div>
+      {titled && (
+        <div>
+          <h2 className="type-display">{current.blueprint.name}</h2>
+          <p className="mt-1 type-meta text-ink-2">{draftShape(current.blueprint)}</p>
+        </div>
+      )}
       {current.rationale && (
         <CoachNoteMore size="body">
           <span className="whitespace-pre-wrap">{current.rationale}</span>
@@ -309,43 +288,56 @@ export function DraftPreview({
               />
             </Field>
           )}
-          <Button disabled={busy || !startDate} onClick={activate}>
-            {busy && !sheetOpen
-              ? "Saving…"
-              : current.standalone
-                ? "Save session"
-                : "Start programme"}
-          </Button>
-          {first && (
-            <Button
-              variant="secondary"
-              disabled={busy}
-              aria-haspopup="dialog"
-              onClick={() => {
-                setError(null);
-                setAsking(true);
-              }}
-            >
-              Ask for changes
+          {/* One group, in the order it is decided (DESIGN.md, The Equal Actions Rule): the
+              action that decides, then the other ways forward, each the full width and one
+              size, then the way out in words. Three choices stand one under another; side by
+              side, "Ask for changes" broke onto two lines beside a one-line Edit draft. */}
+          <div className="action-stack">
+            <Button size="lg" disabled={busy || !startDate} onClick={activate}>
+              {busy && !sheetOpen
+                ? "Saving…"
+                : current.standalone
+                  ? "Save session"
+                  : "Start programme"}
             </Button>
-          )}
-          {!current.standalone && (
-            <LinkButton
-              href={
-                (current.sport === "strength"
-                  ? preview
-                    ? "/preview/coaching?view=manual"
-                    : builderPath(base, `?draft=${current.id}`)
-                  : `/plan/${current.sport}/edit?draft=${current.id}`) as Route
-              }
-              variant="secondary"
+            {first && (
+              <Button
+                size="lg"
+                variant="secondary"
+                disabled={busy}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setError(null);
+                  setAsking(true);
+                }}
+              >
+                Ask for changes
+              </Button>
+            )}
+            {!current.standalone && (
+              <LinkButton
+                href={
+                  (current.sport === "strength"
+                    ? preview
+                      ? "/preview/coaching?view=manual"
+                      : builderPath(base, `?draft=${current.id}`)
+                    : `/plan/${current.sport}/edit?draft=${current.id}`) as Route
+                }
+                size="lg"
+                variant="secondary"
+              >
+                Edit draft
+              </LinkButton>
+            )}
+            <button
+              type="button"
+              className="text-action"
+              disabled={busy}
+              onClick={() => setConfirmingDiscard(true)}
             >
-              Edit draft
-            </LinkButton>
-          )}
-          <Button variant="ghost" disabled={busy} onClick={() => setConfirmingDiscard(true)}>
-            Discard draft
-          </Button>
+              Discard draft
+            </button>
+          </div>
           <ConfirmSheet
             open={confirmingDiscard}
             onClose={() => setConfirmingDiscard(false)}

@@ -140,7 +140,7 @@ export function HistoryList({
             {named && (
               <Heading className="list-month">{formatIsoMonth(own, today.slice(0, 4))}</Heading>
             )}
-            <Heading id={`history-${group.day}`} className="caption-head mt-3.5">
+            <Heading id={`history-${group.day}`} className="group-caption">
               {dayLabel(group.day, today)}
             </Heading>
             <ul>

@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -36,7 +39,14 @@ it("opens on this week, named as a graph names it, and goes no further", () => {
   // Nothing is trained in a week still to come: the arrow there is off, and greyed as every
   // glyph that leads nowhere is, not left the ink of the one beside it.
   expect(button("Next week").disabled).toBe(true);
-  expect(button("Next week").className).toContain("disabled:text-control");
+  expect(button("Next week").classList).toContain("week-stepper-button");
+  const progressCss = readFileSync(
+    resolve(__dirname, "../../../../styles/form-v2/progress.css"),
+    "utf8",
+  );
+  expect(progressCss).toMatch(
+    /\.week-stepper-button:disabled\s*\{\s*color:\s*var\(--ov-control\);/,
+  );
   fireEvent.click(button("Previous week"));
   expect(router.replace).toHaveBeenCalledWith("/progress?view=muscles&week=2026-09-28", {
     scroll: false,

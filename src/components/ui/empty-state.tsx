@@ -18,7 +18,7 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
       </div>
       {/* Centred under the icon: the lines are evened out, so the last never holds one word
           ("…a cycle at a / time.") at a desktop's width. */}
-      <h2 className="mt-4 text-lg font-medium text-balance">{title}</h2>
+      <h2 className="mt-4 type-section text-balance">{title}</h2>
       {description && (
         <p className="mt-2 max-w-xs text-sm text-pretty text-ink-muted">{description}</p>
       )}

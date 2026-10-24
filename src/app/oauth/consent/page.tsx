@@ -37,7 +37,7 @@ export default async function CoachConnectorConsentPage({
 
   return (
     <main className="mx-auto max-w-lg space-y-6 px-5 py-12">
-      <h1 className="text-2xl font-bold">Connect the coach backup</h1>
+      <h1 className="type-display">Connect the coach backup</h1>
       <p>
         <strong>{data.client.name}</strong> is requesting access as the house coach.
       </p>

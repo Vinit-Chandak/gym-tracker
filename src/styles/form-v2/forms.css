@@ -19,14 +19,11 @@
 .row-stepper[data-field-error="true"] > .row-stepper-text > [role="alert"] {
   font-weight: 700;
 }
-/* The figure's rule, which says which figure is typed, is the danger line while it is refused. */
-.row-stepper[data-field-error="true"] .figure-input {
-  border-bottom-color: var(--ov-danger-line);
-}
+/* The figure's field takes the danger tint and edge while it is refused, as any field does. */
 .row-stepper[data-field-error="true"] .row-stepper-figure {
-  border-radius: var(--ov-radius-control);
+  border-color: var(--ov-danger-line);
   background: var(--ov-danger-tint);
-  box-shadow: inset 0 0 0 1.5px var(--ov-danger-line);
+  box-shadow: 0 0 0 0.5px var(--ov-danger-line);
 }
 
 /* ---------- a refused choice: a 1–5 scale or any tray of choices ---------- */
@@ -64,9 +61,9 @@
 }
 
 /* ---------- panels on the grouped ground (DESIGN.md, Forms) ---------- */
-/* A form or a settings list stands as panels on the grouped ground, each under its caption, so
-   its sections read as sections. Inside a panel a tray of choices steps to the panel's own tray,
-   and a field is a filled tray rather than an outline; focused, it takes the ink edge. */
+/* A form or a settings list stands as panels on the grouped ground, each under its heading, so
+   its sections read as sections. Inside a panel a tray of choices steps to the panel's own tray;
+   a field keeps its own fill and edge (input.tsx), as it does everywhere. */
 .ov-grouped {
   background: var(--ov-grouped);
 }
@@ -109,6 +106,17 @@ body:has(.ov-grouped-page) {
 body:has(form.ov-grouped) {
   background: var(--ov-grouped);
 }
+/* A box on the grouped ground is a panel: its fill says it, and the hairline goes. */
+:where(.ov-grouped, .ov-grouped-page) .box,
+:where(.ov-grouped, .ov-grouped-page) .box-rows {
+  /* A panel there, so what stands in it takes a panel's control fills, a tone off it. */
+  --ov-tray: var(--ov-panel-tray);
+  --ov-surface-control: var(--ov-panel-tray);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+  --ov-waiting: var(--ov-panel-tray);
+  border-color: transparent;
+  background: var(--ov-panel);
+}
 /* A choice of tiles standing on the grouped ground (Outdoor, Treadmill): an unchosen tile is a
    panel there, or it would be the ground's own fill and read as a stray word. */
 .ov-grouped .peer:not(:checked) + .where-choice-tile {
@@ -139,13 +147,6 @@ body:has(form.ov-grouped) {
   font-weight: 700;
   line-height: 1.3;
 }
-.ov-panel :where(.ov-input:not([aria-invalid="true"])) {
-  border-color: transparent;
-  background-color: var(--ov-panel-tray);
-}
-.ov-panel :where(.ov-input:not([aria-invalid="true"]):focus) {
-  border-color: var(--ov-ink);
-}
 /* Native required/email/number validation refuses the save before a server action runs. */
 .ov-input:user-invalid,
 .ov-panel .ov-input:user-invalid {
@@ -162,10 +163,6 @@ body:has(form.ov-grouped) {
 .ov-panel > .row-stepper:last-child,
 .ov-panel > :last-child > .row-stepper:last-child {
   border-bottom: 0;
-}
-/* A lap inside the laps panel stands on the panel's tray, as a step does. */
-.ov-panel .lap-row {
-  background: var(--ov-panel-tray);
 }
 
 /* A lap's fields stand three to a row: their insets are narrower, so a standing recovery's

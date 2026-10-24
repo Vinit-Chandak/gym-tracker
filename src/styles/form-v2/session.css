@@ -134,7 +134,7 @@ html:has(.session-layer) body {
   margin-top: 2px;
   font-family: var(--ov-font-display);
   font-size: var(--session-title, var(--ov-type-display));
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
   overflow-wrap: break-word;

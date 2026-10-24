@@ -12,6 +12,7 @@ import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import { attempted } from "@/lib/offline-submit";
 import type {
   EntryRecord,
@@ -157,7 +158,7 @@ export function MealEditor({
     <>
       {entries.length > 0 && (
         <div ref={top} className="scroll-mt-20">
-          <section aria-label={`${label} total`} className="meal-total mt-3">
+          <section aria-label={`${label} total`} className="meal-total">
             <div className="min-w-0">
               <p className="whitespace-nowrap">
                 <span className="type-figure-l">{formatKcal(total.kcal)}</span>{" "}
@@ -214,7 +215,7 @@ export function MealEditor({
       )}
       {error && <FormError message={error ?? undefined} />}
 
-      <div className="food-search mt-3">
+      <div className={cn("food-search", entries.length > 0 && "mt-3")}>
         <Glyph name="search" className="glyph-20" />
         <input
           type="search"
