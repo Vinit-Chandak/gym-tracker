@@ -53,7 +53,7 @@ export default async function PrivacyPage() {
     <>
       <PageHeader title="Privacy" backHref="/profile" />
       <div className="page-width pb-8">
-        <div className="mt-2">
+        <div>
           <PrivacySwitches
             values={{
               followApproval: profile.followApproval,

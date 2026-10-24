@@ -85,7 +85,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
 
         {activity.length > 0 && (
           <section aria-labelledby="friends-activity">
-            <h2 id="friends-activity" className="caption-head mt-4.5">
+            <h2 id="friends-activity" className="caption-head">
               Recent activity
             </h2>
             <ul>

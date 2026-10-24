@@ -226,9 +226,7 @@ export default async function OccurrencePage(props: PageProps<"/plan/sessions/[o
                 // text).
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                   {headline && (
-                    <h2 className="min-w-0 flex-[1_1_8rem] text-lg font-medium [overflow-wrap:break-word]">
-                      {headline}
-                    </h2>
+                    <h2 className="min-w-0 flex-[1_1_8rem] type-card-title">{headline}</h2>
                   )}
                   {badge && (
                     // Wrapped under the headline, it starts the line, as the plan card's badge

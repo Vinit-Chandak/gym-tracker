@@ -32,7 +32,7 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
 
   if (!body.recorded && points.length === 0)
     return (
-      <div className="mt-6">
+      <div className="progress-section">
         <h2 className="type-heading">No readings yet</h2>
         <LinkButton href="/today/log/body-weight" variant="tonal" className="mt-3">
           Log body weight
@@ -41,7 +41,7 @@ export function BodyWeightSection({ body, today }: Pick<ProgressData, "body" | "
     );
 
   return (
-    <div className="mt-3">
+    <div className="progress-section">
       <Graph
         name="Body weight"
         mark="line"

@@ -242,8 +242,8 @@ it("keeps the folded session strip's place beside Back, on every step and on eit
   // The step's actions are this screen's pinned actions: at large text, while a workout is open,
   // the strip folds into them (rows.css), on the line Back has to itself, before Continue.
   const back = screen.getByRole("button", { name: "Back" });
-  const kept = back.parentElement!;
-  expect(kept.classList.contains("sticky-actions")).toBe(true);
+  expect(back.parentElement!.classList.contains("action-row")).toBe(true);
+  expect(back.closest(".sticky-actions")).not.toBeNull();
   expect(back.nextElementSibling?.className).toBe("pinned-fold");
   expect(back.nextElementSibling?.nextElementSibling).toBe(
     screen.getByRole("button", { name: "Continue" }),

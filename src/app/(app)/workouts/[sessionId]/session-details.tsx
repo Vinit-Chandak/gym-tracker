@@ -98,7 +98,7 @@ export function SessionDetails({
 
       {session.notes && (
         <section className="mt-4">
-          <h3 className="caption-head">Notes</h3>
+          <h3 className="group-caption">Notes</h3>
           <p className="mt-1 type-meta whitespace-pre-line">{session.notes}</p>
         </section>
       )}
@@ -107,7 +107,7 @@ export function SessionDetails({
           leaves the section out, as it leaves out a body weight never given. */}
       {(readings.length > 0 || !readOnly) && (
         <section className="mt-4">
-          <h3 className="caption-head">Check-in</h3>
+          <h3 className="group-caption">Check-in</h3>
           {readings.length > 0 && (
             <dl className="mt-1 type-meta">
               {readings.map(([label, value]) => (

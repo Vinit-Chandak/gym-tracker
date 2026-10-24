@@ -1,14 +1,18 @@
 /* Profile › AI coach: one column; its rows, folds and fields are the house's own. */
+/* The hub stacks by its gap, a section's (DESIGN.md, The Rhythm Rule), and its parts add no
+   margin of their own to it. */
 .coach-hub {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  gap: 24px;
-  padding-top: 8px;
+  gap: var(--ov-gap-section);
+}
+.coach-hub > * {
+  margin-block: 0;
 }
 .coach-hub-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
 }
@@ -17,10 +21,13 @@
   flex: 1;
   overflow-wrap: break-word;
 }
-/* The switch alone is the coach's state, level with the title it belongs to. */
+/* The switch alone is the coach's state, level with the title it belongs to: centred on the
+   title's first line, its target reaching past it, so the title stands one header gap under the
+   bar as every screen's content does (DESIGN.md, The Rhythm Rule). */
 .coach-power {
   display: grid;
   justify-items: center;
+  margin-top: calc((var(--ov-type-display) * 1.05 - var(--ov-target)) / 2);
 }
 .coach-notice {
   border: 1px solid var(--ov-hair);
@@ -29,4 +36,55 @@
   font-size: 0.8125rem;
   line-height: 1.5;
   color: var(--ov-ink-2);
+}
+
+/* A request's state (job-status.tsx): its glyph, then its words as the card's name, and the line
+   under them standing at the words' edge, not the glyph's. The glyph is centred on the name's
+   first line, so a name that wraps keeps it beside its first words. */
+.request-state {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(12 * var(--ov-u));
+}
+.request-state > svg {
+  margin-top: calc((1.12 * var(--ov-type-card-title) - calc(12 * var(--ov-u)) - 0.75rem) / 2);
+}
+.request-state-line {
+  padding-left: calc(calc(12 * var(--ov-u)) + 0.75rem + calc(12 * var(--ov-u)));
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  line-height: 1.4;
+}
+
+/* A multi-step form's head (intake-form.tsx): the steps as bars, then which step and whether the
+   answers are kept with Save and exit at the row's end, then the step's name as a section's. */
+.step-header {
+  display: grid;
+  min-width: 0;
+  gap: calc(8 * var(--ov-u));
+}
+/* The steps' bars stand where a screen's content starts, one header gap under the title, with
+   where the form stands right under them: their targets reach past the bars, up into the
+   header's gap and down to the row under them, rather than pushing either 20 pt away. */
+.step-header > nav:first-child {
+  margin-block: calc((0.25rem - var(--ov-target)) / 2);
+}
+.step-header-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
+}
+.step-header-status {
+  min-width: 0;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.step-header > .type-section {
+  margin-top: calc(4 * var(--ov-u));
 }

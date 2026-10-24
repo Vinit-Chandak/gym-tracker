@@ -675,7 +675,7 @@ export function StepsEditor({
           ),
         )}
       </ol>
-      <div className="flex flex-wrap gap-2">
+      <div className="action-row">
         <Button
           variant="secondary"
           disabled={full}

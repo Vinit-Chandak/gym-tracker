@@ -25,6 +25,7 @@ import { sourceRevision } from "@/server/repositories/coaching-state";
 import { readSportUnits } from "@/server/repositories/sport-preferences";
 import { ChangeDetail } from "./change-detail";
 import { DraftPreview } from "./draft-preview";
+import { draftShape } from "./draft-shape";
 import type { ProgrammeBase } from "./programme-paths";
 
 /** How a closed change ended, in the fewest words that are still true. */
@@ -116,15 +117,19 @@ export async function ProgrammeDraftPage({
   if (!data) notFound();
   const base: ProgrammeBase = onboarding ? "/welcome/programme" : "/plan";
   const today = todayInTimeZone(profile.timeZone);
+  // A programme to read is titled by its name, its shape under it: the one headline on the screen
+  // (two stacked headlines, "Review programme" over the name, read as two titles in two faces).
   if (!data.currentBlueprint || data.draft.standalone)
     return (
       <>
         <PageHeader
-          title={data.draft.standalone ? "Review session" : "Review programme"}
+          title={data.draft.standalone ? "Review session" : data.draft.blueprint.name}
+          meta={data.draft.standalone ? undefined : draftShape(data.draft.blueprint)}
           backHref={onboarding ? base : "/plan"}
         />
         <PageContent>
           <DraftPreview
+            titled={data.draft.standalone}
             draft={data.draft}
             library={data.library}
             machines={data.machines}

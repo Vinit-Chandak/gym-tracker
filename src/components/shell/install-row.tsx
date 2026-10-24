@@ -62,7 +62,7 @@ export function InstallSection() {
 
   return (
     <section aria-labelledby="profile-app">
-      <h2 id="profile-app" className="caption-head mt-4.5">
+      <h2 id="profile-app" className="caption-head">
         App
       </h2>
       <ul className="ov-panel ov-panel-list">

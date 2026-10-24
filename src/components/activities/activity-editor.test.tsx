@@ -37,7 +37,7 @@ it("keeps button-only duration, distance and unit changes through reload", async
   render(<ActivityEditor {...props} units={units} action={action} />);
   expect(await screen.findByText(/^Draft restored/)).toBeTruthy();
   expect(screen.getByLabelText("Duration")).toHaveProperty("value", "1:00");
-  expect(screen.getByLabelText("Distance, after the point")).toHaveProperty("value", "1");
+  expect(screen.getByLabelText("Distance")).toHaveProperty("value", "0.1");
   expect(screen.getByRole("button", { name: "Distance in km. Change to mi" })).toBeTruthy();
   expect(screen.getByLabelText("Elevation gain ft")).toBeTruthy();
 });
@@ -305,8 +305,7 @@ it("opens a correction in the athlete's own units, and changes nothing that is n
       action={vi.fn()}
     />,
   );
-  expect(((await screen.findByLabelText("Distance")) as HTMLInputElement).value).toBe("4");
-  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("47");
+  expect(((await screen.findByLabelText("Distance")) as HTMLInputElement).value).toBe("4.47");
   expect((screen.getByLabelText("Elevation gain ft") as HTMLInputElement).value).toBe("292");
   const posted = new FormData(container.querySelector("form")!);
   expect([posted.get("distanceValue"), posted.get("distanceUnit")]).toEqual(["7.2", "km"]);

@@ -237,7 +237,6 @@ await check("cycling-all-fields-and-unknown-distance", "alex", async (page) => {
   expect(Number(actual.elevation_gain_metres)).toBe(304.8);
   await edit(page, id);
   await choose(page, "environment", "indoor");
-  await field(page, "Distance, after the point", "");
   await field(page, "Distance", "");
   await details(page);
   for (const name of [
@@ -827,10 +826,9 @@ for (const sport of ["running", "cycling", "swimming"]) {
         name: sport === "swimming" ? /^Distance in yd/ : /^Distance in mi/,
       }),
     ).toBeVisible();
-    if (sport === "swimming")
-      await expect(page.getByLabel("Distance", { exact: true })).toHaveValue("25");
-    else
-      await expect(page.getByLabel("Distance, after the point", { exact: true })).toHaveValue("1");
+    await expect(page.getByLabel("Distance", { exact: true })).toHaveValue(
+      sport === "swimming" ? "25" : "0.1",
+    );
   });
 }
 

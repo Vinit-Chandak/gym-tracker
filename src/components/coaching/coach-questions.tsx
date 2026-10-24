@@ -18,7 +18,7 @@ export function CoachQuestions({
   if (questions.length === 0) return null;
   return (
     <section aria-labelledby={id} className={cn("min-w-0 space-y-1.5", className)}>
-      <h3 id={id} className="text-sm font-bold">
+      <h3 id={id} className="type-heading">
         The coach asks
       </h3>
       <ul className="list-disc space-y-1.5 pl-5 text-sm">

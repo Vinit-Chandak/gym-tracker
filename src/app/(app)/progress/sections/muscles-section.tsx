@@ -31,26 +31,22 @@ export function MusclesSection({ muscles, today }: Pick<ProgressData, "muscles" 
     startTransition(() => router.replace(`/progress?${next}` as Route, { scroll: false }));
   };
 
+  // As every section opens (DESIGN.md, Graphs): its control first, a tray as wide as the page,
+  // where Running keeps Distance, Pace and Duration; then the caption the graphs' readouts take,
+  // its ⓘ at its end; then the map.
   return (
-    <div className="mt-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="type-heading">Working sets</h2>
-        <InfoTip label="About working sets">
-          Working sets from finished workouts. A set counts once for each primary muscle and half
-          for each secondary one; warm-ups are excluded.
-        </InfoTip>
-      </div>
-      <div className="mt-1 flex items-center justify-between gap-2">
+    <div className="progress-section">
+      <div role="group" aria-label="Week" className="week-stepper">
         <button
           type="button"
           aria-label="Previous week"
           disabled={pending}
           onClick={() => stepWeek(-7)}
-          className="session-icon-button -ml-[10px] disabled:text-control"
+          className="week-stepper-button"
         >
           <Glyph name="chevronLeft" className="glyph-22" />
         </button>
-        <p className="min-w-0 text-center type-meta font-semibold tabular-nums">
+        <p className="week-stepper-label">
           {current ? "This week" : weekLabel(muscles.from, muscles.to, today)}
         </p>
         <button
@@ -58,10 +54,17 @@ export function MusclesSection({ muscles, today }: Pick<ProgressData, "muscles" 
           aria-label="Next week"
           disabled={pending || muscles.to >= today}
           onClick={() => stepWeek(7)}
-          className="session-icon-button -mr-[10px] disabled:text-control"
+          className="week-stepper-button"
         >
           <Glyph name="chevronRight" className="glyph-22" />
         </button>
+      </div>
+      <div className="graph-readout-head">
+        <h2 className="graph-readout-label">Working sets</h2>
+        <InfoTip label="About working sets" className="graph-readout-note">
+          Working sets from finished workouts. A set counts once for each primary muscle and half
+          for each secondary one; warm-ups are excluded.
+        </InfoTip>
       </div>
       <div className={pending ? "opacity-50 transition-opacity" : undefined}>
         <BodyMap volume={muscles.volume} totalSets={muscles.totalSets} />

@@ -539,18 +539,21 @@ export function LapsEditor({
             {listError}
           </p>
         )}
-        {/* At the foot, under the last lap, where the next one goes (DESIGN.md). */}
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={addRep} disabled={full}>
-            + Rep
-          </Button>
-          <Button variant="secondary" onClick={addRecovery} disabled={full}>
-            + Recovery
-          </Button>
-          {rows.length > 0 && (
-            <Button variant="ghost" onClick={() => setRows([])}>
-              Clear laps
+        {/* At the foot, under the last lap, where the next one goes (DESIGN.md): the two peers
+            one size, and the way out in words under them (The Equal Actions Rule). */}
+        <div className="action-stack">
+          <div className="action-row">
+            <Button variant="secondary" onClick={addRep} disabled={full}>
+              + Rep
             </Button>
+            <Button variant="secondary" onClick={addRecovery} disabled={full}>
+              + Recovery
+            </Button>
+          </div>
+          {rows.length > 0 && (
+            <button type="button" className="text-action" onClick={() => setRows([])}>
+              Clear laps
+            </button>
           )}
         </div>
       </div>

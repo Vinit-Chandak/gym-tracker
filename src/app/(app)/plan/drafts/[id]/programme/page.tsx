@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PageContent } from "@/components/shell/page-content";
-import { ActivityPlan } from "@/components/activities/activity-plan";
+import { ActivityPlan, sharedStopRule } from "@/components/activities/activity-plan";
+import { StopRule } from "@/components/run-plan";
 import { PageHeader } from "@/components/shell/page-header";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -128,17 +129,22 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
     { readOnly: true },
   );
   if (!data) notFound();
+  const shared = sharedStopRule(
+    (data.draft.blueprint.enduranceSessions ?? []).map((session) => session.prescription),
+  );
   if (data.draft.sport !== "strength")
     return (
       <>
         <PageHeader title={data.draft.blueprint.name} backHref={`/plan/drafts/${data.draft.id}`} />
         <PageContent>
+          {/* A caution every session carries is said once, over them (DESIGN.md, Need-to-Know). */}
+          {shared && <StopRule rule={shared} />}
           {(data.draft.blueprint.enduranceSessions ?? []).map((session, index) => (
             <section
               key={`${session.lineageId}:${session.weekIndex}:${index}`}
               className="space-y-2"
             >
-              <h2 className="font-medium">
+              <h2 className="type-heading">
                 Week {session.weekIndex} · Day {session.dayOffset + 1}
               </h2>
               <ActivityPlan
@@ -146,6 +152,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
                 prescription={session.prescription}
                 units={data.runUnits}
                 showSource={false}
+                sharedStop={shared}
               />
             </section>
           ))}

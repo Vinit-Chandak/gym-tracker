@@ -71,7 +71,7 @@ export function TokenManager({
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="flex items-center gap-1 text-base font-medium">
+        <h2 className="caption-head flex items-center gap-1">
           New token
           <InfoTip label="About coach tokens">
             Read-only access to your workouts, runs, recovery and current programme. A token can
@@ -150,7 +150,7 @@ export function TokenManager({
         )}
       </Card>
       <Card>
-        <h2 className="text-base font-medium">Your tokens</h2>
+        <h2 className="caption-head">Your tokens</h2>
         {tokens.length ? (
           <ul className="divide-y divide-line">
             {tokens.map((t) => (

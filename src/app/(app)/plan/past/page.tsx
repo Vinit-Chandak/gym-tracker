@@ -40,9 +40,7 @@ export default async function PastProgrammesPage() {
             {archived.map((programme) => (
               <li key={programme.id} className="space-y-3 py-5">
                 <div>
-                  <h2 className="text-lg font-medium [overflow-wrap:break-word]">
-                    {programme.name}
-                  </h2>
+                  <h2 className="type-card-title">{programme.name}</h2>
                   <p className="text-sm text-ink-2">
                     {ACTIVITY_SPORT_LABELS[programme.sport]} · Version {programme.version}
                   </p>

@@ -5,19 +5,21 @@ import { cn } from "@/lib/utils";
 export { Field } from "./field";
 
 /**
- * A field (DESIGN.md, Inputs): 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px
- * text. The control border is an essential boundary, 3:1 against the ground; focus inks it.
- * Its insets are lengths, not type: at 200% text the words double and the field grows taller,
- * but the inset stays 16 pt, so the room goes to what is typed ("Tokyo Powerhouse" whole, not
- * "Tokyo Powerho…"). A one-line field's words that still run past its edge (a hint at 200% text)
- * end in an ellipsis rather than being cut mid-letter.
+ * A field (DESIGN.md, Inputs, 24 October 2026): 52 pt, the mode's ground (`field`), a 1-px
+ * control edge, 14-px corners, 16-px text, drawn the same on every surface: the ground, a card,
+ * a panel and a tray inside a panel. The edge is the field's boundary, 3:1 against what it
+ * stands on, so a field is never the tone of what holds it (a lap's distance vanished on its
+ * tray); focus inks it and rings it. Its insets are lengths, not type: at 200% text the words
+ * double and the field grows taller, but the inset stays 16 pt, so the room goes to what is
+ * typed ("Tokyo Powerhouse" whole, not "Tokyo Powerho…"). A one-line field's words that still
+ * run past its edge (a hint at 200% text) end in an ellipsis rather than being cut mid-letter.
  *
  * A field that cannot be saved takes the danger tint and a danger edge until it can
- * (`aria-invalid`, which `Field` sets from its error). Inside a panel (`.ov-panel`, DESIGN.md
- * Forms) the field is a filled tray instead of an outline; `ov-input` is its hook there.
+ * (`aria-invalid`, which `Field` sets from its error); `ov-input` is its hook for the forms'
+ * own marks (forms.css).
  */
 export const INPUT_CLASS =
-  "ov-input min-h-[calc(52px+var(--ov-grow))] min-w-0 w-full rounded-control border-[1.5px] border-control bg-ground px-[calc(16*var(--ov-u))] text-[length:var(--ov-type-input)] text-ellipsis text-ink placeholder:text-ink-2 focus:border-ink focus:outline-none disabled:text-ink-2 aria-invalid:border-danger-line aria-invalid:bg-danger-tint aria-invalid:focus:border-danger-line";
+  "ov-input min-h-[calc(52px+var(--ov-grow))] min-w-0 w-full rounded-control border border-control bg-field px-[calc(16*var(--ov-u))] text-[length:var(--ov-type-input)] text-ellipsis text-ink placeholder:text-ink-2 focus:border-ink focus:shadow-[0_0_0_1px_var(--ov-ink)] focus:outline-none disabled:text-ink-2 aria-invalid:border-danger-line aria-invalid:bg-danger-tint aria-invalid:focus:border-danger-line aria-invalid:focus:shadow-[0_0_0_1px_var(--ov-danger-line)]";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

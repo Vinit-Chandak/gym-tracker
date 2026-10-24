@@ -26,6 +26,7 @@
 @theme inline {
   /* The interface: ink on ground. */
   --color-ground: var(--ov-ground);
+  --color-field: var(--ov-field);
   --color-surface-2: var(--ov-surface-2);
   --color-surface-control: var(--ov-surface-control);
   --color-surface-control-pressed: var(--ov-surface-control-pressed);
@@ -173,23 +174,42 @@
 @utility type-title {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1;
   letter-spacing: var(--ov-title-tracking);
 }
 @utility type-display {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-display);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
 }
 @utility type-sheet-title {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-sheet-title);
-  font-weight: 700;
+  font-weight: var(--ov-title-weight);
   line-height: 1.05;
   letter-spacing: var(--ov-title-tracking);
+}
+/* A card's name (a programme, an activity, a request's state): Jost, a step under a sheet's. */
+@utility type-card-title {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-card-title);
+  font-weight: var(--ov-title-weight);
+  line-height: 1.12;
+  letter-spacing: var(--ov-title-tracking);
+  overflow-wrap: break-word;
+}
+/* A section of a screen (DESIGN.md, Typography: Section): Jost 700 in ink, with its own room
+   under it, so a screen's parts read as parts. */
+@utility type-section {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-section);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
 }
 @utility type-figure-xl {
   font-family: var(--ov-font-display);
@@ -408,7 +428,7 @@
   /* A page's name is a title in Jost; every other heading is a word read, in Atkinson. */
   h1 {
     font-family: var(--ov-font-display);
-    font-weight: 700;
+    font-weight: var(--ov-title-weight);
     letter-spacing: var(--ov-title-tracking);
     line-height: var(--ov-leading-heading);
   }
@@ -602,15 +622,22 @@
   position: sticky;
   bottom: var(--actions-inset);
   z-index: 1;
-  border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
-  padding: var(--ov-space-3);
-  box-shadow: var(--ov-nav-shadow);
-  /* On a surface, as in a box: Back keeps its shape beside Next, and Next while it waits. */
-  --ov-tray: var(--ov-surface-2);
-  --ov-waiting: var(--ov-surface-2);
-  --ov-surface-control: var(--ov-surface-control-on-surface);
-  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+  /* On the page's own ground, at the page's own gutter, as pinned actions are (DESIGN.md, Pinned
+     actions): a card round them inset Back and Continue a second time inside the gutter and
+     took a band of the screen for its padding (The Rhythm Rule: one inset, never two). What
+     scrolls under them fades into the ground above them. */
+  padding: calc(10 * var(--ov-u)) 0 calc(4 * var(--ov-u));
+  background: var(--ov-ground);
+  &::before {
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: calc(24 * var(--ov-u));
+    background: linear-gradient(to bottom, transparent, var(--ov-ground));
+    content: "";
+    pointer-events: none;
+  }
 }
 
 /*
@@ -625,24 +652,18 @@
 }
 
 /*
- * A box: the grouping for anything that belongs together. A shared hairline keeps its
- * boundary visible in both palettes, including when it sits on another surface.
- *
- * What stands on it steps a tone off it (DESIGN.md, Neutral), or it would be the box's own
- * fill: in light a tonal button is the surface, so Save under a select read as a stray word,
- * a segmented tray left its unchosen words bare, and Saving… lost its button. A tray and a
- * waiting button take surface 2, and a tonal or round button its on-surface fill (surface 2 in
- * light; in dark it is lifted already).
+ * A box: the grouping for anything that belongs together, drawn as every card is (DESIGN.md,
+ * Components: Cards, 24 October 2026): the ground inside a hairline, as Today's activity cards
+ * are, so a programme's card, a request's state and a day's card are one kind of thing. Grey
+ * boxes on a white page read as switched off, and three card styles read as three apps. What
+ * stands on it takes the ground's own tones (a tonal button, a tray), which hold on the ground.
+ * On a grouped page the box is a panel: the hairline goes, the panel's fill says it.
  */
 @utility box {
   min-width: 0;
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
-  --ov-tray: var(--ov-surface-2);
-  --ov-waiting: var(--ov-surface-2);
-  --ov-surface-control: var(--ov-surface-control-on-surface);
-  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+  background: var(--ov-ground);
 }
 
 /* Icon dimensions follow the viewport and text size independently of the hit target. */
@@ -680,12 +701,8 @@
   min-width: 0;
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
-  /* What stands on it steps a tone off it, as in a box. */
-  --ov-tray: var(--ov-surface-2);
-  --ov-waiting: var(--ov-surface-2);
-  --ov-surface-control: var(--ov-surface-control-on-surface);
-  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
+  /* The ground inside a hairline, as a box is. */
+  background: var(--ov-ground);
   :where(& > * + *) {
     border-top: 1px solid var(--ov-line);
   }

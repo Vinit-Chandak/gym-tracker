@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Card } from "@/components/ui/card";
 import { Button, LinkButton } from "@/components/ui/button";
+import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
 import { answerCoachQuestionsAction } from "@/server/actions/coaching-workflow";
 import type { CoachJob } from "@/server/repositories/coaching-jobs";
 import { coachingAction } from "./client-action";
@@ -80,6 +82,9 @@ export function CoachJobStatus({
     job.status === "needs_input" && job.result?.outcome === "needs_input"
       ? job.result.questions
       : null;
+  // While the coach works the screen keeps itself current, and looks again the moment the app
+  // comes back to it, so there is nothing to press: a Check status button that changed nothing
+  // until the coach had finished read as a button that did nothing (owner, 24 October 2026).
   useEffect(() => {
     if (!pending) return;
     let delay = 5000;
@@ -87,31 +92,55 @@ export function CoachJobStatus({
     const schedule = () => {
       timer = setTimeout(() => {
         if (document.visibilityState === "visible") router.refresh();
-        delay = Math.min(60_000, delay * 2);
+        delay = Math.min(30_000, delay * 2);
         schedule();
       }, delay);
     };
+    const returned = () => {
+      if (document.visibilityState !== "visible") return;
+      router.refresh();
+      delay = 5000;
+      clearTimeout(timer);
+      schedule();
+    };
     schedule();
-    return () => clearTimeout(timer);
+    document.addEventListener("visibilitychange", returned);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", returned);
+    };
   }, [pending, router]);
+  const glyph: GlyphName =
+    job.status === "failed"
+      ? "warn"
+      : job.status === "needs_input"
+        ? "coach"
+        : job.status === "succeeded"
+          ? "check"
+          : "wait";
   return (
     <Card>
-      {/* A line of state under the page's own title, not a second title. */}
-      <p className="text-xl font-medium" role="status">
-        {statusLine(job, draftId)}
-      </p>
+      {/* The state, under the page's own title: its glyph (the dial turns while the coach works)
+          and its words as the card's name, the line under them in Meta at the words' edge. */}
+      <div className="request-state">
+        <Glyph
+          name={glyph}
+          className={cn("glyph-24 shrink-0", pending && "motion-safe:animate-spin")}
+        />
+        <p className="type-card-title" role="status">
+          {statusLine(job, draftId)}
+        </p>
+      </div>
       {job.status === "succeeded" && !draftId && rationale && (
         <p className="text-sm text-ink-muted">{rationale}</p>
       )}
       {pending && job.kind === "create_program" && (
         // A first programme waits on Plan from the moment it is asked for (ADR 0059).
-        <p className="text-sm text-ink-muted">You can leave. It waits on Plan.</p>
+        <p className="request-state-line">You can leave. It waits on Plan.</p>
       )}
       {/* An attempt that timed out tries again; one that failed for good says what stands. */}
-      {pending && job.error && (
-        <p className="text-sm text-ink-muted">This may take until tonight.</p>
-      )}
-      {job.status === "failed" && <p className="text-sm text-ink-muted">{unchangedLine(job)}</p>}
+      {pending && job.error && <p className="request-state-line">This may take until tonight.</p>}
+      {job.status === "failed" && <p className="request-state-line">{unchangedLine(job)}</p>}
       {job.error && (
         <Disclosure summary="Details" variant="inline">
           <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{job.error}</p>
@@ -141,11 +170,6 @@ export function CoachJobStatus({
         >
           {questions ? "Change my answers" : "Try again"}
         </LinkButton>
-      )}
-      {pending && (
-        <Button variant="secondary" className="flex w-full" onClick={() => router.refresh()}>
-          Check status
-        </Button>
       )}
     </Card>
   );

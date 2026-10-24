@@ -434,15 +434,19 @@ export function WorkoutOverview({
     // words a moment after the focus lands, so the focused row's own name does not talk over
     // them and a screen reader hears both.
     let words: ReturnType<typeof setTimeout> | undefined;
+    let gone: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
       bodyRef.current
         ?.querySelector<HTMLElement>(`[data-workout-exercise="${firstAdded}"]`)
         ?.focus();
       words = setTimeout(() => setAnnounced(addedWords), 400);
+      // Said, then gone (DESIGN.md, Inputs and choices: a confirmation never stays).
+      gone = setTimeout(() => setAnnounced(""), 3400);
     }, 0);
     return () => {
       clearTimeout(timer);
       clearTimeout(words);
+      clearTimeout(gone);
     };
   }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);

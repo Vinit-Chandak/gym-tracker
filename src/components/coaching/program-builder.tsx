@@ -249,15 +249,17 @@ export function ProgramBuilder({
 
         <section aria-labelledby="cycle-pattern" className="space-y-4">
           {/* The ⓘ beside the heading, never in it, so the heading reads as its name. */}
-          <div className="flex items-center gap-1">
-            <h2 id="cycle-pattern" className="text-lg font-medium">
-              {repeats === "once" ? "Your sequence" : "Your cycle"}
-            </h2>
-            <InfoTip label={repeats === "once" ? "About your sequence" : "About your cycle"}>
-              {repeats === "once"
-                ? "Each day has its own targets. Finished workouts keep theirs."
-                : "A change applies each time the day comes round. Finished workouts keep their targets."}
-            </InfoTip>
+          <div className="heading-row">
+            <div className="flex items-center gap-1">
+              <h2 id="cycle-pattern" className="caption-head">
+                {repeats === "once" ? "Your sequence" : "Your cycle"}
+              </h2>
+              <InfoTip label={repeats === "once" ? "About your sequence" : "About your cycle"}>
+                {repeats === "once"
+                  ? "Each day has its own targets. Finished workouts keep theirs."
+                  : "A change applies each time the day comes round. Finished workouts keep their targets."}
+              </InfoTip>
+            </div>
           </div>
           <Field
             label="Repeats"
@@ -589,12 +591,18 @@ export function ProgramBuilder({
       <div className="sticky-actions space-y-2">
         {message && !preview && <SavedNotice>{message}</SavedNotice>}
         <FormError message={nameError || weeksError ? undefined : (error ?? undefined)} />
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={!ready || busy} onClick={() => save(true)}>
-            {busy ? "Saving…" : "Review programme"}
-          </Button>
-          <Button variant="secondary" disabled={!ready || busy} onClick={() => save(false)}>
+        {/* Peers, one size, the one that ends the task last (DESIGN.md, The Equal Actions Rule). */}
+        <div className="action-row">
+          <Button
+            size="lg"
+            variant="secondary"
+            disabled={!ready || busy}
+            onClick={() => save(false)}
+          >
             Save draft
+          </Button>
+          <Button size="lg" disabled={!ready || busy} onClick={() => save(true)}>
+            {busy ? "Saving…" : "Review programme"}
           </Button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export default async function TargetsPage() {
   return (
     <>
       <PageHeader title="Targets" backHref="/food" />
-      <div className="meal-page page-width pt-3">
+      <div className="meal-page page-width">
         <TargetsForm
           targets={targets}
           bodyWeightKg={profile.bodyWeightKg}

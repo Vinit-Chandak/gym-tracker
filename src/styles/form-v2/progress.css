@@ -6,27 +6,117 @@
 
 /* The opening is a tab's root (page-header.tsx, rows.css): the section is its headline. */
 
-/* A caption over a list: 13 pt, ink 2 (board: Runs, Latest). */
+/* A section of a screen (DESIGN.md, Typography: Section; The Rhythm Rule, 24 October 2026):
+   Jost 700, 20 pt, in ink, so a screen's parts read as parts (Programmes, Training, Sets), a
+   heading's gap under it. After something in the same flow it opens a new section, a section's
+   gap above it; first in its section or its card, it adds nothing above, which whatever holds
+   it already gives. In block flow the gap above meets the margin of what precedes it and the
+   larger wins, so two never add up. */
 .caption-head {
-  margin-bottom: 2px;
+  margin: 0 0 var(--ov-gap-heading);
+  color: var(--ov-ink);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-section);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+}
+:where(*) + .caption-head {
+  margin-top: var(--ov-gap-section);
+}
+/* A section's heading with something beside it (its ⓘ, an action): the row stands for the
+   heading and carries its gaps, so what is beside the words centres on them and no margin is
+   counted twice. */
+.heading-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
+  margin: 0 0 var(--ov-gap-heading);
+}
+:where(*) + .heading-row {
+  margin-top: var(--ov-gap-section);
+}
+.heading-row .caption-head {
+  margin: 0;
+}
+/* A section that opens with its heading stands a section's gap under whatever comes before it,
+   in any wrapper (the record's Sets under its records, a gym's machines under Programme fit),
+   not only where the page stacks its sections: in a stack that already gives the gap, the two
+   margins collapse into one, so no section is ever spaced twice. It weighs nothing, so a stack
+   that spaces by its gap (a grid, a flex column) sets its children's margins to none. */
+:where(* + :is(section, fieldset, div):has(> :is(.caption-head, .heading-row):first-child)) {
+  margin-top: var(--ov-gap-section);
+}
+/* A group inside a list (a day of History, a letter of the library, a day of Plan's week): a
+   caption, 13 pt, ink 2, as a table names its groups; never a section's heading. */
+.group-caption {
+  margin: 0 0 2px;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
   font-weight: 700;
-  letter-spacing: 0.01em;
   line-height: 1.3;
+}
+:where(*) + .group-caption {
+  margin-top: calc(14 * var(--ov-u));
+}
+
+/* ---------- a section of Progress ---------- */
+/* Every section opens the same way, the header's gap over it and nothing of its own (DESIGN.md,
+   The Rhythm Rule): its control, its readout, its graph or map, one gap apart. */
+.progress-section {
+  display: grid;
+  min-width: 0;
+  gap: var(--ov-gap-stack);
+}
+/* Muscles' week: a tray as wide as the page, as Running's measures are, the week named in its
+   middle and a step either side, each a whole target. Nothing is trained in a week to come, so
+   the step forward waits, grey, on this one. */
+.week-stepper {
+  display: grid;
+  min-height: calc(50 * var(--ov-u));
+  grid-template-columns: var(--ov-target) minmax(0, 1fr) var(--ov-target);
+  align-items: center;
+  padding: 3px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-tray);
+}
+.week-stepper-button {
+  display: grid;
+  height: var(--ov-target);
+  place-items: center;
+  border-radius: var(--ov-radius-segment);
+  color: var(--ov-ink);
+}
+.week-stepper-button:disabled {
+  color: var(--ov-control);
+}
+.week-stepper-label {
+  min-width: 0;
+  font-size: var(--ov-type-button);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: break-word;
 }
 
 /* ---------- Overview: the month, then the latest ---------- */
-/* A head on Overview: its name, and at its end the page that holds all of it (the month's
-   Calendar, every entry of History). */
+/* A head on Overview: its name, as a section's (Typography: Section), and at its end the page
+   that holds all of it (the month's Calendar, every entry of History). */
 .month-head {
   display: flex;
   min-height: calc(36 * var(--ov-u));
   align-items: center;
   justify-content: space-between;
   gap: calc(12 * var(--ov-u));
-  font-size: var(--ov-type-heading);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-section);
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .month-head-link {
   display: flex;
@@ -90,7 +180,7 @@
   font-weight: 700;
   line-height: 1.3;
 }
-.list-month + .caption-head {
+.list-month + .group-caption {
   margin-top: calc(6 * var(--ov-u));
 }
 
@@ -231,12 +321,18 @@
 html:has(.calendar-head) {
   scroll-padding-top: var(--calendar-head, 0px);
 }
+/* The head stays while the months pass under it, its header's gap inside it as ground, so the
+   first month stands one header gap under the title, as every screen's content does, and so does
+   a month brought into view (DESIGN.md, The Rhythm Rule). */
 .calendar-head {
   position: sticky;
   top: 0;
   z-index: 5;
-  padding-bottom: calc(4 * var(--ov-u));
+  padding-bottom: var(--ov-gap-header);
   background: var(--ov-ground);
+}
+.calendar-head > .page-header {
+  margin-bottom: 0;
 }
 /* The months one under another on a phone; beyond one, side by side, as many as each keep a
    phone's month (21rem, its days still full targets), read across then down (ADR 0052). Larger
@@ -244,8 +340,8 @@ html:has(.calendar-head) {
 .calendar-months {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
-  column-gap: var(--ov-section-gap);
   align-items: start;
+  gap: calc(22 * var(--ov-u)) var(--ov-section-gap);
 }
 /* Each month's name, and how many of each sport it holds, each led by its icon. */
 .calendar-month {
@@ -255,7 +351,7 @@ html:has(.calendar-head) {
   align-items: center;
   justify-content: space-between;
   gap: calc(4 * var(--ov-u)) calc(12 * var(--ov-u));
-  padding: calc(22 * var(--ov-u)) 0 calc(8 * var(--ov-u));
+  padding-bottom: calc(8 * var(--ov-u));
 }
 .calendar-month > h2 {
   font-size: var(--ov-type-heading);

@@ -74,6 +74,10 @@ export function ProgressView({ data }: { data: ProgressData }) {
   };
   const range = sectionRange(tab, data, params.get("series"));
   const rangeText = range ? formatDateRange(range.from, range.to) : null;
+  // Every section says what it is drawn over under its name, Muscles its week, so each opens the
+  // same way and its first content stands where every other's does (owner, 24 October 2026).
+  const meta =
+    rangeText ?? (tab === "muscles" ? formatDateRange(data.muscles.from, data.muscles.to) : null);
   // Dates that could not be read are said where a span is drawn; a week, only on Muscles.
   const error = tab === "muscles" ? data.weekError : range ? data.rangeError : null;
 
@@ -83,7 +87,7 @@ export function ProgressView({ data }: { data: ProgressData }) {
         <ProgressSections
           value={tab}
           onChange={chooseView}
-          range={rangeText}
+          range={meta}
           // Dates chosen by hand narrow the graphs; Overview and Muscles have none, so no funnel.
           filters={
             range && rangeText ? (

@@ -29,20 +29,22 @@ export function AlsoUsedFor({
   const extra = types.filter((type) => typeIds.includes(type.id) && type.id !== ownTypeId);
   const addable = types.filter((type) => !typeIds.includes(type.id) && type.slug !== "bodyweight");
   return (
-    <section aria-labelledby="also-used-for" className="mt-[var(--section-gap)]">
+    <section aria-labelledby="also-used-for">
       {/* The tip sits beside the heading, not in it, so the heading's name is its words. */}
-      <div className="flex items-center gap-1">
-        <h2 id="also-used-for" className="caption-head">
-          Also used for
-        </h2>
-        <InfoTip label="About Also used for">
-          A machine that does another kind&apos;s work too, such as a lat pulldown with a low row.
-          That kind&apos;s exercises can then use it.
-        </InfoTip>
+      <div className="heading-row">
+        <div className="flex items-center gap-1">
+          <h2 id="also-used-for" className="caption-head">
+            Also used for
+          </h2>
+          <InfoTip label="About Also used for">
+            A machine that does another kind&apos;s work too, such as a lat pulldown with a low row.
+            That kind&apos;s exercises can then use it.
+          </InfoTip>
+        </div>
       </div>
       {/* Nothing else yet: the list is empty, and the select under it adds. */}
       {extra.length > 0 && (
-        <ul className="mt-1">
+        <ul>
           {extra.map((type) => (
             <li key={type.id} className="also-row">
               <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{type.name}</span>

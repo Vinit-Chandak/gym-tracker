@@ -133,7 +133,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
         groups.map((group) => (
           <section key={group.key} aria-labelledby={`${id}-${group.key}`}>
             {/* The page's title is its h1, and nothing stands between: the groups are h2. */}
-            <h2 id={`${id}-${group.key}`} className="caption-head mt-3.5">
+            <h2 id={`${id}-${group.key}`} className="group-caption">
               {group.title}
               {long && group.key !== "name" && (
                 <span className="tabular-nums">

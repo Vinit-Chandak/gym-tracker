@@ -79,7 +79,13 @@ const controlOf = (element: HTMLElement) =>
  * ("2 to fix: lap 4, distance"), and leads to the first. A failure that is not a field's (the
  * connection, the server) is said here in the app's words. A sentence a field already says is
  * never said again here.
+ *
+ * It is said, then goes after four seconds (owner, 24 October 2026: an error that stays reads as
+ * one that never goes): the fields stay marked where they are until each can be saved, and a save
+ * refused again says it again. A failure with its own way out (Retry) stays until it is taken.
  */
+const QUIET_AFTER_MS = 4000;
+
 export function FormError({
   message,
   formId,
@@ -97,6 +103,20 @@ export function FormError({
   const ref = useRef<HTMLDivElement>(null);
   const [refused, setRefused] = useState<Refused[]>([]);
   const [repeated, setRepeated] = useState(false);
+  // The message the bar went quiet on ("" for the fields' count alone): a new failure is said
+  // again at once, and a save refused again is said again from its submit.
+  const [quietOn, setQuietOn] = useState<string | null>(null);
+  const quiet = quietOn !== null && quietOn === (message ?? "");
+
+  useEffect(() => {
+    const form = formId
+      ? ref.current?.ownerDocument.getElementById(formId)
+      : ref.current?.closest("form");
+    if (!(form instanceof HTMLFormElement)) return;
+    const again = () => setQuietOn(null);
+    form.addEventListener("submit", again);
+    return () => form.removeEventListener("submit", again);
+  }, [formId]);
 
   useLayoutEffect(() => {
     if (!trackFields) return;
@@ -132,8 +152,15 @@ export function FormError({
     return () => observer.disconnect();
   }, [message, formId, trackFields]);
 
-  const first = trackFields ? refused[0] : undefined;
-  const showMessage = Boolean(message) && (!trackFields || !repeated);
+  const first = trackFields && !quiet ? refused[0] : undefined;
+  const showMessage =
+    Boolean(message) && (!trackFields || !repeated) && (!quiet || Boolean(action));
+  const said = Boolean(first) || showMessage;
+  useEffect(() => {
+    if (!said || quiet) return;
+    const timer = window.setTimeout(() => setQuietOn(message ?? ""), QUIET_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [said, quiet, message, refused]);
   return (
     <div ref={ref} className="space-y-2 empty:hidden" data-refused-save>
       {first && (

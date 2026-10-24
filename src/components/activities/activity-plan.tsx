@@ -109,6 +109,23 @@ export function sessionLine(prescription: EndurancePrescription, units: SportUni
   return parts.length > 0 ? parts.join(FACT_SEPARATOR) : null;
 }
 
+/**
+ * The safety instruction a plan's sessions share, said once over them rather than under every
+ * session (DESIGN.md, The Need-to-Know Rule: nothing said twice): the commonest stop rule, when
+ * two sessions or more carry it word for word. A session whose rule differs keeps its own.
+ */
+export function sharedStopRule(
+  prescriptions: readonly (EndurancePrescription | null | undefined)[],
+): string | null {
+  const counts = new Map<string, number>();
+  for (const prescription of prescriptions) {
+    const rule = prescription?.running?.symptomStopRule?.trim();
+    if (rule) counts.set(rule, (counts.get(rule) ?? 0) + 1);
+  }
+  const [rule, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+  return count >= 2 ? rule : null;
+}
+
 export type ActivityPlanProps = {
   sport: ActivitySport;
   /** The prescription in force: the coach's preparation, or the programme's own. */
@@ -139,6 +156,8 @@ export type ActivityPlanProps = {
    * gives it (`plannedName`) and its own title.
    */
   said?: string | null;
+  /** The stop rule said once over a list of sessions (`sharedStopRule`): left out here. */
+  sharedStop?: string | null;
 };
 
 export function ActivityPlan({
@@ -152,6 +171,7 @@ export function ActivityPlan({
   titled = true,
   flat = false,
   said = null,
+  sharedStop = null,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   // One line per step and one per repeated block, never one per repetition (ADR 0059), each
@@ -169,7 +189,8 @@ export function ActivityPlan({
     runType && !alreadySays(heading, RUN_TYPE_LABELS[runType]) ? RUN_TYPE_LABELS[runType] : null;
   const title = titled && !flat ? (prescription?.title ?? null) : null;
   const prepared = showSource && preparedByCoach;
-  const stop = prescription?.running?.symptomStopRule ?? null;
+  const ownStop = prescription?.running?.symptomStopRule?.trim() || null;
+  const stop = ownStop && ownStop !== sharedStop ? ownStop : null;
   const running = prescription?.running;
   const how =
     prescription?.instructions ||
@@ -203,7 +224,7 @@ export function ActivityPlan({
       {(kind || title || overall.length > 0 || intensity || prepared) && (
         <div className="min-w-0 space-y-1">
           {kind && <p className="type-meta-small text-ink-2">{kind}</p>}
-          {title && <h2 className="text-lg font-medium [overflow-wrap:break-word]">{title}</h2>}
+          {title && <h2 className="type-card-title">{title}</h2>}
           {overall.length > 0 && (
             <p className="text-sm text-ink-muted tabular-nums">{overall.join(FACT_SEPARATOR)}</p>
           )}

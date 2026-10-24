@@ -209,7 +209,7 @@ export function ReadyProgramme({
             <div className="pb-3">
               {training.map((day) => (
                 <section key={day.dayIndex} className="mt-2">
-                  <h3 className="caption-head">
+                  <h3 className="group-caption">
                     {WEEKDAY_SHORT[day.dayOfWeek]} · {day.name}
                   </h3>
                   <ul>

@@ -72,7 +72,7 @@ export function CheckInForm({
   return (
     <form ref={form} action={formAction}>
       <section aria-labelledby="check-in-sleep">
-        <h2 id="check-in-sleep" className="caption-head mt-3">
+        <h2 id="check-in-sleep" className="caption-head">
           Sleep
         </h2>
         <RowStepper
@@ -100,7 +100,7 @@ export function CheckInForm({
       </section>
 
       <section aria-labelledby="check-in-feel">
-        <h2 id="check-in-feel" className="caption-head mt-3.5">
+        <h2 id="check-in-feel" className="caption-head">
           {retrospective ? "How you felt" : "How you feel"}
         </h2>
         <ScaleField

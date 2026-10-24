@@ -39,16 +39,6 @@ export function figureWidth(text: string): string {
   return `${figureEm(text)}em`;
 }
 
-/** What a figure drawn in parts is given to draw them: the field the name labels, and how. */
-export type FigureParts = {
-  /** The first part's id: the name labels it, and a tap in the column types it. */
-  id: string;
-  describedBy?: string;
-  invalid?: true;
-  /** The figure's size where its column cannot hold it at 26; none at 26. */
-  fontSize?: string;
-};
-
 /**
  * The figure's size (the Figures Never Truncate Rule): 26 at most, stepping down the ramp until
  * it fits the room its column leaves beside the unit, never under 20. `grow` is how much larger
@@ -72,9 +62,11 @@ function parseNumber(value: string): number | null {
  * A figure in a row (boards Check-in, Log a ride): the name, its ⓘ and under it the figure the
  * row makes or remembers (`hint`: "Last 7 h", never a sentence) at the gutter, then −,
  * the figure in a column of its own, and +, so the buttons line up row under row whatever the
- * figure. The figure is typed in place, as the entry's are; − and + step it, and it steps down
- * the ramp where its column cannot hold it beside its unit. Blank stays blank until something is
- * given: a stepper does not answer for anyone.
+ * figure: every row's column is one width, a unit beside its figure or not. The column is drawn
+ * as a field, so it is plain where to type (owner, 24 October 2026). The figure is typed in
+ * place, whole, as the entry's are; − and + step it, and it steps down the ramp where its column
+ * cannot hold it beside its unit. Blank stays blank until something is given: a stepper does not
+ * answer for anyone.
  *
  * Where the name and the stepper cannot share a line (a long name on a phone, large text), the
  * stepper folds under the name, at the end.
@@ -107,7 +99,6 @@ export function RowStepper({
   more,
   error,
   settle,
-  figure,
 }: {
   label: string;
   /** What the row's figure comes to or was last time ("Pace 6:46 /km"), never help. */
@@ -145,11 +136,6 @@ export function RowStepper({
   error?: string;
   /** How a figure left as typed is written once its field is left: "0:75" as 1:15. */
   settle?: (value: string) => string;
-  /**
-   * The figure drawn in parts of its own (a distance's whole and what follows the point), in
-   * place of one field. − and +, the name, the hint and the unit stay the row's.
-   */
-  figure?: (parts: FigureParts) => ReactNode;
 }) {
   const id = useId();
   const [own, setOwn] = useState(defaultValue);
@@ -164,9 +150,13 @@ export function RowStepper({
     const element = column.current;
     if (!element) return;
     const measure = () => {
-      const width = element.clientWidth;
-      if (width <= 0) return;
       const style = getComputedStyle(element);
+      // The field's own inset is not the figure's room (rows.css: the column is a field).
+      const width =
+        element.clientWidth -
+        (parseFloat(style.paddingLeft) || 0) -
+        (parseFloat(style.paddingRight) || 0);
+      if (width <= 0) return;
       const unit = element.querySelector<HTMLElement>(".row-stepper-unit");
       const gap = parseFloat(style.columnGap) || 0;
       const grow = (parseFloat(style.fontSize) || 26) / 26;
@@ -254,35 +244,31 @@ export function RowStepper({
         {/* The whole column is the value's target: a tap beside the figure types it too. */}
         <span
           ref={column}
-          className={figure ? "row-stepper-figure row-stepper-figure-parts" : "row-stepper-figure"}
+          className="row-stepper-figure"
           onClick={(event) => {
             if (event.target === event.currentTarget)
               (document.getElementById(id) as HTMLInputElement | null)?.focus();
           }}
         >
-          {figure ? (
-            figure({ id, describedBy, invalid: error ? true : undefined, fontSize })
-          ) : (
-            <FigureInput
-              id={id}
-              name={name}
-              inputMode={inputMode}
-              value={value}
-              placeholder={placeholder}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={describedBy}
-              onChange={(event) => set(clean(event.target.value))}
-              onBlur={
-                settle
-                  ? () => {
-                      const settled = settle(value);
-                      if (settled !== value) set(settled);
-                    }
-                  : undefined
-              }
-              style={{ width: figureWidth(shown), fontSize }}
-            />
-          )}
+          <FigureInput
+            id={id}
+            name={name}
+            inputMode={inputMode}
+            value={value}
+            placeholder={placeholder}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            onChange={(event) => set(clean(event.target.value))}
+            onBlur={
+              settle
+                ? () => {
+                    const settled = settle(value);
+                    if (settled !== value) set(settled);
+                  }
+                : undefined
+            }
+            style={{ width: figureWidth(shown), fontSize }}
+          />
           {unit &&
             (onUnit ? (
               <button

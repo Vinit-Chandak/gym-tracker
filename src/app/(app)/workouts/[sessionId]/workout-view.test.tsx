@@ -283,7 +283,7 @@ it("opens a finished workout for changes within its week, and closes the edit in
   expect(screen.queryByRole("button", { name: "Edit workout" })).toBeNull();
 
   page.rerender(view("2026-09-15"));
-  // Edit and Done are words at the end of the bar, as a gym's Edit is: no fill as tall as the bar
+  // Edit and Done are pills at the end of the bar, as a gym's Edit is: no fill as tall as the bar
   // to run from the screen's top edge to the print.
   const bar = (name: string) => {
     const action = screen.getByRole("button", { name });

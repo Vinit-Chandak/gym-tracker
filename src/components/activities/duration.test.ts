@@ -2,10 +2,9 @@ import { expect, it } from "vitest";
 
 import {
   clockEntry,
-  distanceParts,
+  distanceEntry,
   durationFromParts,
   formatDuration,
-  joinDistance,
   parseDuration,
 } from "./activity-form-fields";
 
@@ -24,16 +23,16 @@ it("writes digits typed on the number pad as the clock does, the colons placing 
   expect(parseDuration(clockEntry("4500"))).toBe(2700);
 });
 
-it("keeps a distance's two parts, the point drawn between them", () => {
-  expect(distanceParts("5.2")).toEqual({ whole: "5", fraction: "2" });
-  expect(distanceParts("24,85")).toEqual({ whole: "24", fraction: "85" });
-  expect(distanceParts("10")).toEqual({ whole: "10", fraction: "" });
-  expect(distanceParts("")).toEqual({ whole: "", fraction: "" });
-  expect(joinDistance("5", "2")).toBe("5.2");
-  expect(joinDistance("5", "05")).toBe("5.05");
-  expect(joinDistance("10", "")).toBe("10");
-  expect(joinDistance("", "5")).toBe("0.5");
-  expect(joinDistance("", "")).toBe("");
+it("takes a distance whole, as the decimal pad types it", () => {
+  expect(distanceEntry("5.2")).toBe("5.2");
+  // A comma is a point, as some phones' pads write it; a second point is let go.
+  expect(distanceEntry("24,85")).toBe("24.85");
+  expect(distanceEntry("5.2.3")).toBe("5.23");
+  // No more places than a distance keeps, and nothing but digits and the point.
+  expect(distanceEntry("10.256")).toBe("10.256");
+  expect(distanceEntry("1.1234567")).toBe("1.123456");
+  expect(distanceEntry("7 km")).toBe("7");
+  expect(distanceEntry("")).toBe("");
 });
 
 it("reads a duration as the clock writes it, and bare minutes", () => {

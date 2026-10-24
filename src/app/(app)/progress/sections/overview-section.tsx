@@ -71,7 +71,7 @@ export function OverviewSection({
     <div className="overview">
       <div className="overview-panes">
         <div className="min-w-0">
-          <section aria-labelledby="progress-month" className="mt-2">
+          <section aria-labelledby="progress-month">
             <h2 id="progress-month" className="month-head">
               <span>{name}</span>
               {calendarHref && (

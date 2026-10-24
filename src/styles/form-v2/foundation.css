@@ -16,7 +16,10 @@
   --ov-font-text: var(--font-atkinson), system-ui, sans-serif;
   --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --ov-figures: "tnum" 1, "lnum" 1;
-  --ov-title-tracking: -0.012em;
+  /* Titles are Jost 800, set a little tight, so a heading reads as a heading and never as a
+     line of words in a larger size (owner, 24 October 2026). */
+  --ov-title-weight: 800;
+  --ov-title-tracking: -0.02em;
 
   /*
    * Wider screens (ADR 0052): from 600 px of viewport to 1440, type, spacing, radii and targets
@@ -34,7 +37,10 @@
   --ov-type-title: calc(9px + 1.6875rem + var(--ov-fluid) * 6); /* 36, k 0.75 */
   --ov-type-display: calc(8.5px + 1.59375rem + var(--ov-fluid) * 4); /* 34, k 0.75 */
   --ov-type-sheet-title: calc(7px + 1.3125rem + var(--ov-fluid) * 3); /* 28, k 0.75 */
-  --ov-type-card-title: calc(6px + 1.125rem + var(--ov-fluid) * 3); /* 24, k 0.75 */
+  --ov-type-card-title: calc(5.5px + 1.03125rem + var(--ov-fluid) * 3); /* 22, k 0.75 */
+  /* A section of a screen (Programmes, Training, Your goal): Jost, ink, between the title and
+     what is read, so it is seen as a heading and not as a label. */
+  --ov-type-section: calc(5px + 0.9375rem + var(--ov-fluid) * 2); /* 20, k 0.75 */
   --ov-type-figure-xl: calc(28px + 1.75rem + var(--ov-fluid) * 8); /* 56, k 0.5 */
   --ov-type-entry: calc(21px + 1.3125rem + var(--ov-fluid) * 4); /* 42, k 0.5 */
   --ov-type-log: calc(24px + 0.5rem + var(--ov-fluid) * 2); /* 32, k 0.25 */
@@ -64,6 +70,19 @@
   --ov-space-16: calc(16px + var(--ov-fluid) * 4);
   --ov-space-20: calc(20px + var(--ov-fluid) * 5);
   --ov-space-24: calc(24px + var(--ov-fluid) * 6);
+  /*
+   * The rhythm (DESIGN.md, The Rhythm Rule, 24 October 2026): every gap between the parts of a
+   * screen is one of these, named by what it separates, so no screen chooses its own. A gap has
+   * one source: the parent's gap, never a child's margin added to it, and a box inside a padded
+   * box adds no padding of its own (one inset, never two).
+   */
+  --ov-gap-header: calc(20px + var(--ov-fluid) * 5); /* a screen's header to its first content */
+  --ov-gap-section: calc(28px + var(--ov-fluid) * 7); /* one section of a screen to the next */
+  --ov-gap-heading: calc(12px + var(--ov-fluid) * 3); /* a section's heading to what it heads */
+  --ov-gap-stack: calc(12px + var(--ov-fluid) * 3); /* card to card, panel to panel */
+  --ov-gap-block: calc(16px + var(--ov-fluid) * 4); /* one block to the next inside a card */
+  --ov-pad-card: calc(16px + var(--ov-fluid) * 4); /* a card's or a panel's inset */
+
   /* Gutters are 20 pt, 16 under 360 pt wide, and grow to 40 on wide screens. */
   --ov-gutter: calc(20px + var(--ov-fluid) * 20);
   /* A list that mixes sports gives its marks this column; names start 12 pt after it. */
@@ -144,6 +163,9 @@
 
   color-scheme: light;
   --ov-ground: var(--ov-light-ground);
+  /* A field's fill: the mode's own ground, which a grouped form's ground never replaces, so a
+     field inside a panel or on a tray is seen by its fill and its edge alike. */
+  --ov-field: var(--ov-light-ground);
   --ov-surface: var(--ov-light-surface);
   --ov-surface-2: var(--ov-light-surface-2);
   --ov-surface-control: var(--ov-light-surface-control);
@@ -289,8 +311,8 @@
   --ov-space-5: 1rem;
   --ov-space-7: 1.5rem;
   --ov-page-gutter: var(--ov-gutter);
-  --ov-panel-padding: calc(14px + var(--ov-fluid) * 4);
-  --ov-section-gap: calc(24px + var(--ov-fluid) * 8);
+  --ov-panel-padding: var(--ov-pad-card);
+  --ov-section-gap: var(--ov-gap-section);
   --ov-row-gap: 0.375rem;
   --ov-control-height: 2.75rem;
   --ov-target-min: max(44px, 2.75rem);
@@ -331,6 +353,7 @@
   ) {
     color-scheme: dark;
     --ov-ground: var(--ov-dark-ground);
+    --ov-field: var(--ov-dark-ground);
     --ov-surface: var(--ov-dark-surface);
     --ov-surface-2: var(--ov-dark-surface-2);
     --ov-surface-control: var(--ov-dark-surface-control);
@@ -400,6 +423,7 @@
 :where([data-overload-design="form-v2"][data-overload-mode="dark"]) {
   color-scheme: dark;
   --ov-ground: var(--ov-dark-ground);
+  --ov-field: var(--ov-dark-ground);
   --ov-surface: var(--ov-dark-surface);
   --ov-surface-2: var(--ov-dark-surface-2);
   --ov-surface-control: var(--ov-dark-surface-control);
@@ -483,6 +507,7 @@
 @media (forced-colors: active) {
   :where([data-overload-design="form-v2"]) {
     --ov-ground: Canvas;
+    --ov-field: Canvas;
     --ov-surface: Canvas;
     --ov-surface-2: Canvas;
     --ov-surface-control: ButtonFace;

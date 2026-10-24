@@ -7,13 +7,14 @@ import { Glyph } from "./glyphs";
 /**
  * A record kept (DESIGN.md, Inputs and choices; 21 October 2026): the success tint with its
  * check, what was kept in a few words ("Run saved as intervals"), and Undo where the save can be
- * undone. It is a status, read once by a screen reader, and it stands for six seconds, longer
- * while a finger or the focus is on it, so Undo is never pulled away mid-reach.
+ * undone. It is a status, read once by a screen reader, and it stands for three seconds (owner,
+ * 24 October 2026: a confirmation that stays reads as one that never went away), longer while a
+ * finger or the focus is on it, so Undo is never pulled away mid-reach.
  */
 export function SavedNotice({
   children,
   action,
-  seconds = 6,
+  seconds = 3,
 }: {
   children: ReactNode;
   /** Undo, or another way back, as a button or a form; it keeps the bar while it is used. */

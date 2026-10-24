@@ -105,27 +105,33 @@ typography:
   title:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "36px"
-    fontWeight: 700
+    fontWeight: 800
     lineHeight: 1
-    letterSpacing: "-0.012em"
+    letterSpacing: "-0.02em"
   display:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "34px"
-    fontWeight: 700
+    fontWeight: 800
     lineHeight: 1.05
-    letterSpacing: "-0.012em"
+    letterSpacing: "-0.02em"
   sheet-title:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "28px"
-    fontWeight: 700
+    fontWeight: 800
     lineHeight: 1.05
-    letterSpacing: "-0.012em"
+    letterSpacing: "-0.02em"
   card-title:
     fontFamily: "'Jost', system-ui, sans-serif"
-    fontSize: "24px"
+    fontSize: "22px"
+    fontWeight: 800
+    lineHeight: 1.12
+    letterSpacing: "-0.02em"
+  section:
+    fontFamily: "'Jost', system-ui, sans-serif"
+    fontSize: "20px"
     fontWeight: 700
-    lineHeight: 1.1
-    letterSpacing: "-0.012em"
+    lineHeight: 1.15
+    letterSpacing: "-0.01em"
   figure-xl:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "56px"
@@ -225,6 +231,12 @@ spacing:
   space-16: "16px"
   space-20: "20px"
   space-24: "24px"
+  gap-header: "20px"
+  gap-section: "28px"
+  gap-heading: "12px"
+  gap-stack: "12px"
+  gap-block: "16px"
+  pad-card: "16px"
   gutter: "20px"
   gutter-narrow: "16px"
   mark-column: "20px"
@@ -335,6 +347,8 @@ components:
     padding: "12px 14px"
   field:
     backgroundColor: "{colors.ground}"
+    borderColor: "{colors.control}"
+    borderWidth: "1px"
     textColor: "{colors.ink}"
     typography: "{typography.body}"
     rounded: "{rounded.control}"
@@ -399,6 +413,15 @@ components:
     typography: "{typography.card-title}"
     rounded: "{rounded.card}"
     padding: "6px 16px 16px"
+  card:
+    backgroundColor: "{colors.ground}"
+    borderColor: "{colors.hair}"
+    borderWidth: "1px"
+    rounded: "{rounded.card}"
+    padding: "16px"
+  action-row:
+    gap: "10px"
+    columns: "equal, 8rem at least, stacking below"
 ---
 
 # Design System: Overload
@@ -604,11 +627,15 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 
 ### Hierarchy
 
-- **Title** (700, 36 px, 1; 32 under 360 pt): a tab root's headline, which is its subject (the
-  day, This week, the section, the athlete's name), never the tab's name.
-- **Display** (700, 34 px, 1.05): a nested screen's or an exercise's name. A long name steps
-  down 4, then to 26, then wraps to two lines.
-- **Sheet title** (700, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
+- **Title** (800, 36 px, 1, −0.02 em; 32 under 360 pt): a tab root's headline, which is its
+  subject (the day, This week, the section, the athlete's name), never the tab's name.
+- **Display** (800, 34 px, 1.05, −0.02 em): a nested screen's or an exercise's name. A long name
+  steps down 4, then to 26, then wraps to two lines.
+- **Sheet title** (800, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
+- **Card title** (800, 22 px, 1.12): the name a card leads with (a session on Today, a programme
+  on Plan, a week of a draft).
+- **Section** (Jost 700, 20 px, 1.15, −0.01 em): a section's heading on a screen ("Requests",
+  "Your sessions", a step of a form, a month of History).
 - **Figure XL** (600, 56 px): the screen's one figure, on the ground above its print (the kcal
   eaten on Food, the latest body weight).
 - **Entry** (600, 42 px): load, reps and RIR in the docked entry and a portion's amount,
@@ -625,7 +652,8 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 - **Meta** (500, 15 px, ink 2): a meta line, each fact led by its glyph; **Meta small** (14 px)
   for a row's second line and the facts over a card's name ("Running · planned"), said as
   written: no role is uppercase or letterspaced.
-- **Caption** (700, 13 px, ink 2): a section's name ("Waiting for you").
+- **Group caption** (Atkinson 700, 13 px, ink 2): a group inside a list (a day of History or of
+  Plan's week, a letter of the library), as a table names its groups; never a section's heading.
 - **Tab** (600, 13 px; 12 under 360 pt; 700 where you are). **Print label** (700, 12 px).
 
 ### Named Rules
@@ -636,6 +664,16 @@ Atkinson's en dash, because Jost's is as long as an em dash. A figure that stand
 meta line's time, duration, load or range, a status line's count, a row's value) keeps the
 line's size but takes Jost's tabular digits, whose zero is plain where Atkinson's is slashed and
 reads as a machine's; its words and dashes stay in Atkinson (owner, 5 October 2026).
+
+**The Heading Rule** (owner, 24 October 2026). A heading looks like one: a Jost role at its size
+and weight (Title, Display, Sheet title, Card title, Section), never Atkinson set large or bold.
+Titles are Jost 800 tracked in, because at 700 they read as body text made bigger. A screen's
+sections are headed by Section and the groups inside a list by Group caption, and nothing else
+heads anything: no 15-px bold line standing for a section, no caption in a section's place. A
+heading is followed by what it heads, `gap-heading` (12) under it, and a screen has one title,
+never a second headline restating it (a draft's page is titled with the programme's name, and
+its shape is the meta line). Text 20 px or larger is a Jost role, and h1 to h3 are 600 or
+heavier; the consistency audit fails a screen that breaks either.
 
 **The Figures Never Truncate Rule.** A figure keeps one line and steps down until it fits: never
 an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size
@@ -689,8 +727,11 @@ few words, never how it works. A value the app filled in from the profile or the
 a word or two beside its label ("From your logs"), never in a sentence under it. A failure is said
 in the athlete's words: what failed, what is unchanged, what to do; text the coach or the server
 wrote for whoever runs them is never the message, and may sit folded under Details. A safety
-instruction from the coach ("Stop if…") is need-to-know and stays in view, one line; the coach's
-other notes on a session (pace, progression, how to run it) fold under its plan. A date reads in
+instruction from the coach ("Stop if…") is need-to-know and stays in view, one line, said once:
+where every session of a draft or a programme carries the same one, it stands once over the
+sessions and no session repeats it, and a session shows only a caution of its own (owner, 24
+October 2026: one stop rule under each of nine sessions was read as none). The coach's other
+notes on a session (pace, progression, how to run it) fold under its plan. A date reads in
 the app's notation ("Thu 10 Dec"), never raw or ISO.
 
 ## Layout
@@ -744,10 +785,17 @@ its key is shown, so two readings of one width can never leave the workout witho
   tab, with what it needs to say under it in Meta and at most one action at its end: Today the day
   ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day it
   shows (its intake is the big figure under the day strip, said once), Progress the section being
-  read (its chooser), Profile the athlete's name after the avatar, its Meta the handle and the
-  follower and following counts, which open their lists. Its
+  read (its chooser). Profile opens on the athlete as one card (owner, 24 October 2026): a row
+  that opens their page as a follower sees it (the avatar, the name in Card title, the handle,
+  its chevron, one target), the follower and following counts as two figures that open their
+  lists, and Edit profile in words, the card's full width; a detail still missing is a row under
+  it. Four links in a headline, the name at a title's size and Edit on a line of its own left
+  nobody sure what any of them did. Its
   h1 still names the tab first for a screen reader ("Today, Wednesday 21 October"). A nested page
-  keeps its title: the tab names the section, not the page.
+  keeps its title: the tab names the section, not the page. A root's action stands on its title's
+  line, centred on the title's first line, never on the meta line or halfway down the header; an
+  action that adds leads with the plus (+ New programme), and it is a control by its look (a
+  tonal pill), never a word the eye takes for a label (owner, 24 October 2026).
 - **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session still owed, 12 apart: an
   open session that is not the day's first, then the workout (or the rest day), then each run,
   ride and swim. Nothing is pinned over the tab bar: each card carries its own next step. Under
@@ -758,12 +806,20 @@ its key is shown, so two readings of one width can never leave the workout witho
 - **Plan:** "This week" as its headline with its dates under it; the week as seven day papers in
   the month's grammar (each day's marks in their state, today ringed in ink); then every sport's
   sessions as rows under their day, each with its mark and where it stands (Done, Skipped, Missed,
-  Today); then the week's steps, named from today ("‹ Last week", "Next week ›"); a day paper
-  with one session opens it, and one with several leads to its rows; then one card per programme, its weeks a row of segments in its sport's pigment (done
-  full, the current week thinned, the rest `surface`); then Past programmes (ADR 0058).
+  Today); a week with nothing planned says "Nothing planned" in a tray the papers' width, never
+  a stray line; then the week's steps, two tonal buttons of one width side by side under the
+  papers, named from today ("‹ Last week", "Next week ›"), each a whole target that looks like
+  one (owner, 24 October 2026: two bare words with space around them read as neither text nor
+  controls); a day paper with one session opens it, and one with several leads to its rows; then
+  one card per programme, its weeks a row of segments in its sport's pigment (done full, the
+  current week thinned, the rest `surface`), and what it waits on (a draft to review) its foot,
+  a ruled row under the weeks, never a badge crowding the name; then Past programmes (ADR 0058).
 - **Forms** (owner, 21 October 2026): a form's sections (a run's laps, its totals, its effort, the
-  rest folded) stand as panels on the grouped ground, each under its caption, 20 apart; inside a
-  panel, rows are ruled and a field is a filled tray. The one filled action is pinned at the foot.
+  rest folded) stand as panels on the grouped ground, each under its Section heading,
+  `gap-section` apart; inside a panel, rows are ruled and a field is the one field (Inputs and
+  choices), edged as everywhere else: a field that matched its panel's tone showed no box at all,
+  and laps read as bare words (owner, 24 October 2026). The one filled action is pinned at the
+  foot.
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
@@ -801,13 +857,15 @@ its key is shown, so two readings of one width can never leave the workout witho
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
   ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
-  the screen's foot and come to rest above the bar. At large text, while a workout is minimised,
+  the screen's foot and come to rest above the bar. They stand on the ground itself, under a fade,
+  never in a card of their own, which only added a second inset around the buttons. At large
+  text, while a workout is minimised,
   the session strip folds into them and stands down: its key ends their last line, beside the
   last action while that action's longest word still fits (its words may wrap), else on a line
   of its own at the end, and always on its own after a field, which keeps its width; the actions
-  come down to the tab bar. A multi-step form's actions, kept on screen as a card (New strength
-  programme), are pinned actions too: at large text Back has a line to itself,
-  and the key takes the rest of it, so the card grows by nothing. The tab bar, the strip and the
+  come down to the tab bar. A multi-step form's actions, kept on screen in a bar at its foot (New
+  strength programme), are pinned actions too, Back and Next one size and one width: at large
+  text Back has a line to itself, and the key takes the rest of it, so the bar grows by nothing. The tab bar, the strip and the
   actions had held 28 to 63% of a phone's screen at 200% text; folded, 20 to 50%, the most where
   the action is long (Delete everything at 320 × 568), a field keeps its line, or a step keeps
   two actions on screen (New strength programme).
@@ -858,6 +916,28 @@ has them, in one column.
 behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a
 target under 44 pt.
 
+**The Rhythm Rule** (owner, 24 October 2026). Space is set by a handful of gaps, each with one
+job, on every screen:
+
+| Gap           | pt  | Between                                                 |
+| ------------- | --- | ------------------------------------------------------- |
+| `gap-header`  | 20  | a screen's header and its first content, root or nested |
+| `gap-section` | 28  | one section and the next                                |
+| `gap-heading` | 12  | a section's heading and what it heads                   |
+| `gap-stack`   | 12  | card and card, panel and panel                          |
+| `gap-block`   | 16  | one block and the next inside a card                    |
+| `pad-card`    | 16  | a card's or a panel's inset                             |
+
+Every gap has one source. A parent's gap or a heading's margin makes it, never both, and a
+wrapper's margin is never added to its child's; a box pads once, so no card stands in a panel
+with its own inset, no tray in a card, no ruled row pads above the first row where the header's
+gap already is (owner: "no twin padding or twin margins, no wasted space"). Sibling screens open
+alike: every Progress section has its meta line under the chooser and its first block one
+`gap-header` down, so Muscles and Running start at one height. A control's target may overhang
+the line it stands on (an ⓘ's 44 pt beside a 19-pt label) but never makes the line taller, so a
+label or a heading with an ⓘ sits where one without sits. The consistency audit
+(`npm run audit:consistency`) measures each screen's first gap against its kind's.
+
 **The Same Phone, Larger Rule.** A screen wider than a phone shows the phone's layout, larger
 and with more columns where it lists cards. It never shows a different layout, and never a
 phone's column floating in empty space. A phone never moves when the larger sizes change.
@@ -876,6 +956,12 @@ rise over a scrim and carry no shadow. Prints are flat paper with a faint grain.
 
 **The One Shadow Rule.** One shadow in the whole system. Anything else that needs to stand out
 does it with ink, tone or a scrim.
+
+**The One Card Rule** (owner, 24 October 2026). A card is drawn one way on every screen: ground
+with a 1-px `hair` edge, `card` corners, `pad-card` inside (Today's activities, Plan's
+programmes, Profile's identity, a fold standing alone). On the grouped ground of a form or a
+settings page the same box is a panel: `surface`, no edge. A filled card on the ground, a card in
+a card and a tray inside a card are never drawn.
 
 ## Shapes
 
@@ -910,7 +996,9 @@ Everywhere else a sport is its mark, the form itself. The five destination icons
 October 2026) are told apart by their silhouettes, outlined, and filled where you are: Today is
 the app's mark (the slab and the disc on their line), in ultramarine and vermilion where you are;
 Plan a calendar, its head and today's square filled; Food the bowl with its heap; Progress the
-loaded bar, a barbell side on with three plates growing, its plates filled; Profile the person. Equipment
+rise, three blocks each a size up climbing corner to corner, load growing in the prints' own
+block and not a chart, filled where you are (owner, 24 October 2026: the loaded bar's plates
+read, filled, as a barcode); Profile the person. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight, an accessory as a flat
 bench, the ab wheel front on, a rowing machine, a stair climber and an elliptical side on, a ski
 erg front on) and where (outdoors, treadmill, indoor bike, pool, open water, home) are glyphs,
@@ -971,6 +1059,16 @@ and every control answers a press.
   confirmed, never in the primary place while it would lose a record. One that loses nothing
   (discarding an empty session or an untouched draft) may be the primary. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
+- **Peers** (The Equal Actions Rule, owner, 24 October 2026): actions offered side by side are one
+  size and one width (Back and Next, Decline and Approve, Last week and Next week), the primary
+  last; two share a row while each keeps 8rem, and three or more stack, each the full width, the
+  primary first. A way out that loses something or leaves (Discard draft, Cancel) is a text
+  action under them, never a fourth button of the same weight. A decision page's actions adapt
+  to the width, never to the length of their words.
+- **Looks like a control:** anything that acts has a control's shape (a fill, an edge or a pill).
+  Words without one act only as a text action under a row of actions (Discard draft), led by
+  their glyph at the end of a section's heading (+ Add machine), or underlined in running text; a
+  word alone in a header or under a grid is a pill.
 - **Press:** scale 0.97 in 120 ms, `cubic-bezier(0.23, 1, 0.32, 1)`; none with reduced motion.
 - **Focus:** a 3-px ink outline at 2-px offset, ringed in ground so it shows on ink.
 
@@ -1031,13 +1129,15 @@ and every control answers a press.
   never wait on Save.
 - **In a row:** a label left, with its ⓘ where it needs one and under it only the figure the
   row makes or remembers (Pace 6:46 /km, Last time 7 h), never a sentence; −, the value in a
-  fixed 120-pt column, + right, so the buttons line up row under row (hours slept, a run's
-  distance and duration).
+  field box of a fixed 120-pt column (the field's fill and edge, its unit inside), + right, so
+  the buttons line up row under row (hours slept, a run's distance and duration) and the value
+  reads as something to type.
 - **Nothing a phone's number pad lacks** (owner, 20 October 2026): a duration is typed in digits,
   its colons placed from the right as a timer's are (2530 is 25:30, 10530 is 1:05:30), and
-  written as the clock writes it once left (0:75 is 1:15); a distance is two figures, the whole
-  and the digits after the point, each on the number pad, the point drawn between them and the
-  two drawn against it (5.2). A swim's metres or yards is one whole figure.
+  written as the clock writes it once left (0:75 is 1:15). A distance is one figure typed whole
+  on the decimal pad (5.2), as a duration is (owner, 24 October 2026: the two figures drawn
+  against a point took a tap on one side of the number, with nothing around it to aim at). A
+  swim's metres or yards is one whole figure.
 
 ### Laps and intervals
 
@@ -1046,6 +1146,9 @@ every part is a lap with a kind, and the session's totals are its laps added up.
 
 - **A lap's kind:** Warm-up, Rep, Recovery or Cool-down, said first in its row; a lap with no kind
   is a Lap. A rep's row is ink and 700; the rest are ink 2.
+- **A lap's row:** a ruled row, its kind first, then its fields, each the one field with its
+  label over it (Distance, Time, Heart rate a third of the row each, folding to halves where a
+  third would cut a figure), so a lap is visibly as much a form as the totals under it.
 - **What a lap takes:** a distance, a time or both, and the heart rate if the watch had one. A
   recovery may be time alone, a standing rest, and its distance reads Standing. "+ Rep" copies the
   last rep's distance; "+ Recovery" copies the last recovery's time; both sit at the panel's foot.
@@ -1204,7 +1307,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
   in colour. The coach preparing, waiting or failing is the same block, its glyph a dial that
   waits, holding one line of state ("Preparing for Anytime Fitness · since 04:00", "Not prepared
   yet: programme targets apply") and at most one action (Prepare now). It never says how or when
-  the coach runs, or that the screen updates itself.
+  the coach runs, or that the screen updates itself. It does update itself, on coming back to the
+  app and every few seconds to half a minute while open, so it never offers Check status: a
+  button that changes nothing while the coach works is a dead control (owner, 24 October 2026).
 - The coach's reasoning on a draft is its note, two lines then More; what the coach is unsure
   about is a fold under it with its count at the end of the row, and a change's reasoning is
   folded under Why, closed. What the coach asks the athlete to confirm is not folded: "The coach
@@ -1235,7 +1340,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - One card per activity of the day, every one in the same anatomy, so a run reads like a
   workout: ground with a 1-px `hair` edge and `card` corners (16), 6 × 16 × 16 padding (14 at the
   sides under 360 pt). The head: the sport's mark (22 pt, in its state: thinned to do, full done,
-  dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 700, 24), a run's
+  dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 800, 22), a run's
   figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
 - Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
   choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's time
@@ -1264,23 +1369,30 @@ good is the target or the goal, which a rule or the readout says, not a directio
 
 ### Inputs and choices
 
-- **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
-  (14, 700) with Optional at its end and any help in its ⓘ; under it only its error or what its
-  value comes to, in caption. Inside a panel (Forms) a field is a filled tray instead: `surface`
-  (the tray in dark), no border, 44 to 52 pt, and focused it takes a 2-px ink ring.
+- **Field:** one field on every surface (owner, 24 October 2026): 52 pt, the `field` fill
+  (ground; Canvas in forced colours), a 1-px `control` edge, 14-px corners, 16-px text; focused,
+  its edge and a 1-px ring in ink. The label above (14, 700) with Optional at its end and any help
+  in its ⓘ; under it only its error or what its value comes to, in caption. A panel's field, a
+  lap's, a stepper's figure and a search are the same field; the filled tray, which vanished
+  into a panel of its own tone, is retired.
 - **A field that cannot be saved** (owner, 21 October 2026): the field takes the danger tint and a
   1.5-px danger line, its label the danger text led by the alert glyph, and the line under it says
   in the danger text, 700, what to type ("Enter whole beats a minute, such as 165."), with the way
-  out where there is one ("Use 3.47 km"). It stays until the value can be saved, not until a key
-  is pressed. Every value typed and every choice made survives the refusal, a select's included.
+  out where there is one ("Use 3.47 km"). It stays while the value cannot be saved and goes the moment it can (a value the server
+  refused, the moment it is changed), never waiting for a save to go through; it is a fact about
+  the field, so it is never timed out while it is still true (WCAG 3.3.1). What reports a moment
+  goes by itself: the refused save's bar and the record kept, below. Every value typed and every choice made survives the refusal, a select's included.
 - **A refused save:** over Save, in the pinned actions, a danger-tinted bar with the up arrow says
   how many things to fix and where ("2 to fix: lap 4, distance"); it is a link to the first, and
   Save itself scrolls there and focuses it. The fields say the rest; the bar never repeats their
-  sentences. A failure that is not a field's (the connection, the server) is said in the bar in
-  the app's words, with Retry.
+  sentences. It goes after four seconds, the fields keeping their own marks, and comes back
+  with the next refused save. A failure that is not a field's (the connection, the server) is
+  said in the bar in the app's words, with Retry, and stays until Retry is taken.
 - **A record kept:** a success-tinted bar with the check glyph says what was kept ("Run saved as
-  intervals"), with Undo where it can be undone, over the tab bar for six seconds, and to a screen
-  reader as a status. A placeholder is an example that could not be taken for an answer
+  intervals"), with Undo where it can be undone, over the tab bar for three seconds (longer while
+  a finger or the focus is on it, so Undo is never pulled away mid-reach), and to a screen
+  reader as a status. A message on a screen that is not an alert (Saved, a step done) goes the
+  same way; nothing that reports a moment stays on the screen (owner, 24 October 2026). A placeholder is an example that could not be taken for an answer
   ("For example, a sore left knee");
   a rule or format the value must meet is said before typing (The Need-to-Know Rule). Optional is
   the label's aside on every optional field, inside a fold of optional fields too, read with the
@@ -1322,9 +1434,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
   over the tabs, and the summary's Edit stays Today's (October 2026).
 - **Headers:** a tab's root opens on its subject (Tab roots) with at most one action; a nested screen has a back
   link that names where it goes, a person's page by their name (never "People", which is the list
-  of them), and at most one action at the end of its bar, a word (Edit, Done) or a glyph (Filters,
-  More) on the content's edge, never a filled button, which would fill the bar from the screen's
-  top edge; a session screen has its back or minimise, the rest pill, and at most Finish and More.
+  of them), and at most one action at the end of its bar, on the content's edge: a word as a
+  tonal pill inside its 44-pt target (Edit, Done), as Finish is an outline one, or a glyph
+  (Filters, More); never bare words, which read as a stray label, and never a fill as tall as the
+  bar, which would fill it from the screen's top edge; a session screen has its back or minimise,
+  the rest pill, and at most Finish and More.
   Nothing on the screen repeats the back link as a button ("Back to Plan").
   Today's head is the day, with Log at its end. Where the programme has got to is Plan's (ADR
   0058), so Today shows no cycle and no count while it is on track. From two missed training
@@ -1451,6 +1565,16 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Do** lay a new screen out at 320, 375, 402 and 440 pt and Android's 360 dp, in light and
   dark, and at 200% text, before calling it done.
 - **Do** swap a word or a figure in place: out in 80 ms, then in over 120 ms, never both at once.
+- **Do** take every gap from the rhythm tokens and give it one source (The Rhythm Rule), and run
+  `npm run audit:consistency` in light and dark after a change to a shared piece.
+- **Do** make peers one size and one width, the primary last in a row and first in a stack (The
+  Equal Actions Rule).
+- **Do** say a caution shared by every session once, over the sessions, and only one that
+  differs on the session it belongs to.
+- **Do** let a moment's message go: Saved in three seconds, a refused save's bar in four; a
+  field's error goes the moment its value can be saved, never on a timer while it is still true.
+- **Do** change these rules when a screen shows them wrong or silent: the owner's complaint is
+  evidence, and the rule is rewritten in the same change as the fix (owner, 24 October 2026).
 
 ### Don't:
 
@@ -1471,3 +1595,11 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Don't** indent a list, box rows into cards (Today's activity cards and Plan's programme
   cards are the exceptions in Layout, never nested), or add a second shadow.
 - **Don't** let the art be the brightest thing on a dark screen.
+- **Don't** pad twice: no card in a panel with its own inset, no tray in a card, no wrapper's
+  margin added to its child's, no padding above a first row where the header's gap already is.
+- **Don't** draw a field that matches its surface, set a heading in Atkinson, or leave a word
+  that acts without a control's shape.
+- **Don't** offer a control that changes nothing on the screen when tapped (Check status while
+  the coach works); update the screen instead.
+- **Don't** give a screen two headlines, or repeat a sentence on every row of a list (a stop rule
+  under each of nine sessions).

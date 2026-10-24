@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * Form v2's glyphs (DESIGN.md, Shapes): a 24-unit grid, a 2.0 stroke, round caps and joins, ink
  * only. Ported from the design's generator (docs/ui-redesign/revamp/form-v2/source/icons.mjs and
  * the destination icons in kit.mjs). The five destinations are told apart by their silhouettes
- * (Today the app's mark, Plan a calendar, Food the bowl, Progress the loaded bar, Profile the
+ * (Today the app's mark, Plan a calendar, Food the bowl, Progress the rise, Profile the
  * person), outlined, and filled where you are. Equipment and where a run, ride or swim happened are
  * glyphs too, so a meta line can say free weights, treadmill or open water without a word; each
  * keeps its name for screen readers.
@@ -364,12 +364,13 @@ const DESTINATIONS = {
     <path key="a" d="M2.5 10.5h19a9.5 9 0 0 1-19 0z" fill={fill(filled)} />,
     <path key="b" d="M7 10.5a5 4.6 0 0 1 10 0" fill={fill(filled)} />,
   ],
-  // Progress: the loaded bar, a barbell side on with three plates growing.
+  // Progress: the rise (owner, 24 October 2026), three blocks, each a size up, climbing corner to
+  // corner: load growing, in the prints' own block, and not a chart. The plates on a bar it
+  // replaces read, filled, as a barcode.
   progress: (filled: boolean) => [
-    <path key="a" d="M2 12h20" />,
-    <rect key="b" x="5" y="9" width="2.6" height="6" rx="1" fill={fill(filled)} />,
-    <rect key="c" x="9.7" y="6.5" width="2.6" height="11" rx="1" fill={fill(filled)} />,
-    <rect key="d" x="14.4" y="4" width="2.6" height="16" rx="1" fill={fill(filled)} />,
+    <rect key="a" x="2.5" y="16" width="5" height="5" rx="1.2" fill={fill(filled)} />,
+    <rect key="b" x="7.5" y="10" width="6" height="6" rx="1.4" fill={fill(filled)} />,
+    <rect key="c" x="13.5" y="3" width="7" height="7" rx="1.6" fill={fill(filled)} />,
   ],
   profile: (filled: boolean) => [
     <circle key="a" cx="12" cy="8" r="4" fill={fill(filled)} />,

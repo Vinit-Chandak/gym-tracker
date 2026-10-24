@@ -30,7 +30,6 @@
 /* Seven days fill the width while each keeps 44 pt; narrower, the days scroll (board Food-320). */
 .food-strip {
   position: relative;
-  margin-top: calc(8 * var(--ov-u));
   container-type: inline-size;
 }
 /* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. The

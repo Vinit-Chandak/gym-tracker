@@ -171,7 +171,7 @@ await walk("watch total short of its laps", "priya@local.test", async (page) => 
   await runForm(page);
   await ownersSession(page);
   await page.getByRole("button", { name: "Use the watch’s totals instead" }).click();
-  await page.getByLabel("Distance, after the point").fill("00");
+  await page.getByLabel("Distance", { exact: true }).fill("1.00");
   await effort(page, "3");
   await page.getByRole("button", { name: "Save run" }).click();
   await page.getByText(/^The laps add up to 1\.47\skm, more than 1\.00\skm\.$/).waitFor();
@@ -227,8 +227,7 @@ await walk("ride in miles", "alex@local.test", async (page) => {
     (await page.getByRole("button", { name: /^Distance in mi\./ }).count()) === 1,
   );
   await page.getByLabel("Duration").fill("10500");
-  await page.getByLabel("Distance", { exact: true }).fill("20");
-  await page.getByLabel("Distance, after the point").fill("5");
+  await page.getByLabel("Distance", { exact: true }).fill("20.5");
   await effort(page, "3");
   const text = await saved(page, "Save ride");
   check(
@@ -241,8 +240,7 @@ await walk("ride in miles", "alex@local.test", async (page) => {
 await walk("ride refused, then fixed", "alex@local.test", async (page) => {
   await page.goto("/today/log/new?sport=cycling", { waitUntil: "networkidle" });
   await page.getByLabel("Duration").fill("4500");
-  await page.getByLabel("Distance", { exact: true }).fill("12");
-  await page.getByLabel("Distance, after the point").fill("4");
+  await page.getByLabel("Distance", { exact: true }).fill("12.4");
   await tap(page, "Assisted");
   await effort(page, "4");
   await page.getByText("Date, notes, heart rate, more").click();
@@ -254,7 +252,7 @@ await walk("ride refused, then fixed", "alex@local.test", async (page) => {
   check(
     "ride: keeps everything",
     (await page.getByLabel("Duration").inputValue()) === "45:00" &&
-      (await page.getByLabel("Distance, after the point").inputValue()) === "4" &&
+      (await page.getByLabel("Distance", { exact: true }).inputValue()) === "12.4" &&
       (await page.getByRole("radio", { name: "Assisted", exact: true }).isChecked()) &&
       (await page
         .getByRole("radiogroup", { name: "Effort" })

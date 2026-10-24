@@ -49,8 +49,7 @@ it("opens a ride in the rider's miles, its climb in feet, and posts both as stor
     />,
   );
   const posted = () => new FormData(container.querySelector("form")!);
-  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("24");
-  expect((screen.getByLabelText("Distance, after the point") as HTMLInputElement).value).toBe("85");
+  expect((screen.getByLabelText("Distance") as HTMLInputElement).value).toBe("24.85");
   // Optional at the end of its name and read with it; what was entered under it.
   expect(screen.getByText("Entered as 40 km")).toBeTruthy();
   const distance = screen.getByRole("textbox", { name: "Distance" });

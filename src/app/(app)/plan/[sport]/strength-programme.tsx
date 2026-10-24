@@ -5,6 +5,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -120,9 +121,7 @@ export async function StrengthProgramme({
             <Card>
               <div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="text-lg font-medium [overflow-wrap:break-word]">
-                    {holdHyphens(overview.program.name)}
-                  </h2>
+                  <h2 className="type-card-title">{holdHyphens(overview.program.name)}</h2>
                   {/* Today's word for it, "Programme complete", as the card's badge. */}
                   {complete && <Badge>Complete</Badge>}
                 </div>
@@ -239,9 +238,13 @@ export async function StrengthProgramme({
         ) : (
           <>
             <SavedProgrammeWork />
-            <Card>
-              <h2 className="text-lg font-medium">No strength programme</h2>
-              <LinkButton href="/plan/new?sport=strength">New programme</LinkButton>
+            {/* An empty state is one short line and its action (DESIGN.md, Need-to-Know). */}
+            <Card className="space-y-[var(--ov-gap-block)]">
+              <h2 className="type-section">No strength programme</h2>
+              <LinkButton href="/plan/new?sport=strength" size="lg" className="w-full">
+                <Glyph name="plus" className="glyph-18" />
+                New programme
+              </LinkButton>
             </Card>
           </>
         )}

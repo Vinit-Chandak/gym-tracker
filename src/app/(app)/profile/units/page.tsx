@@ -27,7 +27,7 @@ export default async function UnitsPage() {
   return (
     <>
       <PageHeader title="Units and time zone" backHref="/profile" />
-      <div className="page-width pt-3.5 pb-8">
+      <div className="page-width pb-8">
         <UnitsForm
           values={{
             timeZone: profile.timeZone,

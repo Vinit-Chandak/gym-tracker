@@ -162,10 +162,10 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         </ul>
 
         <section aria-labelledby="gym-machines">
-          <div className="list-head">
+          <div className="heading-row list-head">
             {/* The tip stands beside the heading, never in it: the heading's name is its words. */}
             <div className="flex items-center gap-1">
-              <h2 id="gym-machines" className="caption-head mb-0 whitespace-nowrap">
+              <h2 id="gym-machines" className="caption-head whitespace-nowrap">
                 {equipmentCountLabel(activeEquipment.length)}
               </h2>
               <InfoTip label="About machines">
@@ -182,7 +182,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             )}
           </div>
           {activeEquipment.length === 0 ? (
-            <p className="mt-1 type-meta text-ink-2">No machines yet.</p>
+            <p className="type-meta text-ink-2">No machines yet.</p>
           ) : (
             <EquipmentRows gymId={gym.id} items={activeEquipment} />
           )}
@@ -202,13 +202,16 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             outdoors too, and saying it is not here stops the question (ADR 0004, amended). */}
         {(gym.kind === "gym" || absent.length > 0 || absentCandidates.length > 0) && (
           <section aria-labelledby="gym-unavailable">
-            <div className="mt-4.5 mb-0.5 flex items-center gap-1">
-              <h2 id="gym-unavailable" className="caption-head mb-0">
-                Unavailable equipment
-              </h2>
-              <InfoTip label="About unavailable equipment">
-                Mark what this place lacks so the programme suggests alternatives instead of asking.
-              </InfoTip>
+            <div className="heading-row">
+              <div className="flex items-center gap-1">
+                <h2 id="gym-unavailable" className="caption-head">
+                  Unavailable equipment
+                </h2>
+                <InfoTip label="About unavailable equipment">
+                  Mark what this place lacks so the programme suggests alternatives instead of
+                  asking.
+                </InfoTip>
+              </div>
             </div>
             {absent.length === 0 && absentCandidates.length === 0 && (
               <p className="type-meta text-ink-2">Nothing marked unavailable.</p>

@@ -371,8 +371,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {/* The library's own prescription, said to be one: a programme's days ask for theirs
               (In your programme, below), and the two can differ. */}
           <div className="flex items-center gap-0.5">
-            <h2 className="text-xs font-medium text-ink-muted">Defaults</h2>
-            <InfoTip label="About the defaults" className="-my-2">
+            <h2 className="group-caption">Defaults</h2>
+            <InfoTip label="About the defaults">
               {exercise.programUsage.length > 0
                 ? "What it starts on when added on its own. Your programme's days set their own."
                 : "What it starts on when added to a workout or a programme."}
@@ -424,7 +424,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           ))}
 
         <Card>
-          <h2 className="text-base font-medium">Equipment</h2>
+          <h2 className="caption-head">Equipment</h2>
           {exercise.requiresEquipment && exercise.equipmentWays.length > 0 ? (
             <>
               {/* Each way names what is used together, so a Smith machine and a bench read as
@@ -447,7 +447,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-medium">{usageTitle}</h2>
+            <h2 className="caption-head">{usageTitle}</h2>
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
@@ -495,7 +495,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="min-w-0 font-medium [overflow-wrap:break-word]">{entry.gym.name}</h3>
+                <h3 className="min-w-0 type-heading [overflow-wrap:break-word]">
+                  {entry.gym.name}
+                </h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>

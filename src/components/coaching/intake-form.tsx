@@ -39,7 +39,7 @@ type Report = CoachFile;
 type Change = (patch: Partial<CoachIntake>) => void;
 
 /** The detailed route, in the order the questions build on each other. */
-const STEPS = ["You", "Your week", "Your training", "Starting point", "Review"] as const;
+const STEPS = ["About you", "Your week", "Your training", "Starting point", "Review"] as const;
 const REVIEW = STEPS.length - 1;
 const GOAL_LABELS = TRAINING_GOALS.map((goal) => TRAINING_GOAL_LABELS[goal]);
 
@@ -310,8 +310,14 @@ export function CoachIntakeForm({
 
   return (
     <div className="space-y-5">
-      <Header title={STEPS[step] ?? "Review"} status={saveState} busy={busy} onExit={exit} />
-      <StepProgress step={step} busy={busy} onStep={move} />
+      <Header
+        title={STEPS[step] ?? "Review"}
+        status={saveState}
+        busy={busy}
+        onExit={exit}
+        step={step}
+        onStep={move}
+      />
       {step === 0 && <YouStep {...shared} />}
       {step === 1 && <WeekStep {...shared} />}
       {step === 2 && <TrainingStep {...shared} library={library} />}
@@ -340,29 +346,48 @@ export function CoachIntakeForm({
 
 /* ------------------------------------------------------------------ chrome */
 
-/** The step's name, save status and way out wrap when the text needs more room. */
+/**
+ * Where the form stands, as one block under the page's title (owner, 24 October 2026): the steps
+ * as bars, on the detailed route; under them which step of how many and whether the answers are
+ * saved, with Save and exit as a button at the row's end; then the step's name, as the section
+ * it is. A bare "You" between the title and a word with no button's shape had read as stray words.
+ */
 function Header({
   title,
   status,
   busy,
   onExit,
+  step = null,
+  onStep,
 }: {
   title: string;
   status: string;
   busy: boolean;
   onExit: () => void;
+  /** The step under way on the detailed route; none on the guided one, which is one screen. */
+  step?: number | null;
+  onStep?: (step: number) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0 flex-[1_1_10ch]">
-        <h2 className="text-xl font-medium [overflow-wrap:break-word]">{title}</h2>
-        <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
-          {status}
+    <div className="step-header">
+      {step !== null && onStep && <StepProgress step={step} busy={busy} onStep={onStep} />}
+      <div className="step-header-row">
+        <p className="step-header-status">
+          {step !== null && (
+            <span>
+              Step {step + 1} of {STEPS.length}
+              {status && FACT_SEPARATOR}
+            </span>
+          )}
+          <span role="status" aria-live="polite">
+            {status}
+          </span>
         </p>
+        <Button size="sm" variant="tonal" disabled={busy} onClick={onExit} className="shrink-0">
+          Save and exit
+        </Button>
       </div>
-      <Button size="sm" variant="ghost" disabled={busy} onClick={onExit} className="shrink-0">
-        Save and exit
-      </Button>
+      <h2 className="type-section">{title}</h2>
     </div>
   );
 }
@@ -382,7 +407,7 @@ function StepProgress({
   onStep: (step: number) => void;
 }) {
   return (
-    <nav aria-label="Programme steps" className="space-y-1.5">
+    <nav aria-label="Programme steps">
       <div className="flex gap-1.5">
         {STEPS.map((name, i) => (
           <button
@@ -426,27 +451,20 @@ function Actions({
   onNext: () => void;
   onBack?: () => void;
 }) {
+  // Back and the step's action are peers, one size (DESIGN.md, The Equal Actions Rule).
   return (
-    <div className="sticky-actions flex flex-wrap items-center gap-3">
-      {onBack && (
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={onBack}
-          className="min-w-0 flex-[1_1_auto]"
-        >
-          Back
+    <div className="sticky-actions">
+      <div className="action-row">
+        {onBack && (
+          <Button size="lg" variant="secondary" disabled={busy} onClick={onBack}>
+            Back
+          </Button>
+        )}
+        <PinnedFold />
+        <Button size="lg" disabled={busy || disabled} onClick={onNext}>
+          {busy ? "Saving…" : next}
         </Button>
-      )}
-      <PinnedFold />
-      <Button
-        size="lg"
-        disabled={busy || disabled}
-        onClick={onNext}
-        className="min-w-0 flex-[1_1_12ch]"
-      >
-        {busy ? "Saving…" : next}
-      </Button>
+      </div>
     </div>
   );
 }
@@ -473,7 +491,7 @@ function TrackChooser({
 }) {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-medium">Which sounds like you?</h2>
+      <h2 className="caption-head">Which sounds like you?</h2>
       {(
         [
           {
@@ -495,7 +513,7 @@ function TrackChooser({
       ).map((option) => (
         <Card key={option.track}>
           <div>
-            <h3 className="text-lg font-medium">{option.title}</h3>
+            <h3 className="type-heading">{option.title}</h3>
             <p className="text-sm text-ink-muted">{option.line}</p>
           </div>
           <Button
