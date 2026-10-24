@@ -1,8 +1,10 @@
 import type { MuscleGroup } from "./types";
-import { addDays } from "./program-calendar";
+import type { RunningLap } from "./activity-metrics";
+import { zoneOf, type HeartRateZone } from "./heart-rate";
+import { addDays, daysBetween, isoWeekday } from "./program-calendar";
 import { weekStart } from "./running";
 import { RUN_TYPES, type RunType } from "./run-types";
-import { continuousStretches, type RecordedLap } from "./run-segments";
+import { continuousStretches, hasBreaks, type RecordedLap } from "./run-segments";
 
 /**
  * What a running coach reads before it plans (ADR 0059), worked out once by the server so every
@@ -26,6 +28,13 @@ export type LoggedRun = {
   effort: number | null;
   /** Its laps as recorded, in order; empty when it was recorded as a whole. */
   laps: readonly RecordedLap[];
+  /** Its average heart rate, its laps' over their time where the run has none; null unknown. */
+  averageHeartRate?: number | null;
+  /** Its highest reading, its laps' included. */
+  maxHeartRate?: number | null;
+  /** How far it climbed, where that was recorded. */
+  climbMetres?: number | null;
+  notes?: string | null;
 };
 
 export type RunningWeek = {
@@ -38,6 +47,7 @@ export type RunningWeek = {
 };
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
+const round2 = (value: number) => Math.round(value * 100) / 100;
 
 /** Every week of the last `weeks`, newest first, empty ones included. */
 export function runningWeeks(
@@ -59,6 +69,31 @@ export function runningWeeks(
       longestKm: round1(Math.max(0, ...inWeek.map((run) => run.distanceMetres)) / 1000),
     };
   });
+}
+
+/**
+ * The weekdays a runner usually runs on (ADR 0063): each with a run in at least `least` of the
+ * `weeks` complete weeks before this one, Monday first, with how many of those weeks it had one.
+ * A runner whose days move about week to week has none, and is not given any.
+ */
+export function usualRunDays(
+  runs: readonly Pick<LoggedRun, "occurredOn">[],
+  today: string,
+  weeks = 8,
+  least = 3,
+): { day: number; weeks: number }[] {
+  const current = weekStart(today);
+  const from = addDays(current, -7 * weeks);
+  const seen = new Map<number, Set<string>>();
+  for (const run of runs) {
+    if (run.occurredOn < from || run.occurredOn >= current) continue;
+    const day = isoWeekday(run.occurredOn);
+    seen.set(day, (seen.get(day) ?? new Set()).add(weekStart(run.occurredOn)));
+  }
+  return [...seen]
+    .map(([day, inWeeks]) => ({ day, weeks: inWeeks.size }))
+    .filter((entry) => entry.weeks >= least)
+    .sort((a, b) => a.day - b.day);
 }
 
 /** The longest run of the last `days` days before and including `today`, or null. */
@@ -291,6 +326,246 @@ export function runMix(runs: readonly LoggedRun[]) {
   const environments: Record<string, number> = {};
   for (const run of runs) environments[run.environment] = (environments[run.environment] ?? 0) + 1;
   return { types, untyped: runs.filter((run) => run.runType === null).length, environments };
+}
+
+/*
+ * A runner's months as a coach reads them (ADR 0063): every run a row, with its pace and heart
+ * rate; what their easy, long and hard runs usually look like; the days and lengths of their
+ * usual week; how steadily they have run; and how much of it was easy. Worked out here once, so
+ * the coach reads them rather than dividing sixty runs' seconds by their metres itself.
+ */
+
+function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+const roundOr = (value: number | null, places = 0) =>
+  value === null ? null : Math.round(value * 10 ** places) / 10 ** places;
+
+/**
+ * A run's heart rate as a coach reads it: its own average where the watch gave one, else its
+ * laps' averages weighted by their time, and its highest reading, its laps' included.
+ */
+export function runHeartRate(
+  run: { averageHeartRate: number | null; maxHeartRate: number | null },
+  laps: readonly Pick<RunningLap, "durationMs" | "averageHeartRate" | "maxHeartRate">[],
+): { average: number | null; max: number | null } {
+  const timed = laps.filter((lap) => lap.averageHeartRate !== null && (lap.durationMs ?? 0) > 0);
+  const lapped = timed.reduce((sum, lap) => sum + lap.durationMs!, 0);
+  const peaks = [run.maxHeartRate, ...laps.map((lap) => lap.maxHeartRate)].filter(
+    (value): value is number => value !== null,
+  );
+  return {
+    average:
+      run.averageHeartRate ??
+      (lapped > 0
+        ? Math.round(
+            timed.reduce((sum, lap) => sum + lap.averageHeartRate! * lap.durationMs!, 0) / lapped,
+          )
+        : null),
+    max: peaks.length > 0 ? Math.max(...peaks) : null,
+  };
+}
+
+/** A run's pace when it was one unbroken effort (ADR 0062); a session run in pieces has none. */
+export function wholeRunPace(run: LoggedRun): number | null {
+  if (hasBreaks(run) || run.distanceMetres <= 0 || run.durationMs <= 0) return null;
+  return Math.round(run.durationMs / run.distanceMetres);
+}
+
+export type RunLogEntry = {
+  sourceId: string;
+  date: string;
+  weekday: string;
+  kind: RunType | null;
+  place: string;
+  km: number;
+  minutes: number;
+  /** Seconds a kilometre; null for a session run in pieces, whose total holds its recoveries. */
+  paceSecondsPerKm: number | null;
+  hadBreaks: boolean;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  /** The zone its average heart rate fell in: 0 below zone 1; null without one or zones. */
+  zone: number | null;
+  effort: number | null;
+  climbMetres: number | null;
+  notes: string | null;
+};
+
+/** Every run, newest first, a row each. */
+export function runLog(
+  runs: readonly LoggedRun[],
+  zones: readonly HeartRateZone[] | null,
+): RunLogEntry[] {
+  return [...runs]
+    .sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
+    .map((run) => {
+      const average = run.averageHeartRate ?? null;
+      return {
+        sourceId: `activity:${run.id}`,
+        date: run.occurredOn,
+        weekday: WEEKDAY_NAMES[isoWeekday(run.occurredOn) - 1]!,
+        kind: run.runType,
+        place: run.environment,
+        km: round2(run.distanceMetres / 1000),
+        minutes: round1(run.durationMs / 60_000),
+        paceSecondsPerKm: wholeRunPace(run),
+        hadBreaks: hasBreaks(run),
+        averageHeartRate: average,
+        maxHeartRate: run.maxHeartRate ?? null,
+        zone: average !== null && zones ? zoneOf(average, zones) : null,
+        effort: run.effort,
+        climbMetres: roundOr(run.climbMetres ?? null),
+        notes: run.notes?.trim() ? run.notes.trim().slice(0, 280) : null,
+      };
+    });
+}
+
+export type TypicalRun = {
+  /** The kind the athlete gave it, or "untyped". */
+  kind: RunType | "untyped";
+  runs: number;
+  /** The middle of each figure across those runs; a pace only from runs that had one. */
+  minutes: number | null;
+  km: number | null;
+  paceSecondsPerKm: number | null;
+  averageHeartRate: number | null;
+  effort: number | null;
+};
+
+/** What each kind of run usually looks like, the kind run most first. */
+export function typicalRuns(runs: readonly LoggedRun[]): TypicalRun[] {
+  const byKind = new Map<RunType | "untyped", LoggedRun[]>();
+  for (const run of runs) {
+    const kind = run.runType ?? "untyped";
+    byKind.set(kind, [...(byKind.get(kind) ?? []), run]);
+  }
+  return [...byKind]
+    .map(([kind, those]) => ({
+      kind,
+      runs: those.length,
+      minutes: roundOr(median(those.map((run) => run.durationMs / 60_000))),
+      km: roundOr(median(those.map((run) => run.distanceMetres / 1000)), 1),
+      paceSecondsPerKm: roundOr(median(those.flatMap((run) => wholeRunPace(run) ?? []))),
+      averageHeartRate: roundOr(median(those.flatMap((run) => run.averageHeartRate ?? []))),
+      effort: median(those.flatMap((run) => (run.effort === null ? [] : [run.effort]))),
+    }))
+    .sort((a, b) => b.runs - a.runs);
+}
+
+/** The usual pace and heart rate at each effort reported, of the runs that had a whole pace. */
+export function paceByEffort(runs: readonly LoggedRun[]) {
+  return [1, 2, 3, 4, 5].flatMap((effort) => {
+    const those = runs.filter((run) => run.effort === effort && wholeRunPace(run) !== null);
+    if (those.length === 0) return [];
+    return [
+      {
+        effort,
+        runs: those.length,
+        paceSecondsPerKm: roundOr(median(those.map((run) => wholeRunPace(run)!))),
+        averageHeartRate: roundOr(median(those.flatMap((run) => run.averageHeartRate ?? []))),
+      },
+    ];
+  });
+}
+
+/**
+ * The runner's usual week over the `weeks` complete weeks before this one: the days they run
+ * on, how long a usual run takes (each week's longest set aside, so the long run does not stand
+ * for it) and their longest run by time.
+ */
+export function runningHabits(runs: readonly LoggedRun[], today: string, weeks = 8) {
+  const current = weekStart(today);
+  const from = addDays(current, -7 * weeks);
+  const inWindow = runs.filter((run) => run.occurredOn >= from && run.occurredOn < current);
+  const longestOfWeek = new Map<string, LoggedRun>();
+  for (const run of inWindow) {
+    const week = weekStart(run.occurredOn);
+    const held = longestOfWeek.get(week);
+    if (!held || run.durationMs > held.durationMs) longestOfWeek.set(week, run);
+  }
+  const longests = new Set(longestOfWeek.values());
+  const longest = inWindow.reduce<LoggedRun | null>(
+    (held, run) => (!held || run.durationMs > held.durationMs ? run : held),
+    null,
+  );
+  return {
+    weeks,
+    runDays: usualRunDays(runs, today, weeks).map((entry) => ({
+      weekday: WEEKDAY_NAMES[entry.day - 1]!,
+      weeks: entry.weeks,
+    })),
+    usualRunMinutes: roundOr(
+      median(inWindow.filter((run) => !longests.has(run)).map((run) => run.durationMs / 60_000)),
+    ),
+    longestRun: longest
+      ? {
+          minutes: Math.round(longest.durationMs / 60_000),
+          km: round1(longest.distanceMetres / 1000),
+          on: longest.occurredOn,
+          sourceId: `activity:${longest.id}`,
+        }
+      : null,
+  };
+}
+
+/**
+ * How steadily they have run over the `weeks` complete weeks before this one: how many had a
+ * run, the longest stretch of days without one (to today), and how long since the last.
+ */
+export function runningConsistency(runs: readonly LoggedRun[], today: string, weeks = 16) {
+  const from = addDays(weekStart(today), -7 * weeks);
+  const dates = [
+    ...new Set(
+      runs
+        .filter((run) => run.occurredOn >= from && run.occurredOn <= today)
+        .map((run) => run.occurredOn),
+    ),
+  ].sort();
+  let longestGapDays = dates.length > 0 ? daysBetween(dates.at(-1)!, today) : null;
+  for (let index = 1; index < dates.length; index++)
+    longestGapDays = Math.max(longestGapDays!, daysBetween(dates[index - 1]!, dates[index]!) - 1);
+  return {
+    weeks,
+    weeksWithRuns: runningWeeks(runs, today, weeks + 1)
+      .slice(1)
+      .filter((week) => week.runs > 0).length,
+    longestGapDays,
+    daysSinceLastRun: dates.length > 0 ? daysBetween(dates.at(-1)!, today) : null,
+  };
+}
+
+/**
+ * How their running time divides by the effort they reported for each whole run: easy (1–2),
+ * steady (3), hard (4–5) and not said, each a share of the minutes, to the whole per cent. A
+ * session's warm-up is counted at its session's effort, so the hard share is a ceiling.
+ */
+export function effortShare(runs: readonly LoggedRun[]) {
+  const minutes = { easy: 0, steady: 0, hard: 0, unknown: 0 };
+  for (const run of runs) {
+    const band =
+      run.effort === null
+        ? "unknown"
+        : run.effort <= 2
+          ? "easy"
+          : run.effort < 4
+            ? "steady"
+            : "hard";
+    minutes[band] += run.durationMs / 60_000;
+  }
+  const total = minutes.easy + minutes.steady + minutes.hard + minutes.unknown;
+  if (total === 0) return null;
+  const share = (value: number) => Math.round((value / total) * 100);
+  return {
+    easy: share(minutes.easy),
+    steady: share(minutes.steady),
+    hard: share(minutes.hard),
+    unknown: share(minutes.unknown),
+  };
 }
 
 const LEG_MUSCLES: readonly MuscleGroup[] = [

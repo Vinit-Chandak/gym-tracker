@@ -1207,7 +1207,8 @@ good is the target or the goal, which a rule or the readout says, not a directio
   the coach runs, or that the screen updates itself.
 - The coach's reasoning on a draft is its note, two lines then More; what the coach is unsure
   about is a fold under it with its count at the end of the row, and a change's reasoning is
-  folded under Why, closed.
+  folded under Why, closed. What the coach asks the athlete to confirm is not folded: "The coach
+  asks", its questions in view beside the decision, answered with Ask for changes (ADR 0063).
 
 ### Folds
 

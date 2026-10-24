@@ -11,7 +11,8 @@ Programme ownership and logging were updated on 16 October 2026 against the ship
 [ADR 0056](docs/decisions/0056-independent-sport-programmes.md). Today, Plan and Log were updated
 on 20 October 2026 against [ADR 0058](docs/decisions/0058-today-and-plan.md). Principles 7 to 9,
 the colour commitment and laps were added on 21 October 2026 from the owner's notes on the built
-app ([the plan](docs/planning/COLOUR_FORMS_AND_LAPS_PLAN.md)).
+app ([the plan](docs/planning/COLOUR_FORMS_AND_LAPS_PLAN.md)). Running with the coach was updated
+on 24 October 2026 against [ADR 0063](docs/decisions/0063-running-plans-read-and-asked-plainly.md).
 
 ## Platform
 
@@ -129,11 +130,15 @@ their data and server code are kept ([ADR 0058](docs/decisions/0058-today-and-pl
 
 Running has its own way in ([ADR 0059](docs/decisions/0059-running-programmes-laps-and-heart-rate-zones.md)).
 With the coach, a running programme starts from the runner's goal (a race on a date, or a goal
-without one), a recent race or time trial, their usual week and longest run, and the days they can
-run, filled in from their logs where it can be, and any watch export or plan they attach; the
-coach writes it from running's own reference,
-the runner's logged weeks and their other programmes, keeping hard running off heavy leg days
-where it can. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
+without one), a recent race or time trial, their usual week and longest run, the days they can
+run, any day with a time limit (none is required) and any later race, filled in from their logs
+where it can be, and any watch export or plan they attach; the coach writes it from running's own
+reference, the runner's logged runs (each with its pace and heart rate, beside what is usual for
+them) and their other programmes, keeping hard running off heavy leg days where it can
+([ADR 0063](docs/decisions/0063-running-plans-read-and-asked-plainly.md)). A plan's week reads as
+one distance, approximate where a timed run's own pace gives it ("≈ 16 km"); a race plan keeps the
+race on race day however late it starts; and its review asks what the coach needs confirmed, sends
+the answers back with Ask for changes, and moves its run days at once. A planned run says its kind (easy, long, tempo, intervals and so on) and is written
 as steps, each ended by a time or a distance, with a pace or a heart-rate zone. A logged run keeps
 its kind, outdoor or treadmill, and its laps from the watch with their heart rate. Its best efforts
 and the coach's reading of it come from what was actually run: a lap's own time, laps joined only

@@ -170,6 +170,7 @@ export async function ProgrammeDraftPage({
           headline={data.draft.headline}
           rationale={data.draft.rationale}
           uncertainties={data.draft.uncertainties}
+          toConfirm={data.draft.toConfirm}
           summary={summariseProgramDiff(diffPrograms(data.currentBlueprint, data.draft.blueprint), {
             fromWeek: data.fromWeek,
           })}

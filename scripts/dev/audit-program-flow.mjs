@@ -334,8 +334,10 @@ async function coachFields() {
         await field("Runs a week").fill("3");
         for (const day of ["Monday", "Wednesday", "Sunday"]) await button(day).click();
         await field("Long run day").selectOption("7");
-        await field("Minutes on a usual run").fill("40");
-        await field("Minutes for the long run").fill("60");
+        // Time is a limit on the days that have one, and optional (ADR 0063).
+        await page.locator("summary").filter({ hasText: "Any days with a time limit?" }).click();
+        await field("Monday (minutes)").fill("40");
+        await field("Wednesday (minutes)").fill("40");
         await field("Terrain").selectOption("flat");
         await field("Anything that limits your running?").fill(
           "Keep recovery days between hard runs.",
@@ -370,6 +372,11 @@ async function coachFields() {
         [sport],
       );
       assert.equal(intake.answers.sessionsPerWeek, 3);
+      if (sport === "running")
+        assert.deepEqual(intake.answers.sports[0].running.timeLimits, [
+          { day: 1, minutes: 40 },
+          { day: 3, minutes: 40 },
+        ]);
       await go(`/plan/new?sport=${sport}&method=coach`);
       await expect(
         field(

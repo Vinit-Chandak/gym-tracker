@@ -4,7 +4,7 @@ import { alreadySays } from "@/components/activities/prescription-lines";
 import { Disclosure } from "@/components/ui/disclosure";
 import { addDays, isoWeekday } from "@/domain/program-calendar";
 import type { ProgrammeEnduranceSession } from "@/domain/programme-sport";
-import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
+import { planPace, plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import type { SportUnits } from "@/lib/distance-units";
 import { joinFacts } from "@/lib/facts";
 import { formatIsoShortDay } from "@/lib/format";
@@ -29,6 +29,8 @@ export function EnduranceDraftWeeks({
   startDate: string | null;
   units: SportUnits;
 }) {
+  // Every week reads its running with no pace of its own at the plan's easiest (ADR 0063).
+  const pace = planPace(sessions.map((session) => session.prescription));
   return (
     // A list of folds is ruled rows that share their rules, never a stack of boxes (DESIGN.md).
     <ol className="[&>li+li]:-mt-px">
@@ -36,7 +38,10 @@ export function EnduranceDraftWeeks({
         const inWeek = sessions
           .filter((session) => session.weekIndex === week)
           .sort((a, b) => a.dayOffset - b.dayOffset);
-        const volume = plannedVolume(inWeek.map((session) => session.prescription));
+        const volume = plannedVolume(
+          inWeek.map((session) => session.prescription),
+          pace,
+        );
         const sport = inWeek[0]?.prescription.sport ?? "running";
         const noun = { running: "run", cycling: "ride", swimming: "swim" }[sport];
         return (

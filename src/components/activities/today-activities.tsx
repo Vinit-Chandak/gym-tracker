@@ -81,8 +81,11 @@ function EnduranceDetails({
   units: SportUnits;
 }) {
   const prescription = occurrence.prescription;
-  // A line per step and per repeated block, as the session's own page reads it (ADR 0059).
-  const steps = prescription ? structureLines(prescription, units) : [];
+  // A line per step and per repeated block, as the session's own page reads it (ADR 0059), each
+  // leaving out what the session's own targets above them already say.
+  const steps = prescription
+    ? structureLines(prescription, units, null, prescription.sessionTargets)
+    : [];
   const overall = prescription ? unsaidTargets(prescription, units, head) : null;
   const intensity = prescription ? sessionIntensityLine(prescription, units) : null;
   const how = [

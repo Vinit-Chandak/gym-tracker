@@ -355,7 +355,11 @@ export function validateIntake(input: unknown): CoachIntake {
       if (answers.programmeSport !== "strength") {
         for (const [key, message] of [
           ["goal", "Tell the coach your goal."],
-          ["minutesPerSession", "Choose your session length."],
+          // A runner's time is a limit on the days that have one, and optional: without any,
+          // the coach sizes each run (ADR 0063). A ride or swim is still asked its length.
+          ...(answers.programmeSport === "running"
+            ? []
+            : ([["minutesPerSession", "Choose your session length."]] as const)),
           ["sessionsPerWeek", "Choose how often you can train."],
         ] as const)
           if (!answers[key]) ctx.addIssue({ code: "custom", path: [key], message });
@@ -578,6 +582,13 @@ export const coachJobResultSchema = z.discriminatedUnion("outcome", [
      * point: "Doubles your direct core work: 4 → 8 sets a week, on 4 days instead of 2."
      */
     headline: z.string().trim().min(1).max(HEADLINE_LIMIT),
+    /**
+     * What only the athlete can settle before starting, each one question they can answer in
+     * a few words: "Can the Sunday long run take up to two hours?" (ADR 0063). The review shows
+     * these first and sends the answers back with Ask for changes; what the coach merely could
+     * not know stays in `uncertainties`, and a question is never in both.
+     */
+    toConfirm: z.array(z.string().trim().min(1).max(300)).max(4).default([]),
     ...explanation,
   }),
   z.object({ outcome: z.literal("session"), plan: coachPlanSchema, ...explanation }),

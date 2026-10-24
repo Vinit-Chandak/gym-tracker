@@ -154,8 +154,11 @@ export function ActivityPlan({
   said = null,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
-  // One line per step and one per repeated block, never one per repetition (ADR 0059).
-  const lines = prescription ? structureLines(prescription, units, zones) : [];
+  // One line per step and one per repeated block, never one per repetition (ADR 0059), each
+  // leaving out the pace, zone and effort said once above them for the whole session.
+  const lines = prescription
+    ? structureLines(prescription, units, zones, prescription.sessionTargets)
+    : [];
   const heading = said ?? `${plannedName(prescription, sport, units)} ${prescription?.title ?? ""}`;
   const overall = prescription
     ? sessionParts(prescription, units).filter((part) => !alreadySays(heading, part))

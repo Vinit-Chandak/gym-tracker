@@ -154,6 +154,8 @@ describe("a coach's running programme, checked against the athlete's answers", (
       { startsOn: "2026-11-02" },
     );
     expect(runningProgrammeIssues(onTime, answers)).toEqual([]);
+    // A race on its date is never on a day the athlete did not offer: it is a date they gave.
+    expect(runningProgrammeIssues(onTime, { ...answers, runDays: [2, 4] })).toEqual([]);
     const late = plan(
       [
         { day: 6, name: "10K race", prescription: race },
@@ -165,5 +167,140 @@ describe("a coach's running programme, checked against the athlete's answers", (
       "End the programme with a session of sessionType race on 2026-11-15.",
       '"Easy" (week 3) is after the race on 2026-11-15.',
     ]);
+  });
+
+  /** ADR 0063: the athlete reads a session's time beside it, and has a limit on some days. */
+  describe("time", () => {
+    const EASY: [number, number] = [450, 530];
+    const timed = (low: number, high: number, extra: Record<string, unknown> = {}) =>
+      endurancePrescriptionSchema.parse({
+        prescriptionVersion: 1,
+        sport: "running",
+        sessionTargets: { durationMs: [low * 60_000, high * 60_000], paceSecondsPerKm: EASY },
+        running: { sessionType: "easy" },
+        ...extra,
+      });
+    // The draft that asked for this: "30–35 min", its steps 24–28 min, six strides with walks,
+    // and a cool-down, which add up to 32–39 min.
+    const strides = timed(30, 35, {
+      nodes: [
+        {
+          kind: "step",
+          id: "easy",
+          phase: "work",
+          action: "run",
+          target: { kind: "duration", ms: [24 * 60_000, 28 * 60_000] },
+        },
+        {
+          kind: "repeat",
+          id: "strides",
+          repetitions: 6,
+          steps: [
+            {
+              kind: "step",
+              id: "stride",
+              phase: "work",
+              action: "run",
+              target: { kind: "duration", ms: [15_000, 20_000] },
+            },
+            {
+              kind: "step",
+              id: "walk",
+              phase: "recovery",
+              action: "walk",
+              target: { kind: "duration", ms: [48_000, 60_000] },
+            },
+          ],
+        },
+        {
+          kind: "step",
+          id: "cool",
+          phase: "cooldown",
+          action: "run",
+          target: { kind: "duration", ms: [2 * 60_000, 3 * 60_000] },
+        },
+      ],
+    });
+    const long = endurancePrescriptionSchema.parse({
+      prescriptionVersion: 1,
+      sport: "running",
+      sessionTargets: { distanceMetres: [14_000, 15_000], paceSecondsPerKm: EASY },
+      running: { sessionType: "long" },
+    });
+
+    it("refuses a session whose steps do not add up to the time it says", () => {
+      const block = plan([{ day: 1, name: "Easy run + strides", prescription: strides }], {
+        startsOn: "2026-10-26",
+      });
+      expect(runningProgrammeIssues(block, none)).toEqual([
+        '"Easy run + strides" (week 1) says 30–35 min, but its steps add up to 32–39 min: make them agree.',
+      ]);
+      const agreed = plan(
+        [
+          {
+            day: 1,
+            name: "Easy run + strides",
+            prescription: {
+              ...strides,
+              sessionTargets: { ...strides.sessionTargets, durationMs: [32 * 60_000, 39 * 60_000] },
+            },
+          },
+        ],
+        { startsOn: "2026-10-26" },
+      );
+      expect(runningProgrammeIssues(agreed, none)).toEqual([]);
+    });
+
+    it("holds every run to its day's limit, at the slow end of its pace", () => {
+      const block = plan(
+        [
+          { day: 1, name: "Easy run", prescription: timed(35, 45) },
+          { day: 3, name: "Easy run", prescription: timed(30, 40) },
+          // Fifteen kilometres at 8:50 /km: 2 h 13 min on a Sunday with no limit.
+          { day: 6, name: "Long run", prescription: long },
+        ],
+        { startsOn: "2026-10-26" },
+      );
+      const answers = {
+        ...none,
+        goal: goal({
+          timeLimits: [
+            { day: 2, minutes: 40 },
+            { day: 4, minutes: 40 },
+          ],
+        }),
+      };
+      expect(runningProgrammeIssues(block, answers)).toEqual([
+        '"Easy run" (week 1) takes up to 45 min; the athlete has 40 min on Tuesday.',
+      ]);
+      expect(
+        runningProgrammeIssues(
+          plan([{ day: 1, name: "Easy run", prescription: timed(30, 40) }]),
+          answers,
+        ),
+      ).toEqual(["Set startsOn: the athlete's time limits are by weekday, counted from it."]);
+    });
+
+    it("reads an older intake's minutes as every run's but the long run's", () => {
+      const block = plan(
+        [
+          { day: 1, name: "Easy run", prescription: timed(40, 45) },
+          { day: 6, name: "Long run", prescription: long },
+        ],
+        { startsOn: "2026-10-26" },
+      );
+      expect(runningProgrammeIssues(block, { ...none, minutesPerRun: 40 })).toEqual([
+        '"Easy run" (week 1) takes up to 45 min; the athlete has 40 min for a run.',
+      ]);
+      expect(
+        runningProgrammeIssues(block, {
+          ...none,
+          goal: goal({ longRunMinutes: 120 }),
+          minutesPerRun: 45,
+        }),
+      ).toEqual([
+        '"Long run" (week 1) takes up to 133 min; the athlete has 120 min for the long run.',
+      ]);
+    });
   });
 });

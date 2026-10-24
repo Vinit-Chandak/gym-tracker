@@ -404,7 +404,9 @@ export function durationTargetParts(ms: number | readonly [number, number]): {
   unit: string;
 } {
   const [low, high] = typeof ms === "number" ? [ms, ms] : ms;
-  const [scale, unit] = high < 60_000 ? [1000, "s"] : [60_000, "min"];
+  // A range from under a minute to two reads in seconds: "48–60 s", never "0.8–1 min".
+  const [scale, unit] =
+    high < 60_000 || (low < 60_000 && high <= 120_000) ? [1000, "s"] : [60_000, "min"];
   const [from, to] = [low, high].map((value) => String(roundTo(value / scale, 1)));
   return { figure: from === to ? to! : `${from}–${to}`, unit };
 }

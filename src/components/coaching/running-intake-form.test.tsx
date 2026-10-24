@@ -36,7 +36,7 @@ const plan = {
 };
 const props = {
   prefill: coachIntakeSchema.parse({ programmeSport: "running" }),
-  snapshot: { weeklyKm: 0, runsPerWeek: 0, longest: null, effort: null },
+  snapshot: { weeklyKm: 0, runsPerWeek: 0, longest: null, effort: null, days: [] },
   unit: "km" as const,
   today: "2026-10-21",
 };
@@ -71,7 +71,12 @@ function answer() {
     target: { value: "base" },
   });
   fireEvent.change(screen.getByLabelText("Runs a week"), { target: { value: "3" } });
-  fireEvent.change(screen.getByLabelText("Minutes on a usual run"), { target: { value: "40" } });
+}
+
+/** The running answers the last save sent. */
+function sentRunning() {
+  const input = vi.mocked(saveCoachIntakeAction).mock.calls.at(-1)![0];
+  return coachIntakeSchema.parse(input).sports[0]!;
 }
 
 it("waits for change handlers before showing editable coach questions", () => {
@@ -199,4 +204,109 @@ it("shows what the coach asked on an earlier request", () => {
   );
   expect(screen.getByText("What the coach asked")).toBeTruthy();
   expect(screen.getByText("Rolling, two climbs.")).toBeTruthy();
+});
+
+/**
+ * ADR 0063: a runner's time is a limit on the days that have one, and none is required: with
+ * none, the coach sizes each run. An older intake's minutes come back as each day's limit.
+ */
+it("asks without any time, and sends each day's limit where one is given", async () => {
+  render(<RunningIntakeForm {...props} initial={null} reports={[]} configured />);
+  answer();
+  fireEvent.click(screen.getByRole("button", { name: "Ask the coach for a programme" }));
+  await waitFor(() => expect(push).toHaveBeenCalledWith(`/plan/requests/${id}`));
+  expect(sentRunning()).toMatchObject({
+    minutesPerSession: null,
+    running: { timeLimits: [], longRunMinutes: null },
+  });
+
+  fireEvent.change(screen.getByLabelText("Tuesday (minutes)"), { target: { value: "40" } });
+  fireEvent.change(screen.getByLabelText("Thursday (minutes)"), { target: { value: "40" } });
+  expect(screen.getByText("2 days")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Save answers" }));
+  await screen.findByText("Answers saved.");
+  expect(sentRunning().running?.timeLimits).toEqual([
+    { day: 2, minutes: 40 },
+    { day: 4, minutes: 40 },
+  ]);
+});
+
+it("opens an older intake's minutes as the limit of every day but the long run's", () => {
+  render(
+    <RunningIntakeForm
+      {...props}
+      initial={{
+        id,
+        revision: 2,
+        answers: coachIntakeSchema.parse({
+          programmeSport: "running",
+          sports: [
+            {
+              sport: "running",
+              sessionsPerWeek: 4,
+              preferredDays: [2, 4, 6, 7],
+              minutesPerSession: 40,
+              running: { goal: "base", longRunDay: 7 },
+            },
+          ],
+        }),
+      }}
+      reports={[]}
+      configured
+    />,
+  );
+  expect(screen.getByLabelText("Tuesday (minutes)")).toHaveProperty("value", "40");
+  expect(screen.getByLabelText("Saturday (minutes)")).toHaveProperty("value", "40");
+  expect(screen.getByLabelText("Sunday (minutes)")).toHaveProperty("value", "");
+  // Only the days they can run are asked.
+  expect(screen.queryByLabelText("Monday (minutes)")).toBeNull();
+});
+
+it("starts the days from the logs, says so, and holds them to the runs a week", async () => {
+  render(
+    <RunningIntakeForm
+      {...props}
+      snapshot={{ ...props.snapshot, runsPerWeek: 3, days: [2, 4, 7] }}
+      initial={null}
+      reports={[]}
+      configured
+    />,
+  );
+  for (const day of ["Tuesday", "Thursday", "Sunday"])
+    expect(screen.getByRole("button", { name: day })).toHaveProperty("ariaPressed", "true");
+  expect(screen.getByText("From your logs")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("What are you training for?"), {
+    target: { value: "base" },
+  });
+  fireEvent.change(screen.getByLabelText("Runs a week"), { target: { value: "4" } });
+  fireEvent.click(screen.getByRole("button", { name: "Ask the coach for a programme" }));
+  expect(
+    await screen.findByText("Choose at least 4 days you can run, or leave them empty."),
+  ).toBeTruthy();
+  expect(createCoachProgramAction).not.toHaveBeenCalled();
+});
+
+it("names a later race and asks for its date", async () => {
+  render(<RunningIntakeForm {...props} initial={null} reports={[]} configured />);
+  fireEvent.change(screen.getByLabelText("What are you training for?"), {
+    target: { value: "race" },
+  });
+  fireEvent.change(screen.getByLabelText("Distance"), { target: { value: "half_marathon" } });
+  fireEvent.change(screen.getByLabelText("Race date"), { target: { value: "2027-01-01" } });
+  fireEvent.change(screen.getByLabelText("Runs a week"), { target: { value: "4" } });
+  fireEvent.change(screen.getByLabelText("A later race"), { target: { value: "marathon" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save answers" }));
+  expect(await screen.findByText("Choose the later race's date.")).toBeTruthy();
+  expect(saveCoachIntakeAction).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText("Its date"), { target: { value: "2027-03-21" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save answers" }));
+  await screen.findByText("Answers saved.");
+  const input = coachIntakeSchema.parse(vi.mocked(saveCoachIntakeAction).mock.calls.at(-1)![0]);
+  expect(input.sports[0]!.running?.nextRace).toEqual({
+    raceDistance: "marathon",
+    raceDistanceMetres: null,
+    raceDate: "2027-03-21",
+  });
+  expect(input.goal).toContain("A later race: Marathon on");
 });

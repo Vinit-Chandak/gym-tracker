@@ -1879,10 +1879,20 @@ it("creates a dedicated running programme without a gym or a lifting opening pla
   expect(job.target).toMatchObject({ sport: "running", scope: "programme", gymId: null });
   const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
   const accepted = await as(a, (tx) =>
-    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, runningResult()),
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...runningResult(),
+      // ADR 0063: what only the athlete can settle, kept apart from the coach's doubts.
+      toConfirm: ["Can the Sunday long run take up to 2 h 10 min?"],
+    }),
   );
   const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
-  expect(draft).toMatchObject({ sport: "running", standalone: false, openingPlan: null });
+  expect(draft).toMatchObject({
+    sport: "running",
+    standalone: false,
+    openingPlan: null,
+    uncertainties: [],
+    toConfirm: ["Can the Sunday long run take up to 2 h 10 min?"],
+  });
   expect(draft!.blueprint.days).toEqual([]);
   expect(draft!.blueprint.enduranceSessions).toHaveLength(8);
 });
@@ -1911,6 +1921,60 @@ it("gives a running job the running reference, the runner's history and the runn
   });
   expect(ctx.runningContext!.weeks).toHaveLength(16);
   expect(ctx.policy.rules.map((rule) => rule.id)).toContain("running_programme");
+  // ADR 0063: the runner's months run by run, with a pace, beside what is usual for them.
+  expect(ctx.runningContext!.runs).toEqual([
+    expect.objectContaining({ km: 8, minutes: 48, paceSecondsPerKm: 360, kind: null }),
+  ]);
+  expect(ctx.runningContext).toMatchObject({
+    runsHasMore: false,
+    typical: { byKind: [expect.objectContaining({ kind: "untyped", runs: 1 })] },
+    habits: { runDays: [] },
+    consistency: { weeks: 16, daysSinceLastRun: 0 },
+  });
+});
+
+/**
+ * ADR 0063: a runner need give no time at all; the coach reads each day's limit where one is
+ * given, and a race after the goal for the programme to lead into.
+ */
+it("asks a runner for no time, and gives the coach each day's limit and a later race", async () => {
+  const a = await athlete();
+  const intake = await as(a, (tx) =>
+    saveIntake(
+      tx,
+      a.user.id,
+      coachIntakeSchema.parse({
+        programmeSport: "running",
+        goal: "Half marathon race on Fri 1 Jan 2027.",
+        sessionsPerWeek: 4,
+        minutesPerSession: null,
+        sports: [
+          {
+            sport: "running",
+            sessionsPerWeek: 4,
+            minutesPerSession: null,
+            running: {
+              goal: "race",
+              raceDistance: "half_marathon",
+              raceDate: "2027-01-01",
+              timeLimits: [{ day: 2, minutes: 40 }],
+              nextRace: { raceDistance: "marathon", raceDate: "2027-03-21" },
+            },
+          },
+        ],
+      }),
+      null,
+    ),
+  );
+  await as(a, (tx) => confirmIntake(tx, a.user.id, intake.id));
+  const { job } = await request({ ...a, intake });
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const ctx = await as(a, (tx) => coachJobContext(tx, a.user.id, job.id, claim!.attemptId!));
+  expect(ctx.runningContext!.goal).toMatchObject({
+    timeLimits: [{ weekday: "Tuesday", minutes: 40 }],
+    minutesPerRun: null,
+    nextRace: { raceDistance: "marathon", raceDistanceMetres: 42_195, raceDate: "2027-03-21" },
+  });
 });
 
 it("refuses a coach's running programme that ignores what the athlete confirmed", async () => {

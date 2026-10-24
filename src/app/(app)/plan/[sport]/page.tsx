@@ -15,7 +15,7 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type EnduranceSport } from "@/domain/activity";
-import { plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
+import { planPace, plannedVolume, plannedVolumeLine } from "@/domain/planned-volume";
 import { endurancePattern } from "@/domain/programme-pattern";
 import { RUN_TYPE_LABELS } from "@/domain/run-types";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
@@ -122,6 +122,8 @@ export default async function SportProgrammePage({
   // first week carries that day like every other week, never a second "Starts".
   const waiting = start !== null && today < start;
   const asked = data.sessions.filter((session) => session.resolution.kind !== "cancelled");
+  // Every week reads its running with no pace of its own at the plan's easiest (ADR 0063).
+  const pace = planPace(asked.map((session) => session.prescription));
   const done = asked.filter(
     (session) =>
       session.resolution.kind === "logged" || session.resolution.kind === "legacy_completed",
@@ -187,8 +189,11 @@ export default async function SportProgrammePage({
               const allDone =
                 inWeek.length > 0 &&
                 inWeek.every((session) => session.resolution.kind !== "incomplete");
-              // What the week adds up to, as a running plan is read (ADR 0059).
-              const volume = plannedVolume(inWeek.map((session) => session.prescription));
+              // What the week adds up to, as a running plan is read (ADR 0063).
+              const volume = plannedVolume(
+                inWeek.map((session) => session.prescription),
+                pace,
+              );
               return (
                 <li key={week}>
                   <Disclosure

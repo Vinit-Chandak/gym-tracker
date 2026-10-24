@@ -230,6 +230,16 @@ export const programDrafts = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     /**
+     * What only the athlete can settle before starting, each a question to answer (ADR 0063):
+     * "Can the Sunday long run take up to two hours?". Kept apart from `uncertainties`, the
+     * coach's notes on what it could not know, so the review asks these first and answers go
+     * back to the coach with Ask for changes.
+     */
+    toConfirm: jsonb("to_confirm")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /**
      * Why the server would not apply this on its own, in its own words.
      *
      * Kept apart from `uncertainties`, which is the coach's. These are guardrail findings —

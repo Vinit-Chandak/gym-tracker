@@ -23,6 +23,7 @@ import {
 } from "@/server/actions/coaching-workflow";
 
 import { coachingAction } from "./client-action";
+import { CoachQuestions } from "./coach-questions";
 import { ProgramDiffView } from "./program-diff-view";
 import { builderPath, type ProgrammeBase } from "./programme-paths";
 
@@ -47,6 +48,8 @@ export type ChangeDetailProps = {
   headline: string;
   rationale: string;
   uncertainties: readonly string[];
+  /** What the coach asks the athlete to confirm, in view beside the decision (ADR 0063). */
+  toConfirm?: readonly string[];
   summary: ChangeSummary;
   names: Readonly<Record<string, string>>;
   /** False when the change alters the split or schedule and so has to start a new block. */
@@ -143,6 +146,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
           (props.replacing ? "Review replacement" : coach ? "The coach's changes" : "Your changes")}
       </h2>
       {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
+      {open && <CoachQuestions questions={props.toConfirm ?? []} className="mt-2.5" />}
       {why && (
         <Disclosure summary="Why" variant="inline" className="mt-2.5">
           {props.rationale && (

@@ -22,8 +22,9 @@ How the app applies it:
   220 − age, which has no research basis). Readings above 230 are treated as sensor artefacts.
 - **The intake** (`src/domain/running-intake.ts`) asks what every planning app asks: the goal
   (a race with distance and date, or a goal without one), one recent race or time trial, weekly
-  distance and longest recent run, runs a week, run days, long-run day and its time, places and
-  terrain.
+  distance and longest recent run, runs a week, run days, the long run's day, places and
+  terrain. Time is asked as a limit on the days that have one, and is optional; a later race may
+  be named for the block to lead into ([ADR 0063](../decisions/0063-running-plans-read-and-asked-plainly.md)).
 - **Sessions** carry a run type and are written as steps (a warm-up, the work as steps and
   repeat blocks, a cool-down), each measured by distance or by time, with pace and zone targets.
 - **Logged runs** carry their kind and their laps, as a watch lists them.
@@ -46,6 +47,23 @@ are this app's conventions, not findings, and the served text tags them so:
   effort: below all-out, it is a floor, as every logged best effort is.
 - Sprint goals are written from §4's components. Recovery tempo runs are this app's easy runs,
   not its tempo (threshold) runs; a sprint time trial is the goal distance, or 30–60 m, timed.
+
+**App conventions added on 24 October 2026** (served text version 2026-10-24.1, [ADR
+0063](../decisions/0063-running-plans-read-and-asked-plainly.md)). A half-marathon draft for the
+owner showed the coach planning from weekly totals and eight weeks of runs without a pace or a
+heartbeat, guessing the long run's time, and inventing run days:
+
+- The coach reads every run of sixteen weeks with its pace, heart rate, zone and effort, and
+  what is usual for the runner (each kind of run's and each effort's middle pace and heart rate,
+  their usual days and run length, how steadily they ran, how much of it was easy). Easy and
+  long-run paces come from many runs at that effort, checked against the zones where heart rate
+  is measured, never from one run and never faster than their own easy runs at effort 2.
+- Time is a limit on the days that have one. A run fits its day's limit at the slow end of its
+  pace; a day without one has none; with none at all, the coach sizes each run from the goal and
+  the runner's usual run, and says the longest run's time. Without confirmed days, runs go on the
+  days the runner usually runs where those suit the plan.
+- A later race leaves this block ending with its own goal, built as the first step towards the
+  later one where they agree, keeping this race's taper; a short gap between them is said.
 
 ---
 
