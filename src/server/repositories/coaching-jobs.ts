@@ -841,7 +841,8 @@ export async function acceptCoachJobResult(
     }
     // A running programme is held to the athlete's own answers and to the shape the running
     // reference asks for (ADR 0059): typed sessions, quality written as steps, no more runs a
-    // week than confirmed, the confirmed days and the race on its date. Every refusal names
+    // week than confirmed, the confirmed days and the race on its date; and since ADR 0063, each
+    // day's time limit and steps that add up to their session's own time. Every refusal names
     // its session, so one correction answers them all.
     if (
       job.kind === "create_program" &&
@@ -862,6 +863,7 @@ export async function acceptCoachJobResult(
         runDays: entry?.preferredDays.length
           ? entry.preferredDays
           : (answers?.preferredRunDays ?? []),
+        minutesPerRun: entry?.minutesPerSession ?? answers?.minutesPerSession ?? null,
       });
       if (issues.length > 0) throw new CoachingError(issues[0]!, 422, issues);
     }
@@ -952,6 +954,7 @@ export async function acceptCoachJobResult(
           headline: result.headline,
           rationale: result.rationale,
           uncertainties: result.uncertainties,
+          toConfirm: result.toConfirm,
         })
         .returning();
       draftId = draft!.id;

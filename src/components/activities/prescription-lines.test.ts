@@ -101,4 +101,42 @@ describe("a structured run, a line per block (ADR 0059)", () => {
     expect(structureLines(easy, KM)).toEqual([]);
     expect(plain(sessionIntensityLine(easy, KM))).toBe("@ 6:00–6:30 /km · Zones 2–3");
   });
+
+  it("says a pace, zone or effort once where the session's own line already says it", () => {
+    const strides = session(
+      [
+        step(
+          "easy",
+          "work",
+          { kind: "duration", ms: [1_440_000, 1_680_000] },
+          { paceSecondsPerKm: [450, 530], effort: [1, 2] },
+        ),
+        {
+          kind: "repeat",
+          id: "strides",
+          repetitions: 6,
+          restBetweenMs: null,
+          steps: [
+            step("stride", "work", { kind: "duration", ms: [15_000, 20_000] }, { effort: [3, 4] }),
+            step(
+              "walk",
+              "recovery",
+              { kind: "duration", ms: [48_000, 60_000] },
+              { action: "walk", effort: [1, 1] },
+            ),
+          ],
+        },
+      ],
+      { durationMs: [1_800_000, 2_100_000], paceSecondsPerKm: [450, 530], effort: [1, 2] },
+    );
+    const said = structureLines(strides, KM, null, strides.sessionTargets);
+    expect(said.map((line) => plain(line.text))).toEqual([
+      "Run 24–28 min",
+      "Run 15–20 s · Effort 3–4 of 5, Walk 48–60 s · Effort 1 of 5",
+    ]);
+    // A screen that does not say the session's targets keeps every step whole.
+    expect(plain(structureLines(strides, KM)[0]!.text)).toBe(
+      "Run 24–28 min @ 7:30–8:50 /km · Effort 1–2 of 5",
+    );
+  });
 });

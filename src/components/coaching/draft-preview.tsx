@@ -12,8 +12,10 @@ import { FormError } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
   activateProgramDraftAction,
+  askForFirstProgrammeChangesAction,
   rejectProgramDraftAction,
   reviewProgramDraftAction,
+  saveProgramDraftAction,
   saveStandaloneDraftAction,
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
@@ -30,9 +32,14 @@ import { cn } from "@/lib/utils";
 import { ActivityPlan } from "@/components/activities/activity-plan";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { enduranceSessionGroups } from "@/domain/endurance-series";
+import { plannedRaceDate, startOn, suggestedStart } from "@/domain/programme-start";
+import { planRunDays } from "@/domain/run-days";
 import { formatIsoDate } from "@/lib/format";
+import { AskForChangesSheet, type CoachAnswer } from "./ask-for-changes";
+import { CoachQuestions } from "./coach-questions";
 import { EnduranceDraftWeeks } from "./endurance-draft-weeks";
 import { builderPath, type ProgrammeBase } from "./programme-paths";
+import { RunDaysSheet } from "./run-days-sheet";
 
 /**
  * "6 weeks · 4 days per cycle · 91 sets a cycle", counting one of anything as one — with the
@@ -91,9 +98,11 @@ function exerciseBlocks(exercises: readonly BlueprintExercise[]) {
  * version arrives as a change detail instead, and the programme itself lives on its page.
  *
  * The decision leads (DESIGN.md, The Need-to-Know Rule): the name and its shape, the coach's
- * reasoning as its note at two lines, its doubts folded with their count, then the start date
- * and Start programme, Edit draft and Discard draft, all on the first screen. What it is made
- * of follows, each week or day folded, each session a row that opens on its steps.
+ * reasoning as its note at two lines, its doubts folded with their count, then what the coach
+ * asks the athlete to confirm, the start date and Start programme, Ask for changes, Edit draft
+ * and Discard draft, all on the first screen (ADR 0063). What it is made of follows, a dated
+ * plan's run days first with the way to move them, each week or day folded, each session a row
+ * that opens on its steps.
  */
 export function DraftPreview({
   draft,
@@ -125,22 +134,32 @@ export function DraftPreview({
     // Written before the athlete's latest data: checked against it as it starts, not as a step
     // of its own, as setup's ready programme does.
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
-    // The start the coach counted from, while it is still to come (ADR 0059): a marathon built
-    // to finish on race day finishes there only if it starts where it was counted from.
-    [startDate, setStartDate] = useState(() => {
-      const planned = draft.blueprint.startsOn;
-      return planned && planned >= today ? planned : today;
-    }),
+    // The start the coach counted from, while it is still to come (ADR 0059); after it, a race
+    // plan keeps its dates and any other plan its weekdays (ADR 0063).
+    [startDate, setStartDate] = useState(() => suggestedStart(draft.blueprint, today)),
     [saving, setSaving] = useState(false),
     [error, setError] = useState<string | null>(null),
     // Discarding cannot be undone: the coach's work goes, so it is asked once (DESIGN.md).
-    [confirmingDiscard, setConfirmingDiscard] = useState(false);
+    [confirmingDiscard, setConfirmingDiscard] = useState(false),
+    [asking, setAsking] = useState(false),
+    [movingDays, setMovingDays] = useState(false),
+    [requestKey] = useState(() => crypto.randomUUID());
   const busy = saving || navigating;
   const editable = ["editing", "ready"].includes(current.status);
   const plannedStart =
     current.blueprint.startsOn && current.blueprint.startsOn >= today
       ? current.blueprint.startsOn
       : null;
+  // A race plan keeps every date whatever start is chosen: what it leaves out is said here.
+  const raceDate = plannedRaceDate(current.blueprint);
+  const start = startOn(current.blueprint, startDate || today);
+  const year = today.slice(0, 4);
+  // A first programme is asked again with the athlete's answers; a dated run, ride or swim
+  // plan's days move at once (ADR 0063).
+  const first = current.baseProgramId === null && !current.standalone;
+  const runDays =
+    !current.standalone && current.sport !== "strength" ? planRunDays(current.blueprint) : [];
+  const sheetOpen = confirmingDiscard || asking || movingDays;
   const name = (slug: string) => library.find((entry) => entry.slug === slug)?.name ?? slug;
 
   async function activate() {
@@ -175,6 +194,47 @@ export function DraftPreview({
     );
     if (result.ok) startNavigation(() => router.push("/plan"));
     else setError(result.error);
+    setSaving(false);
+  }
+
+  async function ask(notes: string, answers: CoachAnswer[]) {
+    if (preview) {
+      setError("Preview only — nothing was sent.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const result = await coachingAction(() =>
+      askForFirstProgrammeChangesAction(current.id, notes, requestKey, answers),
+    );
+    if (result.ok)
+      startNavigation(() =>
+        router.push(
+          (base === "/plan"
+            ? `/plan/requests/${result.value.jobId}`
+            : `/welcome/programme/jobs/${result.value.jobId}`) as Route,
+        ),
+      );
+    else setError(result.error);
+    setSaving(false);
+  }
+
+  async function moveDays(blueprint: ProgramBlueprint) {
+    if (preview) {
+      setError("Preview only — no runs were moved.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const result = await coachingAction(() =>
+      saveProgramDraftAction(blueprint, current.id, current.revision),
+    );
+    if (result.ok) {
+      // Saved as the athlete's own edit: checked against their data again as it starts.
+      setCurrent(result.value);
+      setNeedsCheck(true);
+      setMovingDays(false);
+    } else setError(result.error);
     setSaving(false);
   }
 
@@ -223,21 +283,52 @@ export function DraftPreview({
 
       {editable ? (
         <Card>
+          <CoachQuestions questions={current.toConfirm} />
           {!current.standalone && (
             <Field
               label="Start date"
               info={
-                plannedStart
-                  ? `The coach planned it from ${formatIsoDate(plannedStart, today.slice(0, 4))}, so each session falls on its day. Another start moves every session with it.`
+                raceDate
+                  ? `The race stays on ${formatIsoDate(raceDate, year)}. A later start leaves out the sessions before it.`
+                  : plannedStart
+                    ? `The coach planned it from ${formatIsoDate(plannedStart, year)}, so each session falls on its day. Another start moves every session with it.`
+                    : undefined
+              }
+              hint={
+                start.leftOut > 0
+                  ? `Leaves out ${start.leftOut} ${start.leftOut === 1 ? "session" : "sessions"} before ${formatIsoDate(startDate, year)}.`
                   : undefined
               }
             >
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <Input
+                type="date"
+                value={startDate}
+                min={raceDate ? (plannedStart ?? today) : undefined}
+                max={raceDate ?? undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </Field>
           )}
           <Button disabled={busy || !startDate} onClick={activate}>
-            {busy ? "Saving…" : current.standalone ? "Save session" : "Start programme"}
+            {busy && !sheetOpen
+              ? "Saving…"
+              : current.standalone
+                ? "Save session"
+                : "Start programme"}
           </Button>
+          {first && (
+            <Button
+              variant="secondary"
+              disabled={busy}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setError(null);
+                setAsking(true);
+              }}
+            >
+              Ask for changes
+            </Button>
+          )}
           {!current.standalone && (
             <LinkButton
               href={
@@ -266,7 +357,17 @@ export function DraftPreview({
             error={confirmingDiscard ? error : null}
             onConfirm={discard}
           />
-          <FormError message={error ?? undefined} />
+          {first && (
+            <AskForChangesSheet
+              open={asking}
+              onClose={() => setAsking(false)}
+              questions={current.toConfirm}
+              busy={busy}
+              error={asking ? error : null}
+              onSend={ask}
+            />
+          )}
+          <FormError message={sheetOpen ? undefined : (error ?? undefined)} />
         </Card>
       ) : (
         <p className="text-sm text-ink-muted">{CLOSED[current.status] ?? current.status}</p>
@@ -334,11 +435,46 @@ export function DraftPreview({
         </ul>
       )}
 
-      {!current.standalone && current.blueprint.enduranceSessions?.length ? (
+      {editable && runDays.length > 0 && (
+        // The days it runs on, and the way to move them all at once.
+        <div className="flex min-w-0 items-center gap-3">
+          <p className="min-w-0 flex-1 text-sm">
+            <span className="font-bold">Run days</span>{" "}
+            <span className="text-ink-2">
+              {runDays.map((entry) => WEEKDAY_SHORT[entry.day]).join(", ")}
+            </span>
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            aria-haspopup="dialog"
+            aria-label="Change run days"
+            onClick={() => {
+              setError(null);
+              setMovingDays(true);
+            }}
+          >
+            Change
+          </Button>
+          {movingDays && (
+            <RunDaysSheet
+              open
+              onClose={() => setMovingDays(false)}
+              blueprint={current.blueprint}
+              busy={busy}
+              error={error}
+              onSave={moveDays}
+            />
+          )}
+        </div>
+      )}
+
+      {!current.standalone && start.blueprint.enduranceSessions?.length ? (
         <EnduranceDraftWeeks
-          sessions={current.blueprint.enduranceSessions}
+          sessions={start.blueprint.enduranceSessions}
           weeks={current.blueprint.weeks}
-          startDate={startDate || null}
+          startDate={startDate ? start.startDate : null}
           units={units}
         />
       ) : null}

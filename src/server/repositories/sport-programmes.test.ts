@@ -205,6 +205,64 @@ it("withdraws the runs another programme carries from a running programme's star
   expect(event).toMatchObject({ kind: "cancelled", source: `programs:${programId}` });
 });
 
+/**
+ * ADR 0063: a plan that ends with a race keeps every date, so started after the day it was
+ * counted from it leaves the race on race day and leaves out the sessions already behind it;
+ * a start after the race is refused.
+ */
+it("keeps a race plan's race on race day when it is started late", async () => {
+  const user = await t.createAuthUser("late-race@example.test");
+  await ensureProfile(t.db, user);
+  const today = todayInTimeZone("UTC");
+  const startsOn = addDays(today, -2);
+  const session = (dayOffset: number, prescription: unknown) => ({
+    lineageId: crypto.randomUUID(),
+    name: "",
+    weekIndex: Math.floor(dayOffset / 7) + 1,
+    dayOffset,
+    scheduledLocalTime: null,
+    prescription,
+  });
+  const easy = simplePrescription("running", { durationMs: [1_800_000, 1_800_000] });
+  const race = {
+    ...simplePrescription("running", { distanceMetres: [10_000, 10_000] }),
+    running: { sessionType: "race" },
+  };
+  const block = programBlueprintSchema.parse({
+    blueprintVersion: 1,
+    sport: "running",
+    slug: `race-${crypto.randomUUID()}`,
+    name: "10K race",
+    weeks: 2,
+    notes: "",
+    days: [],
+    runs: [],
+    startsOn,
+    enduranceSessions: [session(1, easy), session(3, easy), session(10, race)],
+  });
+  await withUser(t.db, user.id, async (tx) => {
+    const draft = await saveManualDraft(tx, user.id, block);
+    const reviewed = await refreshProgramDraft(tx, user.id, draft.id, draft.revision);
+    await expect(
+      activateProgramDraft(tx, user.id, draft.id, {
+        expectedRevision: reviewed.revision,
+        startDate: addDays(startsOn, 11),
+        transition: "new_block",
+      }),
+    ).rejects.toThrow("Choose a start on or before the race");
+    await activateProgramDraft(tx, user.id, draft.id, {
+      expectedRevision: reviewed.revision,
+      startDate: today,
+      transition: "new_block",
+    });
+  });
+  const dates = await t.db
+    .select({ on: occurrenceVersions.scheduledOn })
+    .from(occurrenceVersions)
+    .where(eq(occurrenceVersions.userId, user.id));
+  expect(dates.map((row) => row.on).sort()).toEqual([addDays(startsOn, 3), addDays(startsOn, 10)]);
+});
+
 afterAll(async () => {
   await t?.close();
 });

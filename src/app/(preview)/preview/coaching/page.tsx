@@ -349,6 +349,7 @@ export default async function CoachingPreview({
               uncertainties: [
                 "Starting loads need calibration because no comparable training has been recorded.",
               ],
+              toConfirm: ["Can Monday's session run to 60 minutes?"],
               activatedProgramId: null,
               closedAs: null,
               closedAt: null,

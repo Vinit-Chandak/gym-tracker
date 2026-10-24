@@ -1,17 +1,26 @@
 import { describe, expect, it } from "vitest";
 
+import { maxZones } from "./heart-rate";
 import type { RecordedLap } from "./run-segments";
 import {
   bestEfforts,
+  effortShare,
   fastestReps,
   latestRaceOrTrial,
   legLoad,
   longestRunWithin,
+  paceByEffort,
   predictions,
   predictsRaces,
   riegelSeconds,
+  runHeartRate,
+  runLog,
   runMix,
+  runningConsistency,
+  runningHabits,
   runningWeeks,
+  typicalRuns,
+  usualRunDays,
   type LoggedRun,
 } from "./running-context";
 
@@ -239,5 +248,99 @@ describe("how hard a strength day is on the legs", () => {
     ).toEqual({ sets: 9, load: "heavy" });
     expect(legLoad([{ sets: 4, primaryMuscles: ["chest"] }])).toEqual({ sets: 0, load: "none" });
     expect(legLoad([{ sets: 3, primaryMuscles: ["glutes"] }])).toEqual({ sets: 3, load: "light" });
+  });
+});
+
+/**
+ * ADR 0063: a runner's months, run by run, with what their runs usually look like, their usual
+ * week, how steadily they ran and how much of it was easy.
+ */
+describe("a runner's months as a coach reads them", () => {
+  // Eight weeks before Monday 26 October 2026: Tuesday and Thursday easy, a Sunday long run.
+  const months: LoggedRun[] = Array.from({ length: 8 }, (_, index) => {
+    const monday = new Date(Date.UTC(2026, 9, 26 - 7 * (index + 1)));
+    const day = (offset: number) =>
+      new Date(monday.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+    return [
+      run(`tue-${index}`, day(1), 5, 35, { runType: "easy", effort: 2, averageHeartRate: 148 }),
+      run(`thu-${index}`, day(3), 5, 34, { runType: "easy", effort: 3, averageHeartRate: 152 }),
+      run(`sun-${index}`, day(6), 10 + index / 2, 75, { runType: "long", effort: 2 }),
+    ];
+  }).flat();
+
+  it("reads a run's heart rate from its laps where the run has none", () => {
+    expect(
+      runHeartRate({ averageHeartRate: null, maxHeartRate: 170 }, [
+        { durationMs: 600_000, averageHeartRate: 140, maxHeartRate: 150 },
+        { durationMs: 300_000, averageHeartRate: 170, maxHeartRate: 178 },
+        { durationMs: null, averageHeartRate: 120, maxHeartRate: null },
+      ]),
+    ).toEqual({ average: 150, max: 178 });
+    expect(runHeartRate({ averageHeartRate: 155, maxHeartRate: null }, [])).toEqual({
+      average: 155,
+      max: null,
+    });
+  });
+
+  it("lists every run with its pace, heart rate and zone, newest first", () => {
+    const zones = maxZones(190);
+    const [first] = runLog(
+      [
+        run("easy", "2026-10-20", 5, 35, { runType: "easy", effort: 2, averageHeartRate: 148 }),
+        run("reps", "2026-10-22", 8, 50, { runType: "intervals", effort: 5 }),
+      ],
+      zones,
+    );
+    expect(first).toMatchObject({
+      sourceId: "activity:reps",
+      weekday: "Thursday",
+      paceSecondsPerKm: null,
+      hadBreaks: true,
+    });
+    const easy = runLog([run("easy", "2026-10-20", 5, 35, { averageHeartRate: 148 })], zones)[0];
+    expect(easy).toMatchObject({ weekday: "Tuesday", km: 5, minutes: 35, paceSecondsPerKm: 420 });
+    // 148 is 78% of 190: zone 3 of the default zones.
+    expect(easy!.zone).toBe(3);
+  });
+
+  it("says what each kind of run and each effort usually look like", () => {
+    const kinds = typicalRuns(months);
+    // 7:00 and 6:48 a kilometre, eight of each: the middle is 6:54.
+    expect(kinds[0]).toMatchObject({ kind: "easy", runs: 16, paceSecondsPerKm: 414 });
+    expect(kinds[0]!.averageHeartRate).toBe(150);
+    expect(kinds.find((kind) => kind.kind === "long")).toMatchObject({ runs: 8, effort: 2 });
+    expect(paceByEffort(months).map((entry) => entry.effort)).toEqual([2, 3]);
+  });
+
+  it("finds the usual days, a usual run's length and the longest run", () => {
+    expect(usualRunDays(months, "2026-10-28").map((entry) => entry.day)).toEqual([2, 4, 7]);
+    expect(runningHabits(months, "2026-10-28")).toMatchObject({
+      runDays: [
+        { weekday: "Tuesday", weeks: 8 },
+        { weekday: "Thursday", weeks: 8 },
+        { weekday: "Sunday", weeks: 8 },
+      ],
+      // 35 and 34 minutes, each week's long run set aside, to the whole minute.
+      usualRunMinutes: 35,
+      longestRun: { minutes: 75 },
+    });
+    // Days that move week to week are no habit.
+    expect(usualRunDays([run("a", "2026-10-13", 5, 30)], "2026-10-28")).toEqual([]);
+  });
+
+  it("says how steadily they ran and how much of it was easy", () => {
+    expect(runningConsistency(months, "2026-10-28")).toEqual({
+      weeks: 16,
+      weeksWithRuns: 8,
+      longestGapDays: 3,
+      daysSinceLastRun: 3,
+    });
+    expect(runningConsistency([], "2026-10-28")).toMatchObject({
+      weeksWithRuns: 0,
+      longestGapDays: null,
+    });
+    // 880 easy minutes and 272 steady ones.
+    expect(effortShare(months)).toEqual({ easy: 76, steady: 24, hard: 0, unknown: 0 });
+    expect(effortShare([])).toBeNull();
   });
 });

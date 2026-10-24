@@ -117,19 +117,52 @@ export type StructureLine = {
   notes: string[];
 };
 
+/** What a screen already says of the whole session over its steps. */
+export type SaidTargets = Pick<
+  EndurancePrescription["sessionTargets"],
+  "effort" | "paceSecondsPerKm" | "heartRateZones"
+>;
+
+const sameRange = (
+  a: readonly number[] | null | undefined,
+  b: readonly number[] | null | undefined,
+) => Boolean(a && b && a[0] === b[0] && a[1] === b[1]);
+
+/** A step without the pace, zone or effort the session's own line already says (ADR 0063). */
+function unsaid(step: PrescriptionStep, said: SaidTargets | null): PrescriptionStep {
+  if (!said) return step;
+  return {
+    ...step,
+    effort: sameRange(step.effort, said.effort) ? null : step.effort,
+    paceSecondsPerKm: sameRange(step.paceSecondsPerKm, said.paceSecondsPerKm)
+      ? undefined
+      : step.paceSecondsPerKm,
+    heartRateZones: sameRange(step.heartRateZones, said.heartRateZones)
+      ? undefined
+      : step.heartRateZones,
+  };
+}
+
 /**
  * The session's steps, a line each, a repeated block as one line: its repetitions, then each of
- * its steps joined, then the rest between repetitions where the plan gives one.
+ * its steps joined, then the rest between repetitions where the plan gives one. A screen that
+ * says the session's own pace, zone and effort above its steps passes them as `said`, and a step
+ * asking the same says it once, there ("Run 24–28 min", not "Run 24–28 min @ 7:30–8:50 /km ·
+ * Effort 1–2 of 5" under "Effort 1–2 of 5 @ 7:30–8:50 /km").
  */
 export function structureLines(
   prescription: EndurancePrescription,
   units: SportUnits,
   heartRateZones: readonly HeartRateZone[] | null = null,
+  said: SaidTargets | null = null,
 ): StructureLine[] {
-  const part = (step: PrescriptionStep) => ({
-    text: `${actionWord(step)} ${stepTargetLine(step, prescription.sport, units, heartRateZones)}`,
-    note: step.notes,
-  });
+  const part = (written: PrescriptionStep) => {
+    const step = unsaid(written, said);
+    return {
+      text: `${actionWord(step)} ${stepTargetLine(step, prescription.sport, units, heartRateZones)}`,
+      note: step.notes,
+    };
+  };
   return prescription.nodes.map((node) => {
     if (node.kind === "step") {
       const only = part(node);

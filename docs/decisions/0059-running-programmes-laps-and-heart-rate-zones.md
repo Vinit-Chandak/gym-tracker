@@ -4,7 +4,9 @@ Date: 2026-10-20
 Status: proposed, built on the owner's request of 20 October 2026 ("revamp the program for
 running … a custom running prompt … if we can log intervals, tempos, long runs … custom zones …
 a field for maximum heart rate … automatically update that based on the heart rate during the
-previous runs"). Takes up ADR 0058's follow-up "race goals and training zones".
+previous runs"). Takes up ADR 0058's follow-up "race goals and training zones". Decisions 1
+(the intake's time), 2 (the running context) and 10 (how a week reads) amended by
+[ADR 0063](0063-running-plans-read-and-asked-plainly.md).
 
 ## Context
 

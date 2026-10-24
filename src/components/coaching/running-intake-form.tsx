@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { Disclosure } from "@/components/ui/disclosure";
 import { FormError } from "@/components/ui/form";
 import { SavedNotice } from "@/components/ui/saved-notice";
 import { Field, Input } from "@/components/ui/input";
@@ -24,10 +25,12 @@ import {
   RACE_DISTANCE_METRES,
   RACE_DISTANCES,
   raceMetres,
+  RUN_TIME_LIMIT_MINUTES,
   RUNNING_GOAL_LABELS,
   RUNNING_GOALS,
   RUNNING_PLACES,
   runningIntakeProblems,
+  runTimeLimits,
   type RaceDistance,
   type RunningGoal,
   type RunningIntake,
@@ -86,7 +89,11 @@ export type RunningSnapshot = {
   runsPerWeek: number;
   longest: { km: number; on: string } | null;
   effort: { label: string; metres: number; seconds: number; on: string } | null;
+  /** The weekdays the logs show them running on most weeks, Monday first (ADR 0063). */
+  days: number[];
 };
+
+const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
 
 type Draft = {
   goal: RunningGoal | "";
@@ -94,6 +101,9 @@ type Draft = {
   raceKm: string;
   raceDate: string;
   goalTime: string;
+  laterDistance: RaceDistance | "";
+  laterKm: string;
+  laterDate: string;
   effortDistance: (typeof EFFORT_DISTANCES)[number] | "";
   effortKm: string;
   effortTime: string;
@@ -103,8 +113,8 @@ type Draft = {
   runsPerWeek: string;
   days: number[];
   longRunDay: string;
-  minutes: string;
-  longRunMinutes: string;
+  /** Each weekday's limit in minutes as typed, blank for none (ADR 0063). */
+  limits: Record<number, string>;
   places: RunningPlace[];
   terrain: "" | "flat" | "rolling" | "hilly";
   experience: string;
@@ -134,12 +144,26 @@ function opening(
     metres == null ? "" : String(roundTo(fromMetres(metres, unit), 1));
   const effort = goal?.recentEffort ?? null;
   const logged = hasSaved ? null : snapshot.effort;
+  const runsPerWeek =
+    entry?.sessionsPerWeek ?? saved.sessionsPerWeek ?? (snapshot.runsPerWeek || null);
+  // The days the logs show, offered where they hold the runs a week the logs show (ADR 0063).
+  const days = entry?.preferredDays.length
+    ? entry.preferredDays
+    : !hasSaved && snapshot.days.length >= (runsPerWeek ?? 1)
+      ? snapshot.days
+      : [];
+  // An intake from before the limits were asked gives its minutes to the days it offered.
+  const limits = runTimeLimits(goal, entry?.minutesPerSession ?? saved.minutesPerSession, days);
+  const later = goal?.nextRace ?? null;
   return {
     goal: goal?.goal ?? "",
     raceDistance: goal?.raceDistance ?? "",
     raceKm: inUnit(goal?.raceDistanceMetres),
     raceDate: goal?.raceDate ?? "",
     goalTime: goal?.goalTimeSeconds ? formatDuration(goal.goalTimeSeconds) : "",
+    laterDistance: later?.raceDistance ?? "",
+    laterKm: inUnit(later?.raceDistanceMetres),
+    laterDate: later?.raceDate ?? "",
     effortDistance: effort
       ? effortDistanceOf(effort.distanceMetres)
       : logged
@@ -164,13 +188,10 @@ function opening(
         : !hasSaved && snapshot.longest
           ? inUnit(snapshot.longest.km * 1000)
           : "",
-    runsPerWeek: text(
-      entry?.sessionsPerWeek ?? saved.sessionsPerWeek ?? (snapshot.runsPerWeek || null),
-    ),
-    days: entry?.preferredDays ?? [],
+    runsPerWeek: text(runsPerWeek),
+    days,
     longRunDay: text(goal?.longRunDay),
-    minutes: text(entry?.minutesPerSession ?? saved.minutesPerSession),
-    longRunMinutes: text(goal?.longRunMinutes),
+    limits: Object.fromEntries(limits.map((limit) => [limit.day, String(limit.minutes)])),
     places: goal?.places ?? [],
     terrain: goal?.terrain ?? "",
     experience: entry?.experience ?? saved.experience,
@@ -230,6 +251,19 @@ export function RunningIntakeForm({
   const unitWord = unit === "mi" ? "miles" : "km";
   const racing = draft.goal === "race" || draft.goal === "faster";
   const ownDistance = draft.raceDistance === "ultra" || draft.raceDistance === "other";
+  const laterOwnDistance = draft.laterDistance === "ultra" || draft.laterDistance === "other";
+  // A limit is asked of each day they can run, or of every day where they named none.
+  const limitDays = draft.days.length > 0 ? draft.days : EVERY_DAY;
+  const limitOf = (day: number) => {
+    const typed = draft.limits[day]?.trim() ?? "";
+    const value = Number(typed);
+    return typed === "" || !Number.isFinite(value) ? null : Math.round(value);
+  };
+  const limited = limitDays.filter((day) => limitOf(day) !== null);
+  const limitOutOfRange = limited.some((day) => {
+    const minutes = limitOf(day)!;
+    return minutes < RUN_TIME_LIMIT_MINUTES.min || minutes > RUN_TIME_LIMIT_MINUTES.max;
+  });
 
   function running(): RunningIntake {
     const effortMetres =
@@ -259,7 +293,23 @@ export function RunningIntakeForm({
         return value === null ? null : Math.round(value);
       })(),
       longRunDay: draft.longRunDay ? Number(draft.longRunDay) : null,
-      longRunMinutes: draft.longRunMinutes ? Number(draft.longRunMinutes) : null,
+      // The limits on each day replace the long run's minutes (ADR 0063).
+      longRunMinutes: null,
+      timeLimits: limitDays.flatMap((day) => {
+        const minutes = limitOf(day);
+        return minutes === null ? [] : [{ day, minutes }];
+      }),
+      nextRace:
+        draft.laterDistance && draft.laterDate
+          ? {
+              raceDistance: draft.laterDistance,
+              raceDistanceMetres:
+                draft.laterDistance === "ultra" || draft.laterDistance === "other"
+                  ? Math.round(metres(draft.laterKm) ?? 0) || null
+                  : null,
+              raceDate: draft.laterDate,
+            }
+          : null,
       places: draft.places,
       terrain: draft.terrain || null,
     };
@@ -268,28 +318,50 @@ export function RunningIntakeForm({
   /** The goal in words, for the coach and for whoever reads the request later. */
   function goalWords(answers: RunningIntake): string {
     if (!answers.goal) return "";
-    const distance = answers.raceDistance
-      ? ["ultra", "other"].includes(answers.raceDistance)
-        ? `${roundTo(fromMetres(raceMetres(answers) ?? 0, unit), 1)} ${unitWord}`
-        : RACE_DISTANCE_LABELS[answers.raceDistance]
-      : null;
+    const named = (race: Pick<RunningIntake, "raceDistance" | "raceDistanceMetres">) =>
+      race.raceDistance
+        ? ["ultra", "other"].includes(race.raceDistance)
+          ? `${roundTo(fromMetres(raceMetres(race) ?? 0, unit), 1)} ${unitWord}`
+          : RACE_DISTANCE_LABELS[race.raceDistance]
+        : null;
+    const distance = named(answers);
     const time = answers.goalTimeSeconds ? `, in ${formatDuration(answers.goalTimeSeconds)}` : "";
-    if (answers.goal === "race" && distance && answers.raceDate)
-      return `${distance} race on ${formatIsoDate(answers.raceDate)}${time}.`;
-    if (answers.goal === "faster" && distance) return `Get faster at the ${distance}${time}.`;
-    return `${RUNNING_GOAL_LABELS[answers.goal]}.`;
+    const goal =
+      answers.goal === "race" && distance && answers.raceDate
+        ? `${distance} race on ${formatIsoDate(answers.raceDate)}${time}.`
+        : answers.goal === "faster" && distance
+          ? `Get faster at the ${distance}${time}.`
+          : `${RUNNING_GOAL_LABELS[answers.goal]}.`;
+    const later = answers.nextRace;
+    return later
+      ? `${goal} A later race: ${named(later)} on ${formatIsoDate(later.raceDate)}.`
+      : goal;
   }
 
   async function submit(intent: "save" | "create") {
     files.dismiss();
     const answers = running();
-    const problems = runningIntakeProblems(answers, today);
-    if (intent === "create" && problems.length > 0) {
-      setError(problems.map((problem) => problem.message).join(" "));
+    const runsPerWeek = draft.runsPerWeek ? Number(draft.runsPerWeek) : null;
+    // What could not be saved even as a draft, then what the coach could not plan from.
+    const refused = [
+      draft.laterDistance && !draft.laterDate ? "Choose the later race's date." : null,
+      limitOutOfRange
+        ? `Give each time limit from ${RUN_TIME_LIMIT_MINUTES.min} to ${RUN_TIME_LIMIT_MINUTES.max} minutes.`
+        : null,
+    ];
+    const problems = [
+      ...runningIntakeProblems(answers, today).map((problem) => problem.message),
+      runsPerWeek && draft.days.length > 0 && draft.days.length < runsPerWeek
+        ? `Choose at least ${runsPerWeek} days you can run, or leave them empty.`
+        : null,
+    ];
+    const issues = [...refused, ...(intent === "create" ? problems : [])].filter(
+      (issue): issue is string => issue !== null,
+    );
+    if (issues.length > 0) {
+      setError(issues.join(" "));
       return;
     }
-    const runsPerWeek = draft.runsPerWeek ? Number(draft.runsPerWeek) : null;
-    const minutes = draft.minutes ? Number(draft.minutes) : null;
     const experience = draft.experience as CoachIntake["experience"];
     const access = draft.places.map((place) => PLACE_LABELS[place]).join(", ");
     const parsed = coachIntakeSchema.safeParse({
@@ -299,7 +371,8 @@ export function RunningIntakeForm({
       track: "detailed",
       goal: goalWords(answers),
       sessionsPerWeek: runsPerWeek,
-      minutesPerSession: minutes,
+      // A runner's time is each day's limit, in the running answers (ADR 0063).
+      minutesPerSession: null,
       experience,
       prompt: draft.brief,
       restrictions: draft.restrictions,
@@ -316,7 +389,7 @@ export function RunningIntakeForm({
           access,
           sessionsPerWeek: runsPerWeek,
           preferredDays: draft.days,
-          minutesPerSession: minutes,
+          minutesPerSession: null,
           running: answers,
         },
       ],
@@ -422,6 +495,48 @@ export function RunningIntakeForm({
                   onChange={(event) => set({ goalTime: clockEntry(event.target.value) })}
                 />
               </Field>
+            </div>
+          )}
+          {draft.goal !== "" && (
+            <div className="adaptive-grid">
+              <Field
+                label="A later race"
+                aside="Optional"
+                info="One after this, such as a marathon in the spring. This programme still ends with your goal and leads into it."
+              >
+                <Select
+                  value={draft.laterDistance}
+                  onChange={(event) =>
+                    set({ laterDistance: event.target.value as RaceDistance | "" })
+                  }
+                >
+                  <option value="">None</option>
+                  {RACE_DISTANCES.map((distance) => (
+                    <option key={distance} value={distance}>
+                      {RACE_DISTANCE_LABELS[distance]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {laterOwnDistance && (
+                <Field label={`How far, in ${unitWord}`}>
+                  <Input
+                    inputMode="decimal"
+                    value={draft.laterKm}
+                    onChange={(event) => set({ laterKm: event.target.value })}
+                  />
+                </Field>
+              )}
+              {draft.laterDistance !== "" && (
+                <Field label="Its date" info="A rough date will do.">
+                  <Input
+                    type="date"
+                    min={draft.goal === "race" && draft.raceDate ? draft.raceDate : today}
+                    value={draft.laterDate}
+                    onChange={(event) => set({ laterDate: event.target.value })}
+                  />
+                </Field>
+              )}
             </div>
           )}
           <Field label="In your own words" aside="Optional">
@@ -565,6 +680,7 @@ export function RunningIntakeForm({
           </Field>
           <DayPicker
             legend="Days you can run (leave empty for any)"
+            aside={fromLogs("days", opened.days.length > 0)}
             selected={draft.days}
             onChange={(days) =>
               set({
@@ -576,40 +692,55 @@ export function RunningIntakeForm({
               })
             }
           />
-          <div className="adaptive-grid">
-            <Field label="Long run day" aside="Optional">
-              <Select
-                value={draft.longRunDay}
-                onChange={(event) => set({ longRunDay: event.target.value })}
-              >
-                <option value="">Any</option>
-                {(draft.days.length ? draft.days : [1, 2, 3, 4, 5, 6, 7]).map((day) => (
-                  <option key={day} value={day}>
-                    {WEEKDAY_NAMES[day]}
-                  </option>
+          <Field label="Long run day" aside="Optional">
+            <Select
+              value={draft.longRunDay}
+              onChange={(event) => set({ longRunDay: event.target.value })}
+            >
+              <option value="">Any</option>
+              {limitDays.map((day) => (
+                <option key={day} value={day}>
+                  {WEEKDAY_NAMES[day]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {/* A runner's time is a limit on the days that have one, and none is asked for: the
+              coach sizes every other run (ADR 0063). */}
+          <Disclosure
+            summary="Any days with a time limit?"
+            meta={
+              limited.length === 0
+                ? "None"
+                : `${limited.length} ${limited.length === 1 ? "day" : "days"}`
+            }
+            defaultOpen={Object.keys(opened.limits).length > 0 || limitOutOfRange}
+            variant="footer"
+          >
+            <fieldset className="min-w-0 space-y-3">
+              <legend className="sr-only">Each day&rsquo;s time limit, in minutes</legend>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,9rem),1fr))] gap-3">
+                {limitDays.map((day) => (
+                  <Field key={day} label={`${WEEKDAY_NAMES[day]} (minutes)`} aside="Optional">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={RUN_TIME_LIMIT_MINUTES.min}
+                      max={RUN_TIME_LIMIT_MINUTES.max}
+                      value={draft.limits[day] ?? ""}
+                      onChange={(event) =>
+                        set({ limits: { ...draft.limits, [day]: event.target.value } })
+                      }
+                    />
+                  </Field>
                 ))}
-              </Select>
-            </Field>
-            <Field label="Minutes on a usual run">
-              <Input
-                type="number"
-                min={10}
-                max={240}
-                value={draft.minutes}
-                onChange={(event) => set({ minutes: event.target.value })}
-                required
-              />
-            </Field>
-            <Field label="Minutes for the long run" aside="Optional">
-              <Input
-                type="number"
-                min={10}
-                max={600}
-                value={draft.longRunMinutes}
-                onChange={(event) => set({ longRunMinutes: event.target.value })}
-              />
-            </Field>
-          </div>
+              </div>
+              {/* What a blank does stays in view (DESIGN.md, The Need-to-Know Rule). */}
+              <p className="text-[length:var(--ov-type-caption)] font-medium text-ink-2">
+                A day left blank has no limit.
+              </p>
+            </fieldset>
+          </Disclosure>
         </Card>
       </Section>
 

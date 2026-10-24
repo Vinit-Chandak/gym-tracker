@@ -69,6 +69,7 @@ export default async function SetupDraftPage({ params }: { params: Promise<{ id:
           blueprint: draft.blueprint,
           rationale: draft.rationale,
           uncertainties: draft.uncertainties,
+          toConfirm: draft.toConfirm,
           openingPlan: draft.openingPlan,
           source: draft.source,
         }}

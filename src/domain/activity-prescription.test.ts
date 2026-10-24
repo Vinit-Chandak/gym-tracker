@@ -177,6 +177,10 @@ describe("what a session is said to ask for", () => {
   it("says a block of seconds in seconds rather than as no minutes at all", () => {
     expect(durationTargetParts([20_000, 20_000])).toEqual({ figure: "20", unit: "s" });
     expect(durationTargetParts([90_000, 90_000])).toEqual({ figure: "1.5", unit: "min" });
+    // A range that starts under a minute reads in seconds up to two: never "0.8–1 min".
+    expect(durationTargetParts([48_000, 60_000])).toEqual({ figure: "48–60", unit: "s" });
+    expect(durationTargetParts([45_000, 90_000])).toEqual({ figure: "45–90", unit: "s" });
+    expect(durationTargetParts([30_000, 180_000])).toEqual({ figure: "0.5–3", unit: "min" });
     const strides = prescription("running", [
       {
         kind: "repeat",

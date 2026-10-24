@@ -13,7 +13,7 @@
  * as one is not evidence. It is served by the deployed app, once per job, so a routine on an
  * old checkout still reads what this deployment says.
  */
-export const COACH_RUNNING_REFERENCE_VERSION = "2026-10-20.2";
+export const COACH_RUNNING_REFERENCE_VERSION = "2026-10-24.1";
 
 export const COACH_RUNNING_REFERENCE = `# Coach running reference
 
@@ -39,12 +39,24 @@ Never invent a race result, a pace, a heart rate or a weekly distance the record
    recentWeeklyKm (average of the last four complete weeks), longestRun30Days, gaps and any
    intake weeklyDistance/longestRecent the logs do not show. A week with no runs is zero runs.
    The logs are thin when the last four complete weeks average fewer than two runs a week.
-4. Constraints: confirmed runs per week (a maximum, not a quota), run days, long-run day and
-   minutes, places (outdoor, treadmill, track, trail), terrain, restrictions and experience.
-   Respect them exactly; with experience unknown, plan as for a novice.
+   runningContext.runs is every run of those weeks with its pace, heart rate, zone and effort;
+   typical says what each kind of run and each effort usually looks like; habits their usual
+   days, usual run length and longest run by time; consistency how steadily they ran; and
+   effortShare how much of their running was easy. A spiky history (one big week among light
+   ones) is weaker evidence than its average suggests: say which weeks the plan started from.
+4. Constraints: confirmed runs per week (a maximum, not a quota), run days, long-run day, each
+   day's time limit (goal.timeLimits), places (outdoor, treadmill, track, trail), terrain,
+   restrictions and experience. Respect them exactly; with experience unknown, plan as for a
+   novice. A weekday without a limit has none, and limits are optional: with none at all, size
+   each run from the goal and habits.usualRunMinutes, and say the longest run's time in the
+   rationale. An older intake gives minutesPerRun (every run but the long run) and
+   longRunMinutes (the long run) instead. With no run days confirmed, put the runs on the days
+   habits.runDays shows where they suit the plan, and say so.
 5. Heart rate: runningContext.heartRate gives the maximum, where it came from and the five
    zones in beats. With basis "estimated" the maximum is an age formula, often ten beats out:
-   prefer pace and effort targets and do not write zone targets as precise.
+   prefer pace and effort targets and do not write zone targets as precise. Where runs carry a
+   heart rate, read their easy runs against it: an easy run held in zone 4 was not easy, and the
+   easy pace should be slower than they have been running.
 6. Other programmes: runningContext.otherProgrammes says which weekdays load the legs. An older
    combined programme's own runs (its runs) are withdrawn from the day the running programme
    starts: leave them out of it.
@@ -78,6 +90,9 @@ Never invent a race result, a pace, a heart rate or a weekly distance the record
   about +15 s; 10K +8 to +17 s; interval (3K-5K pace) -3 to -18 s; repetition (mile pace) -20
   to -27 s. Worked out for a 25:00 5K: easy 6:03-7:14, marathon 5:38, threshold 5:16, interval
   4:51, repetition 4:36 per km [convention].
+- Easy and long-run paces come from typical.byKind and typical.byEffort (the middle of many
+  runs at that effort) checked against the zones where heart rate is measured, never from one
+  run, and never faster than the runner's own easy runs at effort 2 [convention].
 - When the goal time is faster than the evidence predicts, train at the evidence's paces and
   say the goal is ambitious. Goal pace enters race-pace work only once a race or time trial in
   the block shows it is in reach [convention]. Never change the confirmed goal.
@@ -153,7 +168,9 @@ min easy cool-down after are part of the session [convention].
   the recovery out and set restBetweenMs. A block holds steps only, never another block.
 - Give ranges, not points, so a later preparation can choose inside them; effort 5 for all-out
   work and a race's own distance are points. Pace and zone outside an approved range is a
-  proposal the athlete reads. A run fits the athlete's minutes at the slow end of its pace.
+  proposal the athlete reads. A run fits its day's time limit at the slow end of its pace, and a
+  session's steps add up to its own duration range: the server refuses one that breaks either,
+  naming the session.
 - running.paceNote is the pace in words ("conversational; walk the hills"), progressionNote how
   it builds, symptomStopRule only this runner's own stop rule, or null, and running.note what
   else they should know (300 characters); longer coaching text goes in notes. Never a stock
@@ -187,8 +204,12 @@ min easy cool-down after are part of the session [convention].
   532 novices [moderate], and is not a safety guarantee; for novices keep two-week increases
   under about 30% [moderate, not significant]. Hold a new volume 3-4 weeks before the next step.
 - At most two quality sessions a week for most runners (three for advanced), never on
-  consecutive days; the long run counts as a hard day. Every run fits the confirmed minutes,
-  and the long run its own minutes.
+  consecutive days; the long run counts as a hard day. Every run fits its day's time limit.
+- A later race (goal.nextRace): this programme still ends with its own goal and nothing after
+  it. Build it as the first step towards the later race where the two agree, favouring aerobic
+  volume and the long run over speed late in the block, keep this race's taper, and say in the
+  rationale what the next block starts from; say in uncertainties when the gap between the races
+  is short for the later race's usual block [convention].
 - Taper 2 weeks (2-3 for a marathon): cut volume progressively by 40-60% and keep intensity
   and frequency, with short sharp work at race pace [strong]. A marathon taper of about 80%,
   60% and 40% of peak volume is common [convention].
@@ -246,5 +267,6 @@ The headline says what the block is in the athlete's terms: "16 weeks to the Val
 Marathon: 5 runs a week, long runs to 32 km, a 3-week taper." The rationale says why the
 structure fits their goal, evidence and week, including how it sits around their lifting; the
 uncertainties say what the evidence could not settle (no recent race, an estimated maximum
-heart rate). Use ordinary words; leave research names, tags and versions out of anything the
-athlete reads.`;
+heart rate); toConfirm asks, in at most four short questions, what only the athlete can settle
+(how long a long run may take, days chosen for them), never in both. Use ordinary words; leave
+research names, tags and versions out of anything the athlete reads.`;

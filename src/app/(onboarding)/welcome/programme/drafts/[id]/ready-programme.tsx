@@ -5,14 +5,14 @@ import type { Route } from "next";
 import { useState, useTransition } from "react";
 
 import { Art } from "@/components/art/art";
+import { AskForChangesSheet, type CoachAnswer } from "@/components/coaching/ask-for-changes";
 import { coachingAction } from "@/components/coaching/client-action";
+import { CoachQuestions } from "@/components/coaching/coach-questions";
 import { Button } from "@/components/ui/button";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { FormError } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
-import { Textarea } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
-import { Sheet } from "@/components/ui/sheet";
 import type { OpeningPlan } from "@/domain/coaching-workflow";
 import { exerciseTargets } from "@/domain/exercise-targets";
 import type { BlueprintDay, ProgramBlueprint } from "@/domain/program-blueprint";
@@ -32,6 +32,8 @@ type Draft = {
   blueprint: ProgramBlueprint;
   rationale: string;
   uncertainties: string[];
+  /** What the coach asks the athlete to confirm (ADR 0063). */
+  toConfirm: string[];
   openingPlan: OpeningPlan | null;
   source: "manual" | "ai" | "weekly";
 };
@@ -99,7 +101,6 @@ export function ReadyProgramme({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
-  const [notes, setNotes] = useState("");
   const [requestKey] = useState(() => crypto.randomUUID());
   const busy = saving || navigating;
   const training = draft.blueprint.days.filter((day) => day.includesLifting || day.includesRun);
@@ -125,11 +126,11 @@ export function ReadyProgramme({
     setSaving(false);
   }
 
-  async function ask() {
+  async function ask(notes: string, answers: CoachAnswer[]) {
     setSaving(true);
     setError(null);
     const result = await coachingAction(() =>
-      askForFirstProgrammeChangesAction(draft.id, notes, requestKey),
+      askForFirstProgrammeChangesAction(draft.id, notes, requestKey, answers),
     );
     if (result.ok)
       startNavigation(() =>
@@ -173,6 +174,7 @@ export function ReadyProgramme({
           <span className="whitespace-pre-wrap">{draft.rationale}</span>
         </CoachNoteMore>
       )}
+      <CoachQuestions questions={draft.toConfirm} className="mt-3" />
 
       <div className="setup-coach-more mt-3">
         {draft.openingPlan && (
@@ -292,33 +294,14 @@ export function ReadyProgramme({
         </button>
       </PinnedActions>
 
-      <Sheet
+      <AskForChangesSheet
         open={asking}
         onClose={() => setAsking(false)}
-        title="What should change?"
-        footer={
-          <div className="space-y-2">
-            {asking && <FormError message={error ?? undefined} />}
-            <Button
-              size="lg"
-              className="w-full"
-              disabled={busy || notes.trim() === ""}
-              onClick={ask}
-            >
-              {busy ? "Sending…" : "Send to the coach"}
-            </Button>
-          </div>
-        }
-      >
-        <Textarea
-          aria-label="What should change?"
-          rows={4}
-          maxLength={2000}
-          placeholder="Fewer days, no barbell squats, shorter sessions…"
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-        />
-      </Sheet>
+        questions={draft.toConfirm}
+        busy={busy}
+        error={asking ? error : null}
+        onSend={ask}
+      />
     </>
   );
 }

@@ -51,6 +51,8 @@ import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-s
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
 import { enduranceScheduleIssues, programmeSport } from "@/domain/programme-sport";
+import { plannedRaceDate, startOn } from "@/domain/programme-start";
+import { formatIsoDate } from "@/lib/format";
 import { getCoachingPreferences } from "./coaching-state";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import { saveRoutine } from "./manual-training";
@@ -781,6 +783,13 @@ export async function activateProgramDraft(
     familyId = original!.familyId;
     startDate = active.startDate;
     startDayIndex = current.startDayIndex;
+  } else {
+    // A plan that ends with a race keeps every date, so the race stays on race day: started
+    // later, it leaves out the sessions already behind it (ADR 0063).
+    const race = plannedRaceDate(blueprint);
+    if (race && input.startDate > race)
+      throw new CoachingError(`Choose a start on or before the race on ${formatIsoDate(race)}.`);
+    ({ blueprint, startDate } = startOn(blueprint, input.startDate));
   }
   const created = await createProgramFromBlueprint(db, userId, blueprint, {
     startDate,
@@ -854,12 +863,16 @@ export async function activateProgramDraft(
     transition: input.transition,
   });
   // A sport's programme is that sport's training from its start: the runs an older combined
-  // strength programme still carries from then on are withdrawn, not left beside its own.
+  // strength programme still carries from then on are withdrawn, not left beside its own. A race
+  // plan started late counts its dates from earlier, and takes over from the day it was started.
   if (draft.sport !== "strength")
     await withdrawSportFromOtherProgrammes(db, userId, {
       sport: draft.sport,
       keepFamilyId: created.familyId,
-      from: startDate,
+      from:
+        input.transition === "new_block" && input.startDate > startDate
+          ? input.startDate
+          : startDate,
       source: `programs:${created.id}`,
     });
   if (priorBlueprint && !input.automatic) {

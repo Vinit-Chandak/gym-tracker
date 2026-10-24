@@ -153,28 +153,45 @@ export async function answerCoachQuestionsAction(
 const FIRST_PROGRAMME_CHANGE_QUESTION = "What would you change about the programme you were shown?";
 
 /**
- * "Ask for changes" on a first programme (board Your programme is ready).
+ * "Ask for changes" on a first programme (board Your programme is ready, and Plan's review).
  *
  * There is no running programme to review, so the change is a new request for the programme:
  * the athlete's words are filed with their answers, as the answer to the question the screen
  * asked, the draft they were shown is closed, and the coach writes it again. It is the same
- * request the setup form makes and spends the same one of the day's three.
+ * request the setup form makes and spends the same one of the day's three. What the coach asked
+ * them to confirm on the draft (ADR 0063) is answered the same way, each answer filed beside its
+ * question verbatim, so the coach reads it as an answer already given.
  */
 export async function askForFirstProgrammeChangesAction(
   draftId: string,
   notes: string,
   requestKey: string,
+  answers: readonly { question: string; answer: string }[] = [],
 ) {
   const saved = await mutate(async (tx, userId) => {
     const parsed = z
       .object({
         draftId: z.uuid(),
-        notes: z.string().trim().min(1, "Say what you would like changed.").max(2000),
+        notes: z.string().trim().max(2000),
+        answers: z
+          .array(
+            z.object({
+              question: z.string().trim().min(1).max(700),
+              answer: z.string().trim().max(2000),
+            }),
+          )
+          .max(MAX_CLARIFICATIONS),
       })
-      .parse({ draftId, notes });
+      .parse({ draftId, notes, answers });
     const draft = await getProgramDraft(tx, userId, parsed.draftId);
     if (!draft || draft.baseProgramId !== null || !["editing", "ready"].includes(draft.status))
       throw new CoachingError("That programme is no longer waiting for an answer.");
+    // Only what this draft asked is an answer to the coach; anything else is the athlete's note.
+    const answered = parsed.answers.filter(
+      (entry) => entry.answer !== "" && draft.toConfirm.includes(entry.question),
+    );
+    if (parsed.notes === "" && answered.length === 0)
+      throw new CoachingError("Say what you would like changed.");
     const intake = await latestIntake(
       tx,
       userId,
@@ -182,11 +199,16 @@ export async function askForFirstProgrammeChangesAction(
       draft.standalone ? "session" : "programme",
     );
     if (!intake) throw new CoachingError("Answer the coach's questions first.");
+    const replaced = new Set([
+      FIRST_PROGRAMME_CHANGE_QUESTION,
+      ...answered.map((entry) => entry.question),
+    ]);
     const clarifications = [
-      ...intake.answers.clarifications.filter(
-        (entry) => entry.question !== FIRST_PROGRAMME_CHANGE_QUESTION,
-      ),
-      { question: FIRST_PROGRAMME_CHANGE_QUESTION, answer: parsed.notes },
+      ...intake.answers.clarifications.filter((entry) => !replaced.has(entry.question)),
+      ...answered,
+      ...(parsed.notes === ""
+        ? []
+        : [{ question: FIRST_PROGRAMME_CHANGE_QUESTION, answer: parsed.notes }]),
     ].slice(-MAX_CLARIFICATIONS);
     const next = await saveIntake(
       tx,
@@ -194,11 +216,14 @@ export async function askForFirstProgrammeChangesAction(
       { ...intake.answers, clarifications },
       intake.revision,
     );
-    await closeProgramDraft(tx, userId, draft.id, "discarded");
     return next.id;
   });
   if (!saved.ok) return saved;
+  // The draft closes with the request it is asked again by, never before it: a request that
+  // cannot be made (the day's three spent) leaves it to start, the words kept for the next.
   return requestProgramme(requestKey, async (tx, userId) => {
+    // Closed as discarded before confirming, which would only supersede it.
+    await closeProgramDraft(tx, userId, draftId, "discarded");
     await confirmIntake(tx, userId, saved.value);
     return saved.value;
   });

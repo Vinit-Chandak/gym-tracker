@@ -135,14 +135,15 @@ await audit("priya", async ({ page, step, data }) => {
     await page.goto("/plan/running", { waitUntil: "networkidle" });
     await expect(page.getByText(data.programme.name).first()).toBeVisible();
     // The week under way is open, each run named with its kind and its main work; a week reads
-    // as its distance and the time of what is run by time, kept apart.
+    // as one distance, its timed running at the plan's own paces, said to be approximate.
     await says(
       page,
       "Intervals",
       "Easy run with strides",
       "Tempo 20 min",
       "Long run 10 km",
-      "4 runs · 24.2 km + 68 min · 19 Oct",
+      // The week's start moves with the day the seed ran, so only what it adds up to is read.
+      "4 runs · ≈ 34 km · ",
       "1 missed",
     );
   });
