@@ -302,8 +302,9 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
   do it (one tap away in a fold; Stop if stays in view) — each step a line, a repeated block's rep
   and recovery on lines of their own, with its pace and its zone in the athlete's beats ("Zones
   4–5 (163–191 bpm)") — Next, Missed or Skipped (why a passed date is still Next, or "Still to
-  do", one tap away), "Moved from {date}." and, once logged, the planned line and See what you
-  logged, with the day it was logged.
+  do", one tap away), "Moved from {date}." and, once logged, Planned (its line) over Done (with
+  the day it was done when that was another): the run's figures two by two, its notes and its
+  laps, read here rather than on a page of their own (owner, 28 October 2026).
 - **New programme:** the four sports, then Repeating ("Same week or cycle, on repeat"),
   Progressive ("Builds week by week") and With the coach ("Answer a few questions"). A sport with a programme says what a new
   one replaces ("Replaces {programme} when you start it. Your history stays."). Strength's With
@@ -323,8 +324,10 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
   and a lifting day opens its day's page (`/plan/strength/days/[dayId]`); a day gone by opens
   first, to its sessions.
 - **On a session's page:** Log run (Log ride, Log swim), its one primary, while it is no more than
-  six days ahead, as Log takes it; Skip this session, or Put it back; Move it to another date;
-  Remove from the calendar, for one no programme planned.
+  six days ahead, as Log takes it, coming back to the session once kept ("Run saved", Undo);
+  Skip this session, or Put it back; Move it to another date; Remove from the calendar, for one
+  no programme planned. Once logged, More (···) corrects or deletes the run, and both come back
+  to the session.
 - **Open a programme** from its row; **New programme**, at the end of the Programmes heading, or
   as the page's own button with none.
 - **On a programme's page:** Edit programme, a draft of the current block applied once

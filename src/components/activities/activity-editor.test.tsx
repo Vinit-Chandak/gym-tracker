@@ -111,6 +111,26 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(0);
 });
 
+/** Owner, 28 October 2026: a run corrected from its session goes back there, read under its plan. */
+it("goes back to the session a correction was opened from", async () => {
+  const action = vi.fn().mockResolvedValue({ savedActivityId: "run-id" });
+  render(
+    <ActivityEditor
+      {...props}
+      activityId="run-id"
+      origin="session"
+      occurrence={{ id: "session-id", revisionId: "revision" }}
+      action={action}
+    />,
+  );
+  fireEvent.change(await screen.findByLabelText("Duration"), { target: { value: "4200" } });
+  fireEvent.click(screen.getByRole("radio", { name: "3" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
+  await waitFor(() =>
+    expect(mocks.replace).toHaveBeenCalledWith("/plan/sessions/session-id?saved=changed"),
+  );
+});
+
 it("keeps a failed save through reload without exposing another account's draft", async () => {
   const other = {
     ...newDraft({ userId: "athlete-b", sport: "cycling", values: { minutes: "99" } }),

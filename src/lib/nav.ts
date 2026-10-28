@@ -170,6 +170,7 @@ export const NAV_ORIGINS = [
   "programme",
   "shared",
   "exercises",
+  "session",
 ] as const;
 export type NavOrigin = (typeof NAV_ORIGINS)[number];
 
@@ -183,7 +184,16 @@ const ORIGIN_PATHS: Record<NavOrigin, string> = {
   // An exercise's page, which is Profile's: a workout opened from its graph or its latest
   // sessions keeps Profile, as Back to it does (year audit, October 2026).
   exercises: "/exercises",
+  // A run corrected or deleted from the planned session it answered, whose page reads it under
+  // its plan (owner, 28 October 2026). Plan stays selected; the way back is that session's page,
+  // built from the session the run answers (`sessionPath`), never carried in the link.
+  session: "/plan",
 };
+
+/** A planned session's own page, Plan's, where the run that answered it is read (ADR 0058). */
+export function sessionPath(occurrenceId: string): Route {
+  return `/plan/sessions/${occurrenceId}` as Route;
+}
 
 /** The search parameter a record's link names its origin in. */
 export const ORIGIN_PARAM = "from";

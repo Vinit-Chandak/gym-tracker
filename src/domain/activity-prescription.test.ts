@@ -181,6 +181,14 @@ describe("what a session is said to ask for", () => {
     expect(durationTargetParts([48_000, 60_000])).toEqual({ figure: "48–60", unit: "s" });
     expect(durationTargetParts([45_000, 90_000])).toEqual({ figure: "45–90", unit: "s" });
     expect(durationTargetParts([30_000, 180_000])).toEqual({ figure: "0.5–3", unit: "min" });
+    // A session's minutes are whole, its range widened to them: a target worked out from a pace
+    // said "36.3–49.5 min" (owner, 28 October 2026).
+    expect(durationTargetParts([2_178_000, 2_970_000])).toEqual({ figure: "36–50", unit: "min" });
+    expect(durationTargetParts([2_175_000, 2_175_000])).toEqual({ figure: "36", unit: "min" });
+    expect(durationTargetParts([25 * 60_000, 30 * 60_000])).toEqual({
+      figure: "25–30",
+      unit: "min",
+    });
     const strides = prescription("running", [
       {
         kind: "repeat",

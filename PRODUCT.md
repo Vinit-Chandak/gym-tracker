@@ -195,7 +195,9 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 Where each fact lives. Another screen may link to it by name, never restate its details or
 repeat its button ([ADR 0058](docs/decisions/0058-today-and-plan.md)). A date that orients a list
 (a week's range, a session's weekday) is not a restated fact, and stands wherever the list
-stands.
+stands. One pair is read in two places on purpose: a planned run, ride or swim once logged, which
+its session's page reads under its plan, where a link on to its own page said the run a second
+time (owner, 28 October 2026); its own page stays the record History and Today open.
 
 A page's route begins with its home's tab, and that tab is the one lit: `/today` (Log's form is
 `/today/log/new`, a body weight `/today/log/body-weight`), `/plan` (a session `/plan/sessions/…`, a
@@ -235,7 +237,7 @@ programme"). Old paths redirect permanently ([ADR 0060](docs/decisions/0060-ever
 | Units and time zone                                                                | Profile › Units and time zone                  |
 | Sports, gyms and machines                                                          | Profile                                        |
 | Maximum and resting heart rate, and the zones                                      | Profile › Heart rate zones                     |
-| A run's laps and its time in each zone                                             | Its page                                       |
+| A run's laps and its time in each zone                                             | Its page; a planned one's session page too     |
 | A run's rep pace and its pace with rests                                           | Its page; Log a run while it is being entered  |
 
 ## Brand Commitments

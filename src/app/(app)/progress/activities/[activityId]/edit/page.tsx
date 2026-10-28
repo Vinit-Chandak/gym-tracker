@@ -10,7 +10,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { activityFormValues } from "@/lib/activity-form-values";
-import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
+import { ORIGIN_PARAM, originQuery, parseOrigin, sessionPath } from "@/lib/nav";
 import { timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -67,6 +67,12 @@ export default async function EditActivityPage(
   const { activity, units } = await readActivity(activityId);
   if (!activity?.actual) notFound();
   const actual = activity.actual;
+  // Opened from the planned session it answered, it goes back there, where the run is read under
+  // its plan; otherwise to the run's own page.
+  const back =
+    origin === "session" && activity.origin.kind === "planned"
+      ? sessionPath(activity.origin.occurrenceId)
+      : (`/progress/activities/${activityId}${originQuery(origin)}` as Route);
   return (
     // As it was logged (boards Log a run, a ride, a swim): a layer over the tabs, Save pinned,
     // which run it is said by its day and time as its page says it (the form's own When is
@@ -80,10 +86,7 @@ export default async function EditActivityPage(
           {startedAtLine(activity.startedAt, activity.recordedTimeZone, profile.timeZone)}
         </span>
       }
-      back={{
-        href: `/progress/activities/${activityId}${originQuery(origin)}` as Route,
-        label: enduranceName(actual.sport),
-      }}
+      back={{ href: back, label: enduranceName(actual.sport) }}
     >
       <ActivityEditor
         userId={user.id}

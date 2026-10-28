@@ -407,7 +407,14 @@ export function durationTargetParts(ms: number | readonly [number, number]): {
   // A range from under a minute to two reads in seconds: "48–60 s", never "0.8–1 min".
   const [scale, unit] =
     high < 60_000 || (low < 60_000 && high <= 120_000) ? [1000, "s"] : [60_000, "min"];
-  const [from, to] = [low, high].map((value) => String(roundTo(value / scale, 1)));
+  // Ten minutes and more read in whole minutes, a range widened to them rather than narrowed:
+  // a target worked out from a pace said "36.3–49.5 min" (owner, 28 October 2026). A rep keeps
+  // its half minute ("1.5 min").
+  const whole = unit === "min" && low >= 10 * 60_000;
+  const [from, to] =
+    whole && low !== high
+      ? [String(Math.floor(low / scale)), String(Math.ceil(high / scale))]
+      : [low, high].map((value) => String(roundTo(value / scale, whole ? 0 : 1)));
   return { figure: from === to ? to! : `${from}–${to}`, unit };
 }
 

@@ -829,8 +829,10 @@ its key is shown, so two readings of one width can never leave the workout witho
   ("Mon 19 – Tue 20", "3 done · 1 missed"), so the week opens on today; a week gone by, opened on
   purpose, is shown whole. Then Programmes, its heading with + New at its end, and one card of
   rows, one per programme: its name, how it runs and where it has got to in words, what waits on
-  it (Changes to review), and its sign at 40 at the end; Past programmes ends the card. No bar on
-  Plan: a programme's progress is drawn once, on its own page (ADR 0058).
+  it (Changes to review), and its sign at 40 at the end, at least 72 pt with a card's inset (16)
+  above and below its lines, where 8 pressed them to the card's edge (owner, 28 October 2026);
+  Past programmes ends the card. No bar on Plan: a programme's progress is drawn once, on its own
+  page (ADR 0058).
 - **Forms** (owner, 21 October 2026): a form's sections (a run's laps, its totals, its effort, the
   rest folded) stand as cards on the ground, each under its Section heading, `gap-section` apart; inside a panel, rows are ruled and a field is the one field (Inputs and
   choices), edged as everywhere else: a field that matched its panel's tone showed no box at all,
@@ -1219,10 +1221,10 @@ every part is a lap with a kind, and the session's totals are its laps added up.
 - **A sport's sign** (owner, 28 October 2026; `sign.tsx`): the sport as a figure on the Munich
   1972 grid, at 0, 45 and 90 degrees, one stroke 4.6 of its 48 units with round ends and a disc
   for a head, in the sport's pigment (food's in the food edge, so it holds 3:1). It is the one
-  place a sport's colour stands beside a name, in three sizes: 24 before a session's name in a
-  list that mixes sports (Plan's week, History, a day, Friends, Today's Done), 40 at the end of a
-  card's title (Today) or a programme's row (Plan), and 64 once, at the end of a programme's own
-  title. It says the sport and nothing else: done, skipped and missed are words beside it, never
+  place a sport's colour stands beside a name, in four sizes: 16 at the head of a line of figures
+  (a friend's activity, under their name), 24 before a session's name in a list that mixes sports
+  (Plan's week, History, a day, Today's Done), 40 at the end of a card's title (Today) or a
+  programme's row (Plan), and 64 once, at the end of a programme's own title. It says the sport and nothing else: done, skipped and missed are words beside it, never
   the sign's fill, and a list of one sport (a programme's weeks) draws none. A chooser of sports
   (Log, New programme, setup) leads each row with its sign. On ink (the session strip) it is the
   strip's words' colour. A setting or a menu option is led by its glyph; prints and the calendar
