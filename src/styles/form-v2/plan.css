@@ -47,9 +47,13 @@
   display: grid;
 }
 /* A day: its date in a column of its own, its sessions beside it, a rule between days. */
+/* The date column grows with the reader's text as its date does, so at 200% "Wed" and today's
+   disc keep their column and never run under the signs. */
 .plan-day {
   display: grid;
-  grid-template-columns: calc(40 * var(--ov-u)) minmax(0, 1fr);
+  grid-template-columns:
+    max(calc(40 * var(--ov-u)), calc(1.6 * var(--ov-type-section) + 4px))
+    minmax(0, 1fr);
   column-gap: calc(14 * var(--ov-u));
   padding: calc(14 * var(--ov-u)) 0;
   border-top: 1px solid var(--ov-hair);
@@ -78,8 +82,8 @@
 /* Today: the one dark disc on the screen. */
 .plan-date-today {
   display: grid;
-  width: calc(32 * var(--ov-u));
-  height: calc(32 * var(--ov-u));
+  width: calc(1.6 * var(--ov-type-section));
+  height: calc(1.6 * var(--ov-type-section));
   margin-top: 1px;
   place-items: center;
   border-radius: var(--ov-radius-full);

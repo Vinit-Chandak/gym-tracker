@@ -239,9 +239,10 @@ export async function StrengthProgramme({
         ) : (
           <>
             <SavedProgrammeWork />
-            {/* An empty state is one short line and its action (DESIGN.md, Need-to-Know). */}
+            {/* An empty state is one short line and its action (DESIGN.md, Need-to-Know); the
+                title already names the programme, so the line does not name it again. */}
             <Card className="space-y-[var(--ov-gap-block)]">
-              <h2 className="type-section">No strength programme</h2>
+              <h2 className="type-section">None yet</h2>
               <LinkButton href="/plan/new?sport=strength" size="lg" className="w-full">
                 <Glyph name="plus" className="glyph-18" />
                 New programme
