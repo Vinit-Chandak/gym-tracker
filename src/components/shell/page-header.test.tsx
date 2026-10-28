@@ -152,7 +152,7 @@ it("leads with the avatar, and keeps the headline its own room before its action
   // Edit goes under the name where the name would not have its own width beside it, and the
   // name goes under the avatar where its longest word would not.
   const head = document.querySelector(".page-root-head") as HTMLElement;
-  expect(head.style.flexBasis).toContain("6.89 * var(--ov-type-title) + 70 * var(--ov-u)");
+  expect(head.style.flexBasis).toContain("6.50 * var(--ov-type-title) + 70 * var(--ov-u)");
   const text = document.querySelector(".page-root-text") as HTMLElement;
-  expect(text.style.flexBasis).toContain("3.99 * var(--ov-type-title)");
+  expect(text.style.flexBasis).toContain("3.85 * var(--ov-type-title)");
 });

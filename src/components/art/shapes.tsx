@@ -12,7 +12,7 @@ export type Surface = "paper" | "ground";
 export function paintToken(paint: Paint, surface: Surface): string {
   switch (paint) {
     case "cut":
-      return surface === "paper" ? "var(--ov-paper)" : "var(--ov-ground)";
+      return surface === "paper" ? "var(--ov-paper)" : "var(--ov-backdrop)";
     case "ink":
       return surface === "paper" ? "var(--ov-print-ink)" : "var(--ov-ink)";
     case "warm":

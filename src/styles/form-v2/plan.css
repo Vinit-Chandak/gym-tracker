@@ -1,159 +1,147 @@
 /*
- * Plan (ADR 0058; DESIGN.md, Layout: Plan): the week as seven day papers, then its sessions for
- * every sport, by date, then one card per programme, its weeks a row of segments. Rows are the
- * shared nav rows; the programme cards are the Training cards' grid and box.
+ * Plan (ADR 0058; DESIGN.md, Layout: Plan; owner, 28 October 2026): the week as one card of its
+ * days, each date in its own column and each session with its sport's sign, then the programmes
+ * as one list. Nothing on it is said twice: the dates are the week's calendar, the signs its
+ * colour, the words its states.
  */
 
 /* ---------- the week ---------- */
-/* The week: its papers, the steps to the weeks either side, then what it holds, one gap apart
-   (DESIGN.md, The Rhythm Rule). */
-.plan-week {
-  display: grid;
-  gap: var(--ov-gap-stack);
+/* The week's steps: two round buttons at the end of the title's line. */
+.plan-steps {
+  display: flex;
+  gap: calc(8 * var(--ov-u));
 }
-/* A week with nothing in it: one quiet line on the tray, where its rows would stand. */
+/* One card: the days gone by folded at its head, then each day under a rule. */
+.plan-week {
+  padding: 0 var(--ov-pad-card);
+}
+/* A week with nothing in it: one quiet line where its rows would stand. */
 .plan-week-empty {
   display: grid;
-  min-height: var(--ov-target);
+  min-height: calc(56 * var(--ov-u));
   place-items: center;
-  padding: calc(8 * var(--ov-u)) calc(12 * var(--ov-u));
-  border-radius: var(--ov-radius-control);
-  background: var(--ov-tray);
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 600;
+  font-weight: var(--ov-label-weight);
   text-align: center;
 }
-/* The week as seven day papers, in the month's grammar (progress.css: .month): a day's marks
-   stand together in the middle of the room under its date, side by side, then two rows of
-   two, as the month's icons do. */
-.plan-paper-marks {
-  display: flex;
-  width: calc(2 * 16px + 3px);
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 3px;
+/* The days gone by, folded: one quiet line saying what became of them, the days under it. */
+.plan-earlier {
+  border-top: 0;
 }
-.plan-paper-more {
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  color: var(--ov-print-ink);
-  font-size: var(--ov-type-print-label);
-  font-weight: 700;
-  line-height: 1;
+.plan-earlier > summary {
+  min-height: calc(52 * var(--ov-u));
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+}
+.plan-earlier:last-child {
+  border-bottom: 0;
+}
+.plan-earlier > :not(summary) {
+  padding: 0;
+}
+.plan-earlier .plan-day:first-child {
+  border-top: 1px solid var(--ov-hair);
 }
 .plan-days {
   display: grid;
-  gap: var(--ov-gap-stack);
 }
-/* A paper opens its day's entry here: it stands clear of the top of the screen, not under it. */
+/* A day: its date in a column of its own, its sessions beside it, a rule between days. */
+/* The date column grows with the reader's text as its date does, so at 200% "Wed" and today's
+   disc keep their column and never run under the signs. */
 .plan-day {
+  display: grid;
+  grid-template-columns:
+    max(calc(40 * var(--ov-u)), calc(1.6 * var(--ov-type-section) + 4px))
+    minmax(0, 1fr);
+  column-gap: calc(14 * var(--ov-u));
+  padding: calc(14 * var(--ov-u)) 0;
+  border-top: 1px solid var(--ov-hair);
   scroll-margin-top: calc(env(safe-area-inset-top) + 12 * var(--ov-u));
+}
+.plan-days > .plan-day:first-child {
+  border-top: 0;
+}
+.plan-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.plan-date-weekday {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: var(--ov-label-weight);
+  line-height: 1.25;
+}
+.plan-date-day {
+  font-size: var(--ov-type-section);
+  font-weight: var(--ov-heading-weight);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+/* Today: the one dark disc on the screen. */
+.plan-date-today {
+  display: grid;
+  width: calc(1.6 * var(--ov-type-section));
+  height: calc(1.6 * var(--ov-type-section));
+  margin-top: 1px;
+  place-items: center;
+  border-radius: var(--ov-radius-full);
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+  line-height: 1;
+}
+.plan-sessions {
+  display: grid;
+  gap: calc(12 * var(--ov-u));
+}
+/* A session: its sign, its name and figure, and where it stands at the end. */
+.plan-session {
+  display: grid;
+  min-height: calc(36 * var(--ov-u));
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: calc(12 * var(--ov-u));
+  color: inherit;
+}
+.plan-session > .sport-sign {
+  margin-top: -1px;
+}
+.plan-session-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.plan-session-name {
+  font-size: var(--ov-type-heading);
+  font-weight: var(--ov-label-weight);
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+.plan-session-figure,
+.plan-session-status {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.plan-session-status {
+  line-height: calc(1.3 * var(--ov-type-heading));
+  white-space: nowrap;
 }
 
 /* ---------- the programmes ---------- */
-/* The whole card opens the programme: one target, its name the largest thing in it. Its parts
-   keep their own room (the sport over the name, the facts under it, the weeks, then what it waits
-   on), each from one margin, so the card never reads as a pile of lines. */
+/* A programme's row: its name, how it stands and what waits on it, its sign at the end. */
 .plan-programme {
-  display: grid;
-  min-height: var(--ov-target);
-  color: inherit;
-  text-decoration: none;
+  min-height: calc(72 * var(--ov-u));
 }
-.plan-programme > .plan-programme-name {
-  margin-top: calc(8 * var(--ov-u));
+.plan-programme > .sport-sign {
+  margin-right: calc(4 * var(--ov-u));
 }
-.plan-programme > .plan-programme-name + * {
-  margin-top: calc(4 * var(--ov-u));
-}
-.plan-programme > .plan-programme-weeks {
-  margin-top: calc(14 * var(--ov-u));
-}
-.plan-programme-sport {
-  display: flex;
-  align-items: center;
-  gap: calc(8 * var(--ov-u));
-}
-.plan-programme-name {
-  font-family: var(--ov-font-display);
-  font-size: var(--ov-type-card-title);
-  font-weight: var(--ov-title-weight);
-  letter-spacing: var(--ov-title-tracking);
-  line-height: 1.15;
-  overflow-wrap: break-word;
-}
-/* Its weeks as a row of segments in its sport's pigment (DESIGN.md, Layout: Plan): the weeks
-   done full, the current week thinned, the rest the surface, a tone off the card's own (the
-   tray's, surface 2 on a box) so they are seen. */
-.plan-programme-weeks {
-  --weeks-full: var(--ov-ink);
-  --weeks-now: var(--ov-control);
-  display: flex;
-  gap: 3px;
-}
-.plan-programme-weeks[data-sport="strength"] {
-  --weeks-full: var(--ov-print-strength);
-  --weeks-now: var(--ov-print-strength-todo);
-}
-.plan-programme-weeks[data-sport="run"] {
-  --weeks-full: var(--ov-print-run);
-  --weeks-now: var(--ov-print-run-todo);
-}
-.plan-programme-weeks[data-sport="ride"] {
-  --weeks-full: var(--ov-print-ride);
-  --weeks-now: var(--ov-print-ride-todo);
-}
-.plan-programme-weeks[data-sport="swim"] {
-  --weeks-full: var(--ov-print-swim);
-  --weeks-now: var(--ov-print-swim-todo);
-}
-.plan-programme-weeks > span {
-  height: calc(6 * var(--ov-u));
-  min-width: 0;
-  flex: 1 1 0;
-  border-radius: 3px;
-  background: var(--ov-tray);
-}
-.plan-programme-weeks > [data-state="done"] {
-  background: var(--weeks-full);
-}
-.plan-programme-weeks > [data-state="now"] {
-  background: var(--weeks-now);
-  box-shadow: inset 0 0 0 1px var(--weeks-full);
-}
-/* Forced colours drop backgrounds: the weeks done stay as the text's colour, the rest edged. */
-@media (forced-colors: active) {
-  .plan-programme-weeks > span {
-    border: 1px solid CanvasText;
-  }
-  .plan-programme-weeks > [data-state="done"] {
-    forced-color-adjust: none;
-    background: CanvasText;
-  }
-}
-
-/* Something waiting on the programme, the one fact on the card that asks for a decision: the
-   card's foot, under a rule reaching the card's edges, its dot of something to do, its words in
-   ink and the chevron the card opens by. */
-.plan-programme-waiting {
-  display: flex;
-  min-height: calc(44 * var(--ov-u));
-  align-items: center;
-  gap: calc(10 * var(--ov-u));
-  margin: calc(16 * var(--ov-u)) calc(-1 * var(--ov-pad-card)) calc(-8 * var(--ov-u));
-  padding: calc(8 * var(--ov-u)) var(--ov-pad-card) 0;
-  border-top: 1px solid var(--ov-hair);
+/* What waits on a programme is news: in ink, as a row's request is. */
+.plan-programme-waits {
+  margin-top: 2px;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
-  line-height: 1.3;
-}
-.plan-programme-waiting-dot {
-  width: calc(8 * var(--ov-u));
-  height: calc(8 * var(--ov-u));
-  flex: none;
-  border-radius: var(--ov-radius-full);
-  background: var(--ov-ink);
+  font-weight: var(--ov-label-weight);
+  line-height: 1.35;
 }

@@ -207,7 +207,7 @@ export function MachineDecision({
         <Button
           key={option.fallbackId}
           variant="tonal"
-          className="w-full bg-ground"
+          className="w-full bg-backdrop"
           disabled={!option.available || disabled}
           onClick={() =>
             onFallback(option.exerciseId, option.equipmentInstanceId, option.exerciseName)
@@ -270,7 +270,7 @@ export function MachineDecision({
           <div className="machine-ask-row">
             <Button
               variant="tonal"
-              className="bg-ground"
+              className="bg-backdrop"
               disabled={answering}
               onClick={() => notHere(ask.typeId, ask.name)}
             >
@@ -279,7 +279,7 @@ export function MachineDecision({
             {basic && ask.family ? (
               <Button
                 variant="tonal"
-                className="bg-ground"
+                className="bg-backdrop"
                 aria-haspopup="dialog"
                 disabled={answering}
                 onClick={() => setVariants(true)}
@@ -289,7 +289,7 @@ export function MachineDecision({
             ) : !basic ? (
               <Button
                 variant="tonal"
-                className="bg-ground"
+                className="bg-backdrop"
                 disabled={answering}
                 onClick={() => onUnsure(true)}
               >
@@ -362,7 +362,7 @@ export function MachineDecision({
               <Button
                 key={machine.id}
                 variant={index === 0 ? "primary" : "tonal"}
-                className={index === 0 ? "w-full" : "w-full bg-ground"}
+                className={index === 0 ? "w-full" : "w-full bg-backdrop"}
                 disabled={disabled}
                 onClick={() => onFallback(exercise.exercise.id, machine.id, exercise.exercise.name)}
               >
@@ -372,7 +372,7 @@ export function MachineDecision({
           )}
           <Button
             variant="tonal"
-            className="w-full bg-ground"
+            className="w-full bg-backdrop"
             disabled={disabled}
             onClick={() =>
               setGone(

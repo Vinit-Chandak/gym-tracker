@@ -474,7 +474,8 @@ export function entrySize(texts: readonly string[], width: number, grow = 1): nu
 
 /**
  * The log's figure size: 32 at most (26 in History), stepping down the ramp until the widest
- * load fits its column (DESIGN.md: 102.5 takes 28 at 360 dp and 26 at 320 pt), never under 20.
+ * load fits its column (102.5 takes 28 at 360 dp, and 20 at 320 pt, where Host Grotesk's digits
+ * run it past a 26), never under 20.
  */
 export function logSize(loads: readonly string[], width: number, grow = 1, max = 32): number {
   const widest = Math.max(1, ...loads.map(emWidth));

@@ -64,7 +64,7 @@ export default async function PrivacyPage() {
             sports={additional}
           />
         </div>
-        <ul className="mt-1.5">
+        <ul className="ov-panel ov-panel-list mt-3">
           <PrivacyListRow glyph="people" title="What a follower can see" lines={VISIBLE} />
           <PrivacyListRow glyph="lock" title="What nobody can see" lines={NEVER} />
         </ul>

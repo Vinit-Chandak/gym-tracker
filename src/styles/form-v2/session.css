@@ -150,7 +150,7 @@ html:has(.session-layer) body {
   margin-top: calc(4 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.4;
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -249,7 +249,7 @@ button.log-line {
 .log-number {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   font-variant-numeric: tabular-nums lining-nums;
 }
 .log-figure {
@@ -389,7 +389,7 @@ button.log-line {
   border: 1.5px solid var(--ov-ink);
   border-radius: var(--ov-radius-tag);
   font-size: calc(2px + 0.75rem);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1;
 }
 
@@ -431,7 +431,7 @@ button.log-line {
   padding-top: var(--entry-op-top, calc(13 * var(--ov-u)));
   color: var(--ov-ink-2);
   font-size: var(--entry-op, calc(20 * var(--ov-u)));
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.4;
   text-align: center;
 }
@@ -479,7 +479,7 @@ button.log-line {
 }
 /* The hint is read, never tapped: ⓘ's full target reaches under it and keeps the tap. */
 .stepper-hint {
-  font-weight: 500;
+  font-weight: 450;
   font-variant-numeric: tabular-nums lining-nums;
   pointer-events: none;
 }
@@ -618,7 +618,7 @@ button.log-line {
 .entry-slot-message[data-signal] {
   padding: calc(8 * var(--ov-u)) calc(10 * var(--ov-u));
   border-radius: var(--ov-radius-control);
-  font-weight: 700;
+  font-weight: 650;
 }
 .entry-slot-message[data-signal="danger"] {
   background: var(--ov-danger-tint);
@@ -638,7 +638,7 @@ button.log-line {
   min-height: var(--ov-target);
   margin: calc(-12 * var(--ov-u)) 0;
   padding: 0 calc(4 * var(--ov-u));
-  font-weight: 700;
+  font-weight: 650;
   text-decoration: underline;
   text-underline-offset: calc(3 * var(--ov-u));
 }
@@ -1064,13 +1064,13 @@ html:has(.session-page) .pinned-actions {
 }
 .record-row-name {
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.4;
   overflow-wrap: break-word;
 }
 .record-row-sets {
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
   overflow-wrap: break-word;
@@ -1091,21 +1091,22 @@ html:has(.session-page) .pinned-actions {
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.45;
   overflow-wrap: break-word;
 }
 .not-done {
-  padding: calc(6 * var(--ov-u)) 0 calc(10 * var(--ov-u));
-  border-bottom: 1px solid var(--ov-hair);
+  padding: calc(12 * var(--ov-u)) var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.45;
   overflow-wrap: break-word;
 }
 /* A row that comes to a figure (records): the name and what it is at the gutter, the figure
-   trailing in Jost with its unit. */
+   trailing with its unit. */
 .figure-row {
   display: flex;
   min-height: calc(52 * var(--ov-u));
@@ -1124,7 +1125,7 @@ html:has(.session-page) .pinned-actions {
 .figure-row-meta {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
   overflow-wrap: break-word;
@@ -1151,11 +1152,15 @@ html:has(.session-page) .pinned-actions {
    five-digit volume, "11,078 lb") widens its own column rather than running past the gutter.
    Fewer, never squeezed under 4.5rem, as the text grows. Each row spreads across the column,
    so a tablet's leaves no empty room after its last stat. */
+/* What the workout came to, one card (owner, 28 October 2026), as a run's stats are. */
 .finished-stats {
   display: flex;
   flex-wrap: wrap;
   gap: calc(10 * var(--ov-u));
   margin-top: calc(14 * var(--ov-u));
+  padding: calc(12 * var(--ov-u)) var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
 }
 .finished-stats > div {
   flex: 1 1 4.5rem;
@@ -1183,6 +1188,9 @@ html:has(.session-page) .pinned-actions {
     minmax(min(100%, max(var(--check-in-cell, 4.25rem), var(--check-in-half))), 1fr)
   );
   gap: var(--check-in-gap);
+  padding: calc(12 * var(--ov-u)) var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
 }
 /* Each name sits just over its figure, so the figures of a row share one line even where a name
    would still wrap. */

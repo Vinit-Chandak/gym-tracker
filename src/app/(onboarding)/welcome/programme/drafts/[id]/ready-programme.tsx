@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useState, useTransition } from "react";
 
 import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { AskForChangesSheet, type CoachAnswer } from "@/components/coaching/ask-for-changes";
 import { coachingAction } from "@/components/coaching/client-action";
 import { CoachQuestions } from "@/components/coaching/coach-questions";
@@ -156,7 +157,7 @@ export function ReadyProgramme({
                   className="size-full"
                 />
               ) : (
-                <Art kind="mark" sport="run" size={22} state="todo" />
+                <SportSign sport="run" size={32} />
               )}
             </span>
             <span className="min-w-0 flex-1">

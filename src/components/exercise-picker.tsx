@@ -142,7 +142,7 @@ export function ExercisePicker(props: ExercisePickerProps) {
                 </span>
               )}
             </h2>
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               {group.items.map((exercise) => {
                 const glyph = exerciseGlyph(exercise);
                 const place = several ? props.selected.indexOf(exercise.id) + 1 : 0;

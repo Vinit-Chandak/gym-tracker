@@ -1,7 +1,7 @@
 import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { CoachPaused } from "@/components/coaching/coach-paused";
 import { RunningIntakeForm } from "@/components/coaching/running-intake-form";
 import { coachConfigured } from "@/components/coaching/setup-coach";
@@ -114,12 +114,12 @@ export default async function NewProgrammePage({
       />
       <PageContent>
         {!selected ? (
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             {ACTIVITY_SPORTS.map((item) => (
               <NavRow
                 key={item}
                 href={`/plan/new?sport=${item}` as Route}
-                lead={<Art kind="mark" sport={MARK[item]} size={20} />}
+                lead={<SportSign sport={MARK[item]} />}
                 label={ACTIVITY_SPORT_LABELS[item]}
               />
             ))}
@@ -148,7 +148,7 @@ export default async function NewProgrammePage({
           />
         ) : (
           <div className="space-y-4">
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               <NavRow
                 href={builderHref(selected, "repeating")}
                 glyph="repeat"

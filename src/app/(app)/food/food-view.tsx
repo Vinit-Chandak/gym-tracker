@@ -16,7 +16,7 @@ import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
 import { joinFacts } from "@/lib/facts";
-import { formatKcal, formatSplit } from "@/lib/format";
+import { formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
@@ -178,7 +178,8 @@ export function FoodView({
   for (const entry of day.entries) byMeal.get(entry.meal)?.push(entry);
   // The meals in the bowl, each with its place in it, which gives its row its layer.
   const inBowl = mealTotals(day.entries);
-  // Targets that cannot do what they are meant to say so on their tile, where they are opened.
+  // The target is said once, over the bowl ("/ 2,600 kcal", or No daily target yet), so the
+  // tile says only what stops the targets doing their work, where they are opened.
   const attention = !target
     ? undefined
     : target.overBudget
@@ -233,7 +234,7 @@ export function FoodView({
             )}
           </div>
           <div className="min-w-0">
-            <ul className="food-meals food-list" aria-label="Meals">
+            <ul className="ov-panel ov-panel-list food-meals food-list" aria-label="Meals">
               {MEALS.map((meal) => {
                 const layer = inBowl.findIndex((total) => total.meal === meal);
                 return (
@@ -251,12 +252,7 @@ export function FoodView({
             </ul>
 
             <div className="food-tiles">
-              <FoodTile
-                href={links.targets}
-                glyph="target"
-                title="Targets"
-                lines={[target ? `${formatKcal(target.kcal)}\u00a0kcal` : "Not set", attention]}
-              />
+              <FoodTile href={links.targets} glyph="target" title="Targets" lines={[attention]} />
               <FoodTile
                 href={links.myFoods}
                 glyph="book"

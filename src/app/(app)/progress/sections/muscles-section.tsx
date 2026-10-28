@@ -59,15 +59,19 @@ export function MusclesSection({ muscles, today }: Pick<ProgressData, "muscles" 
           <Glyph name="chevronRight" className="glyph-22" />
         </button>
       </div>
-      <div className="graph-readout-head">
-        <h2 className="graph-readout-label">Working sets</h2>
-        <InfoTip label="About working sets" className="graph-readout-note">
-          Working sets from finished workouts. A set counts once for each primary muscle and half
-          for each secondary one; warm-ups are excluded.
-        </InfoTip>
-      </div>
-      <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-        <BodyMap volume={muscles.volume} totalSets={muscles.totalSets} />
+      {/* The map is a card, as every graph is: its caption, the figures, their key and the
+          numbers folded at its foot. */}
+      <div className="chart-card">
+        <div className="graph-readout-head">
+          <h2 className="graph-readout-label">Working sets</h2>
+          <InfoTip label="About working sets" className="graph-readout-note">
+            Working sets from finished workouts. A set counts once for each primary muscle and half
+            for each secondary one; warm-ups are excluded.
+          </InfoTip>
+        </div>
+        <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+          <BodyMap volume={muscles.volume} totalSets={muscles.totalSets} />
+        </div>
       </div>
     </div>
   );

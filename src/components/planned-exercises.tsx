@@ -95,7 +95,7 @@ export function PlannedExerciseList({
           {block.items.map((exercise) => (
             <div key={exercise.programExerciseId} className="min-w-0">
               <p className="text-sm [overflow-wrap:break-word]">{exercise.name}</p>
-              {/* Its figures in Jost, each range held at its dash: "@ 1–" never ends a line. */}
+              {/* Its figures tabular, each range held at its dash: "@ 1–" never ends a line. */}
               <p className="mt-0.5 text-xs text-ink-muted tabular-nums">
                 <Figures>{holdFigures(prescription(exercise, length))}</Figures>
               </p>

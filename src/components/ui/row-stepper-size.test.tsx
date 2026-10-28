@@ -52,5 +52,5 @@ it("fits the figure against the size a 26 is drawn at here, not against 26", () 
 
 it("keeps the 26 where the figure fits beside its unit", () => {
   expect(distance("1640", 29)).toBe("");
-  expect(distance("10000", 26)).toBe("");
+  expect(distance("1640", 26)).toBe("");
 });

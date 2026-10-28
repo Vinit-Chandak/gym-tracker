@@ -190,7 +190,8 @@ describe("Log (ADR 0058)", () => {
      * Impeccable review, 20 October 2026: Counts as listed nine rows all named "Run". Each is
      * named as Today's card and the session's page name it (ADR 0059): its own name, else its
      * kind, else its sport, with its figure on the line under it beside where it stands. A name
-     * that only repeats its figure gives way to its kind. Its mark is drawn still to do.
+     * that only repeats its figure gives way to its kind. Every row is a run, so none carries the
+     * run's sign (owner, 28 October 2026: a sign says the sport where the words do not).
      */
     it("names each session as Today does, its figure on the line under it", async () => {
       const planned = (extra: Record<string, unknown>) =>
@@ -221,7 +222,7 @@ describe("Log (ADR 0058)", () => {
         "RunFri 23 Oct · early · 30 min",
         "Unplanned run",
       ]);
-      expect(html).toContain("var(--ov-print-run-todo)");
+      expect(html).not.toContain("sport-sign");
     });
 
     it("is unplanned without asking when nothing is planned", async () => {

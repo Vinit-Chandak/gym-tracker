@@ -25,11 +25,13 @@ it("steps the figure down the ramp to fit the room its column leaves beside the 
   expect(figureSize("1640", 160 - 64 - 3, 1.5)).toBe(20);
   // A figure with no unit beside it keeps its size: 31:22 has the whole column.
   expect(figureSize("31:22", 160, 1.5)).toBe(26);
-  // 1440 at 100% text, where a 26 is drawn at 29 in a 135-pt column beside a 48-pt yd: 10000 fits
-  // as a 26 would be at 26 px, but at 29 it ran into − and lost its last 0.
-  expect(figureSize("10000", 135 - 48 - 3)).toBe(26);
-  expect(figureSize("10000", 135 - 48 - 3, 29 / 26)).toBe(20);
+  // 1440 at 100% text, where a 26 is drawn at 29 in a 135-pt column beside a 48-pt yd: 1640 fits
+  // at 29; 10000, five of Host Grotesk's 0.65-em digits, runs past the 84 pt even at 26.
   expect(figureSize("1640", 135 - 48 - 3, 29 / 26)).toBe(26);
+  expect(figureSize("10000", 135 - 48 - 3)).toBe(20);
+  // The size it is drawn at decides: in 72 pt, 1640 fits as a 26 drawn at 26 and not at 29.
+  expect(figureSize("1640", 72)).toBe(26);
+  expect(figureSize("1640", 72, 29 / 26)).toBe(20);
   // Never under 20, the ramp's last figure size, and never over 26.
   expect(figureSize("123456.5", 60, 1.5)).toBe(20);
   expect(figureSize("–", 200)).toBe(26);

@@ -27,15 +27,17 @@ export function ProgressBar({
   sport?: keyof typeof SPORT_FILL;
 }) {
   const percent = max > 0 ? Math.min(100, Math.max(0, Math.round((value / max) * 100))) : 0;
+  // On the ground or in a card, the track is the rule's grey; the fill ends square, so a bar just
+  // begun reads as a start and never as a slider's handle (owner, 28 October 2026).
   return (
     <div
       role="img"
       aria-label={label}
-      className={cn("h-1.5 w-full overflow-hidden rounded-full bg-surface-raised", className)}
+      className={cn("h-2 w-full overflow-hidden rounded-full bg-hair", className)}
     >
       <div
-        className={cn("h-full rounded-full", sport ? SPORT_FILL[sport] : "bg-ink")}
-        style={{ width: `${percent}%` }}
+        className={cn("h-full", sport ? SPORT_FILL[sport] : "bg-ink")}
+        style={{ width: `${percent}%`, minWidth: value > 0 ? "12px" : undefined }}
       />
     </div>
   );

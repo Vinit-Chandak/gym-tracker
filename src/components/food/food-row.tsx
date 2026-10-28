@@ -6,7 +6,7 @@ import { formatWholeKcal } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * The one food row (owner, 8 October 2026; DESIGN.md, Rows and marks), wherever food is listed:
+ * The one food row (owner, 8 October 2026; DESIGN.md, Rows and signs), wherever food is listed:
  * a meal's page, My foods, a saved meal, a meal being built, the Food tab's meals and a
  * macronutrient's foods. A round tile leads it; its name keeps one line and what is under it one
  * more, each ending in an ellipsis rather than wrapping, so every row stands the same height; what
@@ -36,7 +36,7 @@ export function FoodRowText({
       {meta !== undefined && (
         <>
           {" "}
-          {/* A portion's figures in Jost, whose zero is plain ("100 g"), its words in Atkinson. */}
+          {/* A portion's figures tabular ("100 g"), its words as words. */}
           <span className={cn("food-row-meta", wraps && "food-row-hint")}>
             {/* Only a line with figures gets their spans: a long list of foods stays one run
                 of text inside the line it is cut to. */}
@@ -53,7 +53,7 @@ export function RowGlyph({ name, label }: { name: GlyphName; label?: string }) {
   return <Glyph name={name} label={label} className="food-row-glyph glyph-16" />;
 }
 
-/** What a row comes to, in Jost, over its unit, both centred in the column. */
+/** What a row comes to, a figure over its unit, both centred in the column. */
 export function RowFigure({ figure, unit }: { figure: ReactNode; unit: string }) {
   return (
     <span className="food-row-figure">

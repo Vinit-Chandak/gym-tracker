@@ -4,7 +4,7 @@ import { activities, gyms, programDays, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { DateRange } from "@/server/validation/date-range";
 
-import { listActivityPage, readActivityList } from "./activity-analytics";
+import { readActivityList } from "./activity-analytics";
 import { strengthOnDays, strengthParent } from "./strength-day";
 import { readRecovery, readRunActivities, TRAINING_RECORD_LIMIT } from "./training-data";
 
@@ -104,28 +104,4 @@ export async function readHistory(db: DbOrTx, userId: string, range: DateRange) 
     runsTruncated: runs.hasMore,
     enduranceTruncated: endurance.nextCursor !== null,
   };
-}
-
-/**
- * The newest activities of every sport, for Overview's latest (ADR 0045): `limit` of each, so
- * whatever the mix, the newest `limit` of them all are among what comes back. Recovery
- * check-ins are not activities: the calendar has no mark for them, and neither does this.
- */
-export async function readLatestActivities(
-  db: DbOrTx,
-  userId: string,
-  range: DateRange,
-  limit: number,
-) {
-  const [workouts, runs, endurance] = await Promise.all([
-    readHistoryWorkouts(db, userId, range, limit),
-    readRunActivities(db, userId, range, 0, limit),
-    listActivityPage(db, userId, {
-      sports: ["cycling", "swimming"],
-      from: range.from,
-      to: range.to,
-      limit,
-    }),
-  ]);
-  return { workouts: workouts.workouts, runs: runs.runs, endurance: endurance.items };
 }

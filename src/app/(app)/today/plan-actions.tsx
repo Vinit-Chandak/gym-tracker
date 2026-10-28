@@ -407,7 +407,7 @@ export function PickUpFromToday({
       {/* The count's basis is its own width, so the button goes under it, at the end, before it
           would squeeze it: from a basis of zero it stood a letter a line beside it at 200% text. */}
       <div className="pick-up flex flex-wrap items-center gap-x-4 gap-y-2">
-        {/* "36 missed" (ADR 0058, Words): the figure in Jost, the word in ink 2. */}
+        {/* "36 missed" (ADR 0058, Words): the figure, the word in ink 2. */}
         <p className="min-w-0 flex-auto type-meta [overflow-wrap:break-word] text-ink-2">
           <span className="figures">{count}</span> missed
         </p>

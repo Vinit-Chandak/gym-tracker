@@ -60,10 +60,10 @@ export function SessionPage({
               <Glyph name="close" className="glyph-22" />
             </Link>
           </div>
-          <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-0.5">
+          <FitTitle as="h1" sizes={{ base: 30, narrow: 28 }} className="mt-0.5">
             {title}
           </FitTitle>
-          {meta && <p className="meta-line mt-1 [overflow-wrap:break-word]">{meta}</p>}
+          {meta && <p className="page-fact meta-line">{meta}</p>}
         </header>
       )}
       <div className="session-page-body page-width">{children}</div>

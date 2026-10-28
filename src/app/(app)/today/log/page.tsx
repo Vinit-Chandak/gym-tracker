@@ -2,7 +2,7 @@ import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { enduranceName, plannedName } from "@/components/activities/endurance-line";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -133,13 +133,13 @@ export default async function LogPage(props: PageProps<"/today/log">) {
       <>
         <PageHeader title="Log" backHref="/today" />
         <PageContent>
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             {(offered.length > 0 ? offered : ACTIVITY_SPORTS).map((item) => (
               <NavRow
                 key={item}
                 href={`/today/log?sport=${item}` as Route}
-                // A chooser's marks are still to do, thinned, as Today and Plan draw them.
-                lead={<Art kind="mark" sport={MARK[item]} size={20} state="todo" />}
+                // A chooser leads each row with its sport's sign.
+                lead={<SportSign sport={MARK[item]} />}
                 label={noun(item)}
               />
             ))}
@@ -181,36 +181,43 @@ export default async function LogPage(props: PageProps<"/today/log">) {
   if (choice === undefined)
     return (
       <>
-        <PageHeader title={title} meta="Counts as" backHref="/today/log" />
+        <PageHeader title={title} backHref="/today/log" />
         <PageContent>
-          <ul>
-            {sport === "strength"
-              ? [...lifting]
-                  .sort((a, b) => Number(b.next) - Number(a.next))
-                  .map((option) => (
+          {/* The sessions it can count as, one card, then the way to count it as none. Every row
+              is the title's sport, so none carries its sign (DESIGN.md, Rows and signs). */}
+          <section aria-labelledby="log-counts-as">
+            <h2 id="log-counts-as" className="caption-head">
+              Counts as
+            </h2>
+            <ul className="ov-panel ov-panel-list">
+              {sport === "strength"
+                ? [...lifting]
+                    .sort((a, b) => Number(b.next) - Number(a.next))
+                    .map((option) => (
+                      <NavRow
+                        key={option.key}
+                        href={`/today/log?sport=strength&counts=${option.key}` as Route}
+                        label={holdHyphens(option.name)}
+                        sub={liftingSub(option)}
+                      />
+                    ))
+                : sessions.map((session) => (
                     <NavRow
-                      key={option.key}
-                      href={`/today/log?sport=strength&counts=${option.key}` as Route}
-                      lead={<Art kind="mark" sport="strength" size={20} state="todo" />}
-                      label={holdHyphens(option.name)}
-                      sub={liftingSub(option)}
+                      key={session.id}
+                      href={`/today/log?sport=${sport}&counts=${session.id}` as Route}
+                      // Named as Today's card and the session's page name it; its figure is
+                      // the line under it, beside where it stands.
+                      label={holdHyphens(plannedName(session.prescription, sport, data.units!))}
+                      sub={joinFacts([
+                        standing(session, today),
+                        session.prescription &&
+                          describePrescription(session.prescription, data.units!),
+                      ])}
                     />
-                  ))
-              : sessions.map((session) => (
-                  <NavRow
-                    key={session.id}
-                    href={`/today/log?sport=${sport}&counts=${session.id}` as Route}
-                    lead={<Art kind="mark" sport={MARK[sport]} size={20} state="todo" />}
-                    // Named as Today's card and the session's page name it; its figure is
-                    // the line under it, beside where it stands.
-                    label={holdHyphens(plannedName(session.prescription, sport, data.units!))}
-                    sub={joinFacts([
-                      standing(session, today),
-                      session.prescription &&
-                        describePrescription(session.prescription, data.units!),
-                    ])}
-                  />
-                ))}
+                  ))}
+            </ul>
+          </section>
+          <ul className="ov-panel ov-panel-list">
             <NavRow
               href={`/today/log?sport=${sport}&counts=unplanned` as Route}
               glyph="plus"
@@ -308,7 +315,7 @@ export default async function LogPage(props: PageProps<"/today/log">) {
               </Button>
             </form>
             {/* Done already: its time is asked for, and it opens without a rest timer. */}
-            <Disclosure summary="Done earlier" variant="inline">
+            <Disclosure summary="Done earlier">
               <form action="/workouts/start" className="space-y-4 pt-2">
                 {dayFields}
                 {gymField("log-gym-earlier")}

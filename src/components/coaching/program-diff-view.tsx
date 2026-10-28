@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { DayOperation, DiffField } from "@/domain/program-diff";
@@ -244,7 +244,7 @@ function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
   // weeks between are left as they were.
   const label = `${runs.weeks.length === 1 ? "Run" : "Runs"}${FACT_SEPARATOR}${weeksLabel(runs.weeks)}`;
   return (
-    <Operation mark={<Art kind="mark" sport="run" size={14} />} label={label} reason={reason}>
+    <Operation mark={<SportSign sport="run" size={16} />} label={label} reason={reason}>
       {runs.lines.length > 0 ? (
         <Lines lines={runs.lines} />
       ) : (

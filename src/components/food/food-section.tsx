@@ -56,7 +56,7 @@ export function FoodSection<T>({
       <h2 ref={heading} className="caption-head scroll-mt-20">
         {title}
       </h2>
-      <ul className="food-list" aria-label={title}>
+      <ul className="ov-panel ov-panel-list food-list" aria-label={title}>
         {items.slice((current - 1) * perPage, current * perPage).map(row)}
       </ul>
       <PageTabs

@@ -166,14 +166,15 @@ it("asks for a target until there is one, naming the goal's split, meals still b
     "/food/targets",
   );
   expect(screen.getByRole("link", { name: /^Lunch/ }).textContent).toContain("300 kcal");
-  expect(screen.getByRole("link", { name: "Targets Not set" })).toBeTruthy();
+  // Said once, over the bowl: the tile does not say it again.
+  expect(screen.getByRole("link", { name: "Targets" })).toBeTruthy();
 });
 
 it("ends with the targets and then My foods, each a screen of its own", () => {
   view([], { library: { foods: 2, meals: 1 } });
   const links = screen.getAllByRole("link");
   expect(links.slice(-2)).toEqual([
-    screen.getByRole("link", { name: "Targets 2,300\u00a0kcal" }),
+    screen.getByRole("link", { name: "Targets" }),
     // A count keeps its noun on its line, and the dot goes with the count after it.
     screen.getByRole("link", { name: "My foods 2\u00a0foods ·\u00a01\u00a0meal" }),
   ]);
@@ -189,7 +190,7 @@ it("ends with the targets and then My foods, each a screen of its own", () => {
 it("says on the targets' tile what stops them doing what they are for", () => {
   view([], { bodyWeightKg: null });
   expect(
-    screen.getByRole("link", { name: "Targets 2,300\u00a0kcal Add your body weight for protein" }),
+    screen.getByRole("link", { name: "Targets Add your body weight for protein" }),
   ).toBeTruthy();
 });
 

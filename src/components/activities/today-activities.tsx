@@ -1,7 +1,6 @@
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
-import { CardLink } from "@/components/ui/card-link";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
 import { Figures } from "@/components/ui/figures";
@@ -28,7 +27,7 @@ const MARK: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "swim"> 
   swimming: "swim",
 };
 
-/** A fact of a card's meta line, led by its glyph (DESIGN.md, Rows and marks). */
+/** A fact of a card's meta line, led by its glyph (DESIGN.md, Rows and signs). */
 function Fact({ glyph, children }: { glyph: GlyphName; children: React.ReactNode }) {
   return (
     <span className="meta-fact">
@@ -66,7 +65,7 @@ function unsaidTargets(
 /**
  * The whole of an endurance session, for its card's fold: the targets its head does not already
  * say, the steps as written, how to run it, and the coach's word on it where the coach wrote
- * one, each said here once. Then the way to skip or move it, which is its own page (plan §7).
+ * one, each said here once. Skipping or moving it is the card's second button (plan §7).
  */
 function EnduranceDetails({
   occurrence,
@@ -131,16 +130,15 @@ function EnduranceDetails({
           ))}
         </dl>
       )}
-      <CardLink href={`/plan/sessions/${occurrence.id}`}>Skip or move</CardLink>
     </div>
   );
 }
 
 /**
  * A run, a ride or a swim owed today, whatever put it there (plan §2.3), as a card of its own
- * in the workout's style (DESIGN.md, Today): the sport's mark in its state, the name and what
- * it asks for, when, the whole session folded behind the head (how to do it said there, once),
- * and its own Log button.
+ * in the workout's style (DESIGN.md, Today): the name and what it asks for, the sport's sign,
+ * when, its own Log button with Skip or move beside it, one width each, and the whole session
+ * folded under them (how to do it said there, once).
  *
  * Two sources meet here and neither is allowed to pretend to be the other. Work the athlete put
  * on the calendar is here because it is dated today. The programme's own endurance is here
@@ -154,6 +152,7 @@ export function EnduranceCard({
   partOf,
   coachSummary,
   units = DEFAULT_SPORT_UNITS,
+  primary = false,
 }: {
   /** `preparedByCoach` when the prescription is the coach's preparation for today. */
   occurrence: ScheduledOccurrence & { preparedByCoach?: boolean };
@@ -169,6 +168,8 @@ export function EnduranceCard({
   coachSummary?: string | null;
   /** How the athlete reads this sport's distances; its targets are said in them. */
   units?: SportUnits;
+  /** Log is the screen's one filled action: nothing else on Today is owed before it. */
+  primary?: boolean;
 }) {
   if (occurrence.sport === "strength") return null;
   const sport = occurrence.sport;
@@ -194,7 +195,7 @@ export function EnduranceCard({
 
   return (
     <ActivityCard
-      mark={<Art kind="mark" sport={MARK[sport]} size={22} state="todo" />}
+      mark={<SportSign sport={MARK[sport]} size={40} />}
       title={name}
       aside={
         target ? (
@@ -226,6 +227,7 @@ export function EnduranceCard({
           </>
         )
       }
+      detailsLabel="Steps and pace"
       details={
         <EnduranceDetails
           occurrence={occurrence}
@@ -235,15 +237,20 @@ export function EnduranceCard({
         />
       }
       actions={
-        <LinkButton
-          href={`/today/log/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
-          variant="tonal"
-          className="w-full"
-          aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}
-        >
-          <Glyph name="plus" className="glyph-18" />
-          {LOG_LABEL[sport]}
-        </LinkButton>
+        // Peers, one width each, the next step first (DESIGN.md, The Equal Actions Rule).
+        <div className="action-row">
+          <LinkButton
+            href={`/today/log/new?occurrence=${occurrence.id}&${ORIGIN_PARAM}=today`}
+            variant={primary ? "primary" : "tonal"}
+            aria-label={said ? `${LOG_LABEL[sport]}: ${said}` : undefined}
+          >
+            <Glyph name="plus" className="glyph-18" />
+            {LOG_LABEL[sport]}
+          </LinkButton>
+          <LinkButton href={`/plan/sessions/${occurrence.id}`} variant="tonal">
+            Skip or move
+          </LinkButton>
+        </div>
       }
     />
   );

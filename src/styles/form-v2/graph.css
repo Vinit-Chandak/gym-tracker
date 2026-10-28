@@ -14,6 +14,19 @@
   --graph-thin: var(--ov-control);
   min-width: 0;
 }
+/* Every graph is one card (owner, 28 October 2026): its readout, its plot, its spans and the
+   row that opens its values, which ends the card as a fold ends Today's cards; the muscles' map
+   is a card the same way. What stands in it (the spans' tray) steps to the ground's tone, as in
+   every card. */
+.graph,
+.chart-card {
+  padding: var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
+}
+.graph:has(> .chart-values) {
+  padding-bottom: 0;
+}
 .graph[data-pigment="strength"] {
   --graph-full: var(--ov-print-strength);
   --graph-thin: var(--ov-print-strength-todo);
@@ -56,7 +69,7 @@
   gap: calc(8 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.3;
 }
 .graph-readout-label {
@@ -98,7 +111,7 @@
   overflow-wrap: break-word;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -112,7 +125,7 @@
   margin-bottom: calc(-6 * var(--ov-u));
   color: var(--ov-ink);
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -144,7 +157,7 @@
   padding: 0 calc(8 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.4;
   text-align: center;
 }
@@ -153,7 +166,15 @@
   margin-top: calc(10 * var(--ov-u));
 }
 
-/* Every value, newest first; a value with a record behind it opens it. */
+/* Every value, newest first, at the card's inset; a value with a record behind it opens it. The
+   card's edge ends the last. */
+.graph-values-list {
+  padding: 0 var(--panel-padding);
+}
+.graph-values-list > li:last-child,
+.graph-values-list > li:last-child > .graph-value-row {
+  border-bottom: 0;
+}
 .graph-value-row {
   display: flex;
   min-height: calc(44 * var(--ov-u));
@@ -179,7 +200,7 @@
   min-height: var(--ov-target);
   align-items: center;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 /* Head to head: each line's figure under its name and its line's key, the first line's first.
@@ -208,7 +229,7 @@
   margin-top: 2px;
   color: var(--ov-ink);
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
 }
 .graph-side-label {
@@ -244,7 +265,7 @@
   gap: 2px;
   color: var(--ov-ink);
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
 }
 
@@ -286,7 +307,7 @@
   width: 5.5rem;
   align-items: flex-start;
   padding-block: calc(8 * var(--ov-u));
-  font-weight: 700;
+  font-weight: 650;
   white-space: normal;
 }
 /* The key sits in the name's text, so it stays beside the first line however the name wraps. */

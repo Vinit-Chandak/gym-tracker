@@ -557,7 +557,7 @@ function EquipmentRows({
   onAbout,
 }: RowProps & { items: readonly StarterItem[]; label: string }) {
   return (
-    <ul aria-label={label}>
+    <ul aria-label={label} className="ov-panel ov-panel-list">
       {items.map((item) => {
         if (isBasic(item) && !isHere(item)) {
           const missing = markedNotHere(item);

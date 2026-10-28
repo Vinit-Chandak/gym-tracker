@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { WeekSession } from "@/domain/plan-week";
 
-import { PlanView, programmeWeeks, type PlanCard } from "./plan-view";
+import { PlanView, type PlanCard } from "./plan-view";
 
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
@@ -54,24 +54,26 @@ const show = (sessions: WeekSession[], monday = MONDAY) =>
 /** What a row says, as read: no-break spaces as spaces. */
 const read = (element: Element) => element.textContent!.replace(/\u00a0/g, " ");
 
-it("folds a day gone by to one closed row naming the day and what became of it", () => {
+/** Owner, 28 October 2026: the week is one card, each fact said once. */
+it("folds the days gone by into one closed row saying what became of them", () => {
   const { container } = show(WEEK);
   expect(container.querySelectorAll("details")).toHaveLength(1);
   const gone = container.querySelector("details")!;
   const summary = gone.querySelector("summary")!;
   expect(gone.open).toBe(false);
-  expect(read(summary)).toBe("Mon 19 Oct, 1 done · 1 missed");
+  expect(read(summary)).toBe("Mon 19, 1 done · 1 missed");
 
-  // Opened, it shows the day's rows: the lifting day opens its day's page, the run its own.
+  // Opened, it shows the day's rows: the lifting day opens its day's page, the run its own,
+  // each saying once what became of it.
   fireEvent.click(summary);
   expect(gone.open).toBe(true);
   const rows = within(gone);
-  expect(rows.getByRole("link", { name: /Upper A/ }).getAttribute("href")).toBe(
-    "/plan/strength/days/day-1",
-  );
-  expect(rows.getByRole("link", { name: /Easy run/ }).getAttribute("href")).toBe(
-    "/plan/sessions/session-2",
-  );
+  const upper = rows.getByRole("link", { name: /Upper A/ });
+  expect(upper.getAttribute("href")).toBe("/plan/strength/days/day-1");
+  expect(read(upper)).toBe("Upper ADone");
+  const run = rows.getByRole("link", { name: /Easy run/ });
+  expect(run.getAttribute("href")).toBe("/plan/sessions/session-2");
+  expect(read(run)).toBe("Easy runMissed");
 });
 
 it("keeps today and the days to come open, today's lifting day pointing to Today", () => {
@@ -82,62 +84,48 @@ it("keeps today and the days to come open, today's lifting day pointing to Today
   const later = screen.getByRole("link", { name: /^Upper B/ });
   expect(later.getAttribute("href")).toBe("/plan/strength/days/day-4");
   expect(later.closest("details")).toBeNull();
-  expect(screen.getByText("Wed 21 Oct")).toBeTruthy();
+  // Each day is heard by its date, in the app's notation.
+  expect(screen.getByRole("heading", { level: 3, name: /^Wed\s21\sOct$/ })).toBeTruthy();
 });
 
-/** Owner, 21 October 2026: a tab's root opens on its subject, never the tab's name. */
-it("opens on the week, its dates under it and New programme at its end", () => {
+/** Owner, 21 and 28 October 2026: a tab's root opens on its subject, in two tones. */
+it("opens on the week, its dates its second tone and its steps at its end", () => {
   show(WEEK);
   expect(screen.getByRole("heading", { level: 1, name: "Plan, This week" })).toBeTruthy();
   expect(screen.queryByText("Plan", { exact: true })).toBeNull();
-  expect(read(document.querySelector(".page-root-meta")!)).toBe("19 to 25 October");
+  expect(read(document.querySelector(".page-root-meta")!)).toBe("19 – 25 Oct");
   expect(
-    screen.getByRole("link", { name: "New programme" }).closest(".page-root-action"),
+    screen.getByRole("navigation", { name: "Weeks" }).closest(".page-root-action"),
   ).not.toBeNull();
+  // Starting a programme stands with the programmes, at the end of their heading.
+  const add = screen.getByRole("link", { name: "New programme" });
+  expect(add.getAttribute("href")).toBe("/plan/new");
+  expect(add.closest(".heading-row")?.textContent).toContain("Programmes");
   // Another week says how far it is from this one; its dates say which it is.
   cleanup();
   show(WEEK, "2026-10-26");
   expect(screen.getByRole("heading", { level: 1, name: "Plan, Next week" })).toBeTruthy();
-  expect(read(document.querySelector(".page-root-meta")!)).toBe("26 October to 1 November");
+  expect(read(document.querySelector(".page-root-meta")!)).toBe("26 Oct – 1 Nov");
   cleanup();
   show(WEEK, "2026-09-28");
   expect(screen.getByRole("heading", { level: 1, name: "Plan, 3 weeks ago" })).toBeTruthy();
 });
 
-it("draws the week as seven day papers, each leading to its day", () => {
+it("marks today with the one dark disc, leaves out empty days and says a state only once", () => {
   const { container } = show(WEEK);
-  const papers = within(screen.getByRole("group", { name: "The week, day by day" }));
-  // Each paper is named by its day, held whole ("19 October"), and what it holds.
-  const day = (weekday: string, date: string, holds: string) =>
-    `${weekday} ${date.replace(" ", "\u00a0")}${holds}`;
-  // Monday holds two sessions: its paper leads to its day's entry under the week.
-  const monday = papers.getByRole("link", {
-    name: day("Monday", "19 October", ": Upper A, done; Easy run, missed"),
-  });
-  expect(monday.getAttribute("href")).toBe("#plan-day-2026-10-19");
-  expect(container.querySelector("#plan-day-2026-10-19")).not.toBeNull();
-  // Today's one session is Today's; it is ringed, as the month rings today.
-  const today = papers.getByRole("link", {
-    name: day("Tuesday", "20 October", ", today: Lower A, to do"),
-  });
-  expect(today.getAttribute("href")).toBe("/today");
-  expect(today.className).toContain("month-day-today");
-  expect(
-    papers
-      .getByRole("link", { name: day("Wednesday", "21 October", ": Upper B, to do") })
-      .getAttribute("href"),
-  ).toBe("/plan/strength/days/day-4");
-  // A day with nothing in it is a paler sheet, and nothing to open.
-  const thursday = papers.getByRole("img", {
-    name: day("Thursday", "22 October", ": nothing planned"),
-  });
-  expect(thursday.className).toContain("month-day-rest");
-  expect(container.querySelectorAll(".plan-papers .month-day")).toHaveLength(7);
-  // Each session is its sport's mark in its state: two on Monday, one on each other day.
-  expect(monday.querySelectorAll("svg")).toHaveLength(2);
+  // The week's calendar is its date column: today's day is the one disc in it.
+  const discs = container.querySelectorAll(".plan-date-today");
+  expect(discs).toHaveLength(1);
+  expect(discs[0]!.closest("#plan-day-2026-10-20")).not.toBeNull();
+  // Today's session says nothing more: the disc says today.
+  expect(read(screen.getByRole("link", { name: /^Lower A/ }))).toBe("Lower A");
+  // A day with nothing planned is left out.
+  expect(container.querySelector("#plan-day-2026-10-22")).toBeNull();
+  // Each session has its sport's sign, once.
+  expect(screen.getByRole("link", { name: /^Lower A/ }).querySelectorAll("svg")).toHaveLength(1);
 });
 
-it("steps to the weeks either side under the week, each named from today", () => {
+it("steps to the weeks either side, each named from today", () => {
   show(WEEK);
   const weeks = within(screen.getByRole("navigation", { name: "Weeks" }));
   expect(weeks.getByRole("link", { name: "Last week" }).getAttribute("href")).toBe(
@@ -148,29 +136,39 @@ it("steps to the weeks either side under the week, each named from today", () =>
   );
 });
 
-it("draws a programme's weeks as segments in its sport's pigment, only where it counts weeks", () => {
-  const { container } = show(WEEK);
-  const weeks = container.querySelector(".plan-programme-weeks")!;
-  expect(weeks.getAttribute("data-sport")).toBe("strength");
-  expect(weeks.getAttribute("aria-hidden")).toBe("true");
-  // Week 3 of 8: two done, the third under way, five to come.
-  expect([...weeks.children].map((segment) => segment.getAttribute("data-state"))).toEqual([
-    "done",
-    "done",
-    "now",
-    null,
-    null,
-    null,
-    null,
-    null,
-  ]);
-  expect(programmeWeeks("Cycle 5 of 14")).toEqual({ current: 5, total: 14 });
-  expect(programmeWeeks("Day 12 of 40")).toBeNull();
-  expect(programmeWeeks("Starts Mon 26 Oct")).toBeNull();
-  expect(programmeWeeks(null)).toBeNull();
+it("lists each programme with how it runs, where it has got to and what waits on it", () => {
+  render(
+    <PlanView
+      cards={[
+        CARD,
+        {
+          ...CARD,
+          programme: { id: "run", sport: "running", name: "Hybrid Half Marathon" },
+          waiting: [{ id: "draft", status: "ready", headline: null }],
+          pattern: "Progressive",
+          position: "Week 5 of 12",
+        },
+      ]}
+      sessions={WEEK}
+      monday={MONDAY}
+      today={TODAY}
+    />,
+  );
+  const strength = screen.getByRole("link", { name: /^8-Week Strength/ });
+  expect(strength.getAttribute("href")).toBe("/plan/strength");
+  expect(read(strength)).toContain("Every week · Week 3 of 8");
+  expect(within(strength).getByRole("img", { name: "Strength" })).toBeTruthy();
+  const run = screen.getByRole("link", { name: /^Hybrid Half Marathon/ });
+  expect(read(run)).toContain("Changes to review");
+  // Never a bar on Plan: where it has got to is said in its words, and drawn on its page.
+  expect(document.querySelector('[role="img"][aria-label*="sessions done"]')).toBeNull();
+  // Past programmes ends the list.
+  expect(screen.getByRole("link", { name: "Past programmes" }).getAttribute("href")).toBe(
+    "/plan/past",
+  );
 });
 
-it("folds every day of a week gone by, counting what was done, skipped and missed", () => {
+it("shows a week gone by whole, each day saying what became of its sessions", () => {
   const { container } = show(
     [
       session("1", "2026-10-13", "strength", "Lower A", "done"),
@@ -181,10 +179,9 @@ it("folds every day of a week gone by, counting what was done, skipped and misse
     ],
     "2026-10-12",
   );
-  expect([...container.querySelectorAll("summary")].map(read)).toEqual([
-    "Tue 13 Oct, 2 done",
-    "Thu 15 Oct, 1 done · 1 skipped",
-    "Sat 17 Oct, 1 missed",
-  ]);
-  expect([...container.querySelectorAll("details")].every((day) => !day.open)).toBe(true);
+  // Opened on purpose, a past week is read whole: nothing in it is folded.
+  expect(container.querySelectorAll("details")).toHaveLength(0);
+  expect(read(screen.getByRole("link", { name: /^Upper A/ }))).toBe("Upper ASkipped");
+  expect(read(screen.getByRole("link", { name: /^Long run/ }))).toBe("Long runMissed");
+  expect(container.querySelectorAll(".plan-day")).toHaveLength(3);
 });

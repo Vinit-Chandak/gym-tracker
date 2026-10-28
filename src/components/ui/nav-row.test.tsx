@@ -12,7 +12,7 @@ vi.mock("@/components/ui/app-link", () => ({
 }));
 afterEach(cleanup);
 
-it("sets a second line's figures in Jost and leaves its words in Atkinson", () => {
+it("sets a second line's figures as figures and leaves its words as words", () => {
   const { container } = render(
     <ul>
       <NavRow href="/gyms" label="Tokyo Powerhouse" sub="101 machines" />

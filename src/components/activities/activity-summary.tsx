@@ -96,7 +96,7 @@ export function ActivitySummary({
             Exercises
           </h2>
           {exercises.length > 0 && (
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               {exercises.map((exercise) => (
                 <li key={exercise.id} className="record-row">
                   <span className="record-row-name">{exercise.name}</span>{" "}

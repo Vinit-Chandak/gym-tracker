@@ -47,8 +47,8 @@ export function StatTile({
         <span className="min-w-0 [overflow-wrap:break-word]">{label}</span>
         {info && <InfoTip label={aboutLabel(label)}>{info}</InfoTip>}
       </dt>
-      {/* A stat is a figure (DESIGN.md, The Two Voices Rule): its digits in Jost, whose zero is
-          plain, and any word with it ("Machine", "kg") in Atkinson. */}
+      {/* A stat is a figure (DESIGN.md, The One Voice Rule): its digits tabular, and any word
+          with it ("Machine", "kg") set as words. */}
       <dd className="mt-1 text-lg font-medium tabular-nums">
         {typeof value === "string" || typeof value === "number" ? (
           <Figures>{String(value)}</Figures>

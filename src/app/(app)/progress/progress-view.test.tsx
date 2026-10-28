@@ -38,7 +38,6 @@ const data: ProgressData = {
   weekError: null,
   preset: "1m",
   month: { month: "2026-10", today: 8, activities: [] },
-  overview: { latest: [] },
   strength: { range: MONTH, graph: strengthGraph([], MONTH, TODAY), unit: "kg", length: "m" },
   exercise: { range: MONTH, options: [], selected: null },
   running: { range: MONTH, graph: runningGraph([], MONTH, TODAY), truncated: false },

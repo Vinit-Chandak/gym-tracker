@@ -48,11 +48,11 @@ it("keeps an unnamed mark out of the accessibility tree, and names it when asked
   expect(screen.getByRole("img", { name: "Swim, skipped" })).toBeTruthy();
 });
 
-it("cuts a mark on the ground out of the ground, and a print's out of the paper", () => {
+it("cuts a mark out of what it stands on, and a print's out of the paper", () => {
   const { container, rerender } = render(<Art kind="mark" sport="run" state="skipped" />);
   const strokes = () =>
     [...container.querySelectorAll("path")].map((node) => (node as SVGElement).style.stroke);
-  expect(strokes()).toContain("var(--ov-ground)");
+  expect(strokes()).toContain("var(--ov-backdrop)");
   rerender(<Art kind="mark" sport="run" state="skipped" surface="paper" />);
   expect(strokes()).toContain("var(--ov-paper)");
 });
@@ -62,8 +62,9 @@ it("keeps a calendar icon out of the accessibility tree: the count beside it nam
   const svg = container.querySelector("svg");
   expect(svg?.getAttribute("aria-hidden")).toBe("true");
   expect(svg?.getAttribute("width")).toBe("16");
-  // the dumbbell: its bar, and its four plates with round corners
-  expect(container.querySelectorAll("rect[rx]")).toHaveLength(4);
+  // the lifter's sign: its limbs in one stroke and its head a disc
+  expect(container.querySelectorAll("path")).toHaveLength(1);
+  expect(container.querySelectorAll("circle")).toHaveLength(1);
 });
 
 it("fills the bowl meal by meal and heaps it only past the target", () => {

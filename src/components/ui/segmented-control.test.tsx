@@ -73,9 +73,9 @@ it("folds a scale only under its figures, which keep their fixed target", () => 
     />,
   );
   const tray = screen.getByRole("radiogroup", { name: "Effort" });
-  // A figure needs its 44-pt target, which does not grow with the text, or its Jost digits.
+  // A figure needs its 44-pt target, which does not grow with the text, or its digits.
   expect(tray.style.getPropertyValue("--fold-w0")).toMatch(
-    /^max\(calc\(44 \* var\(--ov-u\)\), 0\.614 \* var\(--ov-type-figure\)/,
+    /^max\(calc\(44 \* var\(--ov-u\)\), 0\.650 \* var\(--ov-type-figure\)/,
   );
   expect(tray.style.getPropertyValue("--fold-w5")).toMatch(/^max\(var\(--ov-target\)/);
   // Only the break after 5 ever starts a row: no fold falls among the figures.

@@ -47,7 +47,7 @@ export default async function WelcomeProgrammePage() {
   const back: Route = experienced || place.kind !== "gym" ? "/welcome/equipment" : "/welcome/gym";
 
   const waiting = pending && (
-    <ul className="mt-3 border-y border-hair">
+    <ul className="ov-panel ov-panel-list mt-3">
       {"draftId" in pending ? (
         <NavRow
           href={`/welcome/programme/drafts/${pending.draftId}` as Route}
@@ -91,7 +91,7 @@ export default async function WelcomeProgrammePage() {
       title="How do you want to start?"
     >
       {waiting}
-      <ul className="mt-5 border-y border-hair">
+      <ul className="ov-panel ov-panel-list mt-5">
         <NavRow
           href="/welcome/programme/split"
           glyph="edit"

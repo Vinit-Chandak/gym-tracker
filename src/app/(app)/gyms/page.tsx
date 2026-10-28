@@ -47,7 +47,7 @@ export default async function GymsPage() {
       <PageHeader title="Gyms" backHref="/profile" />
       <div className="page-width pb-8">
         {active.length === 0 && <p className="mt-2 type-meta text-ink-2">No gyms yet.</p>}
-        <ul>
+        <ul className="ov-panel ov-panel-list mt-2">
           <GymRows gyms={active} />
           <li>
             <Link href="/gyms/new" className="add-row">

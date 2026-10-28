@@ -1,18 +1,19 @@
 ---
 name: Overload
-description: "Form v2, the art is your training: an ink-and-paper phone interface where every colour says something: a sport's pigment on its prints, marks and data, red for what must be fixed and green for what was kept."
+description: "Form v2, the art is your training: one face, one surface, colour only for sport. White cards on a grey ground, Host Grotesk for every word, each sport its Munich-grid sign in its pigment, red for what must be fixed and green for what was kept."
 colors:
-  ground: "#ffffff"
-  surface: "#f4f4f5"
-  surface-2: "#e9e9ec"
-  surface-control: "#f4f4f5"
+  ground: "#f1f1f3"
+  surface: "#ffffff"
+  surface-2: "#f1f1f3"
+  field: "#ffffff"
+  surface-control: "#ffffff"
   surface-control-pressed: "#e9e9ec"
-  surface-control-on-surface: "#e9e9ec"
-  surface-control-on-surface-pressed: "#dedee3"
+  surface-control-on-surface: "#f1f1f3"
+  surface-control-on-surface-pressed: "#e4e4e7"
   ink: "#16171b"
   ink-2: "#5b5d64"
   control: "#85878e"
-  hair: "#d8d9dc"
+  hair: "#e1e1e5"
   on-ink: "#ffffff"
   on-ink-2: "#b4b6bd"
   scrim: "rgba(22, 23, 27, 0.42)"
@@ -65,11 +66,11 @@ colors:
   print-straw: "#f7d47e"
   on-food: "#16171b"
   food-edge: "#b07a12"
-  grouped: "#f4f4f5"
+  grouped: "#f1f1f3"
   panel: "#ffffff"
   grouped-dark: "#111214"
   panel-dark: "#1b1c20"
-  panel-tray: "#f4f4f5"
+  panel-tray: "#f1f1f3"
   panel-tray-dark: "#26272c"
   danger-glyph: "#cc2147"
   danger-text: "#a31f3a"
@@ -103,110 +104,116 @@ colors:
   print-play-todo-dark: "#745a3e"
 typography:
   title:
-    fontFamily: "'Jost', system-ui, sans-serif"
-    fontSize: "36px"
-    fontWeight: 800
-    lineHeight: 1
-    letterSpacing: "-0.02em"
-  display:
-    fontFamily: "'Jost', system-ui, sans-serif"
-    fontSize: "34px"
-    fontWeight: 800
-    lineHeight: 1.05
-    letterSpacing: "-0.02em"
-  sheet-title:
-    fontFamily: "'Jost', system-ui, sans-serif"
-    fontSize: "28px"
-    fontWeight: 800
-    lineHeight: 1.05
-    letterSpacing: "-0.02em"
-  card-title:
-    fontFamily: "'Jost', system-ui, sans-serif"
-    fontSize: "22px"
-    fontWeight: 800
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
+    fontSize: "30px"
+    fontWeight: 700
     lineHeight: 1.12
-    letterSpacing: "-0.02em"
-  section:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    letterSpacing: "-0.022em"
+  display:
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
+    fontSize: "30px"
+    fontWeight: 700
+    lineHeight: 1.12
+    letterSpacing: "-0.022em"
+  fact:
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "20px"
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: "-0.01em"
+  sheet-title:
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
+    fontSize: "24px"
     fontWeight: 700
     lineHeight: 1.15
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.015em"
+  card-title:
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
+    fontSize: "20px"
+    fontWeight: 650
+    lineHeight: 1.25
+    letterSpacing: "-0.012em"
+  section:
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
+    fontSize: "20px"
+    fontWeight: 650
+    lineHeight: 1.25
+    letterSpacing: "-0.012em"
   figure-xl:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "56px"
     fontWeight: 600
     lineHeight: 1
     fontFeature: '"tnum" 1, "lnum" 1'
   entry:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "42px"
     fontWeight: 600
     lineHeight: 1.1
     fontFeature: '"tnum" 1, "lnum" 1'
   log:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "32px"
     fontWeight: 600
     lineHeight: 1
     fontFeature: '"tnum" 1, "lnum" 1'
   figure-l:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "26px"
     fontWeight: 600
     lineHeight: 1
     fontFeature: '"tnum" 1, "lnum" 1'
   figure:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     lineHeight: 1
     fontFeature: '"tnum" 1, "lnum" 1'
   figure-s:
-    fontFamily: "'Jost', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "17px"
     fontWeight: 600
     lineHeight: 1
     fontFeature: '"tnum" 1, "lnum" 1'
   heading:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "17px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.3
   body:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "16px"
-    fontWeight: 500
+    fontWeight: 450
     lineHeight: 1.45
   meta:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "15px"
-    fontWeight: 500
+    fontWeight: 450
     lineHeight: 1.4
   meta-small:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "14px"
-    fontWeight: 500
+    fontWeight: 450
     lineHeight: 1.35
   caption:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "13px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.3
   button:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "17px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1
   tab:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 600
     lineHeight: 1
   print-label:
-    fontFamily: "'Atkinson Hyperlegible Next', system-ui, sans-serif"
+    fontFamily: "'Host Grotesk', system-ui, sans-serif"
     fontSize: "12px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1
 rounded:
   print: "0px"
@@ -217,9 +224,10 @@ rounded:
   segment: "11px"
   key: "12px"
   control: "14px"
-  card: "16px"
+  card: "20px"
   rest-pill: "18px"
   sheet: "24px"
+  button: "9999px"
   full: "9999px"
 spacing:
   space-4: "4px"
@@ -239,47 +247,47 @@ spacing:
   pad-card: "16px"
   gutter: "20px"
   gutter-narrow: "16px"
-  mark-column: "20px"
+  mark-column: "24px"
 components:
   button-primary:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.on-ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 20px"
     height: "56px"
   button-tonal:
     backgroundColor: "{colors.surface-control}"
     textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 20px"
     height: "56px"
   button-tonal-on-surface:
     backgroundColor: "{colors.surface-control-on-surface}"
     textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 20px"
     height: "56px"
   button-waiting:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink-2}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 20px"
     height: "56px"
   button-waiting-on-surface:
     backgroundColor: "{colors.surface-2}"
     textColor: "{colors.ink-2}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 20px"
     height: "56px"
   button-outline:
     textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.button}"
     padding: "0 14px"
     height: "36px"
   button-text:
@@ -332,7 +340,7 @@ components:
     padding: "6px 4px"
     size: "44px"
   tab-bar:
-    backgroundColor: "{colors.ground}"
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.ink-2}"
     typography: "{typography.tab}"
     height: "64px"
@@ -346,7 +354,7 @@ components:
     rounded: "{rounded.control}"
     padding: "12px 14px"
   field:
-    backgroundColor: "{colors.ground}"
+    backgroundColor: "{colors.field}"
     borderColor: "{colors.control}"
     borderWidth: "1px"
     textColor: "{colors.ink}"
@@ -403,22 +411,23 @@ components:
     padding: "12px 12px 10px"
     height: "76px"
   sheet:
-    backgroundColor: "{colors.ground}"
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
     typography: "{typography.sheet-title}"
     rounded: "{rounded.sheet}"
   activity-card:
-    backgroundColor: "{colors.ground}"
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
     typography: "{typography.card-title}"
     rounded: "{rounded.card}"
-    padding: "6px 16px 16px"
+    padding: "18px 16px 16px"
   card:
-    backgroundColor: "{colors.ground}"
-    borderColor: "{colors.hair}"
-    borderWidth: "1px"
+    backgroundColor: "{colors.panel}"
     rounded: "{rounded.card}"
     padding: "16px"
+  sport-sign:
+    strokeWidth: "4.6 of 48"
+    size: "24px in a row, 40px beside a card's title or a programme in a list, 64px beside a programme's own title"
   action-row:
     gap: "10px"
     columns: "equal, 8rem at least, stacking below"
@@ -430,10 +439,10 @@ components:
 
 **Creative North Star: "The art is your training"**
 
-Overload is an instrument of ink and paper that stays out of the way between sets: ink on white,
-light ink on near-black in dark, two typefaces, flat surfaces and hairlines. Every colour on it
-says something. A sport's pigment names that sport wherever it is drawn (its prints, its marks,
-the bars and lines of its data); red says what must be fixed and green what was kept; the rest is
+Overload is an instrument of ink and paper that stays out of the way between sets: ink on white
+cards on a pale grey ground, light ink on lifted cards on near-black in dark, one typeface, flat
+surfaces and hairlines. Every colour on it says something. A sport's pigment names that sport
+wherever it is drawn (its prints, its sign, the bars and lines of its data); red says what must be fixed and green what was kept; the rest is
 ink. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged
 and nothing else, so the art is the record and the reward at once. A day's print says what is
 owed and fills with ink as it is done; the month holds every activity of every day, a tile of
@@ -483,24 +492,35 @@ kind and make its totals (Laps and intervals). The palette was chosen by measure
 below passes on the surface it sits on, in both themes. The Form v2 generator and boards predate
 this amendment; where they differ, this file wins.
 
+**Amended 28 October 2026, from the owner's choice of the Clean direction.** The headings, titles
+and blocks are one system: one face, Host Grotesk, from a title to a figure (The One Voice Rule);
+every screen's title in two tones, its name in ink and its one fact under it in ink 2; every list
+and every block a card, white on a pale grey ground in light and lifted off near-black in dark,
+with what stands inside a card a step back to the ground's tone; buttons as pills; and each
+sport's sign, drawn on the Munich 1972 grid, as the one place its colour stands beside a name
+(Rows and signs). Nothing is said twice on a screen, and what is not needed to act waits behind a
+row, a button or a sheet: Today's header says the date and no count, Plan's week folds the days
+gone by into one row, and a programme's notes wait behind More options. The Clean boards on the
+canvas "Overload headings redesign" drew it; the boards before them predate this.
+
 **Key Characteristics:**
 
-- Ink and paper for the interface. Colour is information: a sport's pigment on its prints, marks
+- Ink and paper for the interface. Colour is information: a sport's pigment on its prints, signs
   and data; red for what must be fixed; green for what was kept. Nothing else is coloured.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
 - Minimal words: no repeated information, no state said in words where ink says it, and no
   explanation on the screen: it waits behind an ⓘ or a fold (The Need-to-Know Rule).
-- One left edge: every name starts at the gutter; a mark leads a row only where it names a sport
-  (food rows aside: Rows and marks).
-- Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
-- Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.
+- One left edge: every name starts at the gutter; a sign leads a row only where it names a sport
+  (food rows aside: Rows and signs).
+- One face, Host Grotesk, for every title, heading, word and figure (The One Voice Rule).
+- Flat: cards on a ground, hairlines inside them, one shadow, sheets over a scrim.
 - Laid out from the device: figures fit rather than truncate, text wraps rather than runs off
   (save a food row's two lines, which end in an ellipsis), layouts fold rather than drop.
 
 ## Colors
 
-Ink and white for the interface; seven artist's pigments for the sports, on warm paper in the art
-and on the ground in their data; two signals.
+Ink and white for the interface, white cards on a pale grey ground; seven artist's pigments for
+the sports, on warm paper in the art and in their signs and data; two signals.
 
 ### Primary
 
@@ -511,7 +531,7 @@ and on the ground in their data; two signals.
 ### Secondary
 
 - **Ultramarine** (`ultra`, the same in both themes): load. The strength part of every print,
-  and lifting's mark where a list mixes sports. Thinned (`ultra-t`; `ultra-t-dark`), with an
+  and lifting's sign. Thinned (`ultra-t`; `ultra-t-dark`), with an
   edge of the full pigment, it is a set still to do.
 
 ### Tertiary
@@ -528,13 +548,12 @@ lighter pigments for dark paper:
   (`print-ochre`) to **Straw** (`print-straw`); text on it is `on-food`.
 - **Umber** (`print-play`): play, reserved (climbing, racket sports).
 
-In the interface a sport's pigment marks that sport's own things and nothing else: its mark (the
-small form leading a row where a list mixes sports), the progress of its programme, the bars and
-lines of its graphs, and, on a run's or a ride's own page, its time in each heart-rate zone as
+In the interface a sport's pigment marks that sport's own things and nothing else: its sign (Rows
+and signs), the progress of its programme, the bars and lines of its graphs, and, on a run's or a ride's own page, its time in each heart-rate zone as
 five densities of the pigment, from a pale wash to full. Those densities appear nowhere else:
 effort, RIR and a lap's figures already say how hard, and a colour beside them would only repeat
-them. Food's mark in a list takes an edge of **Food edge** (`food-edge`), an ochre, so cadmium
-holds 3:1 on white and on paper; its graphs draw in that ochre.
+them. Food's sign is drawn in **Food edge** (`food-edge`), an ochre, as its graphs are, so it holds
+3:1 on white and on paper.
 
 ### Signals
 
@@ -551,32 +570,35 @@ its glyph and words, never alone.
   viridian.
 
 There is no warning or information colour. A notice (offline, a draft kept on this device) is a
-tray in ink with its glyph; a missed day is its dashed mark and the word Missed in ink 2; a coach's
-caution is the coach note. Amber would sit within 15° of vermilion, umber or cadmium, and a third
-signal would dilute the two.
+tray in ink with its glyph; a missed session is the word Missed in ink 2 (and its dashed form in a
+print); a coach's caution is the coach note. Amber would sit within 15° of vermilion, umber or
+cadmium, and a third signal would dilute the two.
 
 ### Neutral
 
-- **Ground** (`ground`): the page. **Surface** (`surface`): tiles, trays, the rest pill, coach
-  notes, a waiting button. **Control surface** (`surface-control`): round and tonal buttons; the
-  surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
-  ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
-  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground),
-  and a tray or a waiting button on a surface.
-- **On a surface** (a card, a list's box, kept actions), what stands on it steps a tone off it,
-  or it would be the card's own fill: in light a tonal Save under a select read as a stray word,
-  a tray left its unchosen words bare, and Saving… lost its button. A tray and a waiting button
-  take surface 2; a tonal or round button takes the **control surface on a surface**
-  (`surface-control-on-surface`): surface 2 in light, pressed `#dedee3`, and in dark the lifted
-  control surface, which already reads there.
+- **Ground** (`ground`; `grouped` is the same tone): the page, a pale grey (`#f1f1f3`) in light
+  and near-black in dark (owner, 28 October 2026). **Panel** (`panel`): every card, list, sheet and
+  the tab bar, white in light and lifted (`#1b1c20`) in dark: what the screen holds stands in a
+  card, and only a title, a section's heading and the screen's one filled action stand on the
+  ground. **Surface** (`surface`): what stands on the ground but is not a card (a tile, a tray, the
+  rest pill, a coach note, a waiting button), white as a card is in light. **Control surface**
+  (`surface-control`): round and tonal buttons on the ground, white in light, lifted in dark
+  (`#2b2c32`, pressed `#35363c`) so that on the near-black ground a button still reads as a shape
+  (owner, 5 October 2026). **Surface 2** (`surface-2`): pressed, and the switch's off track
+  (inside a `control` edge, so the switch is seen on a card). **Field** (`field`): a field's fill,
+  white in light and the ground's tone in dark, edged in `control` on the ground and on a card
+  alike.
+- **Inside a card** (`panel-tray`), what stands in it steps back to the ground's tone, or it would
+  be the card's own fill: a tile, a tray and its unchosen words, a waiting button, and a tonal or
+  round button (`surface-control-on-surface`: the ground's tone in light, pressed `#e4e4e7`, and in
+  dark the lifted control surface, which already reads there). A card holds two tones, its own and
+  the ground's, and nothing else.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs, and a bar
   that reaches food's target (see Graphs).
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
-- **Hair** (`hair`): row rules and the tab bar's top edge; `#d8d9dc` (APCA Lc 20 on white) and
-  `#37383c` on a dark panel, a step darker than before, so a rule separates what it divides.
-- **Grouped** (`grouped`) and **Panel** (`panel`): a form or a list of settings stands as panels
-  (white; the lifted surface in dark) on the grouped ground, so its sections read as sections and
-  not as one stack of boxes (Forms).
+- **Hair** (`hair`): the rules between rows inside a card and the tab bar's top edge; `#e1e1e5`,
+  the lightest that holds APCA Lc 15 on white, and `#37383c` on a dark card. A card's edge is its
+  tone against the ground, never a rule.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
   not in the volume, and a rest day's crescent still to come.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
@@ -616,69 +638,64 @@ that has a `-dark` value to it.
 
 ## Typography
 
-**Display Font:** Jost (with system-ui, sans-serif)
-**Body Font:** Atkinson Hyperlegible Next (with system-ui, sans-serif)
-**Figures:** Jost, tabular lining figures
+**One face** (owner, 28 October 2026): Host Grotesk (with system-ui, sans-serif) for every title,
+heading, word and figure.
 
-**Character:** Jost is a geometric sans in the line of the 1920s German sans-serifs; its
-circles and slabs rhyme with the prints and its plain zero is narrower than its O. Atkinson
-Hyperlegible Next was drawn for low-vision readers; it carries every word the athlete reads,
-the coach included. Both are under the SIL Open Font License, so the native apps can embed them.
+**Character:** Host Grotesk is a quiet grotesk with open apertures and plain figures. Its digits
+are one width, so figures stand tabular as they are set, and every weight has the same widths, so
+a word that changes weight (a tab lit, a row chosen) never moves. It is under the SIL Open Font
+License, so the native apps can embed it. One face replaced Jost and Atkinson Hyperlegible Next:
+two voices read as two apps once every screen became one surface.
 
 ### Hierarchy
 
-- **Title** (800, 36 px, 1, −0.02 em; 32 under 360 pt): a tab root's headline, which is its
-  subject (the day, This week, the section, the athlete's name), never the tab's name.
-- **Display** (800, 34 px, 1.05, −0.02 em): a nested screen's or an exercise's name. A long name
-  steps down 4, then to 26, then wraps to two lines.
-- **Sheet title** (800, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
-- **Card title** (800, 22 px, 1.12): the name a card leads with (a session on Today, a programme
-  on Plan, a week of a draft).
-- **Section** (Jost 700, 20 px, 1.15, −0.01 em): a section's heading on a screen ("Requests",
-  "Your sessions", a step of a form, a month of History).
-- **Figure XL** (600, 56 px): the screen's one figure, on the ground above its print (the kcal
-  eaten on Food, the latest body weight).
-- **Entry** (600, 42 px): load, reps and RIR in the docked entry and a portion's amount,
-  stepping down the ramp to fit, never below 28.
-- **Log** (600, 32 px, tabular): a set done, in the log, its figures in the entry's columns;
-  stepping down the ramp until the widest load fits its column (a five-character load, 102.5,
-  takes 28 at 360 dp and 26 at 320 pt).
-- **Figure L** (600, 26 px, tabular): a stat, a set in History, and the figure of a row's
-  stepper (sleep, a run's distance, body weight at the finish).
-- **Figure** (600, 20 px, tabular): the warm-ups' line, list figures, totals, paces; **Figure S**
-  (17 px) in the rest pill and the session strip.
-- **Heading** (700, 16 to 17 px): "Set 3 of 4", a row's name, the coach's question.
-- **Body** (500, 15 to 16 px, 1.45): coach text and everything read; two lines inline, then More.
-- **Meta** (500, 15 px, ink 2): a meta line, each fact led by its glyph; **Meta small** (14 px)
-  for a row's second line and the facts over a card's name ("Running · planned"), said as
-  written: no role is uppercase or letterspaced.
-- **Group caption** (Atkinson 700, 13 px, ink 2): a group inside a list (a day of History or of
-  Plan's week, a letter of the library), as a table names its groups; never a section's heading.
-- **Tab** (600, 13 px; 12 under 360 pt; 700 where you are). **Print label** (700, 12 px).
+Five sizes carry the headings and blocks (30, 20, 17, 15, 13) and four weights (450, 600, 650,
+700); figures keep their own ramp.
+
+- **Title** (700, 30 px, 1.12, −0.022 em; 28 under 360 pt): a screen's name, a tab root's
+  subject (the day, This week, the section, the athlete's name) or a nested screen's (a
+  programme, an exercise). A long name steps down 4, then to 22, and wraps.
+- **Fact** (600, 20 px, 1.3, −0.01 em, ink 2): the title's second tone, its one fact under it
+  ("This week" over "26 Oct – 1 Nov", "Wednesday" over "28 October", a programme's "Progressive ·
+  10 weeks"). Never a sentence and never a second headline.
+- **Sheet title** (700, 24 px, 1.15): a sheet's name (Why, Finish, More options).
+- **Section** (650, 20 px, 1.25, −0.012 em): a section's heading on a screen ("Programmes",
+  "Done", a step of a form, a month of History), with its one action on its line.
+- **Card title** (650, 20 px, 1.25): a card that heads a screen (a task on Today, a week of a
+  draft). A card under a section's heading names itself in a row's role.
+- **Row** (Heading, 600, 17 px, 1.3): a row's name where it is a thing done or to do (Upper A,
+  Long run, a programme); a setting's row is 450.
+- **Figure XL** (600, 56 px): the screen's one figure (the kcal eaten on Food, the latest body
+  weight). **Entry** (600, 42), **Log** (600, 32), **Figure L** (600, 26), **Figure** (600, 20),
+  **Figure S** (600, 17): as before, tabular.
+- **Body** (450, 15 to 16 px, 1.45): coach text and everything read.
+- **Meta** (450, 15 px, ink 2): a row's second line, a meta line; **Meta small** (14 px).
+- **Group caption** (600, 13 px, ink 2): a group inside a list, never a section's heading. A day
+  of Plan's week is its date column instead (Layout: Plan).
+- **Tab** (600, 13 px; 12 under 360 pt; 650 where you are). **Print label** (600, 12 px).
 
 ### Named Rules
 
-**The Two Voices Rule.** Jost for titles and figures only; Atkinson Hyperlegible Next for every
-word read. A number inside a sentence stays in Atkinson; a range inside a Jost figure takes
-Atkinson's en dash, because Jost's is as long as an em dash. A figure that stands as a fact (a
-meta line's time, duration, load or range, a status line's count, a row's value) keeps the
-line's size but takes Jost's tabular digits, whose zero is plain where Atkinson's is slashed and
-reads as a machine's; its words and dashes stay in Atkinson (owner, 5 October 2026).
+**The One Voice Rule** (owner, 28 October 2026; it replaces the Two Voices Rule). One face for
+everything. A heading is a heading by its size and weight, never by a second face; a figure is a
+figure because the face's digits are one width; a range keeps its en dash. Words are 450, rows and
+controls 600, headings 650, titles 700.
 
-**The Heading Rule** (owner, 24 October 2026). A heading looks like one: a Jost role at its size
-and weight (Title, Display, Sheet title, Card title, Section), never Atkinson set large or bold.
-Titles are Jost 800 tracked in, because at 700 they read as body text made bigger. A screen's
-sections are headed by Section and the groups inside a list by Group caption, and nothing else
-heads anything: no 15-px bold line standing for a section, no caption in a section's place. A
-heading is followed by what it heads, `gap-heading` (12) under it, and a screen has one title,
-never a second headline restating it (a draft's page is titled with the programme's name, and
-its shape is the meta line). Text 20 px or larger is a Jost role, and h1 to h3 are 600 or
-heavier; the consistency audit fails a screen that breaks either.
+**The Heading Rule** (owner, 24 October 2026; amended 28 October 2026). A heading looks like one: a
+role at its size and weight (Title, Fact, Sheet title, Card title, Section), never body text set
+large. A title stands in two tones: its name in ink, its one fact under it in ink 2 at 20, so the
+two read as one heading. A screen's sections are headed by Section and the groups inside a list by
+Group caption, and nothing else heads anything: no 15-px bold line standing for a section, no
+caption in a section's place. A heading is followed by what it heads, `gap-heading` (12) under it,
+and a screen has one title, never a second headline restating it (a programme's page is titled
+with the programme's name, its sport its sign, never "Running programme" over it). Text 20 px or
+larger is Host Grotesk at 600 or heavier, and h1 to h3 are 600 or heavier; the consistency audit
+fails a screen that breaks either.
 
 **The Figures Never Truncate Rule.** A figure keeps one line and steps down until it fits: never
 an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size
-in between, so a narrow screen shows the same few sizes as a wide one. Jost 600's tabular digits
-are 0.614 em, its point and comma 0.32 em.
+in between, so a narrow screen shows the same few sizes as a wide one. Host Grotesk's digits are
+0.65 em at every weight, its point and comma 0.224 em.
 
 **The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps between
 its words, breaking a word only where it cannot fit a line of its own (`overflow-wrap: break-word`;
@@ -765,58 +782,57 @@ browser's and not the root's that the installed app on an iPhone sets.
 What a fold stands in for follows the fold rather than asking again: the strip stands down while
 its key is shown, so two readings of one width can never leave the workout without a way back.
 
-- **One left edge:** every name starts at the gutter. A row carries no mark beside its name
-  unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
-  gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
-  boxed or carded; rows are separated by `hair` rules. Today's activity cards are a
-  deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
-  card, and the rows inside a card are ruled like any list.
-  Plan extends that exception to its programme cards, one per programme (owner, 16 October
-  2026; ADR 0056 and 0058), using the incumbent card, control tones and type scale. Programme
-  cards take at most two columns and fold to one when space or text requires. This does not
-  make ordinary list rows cards.
-  Food rows, wherever food is listed, are another exception (owner, 8 October 2026): every row
-  is led by its tile, the tiles in one column and the names at one edge after them (Rows and
-  marks).
-  Forms and settings are the third (owner, 21 October 2026): their sections stand as panels on the
-  grouped ground (Forms), the rows inside a panel ruled like any list.
+- **Cards on a ground** (owner, 28 October 2026; it replaces the bare lists and the exceptions
+  for Today's, Plan's and the forms' panels): what a screen holds stands in cards on the ground,
+  one card per list or block, the column's width, `gap-section` apart under their headings. A
+  screen's title, its sections' headings and its one filled action stand on the ground, at the
+  gutter, the cards' own edge. No card stands in a card.
+- **One left edge:** inside a card every name starts at one edge, the card's inset in from its
+  side, and rows are separated by `hair` rules from that edge. A row carries a sign before its
+  name only where the sign names a sport in a list that mixes them (Rows and signs): the signs in
+  a 24-pt column and the names one edge 12 pt after it. Food rows lead with their tile, the tiles
+  in one column and the names at one edge after them (Rows and signs). Today's cards are one per
+  activity (Activity cards), and Today and Plan take at most two columns of cards where the screen
+  is wide, folding to one where space or text requires.
 - **Tab roots** (owner, 21 October 2026): the lit tab already says where you are, so a tab's root
-  never repeats its name. It opens on its subject, in Title, at the same place and size on every
-  tab, with what it needs to say under it in Meta and at most one action at its end: Today the day
-  ("Wednesday", then "21 October · 1 of 3 done"), Plan "This week" and its dates, Food the day it
-  shows (its intake is the big figure under the day strip, said once), Progress the section being
-  read (its chooser). Profile opens on the athlete as one card (owner, 24 October 2026): a row
-  that opens their page as a follower sees it (the avatar, the name in Card title, the handle,
-  its chevron, one target), the follower and following counts as two figures that open their
-  lists, and Edit profile in words, the card's full width; a detail still missing is a row under
-  it. Four links in a headline, the name at a title's size and Edit on a line of its own left
-  nobody sure what any of them did. Its
+  never repeats its name. It opens on its subject in two tones (owner, 28 October 2026), Title in
+  ink and its one fact under it in Fact, ink 2, at the same place and size on every tab, and at
+  most one action at its end: Today the day ("Wednesday", then "21 October": how much of it is
+  done is its cards', said there), Plan "This week" and its dates ("19 – 25 Oct") with the week's
+  steps at its end, Food the day it shows (its intake is the big figure under the day strip, said
+  once), Progress the section being read (its chooser). Profile opens on the athlete in the same
+  two tones (owner, 28 October 2026): their name, then their handle and its chevron, the photo at
+  the end, one target that opens their page as a follower sees it; under it the follower and
+  following counts, each opening its list, and Edit profile, a tonal pill at the end of their
+  line; a detail still missing is a row in a card under them. Its
   h1 still names the tab first for a screen reader ("Today, Wednesday 21 October"). A nested page
   keeps its title: the tab names the section, not the page. A root's action stands on its title's
   line, centred on the title's first line, never on the meta line or halfway down the header; an
   action that adds leads with the plus (+ New programme), and it is a control by its look (a
   tonal pill), never a word the eye takes for a label (owner, 24 October 2026).
-- **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session still owed, 12 apart: an
-  open session that is not the day's first, then the workout (or the rest day), then each run,
-  ride and swim. Nothing is pinned over the tab bar: each card carries its own next step. Under
-  the cards, "Done" lists what was finished, logged or skipped today as rows, each opening its
-  record. The programme's position and the next day are Plan's, never Today's (ADR 0058); with
+- **Today:** the day as its headline (Tab roots), with Log at its end; then one card per session
+  still owed, 12 apart: an open session that is not the day's first, then the workout (or the rest
+  day), then each run, ride and swim. Nothing is pinned over the tab bar: each card carries its
+  own next step, the first card's filled and the rest tonal (Activity cards). Under the cards,
+  "Done" lists what was finished, logged or skipped today as rows in a card, each led by its sign
+  and opening its record. The programme's position and the next day are Plan's, never Today's (ADR 0058); with
   nothing owed and nothing done, the rest day's crescent stands on its paper, "Nothing planned"
   under it, and Log a session is the page's one filled action.
-- **Plan:** "This week" as its headline with its dates under it; the week as seven day papers in
-  the month's grammar (each day's marks in their state, today ringed in ink); then every sport's
-  sessions as rows under their day, each with its mark and where it stands (Done, Skipped, Missed,
-  Today); a week with nothing planned says "Nothing planned" in a tray the papers' width, never
-  a stray line; then the week's steps, two tonal buttons of one width side by side under the
-  papers, named from today ("‹ Last week", "Next week ›"), each a whole target that looks like
-  one (owner, 24 October 2026: two bare words with space around them read as neither text nor
-  controls); a day paper with one session opens it, and one with several leads to its rows; then
-  one card per programme, its weeks a row of segments in its sport's pigment (done full, the
-  current week thinned, the rest `surface`), and what it waits on (a draft to review) its foot,
-  a ruled row under the weeks, never a badge crowding the name; then Past programmes (ADR 0058).
+- **Plan** (owner, 28 October 2026): "This week" as its headline, its dates its second tone, and
+  the week's steps at its end, two round buttons (‹ ›) heard by the week they open, named from
+  today ("Last week", "Next week"). Then the week as one card, its calendar its date column: each
+  day with something planned has its weekday and date in a 40-pt column, today's date in the one
+  ink disc, and its sessions beside it, each a row with its sign, its name, its figure and, once
+  its day has passed, what became of it in words (Done, Skipped, Missed); a day with nothing
+  planned is left out, and a week with nothing planned says "Nothing planned this week" in the
+  card. The days gone by fold into one row at the card's top that says what became of them
+  ("Mon 19 – Tue 20", "3 done · 1 missed"), so the week opens on today; a week gone by, opened on
+  purpose, is shown whole. Then Programmes, its heading with + New at its end, and one card of
+  rows, one per programme: its name, how it runs and where it has got to in words, what waits on
+  it (Changes to review), and its sign at 40 at the end; Past programmes ends the card. No bar on
+  Plan: a programme's progress is drawn once, on its own page (ADR 0058).
 - **Forms** (owner, 21 October 2026): a form's sections (a run's laps, its totals, its effort, the
-  rest folded) stand as panels on the grouped ground, each under its Section heading,
-  `gap-section` apart; inside a panel, rows are ruled and a field is the one field (Inputs and
+  rest folded) stand as cards on the ground, each under its Section heading, `gap-section` apart; inside a panel, rows are ruled and a field is the one field (Inputs and
   choices), edged as everywhere else: a field that matched its panel's tone showed no box at all,
   and laps read as bare words (owner, 24 October 2026). The one filled action is pinned at the
   foot.
@@ -886,7 +902,7 @@ its key is shown, so two readings of one width can never leave the workout witho
   parts thinned within an edge of the pigment), named "lifting in progress", and is not counted
   until it is finished. Every past day is a link named with what it holds. This month ends at
   this week: the weeks to come get no empty rows. The overview shows the pattern alone, its tiles
-  as tall as the phone gives them; the calendar page adds each date, in Jost 12, in the tile's top
+  as tall as the phone gives them; the calendar page adds each date, at 12, in the tile's top
   left corner and inside today's ring, its icons centred in the room under the date, on tiles of
   58 pt; a date grows with the reader's text as a figure does (by half) and its tile grows with
   it, so icons never sit under a date. Each month on the calendar page says how many of each sport
@@ -894,13 +910,11 @@ its key is shown, so two readings of one width can never leave the workout witho
   same, so they are its key; there each sport says under its name how far and how long it went
   this month (ADR 0045). Every day is a full target: under 375 pt, and on Android, the month
   runs to the screen's edges (its tiles 2 pt apart under 375).
-- **History, under the month:** under the overview's month, the ten newest activities in
-  History's rows under their day captions, headed History with All at its end, as the month's
-  head has Calendar. It is the calendar read back from today: where this month holds fewer, it
-  runs on into the months before, each named (Heading, 17, 700) once over its first day; where it
-  holds more, All opens the rest. It lists what the month marks, never recovery check-ins. All is
-  History's page, under Progress as the calendar is: back to Progress, its range under its
-  title, its filters at the end of its bar (ADR 0045).
+- **The month and History** (ADR 0045, amended 28 October 2026): the overview's month and its
+  totals are one card, and History is one row in a card under it. The month already draws every
+  activity of every day, so a list of the latest under it said each of them twice. History is its
+  own page, under Progress as the calendar is: back to Progress, its range under its title, its
+  filters at the end of its bar, each day's entries a card under the day's caption.
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
 
@@ -957,17 +971,17 @@ rise over a scrim and carry no shadow. Prints are flat paper with a faint grain.
 **The One Shadow Rule.** One shadow in the whole system. Anything else that needs to stand out
 does it with ink, tone or a scrim.
 
-**The One Card Rule** (owner, 24 October 2026). A card is drawn one way on every screen: ground
-with a 1-px `hair` edge, `card` corners, `pad-card` inside (Today's activities, Plan's
-programmes, Profile's identity, a fold standing alone). On the grouped ground of a form or a
-settings page the same box is a panel: `surface`, no edge. A filled card on the ground, a card in
-a card and a tray inside a card are never drawn.
+**The One Card Rule** (owner, 24 October 2026; amended 28 October 2026). A card is drawn one way
+on every screen: `panel` on the ground, with no edge and no shadow, `card` corners, `pad-card`
+inside (Today's activities, Plan's week and programmes, every list, a form's section, a fold
+standing alone). Its edge is its tone against the ground. What stands inside it steps back to the
+ground's tone (Neutral); a card in a card is never drawn.
 
 ## Shapes
 
 The interface is rounded by role: a tab's underline 2 px, checkboxes 6, tags 8, badges 10
-(`row`), keys 12, buttons, fields, tiles and notes 14 (`control`),
-cards 16, the rest pill 18, sheets 24 (top corners), round buttons and avatars full. A control inside a tray takes the tray's radius minus its inset
+(`row`), keys 12, fields, tiles and notes 14 (`control`), cards 20, the rest pill 18, sheets 24
+(top corners), and buttons (pills), round buttons and avatars full (owner, 28 October 2026). A control inside a tray takes the tray's radius minus its inset
 (segments 11 in a 14 tray with a 3 inset). Prints are cut square.
 
 The print forms are geometric primitives standing on one baseline: the block (a square module; a
@@ -989,10 +1003,9 @@ the row under the print says it with a glyph. Past the target, food heaps above 
 rim as one symmetric lens; at twice the target it closes the circle.
 
 Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only. The
-calendar's icons are the exception, and are used on the month and its counts alone: a dumbbell
-for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment and drawn bolder
-(2.3 to 2.9), told apart by their shape so the month never asks a reader to tell pigments apart.
-Everywhere else a sport is its mark, the form itself. The five destination icons (owner, 21
+calendar's icons are the exception, and are used on the month and its counts alone: each sport's
+sign (Rows and signs) at 12, in its pigment, told apart by its figure so the month never asks a
+reader to tell pigments apart. Everywhere else in the interface a sport is its sign. The five destination icons (owner, 21
 October 2026) are told apart by their silhouettes, outlined, and filled where you are: Today is
 the app's mark (the slab and the disc on their line), in ultramarine and vermilion where you are;
 Plan a calendar, its head and today's square filled; Food the bowl with its heap; Progress the
@@ -1017,7 +1030,7 @@ indoor bike; cardio done on none (battle ropes, a sled) has no glyph, and says C
 The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark, kept from
 the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size. Sign in and Create
-account stand the mark beside the name in Jost (Title) and the tagline under it in ink 2; the
+account stand the mark beside the name in Title and the tagline under it in ink 2; the
 password screens carry the mark and the name alone. Every form stands on the ground at the
 gutter, never in a box, and their links are ink and underlined.
 
@@ -1045,10 +1058,12 @@ and every control answers a press.
 
 ### Buttons
 
-- **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
-  rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log run on Today's card);
-  on a card, the control surface on a surface (Do again, Save under a select).
+- **Shape:** a pill (owner, 28 October 2026), its words in Label (600); 56 pt tall, 44 where
+  space is short; a 36-pt pill (Finish, the rest pill, a suggestion's tag) keeps a 44-pt target
+  around it.
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log on
+  Today's header); on a card, the control surface on a surface (Log run on Today's second card,
+  Skip or move, Do again, Save under a select).
   **Waiting:** surface with ink 2, surface 2 on a card, for a button waiting on something (Save
   while RIR is empty, Saving…, Send answer with no answer, Try again offline). **Outline:** a
   1.5-px control border (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt
@@ -1060,8 +1075,9 @@ and every control answers a press.
   (discarding an empty session or an untouched draft) may be the primary. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
 - **Peers** (The Equal Actions Rule, owner, 24 October 2026): actions offered side by side are one
-  size and one width (Back and Next, Decline and Approve, Last week and Next week), the primary
-  last; two share a row while each keeps 8rem, and three or more stack, each the full width, the
+  size and one width (Back and Next, Decline and Approve), the primary last; a card's own next
+  step and its way aside (Log run and Skip or move, Edit programme and More options) put the next
+  step first, under the card's name (owner, 28 October 2026); two share a row while each keeps 8rem, and three or more stack, each the full width, the
   primary first. A way out that loses something or leaves (Discard draft, Cancel) is a text
   action under them, never a fourth button of the same weight. A decision page's actions adapt
   to the width, never to the length of their words.
@@ -1186,7 +1202,7 @@ every part is a lap with a kind, and the session's totals are its laps added up.
   key is shown, so the workout is one tap away at every size and never twice; a page of the
   session's own, which has no strip, has no key.
 
-### Rows and marks
+### Rows and signs
 
 - One exercise row everywhere: the name, and under it the equipment's glyph and the
   prescription (Today, a programme day, the workout, Finish). No mark beside it: its sets are
@@ -1200,10 +1216,17 @@ every part is a lap with a kind, and the session's totals are its laps added up.
   pill, 36 pt in a 44-pt target; done, surface with its check, and a tap undoes it). The coach's
   warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
   opens the drills in a sheet.
-- A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
-  words do not name it (History, a day, Friends). A chooser of sports (Log, New programme, setup)
-  leads each row with its sport's mark drawn as a session still to do: full and dashed are for
-  sessions done and skipped. A setting or a menu option is led by its glyph.
+- **A sport's sign** (owner, 28 October 2026; `sign.tsx`): the sport as a figure on the Munich
+  1972 grid, at 0, 45 and 90 degrees, one stroke 4.6 of its 48 units with round ends and a disc
+  for a head, in the sport's pigment (food's in the food edge, so it holds 3:1). It is the one
+  place a sport's colour stands beside a name, in three sizes: 24 before a session's name in a
+  list that mixes sports (Plan's week, History, a day, Friends, Today's Done), 40 at the end of a
+  card's title (Today) or a programme's row (Plan), and 64 once, at the end of a programme's own
+  title. It says the sport and nothing else: done, skipped and missed are words beside it, never
+  the sign's fill, and a list of one sport (a programme's weeks) draws none. A chooser of sports
+  (Log, New programme, setup) leads each row with its sign. On ink (the session strip) it is the
+  strip's words' colour. A setting or a menu option is led by its glyph; prints and the calendar
+  keep their forms and icons, the calendar's icons drawn as the signs are.
 - A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
 - A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 RIR · [dial] 3–4 min"; a run's
   says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
@@ -1220,7 +1243,7 @@ every part is a lap with a kind, and the session's totals are its laps added up.
   macronutrient's food was eaten at) one more, each ending in an ellipsis, so every row is 58 pt
   at 100% text; a name with nothing under it is centred on its tile, and Quick add's line, "Just
   this once", alone wraps at large text. What the row comes to trails as a whole
-  figure in Jost over its unit, both centred in a column four tabular digits wide (4 × 0.614 em),
+  figure over its unit, both centred in a column four tabular digits wide (4 × 0.65 em),
   so every row's words end at one edge: kcal (1,000.8 is 1001, written without a comma), or a
   macronutrient's grams ("<1" under one; a dash for a food logged without it). A five-digit figure
   widens its own row's column rather than being cut. Energy is whole kcal everywhere, totals as
@@ -1237,7 +1260,9 @@ every part is a lap with a kind, and the session's totals are its laps added up.
 ### Graphs
 
 One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section, an
-exercise's page and a friend's compare page. Top to bottom:
+exercise's page and a friend's compare page. Each graph is one card (owner, 28 October 2026),
+its spans' tray a step back to the ground's tone inside it and View values its last row, from
+edge to edge under a rule. Top to bottom:
 
 - **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end (beside the live
   readout, never inside it, so reading a mark never announces the ⓘ), the figure (Figure
@@ -1261,8 +1286,8 @@ exercise's page and a friend's compare page. Top to bottom:
   baseline. Food's graphs draw in its ochre; against food's target, a bar that reaches it (in the
   whole kcal or grams its figure is written in) is in `ink-2`, so a day that made it never looks
   like the bar being read. A line is a measurement that rises and falls: 2 pt of the pigment (ink),
-  round joins, an open point on each reading (ground with a ring) while there are forty or fewer,
-  the latest a full point with a ground ring. A run's or a ride's time in each zone is a row per
+  round joins, an open point on each reading (the card's own colour with a ring) while there are
+  forty or fewer, the latest a full point with a ring of the card's colour. A run's or a ride's time in each zone is a row per
   zone, its bar in that zone's density of the pigment and its minutes at the end. Past about sixty
   records a line is grouped by week or month, so it never becomes a band. A bucket with nothing
   in it has no mark: missing is never drawn as zero, and a gap breaks a bucketed line.
@@ -1323,8 +1348,10 @@ good is the target or the goal, which a rule or the readout says, not a directio
   the page, `inline` is a ruled row inside a box, `footer` is a box's last row. Never the
   browser's own triangle.
 - Closed, unless it holds an error to fix, the week under way or the day in progress.
-- A list of folds (weeks, days gone by, steps) is ruled `inline` rows inside one section, never a
-  stack of boxes; `box` is for a fold standing alone on a page.
+- A list of folds (weeks, days gone by, steps) is one card of `inline` rows (`fold-list`), a rule
+  between them and none at the card's edges, never a stack of boxes; inside a fold it is that
+  card's own rows. `box` is a fold standing alone on a page, a card of its own. A fold that is a
+  row of a card reads as the card's other rows: 52 pt, its name at 17 (owner, 28 October 2026).
 - The summary is the fold's name and holds words only (no heading, link or control); it says what
   is inside, never only a value, and what stands at its end is read with it. A fold that is a
   section of the page is a heading with a button, as Today's cards are.
@@ -1338,10 +1365,9 @@ good is the target or the goal, which a rule or the readout says, not a directio
 ### Activity cards (Today)
 
 - One card per activity of the day, every one in the same anatomy, so a run reads like a
-  workout: ground with a 1-px `hair` edge and `card` corners (16), 6 × 16 × 16 padding (14 at the
-  sides under 360 pt). The head: the sport's mark (22 pt, in its state: thinned to do, full done,
-  dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 800, 22), a run's
-  figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
+  workout (owner, 28 October 2026): white on the ground with `card` corners (20) and no edge,
+  18 × 16 × 16 padding (14 at the sides under 360 pt). The head: the name in Card title (650, 20),
+  a run's figure beside it ("30 min"), and the sport's sign at the end of the line (40 pt).
 - Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
   choice while nothing is open; the time; what it aims at; "Prepared by the coach"; a run's time
   of day, which takes no glyph: the dial is a duration's, the calendar a date's); then, only when it is news, one line of state in ink 2 (In progress · Started 17:23 ·
@@ -1349,14 +1375,16 @@ good is the target or the goal, which a rule or the readout says, not a directio
   first."). A card never says how or when the coach works, or where a control is; a run's pace
   note and how to do it are the fold's, said once. A session done or skipped today is not a card
   but a row under Done (ADR 0058).
-- The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
-  folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
-  with its prescription); a run, ride or swim
-  shows its steps, its targets, how to do it, the coach's word for it, and Skip or move. It
-  unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
-- The card's next step is its own, the card's full width under its facts: Start workout (primary,
-  with More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it
-  asks for, so two runs never share a name). Under it, the quieter way out
+- The plan is folded until asked for, behind a row at the card's foot that names it (Exercises,
+  Steps and pace, Drills), under a `hair` rule reaching the card's edges: the row is a button with
+  `aria-expanded`, and the plan, folded, is inert. Unfolded, the workout shows the coach's summary
+  whole and its exercises (each with its prescription); a run, ride or swim shows its steps, its
+  targets, how to do it and the coach's word for it. It unfolds in 220 ms ease-out, height and
+  words together; with reduced motion it appears.
+- The card's next step is its own, under its facts: Start workout (primary, with More beside
+  it), Resume (primary), or Log run, Log ride or Log swim (named with what it asks for, so two
+  runs never share a name) with Skip or move beside it, one width each; Log is the screen's one
+  filled action when nothing else is owed before it, tonal otherwise. Under it, the quieter way out
   that belongs to this card alone: Discard empty session, led by its glyph at the card's left
   edge, only while nothing is logged; or, for a workout left open (nothing logged in it for six
   hours), Finish it as of 19:30, its last set's time, which the workout's own screen offers too
@@ -1551,7 +1579,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
   interface string from the app's own screens; where a design needs a string the app does not
   have yet, say so. A print draws only what was logged.
 - **Do** start every name at one edge, and lead a row with a mark only where it names a sport in
-  a list that mixes them, or with its tile where it is a food row (Rows and marks).
+  a list that mixes them, or with its tile where it is a food row (Rows and signs).
 - **Do** let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink
   cannot say.
 - **Do** say a refused field in place, in red, with how to fix it, and a kept record in green,
@@ -1597,7 +1625,7 @@ good is the target or the goal, which a rule or the readout says, not a directio
 - **Don't** let the art be the brightest thing on a dark screen.
 - **Don't** pad twice: no card in a panel with its own inset, no tray in a card, no wrapper's
   margin added to its child's, no padding above a first row where the header's gap already is.
-- **Don't** draw a field that matches its surface, set a heading in Atkinson, or leave a word
+- **Don't** draw a field that matches its surface, set a heading as body text made large, or leave a word
   that acts without a control's shape.
 - **Don't** offer a control that changes nothing on the screen when tapped (Check status while
   the coach works); update the screen instead.

@@ -44,7 +44,7 @@ export function AlsoUsedFor({
       </div>
       {/* Nothing else yet: the list is empty, and the select under it adds. */}
       {extra.length > 0 && (
-        <ul>
+        <ul className="ov-panel ov-panel-list mb-3">
           {extra.map((type) => (
             <li key={type.id} className="also-row">
               <span className="min-w-0 flex-1 [overflow-wrap:break-word]">{type.name}</span>

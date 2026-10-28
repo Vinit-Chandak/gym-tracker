@@ -181,7 +181,7 @@ it("gives the workout and each run a card of its own, each with its own next ste
   expect(
     workout.getByRole("link", { name: "Start workout: Easy Run + Arms" }).getAttribute("href"),
   ).toBe(`/workouts/start?gym=g1&day=${DAY.id}&index=3`);
-  // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs, held at its
+  // Its figures as figures, the dash and the unit as words: one fact, in three runs, held at its
   // dash and to its unit where the line wraps.
   expect(
     workout.getAllByText((_, element) => element?.textContent === "70\u2060–\u2060100\u00a0min")
@@ -196,7 +196,8 @@ it("gives the workout and each run a card of its own, each with its own next ste
 it("folds the plan until asked for, then unfolds it in place", () => {
   show();
   const workout = card("Easy Run + Arms");
-  const toggle = within(workout).getByRole("button", { name: /^Easy Run \+ Arms/ });
+  // The plan's row names it, at the card's foot, under the card's next step.
+  const toggle = within(workout).getByRole("button", { name: "Exercises" });
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   const plan = document.getElementById(toggle.getAttribute("aria-controls")!)!;
   expect(plan.hasAttribute("inert")).toBe(true);
@@ -545,13 +546,17 @@ it("names a day that only runs for the day, with its focus, as a lifting day's c
   expect(within(tempoCard).getByText("Threshold")).toBeTruthy();
   // The pace note is said once, in the plan under the fold, not again beside the focus.
   expect(within(tempoCard).getAllByText("Talk-test; slower than push pace")).toHaveLength(1);
-  const toggle = within(tempoCard).getByRole("button", { name: /^Tempo run/ });
+  const toggle = within(tempoCard).getByRole("button", { name: "Steps and pace" });
   const fold = document.getElementById(toggle.getAttribute("aria-controls")!)!;
   expect(within(fold).getByText("Talk-test; slower than push pace")).toBeTruthy();
   expect(within(tempoCard).getByRole("link", { name: "Log run: 37–47 min" })).toBeTruthy();
+  // Skipping or moving it is the card's second button, beside Log.
+  expect(within(tempoCard).getByRole("link", { name: "Skip or move" }).getAttribute("href")).toBe(
+    "/plan/sessions/run-tempo",
+  );
   // The time is one range with its unit said once, at the head beside the name: the fold does
   // not say it again, nor as "37 min–47 min".
-  expect(toggle.textContent).toContain("37–47 min");
+  expect(within(tempoCard).getByRole("heading", { level: 2 }).textContent).toContain("37–47 min");
   expect(fold.textContent).not.toContain("47");
   expect(tempoCard.textContent).not.toContain("37 min–47 min");
 });
@@ -567,10 +572,10 @@ it("folds under a run's head only what its head does not already say", () => {
   };
   show({ programmeOccurrences: [easy] });
   const runCard = card("Run");
-  const toggle = within(runCard).getByRole("button", { name: /^Run/ });
+  const toggle = within(runCard).getByRole("button", { name: "Steps and pace" });
   const fold = document.getElementById(toggle.getAttribute("aria-controls")!)!;
   // "30 min" beside the name; under the fold, the effort alone, held whole where it wraps.
-  expect(toggle.textContent).toContain("30 min");
+  expect(within(runCard).getByRole("heading", { level: 2 }).textContent).toContain("30 min");
   expect(fold.textContent).toContain("Effort 2\u2060–\u20603 of\u00a05");
   expect(fold.textContent).not.toContain("30");
 });
@@ -765,8 +770,8 @@ it("leaves choosing a programme to Plan, for an account without one", () => {
 /** What the head's line under the day says, as read: no-break spaces as spaces. */
 const meta = () => document.querySelector(".page-root-meta")!.textContent!.replace(/\s+/g, " ");
 
-/** Owner, 21 October 2026: a tab's root opens on its subject, never the tab's name. */
-it("opens on the day, its date and how far it has got under it, Log at its end", () => {
+/** Owner, 21 and 28 October 2026: a tab's root opens on its subject, its date its second tone. */
+it("opens on the day, its date under it, Log at its end", () => {
   show();
   // The h1 names the tab first, then the day whole; the weekday alone is shown.
   const heading = screen.getByRole("heading", {
@@ -774,15 +779,14 @@ it("opens on the day, its date and how far it has got under it, Log at its end",
     name: "Today, Friday 11\u00a0September",
   });
   expect(heading.textContent?.replace(/\s+/g, " ")).toBe("Today, Friday 11 September");
-  // The workout and the run are owed and nothing is done yet; the date the h1 already says
-  // is shown, not read again.
-  expect(meta()).toBe("11 September · 0 of 2 done");
+  // The date the h1 already says is shown, not read again; what is done is Done's to say.
+  expect(meta()).toBe("11 September");
   const date = document.querySelector('.page-root-meta [aria-hidden="true"]')!;
   expect(date.textContent).toBe("11\u00a0September");
   expect(logLink().closest(".page-root-action")).not.toBeNull();
 });
 
-it("counts what was done of what the day holds, and nothing once nothing is owed", () => {
+it("says what is done once, as Done's rows, never as a count in the header", () => {
   const lift = {
     id: "lift-1",
     sport: "strength" as const,
@@ -798,8 +802,12 @@ it("counts what was done of what the day holds, and nothing once nothing is owed
     gymName: "Anytime Fitness",
   };
   const { unmount } = show({ plan: { ...plan(), sessionStatus: "completed" }, logged: [lift] });
-  // The workout done, the run still owed.
-  expect(meta()).toBe("11 September · 1 of 2 done");
+  // The workout done, the run still owed: the header says the date alone, and the workout is
+  // a row under Done.
+  expect(meta()).toBe("11 September");
+  expect(
+    within(screen.getByRole("region", { name: "Done" })).getByRole("link", { name: /Easy Run/ }),
+  ).toBeTruthy();
   unmount();
   // Done for the day: no count, only the date.
   show({

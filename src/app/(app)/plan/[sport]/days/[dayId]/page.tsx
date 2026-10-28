@@ -206,13 +206,13 @@ export default async function ProgrammeDayPage(props: PageProps<"/plan/[sport]/d
             />
           </figure>
         )}
-        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-3">
+        <FitTitle as="h1" sizes={{ base: 30, narrow: 28 }} className="mt-3">
           {day.name}
         </FitTitle>
-        {/* What the coach wrote, its figures held to their units ("then 20 min easy") and read
-            in its words' voice, as Today and Choose a day say it: a number in a phrase is not a
-            fact standing on its own, as the time under it is (the Two Voices Rule). */}
-        {day.focus && <p className="mt-0.5 type-meta text-ink-2">{holdFigures(day.focus)}</p>}
+        {/* The day's focus, the title's second tone (owner, 28 October 2026), its figures held to
+            their units ("then 20 min easy"), as Today and Choose a day say it; its time and
+            effort under it. */}
+        {day.focus && <p className="page-fact">{holdFigures(day.focus)}</p>}
         {(day.timeNote || day.effortNote || open) && (
           <MetaLine className="mt-0.5">
             {open && <Fact glyph="play">In progress</Fact>}
@@ -237,7 +237,7 @@ export default async function ProgrammeDayPage(props: PageProps<"/plan/[sport]/d
             !warmup && <p className="mt-3 type-body text-ink-2">Nothing to train.</p>
           ))}
 
-        <ul aria-label={day.name} className="mt-2">
+        <ul aria-label={day.name} className="ov-panel ov-panel-list mt-3">
           {order.map((part) => (
             <Fragment key={part}>{rowsOf[part]}</Fragment>
           ))}
@@ -251,25 +251,30 @@ export default async function ProgrammeDayPage(props: PageProps<"/plan/[sport]/d
           </div>
         )}
         {(plan.run?.paceNote || plan.run?.progressionNote || day.notes) && (
-          <div className="mt-3">
+          // The day's folds, one card (DESIGN.md, Folds).
+          <ul className="fold-list mt-3">
             {(plan.run?.paceNote || plan.run?.progressionNote) && (
-              <Disclosure summary="How to run it" variant="inline">
-                <DetailList
-                  entries={[
-                    ["Pace", plan.run?.paceNote],
-                    ["Progression", plan.run?.progressionNote],
-                  ]}
-                />
-              </Disclosure>
+              <li>
+                <Disclosure summary="How to run it" variant="inline">
+                  <DetailList
+                    entries={[
+                      ["Pace", plan.run?.paceNote],
+                      ["Progression", plan.run?.progressionNote],
+                    ]}
+                  />
+                </Disclosure>
+              </li>
             )}
             {day.notes && (
-              <Disclosure summary="Notes" variant="inline">
-                <p className="type-meta [overflow-wrap:break-word] whitespace-pre-wrap">
-                  {day.notes}
-                </p>
-              </Disclosure>
+              <li>
+                <Disclosure summary="Notes" variant="inline">
+                  <p className="type-meta [overflow-wrap:break-word] whitespace-pre-wrap">
+                    {day.notes}
+                  </p>
+                </Disclosure>
+              </li>
             )}
-          </div>
+          </ul>
         )}
 
         {/* One workout at a time: while one is open, this day starts nothing (Today's rule). */}

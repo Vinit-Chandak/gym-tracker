@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState, useSyncExternalStore } from "react";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -200,12 +200,7 @@ export function YouStep({
                     className="sr-only"
                   />
                   <span className="sport-chip-mark">
-                    <Art
-                      kind="mark"
-                      sport={SPORT_MARK[sport]}
-                      size={22}
-                      state={on ? "done" : "todo"}
-                    />
+                    <SportSign sport={SPORT_MARK[sport]} size={24} />
                   </span>
                   <span className="sport-chip-word">{ACTIVITY_SPORT_LABELS[sport]}</span>
                   {on && <Glyph name="check" className="glyph-20 shrink-0" />}

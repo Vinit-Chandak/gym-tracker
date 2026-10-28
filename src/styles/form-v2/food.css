@@ -91,7 +91,7 @@
   }
 }
 
-/* A day: its weekday, its date in Jost and its bowl; the day on screen in ink, today ringed. */
+/* A day: its weekday, its date and its bowl; the day on screen in ink, today ringed. */
 .food-day {
   display: flex;
   min-width: calc(44 * var(--ov-u));
@@ -173,7 +173,7 @@
 }
 .food-eaten-unit {
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
   white-space: nowrap;
 }
 /* The target, as the macronutrients write theirs: "/ 2,300" in ink 2 before the unit. */
@@ -212,7 +212,7 @@
 }
 .food-macro-name {
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.4;
 }
 /* "86 / 297 g": the target folds under the figure where the column is too narrow for both. */
@@ -288,7 +288,7 @@
 /* ---------- the meals ---------- */
 /* Food rows (below), each led by its layer of the bowl as a small bowl in its tile. */
 .food-meals {
-  margin-top: calc(8 * var(--ov-u));
+  margin-top: calc(14 * var(--ov-u));
 }
 /* The meal's layer as a small bowl, edged in ink so the palest layers hold on white. */
 .meal-swatch {
@@ -364,13 +364,13 @@
   border-radius: var(--ov-radius-control);
   background: var(--ov-surface);
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
 }
 .star-button:active {
   background: var(--ov-surface-2);
 }
 .meal-entries {
-  margin-top: calc(6 * var(--ov-u));
+  margin-top: calc(12 * var(--ov-u));
 }
 
 /* Search your foods: a 50-pt field, its glyph inside it at the left. */
@@ -392,10 +392,10 @@
     calc(calc(24 * var(--ov-u)) + 0.625rem + calc(10 * var(--ov-u)));
   border: 1.5px solid var(--ov-control);
   border-radius: 14px;
-  background: transparent;
+  background: var(--ov-field);
   color: var(--ov-ink);
   font-size: var(--ov-type-input);
-  font-weight: 500;
+  font-weight: 450;
   appearance: none;
 }
 .food-search-input::placeholder {
@@ -430,7 +430,7 @@
    ringed in ground as the ring always is (DESIGN.md, Buttons: Focus). */
 .food-row:focus-visible {
   outline-offset: -5px;
-  box-shadow: inset 0 0 0 2px var(--ov-ground);
+  box-shadow: inset 0 0 0 2px var(--ov-backdrop);
 }
 .food-row-text {
   display: flex;
@@ -441,7 +441,7 @@
 .food-row-name {
   min-width: 0;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.4;
   overflow-wrap: break-word;
 }
@@ -450,7 +450,7 @@
    tab's), something new's plus, a day's meal's layer of the bowl. The name keeps to one line and
    what is under it (a meal's foods, a food's portion) to one more, each ending in an ellipsis
    rather than wrapping, so every row stands the same height whatever it is called and holds
-   (owner, 8 October 2026; DESIGN.md, Rows and marks; components/food/food-row.tsx). */
+   (owner, 8 October 2026; DESIGN.md, Rows and signs; components/food/food-row.tsx). */
 .food-row-led {
   display: grid;
   grid-template-areas:
@@ -508,12 +508,12 @@
 .food-row-meta {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
   font-variant-numeric: tabular-nums lining-nums;
   overflow-wrap: break-word;
 }
-/* What a row comes to stands over its unit, both centred in a column four of Jost's tabular
+/* What a row comes to stands over its unit, both centred in a column four tabular
    digits wide (0.614 em each): figures there are whole (kcal, grams), so every row's words end at
    one edge; a rarer five-digit figure widens its own row's column rather than being cut. */
 .food-row-figure {
@@ -558,7 +558,7 @@
 [data-field-error="true"] > .amount-stepper .figure-input {
   border-bottom-color: var(--ov-danger-line);
 }
-/* Entry type (Jost 600, 42 pt), as the logging page writes a load: `.figure-input` inherits
+/* Entry type (600, 42 pt), as the logging page writes a load: `.figure-input` inherits
    its font from where it stands, and here it stands beside a unit in words. */
 .amount-figure > .figure-input {
   max-width: 100%;

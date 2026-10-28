@@ -16,7 +16,7 @@ export type TitleSizes = {
 };
 
 /**
- * A screen's title (DESIGN.md, Typography): Jost 700 at its size for the screen, stepping down
+ * A screen's title (DESIGN.md, Typography): Host Grotesk 700 at its size for the screen, stepping down
  * 4 for a long name, then to 26 and two lines, never cut. Drawn at the base size until it is
  * measured, and grown with the reader's text by three quarters.
  */

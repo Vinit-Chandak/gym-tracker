@@ -127,7 +127,7 @@ export function CoachWaiting({
         <>
           <Button
             variant="tonal"
-            className={flat ? "flex w-full" : "flex w-full bg-ground"}
+            className={flat ? "flex w-full" : "flex w-full bg-backdrop"}
             disabled={busy}
             onClick={start}
           >

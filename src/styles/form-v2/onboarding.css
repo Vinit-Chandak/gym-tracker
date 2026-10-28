@@ -59,7 +59,7 @@ html:has(.onboarding) .pinned-actions {
   margin-top: calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-body);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.45;
 }
 @media (width < 360px) {
@@ -76,7 +76,7 @@ html:has(.onboarding) .pinned-actions {
 .you-label {
   padding: 0;
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
 }
 /* "Which sounds like you?": two tiles side by side, each its answer and what it leads to;
    chosen, ink with a check. One to a row when large text would break a word. */
@@ -124,7 +124,7 @@ html:has(.onboarding) .pinned-actions {
 .you-choice-title {
   min-width: 0;
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.25;
   overflow-wrap: break-word;
 }
@@ -172,7 +172,7 @@ html:has(.onboarding) .pinned-actions {
   min-width: min-content;
   flex: 1 1 auto;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.25;
   overflow-wrap: break-word;
 }
@@ -197,7 +197,7 @@ html:has(.onboarding) .pinned-actions {
   align-items: flex-start;
   margin-top: calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   color: var(--ov-danger-text);
   gap: calc(6 * var(--ov-u));
 }
@@ -233,7 +233,7 @@ html:has(.onboarding) .pinned-actions {
   align-items: center;
   padding: 0 2px;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   text-decoration: underline;
   text-underline-offset: calc(3 * var(--ov-u));
 }
@@ -251,7 +251,7 @@ html:has(.onboarding) .pinned-actions {
   min-width: 0;
   flex-direction: column;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
 }
 .units-row-control {
   width: min(100%, 11rem);
@@ -272,7 +272,7 @@ html:has(.onboarding) .pinned-actions {
   margin-top: calc(12 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.45;
 }
 /* ---------- Sports ---------- */
@@ -310,7 +310,7 @@ html:has(.onboarding) .pinned-actions {
 .sport-tile-word {
   min-width: 0;
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 /* ---------- Machines ---------- */
@@ -380,7 +380,7 @@ html:has(.onboarding) .pinned-actions {
   min-width: 0;
   flex: 1 1 auto;
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.3;
   overflow-wrap: break-word;
 }
@@ -399,7 +399,7 @@ html:has(.onboarding) .pinned-actions {
 .date-row-value {
   display: flex;
   align-items: center;
-  font-weight: 700;
+  font-weight: 650;
   gap: calc(6 * var(--ov-u));
 }
 .date-row:has(.select-row-native:focus-visible) {
@@ -409,7 +409,7 @@ html:has(.onboarding) .pinned-actions {
 }
 
 /* ---------- signing in (the auth screens' head) ---------- */
-/* The name as the system draws it: the mark beside "Overload" in Jost, at the gutter. */
+/* The name as the system draws it: the mark beside "Overload" in Title, at the gutter. */
 .auth-name {
   display: flex;
   align-items: center;
@@ -448,13 +448,13 @@ html:has(.onboarding) .pinned-actions {
 }
 .basics-line-title {
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
 }
 .basics-line-meta {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
 }
 .basics-line-action {
@@ -463,7 +463,7 @@ html:has(.onboarding) .pinned-actions {
   align-items: center;
   gap: 2px;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
 }
 /* Picture tiles, two to a row down to 320 pt and one at 200% text: the drawing, the box and the
    name, the purpose under it. Ticked, the tile is ink and the drawing inverts with it; ⓘ stands
@@ -519,7 +519,7 @@ button.equipment-tile:focus-visible {
   align-items: flex-start;
   gap: calc(8 * var(--ov-u));
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.3;
 }
 /* Without a drawing, the box and ⓘ share the first line and the name gets the width below. */
@@ -537,7 +537,7 @@ button.equipment-tile:focus-visible {
 .equipment-tile-purpose {
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
 }
 .equipment-tile:has(input:checked) .equipment-tile-purpose {
@@ -545,7 +545,7 @@ button.equipment-tile:focus-visible {
 }
 .equipment-tile-note {
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
 }
 .equipment-tile-info {
@@ -593,7 +593,7 @@ button.equipment-tile:focus-visible {
   align-items: center;
   padding: 0 2px;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   text-decoration: underline;
   text-underline-offset: calc(3 * var(--ov-u));
 }
@@ -645,7 +645,7 @@ button.equipment-tile:focus-visible {
   color: var(--ov-ink);
   cursor: pointer;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.25;
   text-align: center;
   transition:
@@ -700,7 +700,7 @@ button.equipment-tile:focus-visible {
 }
 .figure-field-label {
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 .figure-field-box {
@@ -713,7 +713,7 @@ button.equipment-tile:focus-visible {
   padding: 0 calc(12 * var(--ov-u));
   border: 1.5px solid var(--ov-control);
   border-radius: var(--ov-radius-control);
-  background: var(--ov-ground);
+  background: var(--ov-field);
   color: var(--ov-ink);
   font-family: var(--ov-font-display);
   /* 18, k 0.5: grows with the reader's text, and never under the floor for anything typed. */
@@ -743,12 +743,18 @@ button.equipment-tile:focus-visible {
   translate: 0 -50%;
 }
 /* Optional answers, each folded under its name and what it is for: ruled rows. */
+/* The ready programme's folds, one card (owner, 28 October 2026), a rule between them. */
 .setup-coach-more {
   margin-top: calc(18 * var(--ov-u));
-  border-top: 1px solid var(--ov-hair);
+  padding: 0 var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
 }
 .setup-fold {
   border-bottom: 1px solid var(--ov-hair);
+}
+.setup-fold:last-child {
+  border-bottom: 0;
 }
 .setup-fold-summary {
   display: flex;
@@ -770,13 +776,13 @@ button.equipment-tile:focus-visible {
 .setup-fold-title {
   display: block;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
 }
 .setup-fold-sub {
   display: block;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   overflow-wrap: break-word;
 }
 .setup-file {
@@ -854,14 +860,14 @@ button.equipment-tile:focus-visible {
   min-width: 0;
   flex: 1 1 10rem;
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 /* The programme: its name, its shape in figures, then each training day as its print. */
 .ready-name {
   margin-top: calc(10 * var(--ov-u));
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 .ready-shape {
@@ -894,14 +900,14 @@ button.equipment-tile:focus-visible {
 .ready-day-name {
   display: block;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 .ready-day-sub {
   display: block;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   overflow-wrap: break-word;
 }
 .ready-start {
@@ -919,7 +925,7 @@ button.equipment-tile:focus-visible {
   margin-top: calc(8 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
 }
 /* The day's name, typed where the title stands: Display, over a hairline. */
 .split-day-name {
@@ -934,7 +940,7 @@ button.equipment-tile:focus-visible {
   color: var(--ov-ink);
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-display);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: var(--ov-title-tracking);
 }
 .split-day-name:focus {
@@ -944,7 +950,7 @@ button.equipment-tile:focus-visible {
 .split-day-name::placeholder {
   color: var(--ov-ink-2);
 }
-/* A day in the list: its number in Jost, its name and what is on it, a chevron. */
+/* A day in the list: its number, its name and what is on it, a chevron. */
 .split-day,
 .split-row {
   display: flex;
@@ -966,14 +972,14 @@ button.equipment-tile:focus-visible {
 .split-row-name {
   display: block;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   overflow-wrap: break-word;
 }
 .split-row-sub {
   display: block;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   overflow-wrap: break-word;
 }
 .split-row-figures {
@@ -990,7 +996,7 @@ button.equipment-tile:focus-visible {
   min-height: calc(56 * var(--ov-u));
   align-items: center;
   font-size: var(--ov-type-body);
-  font-weight: 700;
+  font-weight: 650;
   gap: calc(14 * var(--ov-u));
 }
 .split-remove {
@@ -999,7 +1005,7 @@ button.equipment-tile:focus-visible {
   align-items: center;
   color: var(--ov-ink);
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
   gap: calc(8 * var(--ov-u));
 }
 .split-stepper {

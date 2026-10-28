@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -74,7 +74,7 @@ export function SportChoice({
               className="sport-tile"
             >
               <span className="sport-tile-mark">
-                <Art kind="mark" sport={SPORT_MARK[sport]} size={28} state={on ? "done" : "todo"} />
+                <SportSign sport={SPORT_MARK[sport]} size={32} />
               </span>
               <span className="flex w-full items-center justify-between gap-2">
                 <span className="sport-tile-word">{ACTIVITY_SPORT_LABELS[sport]}</span>

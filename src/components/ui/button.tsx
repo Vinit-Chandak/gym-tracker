@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Form v2's buttons (DESIGN.md, Buttons): ink, tonal, waiting, outline, text and destructive,
- * all with 14-px corners. `secondary` and `ghost` are the names the screens already use for
- * tonal and text.
+ * all pills (owner, 28 October 2026), their words at the control weight. `secondary` and
+ * `ghost` are the names the screens already use for tonal and text.
  */
 export type ButtonVariant =
   "primary" | "secondary" | "tonal" | "waiting" | "outline" | "ghost" | "text" | "danger";
@@ -42,7 +42,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:break-word] select-none disabled:pointer-events-none",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-full text-center leading-snug font-semibold [overflow-wrap:break-word] select-none disabled:pointer-events-none",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

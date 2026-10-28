@@ -22,6 +22,7 @@ export function NavRow<T extends string>({
   badge,
   tag,
   trailing,
+  strong = false,
   prefetch,
   className,
 }: {
@@ -35,12 +36,14 @@ export function NavRow<T extends string>({
   sub?: ReactNode;
   /** What it is set to, in ink 2 before the chevron: "System". */
   value?: ReactNode;
-  /** Something waiting there, in an ink pill: "1 request". */
+  /** Something waiting there, in ink as news: "1 request". */
   badge?: ReactNode;
   /** What marks it out, in an ink outline: "Default". */
   tag?: ReactNode;
   /** A control in place of the chevron: the rest timer's switch. */
   trailing?: ReactNode;
+  /** A row naming a thing done or to do (Upper A) rather than a setting: its name at 600. */
+  strong?: boolean;
   prefetch?: "intent";
   className?: string;
 }) {
@@ -68,7 +71,7 @@ export function NavRow<T extends string>({
               <span className="nav-row-label nav-row-label-bold">{label}</span>
               {marks}
             </span>
-            {/* "101 machines": its figures in Jost, whose zero is plain (DESIGN.md, The Two
+            {/* "101 machines": its figures tabular (DESIGN.md, The One
                 Voices Rule); a sentence has none, and is left as it is. */}
             <span className="nav-row-sub">
               {typeof sub === "string" ? <Figures>{sub}</Figures> : sub}
@@ -76,7 +79,7 @@ export function NavRow<T extends string>({
           </span>
         ) : (
           <>
-            <span className="nav-row-label">{label}</span>
+            <span className={cn("nav-row-label", strong && "nav-row-label-bold")}>{label}</span>
             {marks}
           </>
         )}

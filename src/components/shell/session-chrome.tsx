@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import Link from "@/components/ui/app-link";
 import { usePinnedFold } from "@/components/ui/pinned-actions";
 
@@ -89,7 +89,7 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
         >
           <aside aria-label="Workout in progress" className="session-strip">
             <span className="session-strip-title">
-              <Art kind="mark" sport="strength" size={16} className="session-strip-mark" />
+              <SportSign sport="strength" size={16} className="session-strip-mark" />
               <span className="session-strip-name">{session.name}</span>
             </span>
             {/* The time and Resume go under the name together, when it has too little room. */}
@@ -164,7 +164,7 @@ function SessionFold({
     >
       <span className="session-fold-state">
         {rest === null ? (
-          <Art kind="mark" sport="strength" size={16} className="session-fold-glyph" />
+          <SportSign sport="strength" size={20} className="session-fold-glyph" />
         ) : (
           <RestFace
             remaining={rest.remaining}

@@ -30,6 +30,24 @@ export function dayAndMonth(isoDate: string, currentYear?: string): string {
 }
 
 /**
+ * A week's dates as its title's second tone (owner, 28 October 2026): "19 – 25 Oct", "26 Oct –
+ * 1 Nov", the year after the last date outside `currentYear`, and after each where the week
+ * crosses New Year. Months are short, so the dates keep one line beside the week's steps.
+ */
+export function weekRange(from: string, to: string, currentYear?: string): string {
+  const first = parts(from, { day: "numeric", month: "short", year: "numeric" });
+  const last = parts(to, { day: "numeric", month: "short", year: "numeric" });
+  const crossesYear = first.year !== last.year;
+  const lastYear = crossesYear || to.slice(0, 4) !== currentYear ? last.year : null;
+  const start =
+    first.month === last.month && !crossesYear
+      ? first.day
+      : [first.day, first.month, crossesYear ? first.year : null].filter(Boolean).join("\u00a0");
+  const end = [last.day, last.month, lastYear].filter(Boolean).join("\u00a0");
+  return `${start} – ${end}`;
+}
+
+/**
  * A week's dates under its headline: "19 to 25 October", "28 September to 4 October", the year
  * after the last date outside `currentYear`, and after each where the week crosses New Year.
  */

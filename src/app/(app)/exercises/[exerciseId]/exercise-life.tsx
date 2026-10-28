@@ -176,7 +176,7 @@ export function ExerciseLife({
   // A bodyweight movement's sets say the body ("Bodyweight × 12"), an assisted one's the help.
   const reading = loadReadingOf(exercise, life.assisted);
   const rows = (list: readonly LatestPerformance[], named: boolean) => (
-    <ul>
+    <ul className="ov-panel ov-panel-list">
       {list.map((performance, index) => {
         const best = topSet(performance.sets, life.assisted, reading, length);
         return (
@@ -226,7 +226,8 @@ export function ExerciseLife({
 
   return (
     <>
-      <p className="meta-line mt-1">
+      {/* The title's second tone (owner, 28 October 2026). */}
+      <p className="page-fact meta-line">
         {/* The glyph says the kind and the machine is said in words, as a workout's rows say
             them: "Machine" and "Lat pulldown" side by side read as one name. A machine named
             after its kind ("Smith machine") is said once either way. */}

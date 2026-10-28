@@ -41,9 +41,18 @@ export type GymDetailData = {
 const loadLabel = (item: EquipmentListItem) =>
   equipmentLoadLabel(item.typeCategory, item.resistanceMode);
 
-function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListItem[] }) {
+/** A gym's machines: a card of their own, or bare inside a fold that is already one. */
+function EquipmentRows({
+  gymId,
+  items,
+  boxed = false,
+}: {
+  gymId: string;
+  items: EquipmentListItem[];
+  boxed?: boolean;
+}) {
   return (
-    <ul>
+    <ul className={boxed ? "ov-panel ov-panel-list" : undefined}>
       {items.map((item) => (
         <li key={item.id} className="nav-row-item">
           <Link
@@ -152,7 +161,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           </form>
         )}
 
-        <ul className="mt-2.5 border-b border-hair">
+        <ul className="ov-panel ov-panel-list mt-3">
           <NavRow
             href={`/gyms/${gym.id}/programme`}
             glyph="table"
@@ -184,7 +193,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           {activeEquipment.length === 0 ? (
             <p className="type-meta text-ink-2">No machines yet.</p>
           ) : (
-            <EquipmentRows gymId={gym.id} items={activeEquipment} />
+            <EquipmentRows gymId={gym.id} items={activeEquipment} boxed />
           )}
           {/* Archived machines stay out of new logging but remain in the record. */}
           {archivedEquipment.length > 0 && (
@@ -217,7 +226,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
               <p className="type-meta text-ink-2">Nothing marked unavailable.</p>
             )}
             {absent.length > 0 && (
-              <ul>
+              <ul className="ov-panel ov-panel-list">
                 {absent.map((item) => (
                   <li
                     key={item.equipmentTypeId}
@@ -281,8 +290,8 @@ export function GymDetails({ data }: { data: GymDetailData }) {
 
         {/* One action, so it stands as itself rather than folded alone (DESIGN.md, Folds). */}
         {gym.isActive && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-            <p className="flex items-center gap-1 type-meta">
+          <div className="mt-4 flex box flex-wrap items-center justify-between gap-3 panel-padding">
+            <p className="flex min-w-0 items-center gap-1 font-medium">
               Archive gym
               <InfoTip label="About archiving">
                 Hides it from pickers. History stays, and it can be restored any time.

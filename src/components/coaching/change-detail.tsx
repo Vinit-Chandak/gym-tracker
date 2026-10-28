@@ -148,7 +148,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
       {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
       {open && <CoachQuestions questions={props.toConfirm ?? []} className="mt-2.5" />}
       {why && (
-        <Disclosure summary="Why" variant="inline" className="mt-2.5">
+        <Disclosure summary="Why" className="mt-3">
           {props.rationale && (
             <p className="type-meta leading-[1.45] [overflow-wrap:break-word] whitespace-pre-wrap">
               {props.rationale}
@@ -293,7 +293,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
 
       {/* The whole programme as it would be — after the difference, not before it. */}
       {props.base === "/plan" && (
-        <ul className="mt-3">
+        <ul className="ov-panel ov-panel-list mt-3">
           <NavRow
             href={`${props.base}/drafts/${props.draftId}/programme` as Route}
             glyph="table"

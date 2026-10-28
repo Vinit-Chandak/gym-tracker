@@ -28,7 +28,7 @@ export function answeredName(session: NamedOccurrence, year: string): string {
  */
 export function CountsAsRow({ value, href }: { value: string; href: Route | null }) {
   return (
-    <ul className="mt-3 ruled-list">
+    <ul className="ov-panel ov-panel-list mt-3">
       <NavRow href={href ?? undefined} label="Counts as" value={value} />
     </ul>
   );

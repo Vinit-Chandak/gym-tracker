@@ -737,10 +737,11 @@ async function runDevice(device) {
     });
     await step("duplicate-programme-waits-for-slow-navigation", async () => {
       await go("/plan/strength");
-      await openDisclosure(page.locator(".programme-management").first(), "More options");
+      // More options is a sheet beside Edit programme (owner, 28 October 2026).
+      await button(page.locator(".programme-management").first(), "More options").click();
       await clickWithSlowNavigation(
         page,
-        button(page, "Duplicate programme").first(),
+        button(page.getByRole("dialog", { name: "More options" }), "Duplicate programme"),
         "**/plan/strength/edit?draft=*",
       );
       await page.waitForURL(/\/plan\/strength\/edit\?draft=/);

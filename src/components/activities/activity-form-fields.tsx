@@ -707,7 +707,7 @@ export type PlanTarget = {
  * mistaken for a measurement of what actually happened.
  */
 export function TargetCard({ title, figure, stop, steps, notes }: PlanTarget) {
-  // "25–30 min": the figure in Jost, its unit after it in words.
+  // "25–30 min": the figure, its unit after it in words.
   const split = /^([\d.,:×–\s]*\d)\s+(\D.*)$/.exec(figure);
   return (
     <section aria-label={title} className="target-card">

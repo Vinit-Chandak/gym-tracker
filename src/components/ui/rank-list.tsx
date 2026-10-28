@@ -48,21 +48,18 @@ function foldUnder(
   currentYear?: string,
 ): string {
   const ranked = rows.flatMap((row) => (row.value === null ? [] : [{ row, value: row.value }]));
-  // In em of the size each is set in, with a hundredth to spare.
-  const widest = (lines: string[], figures = false) =>
-    (Math.max(0, ...lines.map((line) => textEmWidth(line, figures))) * 1.01).toFixed(3);
+  // In em of the size each is set in: the face's glyphs summed, which only ever err wide of what
+  // kerning sets, so nothing needs adding to spare.
+  const widest = (lines: string[]) =>
+    Math.max(0, ...lines.map((line) => textEmWidth(line))).toFixed(3);
   const name = widest(ranked.map(({ row }) => shownName(row, you)));
   const handle = widest(ranked.map(({ row }) => `@${row.username}`));
-  const value = widest(
-    ranked.map(({ value }) => format(value)),
-    true,
-  );
+  const value = widest(ranked.map(({ value }) => format(value)));
   const under = widest(
     ranked.flatMap(({ row }) => [
       row.detail ?? "",
       row.occurredOn ? formatIsoDate(row.occurredOn, currentYear) : "",
     ]),
-    true,
   );
   const room = [
     "var(--spacing) * 24",

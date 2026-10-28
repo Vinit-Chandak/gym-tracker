@@ -55,53 +55,49 @@ export default async function ProfilePage() {
   return (
     // Settings stand as panels on the grouped ground (DESIGN.md, Layout: Forms and settings).
     <div className="ov-grouped-page">
-      {/* The athlete leads, as one card (owner, 24 October 2026): a row that opens your page as
-          a follower sees it (the avatar, your name, your handle and its chevron, one target),
-          the two counts as two figures that open the lists they count, and Edit profile named
-          in words. Four separate links in a headline, the name at a title's size and Edit
-          dropped onto a line of its own, left nobody sure what any of them did. */}
+      {/* The athlete leads as the page's title, in two tones (owner, 28 October 2026): their
+          name, then their handle, the photo at the end, all one target that opens their page
+          as a follower sees it; under it the two counts, each opening the list it counts, and
+          Edit profile, said once. A detail still missing is a row of its own under them. */}
       <header className="page-header page-width pt-safe">
         <h1 className="sr-only">Profile, {name}</h1>
-        <section aria-label="You" className="ov-panel profile-card">
-          <Link href={publicPage} className="profile-card-person">
-            <Avatar
-              username={profile.username}
-              displayName={profile.displayName}
-              size="header"
-              className="profile-card-avatar"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="profile-card-name">{name}</span>
-              <span className="profile-card-handle">@{profile.username}</span>
+        <Link href={publicPage} className="profile-head">
+          <span className="profile-head-text">
+            <span className="page-root-title">{name}</span>
+            <span className="page-root-meta">
+              @{profile.username}
+              <Glyph name="chevronRight" className="glyph-18 text-ink-2" />
             </span>
-            <Glyph name="chevronRight" className="glyph-20 shrink-0 text-ink-2" />
+          </span>
+          <Avatar
+            username={profile.username}
+            displayName={profile.displayName}
+            size="header"
+            className="profile-head-avatar"
+          />
+        </Link>
+        <div className="profile-social">
+          <Link href="/profile/friends/people?people=followers" className="profile-count">
+            <span className="profile-count-figure">{counts.followers}</span>
+            <span>{counts.followers === 1 ? "follower" : "followers"}</span>
           </Link>
-          <div className="profile-card-counts">
-            <Link href="/profile/friends/people?people=followers" className="profile-card-count">
-              <span className="profile-card-figure">{counts.followers}</span>
-              <span>{counts.followers === 1 ? "Follower" : "Followers"}</span>
-            </Link>
-            <Link href="/profile/friends/people?people=following" className="profile-card-count">
-              <span className="profile-card-figure">{counts.following}</span>
-              <span>Following</span>
-            </Link>
-          </div>
-          <LinkButton href="/profile/edit" variant="tonal" className="w-full">
-            <Glyph name="edit" className="glyph-18" />
+          <Link href="/profile/friends/people?people=following" className="profile-count">
+            <span className="profile-count-figure">{counts.following}</span>
+            <span>following</span>
+          </Link>
+          <LinkButton href="/profile/edit" variant="tonal" size="sm" className="ml-auto">
             Edit profile
           </LinkButton>
-          {/* A detail still missing is said here rather than only behind Edit profile: a detail
-              nobody knows is missing is a detail nobody adds. */}
-          {missing.length > 0 && (
-            <Link href="/profile/edit" className="profile-card-missing">
-              <Glyph name="warn" className="glyph-18 shrink-0" />
-              <span className="min-w-0 flex-1">Add your {listSentence(missing)}</span>
-              <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
-            </Link>
-          )}
-        </section>
+        </div>
       </header>
       <div className="page-width page-stack pb-8">
+        {/* A detail nobody knows is missing is a detail nobody adds, so it is said here rather
+            than only behind Edit profile. */}
+        {missing.length > 0 && (
+          <ul className="ov-panel ov-panel-list">
+            <NavRow href="/profile/edit" glyph="warn" label={`Add your ${listSentence(missing)}`} />
+          </ul>
+        )}
         <ul className="ov-panel ov-panel-list">
           <NavRow
             href="/profile/friends"
@@ -138,21 +134,19 @@ export default async function ProfilePage() {
           </ul>
         </section>
 
+        <InstallSection />
+
+        {/* The account, and the ways out of it, in one group (owner, 28 October 2026). */}
         <section aria-labelledby="profile-account">
           <h2 id="profile-account" className="caption-head">
             Account
           </h2>
           <ul className="ov-panel ov-panel-list">
             <NavRow href="/profile/password" glyph="password" label="Password" />
+            <SignOutRow userId={user.id} />
+            <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
           </ul>
         </section>
-
-        <InstallSection />
-
-        <ul className="ov-panel ov-panel-list">
-          <SignOutRow userId={user.id} />
-          <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
-        </ul>
       </div>
     </div>
   );

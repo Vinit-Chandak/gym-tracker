@@ -252,34 +252,37 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
 
 ### Shown
 
-- **This week**, Monday to Sunday ("19 Oct – 25 Oct 2026"), with Previous week and Next week, a
-  list of days: each day's sessions, every sport's, lifting first, each with its sport's mark and
-  name ("Upper A", "Tempo run", or "Run" when nobody named it), a run, ride or swim with its figure
-  where the name does not say it ("30 min"). Each reads Done or Skipped once answered and Today
-  while it is today's; a run, ride or swim reads Missed once its day has passed without; one to
-  come says nothing. A day gone by is one closed row, the day and what became of it ("Mon 19 Oct
-  · 2 done", "Thu 15 Oct · 1 done · 1 skipped", "Sat 17 Oct · 1 missed"), opening to its
-  sessions; today and the days to come are open, and a week gone by is all closed rows. A lifting
+- **This week**, Monday to Sunday, as Plan's title with its dates under it ("19 – 25 Oct") and
+  its two round steps at its end, heard as Last week and Next week (owner, 28 October 2026). The
+  week is one card: each day with something planned has its weekday and date in a column, today's
+  date in the one ink disc, and its sessions beside it, every sport's, lifting first, each with
+  its sport's sign and name ("Upper A", "Tempo run", or "Run" when nobody named it), a run, ride or
+  swim with its figure where the name does not say it ("30 min"). Each reads Done or Skipped once
+  answered; a run, ride or swim reads Missed once its day has passed without; today's and one to
+  come say nothing. The days gone by fold into one closed row at the card's top, saying what
+  became of them ("Mon 19 – Tue 20, 3 done · 1 missed"), opening to their sessions; today and the
+  days to come are open, and a week gone by, opened on purpose, is shown whole. A lifting
   day appears once: done or skipped, on the day it was; still owed, where the sequence will reach
   it, the day Today offers on today and each after it on the programme's next training date,
   never also on the date the calendar first gave it. Days with nothing planned are left out, and
   a week with none says "Nothing planned."
-- **Programmes:** a card per active programme with its sport, its name, how it runs and where it
-  has got to ("Every week · Week 3 of 8", "Progressive · Day 12 of 40", "Progressive · Starts Mon
+- **Programmes:** one card under the Programmes heading, + New at the heading's end, a row per
+  active programme with its sport's sign, its name, how it runs and where it has got to ("Every week · Week 3 of 8", "Progressive · Day 12 of 40", "Progressive · Starts Mon
   26 Oct" before a run, ride or swim programme's first day, or "Complete"), and "Changes to
   review" or "Draft in progress" while a change waits. Never its next session, which is Today's,
   and never a bar, which is its page's. Beside them, a first programme from the moment the coach
   is asked for it ("New running programme" with "Being written", "Needs your answer" or "Could
   not finish", opening its request), then its draft ("New programme to review" or "Draft in
   progress") until it is started or discarded.
-- **Past programmes**, a row to every sport's programmes that ended or were replaced, newest
-  first, each with its name, sport and version ("Running · Version 2").
-- **A programme's page** (`/plan/[sport]`): its name, how it runs and for how long
-  ("Every week · 8 weeks", "Repeating · 12 weeks"), a bar of the days or sessions done with where
-  it has got to under it in its card's words ("Week 3 of 21 · 12 of 79 sessions done"), Edit
-  programme and More options, and its notes and dates one tap away.
+- **Past programmes**, the last row of the Programmes card, to every sport's programmes that
+  ended or were replaced, newest first, each with its name, sport and version ("Running ·
+  Version 2").
+- **A programme's page** (`/plan/[sport]`): its name and its sport's sign, how it runs and for
+  how long ("Every week · 8 weeks", "Repeating · 12 weeks"), a bar of the days or sessions done
+  with where it has got to under it ("Week 3 · 12 of 79 sessions done"), Edit programme and More
+  options, its notes and dates under More options (Programme details).
   - **A run, ride or swim programme:** its weeks, each with what it asks for, the day it starts
-    and where it stands ("Week 3", "4 runs · 24.2 km + 68 min · Mon 19 Oct · Now", "Done", "1
+    and where it stands ("Week 3", "Mon 19 Oct · 4 runs · 24.2 km + 68 min", "Done", "1
     missed"), the current one open; each session named as This week names it (its title, else its
     kind of run, else its sport), with its kind and target under it only where the name does not
     say them ("Tempo" over "20 min"; "Long run 4.5 mi" alone), and Done, Skipped or Missed,
@@ -322,8 +325,8 @@ sessions are Today's; what has been done is Progress's (ADR 0058).
 - **On a session's page:** Log run (Log ride, Log swim), its one primary, while it is no more than
   six days ahead, as Log takes it; Skip this session, or Put it back; Move it to another date;
   Remove from the calendar, for one no programme planned.
-- **Open a programme** from its card; **New programme**, in the header, or as the page's own
-  button with none.
+- **Open a programme** from its row; **New programme**, at the end of the Programmes heading, or
+  as the page's own button with none.
 - **On a programme's page:** Edit programme, a draft of the current block applied once
   reviewed; under More options, Replace programme, Duplicate programme and End programme. Ending
   is confirmed in place: its sessions from today on are removed, any it still owes can then only
@@ -547,19 +550,19 @@ weight and muscle volume), and every past entry, which can be opened, corrected 
 
 ### Sections
 
-One picker offers seven sections: **Overview** (where the tab opens, with **History** under its
-month), **Strength**, **Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The
+One picker offers seven sections: **Overview** (where the tab opens, with **History** a row under
+its month), **Strength**, **Muscles**, **Running**, **Food**, **Recovery** and **Body weight**. The
 header says "Progress" with the dates the section is drawn over ("8 Sept – 7 Oct 2026"), except
 where a section leads with a clock of its own, which has no funnel either: Overview its month
 (ADR 0045), Muscles its week (ADR 0047). Every graph is the one `Graph` (ADR 0042) and carries
 the same spans, 1M, 3M, 6M, 12M and All: a month by default, one span for every graph,
 remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** this month on paper and its totals as its key, each sport's count with its
-  distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **History**, the ten newest
-  workouts, runs, rides and swims, running back into the month before (named) when this one
-  holds fewer, with All at its head for every entry. No span and no funnel: the training totals
-  over a span were dropped at the owner's request (ADR 0045).
+- **Overview:** this month on paper and its totals as its key, one card, each sport's count with
+  its distance and time this month ("3 Runs · 9.2 km · 1 h 9 min"); then **History**, one row
+  that opens every entry. The month already draws each activity, so the ten newest are no longer
+  listed under it a second time (ADR 0045, amended 28 October 2026). No span and no funnel: the
+  training totals over a span were dropped at the owner's request (ADR 0045).
 - **Strength:** two selects, a muscle group (all, or chest, back, legs, shoulders, arms or core)
   and then an exercise filed under it ("All exercises", then each exercise ever logged there,
   each under the group of its first primary muscle). **All exercises:** the group's total volume
@@ -591,7 +594,8 @@ remembered once chosen. The funnel holds custom dates, which leave no span chose
 - **Body weight:** as recorded, a point per reading, in the account's unit; the latest and its
   change ("75.2 kg · −1 since Tue 8 Sept"). With no reading at all, "No readings yet" and Log
   body weight (Today › Log's page); with none in the span, "No readings in this range."
-- **History** (Overview's All, a page under Progress with its range under its title, ADR 0045):
+- **History** (Overview's History row, a page under Progress with its range under its title,
+  ADR 0045):
   "79 entries", newest first, ten to a page with the page tabs under
   the list (every page up to five, else the first, the last and the page read with its
   neighbours), each entry marked Workout, Run, Ride, Swim or Recovery. A workout shows its name (an unplanned one's first two exercises), date, time,

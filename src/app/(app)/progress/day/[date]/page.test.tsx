@@ -80,7 +80,7 @@ it("holds an open workout's state whole on its line", async () => {
 it("keeps a finished workout's figures with their words", async () => {
   mocks.workouts = [{ ...squatDay, completedAt: new Date("2026-10-11T02:42:00Z") }];
   const html = renderToStaticMarkup(await DayPage(props));
-  // Its figures in Jost, whose zero is plain.
+  // Its figures set as figures.
   expect(html).toContain(
     'Tokyo Powerhouse · <span class="figures">72</span> min · <span class="figures">2</span> sets',
   );
