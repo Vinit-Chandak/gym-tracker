@@ -44,11 +44,7 @@ it.each(["early", "late", "first", "new"])(
   async (state) => {
     const markup = await render({ state });
     const overview = overviewProps();
-    expect(overview.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    for (const item of overview.overview.latest) {
-      expect(item.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(item.href).toBeUndefined();
-    }
+    expect(overview.month.month).toMatch(/^\d{4}-\d{2}$/);
     expect(overview.historyHref).toBe(`/preview/progress?state=${state}&view=history`);
     expect(overview.calendarHref).toBeNull();
     expect(overview.dayHrefs).toEqual({});
@@ -66,7 +62,7 @@ it.each(["constructor", "__proto__", "unknown"])(
   "falls back safely for the invalid state %s",
   async (state) => {
     await render({ state });
-    expect(overviewProps().today).toBe("2026-10-08");
+    expect(overviewProps().month).toMatchObject({ month: "2026-10", today: 8 });
   },
 );
 

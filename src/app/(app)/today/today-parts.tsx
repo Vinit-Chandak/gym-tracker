@@ -9,7 +9,7 @@ import type { PlanRowModel } from "./today-model";
 import { groupRows } from "./today-model";
 
 /**
- * A meta line: facts, each led by its glyph, in ink 2 (DESIGN.md, Rows and marks). A block
+ * A meta line: facts, each led by its glyph, in ink 2 (DESIGN.md, Rows and signs). A block
  * rather than a paragraph, because a fact can be a choice that opens a sheet.
  */
 export function MetaLine({ children, className }: { children: ReactNode; className?: string }) {
@@ -34,7 +34,7 @@ export function Fact({
 }
 
 /**
- * One exercise row everywhere (DESIGN.md, Rows and marks): the name, and under it the
+ * One exercise row everywhere (DESIGN.md, Rows and signs): the name, and under it the
  * equipment's glyph and the prescription. No mark beside it: its sets are said once here and
  * drawn once in the print. Where it stands is said only when it is news.
  */
@@ -71,7 +71,7 @@ export function PlanRow({
               glyph={row.glyph ?? undefined}
               label={row.glyph ? GLYPH_LABELS[row.glyph] : undefined}
             >
-              {/* Its figures in Jost, as every meta line's are, each range held at its dash and
+              {/* Its figures tabular, as every meta line's are, each range held at its dash and
                   RIR to its figure: "@ 1–" never ends a line. */}
               <Figures>{holdFigures(row.line)}</Figures>
             </Fact>

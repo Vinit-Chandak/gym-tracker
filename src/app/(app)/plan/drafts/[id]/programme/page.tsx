@@ -174,8 +174,8 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
       />
       <PageContent>
         <Section title={`${data.draft.blueprint.name} · week ${data.week}`}>
-          {/* A list of folds is ruled rows that share their rules (DESIGN.md, Folds). */}
-          <ul className="[&>li+li]:-mt-px">
+          {/* A list of folds is one card, a rule between them (DESIGN.md, Folds). */}
+          <ul className="fold-list">
             {days.map((plan) => (
               <li key={plan.day.id}>
                 {/* A draft's days are not saved days: there is no day's page to open yet. */}

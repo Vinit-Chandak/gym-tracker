@@ -29,7 +29,7 @@ const APPEARANCE_CHANGE_EVENT = "overload:appearance-change";
 let transientAppearance: Appearance | null = null;
 
 /** Browser chrome colours: Form v2's two grounds, kept in step with styles/form-v2/palette.css. */
-export const CANVAS_LIGHT = "#ffffff";
+export const CANVAS_LIGHT = "#f1f1f3";
 export const CANVAS_DARK = "#111214";
 
 function parseAppearance(value: unknown): Appearance {

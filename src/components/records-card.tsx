@@ -35,7 +35,7 @@ export function SessionRecordsCard({
       <h2 id="session-records" className="caption-head">
         {records.length === 1 ? "1 record" : `${records.length} records`}
       </h2>
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         {records.map((record) => {
           const [figure, ...rest] = formatSharedMetric(
             record.metric,

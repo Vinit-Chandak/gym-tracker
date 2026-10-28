@@ -3,9 +3,9 @@ import { Fragment } from "react";
 import { FIGURE_RUN } from "./fit";
 
 /**
- * A fact's figures in Jost's tabular digits, whose zero is plain (Atkinson's is slashed, and
- * reads as a machine's): "70–90 min" sets 70 and 90 in Jost and keeps the en dash and the unit
- * in Atkinson, since Jost's dash is as long as an em dash (DESIGN.md, The Two Voices Rule).
+ * A fact's figures as figures (DESIGN.md, The One Voice Rule): "70–90 min" sets 70 and 90 tabular
+ * and lining, so a figure that updates never moves its line, and leaves the en dash and the unit
+ * as words.
  */
 export function Figures({ children }: { children: string }) {
   // One span around the runs: in a flex fact (the meta line's), each run would otherwise be an

@@ -4,20 +4,25 @@
  * semantic --ov-* names, never these.
  */
 :where([data-overload-design="form-v2"]) {
-  /* The interface: ink on ground, with two surfaces, a hairline and the control grey. */
-  --ov-light-ground: #ffffff;
-  --ov-light-surface: #f4f4f5;
-  --ov-light-surface-2: #e9e9ec;
-  /* Tonal and round buttons: the surface itself in light. */
-  --ov-light-surface-control: #f4f4f5;
+  /* The interface (owner, 28 October 2026: one surface): white cards on a grey ground, with a
+     second surface a tone off a card, a rule and the control grey. */
+  --ov-light-ground: #f1f1f3;
+  --ov-light-surface: #ffffff;
+  --ov-light-surface-2: #f1f1f3;
+  /* A field: white, edged in the control grey, on the ground and on a card alike. */
+  --ov-light-field: #ffffff;
+  /* Tonal and round buttons: white on the ground, as a card is. */
+  --ov-light-surface-control: #ffffff;
   --ov-light-surface-control-pressed: #e9e9ec;
-  /* The same buttons standing on a surface (a card, a list's box): surface 2, a step off it. */
-  --ov-light-surface-control-on-surface: #e9e9ec;
-  --ov-light-surface-control-on-surface-pressed: #dedee3;
+  /* The same buttons standing on a surface (a card, a list's box): the ground's tone, a step
+     off it. */
+  --ov-light-surface-control-on-surface: #f1f1f3;
+  --ov-light-surface-control-on-surface-pressed: #e4e4e7;
   --ov-light-ink: #16171b;
   --ov-light-ink-2: #5b5d64;
   --ov-light-control: #85878e;
-  --ov-light-hair: #d8d9dc;
+  /* Rules between rows inside a card: as light as still reads (APCA Lc 15 on white). */
+  --ov-light-hair: #e1e1e5;
   --ov-light-on-ink: #ffffff;
   --ov-light-on-ink-2: #b4b6bd;
   --ov-light-scrim: rgb(22 23 27 / 0.42);
@@ -51,9 +56,9 @@
   /* Signals and forms (DESIGN.md, Signals; amended 21 October 2026). Measured on the surface
      each sits on: text 4.5:1 or more, glyphs and lines 3:1 or more. */
   --ov-light-food-edge: #b07a12;
-  --ov-light-grouped: #f4f4f5;
+  --ov-light-grouped: #f1f1f3;
   --ov-light-panel: #ffffff;
-  --ov-light-panel-tray: #f4f4f5;
+  --ov-light-panel-tray: #f1f1f3;
   --ov-light-danger-text: #a31f3a;
   --ov-light-danger-glyph: #cc2147;
   --ov-light-danger-line: #e42b52;

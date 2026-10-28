@@ -1,37 +1,41 @@
 "use client";
 import { coachingAction } from "./client-action";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Disclosure } from "@/components/ui/disclosure";
 import { FormError } from "@/components/ui/form";
+import { Sheet } from "@/components/ui/sheet";
 import type { ActivitySport } from "@/domain/activity";
 import { copyProgramAction } from "@/server/actions/coaching-workflow";
 import { RetireProgramme } from "./retire-programme";
 
 /**
- * Editing is the everyday action. Replacement, duplication and ending the programme stay
- * together under More options, on the programme's own page (ADR 0058). A past programme's one
- * action, Duplicate programme, stands as itself: a fold never holds a single action (DESIGN.md,
- * Folds).
+ * Editing is the everyday action, with More options beside it, one width each (DESIGN.md, The
+ * Equal Actions Rule; owner, 28 October 2026). More options opens a sheet holding the programme's
+ * notes and its rarer actions together: Replace, Duplicate and End (ADR 0058). A past programme's
+ * one action, Duplicate programme, stands as itself: a sheet never holds a single action.
  */
 export function ProgrammeTools({
   id,
   active = true,
   finished = false,
   sport = "strength",
+  details,
 }: {
   id: string;
   active?: boolean;
   /** Nothing but rest is left (ADR 0051): "Edit future programme" would edit nothing. */
   finished?: boolean;
   sport?: ActivitySport;
+  /** The programme's notes and dates, read under More options rather than on the page. */
+  details?: ReactNode;
 }) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState<string | null>(null);
+    [error, setError] = useState<string | null>(null),
+    [more, setMore] = useState(false);
   const pending = busy || navigating;
   async function copy(duplicate: boolean) {
     setBusy(true);
@@ -48,7 +52,7 @@ export function ProgrammeTools({
   return (
     <div className="space-y-2">
       <FormError message={error ?? undefined} />
-      <div className="programme-management">
+      <div className="programme-management action-row">
         {active && !finished && (
           <Button variant="primary" disabled={pending} onClick={() => copy(false)}>
             {pending ? "Opening…" : "Edit programme"}
@@ -58,7 +62,26 @@ export function ProgrammeTools({
           <LinkButton href={`/plan/new?sport=${sport}` as Route}>New programme</LinkButton>
         )}
         {active ? (
-          <Disclosure summary="More options" variant="inline" className="programme-management-more">
+          <Button variant="tonal" aria-haspopup="dialog" onClick={() => setMore(true)}>
+            More options
+          </Button>
+        ) : (
+          <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
+            {pending ? "Opening…" : "Duplicate programme"}
+          </Button>
+        )}
+      </div>
+      {active && (
+        <Sheet open={more} onClose={() => setMore(false)} title="More options">
+          <div className="space-y-[var(--ov-gap-block)]">
+            {details && (
+              <section aria-labelledby={`${id}-details`} className="space-y-1">
+                <h3 id={`${id}-details`} className="type-heading">
+                  Programme details
+                </h3>
+                {details}
+              </section>
+            )}
             <div className="space-y-2">
               {!finished && (
                 <LinkButton
@@ -69,18 +92,19 @@ export function ProgrammeTools({
                   Replace programme
                 </LinkButton>
               )}
-              <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
-                Duplicate programme
+              <Button
+                variant="secondary"
+                className="w-full"
+                disabled={pending}
+                onClick={() => copy(true)}
+              >
+                {pending ? "Opening…" : "Duplicate programme"}
               </Button>
               <RetireProgramme id={id} sport={sport} disabled={pending} />
             </div>
-          </Disclosure>
-        ) : (
-          <Button variant="secondary" disabled={pending} onClick={() => copy(true)}>
-            {pending ? "Opening…" : "Duplicate programme"}
-          </Button>
-        )}
-      </div>
+          </div>
+        </Sheet>
+      )}
       {/* The pressed button already reads "Opening…"; a screen reader hears where it goes. */}
       <p role="status" className="sr-only">
         {navigating ? "Opening programme draft…" : ""}

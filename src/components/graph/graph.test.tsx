@@ -279,7 +279,7 @@ it("names the sport a graph draws in, and draws a graph of no sport in ink", () 
   const points = [...container.querySelectorAll<SVGCircleElement>(".graph-plot svg circle")];
   expect(points.at(-1)!.style.fill).toBe(FULL);
   for (const point of points.slice(0, -1)) {
-    expect(point.style.fill).toBe("var(--ov-ground)");
+    expect(point.style.fill).toBe("var(--ov-backdrop)");
     expect(point.style.stroke).toBe(FULL);
   }
 });

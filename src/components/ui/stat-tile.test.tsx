@@ -6,7 +6,7 @@ import { StatTile, StatTileRow } from "./stat-tile";
 
 afterEach(cleanup);
 
-it("sets a stat's digits in Jost and leaves its words in Atkinson", () => {
+it("sets a stat's digits as figures and leaves its words as words", () => {
   const { container } = render(
     <StatTileRow>
       <StatTile label="Weeks" value={12} />

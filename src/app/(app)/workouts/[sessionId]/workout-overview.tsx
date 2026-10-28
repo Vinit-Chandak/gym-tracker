@@ -106,7 +106,7 @@ const underWay = (exercise: ExerciseVM) =>
   !exercise.completedAt && !exercise.skippedAt && workDone(exercise).length > 0;
 
 /**
- * What a row says under the name (DESIGN.md, Rows and marks): for the exercise under way, the
+ * What a row says under the name (DESIGN.md, Rows and signs): for the exercise under way, the
  * sets so far ("60 kg × 4, 60 kg × 4"); otherwise its prescription, the coach's when the coach
  * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR"), else the programme's, else the exercise's defaults.
  */
@@ -557,11 +557,12 @@ export function WorkoutOverview({
     <>
       {/* One heading, the name on the screen; the meta line under it says who planned it. */}
       {layer && (
-        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
+        <FitTitle as="h1" sizes={{ base: 30, narrow: 28 }} room={30} className="mt-0.5">
           {title}
         </FitTitle>
       )}
-      <p className="meta-line mt-1">
+      {/* Under the title, its second tone (owner, 28 October 2026). */}
+      <p className={layer ? "page-fact meta-line" : "meta-line mt-1"}>
         {/* A finished workout's header already names the gym. */}
         {layer && (
           <span className="meta-fact">
@@ -656,7 +657,7 @@ export function WorkoutOverview({
       {session.exercises.length === 0 && !hasWarmup ? (
         <p className="mt-3 type-body text-ink-2">No exercises yet.</p>
       ) : (
-        <ul aria-label={heading} className="mt-2">
+        <ul aria-label={heading} className="ov-panel ov-panel-list mt-3">
           {!readOnly && hasWarmup && (
             <WarmupRow
               session={session}

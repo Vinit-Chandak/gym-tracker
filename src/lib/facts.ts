@@ -42,9 +42,9 @@ const HYPHENATED = /\p{L}+(?:-\p{L}+)+/gu;
  * never leaves "push-" at a line's end. Only a short compound (ten letters or fewer, "T-bar",
  * "Single-arm") is held whole, and a longer one only at a short tail ("Front-foot"): held
  * whole, "Front-foot-elevated" would be one word too wide for a narrow line at large text, so it
- * may still break at "foot-". The hyphen stays the one the name was written with (Atkinson
- * Hyperlegible Next has no non-breaking hyphen, U+2011, of its own), and a word too long for a
- * line of its own still breaks (overflow-wrap).
+ * may still break at "foot-". The hyphen stays the one the name was written with (a face need
+ * not draw a non-breaking hyphen, U+2011, of its own), and a word too long for a line of its own
+ * still breaks (overflow-wrap).
  */
 export function holdHyphens(name: string): string {
   return name.replace(HYPHENATED, (word) => {

@@ -3,8 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -71,76 +71,85 @@ export function OccurrenceActions({
     });
   };
 
+  // The session's other ways, one card under Log (owner, 28 October 2026): Skip, then Move with
+  // its day, then, for a session the athlete put there, Remove; each its own row.
   return (
-    <div className="space-y-3">
-      <Card>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            className="min-w-0 flex-1"
-            disabled={pending}
-            onClick={() =>
-              run(
-                () =>
-                  skipped
-                    ? reopenOccurrenceAction(occurrenceId)
-                    : skipOccurrenceAction(occurrenceId),
-                setError,
-              )
-            }
-          >
-            {pending ? "Saving…" : skipped ? "Put it back" : "Skip this session"}
-          </Button>
-          {skipped && putBackGoesNext && (
-            <InfoTip label="About putting it back">
-              The programme goes back to this session, and Today offers it next.
-            </InfoTip>
-          )}
-        </div>
-        {error && <FormError message={error} />}
-      </Card>
+    <div className="ov-panel ov-panel-list occurrence-actions">
+      <div className="occurrence-action">
+        <button
+          type="button"
+          className="occurrence-action-button"
+          disabled={pending}
+          onClick={() =>
+            run(
+              () =>
+                skipped ? reopenOccurrenceAction(occurrenceId) : skipOccurrenceAction(occurrenceId),
+              setError,
+            )
+          }
+        >
+          <span className="mark-cell">
+            <Glyph name={skipped ? "undo" : "skip"} className="glyph-20" />
+          </span>
+          {pending ? "Saving…" : skipped ? "Put it back" : "Skip this session"}
+        </button>
+        {skipped && putBackGoesNext && (
+          <InfoTip label="About putting it back">
+            The programme goes back to this session, and Today offers it next.
+          </InfoTip>
+        )}
+      </div>
+      {error && <FormError message={error} />}
 
-      <Card>
-        <form ref={moveForm} action={moveAction} className="space-y-2">
-          <Field label="Move to" error={moveState.fieldErrors?.scheduledOn}>
-            {/* A missed session opens on today, the first day it can go to. */}
-            <Input
-              name="scheduledOn"
-              type="date"
-              min={today}
-              defaultValue={
-                moveState.values?.scheduledOn ?? (scheduledOn < today ? today : scheduledOn)
-              }
-              required
-            />
-          </Field>
-          <FormError message={moveState.formError} />
-          <SubmitButton variant="secondary" pendingLabel="Moving…">
-            Move it
-          </SubmitButton>
-        </form>
-      </Card>
+      <form ref={moveForm} action={moveAction} className="occurrence-move">
+        <Field label="Move to" error={moveState.fieldErrors?.scheduledOn}>
+          {/* A missed session opens on today, the first day it can go to. */}
+          <Input
+            name="scheduledOn"
+            type="date"
+            min={today}
+            defaultValue={
+              moveState.values?.scheduledOn ?? (scheduledOn < today ? today : scheduledOn)
+            }
+            required
+          />
+        </Field>
+        <FormError message={moveState.formError} />
+        <SubmitButton variant="secondary" pendingLabel="Moving…">
+          Move it
+        </SubmitButton>
+      </form>
 
       {standalone && (
         // Removing has no undo, so it asks twice, as deleting an activity does.
-        <Card>
-          {removing && <p className="text-sm text-ink-muted">It cannot be undone.</p>}
-          <Button
-            variant={removing ? "danger" : "ghost"}
-            className="w-full"
-            disabled={pending}
-            onClick={() => {
-              if (!removing) {
-                setRemoving(true);
-                return;
-              }
-              run(() => removeOccurrenceAction(occurrenceId), setRemoveError);
-            }}
-          >
-            {pending ? "Saving…" : removing ? "Remove this session" : "Remove from the calendar"}
-          </Button>
+        <div className="occurrence-remove">
+          {removing ? (
+            <>
+              <p className="text-sm text-ink-muted">It cannot be undone.</p>
+              <Button
+                variant="danger"
+                className="w-full"
+                disabled={pending}
+                onClick={() => run(() => removeOccurrenceAction(occurrenceId), setRemoveError)}
+              >
+                {pending ? "Saving…" : "Remove this session"}
+              </Button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="occurrence-action-button"
+              disabled={pending}
+              onClick={() => setRemoving(true)}
+            >
+              <span className="mark-cell">
+                <Glyph name="trash" className="glyph-20" />
+              </span>
+              Remove from the calendar
+            </button>
+          )}
           {removeError && <FormError message={removeError} />}
-        </Card>
+        </div>
       )}
     </div>
   );

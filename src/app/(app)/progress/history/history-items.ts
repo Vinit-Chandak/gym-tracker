@@ -13,18 +13,12 @@ import { formatSleep, formatTime } from "@/lib/format";
 import { ENDURANCE_PLACE_LABELS, sessionName } from "@/lib/labels";
 import { originQuery } from "@/lib/nav";
 import type { ActivityListItem } from "@/server/repositories/activity-analytics";
-import type { readHistoryWorkouts, readLatestActivities } from "@/server/repositories/history";
+import type { readHistoryWorkouts } from "@/server/repositories/history";
 import type { readRecovery, RunActivity } from "@/server/repositories/training-data";
 
 import type { HistoryItem } from "./history-list";
 
-/**
- * Each record as History lists it, made once for History's pages and for Overview's latest
- * (ADR 0045), so the two never word an entry differently.
- */
-
-/** Activities Overview lists under its month: as many as a page of History holds. */
-export const LATEST_COUNT = 10;
+/** Each record as History lists it, made once for every page of History. */
 
 type HistoryWorkout = Awaited<ReturnType<typeof readHistoryWorkouts>>["workouts"][number];
 type RecoveryReading = Awaited<ReturnType<typeof readRecovery>>[number];
@@ -208,24 +202,3 @@ export function recoveryItem(r: RecoveryReading): HistoryItem {
  */
 export const newestFirst = (a: HistoryItem, b: HistoryItem) =>
   b.day.localeCompare(a.day) || b.date.localeCompare(a.date);
-
-/**
- * Overview's latest (ADR 0045): the newest activities of every sport, newest first, ten at most.
- * Each sport is read `LATEST_COUNT` deep, so however they mix, the newest ten are among them.
- */
-export function latestItems(
-  read: Awaited<ReturnType<typeof readLatestActivities>>,
-  clock: HistoryClock,
-): HistoryItem[] {
-  return (
-    [
-      ...read.workouts.map((w) => workoutItem(w, clock)),
-      ...read.runs.map((r) => runItem(r, clock)),
-      ...read.endurance.map((activity) => enduranceItem(activity, clock)),
-    ]
-      .sort(newestFirst)
-      .slice(0, LATEST_COUNT)
-      // Only History's filters choose by exercise; Overview has none to send them for.
-      .map((item) => ({ ...item, exercises: [] }))
-  );
-}

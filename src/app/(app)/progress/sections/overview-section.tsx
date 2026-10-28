@@ -15,9 +15,9 @@ import {
 import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
+import { NavRow } from "@/components/ui/nav-row";
 import { formatIsoMonth, formatMinutes } from "@/lib/format";
 
-import { HistoryList } from "../history/history-list";
 import type { ProgressData } from "../progress-types";
 
 /**
@@ -34,19 +34,17 @@ function measures(entry: SportTally, units?: DistanceUnits): string[] {
 }
 
 /**
- * Overview (ADR 0045): the month on paper, its totals as its key (each sport's count, distance
- * and time), then History, the latest ten activities. The list is the calendar read back from
- * today: it runs on past the month's first day when the month holds fewer, each earlier month
- * under its name, and the page behind it holds every entry.
+ * Overview (ADR 0045, amended 28 October 2026): the month on paper and its totals as its key
+ * (each sport's count, distance and time), one card, then History, one row. The month already
+ * draws every activity of every day, so the list of the latest that stood under it said them a
+ * second time (owner: each thing once); History's page holds every entry, with its filters.
  */
 export function OverviewSection({
   month,
-  overview,
-  today,
   calendarHref = "/progress/calendar",
   historyHref = "/progress/history",
   dayHrefs,
-}: Pick<ProgressData, "month" | "overview" | "today"> & {
+}: Pick<ProgressData, "month"> & {
   /** Alternate destinations for fixture previews; null omits an unavailable calendar. */
   calendarHref?: Route | null;
   historyHref?: Route;
@@ -66,32 +64,29 @@ export function OverviewSection({
   const tallies = tally(month.activities);
 
   return (
-    // Beyond a phone, where the column holds two phone-wide panes, the month and its totals
-    // stand beside the history under them (ADR 0052).
     <div className="overview">
-      <div className="overview-panes">
-        <div className="min-w-0">
-          <section aria-labelledby="progress-month">
-            <h2 id="progress-month" className="month-head">
-              <span>{name}</span>
-              {calendarHref && (
-                <Link href={calendarHref} className="month-head-link">
-                  Calendar
-                  <Glyph name="chevronRight" className="glyph-18" />
-                </Link>
-              )}
-            </h2>
-            <Art
-              kind="month"
-              month={month.month}
-              days={days}
-              today={month.today}
-              // Each day as tall as the screen gives it, from the stylesheet (progress.css), so
-              // the month is drawn at its height on the first paint and never jumps after.
-              links={links}
-              label={`${name} ${year}, every activity of every day`}
-            />
-          </section>
+      <section aria-labelledby="progress-month">
+        <h2 id="progress-month" className="month-head">
+          <span>{name}</span>
+          {calendarHref && (
+            <Link href={calendarHref} className="month-head-link">
+              Calendar
+              <Glyph name="chevronRight" className="glyph-18" />
+            </Link>
+          )}
+        </h2>
+        {/* The month and its key are one card: the paper, then each sport's count under it. */}
+        <div className="month-card">
+          <Art
+            kind="month"
+            month={month.month}
+            days={days}
+            today={month.today}
+            // Each day as tall as the screen gives it, from the stylesheet (progress.css), so
+            // the month is drawn at its height on the first paint and never jumps after.
+            links={links}
+            label={`${name} ${year}, every activity of every day`}
+          />
 
           {/* The month's totals, each led by its icon: the calendar's key and its count at once. */}
           <section aria-labelledby="progress-month-totals" className="month-totals">
@@ -123,20 +118,11 @@ export function OverviewSection({
             )}
           </section>
         </div>
-        {/* History: the latest ten under the month, every entry one tap on. */}
-        {overview.latest.length > 0 && (
-          <section aria-labelledby="progress-history" className="overview-history">
-            <h2 id="progress-history" className="month-head">
-              <span>History</span>
-              <Link href={historyHref} aria-label="All history" className="month-head-link">
-                All
-                <Glyph name="chevronRight" className="glyph-18" />
-              </Link>
-            </h2>
-            <HistoryList items={overview.latest} today={today} level={3} month={month.month} />
-          </section>
-        )}
-      </div>
+      </section>
+      {/* Every entry, in pages with its filters, one tap on. */}
+      <ul className="ov-panel ov-panel-list overview-history">
+        <NavRow href={historyHref} glyph="history" label="History" />
+      </ul>
     </div>
   );
 }

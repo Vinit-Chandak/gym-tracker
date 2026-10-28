@@ -160,7 +160,7 @@ export function MyFoodsView({
         </div>
       )}
 
-      <ul className="food-list mt-1.5">
+      <ul className="ov-panel ov-panel-list food-list mt-3">
         <li>
           <button
             type="button"

@@ -81,7 +81,7 @@ it("tiles the bests with their dates, labelled for the movement", () => {
     />,
   );
   expect(screen.getByText("Added load")).toBeTruthy();
-  // The figure in Jost and its unit in Atkinson, read as one.
+  // The figure and its unit, read as one.
   expect(
     screen.getByText(
       (_, element) => element?.tagName === "SPAN" && element.textContent === "10\u00a0kg",
@@ -108,7 +108,7 @@ it("lists period records with the metric and day under the name", () => {
   // "Est. 1RM · 15 Sept 2026" on a profile beside the exercise page's "Thu 8 Oct": the same
   // day as the exercise page writes it, with no year inside this one (ADR 0044).
   expect(screen.getByText(/^Est\. 1RM ·\sTue\s8\sSept$/)).toBeTruthy();
-  // The value at the row's end, its figure in Jost.
+  // The value at the row's end, as a figure.
   const value = screen.getByText("Barbell bench press").closest("li")!.lastElementChild!;
   expect(value.textContent).toBe("81.7\u00a0kg");
   expect(value.querySelector(".figures")?.textContent).toBe("81.7");

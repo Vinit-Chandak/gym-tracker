@@ -147,7 +147,7 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
         </>
       )}
       {job.error && (
-        <Disclosure summary="Details" variant="inline" className="mt-4">
+        <Disclosure summary="Details" className="mt-4">
           <p className="type-meta-small [overflow-wrap:break-word] text-ink-2">{job.error}</p>
         </Disclosure>
       )}
@@ -159,8 +159,7 @@ export default async function SetupJobPage({ params }: { params: Promise<{ id: s
             daysLine(answers),
             answers.minutesPerSession ? `${answers.minutesPerSession} min` : null,
           ])}
-          variant="inline"
-          className="mt-6"
+          className="mt-3"
         >
           <dl className="setup-facts">
             {(

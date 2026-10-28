@@ -1,7 +1,8 @@
 # ADR 0045: The latest ten under the month
 
 Date: 2026-10-08
-Status: accepted; amends decision 13 (Overview) of
+Status: accepted, its list of the latest ten withdrawn on 28 October 2026 (Amendment, below);
+amends decision 13 (Overview) of
 [ADR 0042](0042-one-graph-for-every-trend.md) and decision 4 (History a section of Progress) of
 [ADR 0034](0034-food-takes-the-history-tab.md)
 
@@ -69,3 +70,21 @@ recorded, and `progress-sections.test.tsx` that the picker lists six sections an
 (`/preview/progress`, with `?state=` early, late, first or new, and `?view=history` for the
 page) was rendered against the owner's 8 October calendar (three lifts, three runs, 9.2 km) at
 402 and 320 pt, in both themes.
+
+## Amendment, 28 October 2026: the month says it once
+
+When the owner chose the Clean direction for the app's headings and blocks, they set one rule for
+every screen: a thing is said once, and what is not needed to act waits behind a row, a button or
+a sheet. Overview drew each activity of the month on its paper and then listed the latest ten
+again under it, so most of the list repeated the month a hand's width above it.
+
+1. **Overview is the month and its key, then History as one row.** The month and its totals are
+   one card; History, every entry with its pages and filters, is one row in a card under it. The
+   latest ten, its months named where it ran back past this one, and its query
+   (`readLatestActivities`) are gone.
+2. **History keeps everything decision 3 kept.** It is still its own page under Progress, still
+   where a graph's week opens and where a deleted activity lands; each day's entries are now a
+   card under the day's caption.
+
+`progress/sections/overview-section.test.tsx` checks that the month and its key are one card,
+that History opens from one row and that no entry is listed under the month.

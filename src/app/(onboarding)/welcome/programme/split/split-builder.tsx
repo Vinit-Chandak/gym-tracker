@@ -294,7 +294,7 @@ export function SplitBuilder({
           onChange={(event) => changeDay(open, { name: event.target.value })}
           className="split-day-name"
         />
-        <ul aria-label="Exercises" className="mt-3.5">
+        <ul aria-label="Exercises" className="ov-panel ov-panel-list mt-3.5">
           {day.exercises.map((entry, i) => (
             <li key={`${entry.slug}-${i}`} className="border-b border-hair">
               <button
@@ -448,7 +448,7 @@ export function SplitBuilder({
 
   return (
     <OnboardingFrame steps={steps} current="start" back="/welcome/programme" title="Your split">
-      <ul aria-label="Days" className="mt-4.5 border-t border-hair">
+      <ul aria-label="Days" className="ov-panel ov-panel-list mt-4.5">
         {days.map((day, i) => {
           const name = day.name.trim() || (day.exercises.length > 0 ? `Day ${i + 1}` : "Rest");
           return (

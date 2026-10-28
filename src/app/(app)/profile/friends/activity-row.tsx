@@ -1,4 +1,4 @@
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Figures } from "@/components/ui/figures";
@@ -106,9 +106,9 @@ export function ActivityRow({
         </span>
         <span className="flex items-center gap-2">
           <span className="grid w-4 shrink-0 justify-items-center">
-            <Art kind="mark" sport={MARK[row.sport]} size={16} />
+            <SportSign sport={MARK[row.sport]} />
           </span>
-          {/* Its figures in Jost, whose zero is plain: "12,021 lb", not a slashed one. */}
+          {/* Its figures tabular: "12,021 lb". */}
           <span className="activity-row-text">
             <Figures>{joinFacts(summary(row, unit, distanceUnits))}</Figures>
           </span>

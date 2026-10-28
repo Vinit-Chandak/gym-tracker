@@ -7,7 +7,7 @@ import { AuthTagline } from "./auth-tagline";
 
 /**
  * Signing in, signing up and resetting a password (DESIGN.md, Shapes): the name as the system
- * draws it, its mark beside it in Jost, and on Sign in and Create account the tagline under it
+ * draws it, its mark beside it in Title, and on Sign in and Create account the tagline under it
  * in ink 2. Then the page, on the ground at the gutter, like every other screen of the app.
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {

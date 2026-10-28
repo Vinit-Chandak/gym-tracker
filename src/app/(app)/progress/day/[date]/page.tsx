@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { enduranceName } from "@/components/activities/endurance-line";
 import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { ART_SPORT, dayParts, dayPrintLabel, type DayPiece } from "@/components/progress/calendar";
 import { LoadingPage } from "@/components/shell/loading-page";
@@ -188,17 +189,12 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           // The day is the page's title.
           <p className="type-body text-ink-2">Nothing logged.</p>
         ) : (
-          <ul className="mt-1.5">
+          <ul className="ov-panel ov-panel-list mt-3">
             {entries.map((entry) => (
               <li key={entry.key}>
                 <Link href={entry.href} className="day-row">
                   <span className="mark-cell">
-                    <Art
-                      kind="mark"
-                      sport={ART_SPORT[entry.sport]}
-                      size={18}
-                      state={entry.open ? "todo" : "done"}
-                    />
+                    <SportSign sport={ART_SPORT[entry.sport]} />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     {/* The time stands beside the name while both fit and under it when not, as
@@ -208,7 +204,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
                         {entry.title}
                       </span>
                       <span className="shrink-0 type-meta-small font-semibold text-ink-2 tabular-nums">
-                        {/* Its time in Jost, as History's is: "07:11", its zero plain. */}
+                        {/* Its time as a figure, as History's is: "07:11". */}
                         <Figures>{formatTime(entry.at, profile.timeZone)}</Figures>
                       </span>
                     </span>

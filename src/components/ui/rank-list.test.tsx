@@ -73,9 +73,9 @@ function boardBesideFrom(): number {
   return [...widths][0]!;
 }
 
-// The row a phone gives a board at 100% text: its width less the gutters, the box's border and
-// the row's padding.
-const ROW = { 320: 254, 360: 286, 375: 301, 390: 316 } as const;
+// The row a phone gives a board at 100% text: its width less the gutters and the row's padding
+// (a box has no border since 28 October 2026).
+const ROW = { 320: 256, 360: 288, 375: 303, 390: 318 } as const;
 
 it("folds a year's long totals under the names at 360 pt and keeps them beside from 375", () => {
   // Beside "211 h 50 min" a 360-dp row left "Kenji Watanabe" 104 px: "Kenji" / "Watanabe".
@@ -161,7 +161,7 @@ it("folds a board whose days name a year where a name would wrap beside one", ()
   );
   expect(boardBesideFrom()).toBeGreaterThan(ROW[360]);
   expect(boardBesideFrom()).toBeLessThanOrEqual(ROW[390]);
-  // Its figures in Jost, whose zero is plain.
+  // Its figures set as figures.
   expect(values()[0]!.querySelector(".figures")?.textContent).toBe("225");
 });
 

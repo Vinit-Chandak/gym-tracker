@@ -9,7 +9,10 @@ type PageHeaderProps<T extends string> = {
   tab?: never;
   /** The screen's name. */
   title: ReactNode;
-  /** The one fact that qualifies it: the range Progress is drawn over, the gym a form is for. */
+  /**
+   * The one fact that qualifies it, the title's second tone (Fact, 20, ink 2): the range Progress
+   * is drawn over, the gym a form is for, how a programme runs.
+   */
   meta?: ReactNode;
   /**
    * The fact is said with the title rather than shown under it, where the screen already shows
@@ -22,6 +25,11 @@ type PageHeaderProps<T extends string> = {
   backLabel?: string;
   /** At most one control: beside a destination's title, or at the end of a nested screen's bar. */
   action?: ReactNode;
+  /**
+   * What the screen is about, drawn beside its title rather than said under it: a programme's
+   * sport, its sign at 64 (owner, 28 October 2026). Hidden from a screen reader unless named.
+   */
+  sign?: ReactNode;
 };
 
 type RootHeaderProps = {
@@ -41,7 +49,7 @@ type RootHeaderProps = {
   chooser?: ReactNode;
   /** Before the headline: the athlete's avatar. */
   lead?: ReactNode;
-  /** Under the headline, in Meta: "21 October · 1 of 3 done", the week's dates, the range. */
+  /** Under the headline, its second tone (Fact, 20, ink 2): "21 October", the week's dates. */
   meta?: ReactNode;
   /** At most one action, at the end. */
   action?: ReactNode;
@@ -50,24 +58,24 @@ type RootHeaderProps = {
 /**
  * A tab's root (DESIGN.md, Layout: Tab roots). The lit tab already says where you are, so the
  * root opens on its subject, never on the tab's name: Title, at the same place and size on every
- * tab, what it needs to say under it in Meta, and at most one action at its end, which goes
- * under the headline and its Meta, at the end, where the headline would not have its own width
- * beside it (large text, a long name). The h1 still names the tab first for a screen reader:
- * "Today, Wednesday 21 October".
+ * tab, its one fact under it as the title's second tone, and at most one action at its end, which
+ * goes under the headline and its fact, at the end, where the headline would not have its own
+ * width beside it (large text, a long name). The h1 still names the tab first for a screen
+ * reader: "Today, Wednesday 21 October".
  */
 function RootHeader({ tab, title, said, chooser, lead, meta, action }: RootHeaderProps) {
   const heard = `${tab}, ${title}${said ? ` ${said}` : ""}`;
-  // The headline's own width, as Jost 800 sets it (about 0.53 em a character), the chooser's
-  // chevron and the avatar added: the room it keeps before the action goes under it, so a name
-  // stands on one line wherever the screen has the line for it ("Vinit Chandak"), and wraps
-  // only where it does not.
-  const room = `min(100%, calc(${(title.length * 0.53 + (chooser ? 1 : 0)).toFixed(2)} * var(--ov-type-title)${
+  // The headline's own width, as Host Grotesk 700 sets it (about 0.5 em a character), the
+  // chooser's chevron and the avatar added: the room it keeps before the action goes under it,
+  // so a name stands on one line wherever the screen has the line for it ("Vinit Chandak"), and
+  // wraps only where it does not.
+  const room = `min(100%, calc(${(title.length * 0.5 + (chooser ? 1 : 0)).toFixed(2)} * var(--ov-type-title)${
     lead ? " + 70 * var(--ov-u)" : ""
   }))`;
-  // Beside the avatar, the headline keeps at least its longest word's room (about 0.57 em a
+  // Beside the avatar, the headline keeps at least its longest word's room (about 0.55 em a
   // letter), else it goes under the avatar rather than break inside a word (large text).
   const longest = Math.max(...title.split(/\s+/).map((word) => word.length));
-  const word = `min(100%, calc(${(longest * 0.57).toFixed(2)} * var(--ov-type-title)))`;
+  const word = `min(100%, calc(${(longest * 0.55).toFixed(2)} * var(--ov-type-title)))`;
   return (
     <header className="page-header page-root page-width pt-safe">
       <div className="page-root-top">
@@ -105,46 +113,41 @@ function RootHeader({ tab, title, said, chooser, lead, meta, action }: RootHeade
 }
 
 /**
- * Every screen's opening (DESIGN.md, Navigation), in three shapes, scrolling with the page:
+ * Every screen's opening (DESIGN.md, Navigation), in three shapes, scrolling with the page, each
+ * a title in two tones: the screen's name (Title, 30, ink) and its one fact under it (Fact, 20,
+ * ink 2; owner, 28 October 2026):
  *
  * - a tab's root (`tab`) opens on its subject, with its tab named first for a screen reader
  *   (`RootHeader`);
- * - a destination with no tab of its own (Not found, a loading screen) has its title, Jost 36
- *   (32 under 360 pt), and at most one action beside it;
+ * - a destination with no tab of its own (Not found, a loading screen) has its title and at most
+ *   one action beside it;
  * - a nested screen has a back link that names where it goes, then its name as the screen's
- *   display title, stepping down for a long name, and its one fact under it.
+ *   title, stepping down for a long name, and its one fact under it.
  */
 export function PageHeader<T extends string>(props: PageHeaderProps<T> | RootHeaderProps) {
   if (props.tab !== undefined) return <RootHeader {...props} />;
-  const { title, meta, metaHidden = false, backHref, backLabel, action } = props;
+  const { title, meta, metaHidden = false, backHref, backLabel, action, sign } = props;
   if (!backHref)
     return (
       <header className="page-header page-width pt-safe">
         <div className="page-header-top">
           <div className="min-w-0">
             <h1 className="type-title [overflow-wrap:break-word]">{title}</h1>
-            {meta && (
-              <p className="mt-1 type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
-                {meta}
-              </p>
-            )}
+            {meta && <p className="page-fact">{meta}</p>}
           </div>
           {action && <div className="page-header-action">{action}</div>}
         </div>
       </header>
     );
 
-  return (
-    <header className="page-header page-width pt-safe">
-      <div className="page-header-bar">
-        <BackLink fallback={backHref} label={backLabel} />
-        {action && <div className="page-header-action">{action}</div>}
-      </div>
+  const heading = (
+    <>
       {typeof title === "string" ? (
         <FitTitle
           as="h1"
-          sizes={{ base: 34, narrow: 30 }}
+          sizes={{ base: 30, narrow: 28 }}
           className="mt-0.5"
+          room={sign ? 76 : 0}
           said={metaHidden && typeof meta === "string" ? meta : undefined}
         >
           {title}
@@ -154,9 +157,25 @@ export function PageHeader<T extends string>(props: PageHeaderProps<T> | RootHea
       )}
       {meta && !metaHidden && (
         // Words are one fact; facts given as elements are laid out by the line.
-        <p className="meta-line mt-1 [overflow-wrap:break-word]">
+        <p className="page-fact meta-line">
           {typeof meta === "string" ? <span className="min-w-0">{meta}</span> : meta}
         </p>
+      )}
+    </>
+  );
+  return (
+    <header className="page-header page-width pt-safe">
+      <div className="page-header-bar">
+        <BackLink fallback={backHref} label={backLabel} />
+        {action && <div className="page-header-action">{action}</div>}
+      </div>
+      {sign ? (
+        <div className="page-header-signed">
+          <div className="min-w-0 flex-1">{heading}</div>
+          <div className="page-header-sign">{sign}</div>
+        </div>
+      ) : (
+        heading
       )}
     </header>
   );

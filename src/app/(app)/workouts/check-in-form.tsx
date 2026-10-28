@@ -75,48 +75,53 @@ export function CheckInForm({
         <h2 id="check-in-sleep" className="caption-head">
           Sleep
         </h2>
-        <RowStepper
-          label={retrospective ? "Hours the night before" : "Hours last night"}
-          hint={lastSleepHours !== null ? `Last time ${lastSleepHours} h` : undefined}
-          name="sleepHours"
-          defaultValue={value("sleepHours")}
-          unit="h"
-          start={lastSleepHours}
-          step={0.5}
-          max={24}
-          less="Half an hour less"
-          more="Half an hour more"
-          error={state.fieldErrors?.sleepHours}
-        />
-        <ScaleField
-          label="Quality"
-          name="sleepQuality"
-          ends={["poor", "great"]}
-          // Great first, where fatigue's fresh and soreness's none stand: the good ends line up.
-          descending
-          defaultValue={value("sleepQuality")}
-          error={state.fieldErrors?.sleepQuality}
-        />
+        {/* Each section's questions, one card (owner, 28 October 2026). */}
+        <div className="ov-panel ov-panel-list">
+          <RowStepper
+            label={retrospective ? "Hours the night before" : "Hours last night"}
+            hint={lastSleepHours !== null ? `Last time ${lastSleepHours} h` : undefined}
+            name="sleepHours"
+            defaultValue={value("sleepHours")}
+            unit="h"
+            start={lastSleepHours}
+            step={0.5}
+            max={24}
+            less="Half an hour less"
+            more="Half an hour more"
+            error={state.fieldErrors?.sleepHours}
+          />
+          <ScaleField
+            label="Quality"
+            name="sleepQuality"
+            ends={["poor", "great"]}
+            // Great first, where fatigue's fresh and soreness's none stand: the good ends line up.
+            descending
+            defaultValue={value("sleepQuality")}
+            error={state.fieldErrors?.sleepQuality}
+          />
+        </div>
       </section>
 
       <section aria-labelledby="check-in-feel">
         <h2 id="check-in-feel" className="caption-head">
           {retrospective ? "How you felt" : "How you feel"}
         </h2>
-        <ScaleField
-          label="General fatigue"
-          name="fatigue"
-          ends={["fresh", "wrecked"]}
-          defaultValue={value("fatigue")}
-          error={state.fieldErrors?.fatigue}
-        />
-        <ScaleField
-          label="Soreness"
-          name="soreness"
-          ends={["none", "severe"]}
-          defaultValue={value("soreness")}
-          error={state.fieldErrors?.soreness}
-        />
+        <div className="ov-panel ov-panel-list">
+          <ScaleField
+            label="General fatigue"
+            name="fatigue"
+            ends={["fresh", "wrecked"]}
+            defaultValue={value("fatigue")}
+            error={state.fieldErrors?.fatigue}
+          />
+          <ScaleField
+            label="Soreness"
+            name="soreness"
+            ends={["none", "severe"]}
+            defaultValue={value("soreness")}
+            error={state.fieldErrors?.soreness}
+          />
+        </div>
       </section>
 
       <PinnedActions stack>

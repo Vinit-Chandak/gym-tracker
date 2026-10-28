@@ -170,7 +170,7 @@ export function MealBuilder({
           </Button>
         </div>
         {items.length > 0 && (
-          <ul className="meal-entries food-list" aria-label="In this meal">
+          <ul className="ov-panel ov-panel-list meal-entries food-list" aria-label="In this meal">
             {items.map((item) => (
               <li key={item.key}>
                 <SwipeRow

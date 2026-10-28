@@ -160,8 +160,8 @@ does not play a second slide over Safari's own.
 - Run the consistency audit, `npm run audit:consistency`, in both themes (`AUDIT_THEME=dark`)
   against the local audit server, after any change to a shared piece (a header, a field, a
   button, a card, a token). It fails a screen whose peer actions differ in size or width, whose
-  field shows no box, whose 20-pt-or-larger text is not Jost or whose heading is lighter than
-  600, whose steppers do not line up, that repeats a sentence three times or more, or whose
+  field shows no box, whose 20-pt-or-larger text is not Host Grotesk at 600 or heavier, or whose
+  heading is lighter than 600, whose steppers do not line up, that repeats a sentence three times or more, or whose
   header-to-content gap is off its kind's. A fault it cannot see (a control that does nothing, a
   message that never goes) is still a fault: walk it, then teach the audit when it can be
   measured.

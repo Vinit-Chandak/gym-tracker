@@ -2,7 +2,6 @@ import type { Metadata, Route } from "next";
 
 import {
   historyClock,
-  LATEST_COUNT,
   newestFirst,
   runItem,
   workoutItem,
@@ -257,13 +256,11 @@ export default async function ProgressPreviewPage(props: PageProps<"/preview/pro
           </h1>
           <section aria-label="Overview" className="min-w-0">
             <OverviewSection
-              today={today}
               month={{
                 month,
                 today: Number(today.slice(8, 10)),
                 activities: done.filter((d) => d.at.startsWith(month)).map(asActivity),
               }}
-              overview={{ latest: items.slice(0, LATEST_COUNT) }}
               calendarHref={null}
               dayHrefs={{}}
               historyHref={href("history")}

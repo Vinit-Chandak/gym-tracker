@@ -68,7 +68,7 @@ export async function SavedProgrammeWork({
       <h2 id="saved-work" className="caption-head">
         Your saved work
       </h2>
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         {newProgrammes.map((draft) => (
           <NavRow
             key={draft.id}

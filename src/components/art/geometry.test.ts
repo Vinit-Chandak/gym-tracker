@@ -445,30 +445,31 @@ describe("the month", () => {
     expect(cells.filter((c) => c !== null)).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
   });
 
-  it("draws each sport's icon in its own pigment, and tells them apart by shape", () => {
-    const sports = ["strength", "run", "ride", "swim"] as const;
+  it("draws each sport's icon as its sign, in its own pigment, told apart by shape", () => {
+    const sports = ["strength", "run", "ride", "swim", "mobility"] as const;
     for (const sport of sports)
       for (const shape of calendarIcon(sport, 0, 0, 24)) {
         if ("fill" in shape && shape.fill !== "none") expect(shape.fill).toBe(sport);
         if ("stroke" in shape && shape.stroke) expect(shape.stroke).toBe(sport);
       }
-    const outline = (sport: (typeof sports)[number]) =>
-      calendarIcon(sport, 0, 0, 24)
-        .map((shape) => shape.kind)
-        .join(" ");
-    expect(new Set(sports.map(outline)).size).toBe(sports.length);
-    // the runner is the run's own form, wherever it is drawn
-    expect(calendarIcon("run", 0, 0, 24)).toEqual(form("run", 0, 0, 24, 24));
+    // One figure each: the limbs' path tells the sports apart.
+    const limbs = (sport: (typeof sports)[number]) =>
+      calendarIcon(sport, 0, 0, 24).find((shape) => shape.kind === "path");
+    expect(new Set(sports.map((sport) => JSON.stringify(limbs(sport)))).size).toBe(sports.length);
+    // One stroke for every sign: 4.6 of its 48 units, 2.3 at 24.
+    for (const sport of sports) expect(limbs(sport)).toMatchObject({ strokeWidth: 2.3 });
   });
 
   it("stands one icon in the middle, two side by side, three or four in two rows of two", () => {
-    // Each dumbbell's bar runs through its middle, so it gives where the icon stands.
+    // The lifter's bar runs across the top of its square from 4 to 44 of its 48 units: its
+    // first point gives where the icon stands, and the icon is 16 pt.
     const middles = (shapes: Shape[]) =>
       shapes
         .filter((s): s is Path => s.kind === "path")
         .map((bar) => {
           const { xs, ys } = points(bar.d);
-          return [f1((at(xs, 0) + at(xs, 1)) / 2), at(ys, 0)];
+          const k = 16 / 48;
+          return [f1(at(xs, 0) - 4 * k + 8), f1(at(ys, 0) - 8 * k + 8)];
         });
     const lifts = (n: number) =>
       dayIcons(
@@ -506,21 +507,18 @@ describe("the month", () => {
     expect(dayIcons([], 17.5, 17.5)).toEqual([]);
   });
 
-  it("draws a workout still under way as a mark to do, unlike the finished ones beside it", () => {
+  it("draws a workout still under way thinned, unlike the finished ones beside it", () => {
     // Kenji's 11 October: the open session drawn as the six finished ones were, beside a 6.
-    const plates = (shapes: Shape[]) => shapes.filter((shape) => shape.kind === "rect");
-    for (const plate of plates(calendarIcon("strength", 0, 0, 24, { open: true })))
-      expect(plate).toMatchObject({ fill: "strength-todo", stroke: "strength" });
-    for (const plate of plates(calendarIcon("strength", 0, 0, 24)))
-      expect(plate).toMatchObject({ fill: "strength" });
-    // Only the one flagged: a finished lift, then the open one.
-    const day = plates(dayIcons(["strength", "strength"], 17.5, 17.5, [false, true]));
-    expect(day.map((plate) => "fill" in plate && plate.fill)).toEqual([
-      ...Array(4).fill("strength"),
-      ...Array(4).fill("strength-todo"),
-    ]);
-    expect(calendarIcon("run", 0, 0, 24, { open: true })).toEqual(
-      form("run", 0, 0, 24, 24, { state: "todo" }),
+    const paints = (shapes: Shape[]) =>
+      shapes.map((shape) =>
+        "stroke" in shape && shape.stroke ? shape.stroke : "fill" in shape ? shape.fill : null,
+      );
+    expect(new Set(paints(calendarIcon("strength", 0, 0, 24, { open: true })))).toEqual(
+      new Set(["strength-todo"]),
     );
+    expect(new Set(paints(calendarIcon("strength", 0, 0, 24)))).toEqual(new Set(["strength"]));
+    // Only the one flagged: a finished lift, then the open one.
+    const day = paints(dayIcons(["strength", "strength"], 17.5, 17.5, [false, true]));
+    expect(day).toEqual(["strength", "strength", "strength-todo", "strength-todo"]);
   });
 });

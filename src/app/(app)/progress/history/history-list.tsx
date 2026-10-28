@@ -1,13 +1,12 @@
 import type { Route } from "next";
 
-import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import type { Sport } from "@/components/art/geometry";
 import { dayLabel } from "@/components/graph/labels";
 import Link from "@/components/ui/app-link";
 import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { joinFacts } from "@/lib/facts";
-import { formatIsoMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type HistoryItem = {
@@ -63,7 +62,7 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
         {item.kind === "recovery" ? (
           <Glyph name="moon" label="Recovery" className="glyph-18" />
         ) : (
-          <Art kind="mark" sport={KIND_MARKS[item.kind]} size={16} label={KIND_LABELS[item.kind]} />
+          <SportSign sport={KIND_MARKS[item.kind]} label={KIND_LABELS[item.kind]} />
         )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
@@ -78,7 +77,7 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
             </span>
           )}
         </span>
-        {/* Its time and its readings are facts: their digits in Jost, whose zero is plain. */}
+        {/* Its time and its readings are facts: their digits tabular. */}
         {line && (
           <span className="type-meta-small [overflow-wrap:break-word] text-ink-2 tabular-nums">
             <Figures>{line}</Figures>
@@ -105,52 +104,32 @@ function HistoryRow({ item, last }: { item: HistoryItem; last: boolean }) {
 }
 
 /**
- * Entries as History lists them (board Progress-History): each under its day, newest first, its
- * mark in one column, its name, its figure and its time and place. History draws a page of them;
- * Overview draws the latest ten under its month (ADR 0045).
+ * Entries as History lists them (board Progress-History): each day's under its caption, in a card
+ * of their own (owner, 28 October 2026), newest first, each its sign in one column, its name, its
+ * figure and its time and place.
  */
 export function HistoryList({
   items,
   today,
-  level = 2,
-  month = null,
 }: {
   items: readonly HistoryItem[];
   /** Today in the account's time zone: a day in another year is named with it. */
   today: string;
-  /** The days' headings: 2 on History, 3 under a heading of their own on Overview. */
-  level?: 2 | 3;
-  /**
-   * The month the list is read beside, "2026-10" (Overview's calendar). The days before it
-   * stand under their own month's name, so the list says where the calendar stops.
-   */
-  month?: string | null;
 }) {
-  const Heading = level === 2 ? "h2" : "h3";
-  const days = byDay(items);
   return (
     <>
-      {days.map((group, index) => {
-        // Each month the list reaches past the calendar's is named once, over its first day.
-        const own = group.day.slice(0, 7);
-        const before = index === 0 ? month : days[index - 1]!.day.slice(0, 7);
-        const named = month !== null && own !== before;
-        return (
-          <section key={group.day} aria-labelledby={`history-${group.day}`}>
-            {named && (
-              <Heading className="list-month">{formatIsoMonth(own, today.slice(0, 4))}</Heading>
-            )}
-            <Heading id={`history-${group.day}`} className="group-caption">
-              {dayLabel(group.day, today)}
-            </Heading>
-            <ul>
-              {group.items.map((item, itemIndex) => (
-                <HistoryRow key={item.id} item={item} last={itemIndex === group.items.length - 1} />
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {byDay(items).map((group) => (
+        <section key={group.day} aria-labelledby={`history-${group.day}`}>
+          <h2 id={`history-${group.day}`} className="group-caption">
+            {dayLabel(group.day, today)}
+          </h2>
+          <ul className="ov-panel ov-panel-list">
+            {group.items.map((item, itemIndex) => (
+              <HistoryRow key={item.id} item={item} last={itemIndex === group.items.length - 1} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </>
   );
 }

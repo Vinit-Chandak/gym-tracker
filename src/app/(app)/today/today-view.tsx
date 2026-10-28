@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { REST_PAGE_MODULE } from "@/app/(app)/plan/[sport]/programme-day";
 import { Art } from "@/components/art/art";
+import { SportSign } from "@/components/art/sign";
 import type { PrintPart } from "@/components/art/geometry";
 import { enduranceName } from "@/components/activities/endurance-line";
 import { EnduranceCard, isOutstanding } from "@/components/activities/today-activities";
@@ -164,10 +165,10 @@ function State({ children }: { children: ReactNode }) {
   );
 }
 
-/** A caption over a part of the page: "Done". */
+/** A part of the page's heading, a section's (DESIGN.md, Typography: Section): "Done". */
 function Caption({ id, children }: { id?: string; children: ReactNode }) {
   return (
-    <h2 id={id} className="today-caption type-caption text-ink-2">
+    <h2 id={id} className="caption-head">
       {children}
     </h2>
   );
@@ -196,7 +197,7 @@ function Progress({
 }) {
   return (
     <>
-      {/* The figures in Jost, whose zero is plain (DESIGN.md, Typography): "0 sets", not "Ø". */}
+      {/* The figures tabular (DESIGN.md, Typography): "0 sets". */}
       <span className="whitespace-nowrap">In progress</span>{" "}
       {/* Whole while it fits a line; at large text a start on another day ("Started Sun 11 Oct,
           10:30") is longer than the line, and wraps inside its own box rather than run off. */}
@@ -361,7 +362,7 @@ export function TodayView({
   const elsewhereCard = openElsewhere && inProgress && (
     <li key="open">
       <ActivityCard
-        mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
+        mark={<SportSign sport="strength" size={40} />}
         title={sessionName(inProgress.dayName, inProgress.title)}
         facts={
           <Fact glyph="pin" label="Gym">
@@ -405,7 +406,7 @@ export function TodayView({
     (openHere || (sessionStatus === "pending" && !needsGym)) && (
       <li key="workout">
         <ActivityCard
-          mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
+          mark={<SportSign sport="strength" size={40} />}
           title={day.name}
           facts={
             <>
@@ -461,6 +462,7 @@ export function TodayView({
               </>
             )
           }
+          detailsLabel="Exercises"
           details={
             rows.length > 0 || coachSaid ? (
               <div className="activity-card-plan">
@@ -520,15 +522,7 @@ export function TodayView({
   const restCard = day && plan && plan.suggestion && restDay && sessionStatus === "pending" && (
     <li key="rest">
       <ActivityCard
-        mark={
-          <Art
-            kind="mark"
-            sport="mobility"
-            size={22}
-            segments={restProtocol?.drills.length || 3}
-            state="todo"
-          />
-        }
+        mark={<SportSign sport="mobility" size={40} />}
         title={day.name}
         facts={
           (day.timeNote || day.focus) && (
@@ -542,6 +536,7 @@ export function TodayView({
             </>
           )
         }
+        detailsLabel="Drills"
         details={
           restProtocol ? (
             <div className="activity-card-plan">
@@ -605,13 +600,17 @@ export function TodayView({
     day && !day.includesLifting && day.includesRun && owed.length === 1
       ? { id: owed[0]!.id, name: day.name, focus: day.focus }
       : null;
-  const enduranceCards = owed.map((occurrence) => (
+  // With no workout or rest day owed, the first run, ride or swim is the day's task, and its
+  // Log the screen's one filled action (DESIGN.md, The One Filled Action Rule).
+  const firstFilled = !elsewhereCard && !workoutCard && !restCard;
+  const enduranceCards = owed.map((occurrence, index) => (
     <li key={occurrence.id}>
       <EnduranceCard
         occurrence={occurrence}
         day={runDay?.id === occurrence.id ? runDay : undefined}
         coachSummary={occurrence.sport === "running" ? coachRun : null}
         units={distanceUnits[occurrence.sport]}
+        primary={firstFilled && index === 0}
       />
     </li>
   ));
@@ -639,7 +638,8 @@ export function TodayView({
               ? `/workouts/${activity.sessionId}${originQuery("today")}`
               : `/progress/activities/${activity.id}${originQuery("today")}`) as Route
           }
-          lead={<Art kind="mark" sport={MARK[activity.sport]} size={20} state="done" />}
+          strong
+          lead={<SportSign sport={MARK[activity.sport]} />}
           label={holdHyphens(title)}
           value={doneValue(activity, title, distanceUnits[activity.sport] ?? DEFAULT_SPORT_UNITS)}
         />
@@ -649,7 +649,8 @@ export function TodayView({
       <NavRow
         key={occurrence.id}
         href={`/plan/sessions/${occurrence.id}` as Route}
-        lead={<Art kind="mark" sport={MARK[occurrence.sport]} size={20} state="skipped" />}
+        strong
+        lead={<SportSign sport={MARK[occurrence.sport]} />}
         label={holdHyphens(occurrence.prescription?.title ?? enduranceName(occurrence.sport))}
         value="Skipped"
       />
@@ -660,7 +661,8 @@ export function TodayView({
       ? [
           <NavRow
             key="rest"
-            lead={<Art kind="mark" sport="mobility" size={20} state="done" />}
+            strong
+            lead={<SportSign sport="mobility" />}
             label={holdHyphens((finishedToday ?? day)?.name ?? "Rest day")}
             value="Done"
           />,
@@ -670,10 +672,6 @@ export function TodayView({
 
   // ---------- the page ----------
   const empty = cards.length === 0 && doneRows.length === 0 && !needsGym;
-  // How far the day has got: what was done of what was done and is still owed. A session
-  // skipped is neither, and with nothing owed there is nothing to count.
-  const doneCount = doneRows.length - skippedToday.length;
-  const dayCount = cards.length > 0 ? `${doneCount} of ${doneCount + cards.length} done` : null;
   const date = dayAndMonth(today, today.slice(0, 4));
   // Nothing planned and nothing done: logging is the page itself. Otherwise it waits up top.
   const logButton = (primary: boolean) => (
@@ -689,25 +687,16 @@ export function TodayView({
   );
   return (
     <div className="today page-wide">
-      {/* The day is the headline (DESIGN.md, Tab roots), its date and how far it has got under
-          it, Log at its end. The h1 says the date with the day, so the date shown under it is
-          not read twice. Left open overnight, the installed app would go on showing yesterday
-          as today. */}
+      {/* The day is the headline (DESIGN.md, Tab roots), its date its second tone, Log at its
+          end (owner, 28 October 2026: what is done is said once, by Done under the cards, never
+          counted again in the header). The h1 says the date with the day, so the date shown under
+          it is not read twice. Left open overnight, the installed app would go on showing
+          yesterday as today. */}
       <PageHeader
         tab="Today"
         title={weekdayName(today)}
         said={date}
-        meta={
-          <span className="min-w-0">
-            <span aria-hidden="true">{date}</span>
-            {dayCount && (
-              <span>
-                <span aria-hidden="true">{FACT_SEPARATOR}</span>
-                <Figures>{dayCount}</Figures>
-              </span>
-            )}
-          </span>
-        }
+        meta={<span aria-hidden="true">{date}</span>}
         action={empty ? undefined : logButton(false)}
       />
       <div className="page-width">
@@ -729,9 +718,9 @@ export function TodayView({
           </section>
         )}
         {doneRows.length > 0 && (
-          <section aria-labelledby="today-done" className="mt-4">
+          <section aria-labelledby="today-done" className="today-done">
             <Caption id="today-done">Done</Caption>
-            <ul className="ruled-list">{doneRows}</ul>
+            <ul className="ov-panel ov-panel-list">{doneRows}</ul>
           </section>
         )}
         {/* Nothing owed and nothing done: the rest day's crescent on its paper, quiet as it is on

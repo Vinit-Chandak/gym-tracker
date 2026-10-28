@@ -121,16 +121,18 @@ export function CalendarView({
                     </ul>
                   )}
                 </div>
-                <Art
-                  kind="month"
-                  month={month}
-                  days={monthDays(activities, month, units)}
-                  today={current ? day : null}
-                  dates
-                  cellHeight={58}
-                  links={links}
-                  label={`${formatIsoMonth(month, "")}, every activity of every day`}
-                />
+                <div className="month-card">
+                  <Art
+                    kind="month"
+                    month={month}
+                    days={monthDays(activities, month, units)}
+                    today={current ? day : null}
+                    dates
+                    cellHeight={58}
+                    links={links}
+                    label={`${formatIsoMonth(month, "")}, every activity of every day`}
+                  />
+                </div>
               </section>
             );
           })}

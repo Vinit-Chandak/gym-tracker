@@ -623,10 +623,13 @@ describe("figures fit their columns", () => {
     expect(entrySize(["1002.5", "3", "–"], 320)).toBe(28);
   });
 
-  it("steps the log down until the widest load fits (DESIGN.md: 102.5 at 360 and 320)", () => {
+  it("steps the log down until the widest load fits (102.5 at 360 and 320)", () => {
     expect(logSize(["60", "60"], 402)).toBe(32);
     expect(logSize(["102.5"], 360)).toBe(28);
-    expect(logSize(["102.5"], 320)).toBe(26);
+    // Host Grotesk's digits are 0.65 em: at 320, 102.5 at 26 is 73 px in a 72-pt column, so it
+    // takes the ramp's next step.
+    expect(logSize(["102.5"], 320)).toBe(20);
+    expect(logSize(["62.5"], 320)).toBe(32);
     expect(logSize(["62.5"], 402, 1, 26)).toBe(26);
   });
 });

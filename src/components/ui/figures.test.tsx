@@ -6,7 +6,7 @@ import { Figures } from "./figures";
 
 afterEach(cleanup);
 
-it("sets the digits in Jost and leaves the dash and the words as they were", () => {
+it("sets the digits as figures and leaves the dash and the words as they were", () => {
   const { container } = render(
     <p>
       <Figures>{"70–90 min"}</Figures>

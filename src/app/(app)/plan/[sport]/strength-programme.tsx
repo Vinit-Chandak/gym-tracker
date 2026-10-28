@@ -1,9 +1,9 @@
 import { SavedProgrammeWork } from "@/components/coaching/saved-work";
+import { SportSign } from "@/components/art/sign";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Glyph } from "@/components/ui/glyphs";
 import { DetailList } from "@/components/ui/detail-list";
@@ -81,9 +81,10 @@ export async function StrengthProgramme({
   const start = overview?.program.startDate;
   const spanYear =
     start && end && start.slice(0, 4) !== end.slice(0, 4) ? undefined : today.slice(0, 4);
-  // A list of folds is ruled rows that share their rules, never a stack of boxes (DESIGN.md).
-  const dayList = (days: readonly ProgramDayPlan[]) => (
-    <ul className="[&>li+li]:-mt-px">
+  // A list of folds is one card of ruled rows (DESIGN.md, Folds; owner, 28 October 2026); a
+  // list inside a fold is that card's own rows, never a card in a card.
+  const dayList = (days: readonly ProgramDayPlan[], nested = false) => (
+    <ul className={nested ? "[&>li+li]:-mt-px" : "programme-weeks box"}>
       {days.map((plan) => (
         <li key={plan.day.id}>
           <CycleDay
@@ -111,30 +112,28 @@ export async function StrengthProgramme({
         dayCount: overview.days.length,
       })
     : null;
+  const length = overview
+    ? programLengthLabel({
+        weeks: overview.program.weeks,
+        days,
+        repeats: overview.program.repeats,
+      })
+    : null;
   return (
     <>
-      <PageHeader title="Strength programme" backHref="/plan" />
+      {/* The programme is the title, how it runs and for how long its second tone, its sport's
+          sign beside it (owner, 28 October 2026); with none, the page names what it would be. */}
+      <PageHeader
+        title={overview ? holdHyphens(overview.program.name) : "Strength programme"}
+        meta={overview ? joinFacts([pattern, length]) : undefined}
+        backHref="/plan"
+        sign={overview ? <SportSign sport="strength" size={64} label="Lifting" /> : undefined}
+      />
       <PageContent>
         {overview ? (
           <>
-            {/* What the programme is and how far through it you are. */}
-            <Card>
-              <div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="type-card-title">{holdHyphens(overview.program.name)}</h2>
-                  {/* Today's word for it, "Programme complete", as the card's badge. */}
-                  {complete && <Badge>Complete</Badge>}
-                </div>
-                <p className="mt-1.5 text-sm text-ink-muted">
-                  {pattern}
-                  {" · "}
-                  {programLengthLabel({
-                    weeks: overview.program.weeks,
-                    days,
-                    repeats: overview.program.repeats,
-                  })}
-                </p>
-              </div>
+            {/* How far through it you are, said once: the bar and its words. */}
+            <section aria-label="Where it has got to" className="programme-progress">
               <ProgressBar
                 sport="strength"
                 value={overview.progress.completed}
@@ -142,45 +141,47 @@ export async function StrengthProgramme({
                 label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
               {/* Each count kept with its words ("0 to go", never "0 to / go"), and each dot with
-                  the fact after it, when the line wraps. */}
-              <p className="text-sm text-ink-muted tabular-nums">
+                  the fact after it, when the line wraps; the weeks' total is the title's. */}
+              <p className="type-meta text-ink-2 tabular-nums">
                 {joinFacts([
-                  position?.replace(/ /g, "\u00a0"),
+                  (complete ? "Complete" : position)
+                    ?.replace(/^(Week \d+) of \d+$/, "$1")
+                    .replace(/ /g, "\u00a0"),
                   !complete && `${overview.progress.remaining}\u00a0days\u00a0left`,
                   overview.progress.skipped > 0 && `${overview.progress.skipped}\u00a0skipped`,
                 ])}
               </p>
-              <ProgrammeTools id={overview.program.id} finished={complete} />
-              {(overview.program.notes || overview.program.endDate) && (
-                <Disclosure summary="Programme details" variant="footer">
-                  <div className="space-y-3">
-                    {overview.program.notes && (
-                      <p className="text-sm [overflow-wrap:break-word]">{overview.program.notes}</p>
-                    )}
-                    <DetailList
-                      entries={[
-                        ["Started", start ? formatIsoDate(start, spanYear) : null],
-                        [
-                          complete ? "Finished" : "Estimated finish",
-                          end ? formatIsoDate(end, spanYear) : null,
-                        ],
-                        [
-                          once ? "Lifting days" : "Lifting days per cycle",
-                          `${overview.liftingDays}`,
-                        ],
-                        [once ? "Planned sets" : "Sets per cycle", `${overview.setsPerCycle}`],
-                        [
-                          "Planned end",
-                          overview.program.endDate
-                            ? formatIsoDate(overview.program.endDate, today.slice(0, 4))
-                            : null,
-                        ],
-                      ]}
-                    />
-                  </div>
-                </Disclosure>
-              )}
-            </Card>
+            </section>
+            <ProgrammeTools
+              id={overview.program.id}
+              finished={complete}
+              details={
+                <div className="space-y-3">
+                  {overview.program.notes && (
+                    <p className="type-meta [overflow-wrap:break-word] text-ink-2">
+                      {overview.program.notes}
+                    </p>
+                  )}
+                  <DetailList
+                    entries={[
+                      ["Started", start ? formatIsoDate(start, spanYear) : null],
+                      [
+                        complete ? "Finished" : "Estimated finish",
+                        end ? formatIsoDate(end, spanYear) : null,
+                      ],
+                      [once ? "Lifting days" : "Lifting days per cycle", `${overview.liftingDays}`],
+                      [once ? "Planned sets" : "Sets per cycle", `${overview.setsPerCycle}`],
+                      [
+                        "Planned end",
+                        overview.program.endDate
+                          ? formatIsoDate(overview.program.endDate, today.slice(0, 4))
+                          : null,
+                      ],
+                    ]}
+                  />
+                </div>
+              }
+            />
 
             <ProgrammeTabs view={view} waiting={changes.waiting} />
             <div
@@ -207,7 +208,7 @@ export async function StrengthProgramme({
                 // the panel, and where the programme has got to is the card's, said once.
                 <div>
                   {once && overview.days.length > 7 ? (
-                    <ul className="[&>li+li]:-mt-px">
+                    <ul className="programme-weeks box">
                       {Array.from({ length: Math.ceil(overview.days.length / 7) }, (_, index) => {
                         const week = overview.days.slice(index * 7, index * 7 + 7);
                         return (
@@ -222,7 +223,7 @@ export async function StrengthProgramme({
                                 (complete && index === 0)
                               }
                             >
-                              {dayList(week)}
+                              {dayList(week, true)}
                             </Disclosure>
                           </li>
                         );

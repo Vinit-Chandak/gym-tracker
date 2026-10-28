@@ -6,10 +6,9 @@ import { expect, it } from "vitest";
  * Every control reads as a shape on what it stands on (DESIGN.md, Neutral). In light the
  * control surface is the surface itself, and a tray is the surface, so on a card filled with that
  * same surface, Save under a select read as a stray word and a segmented tray left its unchosen
- * words bare; a waiting button is the surface too, so Saving… lost its shape. A card now stands
- * on the ground inside a hairline (DESIGN.md, The One Card Rule), as do kept actions, so what
- * stands in them keeps the ground's own fills; on the grouped ground a box is a panel, and takes
- * a panel's fills, a tone off it, in both palettes.
+ * words bare; a waiting button is the surface too, so Saving… lost its shape. A card is the
+ * panel's white on the grey ground (DESIGN.md, The One Card Rule; owner, 28 October 2026), and
+ * what stands in it steps back to the ground's tone; kept actions stand on the ground itself.
  */
 
 const read = (path: string) =>
@@ -73,14 +72,26 @@ it("gives a tray, a waiting button and a tonal button a fill of their own on the
   }
 });
 
-it("stands a card, a list's box and kept actions on the ground, keeping the ground's own fills", () => {
-  for (const utility of ["box", "box-rows", "sticky-actions"]) {
+it("stands a card in the panel's white, and what stands in it a step back to the ground", () => {
+  for (const utility of ["box", "box-rows"]) {
     const body = block(globals, `@utility ${utility} {`);
-    expect(declared(body, "background")).toBe("var(--ov-ground)");
-    // Nothing is re-pointed: a tray, a wait and a tonal button keep the fills that stand off the
-    // ground (above).
-    for (const token of ["tray", "waiting", "surface-control", "surface-control-pressed"])
-      expect(() => declared(body, `--ov-${token}`), `${utility} ${token}`).toThrow();
+    expect(declared(body, "background"), utility).toBe("var(--ov-panel)");
+  }
+  // Kept actions stand on the ground itself, so the fills that stand off the ground hold.
+  const kept = block(globals, "@utility sticky-actions {");
+  expect(declared(kept, "background")).toBe("var(--ov-ground)");
+  for (const token of ["tray", "waiting", "surface-control", "surface-control-pressed"])
+    expect(() => declared(kept, `--ov-${token}`), `sticky-actions ${token}`).toThrow();
+  // One rule for every card: a tray, a wait and a tonal button take the panel's tray, a tone off
+  // the card, in both palettes, and what a thing stands on is the card's own white.
+  const inCard = block(globals, /:where\(\s*\.box,\s*\.box-rows,[^{]*\{/.exec(globals)![0]);
+  expect(declared(inCard, "--ov-tray")).toBe("var(--ov-panel-tray)");
+  expect(declared(inCard, "--ov-waiting")).toBe("var(--ov-panel-tray)");
+  expect(declared(inCard, "--ov-surface-control")).toBe("var(--ov-surface-control-on-surface)");
+  expect(declared(inCard, "--ov-backdrop")).toBe("var(--ov-panel)");
+  for (const mode of MODES) {
+    expect(colour(mode, "panel-tray")).not.toBe(colour(mode, "panel"));
+    expect(colour(mode, "surface-control-on-surface")).not.toBe(colour(mode, "panel"));
   }
 });
 

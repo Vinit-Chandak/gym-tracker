@@ -85,11 +85,11 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
               <span>Recorded</span>
               <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
             </h2>
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               {done.map((exercise) => (
                 <li key={exercise.id} className="record-row">
                   <span className="record-row-name">{exercise.exercise.name}</span>{" "}
-                  {/* The sets' figures in Jost, whose zero is plain; "kg" and "×" in Atkinson. */}
+                  {/* The sets' figures tabular; "kg" and "×" as words. */}
                   <span className="record-row-sets">
                     <Figures>
                       {formatSets(

@@ -7,7 +7,7 @@
 /* The opening is a tab's root (page-header.tsx, rows.css): the section is its headline. */
 
 /* A section of a screen (DESIGN.md, Typography: Section; The Rhythm Rule, 24 October 2026):
-   Jost 700, 20 pt, in ink, so a screen's parts read as parts (Programmes, Training, Sets), a
+   20 pt at 650, in ink, so a screen's parts read as parts (Programmes, Training, Sets), a
    heading's gap under it. After something in the same flow it opens a new section, a section's
    gap above it; first in its section or its card, it adds nothing above, which whatever holds
    it already gives. In block flow the gap above meets the margin of what precedes it and the
@@ -17,7 +17,7 @@
   color: var(--ov-ink);
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-section);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.01em;
   overflow-wrap: break-word;
@@ -54,10 +54,10 @@
 /* A group inside a list (a day of History, a letter of the library, a day of Plan's week): a
    caption, 13 pt, ink 2, as a table names its groups; never a section's heading. */
 .group-caption {
-  margin: 0 0 2px;
+  margin: 0 0 calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.3;
 }
 :where(*) + .group-caption {
@@ -97,7 +97,7 @@
 .week-stepper-label {
   min-width: 0;
   font-size: var(--ov-type-button);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.2;
   text-align: center;
   font-variant-numeric: tabular-nums lining-nums;
@@ -115,7 +115,7 @@
   gap: calc(12 * var(--ov-u));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-section);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -0.01em;
 }
 .month-head-link {
@@ -126,7 +126,15 @@
   margin-right: calc(-6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-meta);
-  font-weight: 700;
+  font-weight: 650;
+}
+/* The month on its card (owner, 28 October 2026): the paper's days, and each a paler sheet where
+   nothing was done, read against the card's white rather than fading into the grey ground. */
+.month-card {
+  min-width: 0;
+  padding: var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
 }
 .month-totals {
   margin-top: calc(12 * var(--ov-u));
@@ -149,7 +157,7 @@
   overflow-wrap: break-word;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.3;
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -171,17 +179,6 @@
   gap: calc(12 * var(--ov-u));
   padding: calc(7 * var(--ov-u)) 0;
   border-bottom: 1px solid var(--ov-hair);
-}
-/* Where a list read beside the month (Overview's History) runs on past it: the earlier month's
-   name over its first day, as the month's own name stands over the calendar. */
-.list-month {
-  margin-top: calc(22 * var(--ov-u));
-  font-size: var(--ov-type-heading);
-  font-weight: 700;
-  line-height: 1.3;
-}
-.list-month + .group-caption {
-  margin-top: calc(6 * var(--ov-u));
 }
 
 /* ---------- a day: its print, then its entries ---------- */
@@ -228,7 +225,7 @@
 :where([data-overload-platform="android"]) .month {
   --month-floor: 48px;
 }
-/* A date is a Jost figure: it grows by half with the reader's text (12 at 100%, 18 at 200%),
+/* A date is a figure: it grows by half with the reader's text (12 at 100%, 18 at 200%),
    and its tile grows by as much, so the icons keep their room under it. */
 .month-dated {
   --month-grow: max(0px, calc(0.375rem - 6px));
@@ -246,7 +243,7 @@
   line-height: 1.3;
   color: var(--ov-ink-2);
   font-size: var(--ov-type-print-label);
-  font-weight: 700;
+  font-weight: 650;
   text-align: center;
 }
 .month-day {
@@ -256,9 +253,10 @@
   background: var(--ov-paper);
   color: var(--ov-print-label);
 }
-/* A day with nothing in it is a paler sheet: half the paper, half the ground. */
+/* A day with nothing in it is a paler sheet: half the paper, half what the month stands on (its
+   card's white). */
 .month-day-rest {
-  background: color-mix(in srgb, var(--ov-paper), var(--ov-ground));
+  background: color-mix(in srgb, var(--ov-paper), var(--ov-backdrop));
 }
 /* A day to come keeps its place as an outline with a readable date. */
 .month-day-future {
@@ -280,7 +278,7 @@
   font-family: var(--ov-font-display);
   font-size: calc(calc(6 * var(--ov-u)) + 0.375rem);
   font-variant-numeric: tabular-nums lining-nums;
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1;
 }
 .month-day-future > .month-date {
@@ -289,7 +287,7 @@
 }
 .month-day-today > .month-date {
   color: var(--ov-print-ink);
-  font-weight: 700;
+  font-weight: 650;
 }
 /* The icons, centred in the tile, or on the calendar page in the room under its date. */
 .month-icons {
@@ -355,7 +353,7 @@ html:has(.calendar-head) {
 }
 .calendar-month > h2 {
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: 650;
 }
 .calendar-counts {
   display: flex;
@@ -377,14 +375,15 @@ html:has(.calendar-head) {
    last month without first building every month before it. The month is what is skipped, and
    it clips at its own box, so where it runs to the screen's edges it is cut there and nowhere
    nearer. */
-.calendar-section > .month {
+.calendar-section > .month-card {
   content-visibility: auto;
-  contain-intrinsic-size: auto calc(326 * var(--ov-u));
+  contain-intrinsic-size: auto calc(358 * var(--ov-u));
 }
 
 /* ---------- every graph's numbers, behind one row (graph.css has the rows) ---------- */
+/* The graph card's last row, from edge to edge under one rule, as Today's folds are. */
 .chart-values {
-  margin-top: calc(6 * var(--ov-u));
+  margin: calc(12 * var(--ov-u)) calc(-1 * var(--panel-padding)) 0;
 }
 .chart-values-button {
   display: flex;
@@ -392,8 +391,8 @@ html:has(.calendar-head) {
   min-height: calc(calc(52 * var(--ov-u)) + var(--ov-grow) * 0.6);
   align-items: center;
   gap: calc(12 * var(--ov-u));
+  padding: 0 var(--panel-padding);
   border-top: 1px solid var(--ov-hair);
-  border-bottom: 1px solid var(--ov-hair);
   font-size: var(--ov-type-body);
 }
 
@@ -402,11 +401,15 @@ html:has(.calendar-head) {
 .exercise-stats-head {
   margin-top: calc(12 * var(--ov-u));
 }
+/* Its figures, one card (owner, 28 October 2026), as a workout's are. */
 .exercise-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(max(6rem, 30%), 1fr));
   gap: calc(10 * var(--ov-u));
   margin-top: calc(12 * var(--ov-u));
+  padding: calc(12 * var(--ov-u)) var(--panel-padding);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-panel);
 }
 .exercise-stats-head + .exercise-stats {
   margin-top: calc(4 * var(--ov-u));
@@ -426,31 +429,7 @@ html:has(.calendar-head) {
   border-bottom: 1px solid var(--ov-hair);
 }
 
-/* The overview: the month and its totals, then History. Where the column holds two panes of a
-   phone's width, 22 rem each and the gap (a tablet, a desktop, at 100% text), History stands
-   beside the month (ADR 0052); narrower, or at larger text, it stays under it. The page is wide
-   to hold them, and no wider; the graph sections keep the reading column. */
-.progress:has(.overview) {
-  --content-width: min(var(--content-width-wide), 62rem);
-}
-.overview {
-  container: overview / inline-size;
-}
+/* The month and its key, one card; History, one row, a card's gap under it. */
 .overview-history {
-  margin-top: calc(var(--spacing) * 6);
-  padding-top: calc(var(--spacing) * 3);
-  border-top: 1px solid var(--ov-hair);
-}
-@container overview (width >= 46rem) {
-  .overview-panes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 0 var(--ov-section-gap);
-  }
-  .overview-history {
-    margin-top: calc(var(--spacing) * 2);
-    padding-top: 0;
-    border-top: 0;
-  }
+  margin-top: calc(12 * var(--ov-u));
 }

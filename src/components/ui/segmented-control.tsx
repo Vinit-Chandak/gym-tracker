@@ -60,7 +60,7 @@ function segmentWidth(label: string, columns: boolean): string {
   return `max(${least}, ${(boldEmWidth(label) * 1.01).toFixed(3)}em + ${padding})`;
 }
 
-/** A scale's figure: Jost at the figure size, and never narrower than its 44-pt target. */
+/** A scale's figure: at the figure size, and never narrower than its 44-pt target. */
 function figureWidth(label: string): string {
   return `max(calc(44 * var(--ov-u)), ${emWidth(label).toFixed(3)} * var(--ov-type-figure) + 0.75rem)`;
 }

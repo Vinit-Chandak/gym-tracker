@@ -164,7 +164,7 @@ function RequestRow({
           {request.state === "needs_answer" && (
             <Button
               variant={answer.trim().length === 0 ? "waiting" : "primary"}
-              className={answer.trim().length === 0 ? "bg-ground" : undefined}
+              className={answer.trim().length === 0 ? "bg-backdrop" : undefined}
               disabled={busy || answer.trim().length === 0}
               onClick={() =>
                 act(async () => {

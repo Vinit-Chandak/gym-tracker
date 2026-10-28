@@ -37,8 +37,9 @@ export function EnduranceDraftWeeks({
   return (
     <div className="space-y-3">
       {stop && <StopRule rule={stop} />}
-      {/* A list of folds is ruled rows that share their rules, never a stack of boxes (DESIGN.md). */}
-      <ol className="[&>li+li]:-mt-px">
+      {/* A list of folds is one card, a rule between them, never a stack of boxes (DESIGN.md,
+          Folds); the sessions inside a week are that card's own rows. */}
+      <ol className="fold-list">
         {Array.from({ length: weeks }, (_, index) => index + 1).map((week) => {
           const inWeek = sessions
             .filter((session) => session.weekIndex === week)

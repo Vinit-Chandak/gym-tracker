@@ -61,7 +61,7 @@ function Figure({
             data-muscle={muscle}
             points={points}
             fill={STEP_FILL[volumeStep(volume[muscle] ?? 0)]}
-            stroke={active === muscle ? "var(--ov-ink)" : "var(--ov-canvas)"}
+            stroke={active === muscle ? "var(--ov-ink)" : "var(--ov-backdrop)"}
             strokeWidth={active === muscle ? 1.6 : 0.6}
             className="cursor-pointer"
             onClick={() => onPick(active === muscle ? null : muscle)}
@@ -117,7 +117,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
       <Disclosure
         summary="Number of sets"
         meta={`${fmt(totalSets)} ${totalSets === 1 ? "set" : "sets"}`}
-        variant="inline"
+        variant="footer"
       >
         <div className="overflow-hidden rounded-control">
           <table className="w-full text-left text-sm tabular-nums">

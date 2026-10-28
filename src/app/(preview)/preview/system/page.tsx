@@ -8,82 +8,91 @@ export const metadata: Metadata = { title: "Preview · The system" };
  * (docs/ui-redesign/revamp/form-v2/screenshots/System.png), so the two can be laid side by side.
  */
 const TYPE: { role: string; spec: string; className: string; sample: string }[] = [
+  // One face, Host Grotesk, for every role (DESIGN.md, The One Voice Rule).
   {
     role: "Title",
-    spec: "Jost 700 · 36/1 (32 under 360 pt)",
+    spec: "700 · 30/1.12 (28 under 360 pt)",
     className: "type-title",
     sample: "Progress",
   },
   {
+    role: "Fact",
+    spec: "600 · 20/1.3, ink 2",
+    className: "type-fact text-ink-2",
+    sample: "19 – 25 Oct",
+  },
+  {
     role: "Display",
-    spec: "Jost 700 · 34/1.05",
+    spec: "700 · 30/1.12",
     className: "type-display",
     sample: "Barbell bench press",
   },
-  { role: "Sheet title", spec: "Jost 700 · 28/1.05", className: "type-sheet-title", sample: "Why" },
-  { role: "Figure XL", spec: "Jost 600 · 56", className: "type-figure-xl", sample: "1,152.5" },
-  { role: "Entry", spec: "Jost 600 · 42", className: "type-entry", sample: "62.5 × 3 @ 2" },
-  { role: "Log", spec: "Jost 600 · 32", className: "type-log", sample: "60 × 4 @ 2" },
-  { role: "Figure L", spec: "Jost 600 · 26", className: "type-figure-l", sample: "77.5" },
+  { role: "Sheet title", spec: "700 · 24/1.15", className: "type-sheet-title", sample: "Why" },
+  { role: "Section", spec: "650 · 20/1.25", className: "type-section", sample: "Programmes" },
+  { role: "Figure XL", spec: "600 · 56", className: "type-figure-xl", sample: "1,152.5" },
+  { role: "Entry", spec: "600 · 42", className: "type-entry", sample: "62.5 × 3 @ 2" },
+  { role: "Log", spec: "600 · 32", className: "type-log", sample: "60 × 4 @ 2" },
+  { role: "Figure L", spec: "600 · 26", className: "type-figure-l", sample: "77.5" },
   {
     role: "Figure",
-    spec: "Jost 600 · 20",
+    spec: "600 · 20",
     className: "type-figure",
     sample: "6:06 /km · 77.5 kg · 2:14",
   },
-  { role: "Figure S", spec: "Jost 600 · 17", className: "type-figure-s", sample: "2:14" },
+  { role: "Figure S", spec: "600 · 17", className: "type-figure-s", sample: "2:14" },
   {
     role: "Heading",
-    spec: "Atkinson 700 · 17/1.3",
+    spec: "600 · 17/1.3",
     className: "type-heading",
     sample: "Set 3 · Waiting for you",
   },
   {
     role: "Body",
-    spec: "Atkinson 500 · 16/1.45",
+    spec: "450 · 16/1.45",
     className: "type-body",
     sample: "Choose a load leaving three reps in reserve; record what you used.",
   },
   {
     role: "Meta",
-    spec: "Atkinson 500 · 15/1.4",
+    spec: "450 · 15/1.4",
     className: "type-meta text-ink-2",
     sample: "4 × 3–5 @ 2 RIR · 3–4 min",
   },
   {
     role: "Meta small",
-    spec: "Atkinson 500 · 14/1.35",
+    spec: "450 · 14/1.35",
     className: "type-meta-small text-ink-2",
     sample: "Milk · Morning dry fruits",
   },
   {
     role: "Caption",
-    spec: "Atkinson 700 · 13/1.3",
+    spec: "600 · 13/1.3",
     className: "type-caption text-ink-2",
     sample: "Waiting for you",
   },
   {
     role: "Button",
-    spec: "Atkinson 700 · 17/1",
+    spec: "600 · 17/1",
     className: "type-button",
     sample: "Start workout",
   },
   {
     role: "Tab",
-    spec: "Atkinson 600 · 13 (12 under 360 pt)",
+    spec: "600 · 13 (12 under 360 pt)",
     className: "type-tab",
     sample: "Today · Training · Food",
   },
   {
     role: "Print label",
-    spec: "Atkinson 700 · 12",
+    spec: "600 · 12",
     className: "type-print-label",
     sample: "Lifting",
   },
 ];
 
 const INTERFACE = [
-  ["Ground", "bg-ground", "The page"],
+  ["Ground", "bg-ground", "The page, a pale grey; what a card holds steps back to it"],
+  ["Panel", "bg-panel", "Every card, list, sheet and the tab bar"],
   ["Surface", "bg-surface", "Tiles, trays, notes, a waiting button"],
   ["Control surface", "bg-surface-control", "Steppers and tonal buttons; lifted in dark"],
   [
@@ -114,10 +123,11 @@ const RADII = [
   ["6", "rounded-checkbox", "checkbox"],
   ["8", "rounded-tag", "tag"],
   ["12", "rounded-key", "key"],
-  ["14", "rounded-control", "button, field"],
-  ["16", "rounded-card", "card"],
+  ["14", "rounded-control", "field, tile, note"],
+  ["20", "rounded-card", "card"],
   ["18", "rounded-rest-pill", "rest pill"],
   ["24", "rounded-sheet", "sheet"],
+  ["Full", "rounded-full", "button, round button, avatar"],
 ] as const;
 
 export default function SystemPreviewPage() {

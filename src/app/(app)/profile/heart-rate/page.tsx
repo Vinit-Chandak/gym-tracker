@@ -81,7 +81,7 @@ export default async function HeartRatePage() {
                   <span className="heart-rate-zone-name">
                     Zone {zone.zone} <span className="text-ink-2">· {zone.name}</span>
                   </span>
-                  {/* Jost's figures, Atkinson's en dash (DESIGN.md, The Two Voices Rule). */}
+                  {/* Tabular figures, the en dash a word's (DESIGN.md, The One Voice Rule). */}
                   <span className="heart-rate-zone-beats tabular-nums">
                     <FigureText>{`${zone.low}–${zone.high}`}</FigureText>
                   </span>

@@ -523,7 +523,7 @@ const BODY_INFO = {
 };
 
 /**
- * A figure typed in a box (height, weight, age): its name above, the figure in Jost, and its
+ * A figure typed in a box (height, weight, age): its name above, the figure, and its
  * unit inside the box at its end. What is wrong with it is said once under the row of boxes,
  * and the box is marked.
  */

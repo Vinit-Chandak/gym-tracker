@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Jost } from "next/font/google";
+import { Host_Grotesk } from "next/font/google";
 import { AppearanceSync } from "@/components/shell/appearance-sync";
 import { PwaProvider } from "@/components/shell/pwa-provider";
 import { NavigationHistory } from "@/components/shell/back-link";
@@ -14,15 +14,15 @@ import { cn } from "@/lib/utils";
 import "./globals.css";
 
 /*
- * The two voices (DESIGN.md, Typography): Jost for titles and figures, Atkinson Hyperlegible
- * Next for every word read. Both are variable and under the SIL Open Font License, so the
- * native apps can embed the same files. next/font serves them from this origin, so the
- * installed app never asks Google for them, and sizes the fallback to match while they load.
+ * One face (DESIGN.md, Typography; owner, 28 October 2026): Host Grotesk for every title,
+ * heading, word and figure, its digits one width by default. It is variable and under the SIL
+ * Open Font License, so the native apps can embed the same file. next/font serves it from this
+ * origin, so the installed app never asks Google for it, and sizes the fallback to match while
+ * it loads.
  */
-const jost = Jost({ subsets: ["latin"], variable: "--font-jost", display: "swap" });
-const atkinson = Atkinson_Hyperlegible_Next({
+const hostGrotesk = Host_Grotesk({
   subsets: ["latin"],
-  variable: "--font-atkinson",
+  variable: "--font-host-grotesk",
   display: "swap",
 });
 
@@ -80,7 +80,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // a real mismatch anywhere else still surfaces.
     <html
       lang="en"
-      className={cn("h-full", jost.variable, atkinson.variable)}
+      className={cn("h-full", hostGrotesk.variable)}
       data-overload-design="form-v2"
       suppressHydrationWarning
       // color-scheme comes from the theme files, per mode, so native controls follow.

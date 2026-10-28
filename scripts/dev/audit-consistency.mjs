@@ -9,8 +9,9 @@
 //   Ask for changes, Edit draft, Discard draft).
 // - field-invisible: a field that cannot be told from what it stands on (a lap's distance, a
 //   filled tray on a tray of the same tone).
-// - heading-body-face: words at 20 px or more set in the reading face rather than Jost, so a
-//   screen reads as two typefaces' headlines ("Which sounds like you?" under its title).
+// - heading-body-face: words at 20 px or more set outside the app's one face, Host Grotesk, or
+//   lighter than 600, so a screen reads as a sentence set large rather than a heading ("Which
+//   sounds like you?" under its title; owner, 28 October 2026: one face for everything).
 // - heading-weak: a heading lighter than 600, which reads as a sentence rather than a heading.
 // - stepper-misaligned: rows of steppers whose buttons do not stand in one column (Distance
 //   above Duration).
@@ -338,7 +339,7 @@ function inspect() {
       });
   }
 
-  // ---------- headings: Jost for what is large, and every heading reads as one ----------
+  // ---------- headings: what is large is a heading in the one face, and reads as one ----------
   const seenFaces = new Set();
   for (const element of document.querySelectorAll("body *")) {
     if (element.closest("svg, input, textarea, select, option, .sr-only")) continue;
@@ -348,7 +349,10 @@ function inspect() {
     if (!own || !visible(element)) continue;
     const style = getComputedStyle(element);
     const size = parseFloat(style.fontSize);
-    if (size >= 20 && !/jost/i.test(style.fontFamily)) {
+    if (
+      size >= 20 &&
+      (!/host[ _]grotesk/i.test(style.fontFamily) || Number(style.fontWeight) < 600)
+    ) {
       const text = name(element);
       if (!seenFaces.has(text)) {
         seenFaces.add(text);

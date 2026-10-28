@@ -73,7 +73,7 @@ export function PrivacySwitches({
   );
   return (
     <>
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         {SWITCHES.map((row) => (
           <SavedSwitch
             key={row.setting}
@@ -86,7 +86,7 @@ export function PrivacySwitches({
         ))}
       </ul>
       {separate.length > 0 && (
-        <ul className="mt-3.5">
+        <ul className="ov-panel ov-panel-list mt-3">
           {separate.map((sport) => (
             <SavedSwitch
               key={sport}

@@ -187,7 +187,10 @@ export function MealEditor({
               Star
             </button>
           </section>
-          <ul className="meal-entries food-list" aria-label={`In ${label.toLowerCase()}`}>
+          <ul
+            className="ov-panel ov-panel-list meal-entries food-list"
+            aria-label={`In ${label.toLowerCase()}`}
+          >
             {entries.map((entry) => (
               <li key={entry.id}>
                 <SwipeRow
@@ -231,7 +234,7 @@ export function MealEditor({
       </div>
 
       <div role="group" aria-label="Your foods and meals">
-        <ul className="food-list mt-1.5">
+        <ul className="ov-panel ov-panel-list food-list mt-3">
           <li>
             <button
               type="button"

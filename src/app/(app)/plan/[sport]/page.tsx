@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { enduranceTarget, plannedName } from "@/components/activities/endurance-line";
 import { alreadySays } from "@/components/activities/prescription-lines";
+import { SportSign } from "@/components/art/sign";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -39,6 +40,8 @@ import { currentProgrammeWeek, sessionsInProgrammeWeek } from "./programme-weeks
 import { StrengthProgramme } from "./strength-programme";
 
 export const metadata: Metadata = { title: "Programme" };
+
+const MARK = { running: "run", cycling: "ride", swimming: "swim" } as const;
 
 /** "3 runs", "1 ride", "4 swims": how much a week asks for, in the sport's own word. */
 function sessionCount(sport: EnduranceSport, count: number): string {
@@ -123,9 +126,6 @@ export default async function SportProgrammePage({
   const weeks = programme.weeks ?? 1;
   const start = programme.startDate ?? null;
   const currentWeek = currentProgrammeWeek(start, weeks, today);
-  // A block not reached yet is not under way: the line under the bar says when it starts, and its
-  // first week carries that day like every other week, never a second "Starts".
-  const waiting = start !== null && today < start;
   const asked = data.sessions.filter((session) => session.resolution.kind !== "cancelled");
   // Every week reads its running with no pace of its own at the plan's easiest (ADR 0063).
   const pace = planPace(asked.map((session) => session.prescription));
@@ -147,42 +147,50 @@ export default async function SportProgrammePage({
     profile.aiCoachEnabled &&
     process.env.COACH_WORKFLOW_ENABLED === "true" &&
     isCoachServiceConfigured();
+  // Where it has got to in its card's words on Plan, less what the title says ("of 10").
+  const position = finished ? "Complete" : endurancePosition(start, weeks, today);
   return (
     <>
-      <PageHeader title={`${label} programme`} backHref="/plan" />
+      {/* The programme is the title, how it runs and for how long its second tone, its sport's
+          sign beside it (owner, 28 October 2026): no headline over it naming the sport. */}
+      <PageHeader
+        title={holdHyphens(programme.name)}
+        meta={joinFacts([pattern, `${weeks} ${weeks === 1 ? "week" : "weeks"}`])}
+        backHref="/plan"
+        sign={<SportSign sport={MARK[sport]} size={64} label={label} />}
+      />
       <PageContent>
-        <Card>
-          <h2 className="type-card-title">{holdHyphens(programme.name)}</h2>
-          <p className="text-sm text-ink-2">
-            {joinFacts([pattern, `${weeks} ${weeks === 1 ? "week" : "weeks"}`])}
-          </p>
+        <section aria-label="Where it has got to" className="programme-progress">
           <ProgressBar
             sport={sport}
             value={done}
             max={asked.length || 1}
             label={`${done} of ${asked.length} sessions done`}
           />
-          {/* Where it has got to in its card's words on Plan, and the bar's figure. */}
-          <p className="text-sm text-ink-muted tabular-nums">
+          <p className="type-meta text-ink-2 tabular-nums">
             {joinFacts([
-              finished ? "Complete" : endurancePosition(start, weeks, today),
+              position?.replace(/^(Week \d+) of \d+$/, "$1"),
               `${done} of ${asked.length} sessions done`,
             ])}
           </p>
-          <ProgrammeTools id={programme.id} sport={sport} finished={finished} />
-          {programme.notes && (
-            <Disclosure summary="Programme details" variant="footer">
-              <p className="text-sm [overflow-wrap:break-word] whitespace-pre-wrap">
+        </section>
+        <ProgrammeTools
+          id={programme.id}
+          sport={sport}
+          finished={finished}
+          details={
+            programme.notes && (
+              <p className="type-meta [overflow-wrap:break-word] whitespace-pre-wrap text-ink-2">
                 {programme.notes}
               </p>
-            </Disclosure>
-          )}
-        </Card>
+            )
+          }
+        />
         {/* The decisions first: what the coach proposed or asked, before the weeks. */}
         <ProgrammeWaiting data={data.changes} />
         <Section title="Weeks">
-          {/* Ruled rows that share their rules (DESIGN.md, Folds): never a stack of boxes. */}
-          <ul className="[&>li+li]:-mt-px">
+          {/* One card of ruled rows (DESIGN.md, Folds), the current week open. */}
+          <ul className="programme-weeks box">
             {Array.from({ length: weeks }, (_, index) => index + 1).map((week) => {
               const inWeek = sessionsInProgrammeWeek(asked, start, weeks, week);
               const missed = inWeek.filter(
@@ -202,16 +210,13 @@ export default async function SportProgrammePage({
                   <Disclosure
                     summary={`Week ${week}`}
                     meta={joinFacts([
+                      // The day it starts orients the list (PRODUCT.md, Information map), so a
+                      // runner finds Thu 10 Dec. The week under way is the open one, which says
+                      // it is now without a word for it.
+                      start && formatIsoShortDay(addDays(start, (week - 1) * 7)),
                       sessionCount(sport, inWeek.length),
                       plannedVolumeLine(volume, sport, data.units),
-                      // The day it starts orients the list (PRODUCT.md, Information map), so a
-                      // runner finds Thu 10 Dec.
-                      start && formatIsoShortDay(addDays(start, (week - 1) * 7)),
-                      week === currentWeek && !finished && !waiting
-                        ? "Now"
-                        : allDone
-                          ? "Done"
-                          : missed > 0 && `${missed}\u00a0missed`,
+                      allDone ? "Done" : missed > 0 && `${missed} missed`,
                     ])}
                     variant="inline"
                     defaultOpen={week === currentWeek && !finished}

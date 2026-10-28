@@ -366,8 +366,8 @@ export function DraftPreview({
       )}
 
       {(current.blueprint.notes || current.openingPlan) && (
-        // Folds side by side are ruled rows that share their rules, never a stack of boxes.
-        <ul className="[&>li+li]:-mt-px">
+        // Folds side by side are one card, a rule between them (DESIGN.md, Folds).
+        <ul className="fold-list">
           {current.blueprint.notes && (
             <li>
               <Disclosure summary="Programme details" variant="inline">
@@ -472,8 +472,8 @@ export function DraftPreview({
       ) : null}
 
       {current.standalone && (
-        // Ruled rows that share their rules.
-        <ul className="[&>li+li]:-mt-px">
+        // One card of folds, a rule between them.
+        <ul className="fold-list">
           {enduranceSessionGroups(current.blueprint.enduranceSessions ?? []).map((group) => {
             const index = group.indexes[0]!;
             const session = current.blueprint.enduranceSessions![index]!;
@@ -509,8 +509,8 @@ export function DraftPreview({
       )}
 
       {current.blueprint.days.length > 0 && (
-        // Ruled rows that share their rules.
-        <ul className="[&>li+li]:-mt-px">
+        // One card of folds, a rule between them.
+        <ul className="fold-list">
           {current.blueprint.days.map((day) => {
             const runs = current.blueprint.runs.filter((r) => r.dayOfWeek === day.dayOfWeek);
             return (

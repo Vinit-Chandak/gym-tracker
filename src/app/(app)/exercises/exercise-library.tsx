@@ -30,8 +30,9 @@ function Equipment({ exercise }: { exercise: ExerciseListItem }) {
 }
 
 /**
- * A group of the library, as a list to choose from draws it (DESIGN.md, Rows and marks): each
- * name at the gutter with nothing boxing it, so the name has the row's width up to the chevron.
+ * A group of the library, as a list to choose from draws it (DESIGN.md, Rows and signs): its
+ * caption, then its exercises in a card, each name at the card's edge with the row's width up to
+ * the chevron.
  */
 function Group({ title, items }: { title: string; items: ExerciseListItem[] }) {
   const id = useId();
@@ -40,7 +41,7 @@ function Group({ title, items }: { title: string; items: ExerciseListItem[] }) {
       <h2 id={id} className="group-caption">
         {title}
       </h2>
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         {items.map((exercise) => (
           <NavRow
             key={exercise.id}

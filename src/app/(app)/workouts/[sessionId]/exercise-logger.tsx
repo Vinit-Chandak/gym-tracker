@@ -601,7 +601,7 @@ export function ExerciseLogger({
     <>
       {/* The glyph says the kind; the machine itself is said once, in words. */}
       <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-      {/* Its figures in Jost, whose zero is plain, as every meta line's are, and each range
+      {/* Its figures tabular, as every meta line's are, and each range
           held at its dash: "@ 1–" never ends a line. */}
       <Figures>{range === null ? equipment : holdFigures(range)}</Figures>
     </>,

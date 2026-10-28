@@ -5,21 +5,27 @@
  *
  * Every screen is laid out from its device, so lengths are points (px). Type is the
  * exception: it follows the reader's text size, which the app's audits drive through the root
- * font size. Words double at 200% text; Jost's figures and titles grow by less (by half, a
+ * font size. Words double at 200% text; figures and titles grow by less (by half, a
  * quarter for the log, three quarters for titles), as the 200% logging board draws them, so a
  * figure still fits the column it stands in. Controls grow by 20 pt at 200% to fit their text.
  */
 :where([data-overload-design="form-v2"]) {
-  /* The two voices: Jost for titles and figures, Atkinson Hyperlegible Next for every word
-     read. The --font-* names are next/font's, set on the document in layout.tsx. */
-  --ov-font-display: var(--font-jost), system-ui, sans-serif;
-  --ov-font-text: var(--font-atkinson), system-ui, sans-serif;
+  /* One voice (owner, 28 October 2026): Host Grotesk for every title, heading, word and figure,
+     its digits one width and every weight one width. Display and text name the same face, so a
+     role says what it is rather than which face it takes. --font-host-grotesk is next/font's,
+     set on the document in layout.tsx. */
+  --ov-font-display: var(--font-host-grotesk), system-ui, sans-serif;
+  --ov-font-text: var(--font-host-grotesk), system-ui, sans-serif;
   --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --ov-figures: "tnum" 1, "lnum" 1;
-  /* Titles are Jost 800, set a little tight, so a heading reads as a heading and never as a
-     line of words in a larger size (owner, 24 October 2026). */
-  --ov-title-weight: 800;
-  --ov-title-tracking: -0.02em;
+  /* Titles are 700, set a little tight, so a title reads as a title and never as a line of
+     words in a larger size (owner, 24 October 2026). Headings are 650, rows and controls 600,
+     words read 450 (owner, 28 October 2026). */
+  --ov-title-weight: 700;
+  --ov-title-tracking: -0.022em;
+  --ov-heading-weight: 650;
+  --ov-label-weight: 600;
+  --ov-text-weight: 450;
 
   /*
    * Wider screens (ADR 0052): from 600 px of viewport to 1440, type, spacing, radii and targets
@@ -34,12 +40,16 @@
   --ov-u: calc(1px + var(--ov-fluid) * 0.125);
 
   /* The type ramp, at 100% text. size = P·(1 − k) px + P·k / 16 rem grows by k at 200%. */
-  --ov-type-title: calc(9px + 1.6875rem + var(--ov-fluid) * 6); /* 36, k 0.75 */
-  --ov-type-display: calc(8.5px + 1.59375rem + var(--ov-fluid) * 4); /* 34, k 0.75 */
-  --ov-type-sheet-title: calc(7px + 1.3125rem + var(--ov-fluid) * 3); /* 28, k 0.75 */
-  --ov-type-card-title: calc(5.5px + 1.03125rem + var(--ov-fluid) * 3); /* 22, k 0.75 */
-  /* A section of a screen (Programmes, Training, Your goal): Jost, ink, between the title and
-     what is read, so it is seen as a heading and not as a label. */
+  /* A screen's title, a tab root's or a nested screen's alike, then its one fact under it in
+     grey, the second tone of the title (owner, 28 October 2026). */
+  --ov-type-title: calc(7.5px + 1.40625rem + var(--ov-fluid) * 5); /* 30, k 0.75 */
+  --ov-type-display: calc(7.5px + 1.40625rem + var(--ov-fluid) * 5); /* 30, k 0.75 */
+  --ov-type-fact: calc(5px + 0.9375rem + var(--ov-fluid) * 2); /* 20, k 0.75 */
+  --ov-type-sheet-title: calc(6px + 1.125rem + var(--ov-fluid) * 3); /* 24, k 0.75 */
+  /* A card that heads a screen (a task on Today) and a section of a screen (Programmes,
+     Training, Your goal): ink, between the title and what is read, so it is seen as a heading
+     and not as a label. */
+  --ov-type-card-title: calc(5px + 0.9375rem + var(--ov-fluid) * 2); /* 20, k 0.75 */
   --ov-type-section: calc(5px + 0.9375rem + var(--ov-fluid) * 2); /* 20, k 0.75 */
   --ov-type-figure-xl: calc(28px + 1.75rem + var(--ov-fluid) * 8); /* 56, k 0.5 */
   --ov-type-entry: calc(21px + 1.3125rem + var(--ov-fluid) * 4); /* 42, k 0.5 */
@@ -85,8 +95,8 @@
 
   /* Gutters are 20 pt, 16 under 360 pt wide, and grow to 40 on wide screens. */
   --ov-gutter: calc(20px + var(--ov-fluid) * 20);
-  /* A list that mixes sports gives its marks this column; names start 12 pt after it. */
-  --ov-mark-column: 20px;
+  /* A list that mixes sports gives its signs this column; names start 12 pt after it. */
+  --ov-mark-column: 24px;
 
   /* What a control adds at larger text: nothing at 100%, 20 pt at 200%. */
   --ov-grow: max(0px, calc(1.25rem - 20px));
@@ -106,7 +116,8 @@
   --ov-radius-segment: 11px;
   --ov-radius-key: calc(12px + var(--ov-fluid) * 2);
   --ov-radius-control: calc(14px + var(--ov-fluid) * 2);
-  --ov-radius-card: calc(16px + var(--ov-fluid) * 4);
+  /* A card: soft, as the one surface every block stands on (owner, 28 October 2026). */
+  --ov-radius-card: calc(20px + var(--ov-fluid) * 4);
   --ov-radius-rest-pill: calc(18px + var(--ov-fluid) * 2);
   --ov-radius-sheet: calc(24px + var(--ov-fluid) * 4);
   --ov-radius-full: 9999px;
@@ -163,9 +174,13 @@
 
   color-scheme: light;
   --ov-ground: var(--ov-light-ground);
-  /* A field's fill: the mode's own ground, which a grouped form's ground never replaces, so a
-     field inside a panel or on a tray is seen by its fill and its edge alike. */
-  --ov-field: var(--ov-light-ground);
+  /* What a thing stands on: the ground on the page, a card's own white inside a card (the rule
+     after globals.css's box utilities). A row that slides, a hollow point, a focus ring's gap and
+     a button on a tray take it, so each is drawn in the colour around it, wherever it stands. */
+  --ov-backdrop: var(--ov-ground);
+  /* A field's fill: white in light, the ground in dark, which a grouped form's ground never
+     replaces, so a field inside a panel or on a tray is seen by its fill and its edge alike. */
+  --ov-field: var(--ov-light-field);
   --ov-surface: var(--ov-light-surface);
   --ov-surface-2: var(--ov-light-surface-2);
   --ov-surface-control: var(--ov-light-surface-control);
@@ -292,7 +307,7 @@
 
   --ov-font-body: var(--ov-font-text);
   --ov-font-heading: var(--ov-font-display);
-  --ov-weight-heading: 700;
+  --ov-weight-heading: var(--ov-heading-weight);
   --ov-heading-tracking: var(--ov-title-tracking);
   --ov-text-label: var(--ov-type-caption);
   --ov-text-small: var(--ov-type-meta-small);
@@ -328,11 +343,12 @@
   --ov-ease-standard: var(--ov-ease-out);
 }
 
-/* Under 360 pt wide: 16-pt gutters, 32-px titles, 12-px tab labels. */
+/* Under 360 pt wide: 16-pt gutters, 28-px titles, 12-px tab labels. */
 @media (width < 360px) {
   :where([data-overload-design="form-v2"]) {
     --ov-gutter: 16px;
-    --ov-type-title: calc(8px + 1.5rem); /* 32, k 0.75 */
+    --ov-type-title: calc(7px + 1.3125rem); /* 28, k 0.75 */
+    --ov-type-display: calc(7px + 1.3125rem); /* 28, k 0.75 */
     --ov-type-tab: 0.75rem; /* 12 */
   }
 }

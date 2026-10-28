@@ -113,8 +113,8 @@ export const f1 = (n: number): number => Math.round(n * 10) / 10;
 const todoOf = (family: Family): Paint => `${family}-todo`;
 
 /**
- * A path drawn on the glyph's 24-unit grid, in absolute commands with each point an "x y" pair,
- * placed at (x, y) and scaled by k.
+ * A path drawn on a glyph's grid (24 units, or a sign's 48), in absolute commands with each point
+ * an "x y" pair, placed at (x, y) and scaled by k.
  */
 function onGrid(d: string, x: number, y: number, k: number): string {
   return d.replace(
@@ -1012,27 +1012,61 @@ export function monthCells(year: number, month: number): (number | null)[] {
   });
 }
 
-/** The dumbbell's plates on the glyph's grid, x, y, width, height and corner. */
-const PLATES = [
-  [4.6, 6.2, 3.6, 11.6, 1.4],
-  [15.8, 6.2, 3.6, 11.6, 1.4],
-  [1.6, 8.8, 2.8, 6.4, 1.2],
-  [19.6, 8.8, 2.8, 6.4, 1.2],
-] as const;
-/** The cyclist's body and limbs, the swimmer's and the water under the swimmer. */
-const CYCLIST = "M9.4 9.6L14.4 7.8L17.4 11.2M9.4 9.6L12.8 13.4L11.2 17.4M14.4 7.8L12.2 6.8";
-const SWIMMER = "M8.6 13.6C10 9 16.2 7 20.2 10.4M8.8 13.8L16.4 14.4";
-const WATER = "M2.4 18.6Q4.8 16 7.2 18.6T12 18.6T16.8 18.6T21.6 18.6";
+/**
+ * Each sport's sign (sign.tsx; owner, 28 October 2026) as the month draws it: the Munich-grid
+ * figure on its 48-unit square, its limbs as absolute paths of "x y" pairs, its head a disc and,
+ * for a ride, its wheels and, for play, its ball as rings. Food and the variants a family has no
+ * figure for draw their form.
+ */
+const SIGN_FIGURES: Partial<
+  Record<
+    Family,
+    {
+      path: string;
+      discs: readonly [number, number][];
+      rings?: readonly [number, number, number][];
+    }
+  >
+> = {
+  strength: {
+    path: "M4 8L44 8M9 2L9 14M39 2L39 14M24 26L16 18L16 8M24 26L32 18L32 8M24 22L24 36M24 36L16 44M24 36L32 44",
+    discs: [[24, 15]],
+  },
+  run: {
+    path: "M29 14L20 23M20 23L29 32L29 42M20 23L12 31L5 31M27 16L34 23L40 17M27 16L19 16L14 21",
+    discs: [[31, 7]],
+  },
+  ride: {
+    path: "M28 15L19 24M28 15L35 22M19 24L26 31L26 36M11 36L19 24M35 22L37 36",
+    discs: [[30, 8]],
+    rings: [
+      [11, 36, 7],
+      [37, 36, 7],
+    ],
+  },
+  swim: {
+    path: "M30 24L12 24M27 22L34 14L41 14M4 35Q8 31 12 35T20 35T28 35T36 35T44 35",
+    discs: [[36, 19]],
+  },
+  mobility: {
+    path: "M24 13L24 27M24 16L17 9M24 16L31 9M24 27L16 35L16 43M24 27L34 37L40 37",
+    discs: [[24, 7]],
+  },
+  play: {
+    path: "M21 15L17 27M20 17L29 18L34 14M17 27L10 34L10 42M17 27L26 33L26 42",
+    discs: [[20, 8]],
+    rings: [[38, 10, 5.5]],
+  },
+};
 
 /**
- * A sport's icon on the calendar, in a square box `size` wide at (x, y), drawn on the glyph's
- * 24-unit grid in the sport's pigment: lifting a dumbbell, a run the runner (its own form),
- * a ride a cyclist and a swim a swimmer. They are told apart by their shape, so the month
- * never asks a reader to tell its pigments apart. A sport with no icon draws its form.
+ * A sport's icon on the calendar, in a square box `size` wide at (x, y): its sign in the sport's
+ * pigment, one stroke 4.6 units of 48 wide, as every list draws it (owner, 28 October 2026), so a
+ * month and a list speak one language. A sport with no figure draws its form.
  *
- * `open` draws one still under way, as a mark to do is drawn: its solid parts in the thinned
- * pigment inside an edge of the full one, so the workout in progress no longer looks like one
- * of the month's finished sessions beside a count that leaves it out (year audit, October 2026).
+ * `open` draws one still under way in the thinned pigment, as a mark to do was drawn, so the
+ * workout in progress never looks like one of the month's finished sessions beside a count that
+ * leaves it out (year audit, October 2026).
  */
 export function calendarIcon(
   sport: Sport,
@@ -1042,62 +1076,37 @@ export function calendarIcon(
   { open = false }: { open?: boolean } = {},
 ): Shape[] {
   const family = familyOf(sport);
-  const k = size / 24;
-  // A solid part: full, or still under way, thinned within its edge.
-  const solid: Paintable = open
-    ? { fill: todoOf(family), stroke: family, strokeWidth: f1(1.5 * k), linejoin: "round" }
-    : { fill: family };
-  const at = (cx: number, cy: number, r: number) => ({
-    cx: f1(x + cx * k),
-    cy: f1(y + cy * k),
-    r: f1(r * k),
-  });
-  const line = (d: string, width: number): Shape => ({
-    kind: "path",
-    d: onGrid(d, x, y, k),
-    fill: "none",
-    stroke: family,
-    strokeWidth: f1(width * k),
-    linecap: "round",
-    linejoin: "round",
-  });
-  const wheel = (cx: number): Shape => ({
-    kind: "circle",
-    ...at(cx, 17.4, 4),
-    fill: "none",
-    stroke: family,
-    strokeWidth: f1(2.3 * k),
-  });
-  switch (family) {
-    case "strength":
-      return [
-        line("M7 12L17 12", 2.8),
-        ...PLATES.map(([px, py, pw, ph, r]): Shape => ({
-          kind: "rect",
-          x: f1(x + px * k),
-          y: f1(y + py * k),
-          width: f1(pw * k),
-          height: f1(ph * k),
-          rx: f1(r * k),
-          ...solid,
-        })),
-      ];
-    case "ride":
-      return [
-        wheel(5.4),
-        wheel(18.6),
-        line(CYCLIST, 2.6),
-        { kind: "circle", ...at(16.4, 4.4, 2.3), ...solid },
-      ];
-    case "swim":
-      return [
-        line(WATER, 2.4),
-        line(SWIMMER, 2.6),
-        { kind: "circle", ...at(6, 11, 2.3), ...solid },
-      ];
-    default:
-      return form(sport, x, y, size, size, open ? { state: "todo" } : {});
-  }
+  const figure = SIGN_FIGURES[family];
+  if (!figure) return form(sport, x, y, size, size, open ? { state: "todo" } : {});
+  const k = size / 48;
+  const paint: Paint = open ? todoOf(family) : family;
+  const width = f1(4.6 * k);
+  const at = (cx: number, cy: number) => ({ cx: f1(x + cx * k), cy: f1(y + cy * k) });
+  return [
+    ...(figure.rings ?? []).map(([cx, cy, r]): Shape => ({
+      kind: "circle",
+      ...at(cx, cy),
+      r: f1(r * k),
+      fill: "none",
+      stroke: paint,
+      strokeWidth: width,
+    })),
+    {
+      kind: "path",
+      d: onGrid(figure.path, x, y, k),
+      fill: "none",
+      stroke: paint,
+      strokeWidth: width,
+      linecap: "round",
+      linejoin: "round",
+    },
+    ...figure.discs.map(([cx, cy]): Shape => ({
+      kind: "circle",
+      ...at(cx, cy),
+      r: f1(4.4 * k),
+      fill: paint,
+    })),
+  ];
 }
 
 /** The calendar's icons are 16 pt, 3 apart, so four stand in a 35-pt square. */

@@ -1,7 +1,6 @@
 import type { Route } from "next";
 
-import { Art } from "@/components/art/art";
-import type { FormState } from "@/components/art/geometry";
+import { SportSign } from "@/components/art/sign";
 import {
   enduranceName,
   enduranceTarget,
@@ -9,7 +8,7 @@ import {
 } from "@/components/activities/endurance-line";
 import { alreadySays } from "@/components/activities/prescription-lines";
 import { PageHeader } from "@/components/shell/page-header";
-import { dayAndMonth, weekDates, weekdayName } from "@/components/shell/root-dates";
+import { weekRange } from "@/components/shell/root-dates";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,7 +20,7 @@ import { byDay, weekStartOf, type WeekSession, type WeekStatus } from "@/domain/
 import { addDays, daysBetween } from "@/domain/program-calendar";
 import { DEFAULT_SPORT_UNITS, type SportUnits } from "@/lib/distance-units";
 import { holdHyphens, joinFacts } from "@/lib/facts";
-import { formatIsoDate, formatIsoWeekdayLetter } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
   NewProgrammeDraft,
@@ -73,155 +72,72 @@ function sessionWords(
   return { name, figure: figure && !alreadySays(name, figure) ? figure : null };
 }
 
-/**
- * A session's mark in its state (DESIGN.md, The Thinned, Full, Dashed Rule): done full, a day
- * gone by unanswered dashed as a skipped one is (Signals: a missed day is its dashed mark, the
- * word Missed beside it), anything still owed thinned.
- */
-function markState(status: WeekStatus): FormState {
-  return status === "done"
-    ? "done"
-    : status === "skipped" || status === "missed"
-      ? "skipped"
-      : "todo";
-}
-
-/** Where a session stands, as a day's paper says it to a screen reader: "Lower A, to do". */
-const SAID: Record<WeekStatus, string> = {
-  done: "done",
-  skipped: "skipped",
-  missed: "missed",
-  today: "to do",
-  planned: "to do",
-};
-
-/** A day's entry in the rows under the week, which its paper leads to. */
+/** A day's entry in the week, which a link to that day leads to. */
 const dayAnchor = (date: string) => `plan-day-${date}`;
 
-/** A day's sessions, each with its sport's mark, its name, its figure and where it stands. */
-function DayRows({ sessions, units }: { sessions: readonly WeekSession[]; units: SportUnits }) {
+/**
+ * A session as the week lists it (owner, 28 October 2026): its sport's sign, its name, its figure
+ * where the name does not say it, and where it stands once that is news (Done, Skipped, Missed).
+ * The whole row opens it; nothing on it is said twice.
+ */
+function SessionRow({ session, units }: { session: WeekSession; units: SportUnits }) {
+  const { name, figure } = sessionWords(session, units);
+  const status = session.status === "planned" || session.status === "today" ? null : session.status;
   return (
-    <ul className="ruled-list">
-      {sessions.map((session) => {
-        const { name, figure } = sessionWords(session, units);
-        return (
-          <NavRow
-            key={session.key}
-            href={sessionHref(session)}
-            lead={
-              <Art
-                kind="mark"
-                sport={MARK[session.sport]}
-                size={20}
-                state={markState(session.status)}
-              />
-            }
-            label={holdHyphens(name)}
-            sub={figure ?? undefined}
-            value={session.status === "planned" ? undefined : STATUS[session.status]}
-          />
-        );
-      })}
-    </ul>
+    <li>
+      <Link href={sessionHref(session)} className="plan-session">
+        <SportSign sport={MARK[session.sport]} />
+        <span className="plan-session-text">
+          <span className="plan-session-name">{holdHyphens(name)}</span>
+          {figure && <span className="plan-session-figure">{figure}</span>}
+        </span>
+        {status && <span className="plan-session-status">{STATUS[status]}</span>}
+      </Link>
+    </li>
   );
 }
 
-/** The marks a paper holds side by side, then in two rows of two; past four, three and +N. */
-const SHOWN_MARKS = 4;
-
 /**
- * The week as seven day papers in the month's grammar (DESIGN.md, Layout: Plan; The month): a
- * tile of paper for each day, its date in the corner, each session its sport's mark in its
- * state, today ringed in print ink, and a day with nothing in it a paler sheet. A day of one
- * session opens it; a day of more opens its entry in the rows under the week.
+ * A day of the week as one row of the week's card: its date in its own column, the weekday over
+ * the day of the month (the week's calendar, said once), today's day the one dark disc, then its
+ * sessions. The date is read as one heading ("Tue 20 Oct, today").
  */
-function WeekPapers({
-  days,
-  monday,
+function Day({
+  date,
+  sessions,
   today,
   units,
 }: {
-  days: readonly { date: string; sessions: WeekSession[] }[];
-  monday: string;
+  date: string;
+  sessions: readonly WeekSession[];
   today: string;
   units: SportUnits;
 }) {
-  const year = today.slice(0, 4);
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const isToday = date === today;
   return (
-    <div role="group" aria-label="The week, day by day" className="month month-dated plan-papers">
-      <div aria-hidden className="month-weekdays">
-        {dates.map((date) => (
-          <span key={date}>{formatIsoWeekdayLetter(date)}</span>
-        ))}
+    <li id={dayAnchor(date)} className="plan-day">
+      <p aria-hidden className="plan-date">
+        <span className="plan-date-weekday">{formatIsoDate(date).split("\u00a0")[0]}</span>
+        <span className={cn("plan-date-day", isToday && "plan-date-today")}>
+          {Number(date.slice(8, 10))}
+        </span>
+      </p>
+      <div className="min-w-0">
+        <h3 className="sr-only">
+          {formatIsoDate(date, today.slice(0, 4))}
+          {isToday && ", today"}
+        </h3>
+        <ul className="plan-sessions">
+          {sessions.map((session) => (
+            <SessionRow key={session.key} session={session} units={units} />
+          ))}
+        </ul>
       </div>
-      <div className="month-days">
-        {dates.map((date) => {
-          const sessions = days.find((day) => day.date === date)?.sessions ?? [];
-          const isToday = date === today;
-          const said = sessions.length
-            ? sessions
-                .map((session) => `${sessionWords(session, units).name}, ${SAID[session.status]}`)
-                .join("; ")
-            : "nothing planned";
-          const name = `${weekdayName(date)} ${dayAndMonth(date, year)}${isToday ? ", today" : ""}: ${said}`;
-          const tile = cn(
-            "month-day",
-            sessions.length === 0 && "month-day-rest",
-            isToday && "month-day-today",
-          );
-          const shown = sessions.length > SHOWN_MARKS ? sessions.slice(0, 3) : sessions;
-          const inner = (
-            <>
-              <span aria-hidden className="month-date">
-                {Number(date.slice(8, 10))}
-              </span>
-              {sessions.length > 0 && (
-                <span aria-hidden className="month-icons">
-                  <span className="plan-paper-marks">
-                    {shown.map((session) => (
-                      <Art
-                        key={session.key}
-                        kind="mark"
-                        sport={MARK[session.sport]}
-                        size={16}
-                        state={markState(session.status)}
-                        surface="paper"
-                      />
-                    ))}
-                    {shown.length < sessions.length && (
-                      <span className="plan-paper-more">+{sessions.length - shown.length}</span>
-                    )}
-                  </span>
-                </span>
-              )}
-            </>
-          );
-          if (sessions.length === 0)
-            return (
-              <span key={date} role="img" aria-label={name} className={tile}>
-                {inner}
-              </span>
-            );
-          // A day of more than one session is its entry under the week, on this page.
-          if (sessions.length > 1)
-            return (
-              <a key={date} href={`#${dayAnchor(date)}`} aria-label={name} className={tile}>
-                {inner}
-              </a>
-            );
-          return (
-            <Link key={date} href={sessionHref(sessions[0]!)} aria-label={name} className={tile}>
-              {inner}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    </li>
   );
 }
 
-/** What became of a day gone by, in the app's words: "2 done", "1 done · 1 skipped". */
+/** What became of the days gone by, in the app's words: "2 done", "1 done · 1 skipped". */
 function outcome(sessions: readonly WeekSession[]): string {
   return joinFacts(
     (["done", "skipped", "missed"] as const).map((status) => {
@@ -230,6 +146,10 @@ function outcome(sessions: readonly WeekSession[]): string {
     }),
   );
 }
+
+/** "Mon 19", the weekday and its day of the month: a day inside a week the title dates. */
+const weekDay = (date: string) =>
+  `${formatIsoDate(date).split("\u00a0")[0]}\u00a0${Number(date.slice(8, 10))}`;
 
 /**
  * The week's headline (DESIGN.md, Tab roots): "This week", or where another week is, how far
@@ -244,76 +164,83 @@ function weekTitle(monday: string, today: string): string {
 }
 
 /**
- * The weeks either side, right under the week they step (DESIGN.md, Layout: Plan): two buttons of
- * one size, each named by where it stands from today ("Last week", "Next week"), so they read as
- * the week's own controls rather than as words at the foot of its rows; the tab itself comes back
- * to this one.
+ * The weeks either side, as the header's one control (owner, 28 October 2026): two round buttons
+ * of one size at the end of the title's line, each named by where it stands from today ("Last
+ * week", "Next week"); the tab itself comes back to this one.
  */
 function WeekSteps({ monday, today }: { monday: string; today: string }) {
   const before = addDays(monday, -7);
   const after = addDays(monday, 7);
   return (
-    <nav aria-label="Weeks" className="action-row">
-      <LinkButton href={`/plan?week=${before}` as Route} variant="tonal" size="sm">
-        <Glyph name="chevronLeft" className="glyph-18" />
-        {weekTitle(before, today)}
-      </LinkButton>
-      <LinkButton href={`/plan?week=${after}` as Route} variant="tonal" size="sm">
-        {weekTitle(after, today)}
-        <Glyph name="chevronRight" className="glyph-18" />
-      </LinkButton>
+    <nav aria-label="Weeks" className="plan-steps">
+      <Link
+        href={`/plan?week=${before}` as Route}
+        aria-label={weekTitle(before, today)}
+        className="round-button"
+      >
+        <Glyph name="chevronLeft" className="glyph-22" />
+      </Link>
+      <Link
+        href={`/plan?week=${after}` as Route}
+        aria-label={weekTitle(after, today)}
+        className="round-button"
+      >
+        <Glyph name="chevronRight" className="glyph-22" />
+      </Link>
     </nav>
   );
 }
 
+/**
+ * The week as one card (DESIGN.md, Layout: Plan; owner, 28 October 2026): its days in order, each
+ * with its date in its own column and its sessions beside it, so the list is the calendar and no
+ * strip repeats it. In the week that holds today, the days gone by fold into one closed row that
+ * says what became of them; a week gone by or to come shows its days whole. Days with nothing
+ * planned are left out.
+ */
 function Week({
   sessions,
-  monday,
   today,
   units,
   label,
 }: {
   sessions: readonly WeekSession[];
-  monday: string;
   today: string;
   units: SportUnits;
   /** The headline the week stands under, which names it for a screen reader. */
   label: string;
 }) {
   const days = byDay(sessions);
-  const gone = days.filter(({ date }) => date < today);
   const ahead = days.filter(({ date }) => date >= today);
-  const year = today.slice(0, 4);
+  // Only a week still under way folds its past: one gone by, opened on purpose, is read whole.
+  const gone = ahead.length > 0 ? days.filter(({ date }) => date < today) : [];
+  const shown = ahead.length > 0 ? ahead : days;
   return (
-    <section aria-label={label} className="plan-week">
-      <WeekPapers days={days} monday={monday} today={today} units={units} />
-      <WeekSteps monday={monday} today={today} />
+    <section aria-label={label} className="plan-week box">
       {/* An empty week is one quiet line where its rows would be (DESIGN.md, Need-to-Know). */}
       {days.length === 0 && <p className="plan-week-empty">Nothing planned this week</p>}
       {gone.length > 0 && (
-        // A day gone by is one closed row saying what became of it, its sessions a tap away
-        // (DESIGN.md, Folds): ruled rows that share their rules, never a stack of boxes.
-        <ul className="[&>li+li]:-mt-px">
-          {gone.map(({ date, sessions: onDay }) => (
-            <li key={date} id={dayAnchor(date)} className="plan-day">
-              <Disclosure
-                summary={formatIsoDate(date, year)}
-                meta={outcome(onDay)}
-                variant="inline"
-              >
-                <DayRows sessions={onDay} units={units} />
-              </Disclosure>
-            </li>
-          ))}
-        </ul>
+        <Disclosure
+          summary={
+            gone.length === 1
+              ? weekDay(gone[0]!.date)
+              : `${weekDay(gone[0]!.date)} – ${weekDay(gone.at(-1)!.date)}`
+          }
+          meta={outcome(gone.flatMap(({ sessions: onDay }) => onDay))}
+          variant="inline"
+          className="plan-earlier"
+        >
+          <ul className="plan-days">
+            {gone.map(({ date, sessions: onDay }) => (
+              <Day key={date} date={date} sessions={onDay} today={today} units={units} />
+            ))}
+          </ul>
+        </Disclosure>
       )}
-      {ahead.length > 0 && (
+      {shown.length > 0 && (
         <ul className="plan-days">
-          {ahead.map(({ date, sessions: onDay }) => (
-            <li key={date} id={dayAnchor(date)} className="plan-day">
-              <p className="group-caption tabular-nums">{formatIsoDate(date, year)}</p>
-              <DayRows sessions={onDay} units={units} />
-            </li>
+          {shown.map(({ date, sessions: onDay }) => (
+            <Day key={date} date={date} sessions={onDay} today={today} units={units} />
           ))}
         </ul>
       )}
@@ -321,84 +248,52 @@ function Week({
   );
 }
 
-/** More weeks than this and a segment would be too narrow to read as one; the words say it. */
-const MOST_SEGMENTS = 40;
-
 /**
- * Where a programme that runs in weeks or cycles has got to, from the words its card says it in
- * ("Week 3 of 8", "Cycle 5 of 14"); null for one counted in days, not started, or finished.
+ * A programme as Plan lists it (owner, 28 October 2026): its name, how it runs and where it has
+ * got to, what waits on it (a draft to review) in ink as the news it is, and its sport's sign at
+ * the row's end. Never its next session, which is Today's, and never a bar, which is its page's.
  */
-export function programmeWeeks(position: string | null): { current: number; total: number } | null {
-  const found = position ? /^(?:Week|Cycle) (\d+) of (\d+)$/.exec(position) : null;
-  if (!found) return null;
-  const current = Number(found[1]);
-  const total = Number(found[2]);
-  return current >= 1 && current <= total && total <= MOST_SEGMENTS ? { current, total } : null;
-}
-
-/**
- * A programme's weeks as a row of segments in its sport's pigment (DESIGN.md, Layout: Plan): the
- * weeks done full, the current week thinned, the rest `surface`. The words beside it say where
- * it has got to, so the row is not read out.
- */
-function ProgrammeWeeks({
-  sport,
-  current,
-  total,
-}: {
-  sport: ActivitySport;
-  current: number;
-  total: number;
-}) {
-  return (
-    <span aria-hidden data-sport={MARK[sport]} className="plan-programme-weeks">
-      {Array.from({ length: total }, (_, index) => (
-        <span
-          key={index}
-          data-state={index + 1 < current ? "done" : index + 1 === current ? "now" : undefined}
-        />
-      ))}
-    </span>
-  );
-}
-
-/** A programme as Plan lists it: its sport, its name, how it runs and where it has got to. */
 function Programme({ card }: { card: PlanCard }) {
   const { programme, waiting, pattern, position, finished } = card;
   const draft = waiting[0];
-  const weeks = finished ? null : programmeWeeks(position);
   return (
-    <li className="min-w-0">
-      <Link href={`/plan/${programme.sport}` as Route} className="plan-programme box panel-padding">
-        <span className="plan-programme-sport type-meta-small text-ink-2">
-          <Art kind="mark" sport={MARK[programme.sport]} size={20} />
-          {ACTIVITY_SPORT_LABELS[programme.sport]}
-        </span>
-        <span className="plan-programme-name">{holdHyphens(programme.name)}</span>
-        <span className="type-meta text-ink-2 tabular-nums">
-          {joinFacts([pattern, finished ? "Complete" : position])}
-        </span>
-        {weeks && <ProgrammeWeeks sport={programme.sport} {...weeks} />}
-        {draft && (
-          <Waits state={draft.status === "editing" ? "Draft in progress" : "Changes to review"} />
-        )}
-      </Link>
-    </li>
+    <ProgrammeRow
+      href={`/plan/${programme.sport}`}
+      sport={programme.sport}
+      name={programme.name}
+      facts={joinFacts([pattern, finished ? "Complete" : position])}
+      waits={draft && (draft.status === "editing" ? "Draft in progress" : "Changes to review")}
+    />
   );
 }
 
-/**
- * What a programme waits on, as the foot of its card: a ruled row with its mark of something to do
- * and the chevron the card opens by, so it reads as the card's next step and never as a label
- * pressed against its name.
- */
-function Waits({ state }: { state: string }) {
+/** One row of the programmes' list: what it is, how it stands, what waits, its sign. */
+function ProgrammeRow({
+  href,
+  sport,
+  name,
+  facts,
+  waits,
+}: {
+  href: string;
+  sport: ActivitySport;
+  name: string;
+  facts?: string;
+  waits?: string | false;
+}) {
   return (
-    <span className="plan-programme-waiting">
-      <span aria-hidden className="plan-programme-waiting-dot" />
-      <span className="min-w-0 flex-1">{state}</span>
-      <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
-    </span>
+    <li className="nav-row-item">
+      <Link href={href as Route} className="nav-row plan-programme">
+        <span className="nav-row-main">
+          <span className="nav-row-text">
+            <span className="nav-row-label nav-row-label-bold">{holdHyphens(name)}</span>
+            {facts && <span className="nav-row-sub tabular-nums">{facts}</span>}
+            {waits && <span className="plan-programme-waits">{waits}</span>}
+          </span>
+        </span>
+        <SportSign sport={MARK[sport]} size={40} label={ACTIVITY_SPORT_LABELS[sport]} />
+      </Link>
+    </li>
   );
 }
 
@@ -410,9 +305,9 @@ const REQUEST_STATE: Record<NewProgrammeRequestStatus, string> = {
 };
 
 /**
- * A first programme on its way (ADR 0059), as a programme's card reads: its sport and name, and
- * what it waits for. Asked of the coach, it opens its request until a draft answers it; a ready
- * draft opens its review, one being built its editor.
+ * A first programme on its way (ADR 0059), as a programme's row reads: its name, and what it
+ * waits for. Asked of the coach, it opens its request until a draft answers it; a ready draft
+ * opens its review, one being built its editor.
  */
 function Waiting({
   href,
@@ -426,18 +321,12 @@ function Waiting({
   state: string;
 }) {
   return (
-    <li className="min-w-0">
-      <Link href={href as Route} className="plan-programme box panel-padding">
-        <span className="plan-programme-sport type-meta-small text-ink-2">
-          <Art kind="mark" sport={MARK[sport]} size={20} />
-          {ACTIVITY_SPORT_LABELS[sport]}
-        </span>
-        <span className="plan-programme-name">
-          {holdHyphens(name || `New ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme`)}
-        </span>
-        <Waits state={state} />
-      </Link>
-    </li>
+    <ProgrammeRow
+      href={href}
+      sport={sport}
+      name={name || `New ${ACTIVITY_SPORT_LABELS[sport].toLowerCase()} programme`}
+      waits={state}
+    />
   );
 }
 
@@ -448,9 +337,10 @@ function draftHref(draft: Pick<NewProgrammeDraft, "id" | "sport" | "status">): s
 }
 
 /**
- * Plan (ADR 0058): what comes next and how it is built. The week as its headline and as seven
- * day papers, then its sessions for every sport, by date, then one card per programme. Starting,
- * logging and skipping today's sessions are Today's; what has been done is Progress's.
+ * Plan (ADR 0058): what comes next and how it is built. The week as its headline, then the week
+ * as one card of its days, each session with its sport's sign, then the programmes as one list
+ * (owner, 28 October 2026). Starting, logging and skipping today's sessions are Today's; what
+ * has been done is Progress's.
  */
 export function PlanView({
   cards,
@@ -476,21 +366,13 @@ export function PlanView({
   const title = weekTitle(monday, today);
   return (
     <div className="page-wide">
-      {/* The week is the headline, its dates under it (DESIGN.md, Tab roots); the tab bar
-          already says Plan. */}
+      {/* The week is the headline, its dates its second tone and its steps at its end
+          (DESIGN.md, Tab roots); the tab bar already says Plan. */}
       <PageHeader
         tab="Plan"
         title={title}
-        meta={weekDates(monday, addDays(monday, 6), today.slice(0, 4))}
-        // With no programme, starting one is the page itself; otherwise it waits up here.
-        action={
-          empty ? undefined : (
-            <LinkButton href="/plan/new" variant="tonal" size="sm">
-              <Glyph name="plus" className="glyph-18" />
-              New programme
-            </LinkButton>
-          )
-        }
+        meta={weekRange(monday, addDays(monday, 6), today.slice(0, 4))}
+        action={<WeekSteps monday={monday} today={today} />}
       />
       <div className="page-width space-y-[var(--section-gap)] pb-8">
         {empty && (
@@ -503,14 +385,22 @@ export function PlanView({
           </Card>
         )}
         {(!empty || sessions.length > 0) && (
-          <Week sessions={sessions} monday={monday} today={today} units={units} label={title} />
+          <Week sessions={sessions} today={today} units={units} label={title} />
         )}
         {!empty && (
           <section aria-labelledby="plan-programmes">
-            <h2 id="plan-programmes" className="caption-head">
-              Programmes
-            </h2>
-            <ul className="programme-card-grid">
+            {/* Starting a programme stands with the programmes, led by its plus at the end of
+                their heading (DESIGN.md, Buttons: Looks like a control). */}
+            <div className="heading-row">
+              <h2 id="plan-programmes" className="caption-head">
+                Programmes
+              </h2>
+              <Link href="/plan/new" aria-label="New programme" className="list-head-action">
+                <Glyph name="plus" className="glyph-20" />
+                New
+              </Link>
+            </div>
+            <ul className="ov-panel ov-panel-list">
               {cards.map((card) => (
                 <Programme key={card.programme.id} card={card} />
               ))}
@@ -532,12 +422,15 @@ export function PlanView({
                   state={REQUEST_STATE[request.status]}
                 />
               ))}
+              <NavRow href="/plan/past" label="Past programmes" />
             </ul>
           </section>
         )}
-        <ul>
-          <NavRow href="/plan/past" glyph="history" label="Past programmes" />
-        </ul>
+        {empty && (
+          <ul className="ov-panel ov-panel-list">
+            <NavRow href="/plan/past" label="Past programmes" />
+          </ul>
+        )}
       </div>
     </div>
   );

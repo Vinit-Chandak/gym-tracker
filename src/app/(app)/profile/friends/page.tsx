@@ -88,7 +88,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
             <h2 id="friends-activity" className="caption-head">
               Recent activity
             </h2>
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               {activity.map((row) => (
                 <li key={row.id} className="activity-row-item">
                   <ActivityRow row={row} unit={unit} distanceUnits={distanceUnits} today={today} />

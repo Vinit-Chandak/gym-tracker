@@ -202,7 +202,7 @@ export function AiCoachSettings({
       {(jobs.length > 0 || attempts.length > 0) && (
         <Section title="Working on">
           {jobs.length > 0 && (
-            <ul>
+            <ul className="ov-panel ov-panel-list">
               {jobs.map((job) => (
                 // What failed is said in plain words; the request's page offers the way on.
                 <NavRow
@@ -241,7 +241,7 @@ export function AiCoachSettings({
 
       {waiting.length > 0 && (
         <Section title="Waiting for you">
-          <ul>
+          <ul className="ov-panel ov-panel-list">
             {waiting.map((row) => (
               <NavRow key={row.key} href={row.href} label={row.label} sub={row.state} />
             ))}
@@ -250,7 +250,7 @@ export function AiCoachSettings({
       )}
 
       <Section title="Notes for every programme">
-        <form ref={form} action={formAction} className="space-y-3">
+        <form ref={form} action={formAction} className="box space-y-3 panel-padding">
           <input type="hidden" name="noteId" value={state.values?.noteId ?? fresh.id} />
           {/* The heading names it; a programme's own asks are its page's Request a change. */}
           <Field label="Notes for every programme" labelHidden error={state.fieldErrors?.userNotes}>
@@ -276,13 +276,15 @@ export function AiCoachSettings({
         </form>
       </Section>
 
-      {/* Folds side by side are ruled rows that share their rules, never a stack of boxes. */}
-      <ul className="[&>li+li]:-mt-px">
+      {/* Folds side by side are rows of one card, one rule between them, never a stack of
+          boxes. */}
+      <ul className="ov-panel ov-panel-list">
         <li>
           <Disclosure
             summary="What the coach remembers"
             meta={String(known.length)}
             variant="inline"
+            className="border-t-0"
           >
             {known.length > 0 ? (
               <ul className="ruled-list">
@@ -306,7 +308,12 @@ export function AiCoachSettings({
           </Disclosure>
         </li>
         <li>
-          <Disclosure summary="Your notes" meta={String(notes.length)} variant="inline">
+          <Disclosure
+            summary="Your notes"
+            meta={String(notes.length)}
+            variant="inline"
+            className="border-y-0"
+          >
             {notes.length > 0 ? (
               <ul className="ruled-list">
                 {notes.map((note) => (
@@ -333,7 +340,7 @@ export function AiCoachSettings({
       </ul>
 
       {/* Read-only access for a coach of the athlete's own: the coach's, so it is here. */}
-      <ul>
+      <ul className="ov-panel ov-panel-list">
         <NavRow href="/profile/coach" glyph="key" label="Access tokens" />
       </ul>
     </div>

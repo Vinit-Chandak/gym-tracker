@@ -149,7 +149,7 @@ const DATE_ROW = 24;
 /** Values listed before "Show all", so a year of records opens at once. */
 const FIRST_VALUES = 60;
 
-/** The scale's labels: 12 pt at 100% text, growing with it, in Atkinson 600, ink 2. */
+/** The scale's labels: 12 pt at 100% text, growing with it, at 600, ink 2. */
 const LABEL = {
   fontSize: "var(--ov-type-print-label)",
   fontWeight: 600,
@@ -443,7 +443,7 @@ export function Graph({
                   <Figure text={readout.figure} unit={readout.unit} />
                 )}
                 {/* Held even when empty, so a mark without a second line keeps the figure in
-                    place. Its figures in Jost, whose zero is plain: "36,390 lb a week · 13
+                    place. Its figures tabular: "36,390 lb a week · 13
                     workouts". */}
                 <span className="graph-readout-context">
                   {readout.context ? <Figures>{readout.context}</Figures> : "\u00a0"}
@@ -545,7 +545,7 @@ export function Graph({
               <text
                 x={0}
                 y={y(rule.value) + drop}
-                style={{ ...LABEL, fontWeight: 700, fill: "var(--ov-ink)" }}
+                style={{ ...LABEL, fontWeight: 650, fill: "var(--ov-ink)" }}
               >
                 {rule.label}
               </text>
@@ -590,7 +590,7 @@ export function Graph({
                 cx={point.x}
                 cy={point.y}
                 r={2.6}
-                style={{ fill: "var(--ov-ground)", stroke: "var(--ov-series-2)" }}
+                style={{ fill: "var(--ov-backdrop)", stroke: "var(--ov-series-2)" }}
                 strokeWidth={1.6}
               />
             ) : null,
@@ -600,7 +600,7 @@ export function Graph({
               cx={secondPoints[secondInked]!.x}
               cy={secondPoints[secondInked]!.y}
               r={selected ? 6 : 5}
-              style={{ fill: "var(--ov-series-2)", stroke: "var(--ov-ground)" }}
+              style={{ fill: "var(--ov-series-2)", stroke: "var(--ov-backdrop)" }}
               strokeWidth={2}
             />
           )}
@@ -624,7 +624,7 @@ export function Graph({
                   cx={point.x}
                   cy={point.y}
                   r={2.6}
-                  style={{ fill: "var(--ov-ground)", stroke: "var(--graph-full)" }}
+                  style={{ fill: "var(--ov-backdrop)", stroke: "var(--graph-full)" }}
                   strokeWidth={1.6}
                 />
               ) : null,
@@ -634,7 +634,7 @@ export function Graph({
               cx={points[inked]!.x}
               cy={points[inked]!.y}
               r={selected ? 6 : 5}
-              style={{ fill: "var(--graph-full)", stroke: "var(--ov-ground)" }}
+              style={{ fill: "var(--graph-full)", stroke: "var(--ov-backdrop)" }}
               strokeWidth={2}
             />
           )}
@@ -816,7 +816,7 @@ function GraphValues({
         <span className="mark-cell">
           <Glyph name="table" className="glyph-20" />
         </span>
-        <span className="min-w-0 flex-1 text-left font-bold">
+        <span className="min-w-0 flex-1 text-left">
           View values<span className="sr-only"> of {name.toLowerCase()}</span>
         </span>
         <span className="type-meta-small font-semibold text-ink-2 tabular-nums">

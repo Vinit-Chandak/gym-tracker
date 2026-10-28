@@ -233,7 +233,7 @@ export function FoodView({
             )}
           </div>
           <div className="min-w-0">
-            <ul className="food-meals food-list" aria-label="Meals">
+            <ul className="ov-panel ov-panel-list food-meals food-list" aria-label="Meals">
               {MEALS.map((meal) => {
                 const layer = inBowl.findIndex((total) => total.meal === meal);
                 return (

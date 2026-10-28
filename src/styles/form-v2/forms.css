@@ -17,7 +17,7 @@
   color: var(--ov-danger-text);
 }
 .row-stepper[data-field-error="true"] > .row-stepper-text > [role="alert"] {
-  font-weight: 700;
+  font-weight: 650;
 }
 /* The figure's field takes the danger tint and edge while it is refused, as any field does. */
 .row-stepper[data-field-error="true"] .row-stepper-figure {
@@ -48,7 +48,7 @@
   color: var(--ov-danger-text);
 }
 .effort-field[data-field-error="true"] > [role="alert"] {
-  font-weight: 700;
+  font-weight: 650;
 }
 
 /* ---------- a fold that holds a refused field (laps, More details) ---------- */
@@ -57,7 +57,7 @@
 }
 .more-details[data-field-error="true"] [role="alert"] {
   color: var(--ov-danger-text);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 /* ---------- panels on the grouped ground (DESIGN.md, Forms) ---------- */
@@ -80,22 +80,21 @@
   min-height: 100dvh;
   background: var(--ov-grouped);
 }
-/* The grouped ground is the light theme's surface, so what stands on it steps a tone off it, as
-   on any surface (DESIGN.md, Neutral): a tonal button takes the control surface on a surface.
-   Inside a panel it steps back to the panel's own tray. The page's own ground under the content
-   and behind an overscroll is grouped too, so no white band shows past the last panel. */
-.ov-grouped-page,
-.ov-grouped {
-  --ov-surface-control: var(--ov-surface-control-on-surface);
-  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
-}
+/* The grouped ground is the ground itself now (owner, 28 October 2026: one surface), so what
+   stands on it takes the ground's own tones; inside a panel it steps to the panel's tray. The
+   page's own ground under the content and behind an overscroll is grouped too. */
 .app-content:has(.ov-grouped-page),
 body:has(.ov-grouped-page) {
   background: var(--ov-grouped);
 }
-/* A list of rows in a panel: the rows keep their rules, inset by the panel's padding. */
+/* A list of rows in a panel: the rows keep their rules, inset by the panel's padding, and the
+   card's own edge ends the last, whatever the row. */
 .ov-panel-list {
   padding: 0 calc(16 * var(--ov-u));
+}
+.ov-panel-list > :last-child,
+.ov-panel-list > li:last-child > :is(a, div, button, label) {
+  border-bottom-width: 0;
 }
 /* A form on the grouped ground: the ground under everything in it, the pinned Save and its fade
    included, is the grouped one, and so is the page around it. */
@@ -144,7 +143,7 @@ body:has(form.ov-grouped) {
   margin: calc(20 * var(--ov-u)) calc(4 * var(--ov-u)) calc(6 * var(--ov-u));
   color: var(--ov-ink-2);
   font-size: var(--ov-type-caption);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.3;
 }
 /* Native required/email/number validation refuses the save before a server action runs. */
@@ -183,7 +182,7 @@ body:has(form.ov-grouped) {
   background: var(--ov-success-tint);
   color: var(--ov-success-text);
   font-size: var(--ov-type-meta-small);
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
 }
 .saved-notice > svg {

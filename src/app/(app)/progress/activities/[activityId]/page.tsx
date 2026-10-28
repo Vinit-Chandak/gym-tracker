@@ -257,10 +257,11 @@ export default async function ActivityPage(props: PageProps<"/progress/activitie
         <FitTitle as="h1" sizes={{ base: 30, narrow: 28 }} className="mt-3">
           {title}
         </FitTitle>
-        <p className="meta-line mt-1">
+        {/* When and where, the title's second tone (owner, 28 October 2026). */}
+        <p className="page-fact meta-line">
           <span className="meta-fact">
             <Glyph name="calendar" label="Date" className="glyph-16" />
-            {/* Its time in Jost, whose zero is plain, as History's is. */}
+            {/* Its time as a figure, as History's is. */}
             <Figures>{startedAt}</Figures>
           </span>
           {where && (
@@ -301,7 +302,7 @@ export default async function ActivityPage(props: PageProps<"/progress/activitie
 
         {countsAs && <CountsAsRow value={countsAs} href={countsAsHref} />}
         {activity.notes && (
-          <p className="mt-3.5 type-body [overflow-wrap:break-word] whitespace-pre-wrap">
+          <p className="mt-3 box panel-padding type-body [overflow-wrap:break-word] whitespace-pre-wrap">
             {activity.notes}
           </p>
         )}

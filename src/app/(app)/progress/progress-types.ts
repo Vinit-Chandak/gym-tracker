@@ -11,8 +11,6 @@ import type {
 import type { BodyLoadUnit } from "@/domain/types";
 import type { SetLengthUnit } from "@/lib/distance-units";
 
-import type { HistoryItem } from "./history/history-list";
-
 /** Everything the Progress page draws, read once on the server for every section. */
 export type ProgressData = {
   /** Today in the account's time zone: "Today", "This week" and a year are said from it. */
@@ -31,11 +29,6 @@ export type ProgressData = {
     /** The units the athlete reads each sport's distances in. */
     units?: DistanceUnits;
   };
-  /**
-   * History's latest activities of every sport, newest first: the calendar read back from today,
-   * past the month's first day when it holds fewer (ADR 0045).
-   */
-  overview: { latest: readonly HistoryItem[] };
   /** Volume by muscle group, read in the account's own unit; a carry in its own length. */
   strength: { range: GraphRange; graph: StrengthGraph; unit: BodyLoadUnit; length: SetLengthUnit };
   exercise: ExerciseGraphData;

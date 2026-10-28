@@ -367,7 +367,9 @@ export function EnduranceProgrammeBuilder({
       onSubmit={(event) => event.preventDefault()}
     >
       <fieldset disabled={!ready || pending} className="min-w-0 space-y-6">
-        <div className="space-y-3">
+        {/* The programme's own fields, one card, its settings folded at its foot (owner, 28
+            October 2026); then the sessions, the one being edited a card of its own. */}
+        <div className="ov-panel space-y-3 panel-padding">
           <Field label="Programme name" error={nameError}>
             <Input
               value={plan.name}
@@ -378,7 +380,7 @@ export function EnduranceProgrammeBuilder({
           <Disclosure
             summary="Programme settings"
             meta={`${plan.weeks || "—"} weeks`}
-            variant="inline"
+            variant="footer"
             defaultOpen={Boolean(weeksError) || fieldError?.field === "weeks"}
           >
             <div className="space-y-3">
@@ -484,7 +486,7 @@ export function EnduranceProgrammeBuilder({
           <section
             key={`${session.lineageId}:${session.originalWeekIndex ?? session.weekIndex}`}
             aria-label="Session editor"
-            className="space-y-4 border-t border-line pt-5"
+            className="ov-panel space-y-4 panel-padding"
           >
             {/* Its name is the field below; its date and how it repeats are said once here. */}
             <p className="text-sm text-ink-2">
@@ -666,7 +668,7 @@ export function EnduranceProgrammeBuilder({
                     </div>
                   </>
                 )}
-                <Disclosure summary="Date and instructions" variant="inline">
+                <Disclosure summary="Date and instructions" variant="inline" className="border-b-0">
                   <div className="space-y-3">
                     <SessionDateField
                       key={`${anchorDate}:${today}:${calendarWeeks}`}
@@ -707,6 +709,7 @@ export function EnduranceProgrammeBuilder({
                 <Disclosure
                   summary="Repeat or remove"
                   variant="inline"
+                  className="border-b-0"
                   defaultOpen={fieldError?.field === "repeat"}
                 >
                   <div className="space-y-3">
@@ -795,7 +798,7 @@ export function EnduranceProgrammeBuilder({
           </section>
         )}
 
-        <div className="space-y-3 border-t border-line pt-4">
+        <div className="ov-panel space-y-3 panel-padding">
           {templates.length > 0 && (
             <Field label="Add from a session template">
               <Select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>

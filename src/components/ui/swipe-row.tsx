@@ -105,7 +105,7 @@ export function SwipeRow({
       <div
         data-swipe-row=""
         className={cn(
-          "relative touch-pan-y touch-pinch-zoom bg-ground",
+          "relative touch-pan-y touch-pinch-zoom bg-backdrop",
           !dragging &&
             "transition-transform duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)]",
         )}

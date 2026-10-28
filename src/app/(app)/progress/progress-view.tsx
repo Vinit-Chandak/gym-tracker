@@ -110,9 +110,7 @@ export function ProgressView({ data }: { data: ProgressData }) {
             aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
             className="min-w-0"
           >
-            {tab === "overview" && (
-              <OverviewSection month={data.month} overview={data.overview} today={data.today} />
-            )}
+            {tab === "overview" && <OverviewSection month={data.month} />}
             {tab === "strength" && (
               <StrengthSection
                 strength={data.strength}

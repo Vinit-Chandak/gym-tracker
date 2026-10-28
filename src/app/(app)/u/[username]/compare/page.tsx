@@ -207,9 +207,9 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                 info="Movements from the shared library whose load means the same everywhere, that you both logged in the span."
               >
                 {found.lifting.common.comparable.length > 0 ? (
-                  // A list to choose from, its names at the gutter with nothing boxing them, so
-                  // a name has the row's width up to the chevron (DESIGN.md, Rows and marks).
-                  <ul>
+                  // A list to choose from, in a card, each name at the card's edge with the row's
+                  // width up to the chevron (DESIGN.md, Rows and signs).
+                  <ul className="ov-panel ov-panel-list">
                     {found.lifting.common.comparable.map((exercise) => (
                       <NavRow
                         key={exercise.id}

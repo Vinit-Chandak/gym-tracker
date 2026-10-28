@@ -89,7 +89,7 @@ function Stat({ figure, unit, label }: { figure: string; unit?: string; label: s
 
 /**
  * The room a check-in reading needs on one line, as a CSS length: its name or its figure,
- * whichever is wider ("Sleep quality", "10 h 45 min"), each figure in Jost and its unit at the
+ * whichever is wider ("Sleep quality", "10 h 45 min"), each figure and its unit at the
  * caption's size. A figure also stands 0.4 of its size clear of the next reading's beyond the
  * row's gap (twice the room a name has, at the default text size), so "7 h 15 min" is never read
  * on into "2 / 5" as one run.
@@ -279,10 +279,11 @@ export function FinishedWorkout({
             className="size-full"
           />
         </figure>
-        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-3">
+        <FitTitle as="h1" sizes={{ base: 30, narrow: 28 }} className="mt-3">
           {title}
         </FitTitle>
-        <p className="meta-line mt-1">
+        {/* When and where, the title's second tone (owner, 28 October 2026). */}
+        <p className="page-fact meta-line">
           {(!justFinished || session.loggedRetrospectively) && (
             <span className="meta-fact">
               <Glyph name="calendar" label="Date" className="glyph-16" />
@@ -327,7 +328,7 @@ export function FinishedWorkout({
           {editing && edit ? (
             <>
               {(warmup || session.exercises.length > 0) && (
-                <ul ref={listRef}>
+                <ul ref={listRef} className="ov-panel ov-panel-list">
                   {warmup && (
                     <li className="record-row">
                       <span className="record-row-name">{warmup}</span>
@@ -383,7 +384,7 @@ export function FinishedWorkout({
           ) : (
             <>
               {(done.length > 0 || warmup) && (
-                <ul>
+                <ul className="ov-panel ov-panel-list">
                   {warmup && (
                     <li className="record-row">
                       <span className="record-row-name">{warmup}</span>{" "}
@@ -478,13 +479,16 @@ export function FinishedWorkout({
         )}
 
         <div className="mt-3">{routine}</div>
-        <button type="button" onClick={onOpenDetails} className="disclosure-summary w-full">
-          <span className="mark-cell">
-            <Glyph name="note" className="glyph-20" />
-          </span>
-          <span className="min-w-0 flex-1 text-left font-bold">Session details</span>
-          <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
-        </button>
+        {/* A row of its own card, as every row that opens something is. */}
+        <div className="ov-panel ov-panel-list mt-3">
+          <button type="button" onClick={onOpenDetails} className="disclosure-summary w-full">
+            <span className="mark-cell">
+              <Glyph name="note" className="glyph-20" />
+            </span>
+            <span className="min-w-0 flex-1 text-left">Session details</span>
+            <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
+          </button>
+        </div>
 
         {justFinished && (
           <PinnedActions stack>

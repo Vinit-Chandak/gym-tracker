@@ -38,7 +38,7 @@ export function CountsAsChoices({
   const [pending, startTransition] = useTransition();
   return (
     <div className="space-y-3">
-      <ul className="ruled-list">
+      <ul className="ov-panel ov-panel-list">
         {choices.map((choice) => {
           const main = (
             <span className="nav-row-main">

@@ -26,15 +26,16 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 ## What each screen keeps, once
 
 - Plan: the week's dates (title), each day's date (the week's own column), today (the disc), each session's sport (its sign), name, figure where the name does not say it, and its answer (Done, Skipped, Missed, as a word) once given. Programmes, as one list: name, how it runs and where it has got to, its sign. Removed: the seven-day strip and its sport bands, "2 of 7 done", Today on rows, stubs and notches, the blue field, ruled headings.
-- A programme's page: name and sign; how it runs and for how long (title's second line); one bar with "Week 1 · 1 of 39 sessions done"; Edit programme, Details, More options; the weeks, the current one open. Removed: the separate "Running programme" headline, "Now", "of 10" (the title says 10 weeks), a sign on every row (every session is a run).
+- A programme's page: name and sign; how it runs and for how long (title's second line); one bar with "Week 1 · 1 of 39 sessions done"; Edit programme and More options, the programme's details inside More options; the weeks, the current one open. Removed: the separate "Running programme" headline, "Now", "of 10" (the title says 10 weeks), a sign on every row (every session is a run).
 - Today: the day, Log; a card per task (title, sign, one ink button, Skip or move, the steps folded); Done as rows. Removed: "0 of 1 done", the programme's name, the ticket stub.
 - Profile: the person (name, handle, avatar, one link to their page), the two counts, Edit profile; Friends with its requests; settings as grouped lists. Removed: the sports chips (the Sports row says it), the field and art behind the header.
 
-## Open decisions
+## Decisions (owner, 28 October 2026: "implement this in the entire app")
 
 - Sport colours stay as the app has them; the move to burnt orange, olive and #b8407f is withdrawn.
-- Host Grotesk replaces Atkinson Hyperlegible Next for words and Jost for figures: one face. The consistency audit's rule that type at 20 px and above is Jost changes in the same commit.
+- Host Grotesk replaces Atkinson Hyperlegible Next for words and Jost for figures: one face. The consistency audit's heading rule now asks for Host Grotesk at 600 or heavier.
 - Days gone by fold into one line instead of one closed row per day (features.md, Plan, This week).
 - New programme moves from the header to the Programmes heading; the header's one action is the week stepper.
-- The ground model flips to a grey ground with white cards on every screen (today Plan and Today sit on white with grey cards, Profile on the grouped ground).
-- DESIGN.md is rewritten only when the owner approves the direction for implementation.
+- The ground model flips to a grey ground with white cards on every screen: every list and block is a card (History's days, Food's meals and foods, the library, a gym's machines, settings, a form's sections, every graph), and what stands in a card steps back to the ground's tone.
+- Each thing is said once on every screen: Overview drops its list of the latest ten under the month (ADR 0045, amended), Today's header says the date alone, a one-sport list (Log's Counts as, a programme's weeks) draws no signs, Programme fit says Available only by its count.
+- DESIGN.md, PRODUCT.md and features.md are rewritten for the built system.

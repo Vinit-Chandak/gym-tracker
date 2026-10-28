@@ -219,11 +219,11 @@ programme"). Old paths redirect permanently ([ADR 0060](docs/decisions/0060-ever
 | What was done today                                                                | Today › Done, a row each that opens its record |
 | This week's sessions by date                                                       | Plan › This week                               |
 | Moving or skipping a run, ride or swim                                             | Plan › This week › the session's page          |
-| How a programme runs and where it has got to                                       | Plan › the programme's card and page           |
+| How a programme runs and where it has got to                                       | Plan › the programme's row and page            |
 | A programme's progress, weeks or days; editing or ending it                        | Plan › the programme's page                    |
 | A programme day's exercises and targets                                            | Plan › the day's page                          |
 | Starting a new programme                                                           | Plan › New programme                           |
-| A first programme, from the request to its start                                   | Plan, beside the programme cards               |
+| A first programme, from the request to its start                                   | Plan, beside the programmes                    |
 | Asking the coach about a programme; its changes, questions and past requests       | Plan › the programme's page                    |
 | Programmes ended or replaced                                                       | Plan › Past programmes                         |
 | What a logged run, ride or swim counts as                                          | Its page › Counts as                           |

@@ -26,6 +26,7 @@
 @theme inline {
   /* The interface: ink on ground. */
   --color-ground: var(--ov-ground);
+  --color-backdrop: var(--ov-backdrop);
   --color-field: var(--ov-field);
   --color-surface-2: var(--ov-surface-2);
   --color-surface-control: var(--ov-surface-control);
@@ -141,6 +142,12 @@
 
   --font-sans: var(--ov-font-body);
   --font-mono: var(--ov-font-mono);
+  /* Host Grotesk's weights for Tailwind's names (owner, 28 October 2026): words 450, rows and
+     controls 600, headings 650, titles 700. */
+  --font-weight-medium: 450;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 650;
+  --font-weight-extrabold: 700;
 
   --radius-card: var(--ov-radius-card);
   --radius-control: var(--ov-radius-control);
@@ -167,48 +174,58 @@
 }
 
 /*
- * The type ramp's roles (DESIGN.md, Typography). Jost carries titles and figures, tabular and
- * lining; Atkinson Hyperlegible Next carries every word read. A role sets the whole voice, so a
- * screen names the role rather than a size, a weight and a family.
+ * The type ramp's roles (DESIGN.md, Typography). One face, Host Grotesk, carries titles,
+ * headings, words and figures; its digits are one width, so figures are tabular as they are set.
+ * A role sets the whole voice, so a screen names the role rather than a size and a weight.
  */
 @utility type-title {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-title);
   font-weight: var(--ov-title-weight);
-  line-height: 1;
+  line-height: 1.12;
   letter-spacing: var(--ov-title-tracking);
 }
 @utility type-display {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-display);
   font-weight: var(--ov-title-weight);
-  line-height: 1.05;
+  line-height: 1.12;
   letter-spacing: var(--ov-title-tracking);
+}
+/* A title's one fact, its second tone: 20, 600, ink 2, under the title (owner, 28 October
+   2026: "This week" over "26 Oct – 1 Nov"). */
+@utility type-fact {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-fact);
+  font-weight: var(--ov-label-weight);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
 }
 @utility type-sheet-title {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-sheet-title);
   font-weight: var(--ov-title-weight);
-  line-height: 1.05;
-  letter-spacing: var(--ov-title-tracking);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
 }
-/* A card's name (a programme, an activity, a request's state): Jost, a step under a sheet's. */
+/* A card that heads a screen (a task on Today, a draft's week): 20, 650, as a section is. */
 @utility type-card-title {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-card-title);
-  font-weight: var(--ov-title-weight);
-  line-height: 1.12;
-  letter-spacing: var(--ov-title-tracking);
+  font-weight: var(--ov-heading-weight);
+  line-height: 1.25;
+  letter-spacing: -0.012em;
   overflow-wrap: break-word;
 }
-/* A section of a screen (DESIGN.md, Typography: Section): Jost 700 in ink, with its own room
+/* A section of a screen (DESIGN.md, Typography: Section): 20, 650, in ink, with its own room
    under it, so a screen's parts read as parts. */
 @utility type-section {
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-section);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  font-weight: var(--ov-heading-weight);
+  line-height: 1.25;
+  letter-spacing: -0.012em;
   overflow-wrap: break-word;
 }
 @utility type-figure-xl {
@@ -256,37 +273,37 @@
 @utility type-heading {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-heading);
-  font-weight: 700;
+  font-weight: var(--ov-label-weight);
   line-height: 1.3;
 }
 @utility type-body {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-body);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.45;
 }
 @utility type-meta {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-meta);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.4;
 }
 @utility type-meta-small {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-meta-small);
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.35;
 }
 @utility type-caption {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-caption);
-  font-weight: 700;
+  font-weight: var(--ov-label-weight);
   line-height: 1.3;
 }
 @utility type-button {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-button);
-  font-weight: 700;
+  font-weight: var(--ov-label-weight);
   line-height: 1;
 }
 @utility type-tab {
@@ -298,7 +315,7 @@
 @utility type-print-label {
   font-family: var(--ov-font-text);
   font-size: var(--ov-type-print-label);
-  font-weight: 700;
+  font-weight: var(--ov-label-weight);
   line-height: 1;
 }
 /*
@@ -340,7 +357,7 @@
   width: calc(calc(15 * var(--ov-u)) + 0.9375rem);
   height: calc(calc(15 * var(--ov-u)) + 0.9375rem);
 }
-/* A figure inside words keeps Jost's tabular lining digits without the role's size. */
+/* A figure inside words keeps tabular lining digits without the role's size. */
 @utility figures {
   font-family: var(--ov-font-display);
   font-variant-numeric: tabular-nums lining-nums;
@@ -416,7 +433,7 @@
     color: var(--ov-ink);
     font-family: var(--ov-font-text);
     font-size: var(--ov-type-body);
-    font-weight: 500;
+    font-weight: var(--ov-text-weight);
     line-height: 1.45;
     /* Stop the rubber-band bounce in standalone (installed) mode. */
     overscroll-behavior-y: none;
@@ -425,7 +442,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* A page's name is a title in Jost; every other heading is a word read, in Atkinson. */
+  /* A page's name is a title; every other heading is a heading's weight (Typography). */
   h1 {
     font-family: var(--ov-font-display);
     font-weight: var(--ov-title-weight);
@@ -435,7 +452,7 @@
 
   h2,
   h3 {
-    font-weight: 700;
+    font-weight: 650;
     line-height: 1.3;
   }
 
@@ -475,7 +492,7 @@
   :focus-visible {
     outline: 3px solid var(--ov-focus);
     outline-offset: 2px;
-    box-shadow: 0 0 0 2px var(--ov-ground);
+    box-shadow: 0 0 0 2px var(--ov-backdrop);
   }
 
   input,
@@ -653,17 +670,15 @@
 
 /*
  * A box: the grouping for anything that belongs together, drawn as every card is (DESIGN.md,
- * Components: Cards, 24 October 2026): the ground inside a hairline, as Today's activity cards
- * are, so a programme's card, a request's state and a day's card are one kind of thing. Grey
- * boxes on a white page read as switched off, and three card styles read as three apps. What
- * stands on it takes the ground's own tones (a tonal button, a tray), which hold on the ground.
- * On a grouped page the box is a panel: the hairline goes, the panel's fill says it.
+ * Components: Cards; owner, 28 October 2026): white on the grey ground, soft-cornered, with no
+ * outline and no shadow, so a programme's list, a request's state and a day's card are one kind
+ * of thing, and every screen is one surface. What stands in it steps to the ground's tone (the
+ * rule after these utilities).
  */
 @utility box {
   min-width: 0;
-  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
-  background: var(--ov-ground);
+  background: var(--ov-panel);
 }
 
 /* Icon dimensions follow the viewport and text size independently of the hit target. */
@@ -699,10 +714,9 @@
  */
 @utility box-rows {
   min-width: 0;
-  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
-  /* The ground inside a hairline, as a box is. */
-  background: var(--ov-ground);
+  /* White on the ground, as a box is. */
+  background: var(--ov-panel);
   :where(& > * + *) {
     border-top: 1px solid var(--ov-line);
   }
@@ -716,6 +730,33 @@
     border-end-start-radius: inherit;
     border-end-end-radius: inherit;
   }
+}
+
+/*
+ * What stands on a card (DESIGN.md, Neutral; owner, 28 October 2026): a card, a list's box, a
+ * panel, Today's activity card and a sheet are white on the grey ground (the card colour in
+ * dark), so what stands in one (a tray, a tonal or a waiting button, anything drawn in the
+ * surface) takes the ground's tone, a step off it, and is never white on white. Zero
+ * specificity, so a part that wants its own fill says so.
+ */
+:where(
+  .box,
+  .box-rows,
+  .ov-panel,
+  .activity-card,
+  .sheet-panel,
+  .graph,
+  .chart-card,
+  .month-card,
+  .fold-list
+) {
+  --ov-backdrop: var(--ov-panel);
+  --ov-surface: var(--ov-panel-tray);
+  --ov-accent-soft: var(--ov-panel-tray);
+  --ov-tray: var(--ov-panel-tray);
+  --ov-waiting: var(--ov-panel-tray);
+  --ov-surface-control: var(--ov-surface-control-on-surface);
+  --ov-surface-control-pressed: var(--ov-surface-control-on-surface-pressed);
 }
 
 /*
@@ -783,9 +824,9 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
  * for a browser without a backdrop filter is an opaque island, never a see-through one.
  */
 /*
- * The tab bar (DESIGN.md, Layout): ground under a hairline, five 44-pt targets (48 dp on
- * Android), then 17 pt, so the targets end 4 clear of the home indicator, or 11 where there is
- * none: 64 pt in all.
+ * The tab bar (DESIGN.md, Layout): a card's white (its colour in dark) under a hairline, five
+ * 44-pt targets (48 dp on Android), then 17 pt, so the targets end 4 clear of the home
+ * indicator, or 11 where there is none: 64 pt in all.
  */
 .primary-nav {
   position: fixed;
@@ -795,7 +836,7 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
   padding: 2px max(calc(6 * var(--ov-u)), env(safe-area-inset-right)) var(--nav-foot)
     max(calc(6 * var(--ov-u)), env(safe-area-inset-left));
   border-top: 1px solid var(--ov-hair);
-  background: var(--ov-ground);
+  background: var(--ov-panel);
 }
 
 /*
@@ -868,7 +909,7 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
   white-space: nowrap;
 }
 .nav-link[aria-current] .nav-label {
-  font-weight: 700;
+  font-weight: 650;
 }
 /* Today lit is the app's mark in its pigments (glyphs.tsx). Forced colours give it back to the
    tab's own colour, as every other glyph is: a pigment could all but vanish on the system's
@@ -957,7 +998,7 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
     border-radius: var(--ov-radius-control);
   }
   .nav-link[aria-current] {
-    background: var(--ov-surface);
+    background: var(--ov-panel-tray);
   }
   .nav-label {
     font-size: var(--ov-type-meta);
@@ -1039,7 +1080,7 @@ html:has(.connectivity) .session-layer[data-spill="true"] > .session-header {
 
 /*
  * A superset member: a 2-px rule in ink at the row's left edge, the bracket that says two rows
- * belong together without a caption (DESIGN.md, Rows and marks). Every group's colour resolves to
+ * belong together without a caption (DESIGN.md, Rows and signs). Every group's colour resolves to
  * ink in this theme, so the rule is drawn in ink outright, with no wash behind the row. The row
  * sets its own left padding, allowing for the rule, so its text lines up with the rows around it.
  */
@@ -1104,7 +1145,7 @@ dialog.sheet[open]::backdrop {
     calc(env(safe-area-inset-bottom) + calc(16 * var(--ov-u)))
     max(var(--ov-gutter), env(safe-area-inset-left));
   border-radius: var(--ov-radius-sheet) var(--ov-radius-sheet) 0 0;
-  background: var(--ov-ground);
+  background: var(--ov-panel);
 }
 
 .sheet-panel[data-compact="true"] {
