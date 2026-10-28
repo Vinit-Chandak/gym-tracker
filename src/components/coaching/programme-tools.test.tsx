@@ -6,9 +6,10 @@ import { ProgrammeTools } from "./programme-tools";
 import type { ReactNode } from "react";
 
 const archived = vi.hoisted(() => vi.fn());
+const copied = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/server/actions/coaching-workflow", () => ({
-  copyProgramAction: vi.fn(),
+  copyProgramAction: copied,
   archiveProgramAction: archived,
 }));
 vi.mock("@/components/ui/app-link", () => ({
@@ -49,6 +50,17 @@ it("offers duplication without ending for a past programme, as itself rather tha
   expect(screen.queryByText("More options")).toBeNull();
   expect(screen.getByRole("button", { name: "Duplicate programme" }).closest("dialog")).toBeNull();
   expect(screen.queryByRole("button", { name: /End/, hidden: true })).toBeNull();
+});
+
+it("says a failed duplicate inside the sheet it was tapped in, not behind its modal", async () => {
+  copied.mockResolvedValueOnce({ ok: false, error: "Could not duplicate the programme." });
+  render(<ProgrammeTools id="programme" />);
+  fireEvent.click(screen.getByRole("button", { name: "More options" }));
+  fireEvent.click(screen.getByRole("button", { name: "Duplicate programme", hidden: true }));
+  const said = await screen.findByText("Could not duplicate the programme.");
+  expect(said.closest("dialog")).not.toBeNull();
+  // Said once: the page behind the sheet does not say it too.
+  expect(screen.getAllByText("Could not duplicate the programme.")).toHaveLength(1);
 });
 
 it("keeps replacement separate from editing, beside it one width, and preserves its sport", () => {

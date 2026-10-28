@@ -51,7 +51,9 @@ export function ProgrammeTools({
   }
   return (
     <div className="space-y-2">
-      <FormError message={error ?? undefined} />
+      {/* A failure is said where the action was tapped: in the sheet while it is open, where
+          the page behind its modal is neither seen nor heard. */}
+      {!more && <FormError message={error ?? undefined} />}
       <div className="programme-management action-row">
         {active && !finished && (
           <Button variant="primary" disabled={pending} onClick={() => copy(false)}>
@@ -62,7 +64,15 @@ export function ProgrammeTools({
           <LinkButton href={`/plan/new?sport=${sport}` as Route}>New programme</LinkButton>
         )}
         {active ? (
-          <Button variant="tonal" aria-haspopup="dialog" onClick={() => setMore(true)}>
+          <Button
+            variant="tonal"
+            aria-haspopup="dialog"
+            onClick={() => {
+              // An earlier failure on the page is not the sheet's to repeat.
+              setError(null);
+              setMore(true);
+            }}
+          >
             More options
           </Button>
         ) : (
@@ -83,6 +93,7 @@ export function ProgrammeTools({
               </section>
             )}
             <div className="space-y-2">
+              <FormError message={error ?? undefined} />
               {!finished && (
                 <LinkButton
                   href={`/plan/new?sport=${sport}` as Route}
