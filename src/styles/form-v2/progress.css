@@ -60,7 +60,8 @@
   font-weight: 650;
   line-height: 1.3;
 }
-:where(*) + .group-caption {
+:where(*) + .group-caption,
+:where(* + section) > .group-caption:first-child {
   margin-top: calc(14 * var(--ov-u));
 }
 
