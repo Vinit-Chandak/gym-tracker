@@ -470,7 +470,9 @@ function inspect() {
       ? bottom
       : bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom);
   };
-  // Painted counts whether or not a screen reader hears it (a calendar's weekday letters).
+  // Painted counts whether or not a screen reader hears it (a calendar's weekday letters). A
+  // closed fold paints its summary alone: Chromium still lays out what it holds, so a field's
+  // label folded away under a card would otherwise read as standing over the next heading.
   const shown = (element) => {
     const box = element.getBoundingClientRect();
     if (box.width < 1 || box.height < 1) return false;
@@ -478,6 +480,10 @@ function inspect() {
       const style = getComputedStyle(at);
       if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0")
         return false;
+      if (at.tagName === "DETAILS" && !at.open && at !== element) {
+        const summary = at.querySelector(":scope > summary");
+        if (!summary?.contains(element)) return false;
+      }
     }
     return !element.closest(".sr-only");
   };
