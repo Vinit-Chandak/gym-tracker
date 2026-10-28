@@ -3,6 +3,13 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { z } from "zod";
 
+import { ActivityMore } from "@/app/(app)/progress/activities/[activityId]/activity-more";
+import {
+  RecordStats,
+  recordStats,
+} from "@/app/(app)/progress/activities/[activityId]/record-stats";
+import { RunLaps } from "@/app/(app)/progress/activities/[activityId]/run-laps";
+import { SavedBar } from "@/app/(app)/progress/activities/[activityId]/saved-bar";
 import { ActivityPlan, sessionLine } from "@/components/activities/activity-plan";
 import {
   enduranceName,
@@ -17,8 +24,8 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CardLink } from "@/components/ui/card-link";
 import { InfoTip } from "@/components/ui/info-tip";
+import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
@@ -26,6 +33,7 @@ import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { putBackGoesNext, sessionStanding, standingByDate } from "@/domain/programme-sessions";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { getActivity } from "@/server/repositories/activities";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import {
   getOccurrence,
@@ -39,9 +47,9 @@ import { readHeartRate } from "@/server/repositories/heart-rate";
 import { requireUuid } from "@/server/validation/params";
 import { EARLY_DAYS } from "@/app/(app)/today/log/log-choices";
 import { DEFAULT_SPORT_UNITS } from "@/lib/distance-units";
-import { FACT_SEPARATOR, holdFigures, joinFacts } from "@/lib/facts";
+import { holdFigures, joinFacts } from "@/lib/facts";
 import { formatIsoDate } from "@/lib/format";
-import { originQuery } from "@/lib/nav";
+import { ORIGIN_PARAM, originQuery } from "@/lib/nav";
 
 /**
  * Everything the page reads, once a request: the document's title is named from it too, so it
@@ -55,6 +63,12 @@ const readSession = cache(async (occurrenceId: string) => {
     user.id,
     async (tx) => {
       const occurrence = await getOccurrence(tx, user.id, occurrenceId);
+      // A run's heart rate reads against the athlete's zones: its plan's zone targets, and the
+      // run that answered it (ADR 0059).
+      const heartRate =
+        occurrence?.sport === "running"
+          ? (await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))).resolved
+          : null;
       return {
         occurrence,
         plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
@@ -69,11 +83,13 @@ const readSession = cache(async (occurrenceId: string) => {
           occurrence && showsClosure(occurrence)
             ? await programmeClosure(tx, user.id, occurrence.familyId, profile.timeZone)
             : null,
-        // A zone target reads in the athlete's own beats (ADR 0059).
-        zones:
-          occurrence?.sport === "running"
-            ? ((await readHeartRate(tx, profile, todayInTimeZone(profile.timeZone))).resolved
-                ?.zones ?? null)
+        zones: heartRate?.zones ?? null,
+        heartRate,
+        // What was done, read here under what was asked rather than on a page of its own
+        // (owner, 28 October 2026).
+        record:
+          occurrence?.resolution.kind === "logged"
+            ? await getActivity(tx, user.id, occurrence.resolution.activityId)
             : null,
       };
     },
@@ -130,17 +146,25 @@ export async function generateMetadata(
   return { title: read.occurrence ? sessionTitle(read, read.occurrence) : "Not found" };
 }
 
+/** What a run, a ride or a swim is called where it is corrected or deleted. */
+const NOUN = { running: "run", cycling: "ride", swimming: "swim" } as const;
+
 /**
  * One scheduled session: what it asks for, what became of it, and what can be done about it
- * (plan §7). Logging, skipping and moving all act on this session and no other. A session of a
+ * (plan §7). Logging, skipping and moving all act on this session and no other. Logged, it reads
+ * what was done under what was asked, and the run is corrected or deleted from here (owner, 28
+ * October 2026): a link on to a page of its own said the run a second time. A session of a
  * programme the athlete has moved on from reads as it did when that programme ended, with one
  * line saying how it ended in place of what could be done (ADR 0054).
  */
 export default async function OccurrencePage(props: PageProps<"/plan/sessions/[occurrenceId]">) {
   const { occurrenceId } = await props.params;
   requireUuid(occurrenceId);
+  // Just kept by its form, opened from here (activity-editor.tsx): a new run, or a correction.
+  const search = await props.searchParams;
+  const saved = search.saved === "new" || search.saved === "changed" ? search.saved : null;
   const read = await readSession(occurrenceId);
-  const { occurrence, units, closure, zones, profile } = read;
+  const { occurrence, units, closure, zones, heartRate, profile } = read;
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
   // Put on the calendar by the athlete, not by a programme: it has no programme week to count
@@ -195,6 +219,65 @@ export default async function OccurrencePage(props: PageProps<"/plan/sessions/[o
   // Log takes a session up to six days ahead (Log, ADR 0058); one further off leads with its
   // plan, and is logged once it is that close.
   const loggable = occurrence.loggable && occurrence.scheduledOn <= addDays(today, EARLY_DAYS);
+  // The run that answered it, and what it is called where it is corrected or deleted.
+  const record = occurrence.resolution.kind === "logged" ? read.record : null;
+  const noun = occurrence.sport === "strength" ? undefined : NOUN[occurrence.sport];
+  // Done, or ended early, and the day it was done where that was not the day it was planned for.
+  const done =
+    occurrence.resolution.kind === "logged"
+      ? joinFacts([
+          occurrence.resolution.outcome === "ended_early" ? "Ended early" : "Done",
+          occurrence.resolution.occurredOn !== occurrence.scheduledOn &&
+            formatIsoDate(occurrence.resolution.occurredOn, year),
+        ])
+      : null;
+
+  // Where it stands, alone: its chip on the page, not a card holding nothing else. Logged, the
+  // card is the plan's line, under Planned.
+  const Headline = record ? "h3" : "h2";
+  const summary =
+    badge && !headline && !planned && !plannedNote && !moved ? (
+      <span className={waited ? "inline-flex items-center gap-1" : undefined}>
+        <Badge tone={badge.tone}>{badge.label}</Badge>
+        {waitedTip}
+      </span>
+    ) : (
+      (headline || badge || planned || plannedNote || (waited && !badge) || moved) && (
+        <Card>
+          {(headline || badge) && (
+            // The badge stands at the headline's end while the headline keeps a few words' room
+            // beside it, and goes under it rather than break "Threshold" in two (large text).
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+              {headline && (
+                // Under Planned once logged, it is that section's heading's to head.
+                <Headline className="min-w-0 flex-[1_1_8rem] type-card-title">{headline}</Headline>
+              )}
+              {badge && (
+                // Wrapped under the headline, it starts the line, as the plan card's badge does
+                // under its words.
+                <span className={waited ? "inline-flex items-center gap-1" : undefined}>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                  {waitedTip}
+                </span>
+              )}
+            </div>
+          )}
+          {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
+          {plannedNote && (
+            <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
+          )}
+          {waited && !badge && (
+            <p className="flex items-center gap-1 text-sm text-ink-muted">
+              Still to do
+              {waitedTip}
+            </p>
+          )}
+          {moved && (
+            <p className="text-sm text-ink-muted">Moved from {formatIsoDate(moved, year)}.</p>
+          )}
+        </Card>
+      )
+    );
 
   return (
     <>
@@ -209,50 +292,58 @@ export default async function OccurrencePage(props: PageProps<"/plan/sessions/[o
           formatIsoDate(occurrence.scheduledOn, year),
         ])}
         backHref={(standalone ? "/plan" : `/plan/${occurrence.sport}`) as Route}
+        action={
+          record && (
+            // The run's own More, here where it is read: correcting or deleting it comes back
+            // to this session.
+            <ActivityMore
+              label={`Correct or delete this ${noun ?? "activity"}`}
+              title={title}
+              editHref={`/progress/activities/${record.id}/edit${originQuery("session")}` as Route}
+              activityId={record.id}
+              noun={noun}
+              answered={occurrence.closed ? "closed" : "reopens"}
+              from="session"
+            />
+          )
+        }
       />
       <PageContent>
-        {/* Where it stands, alone: its chip on the page, not a card holding nothing else. */}
-        {badge && !headline && !planned && !plannedNote && !moved ? (
-          <span className={waited ? "inline-flex items-center gap-1" : undefined}>
-            <Badge tone={badge.tone}>{badge.label}</Badge>
-            {waitedTip}
-          </span>
-        ) : (
-          (headline || badge || planned || plannedNote || (waited && !badge) || moved) && (
-            <Card>
-              {(headline || badge) && (
-                // The badge stands at the headline's end while the headline keeps a few words'
-                // room beside it, and goes under it rather than break "Threshold" in two (large
-                // text).
-                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                  {headline && (
-                    <h2 className="min-w-0 flex-[1_1_8rem] type-card-title">{headline}</h2>
-                  )}
-                  {badge && (
-                    // Wrapped under the headline, it starts the line, as the plan card's badge
-                    // does under its words.
-                    <span className={waited ? "inline-flex items-center gap-1" : undefined}>
-                      <Badge tone={badge.tone}>{badge.label}</Badge>
-                      {waitedTip}
-                    </span>
-                  )}
-                </div>
-              )}
-              {planned && <p className="text-sm text-ink-muted tabular-nums">{planned}</p>}
-              {plannedNote && (
-                <p className="text-sm [overflow-wrap:break-word] text-ink-muted">{plannedNote}</p>
-              )}
-              {waited && !badge && (
-                <p className="flex items-center gap-1 text-sm text-ink-muted">
-                  Still to do
-                  {waitedTip}
+        {saved && record && (
+          <SavedBar
+            activityId={record.id}
+            undo={saved === "new"}
+            origin="session"
+            said={
+              saved === "changed"
+                ? "Changes saved"
+                : `${noun ? noun[0]!.toUpperCase() + noun.slice(1) : "Activity"} saved${
+                    record.actual?.sport === "running" && record.actual.runType === "intervals"
+                      ? " as intervals"
+                      : ""
+                  }`
+            }
+          />
+        )}
+        {record ? (
+          // What was asked, then what was done: the plan's line over the run's figures, its
+          // notes and its laps, where they were a page away behind "See what you logged".
+          <>
+            {summary && <Section title="Planned">{summary}</Section>}
+            <Section title={done ?? "Done"}>
+              <RecordStats stats={recordStats(record, units, heartRate)} />
+              {record.notes && (
+                <p className="box panel-padding type-body [overflow-wrap:break-word] whitespace-pre-wrap">
+                  {record.notes}
                 </p>
               )}
-              {moved && (
-                <p className="text-sm text-ink-muted">Moved from {formatIsoDate(moved, year)}.</p>
-              )}
-            </Card>
-          )
+            </Section>
+            {record.actual?.sport === "running" && (
+              <RunLaps laps={record.actual.laps} units={units} heartRate={heartRate} />
+            )}
+          </>
+        ) : (
+          summary
         )}
 
         {!logged && (
@@ -268,20 +359,8 @@ export default async function OccurrencePage(props: PageProps<"/plan/sessions/[o
           />
         )}
 
-        {occurrence.resolution.kind === "logged" ? (
-          // The way into the record, as Today's card says it: in ink and bold, led on by its
-          // chevron, with the day it was logged. It names the programme, or Plan for a session
-          // of none, as this page's Back does, so Plan stays selected (NAV-03).
-          <Card>
-            <CardLink
-              href={`/progress/activities/${occurrence.resolution.activityId}${originQuery(
-                standalone ? "plan" : "programme",
-              )}`}
-            >
-              {`See what you logged${FACT_SEPARATOR}${formatIsoDate(occurrence.resolution.occurredOn, year)}`}
-            </CardLink>
-          </Card>
-        ) : occurrence.resolution.kind === "legacy_completed" ? (
+        {occurrence.resolution.kind === "logged" ? null : occurrence.resolution.kind ===
+          "legacy_completed" ? (
           <Card>
             <p className="text-sm text-ink-muted">Done before records were kept.</p>
           </Card>
@@ -302,9 +381,10 @@ export default async function OccurrencePage(props: PageProps<"/plan/sessions/[o
         ) : (
           <>
             {/* The page's one primary: logging this session, in its sport's words. */}
+            {/* Kept, the run comes back here, read under its plan (activity-editor.tsx). */}
             {loggable && (
               <LinkButton
-                href={`/today/log/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}`}
+                href={`/today/log/new?occurrence=${occurrence.id}&date=${occurrence.scheduledOn <= today ? occurrence.scheduledOn : today}&${ORIGIN_PARAM}=session`}
                 className="w-full"
               >
                 {occurrence.sport === "strength" ? "Log workout" : LOG_LABEL[occurrence.sport]}

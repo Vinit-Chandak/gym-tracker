@@ -36,9 +36,11 @@ export default async function PastProgrammesPage() {
       <PageHeader title="Past programmes" backHref="/plan" />
       <PageContent>
         {archived.length ? (
-          <ul className="divide-y divide-line">
+          // A card each, as Today's tasks are: a programme and its one action (DESIGN.md, The
+          // One Card Rule).
+          <ul className="space-y-3">
             {archived.map((programme) => (
-              <li key={programme.id} className="space-y-3 py-5">
+              <li key={programme.id} className="box space-y-3 panel-padding">
                 <div>
                   <h2 className="type-card-title">{programme.name}</h2>
                   <p className="text-sm text-ink-2">

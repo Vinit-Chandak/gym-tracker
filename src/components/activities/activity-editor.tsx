@@ -19,7 +19,7 @@ import {
 import type { SportUnits } from "@/lib/distance-units";
 import { formatIsoDate } from "@/lib/format";
 import type { PlannedLap } from "@/lib/run-laps";
-import { originQuery, type NavOrigin } from "@/lib/nav";
+import { originQuery, sessionPath, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
 import type { PlanTarget } from "./activity-form-fields";
@@ -241,12 +241,18 @@ function StoredEditor(props: Props) {
         /* Saving the activity succeeded even if storage is blocked. */
       }
       // The record opens saying it was kept (DESIGN.md, Inputs and choices: a record kept): a
-      // new one with Undo, a correction without, since undoing it would delete the record.
-      const query = originQuery(props.origin ?? null);
+      // new one with Undo, a correction without, since undoing it would delete the record. Kept
+      // from the planned session it answered, that session's page says so, reading it under
+      // its plan (owner, 28 October 2026).
       const saved = `saved=${props.activityId ? "changed" : "new"}`;
-      router.replace(
-        `/progress/activities/${result.savedActivityId}${query ? `${query}&${saved}` : `?${saved}`}`,
-      );
+      if (props.origin === "session" && props.occurrence)
+        router.replace(`${sessionPath(props.occurrence.id)}?${saved}`);
+      else {
+        const query = originQuery(props.origin ?? null);
+        router.replace(
+          `/progress/activities/${result.savedActivityId}${query ? `${query}&${saved}` : `?${saved}`}`,
+        );
+      }
     }
     return result;
   };

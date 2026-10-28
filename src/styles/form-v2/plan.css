@@ -131,9 +131,12 @@
 }
 
 /* ---------- the programmes ---------- */
-/* A programme's row: its name, how it stands and what waits on it, its sign at the end. */
-.plan-programme {
+/* A programme's row: its name, how it stands and what waits on it, its sign at the end, with a
+   card's inset above and below it. It outranks a two-line row's 60 and 8 (rows.css), which had
+   pressed its lines and its 40-pt sign to the card's edge (owner, 28 October 2026). */
+.nav-row.plan-programme {
   min-height: calc(72 * var(--ov-u));
+  padding-block: calc(16 * var(--ov-u));
 }
 .plan-programme > .sport-sign {
   margin-right: calc(4 * var(--ov-u));

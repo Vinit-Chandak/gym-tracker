@@ -7,6 +7,7 @@ import {
   originQuery,
   parseOrigin,
   sectionLabel,
+  sessionPath,
   workoutBackPath,
   workoutOrigin,
   type NavOrigin,
@@ -176,6 +177,8 @@ it.each<[string, NavOrigin, string]>([
   // Correcting a run opened from History does not move you to Plan.
   ["/progress/activities/abc/edit", "history", "/progress"],
   ["/progress/activities/abc", "programme", "/plan"],
+  // Correcting a run from the planned session it answered keeps Plan, where it goes back to.
+  ["/progress/activities/abc/edit", "session", "/plan"],
   // Opened from Today's card, a finished workout or a logged run keeps Today selected.
   ["/workouts/abc", "today", "/today"],
   ["/progress/activities/abc", "today", "/today"],
@@ -215,4 +218,11 @@ it("names an origin on a record's link that the record reads back", () => {
   expect(parseOrigin(query.get("from") ?? undefined)).toBe("history");
   // History's own `from` is a date, which is no origin at all.
   expect(parseOrigin("2026-09-01")).toBeNull();
+});
+
+/** A run read under its plan goes back to that session's page, which Back names as Plan's. */
+it("builds a planned session's page from the session, not from the link", () => {
+  expect(sessionPath("abc")).toBe("/plan/sessions/abc");
+  expect(parseOrigin("session")).toBe("session");
+  expect(originPath("session")).toBe("/plan");
 });

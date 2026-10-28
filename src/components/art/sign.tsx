@@ -58,9 +58,10 @@ const SIGNS: Readonly<Record<Family, ReactNode>> = {
 };
 
 /**
- * A sport's sign in its pigment, the one place a sport's colour stands beside a name: 24 before a
- * session's name in a list, 40 beside a task's title or a programme in a list, 64 once, beside a
- * programme's name on its own page. It says the sport and nothing else: whether the session is
+ * A sport's sign in its pigment, the one place a sport's colour stands beside a name: 16 at the
+ * head of a line of figures (a friend's activity), 24 before a session's name in a list, 40
+ * beside a task's title or a programme in a list, 64 once, beside a programme's name on its own
+ * page. It says the sport and nothing else: whether the session is
  * done, skipped or missed is said in words beside it. Named only when the words beside it do not
  * say the sport; it grows with the reader's text by half, as a glyph does.
  */

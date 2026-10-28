@@ -6,6 +6,7 @@ import { useState } from "react";
 import Link from "@/components/ui/app-link";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
+import type { NavOrigin } from "@/lib/nav";
 
 import { DeleteActivityButton, type AnsweredOnDelete } from "./delete-button";
 
@@ -20,6 +21,7 @@ export function ActivityMore({
   activityId,
   noun,
   answered,
+  from,
 }: {
   /** What More is called aloud: "Correct or delete this run". */
   label: string;
@@ -30,6 +32,8 @@ export function ActivityMore({
   noun?: string;
   /** What deleting it does to the planned session it answered, said before it is done. */
   answered: AnsweredOnDelete;
+  /** Opened on the planned session it answered ("session"): deleting it goes back there. */
+  from?: NavOrigin;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -53,7 +57,12 @@ export function ActivityMore({
           </li>
         </ul>
         <div className="mt-3">
-          <DeleteActivityButton activityId={activityId} noun={noun} answered={answered} />
+          <DeleteActivityButton
+            activityId={activityId}
+            noun={noun}
+            answered={answered}
+            from={from}
+          />
         </div>
       </Sheet>
     </>

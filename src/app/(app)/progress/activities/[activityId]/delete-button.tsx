@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form";
 import { deleteActivityAction } from "@/server/actions/activities";
+import type { NavOrigin } from "@/lib/nav";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 
 /** What deleting does to the planned session an activity answered: none, when it answered none. */
@@ -27,11 +28,14 @@ export function DeleteActivityButton({
   activityId,
   noun = "activity",
   answered,
+  from,
 }: {
   activityId: string;
   /** What it is: "run", "ride", "swim". */
   noun?: string;
   answered: AnsweredOnDelete;
+  /** Deleted from the planned session it answered ("session"), it goes back there. */
+  from?: NavOrigin;
 }) {
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +58,7 @@ export function DeleteActivityButton({
           }
           startTransition(async () => {
             const attempt = await attempted(
-              () => deleteActivityAction(activityId),
+              () => deleteActivityAction(activityId, from),
               OFFLINE_SUBMIT_MESSAGE,
             );
             if (!attempt.ok) setError(attempt.message);

@@ -105,8 +105,10 @@ export function ActivityRow({
           <span className="activity-row-day">{formatRelativeDay(day, today)}</span>
         </span>
         <span className="flex items-center gap-2">
+          {/* At the line's own size, 16, in the column kept for it: a list's 24 stood a head
+              taller than the figures beside it (owner, 28 October 2026). */}
           <span className="grid w-4 shrink-0 justify-items-center">
-            <SportSign sport={MARK[row.sport]} />
+            <SportSign sport={MARK[row.sport]} size={16} />
           </span>
           {/* Its figures tabular: "12,021 lb". */}
           <span className="activity-row-text">

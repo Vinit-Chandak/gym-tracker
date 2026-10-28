@@ -2,13 +2,16 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { plannedOrigin, reportedEffort } from "@/domain/activity";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
+import type { ActivityRecord } from "@/server/repositories/activities";
 import type { ProgrammeOccurrence } from "@/server/repositories/occurrences";
 
 import OccurrencePage, { generateMetadata } from "./page";
 
 const mocks = vi.hoisted(() => ({
   occurrence: vi.fn(),
+  activity: vi.fn(),
   named: vi.fn(),
   closure: vi.fn(),
   focus: null as string | null,
@@ -29,6 +32,13 @@ vi.mock("@/server/repositories/occurrences", () => ({
   getOccurrence: mocks.occurrence,
   namedOccurrence: mocks.named,
   programmeClosure: mocks.closure,
+}));
+vi.mock("@/server/repositories/activities", () => ({ getActivity: mocks.activity }));
+// What the run's More would do, as the page hands it over.
+vi.mock("@/app/(app)/progress/activities/[activityId]/activity-more", () => ({
+  ActivityMore: ({ editHref, from }: { editHref: string; from?: string }) => (
+    <p data-edit={editHref}>More, back to the {from}</p>
+  ),
 }));
 vi.mock("@/server/repositories/coach-plans", () => ({
   activePlanForOccurrence: async () => null,
@@ -72,10 +82,11 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/page-header", () => ({
-  PageHeader: ({ title, meta }: { title: string; meta?: string }) => (
+  PageHeader: ({ title, meta, action }: { title: string; meta?: string; action?: ReactNode }) => (
     <header>
       <h1>{title}</h1>
       <p>{meta}</p>
+      {action}
     </header>
   ),
 }));
@@ -112,14 +123,47 @@ const tempo = {
 /** The session's distance as its line says it, held at its dash. */
 const DISTANCE = "4.2\u2060–\u20605.0\u00a0km";
 
+// The run that answered it, on Thu 6 August: 5.1 km in 31:02, and a word on how it went.
+const answer: ActivityRecord = {
+  id: "a1",
+  sport: "running",
+  startedAt: new Date("2026-08-06T07:00:00Z"),
+  occurredOn: "2026-08-06",
+  recordedTimeZone: "UTC",
+  timeZoneSource: "profile_at_entry",
+  durationMs: 1_862_000,
+  effort: reportedEffort(4),
+  outcome: "logged",
+  title: null,
+  notes: "Strong after the first kilometre.",
+  origin: plannedOrigin(tempo.id, "revision"),
+  revision: 1,
+  actual: {
+    sport: "running",
+    environment: "outdoor",
+    distance: { value: 5.1, unit: "km", metres: 5100 },
+    durationMs: 1_862_000,
+    runType: null,
+    surface: null,
+    elevationGainMetres: null,
+    treadmillInclinePercent: null,
+    averageHeartRate: null,
+    maxHeartRate: null,
+    cadenceStepsPerMinute: null,
+    laps: [],
+  },
+};
+
 const props = {
   params: Promise.resolve({ occurrenceId: tempo.id }),
+  searchParams: Promise.resolve({}),
 } as unknown as PageProps<"/plan/sessions/[occurrenceId]">;
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
   mocks.occurrence.mockResolvedValue(tempo);
+  mocks.activity.mockResolvedValue(answer);
   mocks.named.mockResolvedValue(null);
   mocks.closure.mockResolvedValue(null);
   mocks.closure.mockClear();
@@ -143,19 +187,55 @@ it("is named for its day, and keeps a line of its plan once it is logged", async
   expect(html).toContain("10K effort");
   // Said once: the card is not also headed by the distance the line under it starts with.
   expect(html.split(DISTANCE)).toHaveLength(2);
-  // A date of this year is said without its year; the day it was logged is said with the way
-  // to what was logged, once.
-  expect(html).toContain(
-    'See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug',
-  );
+  // A date of this year is said without its year; the day it was done is said once, beside
+  // Done, since it was not the day it was planned for.
+  expect(html).toMatch(/<h2[^>]*>Done ·\u00a0Thu\u00a06\u00a0Aug<\/h2>/);
   expect(html).not.toContain("Logged on");
   expect(html).not.toContain("2026");
+});
+
+/**
+ * Owner, 28 October 2026: "See what you logged" opened another page to say the run, which read as
+ * a second page for one session. What was asked and what was done are read here, one under the
+ * other, and the run is corrected or deleted from here, coming back to this session.
+ */
+it("reads what was done under what was asked, with no page of its own to open", async () => {
+  const html = renderToStaticMarkup(await OccurrencePage(props));
+  expect(html).not.toContain("See what you logged");
+  expect(html).not.toContain('href="/progress/activities/a1"');
+  const planned = html.search(/<h2[^>]*>Planned<\/h2>/);
+  const done = html.search(/<h2[^>]*>Done[^<]*<\/h2>/);
+  expect(planned).toBeGreaterThan(-1);
+  expect(done).toBeGreaterThan(planned);
+  // The run's figures, and its notes, under Done.
+  const run = html.slice(done);
+  expect(run).toContain(">5.1<");
+  expect(run).toContain("31:02");
+  expect(run).toContain("6:05");
+  expect(run).toContain("Strong after the first kilometre.");
+  // Its More, opened here, comes back here.
+  expect(html).toContain(
+    '<p data-edit="/progress/activities/a1/edit?from=session">More, back to the session</p>',
+  );
+});
+
+/** Corrected from here, the session says the change was kept, with nothing to undo. */
+it("says a correction kept from here was kept", async () => {
+  const html = renderToStaticMarkup(
+    await OccurrencePage({
+      ...props,
+      searchParams: Promise.resolve({ saved: "changed" }),
+    } as unknown as PageProps<"/plan/sessions/[occurrenceId]">),
+  );
+  expect(html).toContain("Changes saved");
+  expect(html).not.toContain("Undo");
 });
 
 it("is headed by what its day is for, and the target is said once", async () => {
   mocks.focus = "Threshold";
   const logged = renderToStaticMarkup(await OccurrencePage(props));
-  expect(logged).toMatch(/<h2[^>]*>Threshold<\/h2>/);
+  // Under Planned once logged, the headline heads its card beneath that section's heading.
+  expect(logged).toMatch(/<h3[^>]*>Threshold<\/h3>/);
   expect(logged.split(DISTANCE)).toHaveLength(2);
   // Still to do, the plan's own card says the target; the card over it says what it is for.
   mocks.occurrence.mockResolvedValue({
@@ -166,19 +246,6 @@ it("is headed by what its day is for, and the target is said once", async () => 
   const pending = renderToStaticMarkup(await OccurrencePage(props));
   expect(pending).toMatch(/<h2[^>]*>Threshold<\/h2>/);
   expect(pending.split(DISTANCE)).toHaveLength(2);
-});
-
-/**
- * Year audit, October 2026: "See what you logged" was ink on ink, read as a second line of the
- * sentence above it. It is the way into the record, said as Today's card says it: bold, led on by
- * its chevron, in a target's height. It names the programme it is opened from, so the record
- * keeps Training selected and goes back to it (NAV-03).
- */
-it("leads into what was logged as Today's card does", async () => {
-  const html = renderToStaticMarkup(await OccurrencePage(props));
-  expect(html).toMatch(
-    /<a href="\/progress\/activities\/a1\?from=programme" class="activity-card-link">See what you logged <span class="activity-card-link-end">·\u00a0Thu\u00a06\u00a0Aug<svg[^>]*class="[^"]*glyph-18[^"]*"/,
-  );
 });
 
 /**
@@ -335,7 +402,7 @@ it("reads a replaced programme's logged session by what was logged", async () =>
   mocks.named.mockResolvedValue({ dayName: "Tempo run", dayFocus: null });
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("<h1>Tempo run</h1>");
-  expect(html).toContain("See what you logged");
+  expect(html).toMatch(/<h2[^>]*>Done[^<]*<\/h2>/);
   expect(html).not.toContain("made way");
   expect(mocks.closure).not.toHaveBeenCalled();
 });
@@ -348,6 +415,10 @@ it("offers the running programme's session its actions", async () => {
   });
   const html = renderToStaticMarkup(await OccurrencePage(props));
   expect(html).toContain("Log run");
+  // Kept, the run comes back to this session, read under its plan.
+  expect(html).toContain(
+    `href="/today/log/new?occurrence=${tempo.id}&amp;date=2026-07-23&amp;from=session"`,
+  );
   expect(html).toContain("Skip, put back or move.");
   expect(html).not.toContain("made way");
   expect(mocks.closure).not.toHaveBeenCalled();

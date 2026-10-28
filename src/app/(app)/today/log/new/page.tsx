@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
+import { plannedName } from "@/components/activities/endurance-line";
 import { OccurrenceSettled, settledTitle } from "@/components/activities/occurrence-settled";
 import { showsClosure } from "@/components/activities/programme-closure";
 import { SessionPage } from "@/components/shell/session-page";
@@ -13,7 +14,7 @@ import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain
 import { describePrescription } from "@/domain/activity-prescription";
 import { formatIsoDate } from "@/lib/format";
 import { plannedLaps } from "@/lib/run-laps";
-import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
+import { ORIGIN_PARAM, originPath, parseOrigin, sessionPath } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { z } from "zod";
@@ -206,7 +207,15 @@ export default async function NewActivityPage(props: PageProps<"/today/log/new">
       meta={
         selectedDate < today ? `For ${formatIsoDate(selectedDate, today.slice(0, 4))}` : undefined
       }
-      back={{ href: originPath(origin) as Route }}
+      back={
+        // Opened from its session's page, it goes back there, named as that session is.
+        origin === "session" && occurrence
+          ? {
+              href: sessionPath(occurrence.id),
+              label: plannedName(occurrence.prescription, occurrence.sport, units),
+            }
+          : { href: originPath(origin) as Route }
+      }
     >
       <ActivityEditor
         {...shared}
