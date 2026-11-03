@@ -89,6 +89,12 @@ export class EmptyMealError extends Error {
   }
 }
 
+export class EmptyDayError extends Error {
+  constructor() {
+    super("There is nothing on this day to copy.");
+  }
+}
+
 export class SavedMealTooLargeError extends Error {
   constructor() {
     super(`A saved meal holds at most ${NUTRITION_LIMITS.itemsPerMeal} foods.`);
@@ -717,6 +723,38 @@ export async function logSavedMeal(
       updatedAt: sql`${savedMeals.updatedAt}`,
     })
     .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, savedMealId)));
+}
+
+/**
+ * Copies everything eaten on one day to another, each food to the same meal, as it was logged:
+ * the same figures and amounts, in the same order. What the day copied to already holds stays,
+ * and the copies follow it. A food since deleted from My foods is still copied; its entry has
+ * already lost its link to My foods. Returns how many foods were copied.
+ */
+export async function copyFoodDay(
+  db: DbOrTx,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<number> {
+  const entries = await db
+    .select(ENTRY_COLUMNS)
+    .from(foodEntries)
+    .where(and(eq(foodEntries.userId, userId), eq(foodEntries.eatenOn, from)))
+    .orderBy(...ENTRY_ORDER);
+  if (entries.length === 0) throw new EmptyDayError();
+  // Inserted together, they share one moment, so their positions alone keep the day's order.
+  await db
+    .insert(foodEntries)
+    .values(
+      entries.map((entry, position) =>
+        entryValues(userId, { eatenOn: to, meal: entry.meal }, entry, position),
+      ),
+    );
+  await touchFoods(db, userId, [
+    ...new Set(entries.flatMap((entry) => (entry.foodId ? [entry.foodId] : []))),
+  ]);
+  return entries.length;
 }
 
 /**

@@ -325,6 +325,18 @@ export type SaveMealDraft = z.input<typeof saveMealSchema>;
 export const logSavedMealSchema = z.object({ ...PLACE, savedMealId: z.uuid() });
 export type LogSavedMealDraft = z.input<typeof logSavedMealSchema>;
 
+/**
+ * A day's food copied to a later one: to today, as the page knew it, which stays its day past
+ * midnight. Only an earlier day is copied, so a day is never copied onto itself.
+ */
+export const copyFoodDaySchema = z
+  .object({ submissionKey: z.uuid().optional(), from: z.iso.date(), to: z.iso.date() })
+  .refine((input) => input.from < input.to, {
+    path: ["from"],
+    message: "Only a day before today can be copied.",
+  });
+export type CopyFoodDayDraft = z.input<typeof copyFoodDaySchema>;
+
 /** Zod's issues as the sheet reads them: the first message for each dotted path. */
 export function issuesByPath(issues: z.ZodError["issues"]): Record<string, string> {
   const errors: Record<string, string> = {};

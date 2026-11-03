@@ -11,10 +11,12 @@ import { ensureProfile } from "@/server/queries/profile";
 
 import {
   AmountTooLargeError,
+  copyFoodDay,
   createFood,
   deleteEntry,
   deleteFood,
   deleteSavedMeal,
+  EmptyDayError,
   EmptyMealError,
   EntryNotFoundError,
   FoodNameTakenError,
@@ -39,6 +41,7 @@ import {
   submitFoodOnce,
   updateEntryAmount,
   updateFood,
+  type FoodDay,
 } from "./nutrition";
 
 let t: TestDatabase;
@@ -920,6 +923,69 @@ describe("days with food on them", () => {
 
   it("never reads another account's days", async () => {
     expect(await as(other, (tx) => readFoodDays(tx, user.id, JUNE))).toEqual([]);
+  });
+});
+
+describe("copying a day", () => {
+  // Days no other test logs on, so what is read is only what is logged here.
+  const FROM = "2025-05-10";
+  const TO = "2025-05-12";
+  const shape = ({ id: _id, eatenOn: _on, ...rest }: FoodDay["entries"][number]) => rest;
+
+  it("copies every food to the same meal, as logged and in order, after what the day holds", async () => {
+    const copier = await t.createAuthUser("copier@example.test");
+    await as(copier, (tx) => ensureProfile(tx, copier));
+    await as(copier, (tx) =>
+      logFood(tx, copier.id, at("breakfast", FROM), { food: OATS, amount: 45 }),
+    );
+    await as(copier, (tx) =>
+      logFood(tx, copier.id, at("lunch", FROM), { food: MILK, amount: 333 }),
+    );
+    await as(copier, (tx) => logQuickFood(tx, copier.id, at("dinner", FROM), TAKEAWAY));
+    const oats = await foodId(copier, "Oats");
+    await as(copier, (tx) =>
+      logFood(tx, copier.id, at("breakfast", FROM), { food: { id: oats }, amount: 20 }),
+    );
+    // Something is already logged on the day copied to, and it stays, first.
+    await as(copier, (tx) => logQuickFood(tx, copier.id, at("morning_snack", TO), TAKEAWAY));
+    const before = await as(copier, (tx) => readFoodDay(tx, copier.id, FROM));
+
+    expect(await as(copier, (tx) => copyFoodDay(tx, copier.id, FROM, TO))).toBe(4);
+
+    const after = await as(copier, (tx) => readFoodDay(tx, copier.id, TO));
+    expect(after.entries[0]).toMatchObject({ meal: "morning_snack", name: "Thai takeaway" });
+    const copied = after.entries.slice(1);
+    expect(copied.map(shape)).toEqual(before.entries.map(shape));
+    expect(copied.every((entry) => entry.eatenOn === TO)).toBe(true);
+    expect(after.eaten.kcal).toBeCloseTo(before.eaten.kcal + TAKEAWAY.kcal, 1);
+    // The day copied from is left as it was.
+    expect(await as(copier, (tx) => readFoodDay(tx, copier.id, FROM))).toEqual(before);
+  });
+
+  it("copies a food since deleted from My foods, unlinked", async () => {
+    const copier = await t.createAuthUser("copier-deleted@example.test");
+    await as(copier, (tx) => ensureProfile(tx, copier));
+    await as(copier, (tx) =>
+      logFood(tx, copier.id, at("lunch", FROM), { food: MILK, amount: 500 }),
+    );
+    const milk = await foodId(copier, "Milk");
+    await as(copier, (tx) => deleteFood(tx, copier.id, milk));
+    await as(copier, (tx) => copyFoodDay(tx, copier.id, FROM, TO));
+    const [entry] = (await as(copier, (tx) => readFoodDay(tx, copier.id, TO))).entries;
+    expect(entry).toMatchObject({ meal: "lunch", name: "Milk", amount: 500, foodId: null });
+  });
+
+  it("refuses a day with nothing on it, and another account's day, writing nothing", async () => {
+    await expect(as(user, (tx) => copyFoodDay(tx, user.id, "2025-05-01", TO))).rejects.toThrow(
+      EmptyDayError,
+    );
+    const copier = await t.createAuthUser("copier-other@example.test");
+    await as(copier, (tx) => ensureProfile(tx, copier));
+    await as(copier, (tx) => logQuickFood(tx, copier.id, at("lunch", FROM), TAKEAWAY));
+    await expect(as(other, (tx) => copyFoodDay(tx, copier.id, FROM, TO))).rejects.toThrow(
+      EmptyDayError,
+    );
+    expect((await as(copier, (tx) => readFoodDay(tx, copier.id, TO))).entries).toEqual([]);
   });
 });
 

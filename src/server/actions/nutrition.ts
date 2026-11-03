@@ -12,10 +12,12 @@ import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   AmountTooLargeError,
+  copyFoodDay,
   createFood,
   deleteEntry,
   deleteFood,
   deleteSavedMeal,
+  EmptyDayError,
   EmptyMealError,
   EntryNotFoundError,
   FoodNameTakenError,
@@ -38,6 +40,7 @@ import {
 } from "@/server/repositories/nutrition";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
+  copyFoodDaySchema,
   createFoodSchema,
   createLibraryFoodSchema,
   issuesByPath,
@@ -49,6 +52,7 @@ import {
   targetsInputSchema,
   updateEntrySchema,
   updateFoodSchema,
+  type CopyFoodDayDraft,
   type CreateFoodDraft,
   type CreateLibraryFoodDraft,
   type LogFoodDraft,
@@ -78,6 +82,7 @@ function describe(error: unknown): FoodActionResult {
     error instanceof SavedMealNotFoundError ||
     error instanceof SavedMealChangedError ||
     error instanceof EmptyMealError ||
+    error instanceof EmptyDayError ||
     error instanceof SavedMealTooLargeError ||
     error instanceof FoodSubmissionConflictError
   ) {
@@ -222,6 +227,18 @@ export async function logSavedMealAction(draft: LogSavedMealDraft): Promise<Food
   return change(user, (tx) => logSavedMeal(tx, user.id, savedMealId, { eatenOn, meal }), {
     eatenOn,
     receipt: { key: submissionKey, payload: { kind: "saved", ...parsed.data } },
+  });
+}
+
+/** Copies everything eaten on a day before today to today, added to what today holds. */
+export async function copyFoodDayAction(draft: CopyFoodDayDraft): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = copyFoodDaySchema.safeParse(draft);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  const { submissionKey, from, to } = parsed.data;
+  return change(user, (tx) => copyFoodDay(tx, user.id, from, to), {
+    eatenOn: to,
+    receipt: { key: submissionKey, payload: { kind: "copy-day", ...parsed.data } },
   });
 }
 
