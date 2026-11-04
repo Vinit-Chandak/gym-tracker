@@ -3,6 +3,7 @@ import { Fragment } from "react";
 
 import { STRATA } from "@/components/art/geometry";
 import { paintToken } from "@/components/art/shapes";
+import { CopyDayToToday } from "@/components/food/copy-day";
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
 import { FoodRowText, RowKcal } from "@/components/food/food-row";
 import { FoodSummary, mealTotals } from "@/components/food/food-summary";
@@ -158,7 +159,7 @@ function FoodTile({
  * in the order they are eaten, each led by its layer of the bowl and opening a page to add to
  * it, then the targets and My foods, each a screen of its own. Until there is a target, asking
  * for one stands where the bowl would be. A day before today reads and changes exactly as today
- * does.
+ * does, and one with food on it can be copied whole to today.
  */
 export function FoodView({
   today,
@@ -250,6 +251,16 @@ export function FoodView({
                 );
               })}
             </ul>
+            {/* A day before today with food on it can be eaten again: copied whole to today. */}
+            {date < today && day.entries.length > 0 && (
+              <CopyDayToToday
+                from={date}
+                today={today}
+                foods={day.entries.length}
+                kcal={day.eaten.kcal}
+                todayHref={links.base}
+              />
+            )}
 
             <div className="food-tiles">
               <FoodTile href={links.targets} glyph="target" title="Targets" lines={[attention]} />

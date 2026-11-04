@@ -310,6 +310,11 @@
 }
 
 /* ---------- the account's pages: the targets, My foods ---------- */
+/* Copying a day before today to today, under its meals. */
+.food-copy-day {
+  width: 100%;
+  margin-top: calc(12 * var(--ov-u));
+}
 .food-tiles {
   display: flex;
   flex-wrap: wrap;

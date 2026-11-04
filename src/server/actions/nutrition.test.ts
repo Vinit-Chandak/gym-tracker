@@ -11,6 +11,7 @@ const ENTRY = "00000000-0000-4000-8000-000000000004";
 const KEY = "00000000-0000-4000-8000-000000000009";
 
 const mocks = vi.hoisted(() => ({
+  copyFoodDay: vi.fn(),
   logFood: vi.fn(),
   logQuickFood: vi.fn(),
   createFood: vi.fn(),
@@ -52,6 +53,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import {
   AmountTooLargeError,
+  EmptyDayError,
   EmptyMealError,
   EntryNotFoundError,
   FoodNameTakenError,
@@ -60,6 +62,7 @@ import {
 } from "@/server/repositories/nutrition";
 
 import {
+  copyFoodDayAction,
   createFoodAction,
   createLibraryFoodAction,
   deleteEntryAction,
@@ -150,6 +153,7 @@ it.each([undefined, "false", "someone-else@example.test"])(
       await deleteFoodAction(FOOD),
       await createLibraryFoodAction({ submissionKey: KEY, ...FIELDS }),
       await saveLibraryMealAction({ name: "Usual", items: [{ foodId: FOOD, amount: "80" }] }),
+      await copyFoodDayAction({ from: "2026-09-25", to: TODAY }),
     ]) {
       expect(result).toEqual({ ok: true });
     }
@@ -159,9 +163,9 @@ it.each([undefined, "false", "someone-else@example.test"])(
     // The calendar's read is not a change, and none of these reads it.
     const { logFood: _both, submitFoodOnce: _receipt, readFoodDays: _read, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
-    // Thirteen changes, each refreshing the five screens food is shown on and Progress, whose
+    // Fourteen changes, each refreshing the five screens food is shown on and Progress, whose
     // Food graphs draw what each day came to.
-    expect(revalidatePath).toHaveBeenCalledTimes(78);
+    expect(revalidatePath).toHaveBeenCalledTimes(84);
     expect(revalidatePath).toHaveBeenCalledWith("/progress");
     expect(revalidatePath).toHaveBeenCalledWith("/food");
     expect(revalidatePath).toHaveBeenCalledWith("/food/[meal]", "page");
@@ -190,6 +194,36 @@ it("logs a food from My foods in the meal and on the day the page was showing", 
     { kind: "log", ...draft, amount: 200 },
     expect.any(Function),
   );
+});
+
+it("copies a day before today to today, once for a retried key", async () => {
+  const draft = { submissionKey: KEY, from: "2026-09-20", to: TODAY };
+  expect(await copyFoodDayAction(draft)).toEqual({ ok: true });
+  expect(mocks.copyFoodDay).toHaveBeenCalledWith(expect.anything(), USER, "2026-09-20", TODAY);
+  expect(mocks.submitFoodOnce).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    KEY,
+    { kind: "copy-day", ...draft },
+    expect.any(Function),
+  );
+  vi.clearAllMocks();
+  // Never onto itself or an earlier day, never to a day still to come, never a day with nothing.
+  expect(await copyFoodDayAction({ from: TODAY, to: TODAY })).toEqual({
+    ok: false,
+    error: "Only a day before today can be copied.",
+  });
+  expect(await copyFoodDayAction({ from: TODAY, to: "2026-09-27" })).toEqual({
+    ok: false,
+    error: "Food cannot be logged for a day that has not come yet.",
+  });
+  expect(mocks.copyFoodDay).not.toHaveBeenCalled();
+  mocks.copyFoodDay.mockRejectedValueOnce(new EmptyDayError());
+  expect(await copyFoodDayAction({ from: "2026-09-20", to: TODAY })).toEqual({
+    ok: false,
+    error: "There is nothing on this day to copy.",
+  });
+  expect(revalidatePath).not.toHaveBeenCalled();
 });
 
 it("keeps a new food in My foods by logging it", async () => {

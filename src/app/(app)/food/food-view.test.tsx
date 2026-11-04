@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
@@ -28,7 +28,16 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/back-link", () => ({ BackLink: () => null }));
-vi.mock("@/server/actions/nutrition", () => ({ readFoodMonthAction: vi.fn(async () => []) }));
+const copyFoodDayAction = vi.hoisted(() => vi.fn(async () => ({ ok: true as const })));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("@/server/actions/nutrition", () => ({
+  readFoodMonthAction: vi.fn(async () => []),
+  copyFoodDayAction,
+}));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ push, prefetch: vi.fn(), refresh: vi.fn() }),
+}));
 const { showModal, close } = HTMLDialogElement.prototype;
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -306,4 +315,34 @@ it("says a day before today had none of a macronutrient, and today that there is
   cleanup();
   view([]);
   expect(fat().getByText("Nothing yet today.")).toBeTruthy();
+});
+
+it("copies a day before today with food on it to today, saying what goes, then opens today", async () => {
+  view([entry("breakfast", "Oats", 300), entry("dinner", "Home food", 400)], {
+    date: "2026-09-24",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Copy to today" }));
+  const sheet = within(screen.getByRole("dialog", { name: "Copy to today?" }));
+  expect(
+    sheet.getByText(
+      whole(
+        /^2\sfoods\s·\s700\skcal from Thursday\s24\sSeptember, each to the same meal\. Anything already logged today stays\.$/,
+      ),
+    ),
+  ).toBeTruthy();
+  await act(async () => fireEvent.click(sheet.getByRole("button", { name: "Copy to today" })));
+  expect(copyFoodDayAction).toHaveBeenCalledWith({
+    submissionKey: expect.any(String),
+    from: "2026-09-24",
+    to: "2026-09-25",
+  });
+  expect(push).toHaveBeenCalledWith("/food");
+});
+
+it("offers no copy for today, or for a day before it with nothing on it", () => {
+  view([entry("breakfast", "Oats", 300)]);
+  expect(screen.queryByRole("button", { name: "Copy to today" })).toBeNull();
+  cleanup();
+  view([], { date: "2026-09-24" });
+  expect(screen.queryByRole("button", { name: "Copy to today" })).toBeNull();
 });

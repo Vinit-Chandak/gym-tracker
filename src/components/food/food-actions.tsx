@@ -13,6 +13,7 @@ const previewChange = async (): Promise<FoodActionResult> => ({
 
 /** Fixture screens can exercise every form without reading or writing a signed-in account. */
 const previewActions: typeof actions = {
+  copyFoodDayAction: previewChange,
   createFoodAction: previewChange,
   createLibraryFoodAction: previewChange,
   deleteEntryAction: previewChange,
